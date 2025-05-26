@@ -1,0 +1,170 @@
+@name Engine
+@inputs Screen:wirelink Key Forward Backward
+@outputs Power
+@persist Status Broken Fuel Oil Heat Total SpeedMin SpeedMed SpeedMax
+@trigger all
+interval(500)
+runOnSignal("refuel", 0, 1)
+runOnSignal("reoil", 0, 1)
+runOnSignal("repair", 0, 1)
+
+if(first() | duped()){
+
+    #ScreenDrawing
+    Screen:setNumber("Reset", 1)
+    Screen:setNumber("Reset", 0)
+    Screen:writeString("     SYSTEM INFORMATION      ", 0, 0, 900, 50)
+    Screen:writeString("Engine:", 0, 1, 50)
+    Screen:writeString("Fuel:", 0, 2, 50)
+    Screen:writeString("Oil:", 0, 3, 50)
+    Screen:writeString("Heat:", 0, 4, 50)
+    Screen:writeString("Speed:", 0, 5, 50)
+    Screen:writeString("Total passed:", 0, 6, 50)
+    Screen:writeString("                             ", 0, 17, 900, 50)
+    #Speeds
+    SpeedMin = 30
+    SpeedMed = 50
+    SpeedMax = 80
+    #Start values
+    Fuel = 100
+    Oil = 100
+    Heat = 0
+}
+if(clk()){
+    ########################################
+    # VISUAL ANNOUNCEMENTS                 #
+    ########################################
+    Speed = entity():vel():length()
+    Speedunits = entity():vel():length()
+    Speed = toUnit("km/h", Speed)
+ 
+    #Status(online\offline)
+    if(Status){
+        Screen:writeString("Online  ", 8, 1, 900, 90)
+    }else{
+        Screen:writeString("Offline ", 8, 1, 90, 900)
+    }
+    #Fuel
+    if(Fuel <= 0){
+        Screen:writeString("Empty      ", 6, 2, 900)
+    } else {
+        Percents = ceil(Fuel / 10)
+        Screen:writeString("#":repeat(Percents)+"    ", 6, 2, 90)
+    }
+    #Oil
+    if(Oil <= 0){
+        Screen:writeString("Empty      ", 4, 3, 900)
+    } else {
+        Percents = ceil(Oil / 10)
+        Screen:writeString("  "+"#":repeat(Percents)+"    ", 4, 3, 90)
+    }
+    #Heat
+    Percents = ceil(Heat / 10)
+    Screen:writeString("#":repeat(Percents)+"    ", 6, 4, 900)
+    #Speed
+    Screen:writeString(toString(floor(Speed))+" KM/H ", 7, 5, 90)
+    #TotalSpeed
+    Ms = toUnit("m/s", Speedunits) / 2
+    if(Status){Total = Total + Ms}
+    if(Total>100){
+    Screen:writeString(toString(floor(Total / 1000, 2))+" KM ",14,6,90)
+}
+    
+    
+    ###########################
+    #      ENGINE JOB         #
+    ###########################
+    
+    if(!Status & Heat>0){
+        Heat--
+    }
+    if(Status){
+        #HEATING
+        if(Speed > 1 & Speed < SpeedMin& (Forward | Backward)){
+            Heat+=3
+            Oil-=1
+        } elseif(Speed > SpeedMin & Speed < SpeedMed& (Forward | Backward)){
+            Heat+=2
+            Oil-=0.5
+        } elseif(Speed > SpeedMed& (Forward | Backward)) {
+            #Do nothing
+        }
+        if(Oil > 80){
+            if(Heat>2){Heat-=2}
+        }elseif(Oil < 80 & Oil > 60){
+            if(Heat>2){Heat-=1.5}
+        }elseif(Oil > 40 & Oil < 60){
+            if(Heat>2){Heat--}
+        }elseif(Oil < 40 & Oil > 20){
+            if(Heat>2){Heat-=0.7}
+        }elseif(Oil<20&Oil>0){
+            if(Heat>2){Heat-=0.2}
+        }elseif(Oil==0){
+            #Do nothing
+        }
+        #FUEL
+        if(Speed > 0 & Speed < SpeedMin & (Forward | Backward)){
+            Fuel-=0.05
+        } elseif(Speed > SpeedMin & Speed < SpeedMed&(Forward | Backward)){
+            Fuel-=0.2
+        } elseif(Speed > SpeedMed&(Forward | Backward)) {
+            Fuel-=0.5
+        }
+        #ENGINE STATUS CHECKOUT
+        Halt = 0
+        if(Fuel<=0){
+            Halt = 1
+        }
+        if(Heat>=100){
+            Broken = 1
+            Halt = 1
+        }
+        if(Halt){
+            Power = 0
+            Status = 0
+            soundPlay(3, 0, "vehicles/jetski/jetski_off.wav")
+        }
+    }
+}
+
+###############################
+#   ENGINE STATUS             #
+###############################
+if(Key & !clk()){
+    if(!Status){
+    Turning = 1
+    if(Heat > 80){
+        Turning = 0
+    }
+    if(Fuel <= 0){
+        Turning = 0
+        soundPlay(2, 0, "vehicles/jetski/jetski_no_gas_start.wav")
+    }
+    if(Oil <= 0){
+        Turning = 0
+    }
+    if(Broken){
+        Turning = 0
+    }
+    soundPlay(1, 0.5, "vehicles/v8/v8_start_loop1.wav")
+    if(Turning){
+    Power = 1
+    Status = 1
+    }
+    } else {
+    Status = 0
+    Power = 0
+    soundPlay(1, 0.1, "vehicles/v8/v8_stop1.wav")
+    }
+}
+#print(toString(Heat))
+#Signalzzzz
+if(signalClk("refuel")){
+    Fuel = 100
+}
+if(signalClk("reoil")){
+    Oil = 100
+}
+if(signalClk("repair")){
+    Broken = 0
+}

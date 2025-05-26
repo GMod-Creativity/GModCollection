@@ -1,0 +1,132 @@
+@name Splitting Prop
+@inputs 
+@outputs 
+@persist [Props LoadD Pos Ang Color Material Alpha LSS LS2]:array [Chat I PropNo] [PropS SaveN LoadN Data LS]:string [Prop P2 P E]:entity
+@trigger 
+runOnChat(1)
+interval(500)
+P = owner()
+E = entity()
+LS = P:lastSaid()
+LSS = LS:explode(" ")
+LS2 = LS:explode(":")
+Chat = chatClk(P)
+if(first()){
+    PropS = "models/props_junk/wood_crate001a.mdl"
+    PropNo = 0
+    function hide(){
+            hideChat(1)
+            printColor(vec(0,0,255),"[Hidden]",vec(random(0,255),random(0,255),random(0,255)),+P  :name(),vec(255,255,255),": "+LS)
+    }
+    Color[1,vector] = vec(255,255,255)
+    Material[1,string] = "nil"
+    Alpha[1,number] = 255
+}
+if(LS == "/start" & Chat &!Props[1,entity]){
+    hide()
+    timer("HC",100)
+}
+if(clk("HC")){
+    Props[1,entity] = propSpawn(PropS,E:pos()+vec(0,0,10),E:angles(),0)
+    Props[1,entity]:setColor(Color[1,vector])
+    Props[1,entity]:setMaterial(Material[1,string])
+    Props[1,entity]:setAlpha(Alpha[1,number])
+}
+for(I = 1,Props:count()){
+    if(Props[I,entity]){
+        Pos[I,vector] = Props[I,entity]:pos()
+        Ang[I,angle] = Props[I,entity]:angles()
+        Color[I,vector] = Props[I,entity]:getColor()
+        Material[I,string] = Props[I,entity]:getMaterial()
+        Alpha[I,number] = Props[I,entity]:getAlpha()
+    }
+    if(!Props[I,entity]){
+        Props[I,entity] = propSpawn(PropS,Pos[I,vector]+vec(0,0,10),Ang[I,angle],0)
+        Props[I,entity]:setColor(Color[I,vector])
+        Props[I,entity]:setMaterial(Material[I,string])
+        Props[I,entity]:setAlpha(Alpha[I,number])
+        Prop = propSpawn(PropS,Pos[I,vector]+vec(0,0,10),Ang[I,angle],0)
+        Prop:setColor(Color[I,vector])
+        Prop:setMaterial(Material[I,string])
+        Prop:setAlpha(Alpha[I,number])
+        Props:pushEntity(Prop)
+    }
+}
+if(ops()>=maxquota() | LS == "/remove" & Chat | LS == "/delete" & Chat){
+    if(LS == "/remove" & Chat){
+        hide()
+    }
+    Props:propDelete()
+    Props:clear()
+    Pos:clear()
+    Ang:clear()
+    Prop:propDelete()
+    if(LS == "/delete" & Chat){
+        hide()
+        selfDestruct()
+    }elseif(LS != "/delete" & Chat & LS != "/remove"){
+    timer("HC",100)
+}
+}
+if(LS == "/teleport" & Chat){
+    hide()
+    Props[1,entity]:setPos(P:pos()+vec(0,0,60))
+}
+if(LSS:string(1) == "/model" & Chat){
+    hide()
+    PropS = LSS:string(2)
+    hint("Set the model to: "+PropS,10)
+}
+if(LSS:string(1) == "/material" & Chat){
+    hide()
+    Material[1,string] = LSS:string(2)
+    hint("Set the Material to: "+Material[1,string],10)
+}
+if(LSS:string(1) == "/color" & Chat){
+    hide()
+    Color[1,vector] = vec(LSS:string(2):toNumber(),LSS:string(3):toNumbe  r(),LSS:string(4):toNumber())
+    hint("Set the Color to vector: "+Color[1,vector],10)
+}
+if(LSS:string(1) == "/alpha" & Chat){
+    hide()
+    Alpha[1,number] = LSS:string(2):toNumber()
+    hint("Set the Alpha to: "+Alpha[1,number],10)
+}
+if(LS2:string(1) == "/save" & Chat){
+    hide()
+    SaveN = LS2:string(2)
+    if(!SaveN){
+        hint("Invalid Name!",10)
+    }
+    Data = Color[1,vector] + " " + Alpha[1,number] + " " + Material[1,string] + " " + PropS + " "
+    Data = Data:replace("[",""):replace("]","")
+    Data = Data:left(Data:length()-1)
+    hint("Saving settings as: "+SaveN,10)
+}
+if(SaveN & fileCanWrite()){
+    fileWrite(">e2shared/2776162"+SaveN+".txt",Data)
+    timer("done",500)
+}
+if(clk("done")){
+    SaveN = ""
+    hint("Saved Settings!",10)
+}
+if(LS2:string(1) == "/load" & Chat){
+    hide()
+    LoadN = LS2:string(2)
+    hint("Loading file: "+LoadN,10)
+    fileLoad(">e2shared/2776162"+LoadN+".txt")
+}
+if(fileLoaded()&LoadN){
+    LoadD = fileRead():explode(" ")
+    Tmp = LoadD[1,string]:explode(",")
+    Color[1,vector] = vec(Tmp[1,string]:toNumber(),Tmp[2,string]:toNumber(),Tmp[3,string]:toNumber())
+    Alpha[1,number] = LoadD[2,string]:toNumber()
+    Material[1,string] = LoadD[3,string]
+    PropS = LoadD[4,string]
+    timer("done2",100)
+}
+if(clk("done2")){
+    hint("Finished Loading Settings!",10)
+    LoadN = ""
+}

@@ -1,0 +1,308 @@
+@name Tib Miner
+@inputs Drill Tib MaxTib StorageAttached
+@outputs On MiningTimer AutoRestart
+@outputs StoragePos:vector StorageActive
+@outputs Crystal:entity Status:string
+@outputs PrevPos:vector CurrentPos:vector TargetPos:vector
+@outputs Time:number BezierPoints:array TargetAng:angle
+@outputs Core:entity HomeAng:angle HomePos:vector Owner:entity
+@outputs PrevTargets:table SearchTick
+@autoupdate
+if(first()|duped()) {
+    runOnChat(1)
+    runOnTick(1)
+    Core = entity()
+    Owner = Core:owner()
+    
+    # State
+    CurrentPos = Core:pos()
+    HomePos = CurrentPos
+    TargetPos = CurrentPos
+    Status = "idle"
+    SearchTick = 0
+    
+    # ApplyForce
+    HomeAng = Core:angles()
+    TargetAng = HomeAng
+    Core:setMass(50000)
+    OtherEntities = entity():getConstraints()
+    foreach(K,V:entity=OtherEntities){
+        if(V != Core){
+            V:setMass(1)
+        }
+        if(V:type()=="sa_storage_tiberium_holder"){
+            V:setMass(10)
+        }
+    }
+
+    # Functions
+    function setNotSolid(NotSolid:number){
+        Constraints = entity():getConstraints()
+        foreach(K,V:entity=Constraints){
+            V:propNotSolid(NotSolid)
+            if(V:type()=="sa_storage_tiberium_holder"){
+                V:setMass(10)
+                V:propNotSolid(0)
+            }
+            if(V:type()=="sa_mining_drill" || V:type()=="generator_energy_wind"){
+                V:propNotSolid(0)
+            }
+        }
+    }
+
+    function number crystalInExclusionRange(Crystal:entity, Towers:array, Range:number){
+        foreach(K, V:entity=Towers){
+            if(Crystal:pos():distance(V:pos()) < Range){
+                return 1
+            }
+        }
+        return 0
+    }
+
+    function array excludeByRange(Crystals:array, Towers:array, Range:number){
+        foreach(K, V:entity=Crystals){
+            if(crystalInExclusionRange(V, Towers, Range)){
+                Crystals:remove(K)
+            }
+        }
+        return Crystals
+    }
+
+    function table getAllTibCrystalPos(){
+        findClearBlackList()
+        findClearWhiteList()
+        findExcludeClass("sa_crystaltower")
+        findByClass("sa_crystal")
+        Crystals = findToArray()
+        
+        findClearBlackList()
+        findClearWhiteList()
+        findByClass("sa_crystaltower")
+        Towers = findToArray()
+        
+        # Filter if in excluded range
+        Crystals = excludeByRange(Crystals, Towers, 400)
+        
+        # Convert index to entityId
+        Table = table()
+        for(I=1, Crystals:count()){
+            Ent = Crystals[I, entity]
+            Table[Ent:id(), vector] = Ent:pos()
+        }
+        return Table
+    }
+    
+    function entity randomizeTib(Ids:array){
+        Blue = array()
+        Green = array()
+        foreach(K, V:number=Ids){
+            Ent = entity(V)
+            if(Ent:getSkin() == 0){
+                Blue:pushEntity(Ent)
+            }
+            else{
+                Green:pushEntity(Ent)
+            }
+        }
+        
+        if(Blue:count() > 0){
+            return Blue[random(1, Blue:count()), entity]
+        }
+        else{
+            if(Green:count() > 0){
+                return Green[random(1, Green:count()), entity]
+            }
+            else{
+                return noentity()
+            }
+        }
+    }
+    
+    function array calculateTransitionPoints(StartPos:vector, EndPos:vector){
+        BezierPoints = array()
+        MaxZ = max(StartPos:z(), EndPos:z()) + 1000
+        
+        BezierPoints:pushVector(StartPos)
+        BezierPoints:pushVector(vec(StartPos:x(), StartPos:y(), MaxZ))
+        BezierPoints:pushVector(vec(EndPos:x(), EndPos:y(), MaxZ))
+        BezierPoints:pushVector(EndPos)
+    
+        return BezierPoints
+    }
+    
+    function maintainCurrentPosAng(){
+        Force=(CurrentPos-Core:pos())*10 - Core:vel()
+        Force *=Core:mass()
+        Core:applyForce(Force)
+            
+        TarQ=quat(TargetAng)
+        CurQ=quat(Core)
+        
+        Q=TarQ/CurQ
+        V=Core:toLocal(rotationVector(Q)+Core:pos())
+        Core:applyTorque((150*V -12*Core:angVelVector())*Core:inertia())
+    }
+    
+    function angle getTargetAng(Ent:entity){
+        switch(Ent:model()){
+            case "models/ce_mining/tiberium/ce_tib_160_60.mdl",
+                return Ent:angles():setPitch(HomeAng:pitch())+ang(0,90,0)
+            case "models/ce_mining/tiberium/ce_tib_250_60.mdl",
+                return Ent:angles():setPitch(HomeAng:pitch())+ang(0,-90,0)
+            case "models/ce_mining/tiberium/ce_tib_360_125.mdl",
+                return Ent:angles():setPitch(HomeAng:pitch())+ang(0,180,0)
+            case "models/ce_mining/tiberium/ce_tib_500_200.mdl",
+                return Ent:angles():setPitch(HomeAng:pitch())+ang(55,0,0)
+            default,
+                return Ent:angles():setPitch(HomeAng:pitch())
+            }
+    }
+    
+    function vector getTargetPos(Ent:entity){
+        switch(Ent:model()){
+            case "models/ce_mining/tiberium/ce_tib_160_60.mdl",
+                return Ent:pos() + vec(0,0,Ent:boxSize():z()*2.572)
+            case "models/ce_mining/tiberium/ce_tib_250_60.mdl",
+                return Ent:pos() + vec(0,0,Ent:boxSize():z()*1.813)
+            case "models/ce_mining/tiberium/ce_tib_360_125.mdl",
+                return Ent:pos() + vec(0,0,Ent:boxSize():z()*1.416)
+            case "models/ce_mining/tiberium/ce_tib_500_200.mdl",
+                return Ent:pos() + vec(Ent:forward():x()*400,Ent:forward():y()*400,Ent:boxSize():z()*0.9)
+            default,
+                return Ent:pos() + vec(0,0,Ent:boxSize():z()+200)
+            }
+    }
+    
+    function moveTo(Pos:vector){
+        On = 0
+        PrevPos = CurrentPos
+        TargetPos = Pos
+        TargetAng = HomeAng
+        Status = "moving"
+    }
+    
+    function searchNextTib(){
+        SearchTick = 0
+        Status = "searching"
+    }
+}
+else{
+    #Applyforce
+    maintainCurrentPosAng()
+    StoragePos = CurrentPos + vec(0,0,100)
+    StorageActive = On || (CurrentPos != TargetPos)
+    
+    # Chat control
+    if(chatClk(Owner)){
+        if(Owner:lastSaid():sub(0,1) == "!"){
+            hideChat(1)
+        }
+        if(Owner:lastSaid() == "!start"){
+            On = 1
+            Status = "idle"
+        }
+        elseif(Owner:lastSaid() == "!home"){
+            moveTo(HomePos)
+        }
+        elseif(Owner:lastSaid() == "!here"){
+            AutoRestart = 0
+            moveTo(Owner:pos())
+        }
+        elseif(Owner:lastSaid() == "!auto"){
+            AutoRestart = !AutoRestart
+            print(AutoRestart ? "Restarting automatically" : "Stop after full")
+        }
+    }
+    
+    # State management
+    if(Status == "idle"){
+        if(AutoRestart && StorageAttached && Owner:inVehicle()) {On=1}
+        if(On == 1 && StorageAttached) {
+            Status = "mining"
+            setNotSolid(1)
+        }else{
+            setNotSolid(0)
+        }
+    }
+    
+    if(Status == "mining"){
+        Time = 0
+        MiningTimer++
+        if(Drill){
+            MiningTimer = 0
+        }
+        
+        if(!Crystal || (chatClk(Owner) && Owner:lastSaid() == "!next")
+        || MiningTimer > 80){
+            searchNextTib()
+        }
+        
+        if(Tib == MaxTib && MaxTib!=0){
+            moveTo(HomePos)
+        }
+        
+        # In case pod deleted or user exit
+        if(!Owner:inVehicle()){
+            moveTo(HomePos)
+        }
+    }
+    
+    if(Status == "searching") {
+        holoDeleteAll()
+        if(SearchTick == 0) {
+            PrevTargets = getAllTibCrystalPos()
+            SearchTick = 1
+        }
+        elseif(SearchTick == 1) {
+            # Check for movement in last tick (not ready to mine)
+            NewTargets = getAllTibCrystalPos()
+            Ids = array()
+            foreach(K:number, V:vector=NewTargets){
+                if(PrevTargets[K, vector] == V){
+                    Ids:pushNumber(K)
+                }
+            }
+            
+            PrevPos = CurrentPos
+            Crystal = randomizeTib(Ids)
+            if(Crystal != noentity()){
+                TargetPos = getTargetPos(Crystal)
+                TargetAng = getTargetAng(Crystal)
+                Status = "moving"
+            }
+            else{
+                print("No mineable crystals left!")
+                moveTo(HomePos)
+            }
+        }
+    }
+    
+    if(Status == "moving"){
+        MiningTimer=0
+        # Point Animation
+        Time+=1.5
+        T=sin(Time)
+        
+        # Bezier
+        BezierPoints = calculateTransitionPoints(PrevPos, TargetPos)
+        while(BezierPoints:count()>1){
+            NewPoints = array()
+            for(I = 1, BezierPoints:count() - 1){
+                NewPoint = (1-T) * BezierPoints:vector(I) + T * BezierPoints:vector(I+1)
+                NewPoints:pushVector(NewPoint)
+            }
+            BezierPoints = NewPoints
+        }
+        CurrentPos = BezierPoints:vector(1)
+        
+        # In case pod deleted or user exit
+        if(!Owner:inVehicle()){
+            moveTo(HomePos)
+        }
+        
+        if(Time >= 90){
+            CurrentPos = TargetPos
+            Status = "idle"
+        }
+    }
+}

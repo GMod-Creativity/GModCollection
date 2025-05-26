@@ -1,0 +1,112 @@
+@name Chat
+@inputs Key InUse User:entity On
+@outputs Channel:string Send:string Rec:string
+@persist Screen:wirelink
+
+if(first()|dupefinished()){
+    Screen=entity():isConstrainedTo():wirelink()
+    dsLeaveGroup(Channel)
+    Channel="global", dsSetScope(2)
+    Screen:writeCell(2041,1),Screen:writeCell(2042,0)
+}
+
+if(~On&On){
+    Screen:writeCell(2041,1),Screen:writeCell(2042,123)
+    Screen:writeCell(2043,0.5),Screen:writeCell(2044,1)
+    dsJoinGroup(Channel)
+    Screen:writeString("Channel: "+Channel,0,0)
+    Screen:writeString("-help Show help menu",0,16)
+}
+if(~On&!On){
+    dsLeaveGroup(Channel)
+    Screen:writeCell(2041,1),Screen:writeCell(2042,0)
+}
+
+if(On){
+#Username update
+if(~InUse&InUse){
+    Screen:writeString("                              ",0,17)
+    Send=User:name()+":"
+}
+if(~InUse&!InUse){
+    Screen:writeString("                              ",0,17)
+    Send=""
+}
+
+#Cursor
+if(~InUse&InUse){Screen:writeCell(2046,1)}
+if(~InUse&!InUse){Screen:writeCell(2046,0)}
+
+#Typing
+if(~Key&Key!=0&Key!=10&Key!=142&Key!=150&Key!=154&Key!=127&Send:length()<30){
+    Send=Send+(toChar(Key))
+}
+if(~Key&Key==127&Send:index(-1)!=":"){
+    Send=Send:sub(1,Send:length()-1)
+    Screen:writeString(" ",Send:length(),17)
+}
+if(~Key|(~InUse&InUse)){
+    Screen:writeString(Send,0,17)
+    Screen:writeCell(2045,32*32+Send:length()*2-4)
+}
+
+#Send/Commands
+if((Key==10|Key==142)&Send!=User:name()+":"&!Send:find("-clear")&!Send:find("-ch ")&!Send:find("-help")){
+    dsSend("chat",Channel,Send)
+    if(dsProbe(Channel):count()>=1){
+        Screen:writeCell(2038,1)
+        Send=User:name()+":"
+        Screen:writeString(Send,0,17)
+        Screen:writeString("Channel: "+Channel,0,0)
+    }
+    else{
+        Screen:writeCell(2038,2)
+        Screen:writeString("Send failed",0,16)
+        Send=User:name()+":"
+        Screen:writeString(Send,0,17)
+        Screen:writeString("Channel: "+Channel,0,0)
+    }
+}
+if((Key==10|Key==142)&Send:find("-clear")){
+    Screen:writeCell(2041,1)
+    Screen:writeString("Channel: "+Channel,0,0)
+    Send=User:name()+":"
+    Screen:writeString(Send,0,17)
+}
+if((Key==10|Key==142)&Send:find("-ch ")&Send:explode("-ch ")[2,string]:trim()!=""){
+    dsLeaveGroup(Channel)
+    Screen:writeCell(2038,1)
+    Channel=Send:explode("-ch ")[2,string]:trim()
+    dsJoinGroup(Channel)
+    Screen:writeString("Channel is now '"+Channel+"'",0,17)
+    Screen:writeCell(2038,1)
+    Screen:writeString("Channel: "+Channel,0,0)
+    Send=User:name()+":"
+    Screen:writeString(Send,0,17)
+}
+if((Key==10|Key==142)&Send:find("-ch ")&Send:explode("-ch ")[2,string]:trim()==""){
+    Screen:writeCell(2038,2)
+    Screen:writeString("Please enter a channel",0,16)
+    Screen:writeString("Channel: "+Channel,0,0)
+    Send=User:name()+":"
+    Screen:writeString(Send,0,17)
+}
+if((Key==10|Key==142)&Send:find("-help")){
+    Screen:writeCell(2038,4)
+    Screen:writeString("-help Show help menu",0,14)
+    Screen:writeString("-clear Clear screen",0,15)
+    Screen:writeString("-ch <channel> Change channel",0,16)
+    Screen:writeString("Channel: "+Channel,0,0)
+    Send=User:name()+":"
+    Screen:writeString(Send,0,17)
+}
+
+#Recieve
+if(dsClk()&Key!=10&Key!=142){
+    Rec=dsGetString()
+    Screen:writeString(Rec,0,17)
+    Screen:writeCell(2038,1)
+    Screen:writeString("Channel: "+Channel,0,0)
+    Screen:writeString(Send,0,17)
+}
+}

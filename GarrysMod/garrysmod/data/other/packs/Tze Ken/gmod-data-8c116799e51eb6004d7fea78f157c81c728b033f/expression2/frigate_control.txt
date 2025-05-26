@@ -1,0 +1,328 @@
+@name Frigate 1 Controller
+
+#RESOURCE CONTROL#
+#Fusion Reactors
+@inputs Energy MaxEnergy
+@inputs F1Temp F2Temp
+@outputs Fus1 Fus2 Charge Cycle
+#Water Pump
+@inputs Pump HydL InWater
+@inputs Water MaxWater
+@outputs Pumping PmpMul PmpWeld PmpDoor PmpHyd PmpFrz
+#Water Splitter
+@inputs Oxy MaxOxy Hydr MaxHydr
+@outputs Split SplitMul
+#Water Compressor
+@inputs HWater MaxHWater
+@outputs Comp CompMult
+#Water Freezer
+@inputs Steam MaxSteam
+@outputs Heater HeaterMult
+#Water Heater
+@inputs Ice MaxIce
+@outputs Frz FrzMult
+
+
+#LIFE SUPPORT CONTROL#
+@inputs AtmStat AtmTemp AtmPres AtmComp:table
+@outputs HotEx ColdEx AirEx Grav GravRadius
+@persist Owner:entity
+
+#FLIGHT CONTROL#
+#Flight
+@inputs PodActive W A S D R Shift Alt 
+@inputs Angles:angle Speed
+@outputs Active Freeze Level
+@outputs Forward Back YawLeft YawRight PitchUp PitchDown PitchAbs RollLeft RollRight
+@outputs SpeedAbs Lateral Vertical
+@outputs ThrustMult MPHLim Damper PitchMult YawMult RollMult
+@persist MoveMode
+#Cam Control
+@inputs ShipCore:entity
+@outputs CamPos:vector CamAng:angle
+#Teleportation
+@inputs Space Light
+@outputs TargetVec:vector Jump 
+@outputs JumpCharge L1 L2 L3 L4
+
+interval(20)
+if(first()|dupefinished()){
+    #RESOURCE CONTROL#
+    Charge=1
+    PmpWeld=1
+    PmpMul=50
+    SplitMul=12
+    CompMult=8
+    HeaterMult=5
+    FrzMult=4
+    
+    #LIFE SUPPORT CONTROL#
+    GravRadius=900
+    Owner=entity():owner()
+}
+
+#RESOURCE CONTROL#
+#Fusion Reactors
+if(Energy/MaxEnergy<=0.2){Charge=1}
+if(Energy>=MaxEnergy-16){Charge=0}
+if(Charge){
+    if(Energy/MaxEnergy<=0.1){
+        if(F1Temp<68){
+            Fus1=1
+        }
+        else{
+            Fus1=0
+        }
+        if(F2Temp<68){
+            Fus2=1
+        }
+        else{
+            Fus2=0
+        }    
+    }
+    elseif(F1Temp<68|F2Temp<68){
+        if(Cycle==0){
+            Fus1=1
+            Fus2=0
+        }
+        elseif(Cycle==1){
+            Fus1=0
+            Fus2=1
+        }
+        elseif(Cycle==2){
+            Fus1=0
+            Fus2=0
+        }
+        if(F1Temp>=68&F2Temp<68){
+            Cycle=1
+        }
+        if(F1Temp<68&F2Temp>=68){
+            Cycle=0
+        }
+        if(F1Temp>=68&F2Temp>=68){
+            Cycle=2   
+        }
+    }
+}
+else{
+    Fus1=0
+    Fus2=0
+}
+#Water Pump
+if(~Pump&Pump&!PodActive){Pumping=!Pumping}
+if(Water/MaxWater>=0.99|Energy/MaxEnergy<=0.05){Pumping=0}
+if(Pumping){
+    PmpWeld=0
+    PmpDoor=1
+    if(!InWater){
+        if(HydL<900){
+            PmpHyd+=1
+        }
+        else{
+            Pumping=0
+        }
+    }
+    if(PodActive){
+        Pumping=0
+    }
+}
+if(!Pumping){
+    if(HydL<=10){
+        PmpWeld=1
+        PmpDoor=0
+    }
+    else{
+        if(PmpHyd>0){
+            PmpHyd--
+        }
+        else{
+            PmpHyd=0
+        }
+    }
+}
+if(~PodActive&!PodActive){
+    PmpFrz=1
+}
+else{
+    PmpFrz=0
+}
+if(Energy/MaxEnergy>=0.1){
+    #Water Splitter
+    if((Oxy/MaxOxy<=0.1|Hydr/MaxHydr<=0.1)&Water>1000){Split=1}
+    if(Oxy/MaxOxy>=0.99&Hydr/MaxHydr>=0.99){Split=0}
+    #Water Heater
+    if(Charge!=1&&Water>1000){
+        if(Steam/MaxSteam<=0.1){Heater=1}
+        if(Steam/MaxSteam>=0.99){Heater=0}
+    }
+    if(Water/MaxWater>0.6){
+        #Water Compressor
+        if(HWater/MaxHWater<=0.1&Hydr/MaxHydr>=0.2){Comp=1}
+        if(HWater/MaxHWater>=0.99){Comp=0}
+        #Water Freezer
+        if(Ice/MaxIce<=0.1){Frz=1}
+        if(Ice/MaxIce>=0.99){Frz=0}
+    }
+}
+else{
+    Split=0
+    Comp=0
+    Frz=0
+    Heater=0
+}
+
+#LIFE SUPPORT CONTROL#
+if(!PodActive&Owner:pos():distance(entity():pos())<1800&Energy>=20){
+    if(AtmStat==0){
+        Grav=1
+        AirEx=1
+        HotEx=1
+    }
+    else{
+        Grav=0
+        if(AtmComp["Oxygen",number]>25|AtmComp["Oxygen",number]<15|AtmPres<0.8|AtmPres>1.2){
+            AirEx=1
+        }
+        else{
+            AirEx=0
+        }
+        if(AtmTemp<-30){
+            HotEx=1
+            ColdEx=0
+        }
+        elseif(AtmTemp>30){
+            HotEx=0
+            ColdEx=1
+        }
+        else{
+            HotEx=0
+            ColdEx=0
+        }
+    }
+}
+else{
+    Grav=0
+    AirEx=0
+    HotEx=0
+    ColdEx=0
+}
+
+#FLIGHT CONTROL#
+#Flight
+if(PodActive&!PmpDoor){
+    #Mode Change
+    if(~R&R){MoveMode=!MoveMode}
+    #Normal Control
+    if(MoveMode==0){
+        #Multipliers
+        ThrustMult=1.5
+        MPHLim=80
+        Damper=1
+        YawMult=0.4
+        PitchMult=0.3
+        
+        if(!Shift&!Alt&!A&!D){
+            Level=1
+        }
+        else{
+            Level=0
+        }
+        
+        #Controls
+        Forward=W
+        Back=S
+        if(Shift&Angles:pitch()>-45){
+            PitchUp=1
+        }
+        else{
+            PitchUp=0
+        }
+        if(Alt&Angles:pitch()<45){
+            PitchDown=1
+        }
+        else{
+            PitchDown=0
+        }
+        YawLeft=A
+        YawRight=D
+        if(A&Angles:roll()>-25){
+            RollLeft=1
+            RollMult=0.1
+        }
+        else{
+            RollLeft=0
+        }
+        if(D&Angles:roll()<30){
+            RollRight=1
+            RollMult=0.1
+        }
+        else{
+            RollRight=0
+        }
+        if(!A&!D){
+            RollMult=0.4
+        }
+        if(!Shift&!Alt&Speed<10){
+            PitchAbs=(0-Angles:pitch())/(2+Speed)
+        }
+        else{
+            PitchAbs=0
+        }
+        
+        Freeze=0
+    }
+    else{
+        Forward=0
+        Back=0
+        PitchUp=0
+        PitchDown=0
+        RollLeft=0
+        RollRight=0
+        YawLeft=0
+        YawRight=0
+    }
+    #Fine Controls
+    if(MoveMode==1){
+        #Multipliers
+        ThrustMult=1
+        MPHLim=20
+        Damper=15
+        PitchMult=0
+        YawMult=0
+        RollMult=0
+        
+        #Controls
+        Level=1
+        if(!W&!A&!S&!D&!Shift&!Alt){
+            Freeze=1
+        }
+        else{
+            Freeze=0
+        }
+        if(W){SpeedAbs=0.5}
+        elseif(S){SpeedAbs=-0.5}
+        else{SpeedAbs=0}
+        if(A){Lateral=-0.5}
+        elseif(D){Lateral=0.5}
+        else{Lateral=0}
+        if(Shift){Vertical=0.5}
+        elseif(Alt){Vertical=-0.5}
+        else{Vertical=0}
+        
+    }
+    else{
+        SpeedAbs=0
+        Lateral=0
+        Vertical=0
+    }
+    Active=1
+}
+else{
+    Active=0
+    Freeze=1
+}
+#Cam Control
+if(PodActive){
+    CamPos=ShipCore:pos()+Owner:eye()*-1400
+    CamAng=Owner:eyeAngles()
+}

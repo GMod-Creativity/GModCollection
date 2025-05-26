@@ -1,0 +1,488 @@
+@name Jpegdecoder
+@inputs [Screen1 Screen2 Screen3 Screen4]:wirelink
+@outputs Stage Progress PPS
+@persist [File String Filename]:string
+@persist [LS Data DQT0 DQT1 Zag R01 R02 R03 R11 R12 R13 R21 R22 R23 R31 R32 R33 E0 E1 E2 DCT0 DCT1 DCT2 IDCT0 IDCT1 IDCT2 Image0 Image1 Image2]:array
+@persist Time Stime Len Stage C1 C1B C2 C3 C4 C5 C6 C7 C8 C9 C10 C11 C12 C13 C14 C15 C16 C17 C18 C19 C20 C21 C22 C23 LastC23 MaxOps Debug 
+@persist SOI SOF SOS EOI DQT DQTid DQTlen DHT DHT0 DHT1 DHT2 DHT3 DHTid DHTlen EC EC0 EC1 EC2 EC3 Hcode HL LastHL LastDC Empties
+@persist DO T TL Blocks Block Bpixel ST SL Xsub Ysub Sub MCUs MCU MCUx MCUy MCUsx MCUsy ShowDCT ShowChannels OpsDebt Tick
+@persist Xsize Ysize Size Size2 Size3 Size4 Size5 Size6 Res Scale Xoffset Yoffset SHeight SWidth Pi8 Sqrt2 Fixedbase 
+@trigger none
+
+if(first()|duped()) { 
+    MaxOps=5000
+    Debug=0  # 1=some debugging info   2=Quantization & Huffman tables   3=Detailed MCUs 
+    ShowDCT=0  # show intermediate DCT views on secondary screens
+    ShowChannels=0  # show Y/Cb/Cr images on secondary screens
+    runOnChat(1)
+}
+
+elseif(chatClk(owner())) { # Parse chat commands
+    LS=owner():lastSaid():explode(" ")
+    if(LS[1,string] == "!ops") {
+        hideChat(1) 
+        if(LS[2,string]) { MaxOps=clamp(LS[2,string]:toNumber(),1000,75000), print("MaxOps changed to "+MaxOps) }
+        else { print("MaxOps is "+MaxOps) }
+    }
+    elseif(LS[1,string] == "!debug") {
+        hideChat(1) 
+        if(LS[2,string]) { Debug=round(clamp(LS[2,string]:toNumber(),0,3)), print("Debug changed to "+Debug) }
+        else { print("Debug is "+Debug) }
+    }
+    elseif(LS[1,string] == "!load" & LS[2,string] | LS[1,string] == "!redo") { 
+        hideChat(1)
+        if(LS[1,string] != "!redo") {
+            Filename=LS[2,string]
+            if(Filename:right(4)==".jpg") { Filename=Filename:left(Filename:length()-4)+".txt" }
+            if(Filename:right(4)!=".txt") { Filename+=".txt" }
+        }
+        fileRemove(Filename)
+        fileLoad(Filename)
+        runOnFile(1)
+        hint("Loading file: "+Filename,5)
+        print(" ")
+        print("Loading file: "+Filename)
+        Stime=Time=curtime()
+        Stage=0
+    }
+    elseif(LS[1,string] == "!stop") { hideChat(1), Stage=0 }
+}
+ 
+elseif(fileClk(Filename)) { # File loaded
+    C1=C1B=C2=C3=C4=C5=C6=C7=Block=1
+    EC=SOI=SOF=SOS=EOI=DQT=DQTid=DQTlen=DHT=DHTid=DHTlen=Hcode=C8=C9=C10=C11=C12=C13=C14=C15=C16=C17=C18=C19=C20=C21=C22=C23=DO=TL=0
+    Len=LastC23=DHT0=DHT1=DHT2=DHT3=EC0=EC1=EC2=EC3=HL=LastHL=LastDC=T=Blocks=Bpixel=ST=SL=Xsub=Ysub=Sub=MCUs=MCU=MCUx=MCUy=MCUsx=MCUsy=0
+    Xsize=Ysize=Size=Size2=Size3=Size4=Size5=Size6=Res=Scale=Xoffset=Yoffset=SHeight=SWidth=Pi8=Sqrt2=Fixedbase=OpsOver=OpsDebt=Tick=Empties=0
+    Data=array(),DQT0=array(),DQT1=array(),DCT0=array(),DCT1=array(),DCT2=array(),IDCT0=array(),IDCT1=array(),IDCT2=array(),Image0=array(),Image1=array(),Image2=array()
+    R01=array(),R02=array(),R03=array(),R11=array(),R12=array(),R13=array(),R21=array(),R22=array(),R23=array(),R31=array(),R32=array(),R33=array(),E0=array(),E1=array(),E2=array()
+    
+    hint(Filename+" loaded",5)
+    File=fileRead(Filename)
+    Len=File:length()
+    print(Filename+" loaded ("+Len+" bytes): "+round(curtime()-Time,1)+" s"), Time=curtime()
+    for(C=0,63) { #Zig-zag Table generation
+        InX=(C%8), InY=floor(C/8), ZRow=InX+InY
+        if(ZRow<8) { if(ZRow%2) {In=InY} else {In=InX}, Zag:setNumber((ZRow+1)*ZRow/2+In, C) }
+        else { ZRow=14-ZRow, if(ZRow%2) {In=InY} else {In=InX}, Zag:setNumber(63-((ZRow+1)*ZRow/2+7-In), C) }
+    }
+    Stage=1
+}
+
+elseif(Stage==1) {  # Replace substituted bytes with originals
+    while(opcounter()<MaxOps-50 & C1<=Len) { 
+        Num=toByte(File:index(C1))
+        Data[C1B,number]=Num
+        if(Num==254) { 
+            Next=toByte(File:index(C1+1))
+            if(Next==1) { C1++ }
+            elseif(Next==2) { Data[C1B,number]=0, C1++ } #null byte
+            elseif(Next==3) { Data[C1B,number]=13, C1++ } #carriage return (Enter)
+            elseif(Next==4) { Data[C1B,number]=34, C1++ } #quotation marks (")
+            else { Stage=0, print("Byte stuffing error") }
+        }
+        C1++, C1B++ 
+    }
+    Progress=C1*100/Len
+    if(C1>Len) { Len=C1B-1, Stage=2, print("Finished binary conversion, verifying...: "+round(curtime()-Time,1)+" s"), Time=curtime() }
+}
+
+elseif(Stage==2) { # JPEG file structure verification pass
+    while(opcounter()<MaxOps+OpsDebt & C2<=Len) {
+        Byte=Data[C2,number], Nextbyte=Data[C2+1,number]
+        if(Byte>255 | Byte<0 | Byte!=round(Byte)) { Stage=0, print("Verification failed at byte "+C2+", "+Byte+" is not a valid byte") }
+        if(C2==1 & (Byte!=255 | Nextbyte!=216)) { Stage=0, print("Verification failed, no SOI") }
+        if(Byte==255) { 
+            if(Nextbyte==216) { if(Debug) { print("Found Marker: SOI at offset "+C2) }, SOI=C2 }
+            elseif(inrange(Nextbyte,192,195)|inrange(Nextbyte,197,207)) { if(Debug) { print("Found Marker: SOF"+(Nextbyte-192)+" at offset "+C2) }, if(Nextbyte==192) {SOF=C2} }
+            elseif(inrange(Nextbyte,224,239)) { if(Debug) { print("Found Marker: APP"+(Nextbyte-224)+" at offset "+C2) } }
+            elseif(Nextbyte==254) { if(Debug) { print("Found Marker: COM at offset "+C2) } }
+            elseif(Nextbyte==219) { 
+                if(Debug) { print("Found Marker: DQT at offset "+C2) }
+                DQT=C2
+                DQTlen=Data[DQT+2,number]*256+Data[DQT+3,number]
+                DQTid=Data[DQT+4,number]
+                if(!(DQTlen==67) & !(DQTlen==132)) { Stage=0, print("Stage failed, unknown DQT length: "+DQTlen) }
+            }
+            elseif(Nextbyte==196) { 
+                if(Debug) { print("Found Marker: DHT at offset "+C2) }
+                DHT=C2
+                DHTlen=Data[DHT+2,number]*256+Data[DHT+3,number]
+                DHTid=floor(Data[DHT+4,number]/16)*2+Data[DHT+4,number]%16
+            }
+            elseif(Nextbyte==218) { if(Debug) { print("Found Marker: SOS at offset "+C2) }, SOS=C2 } 
+            elseif(Nextbyte==217) { if(Debug) { print("Found Marker: EOI at offset "+C2) }, EOI=C2, Len=C2+1 }    
+            elseif(Nextbyte) { if(Debug) { print("Found Marker: ("+Byte+","+Nextbyte+") at offset "+C2) } }            
+        }
+        if(DQT & inrange(C2, DQT+5, DQT+1+DQTlen)) {
+            if(DQTlen==67 & !DQTid) { DQT0[Zag[C2-DQT-5,number],number]=Byte }
+            elseif(DQTlen==67 & DQTid) { DQT1[Zag[C2-DQT-5,number],number]=Byte }
+            elseif(DQTlen==132) {
+                if(C2-DQT-5<64) { DQT0[Zag[C2-DQT-5,number],number]=Byte }
+                elseif(C2-DQT-5>64) { DQT1[Zag[C2-DQT-70,number],number]=Byte }
+            }
+        }
+        if(DHT & inrange(C2, DHT+5, DHT+20)) { 
+            EC+=Byte
+            if(Byte & DHTid==0)     { R01:pushNumber((C2-DHT-4)*1000+Byte), R02:pushNumber(C2-DHT-4) }
+            elseif(Byte & DHTid==1) { R11:pushNumber((C2-DHT-4)*1000+Byte), R12:pushNumber(C2-DHT-4) }
+            elseif(Byte & DHTid==2) { R21:pushNumber((C2-DHT-4)*1000+Byte), R22:pushNumber(C2-DHT-4) }
+            elseif(Byte & DHTid==3) { R31:pushNumber((C2-DHT-4)*1000+Byte), R32:pushNumber(C2-DHT-4) }
+            if(C2==DHT+20) { 
+                if(Debug) { print("Found "+EC+" DHT entries for table "+DHTid), print("DHTlen: "+DHTlen+"  Accounted for: "+(19+EC)) }
+                if(DHTid==0)     {DHT0=DHT, EC0=EC} 
+                elseif(DHTid==1) {DHT1=DHT, EC1=EC}
+                elseif(DHTid==2) {DHT2=DHT, EC2=EC}
+                elseif(DHTid==3) {DHT3=DHT, EC3=EC}
+                if(DHTlen>19+EC) {
+                    DHT+=17+EC
+                    DHTlen-=17+EC
+                    DHTid=floor(Data[DHT+4,number]/16)*2+Data[DHT+4,number]%16
+                }
+                EC=0
+            }
+        }
+        C2++
+    }
+    if(C2>Len | C2>102400 | C2==EOI) { 
+        if(SOI & SOF & EOI) { Stage=3, print("Verification complete, decoding...: "+round(curtime()-Time,1)+" s"), Time=curtime() }
+        elseif(SOI & EOI & !SOF) { Stage=0, print("JPEG is not baseline format (other formats not supported)") }
+        elseif(!EOI) { Stage=0, print("Missing EOI marker") }
+    }
+    Progress=C2*100/Len
+    OpsDebt+=MaxOps-opcounter()
+}
+
+elseif(Stage==3) { 
+    Precision=Data[SOF+4,number]
+    Ysize=Data[SOF+5,number]*256+Data[SOF+6,number]
+    Xsize=Data[SOF+7,number]*256+Data[SOF+8,number]
+    Components=Data[SOF+9,number]
+    Lsub=Data[SOF+11,number]
+    Csub=Data[SOF+14,number]
+    Xsub=floor(Lsub/16)/floor(Csub/16)
+    Ysub=(Lsub%16)/(Csub%16)
+    Blocks=2+Xsub*Ysub
+    MCUsx=ceil(Xsize/(8*Xsub))
+    MCUsy=ceil(Ysize/(8*Ysub))
+    MCUs=MCUsx*MCUsy
+    SHeight=MCUsy*Ysub*8, SWidth=MCUsx*Xsub*8
+    Res=min(max(Xsize, Ysize),512)
+    SOSlen=Data[SOS+2,number]*256+Data[SOS+3,number]
+    DO=SOS+SOSlen+2
+
+    Screen1[1048574]=0, Screen1[1048572]=Res, Screen1[1048573]=Res, Screen1[1048569]=2 #Reset screen
+    if(ShowDCT|ShowChannels) {
+        Screen2[1048574]=0, Screen2[1048572]=SHeight, Screen2[1048573]=SWidth, Screen2[1048569]=0 #Reset screen
+        Screen3[1048574]=0, Screen3[1048572]=SHeight/Ysub, Screen3[1048573]=SWidth/Xsub, Screen3[1048569]=0 #Reset screen
+        Screen4[1048574]=0, Screen4[1048572]=SHeight/Ysub, Screen4[1048573]=SWidth/Xsub, Screen4[1048569]=0 #Reset screen  
+    }
+    
+    if(Debug) {
+        print(" ")
+        print("Image Report: ")
+        print("Length="+Len+" bytes")
+        print("Precision="+Precision+" bits")
+        print("Size="+Xsize+" x "+Ysize)
+        print("Components="+Components)
+        print("Chrominance Subsampling="+Xsub+" x "+Ysub)
+        print("Total 8x8 Blocks per MCU="+Blocks)
+        print("Total MCUs="+MCUs)
+        print("MCU grid size="+MCUsx+" x "+MCUsy)
+    }
+    if(Debug==2) {
+        #print("Zig-zag table:")
+        #for(J=0,7) { for(K=0,7) { L=Zag[J*8+K,number], if(L>99) {String+=" "} elseif(L>9) {String+="  "} else {String+="   "}, String+=L }, print(String), String="" }
+        print("DQT Table 0:")
+        for(J=0,7) { for(K=0,7) { L=DQT0[J*8+K,number], if(L>99) {String+=" "} elseif(L>9) {String+="  "} else {String+="   "}, String+=L }, print(String), String="" }
+        print("DQT Table 1:")
+        for(J=0,7) { for(K=0,7) { L=DQT1[J*8+K,number], if(L>99) {String+=" "} elseif(L>9) {String+="  "} else {String+="   "}, String+=L }, print(String), String="" }
+    }
+    
+    if(Precision==8 & Xsize & Ysize & Components==3 ) { 
+        if(Debug) { print("Huffman Table 0 (DC/Luminance): Entries="+EC0) }
+        Stage=4 
+    } else { Stage=0 }
+}
+
+elseif(Stage==4) { while(opcounter()<MaxOps & Stage==4) { # Generate Huffman trees
+    HL=floor(R01:number(1)/1000), Symbol=Data:number(DHT0+20+C3)
+    if(C3>1) { Hcode*=2^(HL-LastHL) }
+    R03:setNumber(Hcode*16+HL, Symbol+1)
+    if(Debug==2) { print("Entry: "+C3+", Length: "+HL+", Symbol: "+Symbol+"=Huffman code: "+Hcode) }
+    if(C3==EC0) { Stage=5, Hcode=0, if(Debug) { print("Huffman Table 1 (DC/Chrominance): Entries="+EC1) } } 
+    else { C3++, Hcode++, LastHL=HL }
+    if((R01:number(1)-1)%1000) { R01:setNumber(1, R01:number(1)-1) } else { R01:shift() }
+} }
+elseif(Stage==5) { while(opcounter()<MaxOps & Stage==5) {
+    HL=floor(R11:number(1)/1000), Symbol=Data:number(DHT1+20+C4)
+    if(C4>1) { Hcode*=2^(HL-LastHL) }
+    R13:setNumber(Hcode*16+HL, Symbol+1)
+    if(Debug==2) { print("Entry: "+C4+", Length: "+HL+", Symbol: "+Symbol+"=Huffman code: "+Hcode) }
+    if(C4==EC1) { Stage=6, Hcode=0, if(Debug) { print("Huffman Table 2 (AC/Luminance): Entries="+EC2) } } 
+    else { C4++, Hcode++, LastHL=HL }
+    if((R11:number(1)-1)%1000) { R11:setNumber(1, R11:number(1)-1) } else { R11:shift() }
+} }  
+elseif(Stage==6) { while(opcounter()<MaxOps & Stage==6) {
+    HL=floor(R21:number(1)/1000), Symbol=Data:number(DHT2+20+C5)
+    if(C5>1) { Hcode*=2^(HL-LastHL) }
+    R23:setNumber(Hcode*16+HL, Symbol+1)
+    if(Debug==2) { print("Entry: "+C5+", Length: "+HL+", Symbol: "+Symbol+"=Huffman code: "+Hcode) }
+    if(C5==EC2) { Stage=7, Hcode=0, if(Debug) { print("Huffman Table 3 (AC/Chrominance): Entries="+EC3) } } 
+    else { C5++, Hcode++, LastHL=HL }
+    if((R21:number(1)-1)%1000) { R21:setNumber(1, R21:number(1)-1) } else { R21:shift() }
+} }
+elseif(Stage==7) { while(opcounter()<MaxOps & Stage==7) {
+    HL=floor(R31:number(1)/1000), Symbol=Data:number(DHT3+20+C6)
+    if(C6>1) { Hcode*=2^(HL-LastHL) }
+    R33:setNumber(Hcode*16+HL, Symbol+1)
+    if(Debug==2) { print("Entry: "+C6+", Length: "+HL+", Symbol: "+Symbol+"=Huffman code: "+Hcode) }
+    if(C6==EC3) { Stage=8 } 
+    else { C6++, Hcode++, LastHL=HL }
+    if((R31:number(1)-1)%1000) { R31:setNumber(1, R31:number(1)-1) } else { R31:shift() }
+} }
+
+elseif(Stage==8) { # Decode Huffman data
+    while(opcounter()<MaxOps+OpsDebt) {
+        MCU=floor(C10/64)
+        MCUx=MCU%MCUsx
+        MCUy=floor(MCU/MCUsx)
+        if(Block<Blocks-1) { Base=C8-C8%64 } elseif(Block==Blocks-1) { Base=C9-C9%64 } else { Base=C10-C10%64 }
+        if(Blocks==3) { Fixedbase=C8-C8%64 }
+        elseif(C8==Base) { 
+            BX=(MCUx*Xsub + (Block-1)%Xsub)
+            BY=(MCUy*Ysub + floor((Block-1)/Ysub))
+            Fixedbase=64*(BX+BY*MCUsx*Xsub)
+        }
+        if(Block<Blocks-1 & !Bpixel) { Dest=0 } elseif(Block<Blocks-1 & Bpixel) { Dest=2 } elseif(Block>=Blocks-1 & !Bpixel) { Dest=1 } else { Dest=3 }
+        
+        while(DO<EOI & TL<=40) { Byte=Data:number(DO), DO++, T=round(T+2^(40-TL)*Byte), DO+=(Byte==255), TL+=8 } #Fill the train
+        ST=SL=SS=S=0
+        while(!ST) { 
+            if(Dest==0) { HL=R02:number(C7), C=floor(T/2^(48-HL)), ST=R03:number(C*16+HL), ML=R02:count() }
+            elseif(Dest==1) { HL=R12:number(C7), C=floor(T/2^(48-HL)), ST=R13:number(C*16+HL), ML=R12:count() }
+            elseif(Dest==2) { HL=R22:number(C7), C=floor(T/2^(48-HL)), ST=R23:number(C*16+HL), ML=R22:count() }
+            else { HL=R32:number(C7), C=floor(T/2^(48-HL)), ST=R33:number(C*16+HL), ML=R32:count() }
+            SL=0, C7++
+            if(C7>ML+1) { print("Decoding at largest known length ("+HL+") failed to find Huffman code:"+C+" in table. T:"+T+" TL:"+TL+" LastST:"+ST), Stage=0, break } 
+        }
+        T=round(T%2^(48-HL)*2^HL), TL-=HL, Try=C7, C7=1, ST-=1, SL=ST%16
+        if(SL) { S=floor(T/2^(48-SL)), T=round(T%2^(48-SL)*2^SL), TL-=SL, SS=S, if(S<2^(SL-1)) {SS=S+1-2^SL} }  
+        
+        if(Block<Blocks-1) { C=C8 } elseif(Block==Blocks-1) { C=C9 } else { C=C10 }
+        
+        if(Dest==0) { 
+            Sum=SS*DQT0[0,number]
+            if(C) { Sum+=LastDC }, DCT0[Fixedbase,number]=Sum, LastDC=Sum
+            #print("Fixedbase: "+Fixedbase)
+            if(C%64) { Stage=0, print("C of DC value ("+C+") not multiple of 64, exiting") }
+        } 
+        elseif(Dest==1) { 
+            Sum=SS*DQT1[0,number]
+            if(Block<Blocks) { if(C) {Sum+=DCT1[C-64,number]}, DCT1[C,number]=Sum }
+            else { if(C) {Sum+=DCT2[C-64,number]}, DCT2[C,number]=Sum }
+            if(C%64) { Stage=0, print("C of DC value ("+C+") not multiple of 64, exiting") }
+        } 
+        elseif(Dest==2) { 
+            if(ST==240) { Bpixel+=15 }
+            elseif(ST) { 
+                Bpixel+=floor(ST/16)
+                Sum=SS*DQT0[Zag[Bpixel,number],number]
+                C8=Base+Bpixel
+                DCT0[Zag[Bpixel,number]+Fixedbase,number]=Sum
+            }
+        } 
+        else { 
+            if(ST==240) { Bpixel+=15 }
+            elseif(ST) { 
+                Bpixel+=floor(ST/16)
+                Sum=SS*DQT1[Zag[Bpixel,number],number]
+                if(Block<Blocks) { C9=Base+Bpixel, DCT1[Zag[Bpixel,number]+Base,number]=Sum } 
+                else { C10=Base+Bpixel, DCT2[Zag[Bpixel,number]+Base,number]=Sum }
+            }
+        }
+        
+        if(Debug==3) { 
+            String="Bpixel "+Bpixel+" (Dest: "+Dest+"): "
+            String+="Found symbol "+ST+" (Z:"+floor(ST/16)+",L:"+SL+")"
+            String+=", Value: "+SS+", Coefficient: "+Sum
+            #String+=", Huffman code: "+C+", HL: "+HL+", T: "+T+", TL: "+TL
+            if(ST==0) {String+=" (EOB)"}
+            print(String) 
+        }
+        
+        if(ShowDCT) { #Display DCT
+            if(Block<Blocks-1) { CD=Fixedbase+Zag[C%64,number] }  else { CD=Base+Zag[C%64,number] }
+            if(Blocks==3 | Block<Blocks-1) { Bloc=floor(CD/64), InX=(CD%8), InY=floor(CD%64/8), BX=Bloc%(MCUsx*Xsub), BY=floor(Bloc/(MCUsx*Xsub)), CX=InX+BX*8, CY=InY+BY*8, CT=CX+CY*MCUsx*Xsub*8 }
+            else { Bloc=floor(CD/64), InX=(CD%8), InY=floor(CD%64/8), BX=Bloc%(MCUsx), BY=floor(Bloc/(MCUsx)), CX=InX+BX*8, CY=InY+BY*8, CT=CX+CY*MCUsx*8 }
+            
+            if(!InX & !InY) { B=900000 } elseif(!abs(Sum)) { B=0 } else { B=255 }
+            if(Block<Blocks-1) { if(Screen2[CT]!=B) { Screen2[CT]=B } }
+            elseif(Block==Blocks-1) { if(Screen3[CT]!=B) { Screen3[CT]=B } }
+            else { if(Screen4[CT]!=B) { Screen4[CT]=B } }
+        }
+        
+        if(Dest==0) { Bpixel=1, C8=Base+Bpixel } 
+        elseif(Dest==1) { Bpixel=1, if(Block<Blocks) { C9=Base+Bpixel } else { C10=Base+Bpixel } } 
+        elseif(Dest==2) { 
+            if(Bpixel>63) { Stage=0, print("Bpixel greater than 63, exiting near DO "+DO) }
+            elseif(Bpixel==63 | ST==0) { 
+                if(Bpixel==1 & Base) {Empties++, E0[Fixedbase,number]=1}
+                if(Debug==3) { print("End of Block "+Block) }
+                C8=Base+64
+                Block++
+                Bpixel=0
+            }
+            else { Bpixel++ }
+        }
+        else { 
+            if(Bpixel>63) { Stage=0, print("Bpixel greater than 63, exiting near DO "+DO) }
+            elseif(Bpixel==63 | ST==0) {
+                if(Bpixel==1 & Base) { Empties++, if(Block<Blocks) { E1[Base,number]=1 } else { E2[Base,number]=1 } }
+                if(Debug==3) { print("End of Block "+Block) }
+                if(Block<Blocks) { C9=Base+64 } else { C10=Base+64 }
+                Block++
+                if(Block>Blocks) { Block=1, if(Debug==3) { print("End of MCU "+MCU) } }
+                Bpixel=0
+                MCU=floor(C10/64)
+                if(MCU==MCUs) {Stage=9, break }
+            }
+            else { Bpixel++ } 
+        }
+    }
+    Progress=MCU*100/MCUs
+    OpsDebt+=MaxOps-opcounter()
+}
+
+elseif(Stage==9) { # Calculate commonly-used values to optimize next stage
+    Xoffset=(max(Xsize,Ysize)-Xsize)/2
+    Yoffset=(max(Xsize,Ysize)-Ysize)/2
+    Scale=min(512/max(Xsize, Ysize), 1)
+    Sub=Xsub*Ysub
+    Size=SWidth*SHeight
+    Size2=Size/Sub
+    Size3=Xsize*8*Ysub
+    Size4=SWidth/8
+    Size5=SWidth/Xsub
+    Size6=Size5/8
+    Sqrt2=sqrt(2)
+    Pi8=pi()/8
+    if(Debug) { print("Percentage of empty blocks: "+round(Empties*100/(MCUs*(Sub+2)),1)) }
+    #for(J=0,7) { for(K=0,7) { L=DCT0[J*8+K,number], if(L<-999) {} elseif(L>999|L<-99) {String+=" "} elseif(L>99|L<-9) {String+="  "} elseif(L>9|L<0) {String+="   "} else {String+="    "}, String+=L }, print(String), String="" }
+    print("Finished decoding DCT, generating image...: "+round(curtime()-Time,1)+" s"), Time=curtime()
+    Stage=10
+}
+
+elseif(Stage==10) { # Generate Image
+    while(opcounter()<MaxOps+OpsDebt) {
+        if(C11<Size) { # Y IDCT Pass 1
+            if(!E0[C11,number]) { # Block contains AC components
+                InX=(C11%8+0.5)*Pi8, Base1=C11-C11%8
+                IDCT0[C11-C11%64+C11%8*8+floor(C11%64/8),number]=(DCT0[Base1+1,number]*cosr(InX)+DCT0[Base1+2,number]*cosr(2*InX)+DCT0[Base1+3,number]*cosr(3*InX)+DCT0[Base1+4,number]*cosr(4*InX)+DCT0[Base1+5,number]*cosr(5*InX)+DCT0[Base1+6,number]*cosr(6*InX)+DCT0[Base1+7,number]*cosr(7*InX))*Sqrt2+DCT0[Base1,number]
+                C11++
+            } else { C11+=64 } # Block is DC only
+        }
+        if(C15<Size2) { # Cb IDCT Pass 1    
+            if(!E1[C15,number]) { # Block contains AC components
+                InX=(C15%8+0.5)*Pi8, Base1=C15-C15%8
+                IDCT1[C15-C15%64+C15%8*8+floor(C15%64/8),number]=(DCT1[Base1+1,number]*cosr(InX)+DCT1[Base1+2,number]*cosr(2*InX)+DCT1[Base1+3,number]*cosr(3*InX)+DCT1[Base1+4,number]*cosr(4*InX)+DCT1[Base1+5,number]*cosr(5*InX)+DCT1[Base1+6,number]*cosr(6*InX)+DCT1[Base1+7,number]*cosr(7*InX))*Sqrt2+DCT1[Base1,number]
+                C15++
+            } else { C15+=64 } # Block is DC only
+        }
+        if(C19<Size2) { # Cr IDCT Pass 1    
+            if(!E2[C19,number]) { # Block contains AC components
+                InX=(C19%8+0.5)*Pi8, Base1=C19-C19%8
+                IDCT2[C19-C19%64+C19%8*8+floor(C19%64/8),number]=(DCT2[Base1+1,number]*cosr(InX)+DCT2[Base1+2,number]*cosr(2*InX)+DCT2[Base1+3,number]*cosr(3*InX)+DCT2[Base1+4,number]*cosr(4*InX)+DCT2[Base1+5,number]*cosr(5*InX)+DCT2[Base1+6,number]*cosr(6*InX)+DCT2[Base1+7,number]*cosr(7*InX))*Sqrt2+DCT2[Base1,number]
+                C19++
+            } else { C19+=64 } # Block is DC only
+        }
+        if(C11>=64 & C13<Size) { # Y IDCT Pass 2
+            if(!E0[C13,number]) { # Block contains AC components
+                InX=(C13%8+0.5)*Pi8, Base1=C13-C13%8
+                Sum=((IDCT0[Base1+1,number]*cosr(InX)+IDCT0[Base1+2,number]*cosr(2*InX)+IDCT0[Base1+3,number]*cosr(3*InX)+IDCT0[Base1+4,number]*cosr(4*InX)+IDCT0[Base1+5,number]*cosr(5*InX)+IDCT0[Base1+6,number]*cosr(6*InX)+IDCT0[Base1+7,number]*cosr(7*InX))*Sqrt2+IDCT0[Base1,number])/8
+                C13T=floor(C13%64/8)+floor(C13/64)%Size4*8+(C13%8+floor(floor(C13/64)/Size4)*8)*SWidth
+                Image0[C13T,number]=Sum
+                if(ShowChannels) { Sum2=round(clamp(Sum+128,0,255)), if(Screen2[C13T]!=Sum2) { Screen2[C13T]=Sum2 } }
+                C13++
+            } else { # Block is DC only
+                Sum=DCT0[C13,number]/8 
+                for(C=C13,C13+63) {
+                    C13T=floor(C%64/8)+floor(C/64)%Size4*8+(C%8+floor(floor(C/64)/Size4)*8)*SWidth
+                    Image0[C13T,number]=Sum
+                    if(ShowChannels) { Sum2=round(clamp(Sum+128,0,255)), if(Screen2[C13T]!=Sum2) { Screen2[C13T]=Sum2 } }
+                }
+                C13+=64
+            }
+        }
+        if(C15>=64 & C17<Size2) { # Cb IDCT Pass 2
+            if(!E1[C17,number]) { # Block contains AC components
+                InX=(C17%8+0.5)*Pi8, Base1=C17-C17%8
+                Sum=((IDCT1[Base1+1,number]*cosr(InX)+IDCT1[Base1+2,number]*cosr(2*InX)+IDCT1[Base1+3,number]*cosr(3*InX)+IDCT1[Base1+4,number]*cosr(4*InX)+IDCT1[Base1+5,number]*cosr(5*InX)+IDCT1[Base1+6,number]*cosr(6*InX)+IDCT1[Base1+7,number]*cosr(7*InX))*Sqrt2+IDCT1[Base1,number])/8
+                C17T=floor(C17%64/8)+floor(C17/64)%Size6*8+(C17%8+floor(floor(C17/64)/Size6)*8)*Size5
+                Image1[C17T,number]=Sum
+                if(ShowChannels) { Sum2=round(clamp(Sum+128,0,255)), if(Screen3[C17T]!=Sum2) { Screen3[C17T]=Sum2 } }
+                C17++
+            } else { # Block is DC only
+                Sum=DCT1[C17,number]/8 
+                for(C=C17,C17+63) {
+                    C17T=floor(C%64/8)+floor(C/64)%Size6*8+(C%8+floor(floor(C/64)/Size6)*8)*Size5
+                    Image1[C17T,number]=Sum
+                    if(ShowChannels) { Sum2=round(clamp(Sum+128,0,255)), if(Screen2[C17T]!=Sum2) { Screen2[C17T]=Sum2 } }
+                }
+                C17+=64
+            }
+        }
+        if(C19>=64 & C21<Size2) { # Cr IDCT Pass 2
+            if(!E2[C21,number]) { # Block contains AC components
+                InX=(C21%8+0.5)*Pi8, Base1=C21-C21%8
+                Sum=((IDCT2[Base1+1,number]*cosr(InX)+IDCT2[Base1+2,number]*cosr(2*InX)+IDCT2[Base1+3,number]*cosr(3*InX)+IDCT2[Base1+4,number]*cosr(4*InX)+IDCT2[Base1+5,number]*cosr(5*InX)+IDCT2[Base1+6,number]*cosr(6*InX)+IDCT2[Base1+7,number]*cosr(7*InX))*Sqrt2+IDCT2[Base1,number])/8
+                C21T=floor(C21%64/8)+floor(C21/64)%Size6*8+(C21%8+floor(floor(C21/64)/Size6)*8)*Size5
+                Image2[C21T,number]=Sum
+                if(ShowChannels) { Sum2=round(clamp(Sum+128,0,255)), if(Screen4[C21T]!=Sum2) { Screen4[C21T]=Sum2 } }
+                C21++
+            } else { # Block is DC only
+                Sum=DCT2[C21,number]/8 
+                for(C=C21,C21+63) {
+                    C21T=floor(C%64/8)+floor(C/64)%Size6*8+(C%8+floor(floor(C/64)/Size6)*8)*Size5
+                    Image2[C21T,number]=Sum
+                    if(ShowChannels) { Sum2=round(clamp(Sum+128,0,255)), if(Screen2[C21T]!=Sum2) { Screen2[C21T]=Sum2 } }
+                }
+                C21+=64
+            }
+        }
+        if(C13>=Size3) { # YCC to RGB conversion, scaling and image painting
+            CX=C23%SWidth
+            CY=floor(C23/SWidth)
+            if(CX<Xsize & CY<Ysize) {
+                Y=Image0[C23,number]
+                if(Sub==1) { 
+                    Cb=Image1[C23,number]
+                    Cr=Image2[C23,number]
+                } else { 
+                    Cb=Image1[floor(CX/Xsub)+floor(CY/Ysub)*Size5,number]
+                    Cr=Image2[floor(CX/Xsub)+floor(CY/Ysub)*Size5,number]
+                }
+                R=Cr*1.402+Y
+                B=Cb*1.772+Y
+                G=Y*1.7035775-B*0.1942078-R*0.5093697
+                Color=round(clamp(R+128,0,255))*256^2+round(clamp(G+128,0,255))*256+round(clamp(B+128,0,255))
+                if(Scale==1) { C23T=(CX+Xoffset)+(CY+Yoffset)*Res } 
+                else { C23T=round(Scale*(CX+Xoffset))+round(Scale*(CY+Yoffset))*Res }
+                Screen1[C23T]=Color
+            }
+            C23++
+        }
+        if(C23>=Size) { Stage=11, break }
+    }
+    Progress=C23*100/Size
+    Tick++, if(Tick==67) { Tick=0, PPS=(C23-LastC23)*200/201, LastC23=C23 }
+    OpsDebt+=MaxOps-opcounter()
+}
+
+elseif(Stage==11) {
+    print("Image generation complete: "+round(curtime()-Time,1)+" s ("+round(Xsize*Ysize/(curtime()-Time))+" PPS)")
+    print("Total time elapsed: "+round(curtime()-Stime,1)+" s")
+    Stage=PPS=Loops=0
+    runOnTick(0)
+}
+
+runOnTick(Stage)

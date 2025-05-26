@@ -1,0 +1,192 @@
+@name rb655_synth
+@inputs EGP:wirelink
+@outputs 
+@persist [Clrs Snds Es Ps]:array Use AtckI AtckII CurEnt Mode CurSnd Int
+@trigger 
+
+interval(Int)
+
+if(first())
+{
+    runOnChat(1)
+    print("To set keys hold mouse1+use, mouse2 to change key")
+    print("To exit key mapping mode, say !done")
+    Mode = 1
+    Es = array()
+    Clrs = array()
+    Clrs[0,vector] = vec(255,0,0)
+    Clrs[1,vector] = vec(255,255,0)
+    Clrs[2,vector] = vec(0,255,0)
+    Clrs[3,vector] = vec(0,255,255)
+    Clrs[4,vector] = vec(0,0,255)
+    Clrs[5,vector] = vec(255,0,255)
+    Clrs[6,vector] = vec(255,128,0)
+    Clrs[7,vector] = vec(0,128,0)
+    Clrs[8,vector] = vec(128,0,0)
+    
+    Ps = array()
+    Ps[0,number] = 0.25
+    Ps[1,number] = 0.5
+    Ps[2,number] = 0.75
+    Ps[3,number] = 1
+    Ps[4,number] = 1.25
+    Ps[5,number] = 1.5
+    Ps[6,number] = 1.75
+    
+    Snds = array()
+    Snds[0,string] = "synth/75_pwm_440.wav"
+    Snds[1,string] = "synth/75_pwm_880.wav"
+    Snds[2,string] = "synth/75_pwm_1760.wav"
+
+    Snds[3,string] = "synth/25_pwm_440.wav"
+    Snds[4,string] = "synth/25_pwm_880.wav"
+    Snds[5,string] = "synth/25_pwm_1760.wav"
+
+    Snds[6,string] = "synth/12_5_pwm_440.wav"
+    Snds[7,string] = "synth/12_5_pwm_880.wav"
+    Snds[8,string] = "synth/12_5_pwm_1760.wav"
+
+    Snds[9,string] = "synth/saw.wav"
+    Snds[10,string] = "synth/saw_440.wav"
+    Snds[11,string] = "synth/saw_880.wav"
+    Snds[12,string] = "synth/saw_1760.wav"
+
+    Snds[13,string] = "synth/saw_inverted_440.wav"
+    Snds[14,string] = "synth/saw_inverted_880.wav"
+    Snds[15,string] = "synth/saw_inverted_1760.wav"
+
+    Snds[16,string] = "synth/sine.wav"
+    Snds[17,string] = "synth/sine_440.wav"
+    Snds[18,string] = "synth/sine_880.wav"
+    Snds[19,string] = "synth/sine_1760.wav"
+
+    Snds[20,string] = "synth/square.wav"
+    Snds[21,string] = "synth/square_440.wav"
+    Snds[22,string] = "synth/square_880.wav"
+    Snds[23,string] = "synth/square_1760.wav"
+
+    Snds[24,string] = "synth/tri.wav"
+    Snds[25,string] = "synth/triangle_440.wav"
+    Snds[26,string] = "synth/triangle_880.wav"
+    Snds[27,string] = "synth/triangle_1760.wav"
+
+    EGP:egpBox(1,vec2(256,256),vec2(512,512))
+    EGP:egpColor(1,vec(0,0,0))
+    
+    Int = 25
+}
+
+findIncludeClass("player")
+Plys = findInSphere(entity():pos(),100)
+findSortByDistance(entity():pos())
+Player = findResult(1)
+
+Use = Player:keyUse()
+AtckI = Player:keyAttack1()
+AtckII = Player:keyAttack2()
+Ent = Player:aimEntity()
+
+if(lastSpoke() == Player & lastSaidWhen() == curtime())
+{
+    Args = lastSaid():explode(" ")
+    Cmd = Args:string(1):lower()
+    Args:remove(1)
+
+    if(Cmd == "!done")
+    {
+        Mode = Args[1,number]
+        hideChat(1)
+    }
+    if(Cmd == "!interval")
+    {
+        Int = abs(Args[1,number])
+        hideChat(1)
+    }
+}
+
+if($AtckI & Use & AtckI & Mode)
+{
+    if(Ent)
+    {
+        Es[CurEnt,entity] = Ent
+        print("Set key "+toString((CurEnt+1)):replace("8","Up"):replace("9","Down"))
+    }
+}
+
+if($AtckII & AtckII & Mode)
+{
+    CurEnt++
+    if(CurEnt >= 9)
+    {
+        CurEnt = 0
+    }
+    print("Current key "+toString((CurEnt+1)):replace("8","Up"):replace("9","Down"))
+}
+
+if(Use & !Mode)
+{
+    if(Ent)
+    {
+        for(I=0,Es:count())
+        {
+            if(Es[I,entity] == Ent & I < 7)
+            {
+                Es[I,entity]:setColor(Clrs[I,vector])
+                soundPlay(I,0,Snds[CurSnd,string])
+                soundPitch(I,100*Ps[I,number])
+            }
+            else
+            {
+                Es[I,entity]:setColor(vec(255,255,255))
+            }
+        }
+    }
+}
+if($Use & Use & !Mode)
+{
+    if(Ent)
+    {
+        for(I=0,Es:count())
+        {
+            if(Es[I,entity] == Ent & I == 7)
+            {
+                Es[I,entity]:setColor(Clrs[I,vector])
+                CurSnd++
+                if(CurSnd > Snds:count())
+                {
+                    CurSnd = 0
+                }
+                #print("Current Sound: "+Snds[CurSnd,string])
+                #soundPlay(I,1,Snds[CurSnd,string])
+            }
+            elseif(Es[I,entity] == Ent & I == 8)
+            {
+                Es[I,entity]:setColor(Clrs[I,vector])
+                CurSnd--
+                if(CurSnd < 0)
+                {
+                    CurSnd = Snds:count()
+                }
+                #print("Current Sound: "+Snds[CurSnd,string])
+                #soundPlay(I,1,Snds[CurSnd,string])
+            }
+            else
+            {
+                Es[I,entity]:setColor(vec(255,255,255))
+            }
+        }
+    }
+}
+elseif($Use & !Use & !Mode)
+{
+    for(I=0,Es:count())
+    {
+        Es[I,entity]:setColor(vec(255,255,255))
+    }
+}
+
+EGP:egpText(2,"Current Sound: " + Snds[CurSnd,string],vec2(0,100))
+EGP:egpText(3,"Current Player: " + Player:name(),vec2(0,120))
+EGP:egpText(4,"Current OPS: " + ops(),vec2(0,140))
+EGP:egpText(5,"Current Interval: " + Int,vec2(0,160))
+

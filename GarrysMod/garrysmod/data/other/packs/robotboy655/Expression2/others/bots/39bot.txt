@@ -1,0 +1,108 @@
+@name 39Bot
+@inputs Aim PlayerTar:entity AimTar:entity Follow Stay
+@inputs StaticPos:vector MFire Ranger FollowTar:entity
+@inputs TurretM ScanClk Ram Grab Throw
+@outputs Fire Aim Override IsWorld StopRam GrabPos:vector
+@persist Force:angle Vector1:vector Follow Aim PlayerTar:entity 
+@persist AimTar:entity AimTarH Stay StaticPos:vector Fire
+@persist TargetDistance Ranger IsWorld IsAlive ScanClk Grab
+@persist GrabVector:vector GrabPos:vector Throw ThrowVector:vector
+
+##### INITIAL #####
+if (first() | duped()) {
+    print("(+++) 39BOT SYSTEMS ACTIVATED")
+    print("(+++) DESIGNED AND PROGRAMMED BY SIR. 39")
+    print("(+++) PLEASE ENJOY YOUR EXPERIENCE")
+    runOnTick(1)
+}
+##### SETTINGS #####
+E = entity():isWeldedTo()
+Owner = E:owner()
+if ( !Ram ) { E:setMass(5) }
+IsWorld = (AimTarH <= 0 & AimTar:pos() == vec(0,0,0))
+IsAlive = (AimTar:isAlive())
+TargetDistance = E:pos():distance(AimTar:pos())
+##### CALCULATIONS #####
+if ( Aim == 0 ) {
+    P = E:angles():pitch()
+    Y = E:angles():yaw()
+    R = E:angles():roll()
+}
+if ( Aim == 1 ) {
+    P = E:angles():pitch()
+    Y = E:bearing(Owner:aimPos())
+    R = E:angles():roll()
+}
+if ( Aim == 2 ) {
+    P = E:elevation(Owner:aimPos())
+    Y = E:bearing(Owner:aimPos())
+    R = E:angles():roll()
+}
+if ( Aim == 3 ) {
+    P = E:elevation(PlayerTar:pos()+vec(0,0,60))
+    Y = E:bearing(PlayerTar:pos())
+    R = E:angles():roll()
+    PlayerTarH = PlayerTar:health()
+       if ( PlayerTarH > 0 & (Ranger != 0) ) { Fire = 1 }
+        elseif ( PlayerTarH <= 0 ) {
+            Fire = 0
+            Aim = 1 
+        }
+}
+if ( Aim == 4 ) {
+    soundPlay("Alert1",0,"npc/turret_floor/active.wav")
+    P = E:elevation(AimTar:pos()+AimTar:height()-25)
+    Y = E:bearing(AimTar:pos())
+    R = E:angles():roll()
+    AimTarH = AimTar:health()
+        if ( AimTarH > 0 & (Ranger != 0) ) { 
+            if ( !TurretM ) { Fire = 1 }
+            if ( TurretM & TargetDistance <= 2000 ) { Fire = 1 }
+        }
+        elseif ( AimTarH <= 0 & $IsAlive ) {
+            soundStop("Alert1")
+            Fire = 0
+            if ( !TurretM ) { Aim = 1 } else { Aim = 0 }
+        }
+}
+##### OVERRIDE #####
+if ( (IsWorld & ~IsWorld) | (TurretM & IsWorld) | (Aim == 4 & IsWorld) ) {
+    Override = 1
+} else { Override = 0 }
+##### PYR MOVEMENT #####
+Force = -ang(P,Y,R) * 10
+E:applyAngForce(Force + $Force*5)
+##### XYZ MOVEMENT #####
+if ( Follow ) {
+    Vector1 = (FollowTar:pos() - E:pos() + vec(0,0,100)) * 20
+    E:applyForce(Vector1 + $Vector1*5)
+}
+if ( Stay ) {
+    Vector1 = (StaticPos - E:pos()) * 20
+    E:applyForce(Vector1 + $Vector1*5)
+}
+if ( Ram ) {
+    E:setMass(1000)
+    Vector1 = (FollowTar:pos() - E:pos() + vec(0,0,20)) * 4000
+    E:applyForce(Vector1 + $Vector1*5)
+}
+#### ADDITIONAL FUNCTIONS #####
+if ( MFire ) { Fire = 1 }
+if ( MFire & ~MFire ) { soundPlay("Alarm",1,"npc/turret_floor/alarm.wav") }
+if ( !MFire & ~MFire ) { 
+    Fire = 0 
+    soundStop("Alarm")
+}
+##### GRABBER #####
+if ( Grab ) {
+    AimTar:setMass(5)
+    GrabPos = Owner:pos() + Owner:forward() * 150
+    GrabVector = (GrabPos - AimTar:pos() + vec(0,0,75)) * 20
+    AimTar:applyForce(GrabVector + $GrabVector*5)
+}
+##### THROW #####
+if ( Throw ) {
+    ThrowVector = -(Owner:pos() - (Owner:pos()+Owner:forward()*150))
+    AimTar:applyForce(ThrowVector * 500000)
+}
+    

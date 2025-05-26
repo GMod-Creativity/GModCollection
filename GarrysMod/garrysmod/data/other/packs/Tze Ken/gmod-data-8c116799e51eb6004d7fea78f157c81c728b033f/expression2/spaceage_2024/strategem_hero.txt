@@ -1,0 +1,185 @@
+@name Strategem Hero
+@inputs User:entity
+@outputs Egp:wirelink Strategem:string Input:string Cooldown
+@outputs Streak Active Score Time MaxTime Size
+@outputs Strategems:array ArrowPoly:array Angles:table
+
+if(first()|duped()){
+    Egp = entity():isWeldedTo():wirelink()
+    Cooldown = 0
+    Streak = 0
+    Active = 0
+    Score = 0
+    MaxTime = 15
+    Time = MaxTime
+    
+    Strategems = array()
+    Strategems:pushString("wsdaw")
+    Strategems:pushString("wsdw")
+    Strategems:pushString("sswd")
+    Strategems:pushString("swaswdsw")
+    Strategems:pushString("sssww")
+    Strategems:pushString("wwwadss")
+    Strategems:pushString("adwww")
+    Strategems:pushString("ddaa")
+    Strategems:pushString("dwws")
+    Strategems:pushString("swsw")
+    
+    ArrowPoly = array()
+    ArrowPoly:pushVector2(vec2(-8,0))
+    ArrowPoly:pushVector2(vec2(-8,14))
+    ArrowPoly:pushVector2(vec2(8,14))
+    ArrowPoly:pushVector2(vec2(8,0))
+    ArrowPoly:pushVector2(vec2(14,0))
+    ArrowPoly:pushVector2(vec2(0,-14))
+    ArrowPoly:pushVector2(vec2(-14,0))
+    
+    Angles = table()
+    Angles["w", number] = 0
+    Angles["a", number] = 90
+    Angles["s", number] = 180
+    Angles["d", number] = 270
+    
+    function string nextStrategem(){
+        Index = round(random(1,Strategems:count()))
+        return Strategems[Index, string]
+    }
+    
+    function void drawTimeLeft(){
+        # Time left
+        Egp:egpBox(98,vec2(256,290), vec2(256,15))
+        Egp:egpColor(98, vec(100,100,100))
+
+        HalfSize = 256*(Time/MaxTime)/2
+        Size = floor(HalfSize)*2
+        Egp:egpBox(99,vec2(128+HalfSize,290), vec2(Size, 15))
+        if(Time > 5){
+            Egp:egpColor(99, vec(240,240,100))
+        }
+        else {
+            Egp:egpColor(99, vec(240,100,100))
+        }
+    }
+    
+    function void drawStrategem(Strategem:string, Input:string){
+        Egp:egpClear()
+        Total = Strategem:length()
+        Hit = Total - Input:length()
+
+        if(Active){
+            # Strategem
+            for(I=1, Total){
+                Egp:egpPoly(I, ArrowPoly)
+                Egp:egpPos(I, vec2(240 - Total*36/2 + I*36,256))
+                Egp:egpAngle(I, Angles[Strategem[I], number])
+                if(I<=Hit) {
+                    Egp:egpColor(I, vec(240,240,100))
+                } else {
+                    Egp:egpColor(I, vec(100,100,100))
+                }
+                I++
+            }
+            Text = " x" + Streak + " Score: "+Score:format()
+            drawTimeLeft()
+        }else{
+            Text = "Input to start!"
+        }
+        
+        # Text
+        Egp:egpText(100,Text, vec2(256,200))
+        Egp:egpFont(100,"Roboto", 40)
+        Egp:egpAlign(100, 1)
+        Egp:egpColor(100, vec(240,240,100))
+    }
+    
+    function void colorStrategems(Strategem:string, Color:vector){
+        Total = Strategem:length()
+        
+        for(I=1, Total){
+            Egp:egpPoly(I, ArrowPoly)
+            Egp:egpPos(I, vec2(240 - Total*36/2 + I*36,256))
+            Egp:egpAngle(I, Angles[Strategem[I], number])
+            Egp:egpColor(I, Color)
+            I++
+        }
+    }
+    
+    Strategem = nextStrategem()
+    Input = Strategem
+    drawStrategem(Strategem, Input)
+}
+
+# Time
+interval(200)
+if(Active) {
+    Time-=0.2
+    drawTimeLeft()
+    if(Time <= 0){
+        Payment = Score * 50
+        if(User!=owner() & Payment > 0){
+            User:giveCredits(Payment)
+            print("Paid: "+Payment:format()+ " credits to " + User:name())
+        }
+        # Game End
+        Time = MaxTime
+        Active = 0
+        Score = 0
+        Streak = 0
+        Strategem = nextStrategem()
+        Input = Strategem
+        soundStop(2)
+        soundPlay(1,2,"ambient/levels/canals/headcrab_canister_ambient1.wav")
+        Cooldown = 1
+        timer("cooldown",5000)
+    }
+}
+
+if(clk("cooldown")){
+    Cooldown = 0
+    drawStrategem(Strategem, Input)
+}
+
+event keyPressed(Player:entity, Key:string, Down:number, KeyBind:string) {
+    if(!Cooldown & Player == User & Down) {
+        if(!Active){
+            timer("cooldown",50)
+            soundPlay(2,60000,"ambient/atmosphere/city_beacon_loop1.wav")
+            Active = 1
+        } else {
+            # Map Arrow Keys
+            if(Key == "down") {Key = "s"}
+            if(Key == "up") {Key = "w"}
+            if(Key == "left") {Key = "a"}
+            if(Key == "right") {Key = "d"}
+            
+            CurArrow = Input[1]
+            if(CurArrow == Key){
+                # Hit
+                soundPlay(1,2,"buttons/lightswitch2.wav")
+                Input = Input:sub(2)
+                drawStrategem(Strategem, Input)
+            } elseif ("wasd":find(Key)){
+                # Miss
+                if(Input:length() < Strategem:length()){
+                    colorStrategems(Strategem, vec(240,100,100))
+                }
+                soundPlay(1,2,"rd/pump/beep-5.wav")
+                Streak = 0
+                Cooldown = 1
+                timer("cooldown",400)
+                Input = Strategem
+            }
+            
+            if(Input:length() == 0){
+                # Next Strategem
+                soundPlay(1,2,"garrysmod/content_downloaded.wav")
+                Streak++
+                Score += Strategem:length() * 100 * Streak
+                Time = min(Time+1.5, MaxTime)
+                Strategem = nextStrategem()
+                Input = Strategem
+                drawStrategem(Strategem, Input)
+            }
+        }
+    }
+}

@@ -1,0 +1,127 @@
+@name Postfix Evaluator
+@inputs Parse:string X Clk
+@outputs Equation:string Y
+@trigger Clk
+
+function array cleanArray(R:array){
+    Ar = R
+    for(I=0, Ar:count(), 1){
+        if(Ar[I, string]==""){
+            Ar:removeString(I)
+        }
+    }
+    return Ar
+}
+
+
+function number isOperator(C:string, IncludeBrackets){
+    if(IncludeBrackets){
+        return (C == "+" || C == "-" || C == "*" || C == "/" || C == "^" || C == "(" || C == ")")
+    }
+    else{
+        return (C == "+" || C == "-" || C == "*" || C == "/" || C == "^")
+    }
+}
+
+function string formatEquation(Eq:string){
+    EqN = ""
+    for(I=1, Eq:length(), 1){
+        if(isOperator(Eq[I],1)){
+            EqN = EqN+" "+Eq[I]+" "
+        }
+        else{
+            EqN = EqN+Eq[I]
+        }
+    }
+    return EqN:trim()
+}
+
+function number isOperand(C:string){
+    return C:findRE("^[0-9]+$")!=0
+}
+
+function number getPrecedence(Op:string){
+    switch(Op)
+    {
+        case("#"),
+            return 0
+        case("("),
+            return 1
+        case ("+"),
+        case ("-"),
+            return 2
+        case ("*"),
+        case ("/"),
+            return 3
+        case ("^"),
+            return 4
+    }
+}
+
+function string toPostFix(Equation:string){
+    Infix = cleanArray(Equation:explode(" "))
+    Postfix = ""
+    Stack = array()
+    Stack:pushString("#")
+    for(I=1, Infix:count(), 1){
+        C=Infix[I, string]
+        if(C=="("){Stack:pushString(C)}
+        elseif(isOperand(C)){Postfix += " " +  C}
+        elseif(C==")"){
+            while(Stack[Stack:count(), string] != "("){
+                Postfix += " " + Stack:popString()
+            }
+            Stack:pop()
+        }
+        else{
+            while(getPrecedence(Stack[Stack:count(), string]) >= getPrecedence(C)){
+                Postfix += " " + Stack:popString()
+                Stack:pushString(C)
+            }
+        }
+    }
+    for(I=1, Stack:count(), 1){
+        Postfix += Stack:popString()
+    }
+    print(Postfix)
+    return Postfix:trim()
+}
+
+function string evalPostFix(Eq:string){
+    Stack = array()
+    PFix = cleanArray(Eq:explode(" "))
+    for(I=1, PFix:count(), 1){
+        if(!isOperator(PFix[I,string],1)) {
+            Stack:pushString(PFix[I,string])
+        } else {
+            A = Stack:popString():toNumber()
+            B = Stack:popString():toNumber()
+            if(PFix[I,string] == "+") {
+                Stack:pushString((A+B):toString())
+            } elseif(PFix[I,string] == "-") {
+                Stack:pushString((B-A):toString())
+            } elseif(PFix[I,string] == "*") {
+                Stack:pushString((A*B):toString())
+            } elseif(PFix[I,string] == "/") {
+                Stack:pushString((B/A):toString())
+            } elseif(PFix[I,string] == "^") {
+                Stack:pushString((B^A):toString())
+            }
+        }
+    }
+    if(Stack:count() > 1){
+        return "Error"
+    }
+    else{
+        return Stack:popString()
+    }
+}
+
+#Substitute X into Equation
+#Equation = Parse:replace("X", X+""):replace(" ","")
+Equation = "452-(12+10)*-16"
+#hint(Equation, 8)
+#To Postfix
+Equation = toPostFix(formatEquation(Equation))
+hint(Equation, 8)
+hint(evalPostFix(Equation),5)

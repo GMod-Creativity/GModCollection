@@ -1,0 +1,98 @@
+@name Telekenisis V3
+@outputs Entities:array IncMass
+@outputs Owner:entity Counter MaxSize
+if(first()){
+    #include "includes/applyforcelib"
+    Owner = entity():owner()
+}
+runOnTick(1)
+runOnKeys(Owner,1)
+
+if(Owner:keyAttack2()&Owner:weapon():type()=="weapon_crowbar"){
+    timer("m2",100)
+}
+
+if(Owner:keyAttack1()&Owner:weapon():type()=="weapon_crowbar"){
+    timer("m1",100)
+}
+
+if(Owner:keyReload()&Owner:weapon():type()=="weapon_crowbar"){
+    timer("R",100)
+}
+if(Owner:keyWalk()&Owner:weapon():type()=="weapon_crowbar"){
+    timer("Alt",100)
+}
+
+
+#Get max size
+function getMax(){
+    MaxSize = 0
+    foreach(I,E:entity=Entities){
+        Size = E:boxSize()
+        Max = max(Size:x(),Size:y(),Size:z())
+        if(Max > MaxSize){
+            MaxSize = Max
+        }
+    }
+}
+
+#Pickup
+if(clk("m2")){
+    stoptimer("m2")
+    E=Owner:aimEntity()
+    if((E:owner()==Owner || E:trusts(Owner))& Entities:count() < 20){
+        Entities:pushEntity(E)
+        noCollideAll(E,1)
+        getMax()
+    }
+    else{
+        hint("Can't Grab",5)
+    }
+}
+
+#Throw
+if(clk("m1")&Entities:count()>0){
+    stoptimer("m1")
+    E = Entities:popEntity()
+    if(IncMass){
+        E:setMass(50000)
+    }
+    forcePos(E,Owner:aimPos())
+    noCollideAll(E,0)
+    getMax()
+}
+
+#Drop
+if(clk("R")){
+    stoptimer("R")
+    foreach(I,E:entity=Entities){
+        noCollideAll(E,0)
+    }
+    Entities:clear()
+}
+
+#Increase Mass
+if(clk("Alt")){
+    stoptimer("Alt")
+    IncMass=!IncMass
+    if(IncMass){
+        hint("Increased Mass Activated",5)
+    }
+    else{
+        hint("Increased Mass Deactivated",5)
+    }
+}
+
+#Progression
+Counter+=0.01
+
+#Update Entity Positions
+foreach(I,E:entity=Entities){
+    Count = Entities:count()
+    
+    Spin = Count > 1 ? 1 : 0
+    X = sin(Counter * (70/Count*4) + I*360/Count)*(MaxSize+Count*50)*Spin
+    Y = cos(Counter * (70/Count*4) + I*360/Count)*(MaxSize+Count*50)*Spin
+    Pos = vec(X+Owner:shootPos():x(), Y+Owner:shootPos():y(), 100+MaxSize+Owner:shootPos():z())
+    forcePos(E,Pos)
+}

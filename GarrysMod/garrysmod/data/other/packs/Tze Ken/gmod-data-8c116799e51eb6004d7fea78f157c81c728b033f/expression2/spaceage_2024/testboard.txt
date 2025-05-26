@@ -1,0 +1,155 @@
+@name Test Board
+@inputs Roid:entity
+@outputs SolarPanels:array Teleporter:entity Lasers:array OreStorages:array Target:entity
+@outputs Scanner:entity StorageCache:entity RoidRadius:number StationPump:entity
+@outputs Ent1:entity Ent2:entity
+@persist 
+@trigger Roid
+@strict
+
+#include "spaceage_2024/miner_utils"
+findByClass("sa_terminal_pump")
+StationPump = find()
+
+findIncludePlayerProps(entity():owner())
+findByClass("gmod_wire_teleporter")
+Teleporter = find()
+
+
+#findClearWhiteList()
+#findByClass("sa_roid")
+#Roid = entity():isWeldedTo()
+
+SolarPanels = array()
+Lasers = array()
+OreStorages = array()
+for(I=1, 5){
+    SolarPanels:pushEntity(holoCreate(I+20, Teleporter:pos(), vec(100,20,1)))
+    Lasers:pushEntity(holoCreate(I+30, Teleporter:pos(), vec(3,1,1)))
+    OreStorages:pushEntity(holoCreate(I+50, Teleporter:pos(), vec(15,15,15)))
+    
+}
+Scanner = holoCreate(41, Teleporter:pos(), vec(3,1,1))
+StorageCache = holoCreate(42, Teleporter:pos(), vec(10,10,10))
+
+function maintainSolarPos(RootPos:vector){
+    AimAng = ang(55,-135,0)
+    ExpandDir = AimAng:right()
+    if(Roid:isValid()){
+        Spacing = 100 + Roid:radius()
+    }
+    else {
+        Spacing = 400
+    }
+    OffsetPos = RootPos + vec(0,0, Spacing)
+    foreach(K:number, Panel:entity=SolarPanels){
+        Pos = OffsetPos + (ExpandDir * Spacing * (K-0.5-SolarPanels:count()/2))
+        Holo = holoIndex(Panel)
+        holoPos(Holo, Pos)
+        holoAng(Holo, AimAng)
+    }
+}
+
+function maintainLaserPos(TeleporterPos:vector, TargetHolo:entity){
+    UnitOffset = 3
+    if(TargetHolo:isValid() & TargetHolo:pos():distance(TeleporterPos) < 2048){
+        foreach(K:number, Laser:entity=Lasers){
+            Holo = holoIndex(Laser)
+            Pos = TargetHolo:toWorld(getLocalOrbit(K, Lasers:count(), 50, UnitOffset) * 20)
+            holoPos(Holo, Pos)
+            Ang = getAimAngle(Pos, TargetHolo:pos())
+            holoAng(Holo, Ang)
+        }
+        ScannerHolo = holoIndex(Scanner)
+        Pos = TargetHolo:toWorld(vec(UnitOffset, 0, 0)*20)
+        holoPos(ScannerHolo, Pos)
+        Ang = getAimAngle(Pos, TargetHolo:pos())
+        holoAng(ScannerHolo, Ang)
+    } else {
+        foreach(K:number, Laser:entity=Lasers){
+            Holo = holoIndex(Laser)
+            Pos = toWorld(getLocalOrbit(K, Lasers:count(), 50, 0) * 50, ang(0,0,0), TeleporterPos, ang(90,0,0))
+            holoPos(Holo, Pos)
+            holoAng(Holo, ang(90,0,0))
+        }
+        ScannerHolo = holoIndex(Scanner)
+        Pos = toWorld(vec(0, 0, 0), ang(0,0,0), TeleporterPos, ang(90,0,0))
+        holoPos(ScannerHolo, Pos)
+        holoAng(ScannerHolo, ang(90,0,0))
+    }
+}
+
+function maintainStoragePos(TeleporterPos:vector, TargetHolo:entity, RoidRadius:number){
+    if(TargetHolo:isValid() & TargetHolo:pos():distance(TeleporterPos) < 2048){
+        UnitOffset = 1.4
+        foreach(K:number, OreStorage:entity=OreStorages){
+            Holo = holoIndex(OreStorage)
+            Pos = TargetHolo:toWorld(getLocalOrbit(K, OreStorages:count(), 50, UnitOffset) * -RoidRadius)
+            holoPos(Holo, Pos)
+            Ang = getAimAngle(Pos, TargetHolo:pos())
+            holoAng(Holo, Ang)
+        }
+        CacheHolo = holoIndex(StorageCache)
+        Pos = TargetHolo:toWorld(vec(UnitOffset, 0, 0) * -RoidRadius)
+        holoPos(CacheHolo, Pos)
+        Ang = getAimAngle(Pos, TargetHolo:pos())
+        holoAng(CacheHolo, Ang)
+    } else {
+        foreach(K:number, OreStorage:entity=OreStorages){
+            Holo = holoIndex(OreStorage)
+            Pos = toWorld(getLocalOrbit(K, OreStorages:count(), 50, 0) * 200, ang(0,0,0), TeleporterPos, ang(90,0,0))
+            holoPos(Holo, Pos)
+            holoAng(Holo, ang(90,0,0))
+        }
+        CacheHolo = holoIndex(StorageCache)
+        Pos = toWorld(vec(200, 0, 0), ang(0,0,0), TeleporterPos, ang(90,0,0))
+        holoPos(CacheHolo, Pos)
+        holoAng(CacheHolo, ang(90,0,0))
+    }
+}
+
+function getPath() {
+    Direction = (Teleporter:pos() - StationPump:pos()):normalized()
+    Distance = Teleporter:pos():distance(StationPump:pos())
+    NumberRequired = Distance/2000
+    for(I=1, NumberRequired){
+        Pos = StationPump:pos() + (Direction * I * 2000)
+        holoCreate(I, Pos, vec(10,10,10))
+    }
+}
+getPath()
+
+if(~Roid){
+    if(Roid:isValid()){
+        Target = findMiningPoint(Roid)
+        RoidRadius = Roid:radius()
+    }
+}
+
+
+event keyPressed(Player:entity, Key:string, Down:number, KeyBind:string) {
+    if(Player == owner() & Down){
+        if(Key == "e") {
+            if(!Ent1:isValid()){
+                Ent1 = owner():aimEntity()
+            }
+            elseif(!Ent2:isValid()){
+                Ent2 = owner():aimEntity()
+            }
+        }
+        if(Key == "f"){
+            print(Ent1:pos():distance(Ent2:pos()))
+        }
+        if(Key == "x"){
+            Dist = owner():aimPos():distance(owner():shootPos())
+            print(Dist)
+            print(Dist/2000)
+        }
+    }
+}
+
+event tick() {
+    #maintainSolarPos(Teleporter:pos())
+    #maintainLaserPos(Teleporter:pos(), Target)
+    #maintainStoragePos(Teleporter:pos(), Target, RoidRadius)
+}

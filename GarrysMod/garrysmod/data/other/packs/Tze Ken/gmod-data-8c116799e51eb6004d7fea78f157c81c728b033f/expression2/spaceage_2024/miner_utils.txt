@@ -1,0 +1,128 @@
+@name Miner Utils 2024
+function number aimedAtEntity(Source:entity, Direction:vector, Target:entity){
+    StartPoint = Source:pos()+Direction*Source:radius()*2.1
+    Tracer = newFTrace(StartPoint, Direction, 500)
+    Tracer:smpWorld()
+    
+    return Tracer:getEntity() == Target
+}
+
+function number aimedAtType(Source:entity, Direction:vector, Type:string){
+    StartPoint = Source:pos()+Direction*Source:radius()*2.1
+    Tracer = newFTrace(StartPoint, Direction, 500)
+    Tracer:smpWorld()
+    
+    return Tracer:getEntity():type() == Type
+}
+
+function number getAngleDiff(CurrentAng:angle, TargetAng:angle){
+    Phi = abs(vec(TargetAng):distance(vec(CurrentAng)))%360
+    return Phi > 180 ? 360 - Phi : Phi
+}
+
+# Returns if in position
+function number maintainPosAng(Entity:entity, TargetPos:vector, TargetAng:angle, Solid:number){
+    Entity:propFreeze(0)
+    Entity:noCollideAll(1)
+    Entity:enableGravity(0)
+    Entity:setMass(50000)
+    Force=(TargetPos-Entity:pos())*10 - Entity:vel()
+    Force *=Entity:mass()
+    Entity:applyForce(clamp(Force,0,100000000))
+    
+    TarQ=quat(TargetAng)
+    CurQ=quat(Entity)
+    Q=TarQ/CurQ
+    V=Entity:toLocal(rotationVector(Q)+Entity:pos())
+    Entity:applyTorque((150*V -12*Entity:angVelVector())*Entity:inertia())
+
+    # Manage Solidity
+    AtTarget = Entity:pos():distance(TargetPos) < 50
+    if(Solid & AtTarget){
+        Entity:propNotSolid(0)
+    }
+    else{
+        Entity:propNotSolid(1)
+    }
+    return AtTarget
+}
+
+function void linkEntities(Node:entity, Entities:array){
+    foreach(I:number, Entity:entity=Entities){
+        Entity:lsLink(Node)
+    }
+}
+
+function entity findMiningPoint(Roid:entity){
+    MaxPoints = 16
+    
+    for(I=1, MaxPoints){
+        From = randvec()
+        Point = From * Roid:radius() + Roid:pos()
+        
+        Tracer = newFTrace(Point, -From, Roid:radius())
+        Tracer:smpWorld()
+        
+        if(Tracer:getEntity() == Roid){
+            return holoCreate(I, Tracer:getHitPos(), vec(1,1,1), From:toAngle(), vec4(0,0,0,0))
+        }
+        else{
+            print("Blocked point found")
+            holoCreate(666, Tracer:getHitPos(), vec(1,1,1), From:toAngle(), vec4(255,0,0,150))
+        }
+    }
+
+    print("Blocked roid found")
+    holoCreate(777, Roid:pos(), vec(100,100,100), ang(0,0,0), vec4(255,0,0,150))
+    return noentity()
+}
+
+function number isTibMineable(Crystal:entity){
+    CurPos = Crystal:pos()
+    TracerStartPos = CurPos+vec(0,0,Crystal:radius()*3)
+    Tracer = newFTrace(TracerStartPos, vec(0,0,-1), Crystal:radius()*4)
+    Tracer:setMask(3)
+    Tracer:smpWorld()
+    ExpectedPos = Tracer:getHitPos()
+    return ExpectedPos:distance(CurPos) < 0.001
+}
+
+function vector getLocalOrbit(Index:number, Count:number, Rate:number, ZOffset:number){
+    X = cos((curtime() * Rate + 360/Count*Index))
+    Y = sin((curtime() * Rate + 360/Count*Index))
+    return vec(ZOffset, Y, X)
+}
+
+function vector getLocalOrbitStatic(Index:number, Count:number, ZOffset:number){
+    X = cos(360/Count*Index)
+    Y = sin(360/Count*Index)
+    return vec(ZOffset, Y, X)
+}
+
+function angle getAimAngle(EntPos:vector, AimPos:vector){
+    return (EntPos - AimPos):normalized():toAngle()
+}
+
+function void tryFreeze(Entity:entity){
+    if(Entity:isValid()){
+        Entity:propFreeze(1)
+    }
+}
+
+function void tryFreezeAll(Entities:array){
+    foreach(I:number, Entity:entity=Entities){
+        tryFreeze(Entity)
+    }
+}
+
+function array generateEvenlySpacedPath(Source:vector, Destination:vector, Spacing:number) {
+    Direction = (Destination - Source):normalized()
+    Distance = Destination:distance(Source)
+    NumberRequired = Distance/Spacing
+    Positions = array()
+    for(I=1, NumberRequired){
+        Pos = Source + (Direction * I * Spacing)
+        Positions:pushVector(Pos)
+    }
+    return Positions
+}

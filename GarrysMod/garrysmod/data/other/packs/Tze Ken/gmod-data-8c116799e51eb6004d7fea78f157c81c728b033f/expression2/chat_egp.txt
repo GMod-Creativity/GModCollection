@@ -1,0 +1,152 @@
+@name Event EGP
+@outputs Egp:wirelink Buffer:table BufferSize
+@outputs ScrollOffset:vector2 Plane:egpobject CurrentPlayer:entity CurPos:vector2
+
+if(first()|duped()){
+    Egp = entity():isWeldedTo():wirelink()
+    Egp:egpClear()
+    Egp:egpDrawTopLeft(1)
+    Plane = Egp:egpBox(1000,vec2(0,0),vec2(1024,1024))
+    Egp:egpColor(1000, vec(25,25,100))
+    Buffer = table()
+    BufferSize = 64
+    
+    function printText(){
+        foreach(Index:number, Params:table=Buffer){
+            Player = Params["playerName", string]
+            Message = Params["message", string]
+            Color = Params["teamColor", vector]
+            
+            XOffset = Player:length() * 9
+            YOffset = 16
+            Egp:egpText(Index, Player, vec2(2,(Index-1)*YOffset))
+            Egp:egpColor(Index, Color)
+            Egp:egpSize(Index, 14)
+            Egp:egpFont(Index, "Lucida Console")
+            Egp:egpText(Index+BufferSize, ": " + Message, vec2(2+XOffset,(Index-1)*YOffset))
+            Egp:egpFont(Index+BufferSize, "Lucida Console")
+            Egp:egpSize(Index+BufferSize, 14)
+            Egp:egpParent(Index, 1000)
+            Egp:egpParent(Index+BufferSize, 1000)
+        }
+    }
+    
+    function pushBuffer(Params:table){
+        Buffer:pushTable(Params)
+        if(Buffer:count()>BufferSize){
+            Buffer:shift()
+        }
+    }
+
+    Egp:egpSize(612, 6)
+}
+
+interval(1000)
+printText()
+
+event chat(Player:entity, Message:string, Team:number) {
+    Params = table()
+    Params["playerName", string] = Player:name()
+    Params["teamColor", vector] = teamColor(Player:team())
+    Params["message", string] = Message
+    pushBuffer(Params)
+}
+
+event entityCreated(Entity:entity) {
+    Params = table()
+    Owner = Entity:owner()
+    Params["playerName", string] = Owner:name() == "" ? "World" : Owner:name()
+    Params["teamColor", vector] = teamColor(Entity:owner():team())
+    Params["message", string] = "Created entity: " + Entity:toString()
+    pushBuffer(Params)
+}
+
+
+event playerSpawn(Player:entity) {
+    Params = table()
+    Params["playerName", string] = Player:name()
+    Params["teamColor", vector] = teamColor(Player:team())
+    Params["message", string] = "Spawned"
+    pushBuffer(Params)
+}
+
+event chipUsed(Player:entity) {
+    Params = table()
+    Params["playerName", string] = Player:name()
+    Params["teamColor", vector] = teamColor(Player:team())
+    Params["message", string] = "Used E2"
+    pushBuffer(Params)
+}
+
+event playerConnected(Player:entity) {
+    Params = table()
+    Params["playerName", string] = Player:name()
+    Params["teamColor", vector] = teamColor(Player:team())
+    Params["message", string] = "Connected"
+    pushBuffer(Params)
+}
+
+event playerDisconnected(Player:entity) {
+    Params = table()
+    Params["playerName", string] = Player:name()
+    Params["teamColor", vector] = teamColor(Player:team())
+    Params["message", string] = "Disconnected"
+    pushBuffer(Params)
+}
+
+event playerDeath(Victim:entity, Inflictor:entity, Attacker:entity) {
+    Params = table()
+    Params["playerName", string] = Victim:name()
+    Params["teamColor", vector] = teamColor(Victim:team())
+    if(Victim == Attacker) {
+        Params["message", string] = "Committed Suicide"
+    } elseif(Attacker:isPlayer()){
+        Params["message", string] = "Killed by " + Attacker:name()
+            + " with " + Inflictor:toString()
+    } else {
+        Params["message", string] = "Killed by " + Inflictor:toString()
+    }
+    pushBuffer(Params)
+}
+
+event weaponSwitched(Player:entity, OldWeapon:entity, NewWeapon:entity) {
+    Params = table()
+    Params["playerName", string] = Player:name()
+    Params["teamColor", vector] = teamColor(Player:team())
+    Params["message", string] = "Switched weapon from " 
+        + OldWeapon:toString() + " to " + NewWeapon:toString()
+    pushBuffer(Params)
+}
+
+event keyPressed(Player:entity, Key:string, Down:number, KeyBind:string) {
+    #if(Down) {
+    #    Params = table()
+    #    Params["playerName", string] = Player:name() == "" ? "World" : Player:name()
+    #    Params["teamColor", vector] = teamColor(Player:team())
+    #    Params["message", string] = "Pressed: " + KeyBind + Key
+    #    pushBuffer(Params)
+    #}
+    
+    Cursor=Egp:egpCursor(Player)
+    Onscreen=!(Cursor == vec2(-1,-1))
+    if(Key == "e" & Onscreen & Player:pos():distance(entity():pos()) < 120){
+        if(Down){
+            CurrentPlayer = Player
+            PlaneStart = vec2(Plane:getPosAng():x(),Plane:getPosAng():y())
+            ScrollOffset = PlaneStart - Cursor
+            Plane:parentToCursor()
+            Plane:setPos(ScrollOffset)
+        }
+        elseif(Player == CurrentPlayer){
+            CurPos = ScrollOffset + Cursor
+            Plane:unparent()
+            CurPos = clamp(CurPos, vec2(-512,-512), vec2(0,0))
+            Plane:setPos(CurPos)
+            CurrentPlayer = noentity()
+        }
+    }
+}
+
+event removed(Resetting:number) {
+    Egp:egpClear()
+}

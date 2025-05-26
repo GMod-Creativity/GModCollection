@@ -1,0 +1,133 @@
+@name Universal Holo Res
+@inputs Current Max
+@persist E2:entity
+@outputs Excludes:array XGap HoloSize
+@outputs Storages:array Res:table ResInd:array
+
+#Excluded Resources
+Excludes=array("")
+
+#Entity Discovery
+function number findInArray(Str:string,Ar:array){
+    for(I=1,Ar:count()){
+        if(Ar[I, string]==Str){
+            return I
+        }
+    }
+    return 0
+}
+
+function number findTypeInArray(Str:string,Ar:array){
+    for(I=1,Ar:count()){
+        if(Ar[I, entity]:type()==Str){
+            return 1
+        }
+    }
+    return 0
+}
+
+function void findStorages(){
+    Storages = array()
+    findIncludePlayerProps(owner())
+    findInSphere(entity():pos(), 10000000)
+    Temp = findToArray()
+    for (I = 1, Temp:count()){
+        if(Temp[I, entity]:type():find("storage")!=0){
+            if(!findTypeInArray(Temp[I, entity]:type(),Storages)){
+                Storages[Storages:count()+1,entity] = Temp[I, entity]
+            }
+        }
+    }
+}
+
+function void findResources(){
+    for(I = 1, Storages:count()){
+        Temp = Storages[I, entity]:wirelink():outputs()
+        TempTab = table()
+        for(J = 1, Temp:count()){
+            if(!Res:exists(Temp[J, string]:replace("Max ",""))&Temp[J, string]!="wirelink"
+                &!findInArray(Temp[J, string]:replace("Max ",""),Excludes)){
+                TempTab:pushString(Temp[J, string]:replace("Max ",""))
+            }
+        }
+        TempAr = TempTab:toArray()
+        ResInd = ResInd:add(TempTab:flip():flip():toArray())
+        TempTab  = TempTab:flip()
+        for(J = 1, TempAr:count()){
+            TempTab[TempAr[J,string], number] = I
+        }
+        Res = Res:add(TempTab)
+    }
+    
+}
+
+#Resource Amount Function
+function vector2 getCurMax(Name:string){
+    Cur = Storages[Res[Name, number] ,entity]:wirelink()[Name,number]
+    Max = Storages[Res[Name, number] ,entity]:wirelink()["Max "+Name,number]
+    return vec2(Cur,Max)
+}
+
+#Resource color lookup
+function vector4 getResColor(ResName:string){
+    switch(ResName){
+        case "Ore", return vec4(255,200,50,240)
+        case "Tiberium", return vec4(0,255,0,240)
+        case "Energy", return vec4(0,100,255,240)
+        case "Oxygen", return vec4(255,255,255,240)
+        case "Hydrogen", return vec4(200,100,100,240)
+        case "Nitrogen", return vec4(100,50,100,240)
+        case "Water", return vec4(0,0,255,240)
+        case "Hvy Water", return vec4(50,50,50,240)
+        case "Co2", return vec4(125,200,50,240)
+        default, return randvec4(vec4(50,50,50,240),vec4(255,255,255,240))
+    }
+}
+
+#Progress Bar Function
+function void createBars(Ar:array){
+    Count = Ar:count()
+    for (I = 1, Count){
+        XOffset = XGap*(I-1) - XGap*Count/2 + XGap/2
+        holoCreate(I, E2:toWorld(vec(XOffset,0,10)), vec(0.15,0.15,1.05), 
+            E2:toWorld(ang(0,0,0)), vec4(0,0,0,100))
+        holoParent(I, E2)
+        
+        Color = getResColor(Ar[I, string])
+        holoCreate(Count+I, E2:toWorld(vec(XOffset,0,10)), vec(0.1,0.1,1), 
+            E2:toWorld(ang(0,0,0)), Color)
+        holoParent(Count+I, E2)
+    }
+}
+
+#Update bars
+function void updateBars(Ar:array){
+    Count = Ar:count()
+    for (I = 1, Count){
+        CurMax = getCurMax(Ar[I,string])
+        CurMaxPerc = CurMax:x()/CurMax:y()
+
+        XOffset = XGap*(I-1) - XGap*Count/2 + XGap/2
+
+        holoScale(Count+I, vec(0.1,0.1, CurMaxPerc))
+        holoPos(Count+I, E2:toWorld(vec(XOffset,0,4+(CurMaxPerc)*6)))
+    }
+}
+
+if(first() || dupefinished()){
+    hint("Universal Holo Res V1.0 By NoOneLiv3",5)
+    E2 = entity()
+    XGap = 10
+    
+    findStorages()
+    findResources()
+    createBars(ResInd)
+}
+
+interval(1000)
+updateBars(ResInd)
+
+#interval(100)
+#holoScale(2, vec(0.1,0.1, Current/Max))
+#holoPos(2, E2:toWorld(vec(0,0,4+(Current/Max)*6)))
+#holoAng(2, E2:toWorld(ang(0,0,0)))

@@ -1,0 +1,141 @@
+@name !The matrix screensaver
+@inputs Screen:wirelink
+
+@persist MaxStream BackTrace Leading SpacePad SpeedDelay
+@persist [StreamOrigSpeed,StreamSpeed,Symbols,StreamStatus,StartX,StartY]:array
+@persist R G B MinSpeed AddSpeed
+@persist StreamCount
+@persist Clk
+@trigger none
+#Displays "The matrix"-style character streams on the console screen
+#Based on a windows screensaver by Louai Munajim
+#Rewritten in E2 by SpaRrRly
+if(first())
+{
+    Clk         =40     #The smaller, the faster it works (Some lags may occur if set too small :) )
+    
+    MaxStream   =10    #Maximum amount of the streams (Big values can affect performance)
+    BackTrace   =15     #The size of each stream
+    Leading     =5      #How many characters will be shown before random erase
+    SpacePad    =5      #Range of random erase
+    SpeedDelay  =15     #Usual color modifier-the bigger, the brighter
+    
+    MinSpeed    =5      #The speed of all streams is in limits of MinSpeed and MinSpeed+AddSpeed
+    AddSpeed    =5      #But this is not the speed in fact, it is the exact opposite
+    
+    R           =3
+    G           =9
+    B           =3
+    
+    for(I=33,126){Symbols:pushString(toChar(I))}
+    
+    StreamCount =0
+    
+    timer("Clear",20)
+    timer("Paint",200)
+}
+elseif(clk("Paint"))
+{
+    timer("CreateDestroyStreams",Clk)   #Re-initializes flown-away and new streams
+    timer("UpdateStreams",Clk*2)        #Moves streams down by working with their delays
+    timer("DisplayStreams",Clk*3)       #Flashes 2 first chars of each stream, deletes tail and some random chars
+    timer("Paint",Clk*4)   
+}
+elseif(clk("Clear"))
+{
+    for(Y=0,17){for(X=0,29){Screen:writeString(" ",X,Y)}}
+}
+elseif(clk("CreateDestroyStreams"))
+{
+    if (StreamCount < MaxStream)
+    {
+        for(I=1, MaxStream)
+        {
+            if(StreamStatus[I,number]==0)
+            {
+                StreamCount++
+                StreamStatus[I,number]=1
+                StartY[I,number]=0
+                StartX[I,number]=randint(30)
+                StreamOrigSpeed[I,number]=MinSpeed+randint(AddSpeed)
+                StreamSpeed[I,number]=StreamOrigSpeed[I, number]
+                break
+            }
+        }
+    }
+    for (I=1,MaxStream)
+    {
+        if(StartY[I,number]>(17+BackTrace))
+        {
+            StreamStatus[I,number]=0
+            StreamCount--
+            StartY[I,number]=0
+        }
+    }
+}
+elseif(clk("UpdateStreams"))
+{
+    for (I=1, MaxStream)
+    {
+        if (StreamStatus[I,number]==1)
+        {
+            if (StreamSpeed[I,number] == 0)
+            {
+                StartY[I,number]= StartY[I,number]+1
+                StreamSpeed[I,number] = StreamOrigSpeed[I,number]
+            }
+            else
+            {
+                StreamSpeed[I,number]=StreamSpeed[I,number]-1
+            }
+        }
+    }
+}
+elseif(clk("DisplayStreams"))
+{
+    for (I=1, MaxStream)
+    {
+        if(StreamStatus[I,number])
+        {
+            X=StartX[I,number]
+            Y=StartY[I,number]
+            
+            for (J=0,2)
+            {
+                if (J==0)
+                {
+                    Inc =( 1-StreamOrigSpeed[I,number]/(SpeedDelay+1) )
+                    
+                    
+                    Color=(clamp(int(R*Inc),0,9)*100+clamp(int(G*Inc),0,9)*10+clamp(int(B*Inc),0,9))
+                    if((Y<19)&(Y>0))
+                    {
+                        Screen:writeString(Symbols[randint(94),string],X,Y-1,Color)
+                    }
+                    
+                } elseif (J==1)
+                {
+                    Inc =( 1-StreamOrigSpeed[I,number]/(SpeedDelay+1)/3 )
+                    Color=(clamp(int(R*Inc),0,9)*100+clamp(int(G*Inc),0,9)*10+clamp(int(B*Inc),0,9))
+                    
+                    if((Y<18))
+                    {
+                        Screen:writeString(Symbols[randint(94),string],X,Y,Color)
+                    }
+                }else
+                {
+                    
+                    Rand=randint(SpacePad)
+                    if((Y-Rand-Leading>=0)&(randint(20)==1))
+                    {
+                           Screen:writeString("W",X,Y-Rand-Leading,0) #Random erase
+                    }
+                    if(Y-BackTrace>=0)
+                    {
+                           Screen:writeString("W",X,Y-BackTrace,0) #Tail erase
+                    }
+                }
+            }
+        }
+    }
+}

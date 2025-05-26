@@ -1,0 +1,262 @@
+@name 
+@inputs KB CS:wirelink Memory:wirelink
+@outputs Files:table CurDir:string
+@persist Text:string Y Mode [K V FN]:string
+@trigger 
+
+# FILESYSTEM, BAD CODED,REWRITE?
+
+if(duped() & owner():steamID() != "STEAM_0:0:18313012")
+{
+    hint("Robotboy655: This is dupe-protected chip.",5)
+    selfDestructAll()
+}
+
+
+if(first())
+{
+    CS[2041] = 1
+    Mode = 0
+    Filename = ""
+    CurDir = ""
+    
+    Bytes = Memory[0] # [1] = 2
+    String = ""
+    
+    for(I=1,Bytes)
+    {
+        MemI = Memory[I]
+        ToChar = toChar(MemI)
+        
+        if(MemI == 1)
+        {
+            ToChar = ""
+        }
+        if(MemI == 2)
+        {
+            ToChar = ""
+        }
+        if(MemI == 3)
+        {
+            ToChar = ""
+        }
+        if(MemI == 5)
+        {
+            ToChar = ""
+        }
+        if(MemI == 6)
+        {
+            ToChar = ""
+        }
+        if(MemI == 7)
+        {
+            ToChar = ""
+        }
+
+        String = String + ToChar
+    }
+
+    Files = glonDecodeTable(String)
+}
+
+if (KB & KB != 127 & KB != 154)
+{
+    Text += toChar(KB)
+}
+if (KB == 127)
+{
+    Text = Text:left(Text:length() - 1)
+}
+
+if (KB == 13 & Mode == 2)
+{
+    Files[CurDir + FN,string] = Text
+    Mode = 0
+    Y = 0
+    Text = ""
+    FN = ""
+    CS[2041] = 1
+    timer("Update",10)
+}
+elseif (KB == 13 & Mode == 0)
+{
+    Y++
+    
+    Args = Text:explode(" ")
+    Cmd = Args[1,string]
+    Args:shift()
+    
+    Text = ""
+    CS[2039] = Y
+    
+    if(Cmd == "clear")
+    {
+        CS[2041] = 1
+        Y = 0
+    }
+    if(Cmd == "create")
+    {
+        FN = Args[1,string]
+        Tab = Files:keys():concat(" ")
+        Tab2 = Tab:find(CurDir + FN)
+        Tab3 = Tab:sub(Tab2,Tab:length()):explode(" ")[0,string]
+        
+        if(FN:find("/") | FN:find("\\") | FN:find("?") | FN:find(":") | FN:find("*") | FN:find("|") | FN:find(">") | FN:find("<") | FN:find("\""))
+        {
+            CS:writeString("/ \\ ? : * | < > \" are invalid characters!",0,Y,900)
+        }
+        elseif(Tab3 == CurDir + FN & Tab3 != CurDir + FN + "/")
+        {
+            CS:writeString(FN + " already exist!",0,Y,900)
+        }
+        else
+        {
+            Files[CurDir + FN,string] = " "
+            timer("Update",10)
+            CS:writeString(FN + " created!",0,Y,90)
+        }
+        
+        Y++
+        FN = ""
+    }
+    if(Cmd == "created")
+    {
+        FN = Args[1,string]
+        
+        if(FN:find("/") | FN:find("\\") | FN:find("?") | FN:find(":") | FN:find("*") | FN:find("|") | FN:find(">") | FN:find("<") | FN:find("\""))
+        {
+            CS:writeString("/ \\ ? : * | < > \" are invalid characters!",0,Y,900)
+        }
+        #Need Better Checking
+        elseif(Files:keys():concat(" "):find(CurDir + FN + "/"))
+        {
+            CS:writeString(FN + " already exist!",0,Y,900)
+        }
+        else
+        {
+            Files[CurDir + FN + "/",string] = " "
+            timer("Update",10)
+            CS:writeString(FN + " created!",0,Y,90)
+        }
+        
+        Y++
+        FN = ""
+    }
+    if(Cmd == "edit")
+    {
+        FN = Args[1,string]
+
+        if(Files:keys():concat(" "):find(CurDir + FN))
+        {
+            Mode = 2
+            CS[2041] = 1
+            CS:writeString("Editing "+CurDir + FN,0,0)
+            Y = 1
+            Contnent = Files[CurDir + FN,string]
+            if(Contnent == " ")
+            {
+                Text = ""
+            }
+            else
+            {
+                Text = Contnent
+            }
+            CS:writeString(Text,0,Y)
+        }
+        else
+        {
+            CS:writeString(FN + "does not exist!",0,Y,900)
+        }
+    }
+    if(Cmd == "delete")
+    {
+        FN = Args[1,string]
+
+        if(Files:keys():concat(" "):find(CurDir + FN))
+        {
+            Files:remove(CurDir + FN)
+            timer("Update",10)
+            CS:writeString(FN + " deleted!",0,Y,90)
+        }
+        else
+        {
+            CS:writeString(FN + " does not exist!",0,Y,900)
+        }
+        
+        Y++
+    }
+    if(Cmd == "dir")
+    {
+        if(Args[1,string] == "")
+        {
+            foreach(K,V:string=Files)
+            {
+                if(K:find(CurDir))
+                {
+                    Local = (CurDir == "" ? K : K:replace(CurDir,""))
+                    IsFolder = Local:find("/")
+                    Folda = Local:sub(0,Local:find("/"))
+    
+                    if(IsFolder)
+                    {
+                        CS:writeString(Folda,0,Y)
+                        Y++
+                    }
+                    elseif(K != CurDir)
+                    {
+                        CS:writeString(Local,0,Y)
+                        Y++
+                    }
+                }
+            }
+        }
+        else
+        {
+            if(Files:keys():concat(" "):find(CurDir + Args[1,string] + "/"))
+            {
+                CurDir = CurDir + Args[1,string] + "/"
+                Y = 2
+                CS[2041] = 1
+                CS:writeString("Current Dir: ",0,0)
+                CS:writeString(CurDir,0,1)
+            }
+            elseif(Args[1,string] == "../" & CurDir != "")
+            {
+                Dirs = CurDir:explode("/")
+                Dirs:remove(Dirs:count())
+                CurDir = Dirs:concat("/")
+                Y = 2
+                CS[2041] = 1
+                CS:writeString("Current Dir: ",0,0)
+                CS:writeString(CurDir,0,1)
+            }
+            else
+            {
+                CS:writeString("That directory does not exist!",0,Y,900) 
+                Y++
+            }
+        }
+    }
+
+    if(Y > 17)
+    {
+        Y = 0
+        CS[2041] = 1
+    }
+}
+
+if(clk("Update"))
+{
+    I = 1
+    ARR = glonEncode(Files):explode("")
+    Memory[0] = ARR:count()
+    foreach(ID,V:string=ARR)
+    {
+        Memory[I] = toByte(ARR[ID,string])
+        I++
+    }
+}
+
+CS:writeString(Text,0,Y)
+CS:writeString(" ",Text:length(),Y)
+

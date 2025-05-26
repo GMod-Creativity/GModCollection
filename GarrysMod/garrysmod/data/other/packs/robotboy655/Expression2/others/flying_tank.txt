@@ -1,0 +1,159 @@
+@name Freakin'Flyin'Tank!
+@inputs PC:wirelink
+@inputs Base:entity Tower:entity Cannon:entity
+@outputs Spawn Undo
+@persist W A S D Up Down Fire Pod:entity Active Space
+@persist H Eye:vector Offset Speed TSpeed TC
+@persist Smoke:string Launch LT Bullet:entity CF:vector
+@persist FT FB SPD BMS Driver:entity Lock Rtrn
+interval(10)
+runOnChat(1)
+if(duped()){reset()}
+if(first()|chatClk(owner())&lastSaid()=="Reset"|chatClk(Driver)&lastSaid()=="Reset"){
+    Smoke="trails/smoke"
+    findExcludeClass("gmod_wire_spawner")
+    H=Base:pos():z()+12
+    Speed=150
+    TSpeed=60
+    Offset=0
+    TC=1
+    BMS=3000
+    FB=1
+    FT=200
+    SPD=600
+    }
+#End of initialization
+    
+W=PC:number("W")
+A=PC:number("A")
+S=PC:number("S")
+D=PC:number("D")
+Up=PC:number("Shift")
+Down=PC:number("Alt")
+Fire=PC:number("Mouse1")
+Space=PC:number("Space")
+Active=PC:number("Active")
+Pod=PC:entity("Entity")
+#WL is ready
+if(Active&$Active){Pod:hintDriver(
+    "Hello, this tank can be customized, say TankHelp to see command list",5)}
+
+if(chatClk(owner())&lastSaid()=="LockTank"){Lock=1}
+if(Lock){Driver=owner() if(Driver!=Pod:driver()){Pod:killPod()}}else{Driver=Pod:driver()}
+if(chatClk(owner())&lastSaid()=="UnlockTank"){Lock=0}
+if(chatClk(owner())&lastSaid()=="ReturnTank"){Lock=1 Rtrn=0}
+if(!Rtrn){
+        if(owner():pos():distance(Base:pos())>300)
+            {Base:applyForce((owner():pos()-Base:pos())*Base:mass()*200) H=30+owner():pos():z()}
+        else{Rtrn=1}
+        }
+#Protection from thoose vehicle thieves    
+        
+if( chatClk(Driver))
+{
+Str=lastSaid()
+Strlen=Str:length()
+if( Str:find("Speed")==1&Strlen>6 )
+    { Speed=Str:sub(7,Strlen):toNumber() }
+    
+if( Str:find("TurnSpeed")==1&Strlen>10 )
+    { TSpeed=Str:sub(11,Strlen):toNumber() }
+    
+if( Str:find("Offset")==1&Strlen>7 )
+    { Offset=clamp(Str:sub(8,Strlen):toNumber(),-30,90) }
+        
+if( Str:find("TC")==1&Strlen>3 )
+    { TC=clamp(Str:sub(4,5):toNumber(),-1,1)}
+    
+if( Str:find("SetH")==1&Strlen>5 )
+    { H=Str:sub(6,Strlen):toNumber() }
+    
+if( Str:find("FeedBack")==1&Strlen>9 )
+    { FB=clamp(Str:sub(10,15):toNumber(),0,1)}
+    
+if( Str:find("BulletMass")==1&Strlen>11 )
+    { BMS=clamp(Str:sub(12,Strlen):toNumber(),1,50000)}
+    
+if( Str:find("FlightTime")==1&Strlen>11 )
+    { FT=clamp(Str:sub(12,Strlen):toNumber(),20,5000)}
+    
+if( Str:find("StartSpeed")==1&Strlen>11 )
+    { SPD=clamp(Str:sub(12,Strlen):toNumber(),0,30000)}
+}
+#Chat commands
+if( chatClk(Driver)&lastSaid():find("TankHelp"))
+    {Pod:hintDriver(
+    "Available commands: Reset, TankHelp, Speed, TurnSpeed, Offset"
+        ,7)
+Pod:hintDriver(
+    "TC(Tower Stabilization), SetH, FeedBack, BulletMass, FlightTime, StartSpeed",7)
+    if(Driver==owner()){Pod:hintDriver("Owner commands: LockTank, UnlockTank, ReturnTank",5)}   
+}
+if(!chatClk()){    
+H+=(Up-Down)*7
+if(Base){
+    Base:applyForce(( #Movement
+        (W-S)*Base:right()*Speed*(Space+1)
+        +Space*(A-D)*Base:forward()*Speed
+        +vec(0,0,H-Base:pos():z())
+        -Base:vel()/3
+        )*Base:mass())
+    Base:applyAngForce( #Base stabilization and turns
+        (-Base:angles():setYaw((D-A)*TSpeed*(1-Space))
+        -Base:angVel()/3
+        )*30*shiftL(ang(Base:inertia()))
+    )
+}
+if(Tower&Pod){
+    Tower:applyForce((Base:vel()-Tower:vel())*Tower:mass())
+    if(Active)
+        {Eye=Pod:driver():eye()}
+    else
+        {Eye=Pod:eye():rotate(0,0,0)}
+    Tower:applyAngForce( #Rotates tower
+        angnorm(ang(0,Eye:toAngle():yaw()-Tower:angles():yaw(),0)
+        -Tower:angVel()/5
+        +TC*Base:angVel()/6 #TC-On-turn alignment
+        )*30*shiftL(ang(Tower:inertia())*12)
+    )
+    if(Cannon){
+        Cannon:applyAngForce( #Sets cannon
+        angnorm(
+            ang(0,0,
+                -Eye:toAngle():pitch()
+                -Cannon:angles():roll()
+                +181.5+Offset
+                -Cannon:angVel():roll()/5
+                )
+            )
+            *30*shiftL(ang(Cannon:inertia()))*30
+        )        
+    }        
+}
+if(!Launch){
+    Undo=0
+    findByModel("models/hunter/blocks/cube025x025x025.mdl")
+    if(Fire&(!find()|find():owner()!=owner()))
+        { Spawn=1
+            findByModel("models/hunter/blocks/cube025x025x025.mdl")
+             }
+    if (Spawn){if(findClosest(entity():pos()):owner()==owner())
+        {soundPlay(1,1,"weapons/underwater_explode4.wav")#Shoot sound
+        Bullet=findClosest(entity():pos())
+        Bullet:setTrails(10,20,2,Smoke,vec(randint(255),randint(255),randint(255)),230)
+        Bullet:setMass(BMS)
+        Launch=1
+        LT=0
+        Spawn=0
+        CF=Cannon:right()*BMS*SPD #Stores cannon's direction
+    }}
+}
+if(Launch){
+    if(LT<=FT){LT++}else{Launch=0 Undo=1}
+    if(LT==FT-15){soundPlay(0,2,"npc/sniper/reload1.wav")}#Reload sound
+    if(LT<15){
+        Bullet:applyForce(CF)
+        Tower:applyForce(-CF*FB)
+        }
+}
+}

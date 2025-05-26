@@ -1,0 +1,190 @@
+@name Pattern Lock RP
+@inputs EGP:wirelink ManualOpen
+@outputs Open
+@persist Pattern:array CurPatt:array PattDraw:array Time
+@persist BGColor:vector4 LineColor:vector4 CircleColor:vector4 HackColor:vector
+@trigger ManualOpen
+
+if(first()|dupefinished()){
+    interval(600)
+    EGP:egpClear()
+    Scr = EGP:entity()
+    
+    BGColor = vec4(20,20,20,255)
+    LineColor = vec4(0,220,80,255)
+    CircleColor = vec4(0,80,220,255)
+    HackColor = vec(220,50,0)
+    
+    #Set Pattern PW
+    Pattern = array(vec2(128,128),vec2(256,128),vec2(256,256),vec2(256,384),vec2(384,384))
+    
+    #Draw
+    #Static global elements
+    EGP:egpBox(1,vec2(256,256),vec2(512,512))
+    EGP:egpColor(1,BGColor)
+    EGP:egpBox(2,vec2(256,22),vec2(500,30))
+    EGP:egpColor(2,LineColor)
+    EGP:egpText(3,"Pattern Lock",vec2(12,12))
+    EGP:egpFont(3,"coolvetica",25)
+    EGP:egpColor(3,BGColor)
+    EGP:egpBox(4,vec2(60,480),vec2(70,30))
+    EGP:egpColor(4,vec4(HackColor,255))
+    EGP:egpText(5,"Hack",vec2(35,470))
+    EGP:egpFont(5,"coolvetica",25)
+    EGP:egpColor(5,BGColor)
+    
+    #Circles
+    for(I=0,2,1){
+        for(J=0,2,1){
+            EGP:egpCircle(6+I*3+J, vec2(128+I*128,128+J*128), vec2(30,30))
+            EGP:egpColor(6+I*3+J, CircleColor)
+        }
+    }
+    
+    #Cursor
+    EGP:egpCircle(25,vec2(0,0),vec2(10,10))
+    EGP:egpColor(25,LineColor)
+    EGP:egpParentToCursor(25)
+}
+
+#Find vector in array
+function number findVecInArr(Vec2:vector2, ARR:array){
+    foreach(I,V:vector2=ARR){
+        if(V==Vec2){
+            return 1
+        }
+    }
+    return 0
+}
+
+#Check array match
+function number vec2ArrMatch(R1:array, R2:array){
+    if(R1:count() != R2:count()){return 0}
+    else{
+        foreach(I,V:vector2=R1){
+            if(V!=R2[I,vector2]){
+                return 0
+            }
+        }
+    }
+    return 1
+}
+
+#Change interval when player aims at screen
+findByClass("player")
+User=findClosest(entity():pos())
+Use = User:keyUse()
+if(Use && User:aimEntity() == EGP:entity() && User:shootPos():distance(EGP:entity():pos()) < 50){
+    interval(70)
+}
+else{
+    interval(600)
+}
+
+#Button Actions
+if(Use){
+    Cursor = EGP:egpCursor(User)
+    
+    #Add to pattern array
+    if(inrange(Cursor, vec2(98,98), vec2(158,158))){
+        if(findVecInArr(vec2(128,128),CurPatt) == 0){
+            CurPatt:pushVector2(vec2(128,128))
+        }
+    }
+    elseif(inrange(Cursor, vec2(226,98), vec2(286,158))){
+        if(findVecInArr(vec2(256,128),CurPatt) == 0){
+            CurPatt:pushVector2(vec2(256,128))
+        }
+    }
+    elseif(inrange(Cursor, vec2(354,98), vec2(414,158))){
+        if(findVecInArr(vec2(384,128),CurPatt) == 0){
+            CurPatt:pushVector2(vec2(384,128))
+        }
+    }
+    elseif(inrange(Cursor, vec2(98,226), vec2(158,286))){
+        if(findVecInArr(vec2(128,256),CurPatt) == 0){
+            CurPatt:pushVector2(vec2(128,256))
+        }
+    }
+    elseif(inrange(Cursor, vec2(226,226), vec2(286,286))){
+        if(findVecInArr(vec2(256,256),CurPatt) == 0){
+            CurPatt:pushVector2(vec2(256,256))
+        }
+    }
+    elseif(inrange(Cursor, vec2(354,226), vec2(414,286))){
+        if(findVecInArr(vec2(384,256),CurPatt) == 0){
+            CurPatt:pushVector2(vec2(384,256))
+        }
+    }
+    elseif(inrange(Cursor, vec2(98,354), vec2(158,414))){
+        if(findVecInArr(vec2(128,384),CurPatt) == 0){
+            CurPatt:pushVector2(vec2(128,384))
+        }
+    }
+    elseif(inrange(Cursor, vec2(226,354), vec2(286,414))){
+        if(findVecInArr(vec2(256,384),CurPatt) == 0){
+            CurPatt:pushVector2(vec2(256,384))
+        }
+    }
+    elseif(inrange(Cursor, vec2(354,354), vec2(414,414))){
+        if(findVecInArr(vec2(384,384),CurPatt) == 0){
+            CurPatt:pushVector2(vec2(384,384))
+        }
+    }
+    
+    #Hack Interface
+    elseif(User:team():teamName()=="Thief" && inrange(Cursor, vec2(25,465), vec2(95,495))){
+        Time+=0.1
+        Perc = clamp(Time/16*255,0,255)
+        EGP:egpPolyOutline(15,array(vec2(128,128),vec2(384,384),vec2(128,384),vec2(384,128)))
+        EGP:egpSize(15,10)
+        EGP:egpColor(15,vec4(HackColor,Perc))
+        if(Time>16){
+            Open = 1
+            EGP:egpColor(15,LineColor)
+        }
+    }
+    
+    #Draw CurPatt
+    PattDraw = CurPatt:clone()
+    PattDraw:pushVector2(Cursor)
+    if(PattDraw:count()==2){
+        EGP:egpLine(15,PattDraw[1,vector2],Cursor)
+        EGP:egpColor(15,LineColor)
+        EGP:egpSize(15,10)
+    }
+    elseif(PattDraw:count()>2){
+        EGP:egpLineStrip(15,PattDraw)
+        EGP:egpColor(15,LineColor)
+        EGP:egpSize(15,10)
+    }
+    
+    #Draw circles over selected
+    if(CurPatt:count() > 0){
+        foreach(I,V:vector2=CurPatt){
+            EGP:egpCircle(I+15,V,vec2(35,35))
+            EGP:egpColor(I+15,LineColor)
+        }
+    }
+}
+else{
+    if(vec2ArrMatch(CurPatt,Pattern)){
+        Open = 1
+    }
+    CurPatt = array()
+    PattDraw = array()
+    Time = 0
+    for(I=15,24,1){
+        EGP:egpRemove(I)
+    }
+}
+
+#Close Door after 6 secs
+if(ManualOpen){Open = 1}
+if(($Open & Open)){
+    timer("open", 6000)
+}
+if(clk("open")){
+    stoptimer("open")
+    Open = 0
+}

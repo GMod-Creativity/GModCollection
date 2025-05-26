@@ -1,0 +1,186 @@
+@name Dial Computer
+@inputs Active Open Chevron Monitor:wirelink Keyboard Incoming Sheduled
+@outputs DialAddress Close
+@persist Status Stringbuffer:string OldChev Encoder EncToggle Sheduled
+@trigger all
+interval(500)
+#Statuses:
+#0-Idle
+#1-Out
+#2-Dialling out
+#3-Incoming
+#4-Opened out
+#5-Opened in
+if(first()|duped()){
+    Monitor:setNumber("Reset",1)
+    Monitor:setNumber("Reset",0)
+    Monitor:writeString("        Dialling System       ",0,0,555,237)
+    Monitor:writeString("IDLE", 12, 15, 999, 0, 1)
+    Monitor:writeString("_",10,8,999,0)
+    Monitor:writeString("#########",9,7,237)
+    Monitor:writeString("#",9,8,237)
+    Monitor:writeString("#",17,8,237)
+    Monitor:writeString("#########",9,9,237)
+    Monitor:writeString("1", 26, 2, 237)
+    Monitor:writeString("2", 26, 4, 237)
+    Monitor:writeString("3", 26, 6, 237)
+    Monitor:writeString("4", 26, 8, 237)
+    Monitor:writeString("5", 26, 10, 237)
+    Monitor:writeString("6", 26, 12, 237)
+    Monitor:writeString("7", 26, 14, 237)
+}
+if(clk()){
+    if(Status==0 & Incoming){
+        Monitor:writeString("INCOMING", 10, 15, 500, 0, 1)        
+        soundPlay(1,0,"SGC_offworld-alarm.wav")
+        if(!Sheduled){soundPlay(2,0,"stargate/walter/unscheduled_offworld_activation.mp3")}
+        Status=3
+    }
+    if(Status==2){
+        if(Incoming){
+            print("incoming!")
+            Status=3
+        }
+        if(Chevron != OldChev){
+            OldChev = Chevron
+            
+            if(Chevron<7){soundPlay(3,0,"stargate/walter/c"+toString(Chevron)+".mp3")}
+            if(Chevron>=5){
+            timer("checkopen",10800)    
+            }
+        }
+    }
+    if(Status==3&Open){
+        Status=4
+        Monitor:writeString("OPENED  ", 10, 15, 900, 0, 1)
+        Monitor:writeString(" ", 28, 14, 0, 900)
+    }
+    if(Status==4|Status==5){
+        if(!Open){timer("reset",1000)}
+    }
+    if(Status==2){
+        if(Chevron>0){
+            Monitor:writeString(Stringbuffer:index(1), 28, 2, 999)
+        }
+        if(Chevron>1){
+            Monitor:writeString(Stringbuffer:index(2), 28, 4, 999)
+        }
+        if(Chevron>2){
+            Monitor:writeString(Stringbuffer:index(3), 28, 6, 999)
+        }
+        if(Chevron>3){
+            Monitor:writeString(Stringbuffer:index(4), 28, 8, 999)
+        }
+        if(Chevron>4){
+            Monitor:writeString(Stringbuffer:index(5), 28, 10, 999)
+        }
+        if(Chevron>5){
+            Monitor:writeString(Stringbuffer:index(6), 28, 12, 999)
+        }
+        if(Chevron>6){
+            Monitor:writeString("#", 28, 14, 999)
+        }
+    }
+    if(Status==3){
+        if(Chevron>0){
+            Monitor:writeString(" ", 28, 2, 0, 900)
+        }
+        if(Chevron>1){
+            Monitor:writeString(" ", 28, 4, 0, 900)
+        }
+        if(Chevron>2){
+            Monitor:writeString(" ", 28, 6, 0, 900)
+        }
+        if(Chevron>3){
+            Monitor:writeString(" ", 28, 8, 0, 900)
+        }
+        if(Chevron>4){
+            Monitor:writeString(" ", 28, 10, 0, 900)
+        }
+        if(Chevron>5){
+            Monitor:writeString(" ", 28, 12, 0, 900)
+        }
+        if(Chevron>6){
+            Monitor:writeString(" ", 28, 14, 0, 900)
+        }
+    }
+}
+if(Keyboard & !clk()){
+    if(Status==2|Status==4|Status==5){
+        Close=1
+    }
+}
+if(Keyboard & !clk() & Status == 0){
+    if(Keyboard == 17 |Keyboard == 18 |Keyboard == 19 | Keyboard == 20 | Keyboard == 154){
+    }elseif(Keyboard== 13){
+        if(Stringbuffer:length() != 6){
+        }else{
+        Status = 1
+        Monitor:writeString("ENCODING", 10, 15, 500, 0, 1)
+        Encoder = 1
+        timer("encode", 200)
+        }
+    }else{
+        if(Keyboard==127){
+            if(Stringbuffer:length() <= 0){
+            }else{
+            Stringbuffer = Stringbuffer:sub(1,Stringbuffer:length()-1)
+            }
+        }else{
+        if(Stringbuffer:length() < 6){
+            if(!Stringbuffer:find(toChar(Keyboard))){
+            Stringbuffer = Stringbuffer + toChar(Keyboard)
+            }
+            }
+        }
+    }
+    Monitor:writeString(Stringbuffer+" ":repeat(6 - Stringbuffer:length()), 10, 8, 999, 0)
+}
+
+if(clk("encode")){
+if(EncToggle){
+    DialAddress = toByte(Stringbuffer:index(Encoder))
+    if(Encoder<=7){
+    Encoder++
+    timer("encode",200)
+    EncToggle = !EncToggle
+    }else{
+    DialAddress = 13
+    Status=2
+    Monitor:writeString("CALLING ", 10, 15, 5, 0, 1)
+    timer("checkactive",5000)
+    }
+}else{
+    DialAddress = 0
+    EncToggle = !EncToggle
+    timer("encode",200)
+}
+}
+
+if(clk("checkopen")){
+    print("checkopen")
+    if(Open){
+        soundPlay(3,0,"stargate/walter/c7_locked.mp3")
+        soundPlay(4,0,"SGC_alarm.wav")
+        Monitor:writeString("OPENED  ", 10, 15, 50, 0, 1)
+        Monitor:writeString("#", 28, 14, 999)
+        Status=4 
+    }else{
+        soundPlay(6,0,"stargate/walter/c7_failed.mp3")
+        Monitor:writeString("FAILED  ", 10, 15, 900, 0, 1)
+        timer("reset",5000) 
+    }
+}
+if(clk("reset")){
+    reset()
+}
+if(clk("checkactive")){
+    if(!Active){
+        Monitor:writeString("UNKNOWN ERROR", 10, 15, 900, 0, 0)
+        timer("reset",5000)
+    }else{
+        if(Status==2){
+            timer("checkactive",15000)
+        }
+    }
+}

@@ -1,0 +1,132 @@
+--@name screen_link_sv_lib
+--@author ESF
+--@server
+--version: v0.2.1
+
+///////////////////////////////////////
+    /////////   SERVER   ////////// 
+//////////////////////////////////////
+
+-- Define prototype
+local ScreenLink = setmetatable({}, {__call = function(t, ...) return t.create(...) end})
+ScreenLink.__index = ScreenLink
+
+-- Get all chips owned by the owner
+ScreenLink.ownerChips = find.byClass("starfall_processor", function(chip)
+    return chip:getOwner() == owner()
+end)
+
+-- Function to check if the given screen is linked to any chip
+function ScreenLink.isScreenLinked(self, screen)
+    for _, chip in ipairs(self.ownerChips) do
+        for i, component in ipairs(chip:getLinkedComponents()) do
+            if component == screen then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+-- Function that determines if any screens are linked to the chip
+function ScreenLink.hasChipScreen()
+    for i, component in ipairs(chip():getLinkedComponents()) do
+        if component:getClass() == "starfall_screen" then
+            return true
+        end
+    end
+    return false
+end
+
+-- Connect single available screen
+function ScreenLink.linkSingleScreen(self)
+    -- Find screens owned by the owner and not linked to anything
+    local ownerScreens = find.byClass("starfall_screen", function(screen)
+        -- If found and owned by the owner and not linked to anything then return screen data
+        if screen:getOwner() == owner() and not self:isScreenLinked(screen) then
+            return screen
+        end
+    end)
+    
+    -- Link the first screen in the table
+    if #ownerScreens > 0 then
+        ownerScreens[1]:linkComponent(chip())
+    end
+end
+
+-- Connect single available screen if none connected to the chip
+function ScreenLink.linkSingleScreenInit(self)
+    if self:hasChipScreen() then
+        return false
+    end
+    
+    -- Find screens owned by the owner and not linked to anything
+    local ownerScreens = find.byClass("starfall_screen", function(screen)
+        -- If found and owned by the owner and not linked to anything then return screen data
+        if screen:getOwner() == owner() and not self:isScreenLinked(screen) then
+            return screen
+        end
+    end)
+    
+    -- Link the first screen in the table
+    if #ownerScreens > 0 then
+        ownerScreens[1]:linkComponent(chip())
+    end
+    
+    return true
+end
+
+-- Connect all available screens
+function ScreenLink.linkAllScreens(self)
+    -- Find screens owned by the owner and not linked to anything
+    local ownerScreens = find.byClass("starfall_screen", function(screen)
+        -- If found and owned by the owner and not linked to anything then return screen data
+        if screen:getOwner() == owner() and not self:isScreenLinked(screen) then
+            return screen
+        end
+    end)
+    
+    -- Link all screens in the table
+    for i,v in pairs(ownerScreens) do
+        v:linkComponent(chip())
+    end
+end
+
+-- Connect all screens even when connected
+function ScreenLink.linkAllScreensConnected()
+    -- Find screens owned by the owner
+    local ownerScreens = find.byClass("starfall_screen", function(screen)
+        -- If found and owned by the owner then return screen data
+        if screen:getOwner() == owner() then
+            return screen
+        end
+    end)
+    
+    -- Link all screens in the table
+    for i,v in pairs(ownerScreens) do
+        v:linkComponent(chip())
+    end
+end
+
+-- Connect closest screen to owner
+function ScreenLink.linkClosestScreen()
+    -- Find screens owned by the owner
+    local ownerScreens = find.byClass("starfall_screen", function(screen)
+        -- If found and owned by the owner then return screen data
+        if screen:getOwner() == owner() then
+            return screen
+        end
+    end)
+
+    -- Sort screens by distance to the owner
+    table.sort(ownerScreens, function(a, b)
+        return (owner():getPos() - a:getPos()):getLength() < (owner():getPos() - b:getPos()):getLength()
+    end)
+
+    -- Link the closest screen (first in the sorted table)
+    if #ownerScreens > 0 then
+        ownerScreens[1]:linkComponent(chip())
+    end
+end
+
+return ScreenLink

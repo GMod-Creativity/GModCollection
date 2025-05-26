@@ -1,0 +1,571 @@
+@name SCRL
+@persist [SCR_ALPHANUMERIC_LENGTH SCR_CMD_COUNT SCR_DEBUG]:number [SCR_ALPHANUMERIC_STRING SCR_PREFIX SCR_PREFIX_OPERATOR SCR_HELP_STRING SCR_SILENT_MESSAGE_FLAG]:string [SCR_ALPHANUMERIC_ARRAY SCR_CMD_PREFIXES SCR_INDICATOR_COLORS]:array [SCR_MSG_COLOR]:vector [SCR_OWNER]:entity [SCR_CMD_KEYS SCR_NUMERICALPHA_TABLE]:table
+@persist [SCR_Key_Number_Sequence]:array [SCR_Key_Length]:number [SCR_Channel SCR_ChannelGroup SCR_Key_Word]:string
+@model models/props_lab/reciever01a.mdl
+@autoupdate on
+#[
+STANDARDIZED COMMUNICATIONS RADIO LIBRARY v1.31
+d
+CHANGELOG:
+v1.32
+    -fixes for changes in wiremod's e2 interpreter and function branching
+v1.31
+    -added -ping ability, to see who's on, works fine with everything else
+v1.3
+    -fixed a glitch with recursive hash, improving cryptographic strength, and shortened its length (40 digits)
+    -added version numbering
+    -should be the "definitive, feature frozen" version
+v1.2
+    -changed old key system to use a recursive hash, adding significantly better security (50 digits)
+v1.1
+    -hash of channel to create discrete groups
+    -hash of cipher to increase cipher length
+    -backwards compatibility by setting channel to 0 with pre-1.1 releases
+    -autoupdate for future compatibility (hopefully)
+    -debug mode option added (partially functional)
+
+QUICK OVERVIEW:
+This is a modular library which can be imported and used for remote communications between people and contraptions.
+It is a message-based, encrypted, data bus that can be used to send tactical information, send requests, or otherwise communicate.
+This allows both secure messaging and instanteous location data transmission.  It can be used to send targets to allies silently
+and more easily than other systems, as well as being quick and simple to integrate.
+
+First you have to set a channel and a keyword.  These are to be only shared with people who you are sharing communications with.
+Once this is done, you can send and recieve messages.  Messages follow a set format listed below, and specialized e2s listen for these.
+
+Although there is a more detailed low-level API, SCRL can be added to an E2 really, really simply:
+
+if chatClk:
+    scr_chat(Seat,Aimpos)               <-- Listens to see if the last said thing is a new settings set or a message, handles it
+if dsClk:
+    NewCommsReturn = scr_recieve()      <-- Gets latest update from your channel, recieving transmissions.  Stores as an array of data with a set pattern.
+
+That's it.  If you want, for quick & easy keypress activation, you can use:
+if keyClk(SeatDriver):
+    scr_keyTransmit(Seat,Aimpos)        <-- sees if the seat's driver is pressing a number key, if so transmits the matched command
+
+The comms return array is simple:
+The first index is the numeric command code (codes are listed below)
+The second index is a vector if one was sent with the message
+The third index is a text string, if one was sent with the message
+
+HOW IT WORKS:
+Once a keyword is set it is encoded as a series of numeric shifts.
+When a message is translated, it is encrypted via Vigenere cipher off your keyword.  Nobody without the keyword and channel can understand it, even admins!
+The recievers all decrypt the message, which is converted to an array.
+If you don't want to notify the person via a chat event, like for a beacon or something, add at the end of the text message a -s.  This tells scrl that it's a silent command.
+
+EXAMPLE SENT MESSAGES:
+This is a sample of the messages sent out, minus encryption:
+Code 1:   ATK 3285 4381 -3256 tank located here                                    Tell allies to attack a location or just attack in general
+Code 2:   DEF 3221 3285 23462                                                      Tell allies to defend a location or just attack in general
+Code 3:   ARTY -3221 -235 2421 requesting 3 rounds of mortar fire                  Request artillery at a location, either from an ally or an automated system
+Code 4:   SUPPLY 8005 32884 -3521 -s                                               Marks ammunition resupply at a location, silent because of the -s
+Code 5:   POS landing zone                                                         Transmit a fixed position, for example an airstrip
+Code 6:   MSG cats are better than dogs                                            Direct communication, just secured radio chat nobody can listen into (not even admins!)
+
+LOW LEVEL API:
+The lower level API lets you directly call most functions for integrating into your own e2s.  Fear not, it is not difficult.
+A LOT of work went into documenting everything meticulously to make it as easy to use as possible.
+Feel free to read the comment blocks documentation above the functions; here are the common ones which most people will want to use.
+
+scr_transmit() sends messages based off settings directly, based off params provided.  You can use this for automation of messages or unmanned chips.  It'll do the holo thing for you.
+scr_updateSettings() updates the settings based off input parameters.  It is highly recommended you don't use hard-coded e2 values as a rule of thumb since anyone who reads the code could know your passcodes.
+
+Playsound, encrypt, and decrypt don't need to be accessed.  You may use them as you wish in a standalone fashion; they are internal functions only.
+
+DETAILS AND RATIONALE OF ENCRYPTION:
+Encryption is used because it is trivially simple to join a radio group, scan channels, and intercept.  If someone knows the group to expect, they can join and intercept.
+If someone does not know the group to expect, they can poll and attempt to brute force it easily enough; trying this could, in theory, cause server instability.  If
+you had a particularly unscrupulous admin they could pretty easily mod the lua to monitor ds groups, too.  Therefore it was found to be simpler to make the messages themselves
+secure.  In this way the utmost of security can be attained.
+
+It sets the dsGroup off a hash of the channel.  Then the message is encrypted from both the numeric shift of the passcode, and then a hash of that.
+
+DO NOT EDIT BELOW THIS LINE.  DO NOT EDIT BELOW THIS LINE.  DO NOT EDIT BELOW THIS LINE.  DO NOT EDIT BELOW THIS LINE.  DO NOT EDIT BELOW THIS LINE.
+]#
+
+
+#constants which are implemented on import of the library
+SCR_PREFIX = "SCR"
+SCR_PREFIX_OPERATOR = "-"
+SCR_CMD_PREFIXES = array("ATTACK","DEFEND","ARTY","SUPPLY","POSITION","MSG")
+for(N=1,SCR_CMD_PREFIXES:count()) {SCR_CMD_KEYS[SCR_CMD_PREFIXES[N,string],number] = N}
+SCR_INDICATOR_COLORS = array(vec(255,0,0),vec(255,255,0),vec(255,128,0),vec(0,255,0),vec(128,128,255),vec(255))
+SCR_CMD_COUNT = SCR_CMD_PREFIXES:count()
+SCR_ALPHANUMERIC_STRING = " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-=!@#$%^&*()_+[]\{}|;':\",./<>?~"
+SCR_ALPHANUMERIC_ARRAY = SCR_ALPHANUMERIC_STRING:explode("")
+SCR_ALPHANUMERIC_LENGTH = SCR_ALPHANUMERIC_STRING:length()
+#flag used to say not to notify people of a message; useful for automation
+SCR_SILENT_MESSAGE_FLAG = "-s"
+#spooky scary hashmaps
+for(N=1,SCR_ALPHANUMERIC_LENGTH) {SCR_NUMERICALPHA_TABLE[SCR_ALPHANUMERIC_ARRAY[N,string],number] = N}
+SCR_HELP_STRING = 
+"SCR CHAT COMMANDS:\nPut " + SCR_PREFIX_OPERATOR + " before any command. You can use the # or the word, ex: \""+SCR_PREFIX_OPERATOR+SCR_CMD_PREFIXES[1,string]+"\" is the same as \""+SCR_PREFIX_OPERATOR+"1\".\nUse \"-set # Word\" to set channel and password, like \"-set 3 secret\"."
+for(N=1,SCR_CMD_COUNT) {SCR_HELP_STRING = SCR_HELP_STRING + "\n" + SCR_PREFIX_OPERATOR + "" + N + " means " + SCR_CMD_PREFIXES[N,string]:lower()}
+SCR_MSG_COLOR = vec(96,255,96)
+SCR_OWNER = owner()
+#debug
+SCR_DEBUG = 0
+local VersionNumber = 1.3
+if(SCR_DEBUG) {print(SCR_PREFIX+": now in debug mode.")} else {print(_HUD_PRINTCONSOLE,""+entity():getName()+": SCRL " + VersionNumber + " initialized.")}
+
+#[A utility function used to notify the operator.  Handles if used in a seated or unseated manner.]#
+function void scr_notify(String:string,Seat:entity)
+{
+    if(Seat:driver()) {Seat:printColorDriver(SCR_MSG_COLOR,String)} else {print(String)}
+}
+
+#[A utility function used to notify for debugging.]#
+function void scr_debugSay(String:string)
+{
+    if(SCR_DEBUG) {print(_HUD_PRINTCONSOLE,SCR_PREFIX + " DEBUG: " + String)}
+}
+
+#[Encrypts a string using the SCR_Key_Number_Sequence which was saved from your keyword.
+Returns the encrypted string.
+Example use: EncryptedString = MessageString:scr_encrypt() #returns encrypted message to send out]#
+function string string:scr_encrypt()
+{
+    local MsgArray = This:explode("")
+    local Length = MsgArray:count()
+    #encodes the offsets--the letter-to-number of the raw text
+    local Offsets = array()
+    for(I=1,Length)
+    {
+        local Offset = SCR_NUMERICALPHA_TABLE[MsgArray[I,string],number]
+        if(!Offset) {Offset = 1}   #default case is a space.  No unicode.
+        Offsets[I,number] = Offset
+    }
+    #adds a shift off cipher; if it's beyond the max offset, cycles it back around
+    local KeyIndex = 1
+    local ReturnString = ""
+    for(I=1,Length)
+    {
+        #determines numeric shift
+        local Shift = Offsets[I,number] + SCR_Key_Number_Sequence[KeyIndex,number]
+        if(Shift > SCR_ALPHANUMERIC_LENGTH) {Shift = Shift - SCR_ALPHANUMERIC_LENGTH}
+        Offsets[I,number] = Shift
+        #increments key index; if beyond max length loops it back to create a repeating cipher
+        KeyIndex++
+        if(KeyIndex > SCR_Key_Length) {KeyIndex = 1}
+        ReturnString = ReturnString + SCR_ALPHANUMERIC_ARRAY[Offsets[I,number],string]
+    }
+    return ReturnString
+}
+
+#[Decrypts a string using the SCR_Key_Number_Sequence which was saved from your keyword.
+Returns the decrypted string
+Example use: DecryptedString = EncryptedString:scr_decrypt() #decrypts the encrypted message and saves plaintext as DecryptedString]#
+function string string:scr_decrypt()
+{
+    local MsgArray = This:explode("")
+    local Length = MsgArray:count()
+    #converts message from symbols to numeric values
+    local Offsets = array()
+    for(I=1,Length)
+    {
+        local Offset = SCR_NUMERICALPHA_TABLE[MsgArray[I,string],number]
+        if(!Offset) {Offset = 1}   #default case is a space.  No unicode.
+        Offsets[I,number] = Offset
+    }
+    #removes the numeric shifts of the key
+    local KeyIndex = 1
+    local ReturnString = ""
+    for(I=1,Length)
+    {
+        #determines numeric shift
+        local Shift = Offsets[I,number] - SCR_Key_Number_Sequence[KeyIndex,number]
+        if(Shift < 1) {Shift = Shift + SCR_ALPHANUMERIC_LENGTH}
+        Offsets[I,number] = Shift
+        #increments key index; if beyond max length loops it back to create a repeating cipher
+        KeyIndex++
+        if(KeyIndex > SCR_Key_Length) {KeyIndex = 1}
+        ReturnString = ReturnString + SCR_ALPHANUMERIC_ARRAY[Offsets[I,number],string]
+    }
+    return ReturnString
+}
+
+#[Plays a sound when recieving or sending a transmission.
+These are randomly selected from the ambient/chatter folder.]#
+function void scr_playSound(SilentTransmission:number)
+{
+    if(SilentTransmission)
+    {
+        soundPlay(SCR_PREFIX,7,"ambient/computer_working2.wav")
+    }
+    else
+    {
+        local TypeRandomNum = randint(4)
+        local SubtypeRandomNum = randint(5)
+        local StringBase = ""
+        local StringEnd = ".wav"
+        if(TypeRandomNum == 1)
+        {
+            StringBase = "ambient/chatter/italian_radio"
+        }
+        elseif(TypeRandomNum == 2)
+        {
+            StringBase = "ambient/chatter/spanish_radio"
+        }
+        elseif(TypeRandomNum == 3)
+        {
+            StringBase = "ambient/chatter/arabic_radio"
+        }
+        elseif(TypeRandomNum == 4)
+        {
+            StringBase = "ambient/chatter/cb_radio_chatter_"
+            SubtypeRandomNum = randint(3) #corner case handling
+        }
+        soundPlay(SCR_PREFIX,0,StringBase+toString(SubtypeRandomNum)+StringEnd)
+    }
+}
+
+#[Creates the simple indicator for holo.  It is a series of 3 arrows, of quite large size and displacement, intended to be easily visible.]#
+function void scr_drawHolo(Code:number,Location:vector,Driver:entity)
+{
+    local Players = players()
+    local User = Driver
+    if(!Driver) {User = SCR_OWNER}
+    for(N=1,Players:count()) {if(Players[N,entity] == User) {Players:removeEntity(N)}}
+    local Color = SCR_INDICATOR_COLORS[Code,vector]
+    for(N=1,3)
+    {
+        local Index = 996+N
+        local OffsetAmount = 3 * (1 + (N-1)*2)
+        holoCreate(Index,Location + vec(0,0,39.37 * OffsetAmount),vec(15),ang(-180,0,0))
+        holoModel(Index,"hq_cone")
+        holoMaterial(Index,"models/debugwhite")
+        holoDisableShading(Index,1)
+        holoVisible(Index,Players,0)
+        holoColor(Index,vec4(Color,128))
+    }
+}
+
+#[Checks who is currently on the SCR net, useful for seeing if friends are on yet or to ensure nobody is snooping.]#
+function void scr_checkUsers(Seat:entity)
+{
+    local E2s = dsProbe(SCR_ChannelGroup,2)
+    #get array of usernames
+    local Users = array()
+    for(N=1,E2s:count())
+    {
+        local Owner = E2s[N,entity]:owner():name()
+        local AlreadyInUsers = 0
+        foreach(K,V:string = Users) {if(Owner == V) {AlreadyInUsers++}}
+        if(!AlreadyInUsers) {Users:pushString(Owner)}
+    }
+    #report
+    local String = "" + SCR_PREFIX + ": Current users: \n"
+    for(N=1,Users:count()) {String = String + "[" + Users[N,string] + "]\n"}
+    scr_notify(String,Seat)
+}
+
+#[Transmits an SCR order.  Additional data can be attached as necessary.  The formatting is strict but able to handle a broad variety of cases.
+The format is the text prefix code of the order, the xyz vector if one exists, the player name in allcaps, and any additional text.
+Note that coordinates and messages can be omitted.  For example, you could simply say to attack without specifying where, or saying where in the message.
+It is expected that AUTOMATED systems will use the vector coordinates ONLY, while additional information can be used for context-dependent messaging.
+By using prefixes, we can automate responses and add context-aware indications.  In addition, any third-party system can interface smoothly with an SCR system.
+This means that you can write your own custom code and as long as it sends messages encrypted and formatted like this, it will work.
+For example, a mortar that listens for fire support requests could use the message text to determine how many rounds to fire, or what type of rounds.
+Example use: "scr_transmit(6,owner():lastSaid(),owner():pos(),owner()) #sends whatever you just said as a secure message, make sure you use hideChat(1)!
+Example use: "scr_transmit(1,"Target Spotted",Aimpos,Seat)" #sends a request to attack, with the words "Target Spotted", located at aimpos from someone in a seat.
+Example use: "scr_transmit(3,"",TargetVector,noentity()" #sends a textless request for fire support, with just a holo indicator and vector
+Example use: "scr_transmit(4,"-s",entity():pos(),noentity())" #silently transmits the location of a supply dump, for other e2s to cache, without text bothering players]#
+function string scr_transmit(Code:number,MessageText:string,Coordinate:vector,Seat:entity)
+{
+    if(inrange(Code,1,SCR_CMD_COUNT))
+    {
+        #break coordinate down into encodable string if it exists
+        local CoordString = ""
+        if(Coordinate) {CoordString = "" + int(Coordinate[1]) + " " + int(Coordinate[2]) + " " + int(Coordinate[3])}
+        #builds the string to transmit
+        local TransmitString = SCR_CMD_PREFIXES[Code,string] + " " + CoordString + " " + MessageText
+        #encrypts
+        local EncryptedMessage = ""
+        EncryptedMessage = TransmitString:scr_encrypt()
+        #draw location if sent, and plays a sound, then sends message
+        local MessageArray = MessageText:explode(" ")
+        local SilentTransmission = MessageArray[MessageArray:count()-1,string] == SCR_SILENT_MESSAGE_FLAG
+        if(!SilentTransmission)
+        {
+            if(Seat) {scr_drawHolo(Code,Coordinate,Seat:driver())}
+        }
+        scr_playSound(SilentTransmission)
+        #old compatibility
+        if(SCR_Channel)
+        {
+            dsSend(SCR_Channel,SCR_ChannelGroup,2,EncryptedMessage)
+        }
+        else
+        {
+            dsSend(SCR_Channel,SCR_PREFIX,2,EncryptedMessage)
+        }
+        #returns a copy of the message if you want to back-check and verify it.  You don't need to do anything with this.
+        return EncryptedMessage
+    }
+    return ""
+}
+
+#[Recieves an SCR order, and returns an array.  Should be called on dsClk().
+It will attempt to decrypt everything sent to it.  If the digital signal is a valid command code
+and we decrypted successfully, it will return an array of the Code, vector coord data, message, and a copy of the actual full message as recieved.
+This return is formatted as array(string,vector,string,string).
+For example, an artillery fire mission would return array("FIREMISSION",vec(3253,-2321,38285),"Here is the tank","FIREMISSION 3253 -2321 38285 Here is the tank").
+Another example, a locationless attack request would return array("ATTACK",vec(),"","ATTACK").
+If you have a seat given as an arg, it will hint the driver with the data.  If not, put in "noentity()"!
+Example use: if(dsClk()) {UpdatedSCRData = scr_recieve(Seat)} #gets updated data, hints driver
+Example use: if(dsClk()) {UpdatedSCRData = scr_recieve(entity())} #gets updated data, prints if scr is being used by owner, for items like backpack radios.
+Example use: if(dsClk()) {UpdatedSCRData = scr_recieve(noentity())} #gets updated data silently.]#
+function array scr_recieve(Seat:entity)
+{
+    local PrintToChat = Seat:isValid()
+    local Driver = Seat:driver()
+    local DecryptedMessage = ""
+    DecryptedMessage = dsGetString():scr_decrypt()
+    local DecryptedMessageArray = DecryptedMessage:explode(" ")
+    local DecryptedCommandCode = DecryptedMessageArray[1,string]
+    local CommandIndex = 0
+    for(N=1,SCR_CMD_COUNT)
+    {
+        if(DecryptedCommandCode == SCR_CMD_PREFIXES[N,string])
+        {
+            CommandIndex = N
+            N = SCR_CMD_COUNT
+        }
+    }
+    #valid command and decrypted successfully
+    if(CommandIndex)
+    {
+        local DecryptedMessageLength = DecryptedMessageArray:count()
+        #if valid #s, it'll return a proper vec, while strings will just return as 0.  It'll check later that each is a valid non-zero # to prevent edge cases.
+        local TransmittedX = DecryptedMessageArray[2,string]:toNumber()
+        local TransmittedY = DecryptedMessageArray[3,string]:toNumber()
+        local TransmittedZ = DecryptedMessageArray[4,string]:toNumber()
+        local ValidVec = TransmittedX & TransmittedY & TransmittedZ
+        local TransmittedVec = vec(TransmittedX,TransmittedY,TransmittedZ)
+        local Range = round((entity():pos() - TransmittedVec):length() / 39.37)
+        #message parsing
+        local PureMessage = ""
+        local HumanReadableMessage = "[" + SCR_PREFIX + "] " + dsGetSender():owner():name():upper() + " " + SCR_CMD_PREFIXES[CommandIndex,string] + ": "
+        #adds each word after vec to the message string; adjusts offset if a valid vec for start of array-to-string copy
+        for(N=(2 + (ValidVec*3)),DecryptedMessageLength) {PureMessage = PureMessage + " " + DecryptedMessageArray[N,string]}
+        HumanReadableMessage = HumanReadableMessage + " " + PureMessage
+        local SilentTransmission = DecryptedMessageArray[DecryptedMessageLength-1,string] == SCR_SILENT_MESSAGE_FLAG
+        if(!SilentTransmission)
+        {
+            if(ValidVec) {HumanReadableMessage = HumanReadableMessage + "(" + Range + "m)"}
+            if(PrintToChat) {scr_notify(HumanReadableMessage,Seat)}
+            if(TransmittedVec & PrintToChat) {scr_drawHolo(CommandIndex,TransmittedVec,Driver)}
+        }
+        #plays a little sound to inform you
+        scr_playSound(SilentTransmission)
+        #displays location
+        return array(DecryptedCommandCode,TransmittedVec,PureMessage,DecryptedMessage)
+    }
+    #invalid command, returns an empty array
+    else
+    {
+        return array()
+    }
+}
+
+#[Encodes a string as a list of numeric shifts and saves to the SCR_Key_Number_Sequence array automatically.
+Also saves channel and updates scope of datasignals.
+Note that this string is NOT case sensitive; it is always interpreted as full uppercase, for ease of use.
+Returns a copy of SCR_Key_Number_Sequence, which is still saved to the backend automatically.
+Example use: scr_encodeAsKey(Keyword) #sets the VCED key to our keyword
+NOTE: Call this to set your "keyword", so once on start and if you change keywords]#
+function array scr_updateSettings(Channel:number,Keyword:string)
+{
+    local OldGroupHash = ""+hash(SCR_Channel)
+    dsLeaveGroup(OldGroupHash)
+    dsLeaveGroup(SCR_PREFIX)
+    #splits string into array of chars, checks if in alphanum array, if so adds num to key_number_sequence
+    SCR_Channel = "" + Channel
+    #sets datasignal scopes and group
+    dsSetScope(2)
+    local LegacyCompatibility = (Channel == 0)
+    if(LegacyCompatibility)
+    {
+        dsJoinGroup(SCR_PREFIX)
+        SCR_ChannelGroup = "NONE-LEGACYMODE"
+    }
+    else
+    {
+        local StringHash = ""+hash(""+Channel)
+        SCR_ChannelGroup = StringHash
+        dsJoinGroup(SCR_ChannelGroup)
+        #debug
+        scr_debugSay("Group is " + SCR_ChannelGroup)
+    }
+    #note it's like O(n^2) so key is limited to 10 chars
+    SCR_Key_Word = Keyword:upper()
+    SCR_Key_Word_Array = SCR_Key_Word:explode("")
+    SCR_Key_Length = SCR_Key_Word:length()
+    #creates numeric offsets
+    #modern scrl uses a hash, since it's cryptographically stronger
+    if(!LegacyCompatibility)
+    {
+        local Hash = ""+hash(SCR_Key_Word)
+        for(N=1,3) {Hash = Hash + hash(Hash + SCR_Key_Word_Array[N,string])}
+        local HashExploded = Hash:explode("")
+        local HashLength = HashExploded:count()
+        for(N=1,HashLength) {SCR_Key_Number_Sequence[N,number] = HashExploded[N,string]:toNumber() * floor(SCR_ALPHANUMERIC_LENGTH / 10)}
+        SCR_Key_Length = HashLength
+    }
+    #outdated scrl uses a standard keyword translated to numerical shifts
+    else
+    {
+        for(N=1,SCR_Key_Length) {SCR_Key_Number_Sequence[N,number] = SCR_NUMERICALPHA_TABLE[SCR_Key_Word_Array[N,string],number]}
+    }
+    scr_debugSay(",Keylen is " + SCR_Key_Length + ", Legacy mode: " + LegacyCompatibility)
+    #play a little sound as confirmation
+    soundPlay(SCR_PREFIX+"!",0,"ambient/tones/equip1.wav")
+    scr_transmit(6,"Joined SCR channel.",vec(),noentity())
+    return SCR_Key_Number_Sequence
+}
+
+#[easy chat-callable standardized way to use SCR w/ an aimpos.  User implementation is optional; other methods are fine too.
+It will hint the owner of the e2 with the verification popup.  It DOES work if you aren't chip owner, but, you shouldn't transmit messages!
+This is because hideChat only works for owner of e2, and you'd be giving some of your message contents to everyone else.
+An external person would hear from your chat your code, but not the transmitted vector.
+
+Note you also use this to set the password and channel.  However, this will NOT work if you aren't chip owner--hideChat wouldn't work!
+
+Returns the numerical index code if a message was transmitted, 0 if nothing or just hinted help, and -1 if it changed settings.
+Example use: if(chatClk()) {scr_chat(Seat,Aimpos)} #handles all scr chat for a seated player
+Example use: if(chatClk()) {scr_chat(entity():owner(),owner():aimPos())} #handles all scr chat for owner, like for backpack radios
+Example use: if(chatClk()) {scr_chat(noentity(),vec())} #listens only, doesn't transmit
+Example chat syntax: -1 here, throw a few rounds down.  <-- sends a message to attack, sends transmitVector if there is one
+Example chat syntax: -set 6 mypassword   <-- changes your pw and channel.]#
+function number scr_chat(Seat:entity,TransmitVector:vector)
+{
+    local Said = ""
+    local Seated = 0
+    local Valid = 0
+    local Driver = Seat:driver()
+    local SendingMode = Seat:isValid()
+    if(Seat:driver())
+    {
+        
+        Said = Driver:lastSaid()
+        Seated++
+        Valid = (Driver == lastSpoke()) & chatClk(Driver)
+    }
+    else
+    {
+        Said = SCR_OWNER:lastSaid()
+        Valid = (SCR_OWNER == lastSpoke()) & chatClk(SCR_OWNER)
+    }
+    if(Valid)
+    {
+        #split last said into words, then analyze first section for a token
+        local Split = Said:explode(" ")
+        local FirstToken = Split[1,string]
+        local FirstTokenSplit = FirstToken:explode("")
+        local SilentMode = Split[Split:count(),string] == SCR_SILENT_MESSAGE_FLAG
+        
+        #update settings, can only be done by owner!
+        if((Split[1,string]:upper() == (SCR_PREFIX_OPERATOR + "SET")) & (!Seated | (Driver == SCR_OWNER)))
+        {
+            hideChat(1)
+            scr_updateSettings(Split[2,string]:toNumber(),Split[3,string])
+            scr_notify(SCR_PREFIX_OPERATOR + SCR_PREFIX + ":\nChannel: " + SCR_Channel + "\nPassword: " + SCR_Key_Word,Seat)
+            return -1
+        }
+        
+        #ping users
+        elseif(Split[1,string]:upper() == (SCR_PREFIX_OPERATOR + "PING"))
+        {
+            hideChat(1)
+            scr_checkUsers(Seat)
+            return 0
+        }
+        
+        #has a proper start symbol token, so scr should listen
+        elseif((FirstTokenSplit[1,string] == SCR_PREFIX_OPERATOR) & SendingMode)
+        {
+            hideChat(1)
+            local CodeString = FirstTokenSplit[2,string]:upper()
+            local Code = CodeString:toNumber()
+            if(!Code)
+            {
+                for(N=1,SCR_CMD_COUNT) {if(CodeString == SCR_CMD_PREFIXES[N,string]) {Code = N}}
+            }
+            
+            #valid output
+            if(inrange(Code,1,SCR_CMD_COUNT))
+            {
+                local MessageText = ""
+                for(N=2,Split:count()) {MessageText = MessageText + Split[N,string] + " "}
+                scr_transmit(Code,MessageText,TransmitVector,Seat)
+                if(!SilentMode) {if(MessageText:length()) {scr_notify("Transitted " + SCR_CMD_PREFIXES[Code,string] + ": " + MessageText,Seat)} else {scr_notify("Transmitted " + SCR_CMD_PREFIXES[Code,string],Seat)}}
+                return 1
+            }
+            else
+            {
+                scr_notify(SCR_HELP_STRING,Seat)
+            }
+        }
+    }
+    return 0
+}
+
+#[easy keypress-callable standardized way to use SCR w/ an aimpos.
+It will tell the seat driver what they transmitted, and transmits off numpad presses or regular num presses.
+If you don't want to transmit on each valid num press, only call the command if another modifier key is pressed.
+If the user presses 0, it will display a help prompt.
+Returns they numerical index of the key if successful, 
+Example use: if(keyClk()) {scr_keyTransmit(Seat,Aimpos)} #sends a simple command based off a number input
+Example use: driver presses the key 2 <-- sends the scr command 2 with transmitVector, if a valid vector]#
+function number scr_keyTransmit(UserOrSeat:entity,TransmitVector:vector)
+{
+    local Valid = 0   #if in put is valid
+    local User = noentity()
+    local Seated = 0
+    if(UserOrSeat == owner())
+    {
+        User = UserOrSeat
+        Valid++
+    }
+    else
+    {
+        User = UserOrSeat:driver()
+        Seated++
+        Valid++
+    }
+    local KeyClk = keyClk()
+    local KeyClkPressed = keyClkPressed()
+    if(Valid) {Valid = (User:keyPressed(KeyClkPressed))}
+    if(Valid)
+    {
+        if((KeyClkPressed == "0") | (KeyClkPressed == "pad_0"))
+        {
+            if(Seated) {UserOrSeat:printDriver(SCR_HELP_STRING)} else {print(SCR_HELP_STRING)}
+            return -1
+        }
+        else
+        {
+            local Num = KeyClkPressed:right(1):toNumber() #thanks ferv.  Way easier.
+            if(inrange(Num,1,SCR_CMD_COUNT))
+            {
+                scr_transmit(Num,"",TransmitVector,UserOrSeat)
+                scr_notify("Transitted " + SCR_CMD_PREFIXES[Num,string],UserOrSeat)
+                Num = SCR_CMD_COUNT
+                return Num
+            }
+            else
+            {
+                return 0
+            }
+        }
+    }
+    return 0
+}
+
+#misuse check, similar to the name-check convention in python
+if(entity():getName() == "SCRL")
+{
+    print("ERROR: [SCRL] is not to be used standalone, but as an imported library!")
+}

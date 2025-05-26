@@ -1,0 +1,151 @@
+@name Tib Storage Manager V3
+@inputs On
+@outputs AllConstrained MaxTib
+@outputs Cycle Unload
+@persist Ref1Pos:vector Ref2Pos:vector
+@persist Storages:array Holders:array Node:entity
+@autoupdate
+if(first()|duped()){
+    runOnTick(1)
+    findIncludePlayerProps(owner())
+    findByClass("sa_storage_tiberium")
+    Storages = findToArray()
+
+    findByClass("sa_storage_tiberium_holder")
+    Holders = findToArray()
+    
+    findByClass("resource_node")
+    Node = findClosest(entity():pos())
+
+    findClearWhitePlayerPropList()
+    Players = players()
+    foreach(K, V:entity=Players){
+        findExcludePlayerProps(V)
+    }
+    findIncludeModel("models/ce_mining/buildings/ce_tib_station1.mdl")
+    findByClass("prop_physics")
+    Refinery = findResult(1)
+    
+    Ref1 = vec(-188.442383,-54.843029,74.763550)
+    Ref2 = vec(-188.087158,41.375980,74.167847)
+
+    Ref1Pos = Refinery:toWorld(Ref1)
+    Ref2Pos = Refinery:toWorld(Ref2)
+    
+    # Functions
+    function maintainPosAng(Entity:entity, TargetPos:vector){
+        Entity:setMass(50000)
+        Force=(TargetPos-Entity:pos())*10 - Entity:vel()
+        Force *=Entity:mass()
+        Entity:applyForce(Force)
+        
+        TarQ=quat(ang(90,0,0))
+        CurQ=quat(Entity)
+        Q=TarQ/CurQ
+        V=Entity:toLocal(rotationVector(Q)+Entity:pos())
+        Entity:applyTorque((150*V -12*Entity:angVelVector())*Entity:inertia())
+        
+        # Manage Solidity
+        if(Entity:pos():distance(TargetPos) < 15){
+            Entity:propNotSolid(0)
+        }
+        else{
+            Entity:propNotSolid(1)
+        }
+    }
+
+    function manageStorage(I){
+        TargetHolder = Holders[1+I%2,entity]
+        StorageEntity = Storages[I, entity]
+        StorageEntity:propFreeze(0)
+        
+        if(Unload){
+            if(On){
+                # On state
+                if(I%2 == Cycle){
+                    # Disconnect current cycle holders, send to refinery
+                    TargetHolderXWL = Holders[1+I%2,entity]:wirelink()
+                    TargetHolderXWL["On", number] = 0
+                    TargetPos = I%2 ? Ref1Pos : Ref2Pos
+                }
+                else {
+                    # Off cycle storages, maintain holder pos
+                    TargetPos = TargetHolder:pos()
+                }
+            }
+            else {
+                # Off state, disconnect all holders, send to refinery
+                TargetHolderXWL = Holders[1+I%2,entity]:wirelink()
+                TargetHolderXWL["On", number] = 0
+                TargetPos = I%2 ? Ref1Pos : Ref2Pos
+            }
+        }
+        else{
+            # Not unloading, return all to holders
+            TargetHolderXWL = TargetHolder:wirelink()
+            TargetHolderXWL["On", number] = 1
+            TargetPos = TargetHolder:pos()
+        }
+        
+        #Applyforce
+        if(StorageEntity:hasConstraints("weld")){
+            StorageEntity:setMass(1)
+        }else{
+            maintainPosAng(StorageEntity, TargetPos)
+        }
+    }
+    
+    function manageState(){
+        MaxTib = Node:lsGetCapacity("tiberium") > MaxTib ? Node:lsGetCapacity("tiberium") : MaxTib
+        AmountTib = Node:lsGetAmount("tiberium")
+        # On state, unload if more than threshold
+        if(On && AmountTib > MaxTib*0.5 && MaxTib!=0){
+            Unload = 1
+        }
+        # Off state, unload all
+        if(!On && AmountTib > 0){
+            Unload = 1
+        }
+        
+        if(Unload){
+            UnloadingCycleTib = 0
+            foreach(K, V:entity=Storages){
+                if(On){
+                    # On state, check only current cycle tibs
+                    if(K%2 == Cycle){
+                        UnloadingCycleTib += V:wirelink()["Tiberium", number]
+                    }
+                }
+                else{
+                    # Off state, check all tibs
+                    UnloadingCycleTib += V:wirelink()["Tiberium", number]
+                }
+            }
+            # If relevant tibs are empty, end unload, increment cycle
+            if(UnloadingCycleTib == 0){
+                Unload = 0
+                Cycle = (Cycle+1)%2
+            }
+        }
+    }
+    
+    # Check any attached to miner
+    function number anyConstrained(){
+        foreach(K, V:entity = Storages){
+            if(V:isWeldedTo():type() == "sa_storage_tiberium_holder"){
+                return 1
+            }
+        }
+        return 0
+    }
+
+}
+else{
+    # Main code execution
+    for(I=1, Storages:count()){
+        manageStorage(I)
+    }
+    manageState()
+
+    AllConstrained = anyConstrained()
+}

@@ -1,0 +1,93 @@
+@name Holo Ball by Callum :D
+@inputs 
+@outputs 
+@persist BallPos:vector BallAng:angle BallRay:array LoopCount
+@persist BallAccel:vector BallVel:vector Eye:vector AttackPos:vector
+
+#Initialize variables and settings
+if (first())
+{
+    #Execute chip every server tick
+    runOnTick(1)
+    
+    ##Variables
+    BallPos = entity():pos() + entity():up()*500
+    BallAng = entity():angles()
+    BallAccel = vec(0,0,-9.8)
+    
+    #Holo Initialization
+    holoCreate(1)
+    holoModel(1,"hqicosphere2")
+    holoPos(1,BallPos)
+    holoAng(1,BallAng)
+    holoScaleUnits(1,vec(20,20,20))
+    holoColor(1,vec(255,255,0))
+    holoMaterial(1,"models/debug/debugwhite")
+    rangerFilter(holoEntity(1))
+    
+    # Until I can come up with a better way, this will
+    # be the direction of collision checks.
+    BallRay[1,vector] = vec(0,0,1)
+    BallRay[2,vector] = vec(0,1,0)
+    BallRay[3,vector] = vec(0,1,1)
+    BallRay[4,vector] = vec(1,0,0)
+    BallRay[5,vector] = vec(1,0,1)
+    BallRay[6,vector] = vec(1,1,0)
+    BallRay[7,vector] = vec(1,1,1)
+    BallRay[8,vector] = vec(0,0,-1)
+    BallRay[9,vector] = vec(0,-1,0)
+    BallRay[10,vector] = vec(0,-1,-1)
+    BallRay[11,vector] = vec(-1,0,0)
+    BallRay[12,vector] = vec(-1,0,-1)
+    BallRay[13,vector] = vec(-1,-1,0)
+    BallRay[14,vector] = vec(-1,-1,-1)
+    BallRay[15,vector] = vec(1,1,-1)
+    BallRay[16,vector] = vec(1,-1,1)
+    BallRay[17,vector] = vec(1,-1,-1)
+    BallRay[18,vector] = vec(-1,1,1)
+    BallRay[19,vector] = vec(-1,1,-1)
+    BallRay[20,vector] = vec(0,1,-1)
+    BallRay[21,vector] = vec(0,-1,1)
+    BallRay[22,vector] = vec(1,0,-1)
+    BallRay[23,vector] = vec(-1,0,1)
+    BallRay[24,vector] = vec(-1,1,0)
+    BallRay[25,vector] = vec(1,0,-1)
+    BallRay[26,vector] = vec(1,-1,0)
+}
+#Needs some way to eventually stop
+BallAccel = vec(0,0,-9.8) - BallVel/500
+
+#MY Collision Detection (rangers)
+LoopCount = 0
+while (LoopCount < BallRay:count() + 1)
+{
+    LoopCount++
+    Ranger = rangerOffset(10,BallPos,BallRay[LoopCount,vector])
+    if (Ranger:hit() != 0)
+    {
+        #This needed a fair bit of tweaking, try changing the 1.1 and 0.95
+        #to change how the ball bounces.
+        BallVel = BallVel:length() * Ranger:hitNormal() * 1.1 + BallVel*0.95
+
+        #Makes sure the ball doesn't "sink" into a collision when resting
+        BallPos = Ranger:position() + Ranger:hitNormal() * 10
+        LoopCount += BallRay:count()
+    }
+}
+
+#To make acceleration, any "force" gets added to the balls velocity,
+#the velocity gets added to the position divided by how many times per
+#second. (approx)
+
+BallVel += BallAccel
+BallPos += BallVel/66
+holoPos(1,BallPos)
+
+#If the ball "escapes" the world...
+if(!(BallPos-vec(0,0,10):isInWorld()))
+{
+    #Reset the ball!
+    BallPos = entity():pos() + entity():up()*30
+    BallAng = entity():angles()
+    BallAccel = vec(0,0,-9.8)
+}

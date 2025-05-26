@@ -1,0 +1,258 @@
+@name Ice Explorer
+@inputs Pod:wirelink Active
+@outputs Parent:entity CamMode 
+@persist W A S D R M1 M2 Shift Space Alt Light InSeat
+@persist EyeAng:angle Vel Color Home:vector
+@outputs IType:string
+@persist HPos:vector Scanner:entity Scan:wirelink
+@outputs CurPos:vector Pos:array Type:array
+
+function number findInArray(Str:string,Ar:array){
+    for(I=1,Ar:count()){
+        if(Ar[I, string]==Str){
+            return I
+        }
+    }
+    return 0
+}
+
+function drawCoord(Ar:array){
+    for(I=3,100){
+        holoDelete(I)
+    }
+    for(I=1,Ar:count()){
+        holoCreate(I+2,Ar[I,vector],vec(5,5,5))
+    }
+}
+
+function number icevalue(Str:string){
+    if(Str=="DarkGlitter"){
+        return 3000
+    }
+    if(Str=="Krystallos"){
+        return 2350
+    }
+    if(Str=="Gelidus"){
+        return 2250
+    }
+    if(Str=="WhiteGlaze"){
+        return 2000
+    }
+    if(Str=="GlacialMass"){
+        return 1800
+    }
+    if(Str=="GlareCrust"){
+        return 1200
+    }
+    if(Str=="ClearIce"){
+        return 800
+    }
+    if(Str=="BlueIce"){
+        return 800
+    }
+}
+
+function number newIceIndex(Str:string,Ar:array){
+    TVal=icevalue(Str)
+    J=Ar:count()+1
+    for(I=Ar:count(),1,-1){
+        Cur=icevalue(Ar[I,string])
+        if(Cur>TVal){
+            J=I
+        }
+    }
+    return J
+}
+
+function insertice(Str:string){
+    
+    if(Str!=""){
+        I=findInArray(Str,Type)
+        if(I==0){
+            J=newIceIndex(Str,Type)
+            Type:insertString(J,Str)
+            Pos:insertVector(J,Scanner:pos())
+            if(J==Pos:count()){
+                timer("move",500)
+            }
+        }
+        else{
+            Type:insertString(I,Str)
+            Pos:insertVector(I,Scanner:pos())
+        }
+        
+        print("PROBE: ICE ADDED TO ARRAY["+Str+"]")
+    }
+    else{
+        print("PROBE: INVALID COORDINATE")
+    }
+    drawCoord(Pos)
+}
+
+function removeice(){
+    Type:pop()
+    CurPos=Pos:popVector()
+    if(Pos:count()!=0){
+        print("PROBE: SENDING NEXT COORDINATE")
+    }
+    else{
+        print("PROBE: SENDING HOME COORDINATE")
+    }
+    timer("move",500)
+    drawCoord(Pos)
+}
+
+if(dupefinished()){
+    reset()
+}
+
+if(first()){
+    #include "includes/TeleSystemLib"
+    Scanner=entity():isWeldedTo()
+    Scan=Scanner:wirelink()
+    HPos=Scanner:pos()-vec(0,0,50)
+    holoCreate(1,HPos,vec(0.5,0.5,1.5),ang(0,0,0))
+    holoCreate(2,HPos+vec(2000,0,0),vec(300,0.1,300),ang(0,90,0))
+    holoParent(2,1)
+    Parent=holoEntity(1)
+    CamMode=1
+    Home=Scanner:pos()
+    dsJoinGroup("ice_probe")
+}
+
+if(R){
+    HPos=Scanner:pos()-vec(0,0,50)
+    holoCreate(1,HPos,vec(0.5,0.5,0.5),ang(0,0,0))
+    holoAlpha(1,0)
+    holoCreate(2,HPos+vec(2000,0,0),vec(300,0.1,300),ang(0,90,0))
+    holoParent(2,1)
+    Parent=holoEntity(1)
+}
+
+interval(20)
+W=Pod["W",number]
+A=Pod["A",number]
+S=Pod["S",number]
+D=Pod["D",number]
+R=Pod["R",number]
+M1=Pod["Mouse1",number]
+M2=Pod["Mouse2",number]
+Shift=Pod["Shift",number]
+Space=Pod["Space",number]
+Alt=Pod["Alt",number]
+Light=Pod["Light",number]
+InSeat=Pod["Active",number]
+EyeAng=Pod["Entity",entity]:driver():eyeAngles()
+
+IType=Scan["IceType",string]
+
+#Send CurPos
+if(Pos:count()==0|(!Active)){
+    CurPos=Home
+    if(Light){
+        timer("move",500)
+    }
+}
+else{
+    CurPos=Pos[Pos:count(),vector]
+}
+if(changed(CurPos)|dsClk("getPos")){
+    dsSend("curpos","ice_miner",CurPos)
+}
+
+#Move Miner
+if(clk("move")){
+    dsSend("move","ice_miner",1)
+    stoptimer("move")
+}
+
+#Next Pos
+if(dsClk("next")){
+    timer("del",500)
+}
+
+if(clk("del")){
+    removeice()
+    stoptimer("del")
+}
+
+#Holo On/Off
+if(CamMode&InSeat){
+    holoAlpha(1,180)
+    holoAlpha(2,255)
+}
+else{
+    holoAlpha(1,0)
+    holoAlpha(2,0)
+}
+
+#Holo Color
+if(Shift){
+    timer("col",500)
+}
+
+if(clk("col")){
+    stoptimer("col")
+    Color=!Color
+}
+
+if(Color){
+    holoColor(2,vec(255,255,255))
+}
+else{
+    holoColor(2,vec(0,0,0))
+}
+
+#CamMode
+if(Alt){
+    timer("cam",500)
+}
+
+if(clk("cam")){
+    stoptimer("cam")
+    CamMode=!CamMode
+}
+
+#Teleport
+if(M2){
+    timer("tele",500)
+}
+
+if(clk("tele")){
+    stoptimer("tele")
+    teleportContraption(HPos+EyeAng:forward()*100+vec(0,0,300),Scanner:angles(),Scanner)
+}
+
+#Insert Pos
+if(M1){
+    timer("insert",500)
+}
+
+if(clk("insert")){
+    stoptimer("insert")
+    insertice(IType)
+}
+
+#Cam Movement
+if(W|A|S|D){
+    Vel+=0.5
+}
+else{
+    Vel=0
+}
+
+if(W){
+    HPos=HPos+EyeAng:forward()*Vel
+}
+if(A){
+    HPos=HPos-EyeAng:right()*Vel
+}
+if(S){
+    HPos=HPos-EyeAng:forward()*Vel
+}
+if(D){
+    HPos=HPos+EyeAng:right()*Vel
+}
+
+holoPos(1,HPos)
+holoAng(1,EyeAng)

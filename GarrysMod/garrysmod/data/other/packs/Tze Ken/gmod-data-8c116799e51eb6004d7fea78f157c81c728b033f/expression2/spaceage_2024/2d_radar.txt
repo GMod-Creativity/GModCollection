@@ -1,0 +1,107 @@
+@name EGP 2D Radar (from Syne)
+@inputs EGP:wirelink 
+@outputs 
+@persist EGPCenter:egpobject Results:table Targets:table X Y SIZE:number MaxObjects Range:number Pos:vector Pos2:vector2 Objects:table
+@trigger none
+@strict
+
+if( first() ) {
+    EGP:egpClear()
+    EGP:egpDrawTopLeft(0)
+    
+    DebugBarrel = "models/props_borealis/bluebarrel001.mdl"
+    Pos = entity():pos()
+    print(entity():angles())
+    print(entity():angles():yaw())
+    Pos2 = vec2(Pos)
+    X = 16
+    Y = 16
+    SIZE = 256
+    
+    #1 - 2 for our outline.
+    EGP:egpCircleOutline(1, vec2(SIZE/2+X, SIZE/2+Y), vec2(SIZE/2))
+    EGP:egpColor(1, vec(0,128,255))
+    
+    EGP:egpBoxOutline(2, vec2((SIZE/2)+X+1,(SIZE/2)+Y+1), vec2(SIZE+1))
+    EGP:egpColor(2, vec(0,128,255))
+    
+    EGPCenter = EGP:egpCircle(3, vec2(SIZE/2+X, SIZE/2+Y), vec2(2))
+    EGP:egpColor(3, vec(0,128,255))
+    
+    # 4 - 25 for our targets
+    MaxObjects = 20
+    Range = 22000
+    
+    
+    #findIncludeModel(DebugBarrel)
+    #findIncludeClass("sa_ice")
+    #findIncludeClass("sa_iceroid")
+    findIncludeClass("sa_roid")
+    ###"sa_iceroid"###
+    #findInclude
+    timer("ping", 500)
+    
+}
+
+if(clk("ping")) {
+    Pos = entity():pos()
+    Pos2 = vec2(Pos)
+    if(findCanQuery()) {
+        NumHits = findInBox(Pos-vec(Range),Pos+vec(Range))
+        if(NumHits != 0) {    
+            foreach(Key:number, Value:entity = findToArray()) {
+                Targets[Key, entity] = Value #Position of target without height?
+                Results[Key, vector2] = round((vec2(Value:pos())-Pos2) / vec2(Range), 4) #Calculate a value (0-1) to represent objects relative distance.
+                Objects[Key,egpobject] = EGP:egpBox(3+Key,  EGPCenter:getPos() + round((vec2(SIZE) * Results[Key, vector2])/2), vec2(5,5))   
+                Objects[Key,egpobject]:setColor( vec(0,0,255) )
+                OX = round((vec2(SIZE) * Results[Key, vector2])/2):x() 
+                OY = round((vec2(SIZE) * Results[Key, vector2])/2):y()
+                ANG = round(entity():angles():yaw())
+                #Rotation? 
+                MX=(OX*cos(ANG)-OY*sin(ANG))
+                #Rotation? 
+                MY=(OY*cos(ANG)-OX*sin(ANG))
+                
+                Objects[Key,egpObject]:setPos(EGPCenter:getPos() + vec2(MX,MY))
+            }
+        } else {
+            print(NumHits)
+        }
+    }
+
+    timer("ping",200)    
+}
+
+event chat(Player:entity, Message:string, Team:number) {
+    if(Player == owner()) {
+        if(Message == ".p") {  
+            hideChat(1)
+            print(Pos:toString())
+            if(Targets:ncount() != 0) {
+                foreach(K:number, V:vector2 = Targets) {
+                    print(K + ": " + (V-Pos2):toString() )
+                }
+            } 
+        }
+        if(Message == ".c") {
+            hideChat(1)
+            foreach(K:number, V:vector2 = Targets) {
+                Results[K, vector2] = round((V-Pos2) / vec2(Range), 4)
+                print( Results[K, vector2] )             
+            }
+        }
+        if(Message == ".r") {
+            hideChat(1)
+            foreach(ID:number, RV:vector2 = Results) {
+                print(ID:toString()+": "+RV:toString())
+                EGP:egpBox(4+ID,  EGPCenter:getPos() + round((vec2(SIZE) * RV)), vec2(5,5))
+            }
+        }
+    }   
+}
+
+
+
+
+
+

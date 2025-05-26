@@ -1,0 +1,48 @@
+@name Solar 2024-V1
+@inputs Panels:array
+
+function maintainPosAng(Entity:entity, TargetPos:vector, TargetAng:angle){
+    Entity:propFreeze(0)
+    Entity:setMass(50000)
+    Force=(TargetPos-Entity:pos())*10 - Entity:vel()
+    Force *=Entity:mass()
+    Entity:applyForce(Force)
+    
+    TarQ=quat(TargetAng)
+    CurQ=quat(Entity)
+    Q=TarQ/CurQ
+    V=Entity:toLocal(rotationVector(Q)+Entity:pos())
+    Entity:applyTorque((150*V -12*Entity:angVelVector())*Entity:inertia())
+    
+    # Manage Solidity
+    if(Entity:pos():distance(TargetPos) < 15){
+        Entity:propNotSolid(0)
+    }
+    else{
+        Entity:propNotSolid(1)
+    }
+}
+
+if(first()|dupefinished()) {
+    findIncludePlayerProps(entity():owner())
+    findByClass("generator_energy_solar")
+    Panels=findToArray()
+}
+
+event removed(Resetting:number) {
+    foreach(K:number, Panel:entity=Panels){
+        Panel:propNotSolid(0)
+        Panel:propFreeze(1)
+    }
+}
+
+event tick(){
+    RootPos = entity():owner():pos() + vec(0,0,100)
+    AimAng = ang(55,-135,0)
+    ExpandDir = AimAng:right()
+    Spacing = Panels[1, entity]:radius()
+    foreach(K:number, Panel:entity=Panels){
+        Pos = RootPos + (ExpandDir * Spacing * (K -0.5- Panels:count()/2))
+        maintainPosAng(Panel, Pos, AimAng)
+    }
+}

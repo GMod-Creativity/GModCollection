@@ -1,0 +1,92 @@
+@name Main
+@inputs Group:string
+@outputs Cmd:string Cmd2:string Running Moo
+@persist CCmd:string Params:string Count CCmd2:string Params2:string
+interval(200)
+
+#Listings of one command at a time and the code that handles them
+#Variable Running - Used for functions that require running more than once (loops)
+#Variable Count - Used as a counter for any function that utilizes Running
+
+
+if(Group != "")
+{
+    gSetGroup(Group)
+    Cmd = gGetStr("Cmd")
+    Cmd2 = gGetStr("Cmd2")
+    if(Cmd != "" | Running)
+    {
+        if(Cmd == "-endproc") #Clear all data
+        {
+            Running = 0
+            CCmd = ""
+            CCmd2 = ""
+            Params = ""
+            Params2 = ""
+            Cmd2 = ""
+            Count = 0
+        }
+        if(Cmd != "")
+        {
+            CCmd = Cmd:left(Cmd:find(" ") - 1) #Finds the -<command> part of -<command> <parameters>
+            CCmd = CCmd:lower()
+            Params = Cmd:right(Cmd:length() - Cmd:find(" ")) #Finds the <parameters> part of -<command> <parameters> This is not (necessarily) lowercase by defualt!
+            LCmd = Cmd
+        }
+        if(Cmd2 != "")
+        {
+            CCmd2 = Cmd2:left(Cmd2:find(" ") - 1) #Finds the -<command> part of -<command> <parameters>
+            CCmd2 = CCmd2:lower()
+            Params2 = Cmd2:right(Cmd2:length() - Cmd2:find(" ")) #Finds the <parameters> part of -<command> <parameters> This is not (necessarily) lowercase by defualt!
+        }    
+        if(CCmd == "-print") #Remove this if you use this library as a template.
+        {
+            gSetNum("DisplayType", 1) #Ensure that the screen is using the proper display mode
+            gSetStr("DisplayToWrite", Params) #Change what to display
+            gSetNum("DisplayUpdate", 1) #Finally, display the string
+            gSetNum("Mode", 0) #Tell the CPU that we're done executing and that it doesn't need to timeout
+            gSetStr("Cmd", "") #Reset the command so that other libraries stop executing it
+        }
+        elseif(CCmd == "-cprint")
+        {
+            if(!Running)
+            {
+                Running = 1
+                gSetNum("DisplayType", 1) #Ensure that the screen is using the proper display mode
+                gSetStr("DisplayToWrite", Params) #Change what to display
+                gSetNum("DisplayUpdate", 1) #Finally, display the string
+                gSetNum("Mode", 3) #Tell the CPU that we're done executing and that it doesn't need to timeout
+            }
+            if(Cmd2 != "") #Command has run once already - awaiting input
+            {
+                if(CCmd2 != "-quit")
+                {              
+                    gSetStr("DisplayToWrite", Cmd2) #Change what to display
+                    gSetNum("DisplayUpdate", 1) #Finally, display the string
+                }
+                else #User is ending input
+                {
+                    gSetStr("Cmd", "") #Reset the command so that other libraries stop executing it
+                    gSetNum("Mode", 0) #Tell the CPU that we're done executing and that it doesn't need to timeout
+                    Running = 0 #So it doesn't conflict later
+                }
+                gSetStr("Cmd2", "") #Clear it for the next use
+            }
+        }
+        elseif(CCmd == "-cls")
+        {
+            gSetNum("DisplayCLS", 1) #Run the command to the output
+            gSetStr("Cmd", "") #Clear the command to prevent other libraries from running it
+            gSetNum("Mode", 0) #Clear the mode to reset the CPU for the next command
+        }
+        elseif(Running == 0) #Clear data when no command is found/running
+        {
+            Cmd2 = ""
+            CCmd = ""
+            CCmd2 = ""
+            Params = ""
+            Params2 = ""
+            Count = 0
+        }
+    }
+}

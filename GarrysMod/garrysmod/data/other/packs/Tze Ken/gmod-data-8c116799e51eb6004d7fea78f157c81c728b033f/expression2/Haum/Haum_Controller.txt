@@ -1,0 +1,118 @@
+@name Haum Client
+
+@outputs HallLights:table HallTemp:table TV:table
+@outputs KitchenLights:table KitchenTemp:table
+@outputs BedroomLights:table BedroomTemp:table BedroomDoor:table
+@outputs FrontDoor:table
+
+@inputs HallTempS:table KitchenTempS:table BedroomTempS:table
+
+@persist Response:string Appliances:table Sensors:table
+
+#Execute every 200ms
+interval(200)
+
+##Initialization
+if(dupefinished()){
+    reset()
+}
+if(first()){
+    runOnHTTP(1)
+    if(httpCanRequest()){
+        #Construct Home Appliances Schema
+        #Hall
+        Hall = table()
+        Lights = table()
+        Lights["lights", number] = 0
+        Temperature = table()
+        Temperature["temperature", number] = 24
+        TV = table()
+        TV["tv", number] = 1
+        TV["channel", number] = 1
+        TV["volume", number] = 100
+        Hall["lights", table] = Lights
+        Hall["temperature", table] = Temperature
+        Hall["tv", table] = TV
+        
+        #Kitchen
+        Kitchen = table()
+        Kitchen["lights", table] = Lights
+        Kitchen["temperature", table] = Temperature
+        
+        #Bedroom
+        Bedroom = table()
+        Bedroom["lights", table] = Lights
+        Bedroom["temperature", table] = Temperature
+        Door = table()
+        Door["door", number] = 0
+        Bedroom["door", table] = Door
+        
+        #Front
+        Front = table()
+        Front["door", table] = Door
+        
+        #Add to table
+        Appliances["hall", table] = Hall
+        Appliances["kitchen", table] = Kitchen
+        Appliances["bed", table] = Bedroom
+        Appliances["front", table] = Front
+        
+        #Send Home Appliances Schema
+        ApplianceJson = jsonEncode(Appliances)
+        httpRequest("http://haumluisproxy.azurewebsites.net/appliances?type=schemaupdate&appliances="+ApplianceJson)
+    }
+    else{
+        print("Unable to Request")
+    }
+}
+
+
+## Main Loop
+elseif(clk()){
+    if(httpCanRequest()){
+        #Send Sensor Updates & Request Appliance State
+        SensorJson = jsonEncode(Sensors)
+        httpRequest("http://haumluisproxy.azurewebsites.net/appliances?type=sensorupdate&sensors="+SensorJson)
+    }
+}
+
+if(!first() & httpClk()){
+    #Read Data
+    Response = httpData()
+    if(Response != ""){
+        Appliances = jsonDecode(Response)
+        
+        Room = Appliances["hall", table]
+        HallLights = Room["lights", table]
+        HallTemp = Room["temperature", table]
+        TV = Room["tv", table]
+        
+        Room = Appliances["kitchen", table]
+        KitchenLights = Room["lights", table]
+        KitchenTemp = Room["temperature", table]
+        
+        Room = Appliances["bed", table]
+        BedroomLights = Room["lights", table]
+        BedroomTemp = Room["temperature", table]
+        BedroomDoor = Room["door", table]
+        
+        Room = Appliances["front", table]
+        FrontDoor = Room["door", table]
+    }
+    
+    #Write Sensor Data    
+    #Hall
+    Hall["temperature", table] = HallTempS
+    
+    #Kitchen
+    Kitchen["temperature", table] = KitchenTempS
+    
+    #Bedroom
+    Bedroom["temperature", table] = BedroomTempS
+    
+    #Add to table
+    Sensors["hall", table] = Hall
+    Sensors["kitchen", table] = Kitchen
+    Sensors["bed", table] = Bedroom
+    
+}

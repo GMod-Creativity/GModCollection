@@ -1,0 +1,1056 @@
+@name Gen 2 AutoMiner
+@persist [Data DataW]:table
+@outputs [Status]:string Laser [TPos]:vector [T]:entity
+@outputs  Ops MOps [TAr Ar]:array Count
+@outputs Ore MOre
+Status=Data["Status",string]
+T=Data["T",entity]
+TAr=Data["TAr",array]
+Count=Data["TAr",array]:count()
+Ops = ops()
+MOps = minquota()
+
+Ore=Data["Node",entity]:getStorage("Ore")
+MOre=Data["Node",entity]:getStorageMax("Ore")
+
+function genSwitch(St:string, N)
+{
+    foreach(In,Xwl:wirelink=DataW[St,array])
+    {
+        Xwl["On",number]=N
+    }
+}
+
+function number oreMaxed()
+{
+    Ore=DataW["Ore",wirelink]["RawOre",number]
+    MOre=DataW["Ore",wirelink]["RawOreMax",number]
+    return Ore>=floor(MOre)
+}
+
+function mapPorts()
+{
+    TVec=vec()
+    
+    foreach(In,Xwl:wirelink=DataW["Ports",array])
+    {
+        if(Xwl:entity():pos():x()>TVec:x())
+        {
+            TVec=Xwl:entity():pos()
+        }
+    }
+    TVec2=(TVec-Data["Drive",entity]:pos())
+    Data["N Port",vector]=TVec2
+    
+    foreach(In,Xwl:wirelink=DataW["Ports",array])
+    {
+        if(Xwl:entity():pos():x()<TVec:x())
+        {
+            TVec=Xwl:entity():pos()
+        }
+    }
+    TVec2=(TVec-Data["Drive",entity]:pos())
+    Data["S Port",vector]=TVec2
+    
+    foreach(In,Xwl:wirelink=DataW["Ports",array])
+    {
+        if(Xwl:entity():pos():y()>TVec:y())
+        {
+            TVec=Xwl:entity():pos()
+        }
+    }
+    TVec2=(TVec-Data["Drive",entity]:pos())
+    Data["W Port",vector]=TVec2
+    
+    foreach(In,Xwl:wirelink=DataW["Ports",array])
+    {
+        if(Xwl:entity():pos():y()<TVec:y())
+        {
+            TVec=Xwl:entity():pos()
+        }
+    }
+    TVec2=(TVec-Data["Drive",entity]:pos())
+    Data["E Port",vector]=TVec2
+}
+
+function jumpToTarget()
+{
+    First=Data["T",entity]:toWorld(Data["T",entity]:boxCenter():rotate(Data["T",entity]:angles()))
+    TPos=(Data["T",entity]:pos()-(vec(0,0,Data["T",entity]:boxSize():z()/2)))
+    
+    Xwl=DataW["HoverDrive",wirelink]
+    Xwl["TargetPos",vector]=TPos+Data["Laser Offset",vector]
+    
+    Data["Status",string]="Mining"
+    timer("Jump",250)
+}
+
+function findNewTarget()
+{
+    if(!Data["TAr",array]:count() && findCanQuery())
+    {
+        findClearWhiteList()
+        findClearBlackList()
+        findByClass("sa_asteroid")
+        Ar=findToArray()
+        Data["TAr",array]=Ar
+        hint("Finding new target array",5)
+    }
+    
+    if(Data["TAr",array]:count())
+    {
+        foreach(In,Pur:entity=Data["TAr",array])
+        {
+            if(!Pur)
+            {
+                Data["TAr",array]:removeEntity(In)
+                In--
+            }
+        }
+        Ran=randint(1,Data["TAr",array]:count())
+        Data["T",entity]=Data["TAr",array][Ran,entity]
+        Data["TAr",array]:removeEntity(Ran)
+        
+        if(Data["T",entity])
+        {
+            jumpToTarget()
+        }
+    }
+}
+
+function number oreMinned()
+{
+    Ore=DataW["Ore",wirelink]["RawOre",number]
+    return Ore<=0
+}
+
+function number getOre()
+{
+    return DataW["Ore",wirelink]["RawOre",number]
+}
+
+function moveTo(St:string)
+{
+    TTab=Data[map(),table]
+    if(TTab:exists(St))
+    {
+        TPos=TTab[St,vector]
+        Xwl=DataW["HoverDrive",wirelink]
+        Xwl["TargetPos",vector]=TPos
+        
+        timer("Jump",250)
+        
+        Data["Status",string]="Maintenance"
+    }
+    else
+    {
+        hint("No return set for that",5)
+        Data["Return",string]=""
+    }
+}
+
+function number getMinerRadius()
+{
+    Dist=0
+    foreach(In,Ent:entity = entity():getConstraints())
+    {
+        if(Ent:pos():distance(entity():pos())>Dist)
+        {
+            Dist=Ent:pos():distance(entity():pos())
+        }
+    }
+    
+    return Dist
+}
+
+function moveToTerm()
+{
+    Clear=0
+    Ran=randint(1,4)
+    TTab=Data[map(),table]
+    Temp=TTab["Terminals",array]
+    TPos=Temp[Ran,vector]
+    
+    if(Ran==1){APos=Data["N Port",vector]}
+    elseif(Ran==2){APos=Data["S Port",vector]}
+    elseif(Ran==3){APos=Data["W Port",vector]}
+    elseif(Ran==4){APos=Data["E Port",vector]}
+    
+    if(!Clear)
+    {
+        if(findCanQuery())
+        {
+            Test=0
+            findExcludePlayerProps(owner())
+            findIncludeClass("sa_plug")
+            findIncludeClass("sa_port")
+            findInSphere(APos,100)
+            Ar=findToArray()
+            
+            foreach(In,En:entity=Ar)
+            {
+                if(En:owner():toString()!="(null)")
+                {
+                    Test=1
+                }
+            }
+            
+            if(!Test)
+            {
+                Clear=1
+            }
+        }
+    }
+        
+    if(Clear)
+    {
+        Xwl=DataW["HoverDrive",wirelink]
+        Xwl["TargetPos",vector]=TPos-APos
+        
+        timer("Jump",250)
+    }
+    else
+    {
+        timer("Not Clear",250)
+    }
+}
+
+if(clk("Not Clear"))
+{
+    moveToTerm()
+}
+
+function number getEnergy()
+{
+    return DataW["Energy",wirelink]["Energy",number]
+}
+
+function number getTemp()
+{
+    Tem=0
+    foreach(In,Xwl:wirelink=DataW["Fusions",array])
+    {
+        if(Xwl["Temperature",number]>Tem)
+        {
+            Tem=Xwl["Temperature",number]
+        }
+    }
+    
+    return Tem
+}
+
+function number genStatus(St:string)
+{
+    return DataW[St,array][1,wirelink]["Status",number]
+}
+
+function setMult(St:string,Base)
+{
+    Real=(Base * DataW["Fusions",array]:count())/DataW[St,array]:count()
+    foreach(In,Ent:wirelink=DataW[St,array])
+    {
+        Ent["Multiplier",number]=Real
+    }
+}
+
+function refill(St:string)
+{
+    TTab=Data[map(),table]
+    TPos=(TTab[St,vector]!=vec())? TTab[St,vector] : TTab["Water",vector]
+    
+    Xwl=DataW["HoverDrive",wirelink]
+    if(St=="Water")
+    {
+        Rx=random(-500,500)
+        Ry=random(-500,500)
+        TemV=Data["WPump Offset",vector]
+        TemV2=vec(TemV:x()+Rx,TemV:y()+Ry,TemV:z())
+        Xwl["TargetPos",vector]=TPos+TemV2
+        #Xwl["TargetPos",vector]=TPos+Data["WPump Offset",vector]
+    }
+    elseif(St=="Turbine")
+    {Xwl["TargetPos",vector]=TPos+Data["Turbine Offset",vector]}
+    
+    timer("Jump",250)
+}
+
+function number calcPer(St:string)
+{
+    if(DataW[St,wirelink][St+"Max",number] > 0)
+    {
+        return (DataW[St,wirelink][St,number] / DataW[St,wirelink][St+"Max",number])*100
+    }
+    else
+    {
+        return 2
+    }
+}
+
+function setOffset(St:string,Ar:array)
+{
+    AOff=vec()
+    foreach(In,Xwl:wirelink=Ar)
+    {
+        AOff+=Xwl:entity():pos()
+    }
+    
+    AOff=AOff/Ar:count()
+    if(St=="Laser")
+    {
+        AOff+=Ar[1,wirelink]:entity():forward()*150
+    }
+    Data[St+" Offset",vector]=(Data["Drive",entity]:pos()-AOff)
+}
+
+function dataTie()
+{
+    Data["Tie",number]=Data["Tie",number]+1
+    if(Data["Ore",number]!=getOre())
+    {
+        Data["Ore",number]=getOre()
+        Data["Tie",number]=0
+    }
+    
+    if(Data["Tie",number]>40)
+    {
+        foreach(In,Ent:entity=Data["TAr",array])
+        {
+            if(Data["T",entity]==Ent)
+            {
+                Data["TAr",array]:remove(In)
+            }
+        }
+        Data:remove("T")
+        
+        findNewTarget()
+    }
+}
+
+function eval()
+{
+    if(!Data["Fusion",number]&&!Data["Solar",number]&&!Data["Wind",number]&&!Data["Turbine",number])
+    {
+        hint("No power source detected!  Moving to Invalid Hold mode",5)
+        Data["Status",string]="Invalid Hold"
+        Data["Invalid",array]=entity():getConstraints()
+        return
+    }
+    else
+    {
+        if(Data["Fusion",number])
+        {
+            Data["Power",string]="Fusion"
+        }
+        elseif(Data["Turbine",number])
+        {
+            Data["Power",string]="Turbine"
+        }
+        elseif(Data["Wind",number])
+        {
+            Data["Power",string]="Wind"
+        }
+        elseif(Data["Solar",number])
+        {
+            Data["Power",string]="Solar"
+        }
+        
+        hint("Primary power supply is "+Data["Power",string],5)
+    }
+    if(!DataW["Nodes",array]:count())
+    {
+        hint("No node detected!  Moving to Invalid Hold mode",5)
+        Data["Status",string]="Invalid Hold"
+        Data["Invalid",array]=entity():getConstraints()
+        return
+    }
+    if(DataW["HoverDrive",wirelink]:entity()==noentity())
+    {
+        hint("No hoverdrive detected!  Moving to Invalid Hold mode",5)
+        Data["Status",string]="Invalid Hold"
+        Data["Invalid",array]=entity():getConstraints()
+        return
+    }
+    if(!DataW["Ports",array]:count())
+    {
+        if(gamemode()=="SpaceAge -Reloaded-")
+        {
+            hint("No ports detected!  Moving to Invalid Hold mode",5)
+            Data["Status",string]="Invalid Hold"
+            Data["Invalid",array]=entity():getConstraints()
+            return
+        }
+    }
+    if(!DataW["EnergyStor",array]:count())
+    {
+        hint("No energy storage detected!  Moving to Invalid Hold mode",5)
+        Data["Status",string]="Invalid Hold"
+        Data["Invalid",array]=entity():getConstraints()
+        return
+    }
+    if(Data["Power",string]=="Fusion")
+    {
+        if(!DataW["HeavyWaterStor",array]:count() && !Data["HW Confirm",number])
+        {
+            hint("No heavy water storage detected.",5)
+            hint("To continue without, please press E on this device",5)
+            Data["Status",string]="HW Confirm"
+            return
+        }
+        elseif(Data["HW Confirm",number]&&gamemode()=="SpaceAge")
+        {
+            
+        }
+        else
+        {
+            hint("HeavyWater storage detected",5)
+            Data["HeavyWater",number]=1
+            if(!DataW["Splitters",array]:count() && !DataW["HydrogenInhalers",array]:count())
+            {
+                hint("No hydrogen sources detected!  Moving to Invalid Hold mode",5)
+                Data["Status",string]="Invalid Hold"
+                Data["Invalid",array]=entity():getConstraints()
+                return
+            }
+            
+            if(!DataW["HydrogenStor",array]:count())
+            {
+                hint("No hydrogen storage detected! Moving to Invalid Hold mode",5)
+                Data["Status",string]="Invalid Hold"
+                Data["Invalid",array]=entity():getConstraints()
+                return
+            }
+            if(!DataW["Waters",array]:count())
+            {
+                hint("No water sources detected!  Moving to Invalid Hold mode",5)
+                Data["Status",string]="Invalid Hold"
+                Data["Invalid",array]=entity():getConstraints()
+                return
+            }
+            if(!DataW["WaterStor",array]:count())
+            {
+                hint("No water storage detected!  Moving to Invalid Hold mode",5)
+                Data["Status",string]="Invalid Hold"
+                Data["Invalid",array]=entity():getConstraints()
+                return
+            }
+            if(!DataW["HWaters",array]:count())
+            {
+                hint("No heavy water source detected!  Moving to Invalid Hold mode",5)
+                Data["Status",string]="Invalid Hold"
+                Data["Invalid",array]=entity():getConstraints()
+                return
+            }
+        }
+    }
+    if(!DataW["Lasers",array]:count())
+    {
+        hint("No lasers detected! Moving to Invalid Hold status",5)
+        Data["Status",string]="Invalid Hold"
+        Data["Invalid",array]=entity():getConstraints()
+        return
+    }
+    if(!DataW["OreStor",array]:count())
+    {
+        hint("No ore storages detected! Moving to Invalid Hold status",5)
+        Data["Status",string]="Invalid Hold"
+        Data["Invalid",array]=entity():getConstraints()
+        return
+    }
+    
+    if(Data["Invalid",array]:count())
+    {Data:remove("Invalid")}
+    
+    DataW["Energy",wirelink]=DataW["EnergyStor",array][1,wirelink]
+    DataW["Ore",wirelink]=DataW["OreStor",array][1,wirelink]
+    if(gamemode()=="SpaceAge" && Data["Power",string]=="Fusion")
+    {
+        DataW["Water",wirelink]=DataW["WaterStor",array][1,wirelink]
+        Data["Water",number]=1
+        setOffset("WPump",DataW["Waters",array])
+    }
+    if(Data["Power",string]=="Fusion" && Data["HeavyWater",number])
+    {
+        DataW["Water",wirelink]=DataW["WaterStor",array][1,wirelink]
+        DataW["HeavyWater",wirelink]=DataW["HeavyWaterStor",array][1,wirelink]
+        DataW["Hydrogen",wirelink]=DataW["HydrogenStor",array][1,wirelink]
+        setOffset("WPump",DataW["Waters",array])
+    }
+    
+    setOffset("Laser",DataW["Lasers",array])
+    
+    foreach(In,Ent:wirelink=DataW["Turbines",array])
+    {
+        Ent:entity():link(Data["Node",entity])
+    }
+    setOffset("Turbine",DataW["Turbines",array])
+    foreach(In,Ent:wirelink=DataW["Fusions",array])
+    {
+        Ent:entity():link(Data["Node",entity])
+    }
+    foreach(In,Ent:wirelink=DataW["Solars",array])
+    {
+        Ent:entity():link(Data["Node",entity])
+    }
+    foreach(In,Ent:wirelink=DataW["Winds",array])
+    {
+        Ent:entity():link(Data["Node",entity])
+    }
+    foreach(In,Ent:wirelink=DataW["Splitters",array])
+    {
+        Ent:entity():link(Data["Node",entity])
+    }
+    setMult("Splitters",4)
+    foreach(In,Ent:wirelink=DataW["HWaters",array])
+    {
+        Ent:entity():link(Data["Node",entity])
+    }
+    setMult("HWaters",5)
+    foreach(In,Ent:wirelink=DataW["Waters",array])
+    {
+        Ent:entity():link(Data["Node",entity])
+    }
+    setMult("Waters",6)
+    foreach(In,Ent:wirelink=DataW["HydrogenInhalers",array])
+    {
+        Ent:entity():link(Data["Node",entity])
+    }
+    setMult("HydrogenInhalers",4)
+    foreach(In,Ent:wirelink=DataW["EnergyStor",array])
+    {
+        Ent:entity():link(Data["Node",entity])
+    }
+    foreach(In,Ent:wirelink=DataW["HydrogenStor",array])
+    {
+        Ent:entity():link(Data["Node",entity])
+    }
+    foreach(In,Ent:wirelink=DataW["HeavyWaterStor",array])
+    {
+        Ent:entity():link(Data["Node",entity])
+    }
+    foreach(In,Ent:wirelink=DataW["WaterStor",array])
+    {
+        Ent:entity():link(Data["Node",entity])
+    }
+    foreach(In,Ent:wirelink=DataW["OreStor",array])
+    {
+        Ent:entity():link(Data["Node",entity])
+    }
+    foreach(In,Ent:wirelink=DataW["Ports",array])
+    {
+        Ent:entity():link(Data["Node",entity])
+    }
+    mapPorts()
+    foreach(In,Ent:wirelink=DataW["Lasers",array])
+    {
+        Ent:entity():link(Data["Node",entity])
+    }
+    DataW["HoverDrive",wirelink]:entity():link(Data["Node",entity])
+
+    if(getEnergy()<12000)
+    {
+        Data["Status",string]="Prime Charge"
+        if(Data["Power",string]=="Fusion")
+        {
+            genSwitch("Fusions",1)
+        }
+        elseif(Data["Power",string]=="Turbine")
+        {
+            refill("Turbine")
+        }
+    }
+    else
+    {
+        Data["Status",string]="Active"
+    }
+}
+
+function init()
+{
+    DataW=table()
+    foreach(In,Ent:entity=entity():getConstraints())
+    {
+        if(Ent:type():find("generator"))
+        {
+            if(Ent:type():find("fusion"))
+            {
+                Temp=DataW["Fusions",array]
+                Temp:pushWirelink(Ent:wirelink())
+                DataW["Fusions",array]=Temp
+                if(!Data["Fusion",number]){Data["Fusion",number]=1}
+                continue
+            }
+            elseif(Ent:type():find("solar"))
+            {
+                Temp=DataW["Solars",array]
+                Temp:pushWirelink(Ent:wirelink())
+                DataW["Solars",array]=Temp
+                if(!Data["Solar",number]){Data["Solar",number]=1}
+                continue
+            }
+            elseif(Ent:type():find("wind"))
+            {
+                Temp=DataW["Winds",array]
+                Temp:pushWirelink(Ent:wirelink())
+                DataW["Winds",array]=Temp
+                if(!Data["Wind",number]){Data["Wind",number]=1}
+                continue
+            }
+            elseif(Ent:type():find("hydro"))
+            {
+                Temp=DataW["Turbines",array]
+                Temp:pushWirelink(Ent:wirelink())
+                DataW["Turbines",array]=Temp
+                if(!Data["Turbine",number]){Data["Turbine",number]=1}
+                continue
+            }
+            elseif(Ent:type():find("water"))
+            {
+                if(Ent:type():find("splitter"))
+                {
+                    Temp=DataW["Splitters",array]
+                    Temp:pushWirelink(Ent:wirelink())
+                    DataW["Splitters",array]=Temp
+                    continue
+                }
+                if(Ent:type():find("heavy_water"))
+                {
+                    Temp=DataW["HWaters",array]
+                    Temp:pushWirelink(Ent:wirelink())
+                    DataW["HWaters",array]=Temp
+                    continue
+                }
+                else
+                {
+                    Temp=DataW["Waters",array]
+                    Temp:pushWirelink(Ent:wirelink())
+                    DataW["Waters",array]=Temp
+                    continue
+                }
+            }
+        }
+        elseif(Ent:type():find("inhaler"))
+        {
+            if(Ent:type():find("hydrogen"))
+            {
+                Temp=DataW["HydrogenInhalers",array]
+                Temp:pushWirelink(Ent:wirelink())
+                DataW["HydrogenInhalers",array]=Temp
+                continue
+            }
+        }
+        elseif(Ent:type():find("storage"))
+        {
+            if(Ent:type():find("energy"))
+            {
+                Temp=DataW["EnergyStor",array]
+                Temp:pushWirelink(Ent:wirelink())
+                DataW["EnergyStor",array]=Temp
+                continue
+            }
+            elseif(Ent:type():find("hydrogen"))
+            {
+                Temp=DataW["HydrogenStor",array]
+                Temp:pushWirelink(Ent:wirelink())
+                DataW["HydrogenStor",array]=Temp
+                continue
+            }
+            elseif(Ent:type():find("water"))
+            {
+                if(Ent:type():find("heavy"))
+                {
+                    Temp=DataW["HeavyWaterStor",array]
+                    Temp:pushWirelink(Ent:wirelink())
+                    DataW["HeavyWaterStor",array]=Temp
+                    continue
+                }
+                else
+                {
+                    Temp=DataW["WaterStor",array]
+                    Temp:pushWirelink(Ent:wirelink())
+                    DataW["WaterStor",array]=Temp
+                    continue
+                }
+            }
+            elseif(Ent:type():find("rawore"))
+            {
+                Temp=DataW["OreStor",array]
+                Temp:pushWirelink(Ent:wirelink())
+                DataW["OreStor",array]=Temp
+                continue
+            }
+            
+        }
+        elseif(Ent:type():find("node"))
+        {
+            Temp=DataW["Nodes",array]
+            Temp:pushWirelink(Ent:wirelink())
+            DataW["Nodes",array]=Temp
+            Data["Node",entity]=Ent
+            continue
+        }
+        elseif(Ent:type():find("port"))
+        {
+            Temp=DataW["Ports",array]
+            Temp:pushWirelink(Ent:wirelink())
+            DataW["Ports",array]=Temp
+            continue
+        }
+        elseif(Ent:type():find("compressor"))
+        {
+            if(Ent:type():find("heavy_water"))
+            {
+                Temp=DataW["HWaters",array]
+                Temp:pushWirelink(Ent:wirelink())
+                DataW["HWaters",array]=Temp
+                continue
+            }
+            else
+            {
+                hint("Unknown compressor detected",5)
+            }
+        }
+        elseif(Ent:type():find("mining_laser"))
+        {
+            Temp=DataW["Lasers",array]
+            Temp:pushWirelink(Ent:wirelink())
+            DataW["Lasers",array]=Temp
+            continue
+        }
+        elseif(Ent:type():find("hoverdrivecontroler"))
+        {
+            DataW["HoverDrive",wirelink]=Ent:wirelink()
+            Data["Drive",entity]=Ent
+            continue
+        }
+    }
+    
+    Data["Status",string]="Eval"
+}
+
+if(first()|dupefinished())
+{
+    Data["EnMin",number]=12000
+    if(entity():getConstraints():count()==0)
+    {
+        Data["Status",string]="Weld Hold"
+    }
+    else
+    {
+        Data["Status",string]="Init"
+        init()
+    }
+    
+    runOnChat(1)
+    
+    TTab=table()
+    TTab["Water",vector]=vec(9410,7370,4334)
+    #TTab["Water",vector]=vec(-7900,-4260,-8259)
+    TTab["Terminals",array]=array(vec(-10400,-6000,-2660),
+    vec(-9290,-6000,-2660),
+    vec(-9820,-6550,-2660),
+    vec(-9820,-5436,-2660))
+    TTab["Maintenance",vector]=vec(-5730,-5500,-7800)
+    Data["sb_gooniverse",table]=TTab
+    
+    Data["Tie",number]=0
+    
+    interval(200)
+}
+
+if(clk())
+{
+    if(Data["Status",string]=="Weld Hold")
+    {
+        if(entity():getConstraints():count()>0)
+        {
+            Data["Status",string]="Init"
+            init()
+        }
+    }
+    elseif(Data["Status",string]=="Invalid Hold")
+    {
+        if(entity():getConstraints():count()!=Data["Invalid",array]:count())
+        {
+            Data["Status",string]="Init"
+            init()
+        }
+    }
+    elseif(Data["Status",string]=="Eval")
+    {
+        eval()
+    }
+    elseif(Data["Status",string]=="HW Confirm")
+    {
+        if(owner():keyUse() && owner():aimEntity()==entity())
+        {
+            Data["Status",string]="Init"
+            Data["HW Confirm",number]=1
+            hint("This is not recommended for smooth operation.",5)
+            init()
+        }
+    }
+    elseif(Data["Status",string]=="Prime Charge")
+    {
+        if(DataW["Energy",wirelink]["Energy",number]>12000 || getTemp()>68)
+        {
+            Data["Status",string]="Active"
+            
+            genSwitch("Fusions",0)
+        }
+    }
+    else
+    {
+        if(Data["Power",string]=="Fusion")
+        {
+            if(calcPer("HeavyWater")<10 && !genStatus("HWaters"))
+            {
+                if(calcPer("Water")>10&&calcPer("Hydrogen")>5)
+                {
+                    genSwitch("HWaters",1)
+                }
+            }
+            elseif(genStatus("HWaters") && (calcPer("HeavyWater")>=99 || calcPer("Water")<10 || calcPer("Hydrogen")<5))
+            {
+                genSwitch("HWaters",0)
+            }
+            
+            if(calcPer("Hydrogen")<5 && (!genStatus("Splitters")&&!genStatus("HydrogenInhalers")))
+            {
+                if(calcPer("Water")>10)
+                {
+                    genSwitch("Splitters",1)
+                    genSwitch("HydrogenInhalers",1)
+                }
+            }
+            elseif((calcPer("Hydrogen")>=99 || calcPer("Water")<10)&&((genStatus("Splitters") || genStatus("HydrogenInhalers"))))
+            {
+                genSwitch("Splitters",0)
+                genSwitch("HydrogenInhalers",0)
+            }
+            
+            if(calcPer("Water")<10 && Data["Status",string]!="Wat Refill")
+            {
+                Data["Status",string]="Wat Refill"
+                refill("Water")
+            }
+            elseif(calcPer("Water")>=99 && genStatus("Waters"))
+            {
+                genSwitch("Waters",0)
+            }
+            
+            if(getEnergy()<12000 && !genStatus("Fusions") && getTemp()<65)
+            {
+                genSwitch("Fusions",1)
+            }
+            elseif((calcPer("Energy")>=99 || getTemp()>=65) && genStatus("Fusions"))
+            {
+                genSwitch("Fusions",0)
+            }
+        }
+    }
+    
+    if(Data["Status",string]=="Active")
+    {
+        if(Data["Power",string]=="Fusion" && calcPer("Water")<10)
+        {
+            Data["Status",string]="Wat Refill"
+            refill("Water")
+        }
+        elseif(Data["Power",string]=="Turbine" && getEnergy()<Data["EnMin",number])
+        {
+            Data["Status",string]="Turb Charge"
+            refill("Turbine")
+        }   
+        elseif(oreMaxed())
+        {
+            Data["Status",string]="Drop Off"
+            moveToTerm()
+        }
+        else
+        {
+            if(!Data["T",entity])
+            {
+                findNewTarget()
+                Data["Status",string]="Seeking"
+            }
+            elseif(Data["T",entity])
+            {
+                jumpToTarget()
+            }
+        }
+    }elseif(Data["Return",string]!="" && Data["Status",string]!="Maintenance")
+    {
+        if(Data["Return",string]=="Terminal")
+        {
+            moveToTerm()
+            Data["Status",string]="Maintenance"
+        }
+        else
+        {
+            moveTo(Data["Return",string])
+        }
+    }
+    elseif(Data["Status",string]=="Wat Refill")
+    {
+        if(!genStatus("Waters"))
+        {
+            refill("Water")
+        }
+        if(!genStatus("Turbines")&&Data["Turbine",number])
+        {
+            genSwitch("Turbines",1)
+        }
+        if(calcPer("Water")>=95)
+        {
+            Data["Status",string]="Active"
+            if(genStatus("Waters"))
+            {
+                genSwitch("Waters",0)
+            }
+        }
+    }
+    elseif(Data["Status",string]=="Turb Charge")
+    {
+        if(!genStatus("Turbines"))
+        {
+            genSwitch("Turbines",1)
+        }
+        elseif(calcPer("Energy")>=98)
+        {
+            Data["Status",string]="Active"
+            if(genStatus("Turbines"))
+            {
+                genSwitch("Turbines",0)
+            }
+        }
+    }
+    elseif(Data["Status",string]=="Drop Off")
+    {
+        if(oreMinned())
+        {
+            Data["Status",string]="Active"
+        }
+    }
+    elseif(Data["Status",string]=="Mining")
+    {
+        dataTie()
+        if((!Data["T",entity]||Data["T",entity]==noentity()))
+        {
+            findNewTarget()
+            Data["Status",string]="Seeking"
+        }
+        if(!genStatus("Lasers"))
+        {
+            genSwitch("Lasers",1)
+        }
+        
+        if(oreMaxed())
+        {
+            Data["Status",string]="Drop Off"
+            moveToTerm()
+        }
+            
+    }
+    elseif(Data["Status",string]=="Seeking")
+    {
+        Data["Count",number]=Data["Count",number]+1
+        
+        if(Data["Count",number]>4)
+        {
+            findNewTarget()
+            Data["Count",number]=0
+        }
+    }
+    
+    if(Data["Status",string]=="Mining")
+    {
+        interval(100)
+    }
+    else{interval(1000)}
+}
+
+if(clk("Jump"))
+{
+    if(DataW["Energy",wirelink]["Energy",number]<12000)
+    {
+        timer("Jump",250)
+        if(getTemp()<68 && !genStatus("Fusions"))
+        {
+            Data["Status",string]="Prime Charge"
+            genSwitch("Fusions",1)
+        }
+    }
+    elseif(Data["Jump CD",number]==1)
+    {
+        timer("Jump",250)
+    }
+    elseif(DataW["Energy",wirelink]["Energy",number]>12000)
+    {
+        DataW["HoverDrive",wirelink]["Jump",number]=1
+        timer("de-jump",250)
+        Data["Jump CD",number]=1
+        timer("CD",6000)
+    }
+}
+if(clk("CD"))
+{
+    Data["Jump CD",number]=0
+}
+if(clk("de-jump"))
+{
+    if(Data["Status",string]=="Seeking")
+    {Data["Status",string]="Mining"}
+    DataW["HoverDrive",wirelink]["Jump",number]=0
+    if(Data["Status",string]=="Wat Refill" && !genStatus("Waters"))
+    {
+        genSwitch("Waters",1)
+        if(Data["Turbine",number]){genSwitch("Turbines",1)}
+        elseif(genStatus("Turbines")){genSwitch("Turbines",0)}
+    }
+    elseif(genStatus("Waters")){genSwitch("Waters",0)}
+    if(Data["Status",string]!="Mining")
+    {
+        genSwitch("Lasers",0)
+    }
+    
+    if(Data["Status",string]=="Drop Off")
+    {
+        owner():soundPlay(0,0,"coach/coach_attack_here.wav")
+        timer("soundstop",3000)
+    }
+}
+if(clk("soundstop"))
+{
+    soundStop(0)
+    soundPurge()
+}
+
+if(chatClk(owner()))
+{
+    if(owner():lastSaid()=="!return")
+    {
+        Data["Return",string]="Terminal"
+        Data["Status",string]="Hold"
+        hideChat(1)
+    }
+    elseif(owner():lastSaid()=="!active")
+    {
+        Data["Return",string]=""
+        Data["Status",string]="Active"
+        Data["Seeking",number]=0
+        hideChat(1)
+    }
+    elseif(owner():lastSaid()=="!maintenance")
+    {
+        Data["Return",string]="Maintenance"
+        Data["Status",string]="Hold"
+        hideChat(1)
+    }
+    elseif(owner():lastSaid()=="!eval")
+    {
+        Data["Status",string]="Init"
+        init()
+    }
+}
+
+Laser=genStatus("Lasers")

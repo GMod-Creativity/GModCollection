@@ -1,0 +1,81 @@
+@name Miner MK IV
+#Mode + Auto Inputs
+@inputs Mode AMine Return
+#Manual Inputs
+@inputs MJmp MMine LSOff
+#Stat Inputs
+@inputs Energy MaxEnergy Ore MaxOre O2 MaxO2 Health
+#Control Outputs
+@outputs Scan Mine Jump Target:entity Pos:vector
+#LS Outputs
+@outputs LSOn Max02
+#Stat Outputs
+@outputs ETAM ETAS Rate EPerc OPerc O2Perc HPerc EstCred 
+@persist SpawnPos:vector ETA
+@trigger 
+interval(2000)
+if(first()){SpawnPos=entity():pos()+vec(-34.5,14.5,-211.8)}
+
+if(Energy/MaxEnergy>0.01){
+Scan=1
+
+#########Auto Conserve Mode##########
+if(Mode==0){
+    #Find Ore#
+    findByClass("sa_asteroid")
+    Target=find()
+
+    #Lazer Control#
+    if(AMine&Ore<MaxOre){
+        if(Health!=0|MMine){Mine=1}
+        else{Mine=0}
+    }else{Mine=0}
+
+    #Hoverdrive Control#
+    Pos=Target:pos()
+    if(AMine&Ore<MaxOre){
+        if(Health==0){Jump=!Jump}
+        else{Jump=0}
+    }
+    if(Return|Ore==MaxOre){Pos=SpawnPos,Jump=1}
+    else{Jump=0}
+}
+############################
+
+########Manual Mode#########
+if(Mode==1){
+    #Select Ore#
+    if(entity():owner():aimEntity():type()=="sa_asteroid"&entity():owner():keyUse()){
+        Target=entity():owner():aimEntity()
+        hint("Asteroid Selected",4)
+        Pos=Target:pos()
+        hint("Position: "+Pos:toString(),4)
+        hint("Model: "+Target:model(),4)
+    }
+    #Mine#
+    if(~MMine&MMine){Mine=!Mine}
+    #Jump#
+    if(!Return){Jump=MJmp}
+    #Return#
+    else{Pos=SpawnPos,Jump=1}
+}
+############################
+
+#Warn if low energy#
+}else{hint("Miner Energy Low! Recommend Return", 3),Scan=0,Mine=0}
+
+#Life Support#
+Max02=8
+if(!LSOff&EPerc>0.06&O2Perc>4){LSOn=1}
+else{LSOn=0}
+
+#Data Outputs#
+Rate=$Ore
+ETA=floor((MaxOre-Ore)/Rate)
+ETAM=floor(ETA/60)
+ETAS=ETA%60
+EstCred=floor(floor(Ore/1000)*1100,-6)
+EPerc=Energy/MaxEnergy*100
+OPerc=Ore/MaxOre*100
+O2Perc=O2/MaxO2*100
+HPerc=Health

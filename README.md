@@ -2,4 +2,4 @@
 
 A collection with stuff for GMod 
 
-This collection is for preservation, education and creativity.
+This collection is for preservation, research, education and creativity purposes.

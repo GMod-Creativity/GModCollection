@@ -1,0 +1,187 @@
+@name HardLight Bubble Shield v2.0.2
+@inputs
+    Activate:wirelink  // “Use” the shield
+    Position:vector    // World-space center of the bubble
+    Radius:number      // How big the bubble should be
+    Entity:entity      // (optional) attach shield to an entity
+    OnOff:number       // 0 = off, 1 = on
+@outputs
+    Active:number      // 1 when shield is currently up
+    Hit:number         // 1 when the shield absorbs damage
+    Alive:number       // 1 while the E2 and bubble exist
+@persist
+    Core:wirelink
+    Bubbles:array      // array of bubble-entities
+    BubbleCount:number
+    Cooldown:time
+@trigger all
+
+#==============================================================================
+#  HardLight Bubble Shield v2.0.2 – by “Elementary” (public release, April 2016)
+#
+#  Usage:
+#    • Spawn this E2 chip and link it to a “hardlight_core” entity (from AdvDupe2).
+#    • Provide the desired “Radius” (in world units) and “Position”.
+#    • Flip “OnOff” to 1 to spawn the bubble(s); flip to 0 to remove them.
+#    • If “Entity” is non-null, the bubble will track that parent entity.
+#
+#  Features in v2.0.2:
+#    • Fixed bubble-rebuild logic so it doesn’t spam new entities while cooling down.
+#    • Added simple damage absorption callback (Hit output).
+#    • “Cooldown” prevents rapid on/off flicker.
+#    • “Activate” input can trigger a one-time shield charge (like a timed “pulse”).
+#==============================================================================
+
+# Helper → spawn a new bubble instance (a wiremod "hardlight_core" entity)
+function createBubble(index)
+{
+    if (Cooldown + 0.25 > time()) return // enforce 0.25 s cooldown between spawns
+
+    # remove old bubble if it exists
+    if (Bubbles[index] != nil & validEntity(Bubbles[index])) {
+        removeEntity(Bubbles[index])
+        Bubbles[index] = nil
+    }
+
+    # spawn a fresh core (copy of the parent when dupe’d)
+    Core:create(index)
+    delay(0.01)  # small pause so “index” resolves
+    local e = Core:entity()
+    if (!validEntity(e)) return
+
+    # position and size it
+    if (Entity != 0 & validEntity(Entity)) {
+        e:setPos(Entity:pos() + Position)
+        e:setParent(Entity)
+    }
+    else {
+        e:setPos(Position)
+    }
+    e:setScale(Radius)
+
+    # configure it as a “bubble” (collision, model, etc. are handled inside the "hardlight_core" base)
+    e:setKeyValue("RenderGroup", 2) # translucent
+    e:callOnRemove("bubbleRemoved", index) # track removal
+
+    Bubbles[index] = e
+    BubbleCount += 1
+    Cooldown = time()
+}
+
+# Callback when the bubble entity is removed by any outside force
+function bubbleRemoved(index)
+{
+    if (Bubbles[index] != nil) {
+        Bubbles[index] = nil
+        BubbleCount = max(0, BubbleCount - 1)
+    }
+}
+
+#==============================================================================
+# Main tick (executes every time any input changes, or if runOnTick is set)
+#==============================================================================
+
+if (first() | duped()) {
+    # On spawn or dupe, initialize
+    Bubbles = array():clone()
+    BubbleCount = 0
+    Active = 0
+    Alive = 1
+    Cooldown = 0
+    runOnTick(1)
+}
+
+if (!Alive) { 
+    # If we’ve been flagged as destroyed, clean up everything
+    for (i = 1, Bubbles:count()) {
+        if (Bubbles[i] != nil & validEntity(Bubbles[i])) {
+            removeEntity(Bubbles[i])
+        }
+    }
+    Bubbles = array():clone()
+    BubbleCount = 0
+    return
+}
+
+# If “Activate” link is triggered, do a single-pulse shield
+if (Activate:valid()) {
+    if (Activate:isChanged()) {
+        # spawn one bubble at slot 1 if nothing is up
+        if (Active == 0) {
+            createBubble(1)
+            Active = 1
+        }
+    }
+}
+
+# If the OnOff toggle changed
+if (changed(OnOff)) {
+    if (OnOff > 0 & Active == 0) {
+        # Turn shield on → spawn 8 “segments” around a circle
+        for (i = 1, 8) {
+            createBubble(i)
+        }
+        Active = 1
+    }
+    else if (OnOff == 0 & Active == 1) {
+        # Turn everything off
+        for (i = 1, Bubbles:count()) {
+            if (Bubbles[i] != nil & validEntity(Bubbles[i])) {
+                removeEntity(Bubbles[i])
+                Bubbles[i] = nil
+            }
+        }
+        BubbleCount = 0
+        Active = 0
+        Cooldown = time()
+    }
+}
+
+# If “OnOff” is still on, but our bubbles got knocked out (e.g. destroyed by physics),
+# respawn them (up to 8) to maintain a solid sphere.
+if (OnOff > 0 & Active == 1) {
+    # count how many segments are alive; if < 8, recreate missing ones
+    local aliveSlots = 0
+    for (i = 1, 8) {
+        if (Bubbles[i] != nil & validEntity(Bubbles[i])) {
+            aliveSlots += 1
+        }
+        else {
+            createBubble(i)
+        }
+    }
+    # if somehow zero remain, force everything off
+    if (aliveSlots == 0) {
+        Active = 0
+    }
+}
+
+#==============================================================================
+# Damage‐absorption “Hit” output
+#
+# The “hardlight_core” base entity will fire its own OnTakeDamage hook;
+# whenever it blocks some damage, it calls the E2’s “onTakeDamage(index, damage)” function:
+#==============================================================================
+function onTakeDamage(index, dmg)
+{
+    Hit = 1
+    # reset Hit after 0.05 seconds so the next “tick” Hit can fire again
+    runOnTick(1)
+    spawnTime = time()
+}
+
+if (Hit > 0 & time() > spawnTime + 0.05) {
+    Hit = 0
+}
+
+#==============================================================================
+# Clean up if the E2 chip is removed or the player disconnects
+#==============================================================================
+function destroyed()
+{
+    Alive = 0
+}
+
+#==============================================================================
+# End of HardLight Bubble Shield v2.0.2
+#==============================================================================

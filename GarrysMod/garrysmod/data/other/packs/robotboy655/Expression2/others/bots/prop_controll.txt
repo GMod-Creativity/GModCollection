@@ -1,0 +1,277 @@
+@name Bot 2
+@inputs 
+@outputs On Mode:string Spin SpinDrag Drag Stabilize Orbit Height Mass Flash
+@persist On Mode:string T:entity TV:vector SV:vector Spin SpinDrag Drag 
+@persist Stabilize Orbit OrbitRadius OrbitSpeed Height Mass 
+@persist Material:string Color:vector4 Flash
+runOnTick(1)
+runOnChat(1)
+ 
+######################
+####Variable Setup####
+######################
+
+ 
+
+EE  = (entity():isWeldedTo() ? entity():isWeldedTo() : entity())
+EV  = EE:massCenter(),ER=EE:right(),EF=EE:forward(),EU=EE:up(),O = owner()
+Lev = EE:inertia():length()/sqrt(3)
+LS  = O:lastSaid():explode(" ")
+LS1 = LS:string(1)
+LS2 = LS:string(2)
+LS3 = LS:string(3)
+LS4 = LS:string(4)
+LS5 = LS:string(5)
+ 
+if (clk("B")) { #for exiting attack mode
+    Mode="me"
+    if (EE:type() == "prop_physics") {Stabilize = 1}
+}
+ 
+###########################
+####Command Recognition####
+###########################
+
+ 
+
+if (chatClk(O)) {
+    if (LS1 == "/kill") {selfDestructAll()}
+ 
+    if (LS1 == "/h") { #Height
+        Height = clamp(LS2:toNumber(),-1000,1000)
+        print("Height changed to: " + toString(Height))
+    }
+    
+    if (LS1 == "/d") {
+        Drag = clamp(LS2:toNumber(),1,10)
+        print("Air Drag set to: " + toString(Drag))
+    }
+    
+    if (LS1 == "/sd") {
+        SpinDrag = clamp(LS2:toNumber(),0.1,10)
+        print("Spin drag set to: " + toString(SpinDrag))
+    }
+    
+    if (LS1 == "/orbit") {Orbit=!Orbit}
+    if (LS1 == "/orbitradius") {
+        OrbitRadius = min(abs(LS2:toNumber()),1000)
+        print("Orbiting at a radius of: " + toString(OrbitRadius))
+    }
+    if (LS1 == "/orbitspeed") {
+        OrbitSpeed = clamp(LS2:toNumber(),-360*4,360*4)
+        print("Orbiting at a speed of: " + toString(OrbitRadius))
+    }
+
+ 
+
+    if (LS1 == "/setmat") {Material = LS2, EE:setMaterial(Material)}
+    if (LS1 == "/setcolor") {
+        Color = vec4(LS2:toNumber(),LS3:toNumber(),LS4:toNumber(),(LS5!="" ? LS5:toNumber() : Color:w()))
+        Flash=0
+    }
+    
+    if (LS1 == "/setmass") {Mass = LS2:toNumber()}
+
+    if (LS1 == "/flash") {Flash = !Flash}
+ 
+    if (LS1:left(1) == "!") {
+        if (LS1 == "!") {
+            findIncludeClass("npc_*")
+            findIncludeClass("player")
+            findExcludePlayer(O)
+            Fsphere = findInSphere(O:aimPos(), 10000)
+            
+            if (Fsphere > 0) {
+                T = findClosest(O:aimPos())
+                Mode="attack"
+                if (T:isPlayer()) {
+                    print("Attacking " + T:name())
+                } elseif (T:isNPC()) {
+                    print("Attacking " + T:type())
+                }
+            } else {
+                Mode="me"
+            }
+        } else {
+            Name = LS1:sub(2, LS1:length())
+            T = findPlayerByName(Name)
+            Mode="attack"
+        }
+    }
+    
+    if (LS1:left(1) == "*") {
+        if (LS1 == "*") {
+            findIncludeClass("npc_*")
+            findIncludeClass("player")
+            findExcludePlayer(O)
+            Fsphere = findInSphere(O:aimPos(), 50000)
+            
+            if (Fsphere > 0) {
+                T = findClosest(O:aimPos())
+                Mode="follow"
+                if (T:isPlayer()) {
+                    print("Following " + T:name())
+                } elseif (T:isNPC()) {
+                    print("Following " + T:type())
+                }
+            } else {
+                Mode="me"
+            }
+        } else {
+            Name = LS1:sub(2, LS1:length())
+            T = findPlayerByName(Name)
+            Mode="follow"
+        }
+    }
+    
+    if (LS1 == "/cross") {Mode = "cursor"}
+
+ 
+
+    if (LS1 == "/spin") {Spin = !Spin}
+    
+    if (LS1 == "/me") {Mode="me"}
+    
+    if (LS1 == "/stay") {Mode="",SV=EV}
+    
+    if (LS1 == "/stab") {Stabilize = !Stabilize}
+    
+        if (LS1 == "/on" ) {On = 1}
+    elseif (LS1 == "/off") {On = 0}
+    
+    if (LS1 == "/throw" & Mode == "me") {
+        Mode = "throw"
+        On   = 0
+        EE:applyForce((O:eye()*3000-EE:vel())*EE:mass())
+    }
+}
+
+ 
+
+if ((Mode=="throw")&(EE:vel():length() < 50)) {
+    Mode = "me"
+    On   = 1
+}
+
+ 
+
+#############################
+####First execution setup####
+#############################
+ 
+if (first()) {
+    On       = 1
+    Mode     = ""
+    Height   = round(EE:boxSize():length()/2 + 50)
+    SV       = EV + vec(0,0,Height)
+    Drag     = 10
+    SpinDrag = 10
+    Mass     = max(100,EE:mass())
+    Color    = vec4(255,255,255,255)
+    OrbitRadius = 50
+    OrbitSpeed  = 90
+    Stabilize   = (EE:type() == "prop_physics") | (EE == entity())
+
+
+    print("Height set to: " + toString(Height))
+    print("Drag set to: " + toString(Drag))
+    print("Spin Drag set to: " + toString(SpinDrag))
+   
+    concmd("echo -----------------------------------------------------------------")
+    concmd("echo Instructions:")
+    concmd("echo Step 1: Slap it on any random prop you want")
+    concmd("echo Step 2: Use the following commands to manipulate that prop at your will. (type in chat)")
+    concmd("echo === COMMANDS ===")
+    concmd("echo /on OR /off > > > > | Obvious!")
+    concmd("echo ! OR ! [name] > > > | Attack the closest player or specified name.")
+    concmd("echo * OR * [name] > > > | Follow the closest player or specified name.")
+    concmd("echo /stay > > > > > > > | Causes the prop to stay in place.")
+    concmd("echo /me > > > > > > > > | Causes the prop to float above your head.")
+    concmd("echo /cross> > > > > > > | Causes the prop to follow your crosshair.")
+    concmd("echo /orbit> > > > > > > | Causes the prop to move in a circle.")
+    concmd("echo /orbitradius> > > > | Set the radius used for /orbit.")
+    concmd("echo /orbitspeed > > > > | Set the speed used for /orbit. (degrees per second)")
+    concmd("echo /h Number > > > > > | Change the height.")
+    concmd("echo /spin > > > > > > > | Causes the prop to spin.")
+    concmd("echo /sd Number> > > > > | Change the spin drag.")
+    concmd("echo /d Number > > > > > | Change the air drag. (higher = slower)")
+    concmd("echo /stab > > > > > > > | Toggles automatic stabilization.")
+    concmd("echo /setmass Number > > | Set the mass of the object.")
+    concmd("echo /setcolor # # # # > | Set the color using RGBA format, use values between 0 and 255. A/Alpha is optional.")
+    concmd("echo /setmat Material> > | Set the material of the prop to the specified material.")
+    concmd("echo /flash> > > > > > > | Make the prop flash colors (toggles).")
+    concmd("echo === = = = = = ===")
+    concmd("echo If you would like to help with further development of this expression,")
+    concmd("echo or if you have a question on how some of it works, please contact me")
+    concmd("echo at shoffing@gmail.com. Thank you!")
+    concmd("echo |")
+    concmd("echo |")
+    concmd("echo ==CREDITS==")
+    concmd("echo shoffing - - - Original creator, main programmer")
+    concmd("echo chinoto- - - - Code optimizer, also provided stabilization code")
+    concmd("echo omicron- - - - Provided excellent movement code. (no longer used)")
+    concmd("echo ===========")
+    concmd("echo |")
+    concmd("echo -----------------------------------------------------------------")
+   
+    print("Instructions printed to console.")   
+    concmd("say Prop control starting.")
+}
+ 
+#########################
+####Command Execution####
+#########################
+ 
+if (On&tickClk()) {
+    EE:setMass(Mass)
+ 
+    Circle = (Orbit ? vec(0,1,0):rotate(0,curtime()*-OrbitSpeed,0) * OrbitRadius : vec())
+
+    
+    if (Mode=="") {TV = SV + Circle}
+    
+    if (Mode=="cursor") {
+        if ((O:aimEntity() != EE) & (O:aimEntity() != entity())) {
+            TV = O:aimPos() + vec(0, 0, Height) + Circle
+            EE:setColor(Color)
+        } else {
+            EE:setColor(vec(128,128,128))
+        }
+    } else {
+        EE:setColor(Color)
+    }
+    
+    if (Flash) {EE:setColor(randint(0,255),randint(0,255),randint(0,255))}
+   
+    if (Mode=="me") {TV = O:shootPos() + vec(0, 0, 25 + Height) + Circle}
+   
+    if (Mode=="attack") {
+        if (T:health()>0) {
+            TV=T:pos()+vec(0,0,T:height()/2)
+        } else {
+            if (EE:health() > 0) {
+                #Slam into ground
+                timer("B", 250)
+                TV = vec(0, 0, -10^10)
+            } else {
+                #Bring back to you
+                timer("B", 10)
+                TV = EV
+            }
+        }
+    }
+    
+    if (Mode == "follow") {
+        if (T:health()>0) {
+            TV = T:shootPos() + vec(0, 0, 25 + Height) + Circle
+        } else {
+            Mode = "me"
+        }
+    }
+    
+    EE:applyForce(((TV - EV)*(Mode!="attack" ? 5 : 100) - EE:vel()*Drag/10)*EE:mass())
+    
+    if (Stabilize) {EE:applyAngForce((-EE:angles()*25 - EE:angVel()*5):setYaw(0)*Lev)}
+    
+    EE:applyAngForce(ang(0, -360*Spin - EE:angVel():yaw()*5*(Spin ? SpinDrag / 10 : Stabilize), 0)*Lev)
+}

@@ -1,0 +1,178 @@
+@name hexgrid_voronoi
+@inputs 
+@outputs 
+@persist [G_bm G_xrange G_yrange G_pcount G_vcount G_iterate G_state] [G_plookup G_hlookup G_vsample G_vlookup]:array G_nlookup:table
+@persist [G_p2m1 G_p2m2]:entity
+@trigger 
+
+if (first()) {
+    function number getHexBodygroup(S:string) {
+        local M = 0
+        local O = 1
+        for (Index = 0,5) {
+            local BG = S[Index + 1]:toNumber()
+            M = M + O*BG
+            O = O*4   
+        } 
+        return M 
+    }
+    function array getRandomPoints(XRange,YRange,Count) {
+        local Points_i = array()
+        local Points_n = array()
+        local I = 0
+    
+        while (I < Count) {
+            local X = randint(0,XRange)
+            local Y = randint(0,YRange)
+            
+            local N = X + Y*XRange
+            
+            # ensure no duplicate points
+            if (Points_n[N,number]) {
+                continue
+            }    
+            
+            I++
+            
+            Points_n[N,number] = 1
+            
+            # get sorted index (by x value)
+            local Low = 0
+            local High = Points_i:count()
+            
+            while (Low < High) {
+                local Mid = (Low + High) >> 1
+                if (Points_i[Mid + 1,vector]:x() < X) {
+                    Low = Mid + 1    
+                }
+                else {
+                    High = Mid
+                }
+            }
+            
+            Points_i:insertVector(Low + 1,vec(X,Y,0))
+        }   
+
+        local R = array()
+        for (I = 1,Count) {
+            R:pushNumber(I)
+        }
+        for (I = 1,Count) {
+            Points_i[I,vector][3] = R:removeNumber(randint(1,R:count()))
+        }
+
+        return Points_i 
+    }
+    function resetGrid(X,Y,V) {
+        G_p2m1:p2mRemove()
+        G_p2m2:p2mRemove()
+        G_xrange = X
+        G_yrange = Y
+        G_pcount = X*Y
+        G_vcount = V
+        G_vsample = getRandomPoints(X,Y,V)
+        G_vlookup = array() # cell regions
+        G_plookup = array() # cell positions
+        G_hlookup = array() # world positions
+        
+        G_iterate = 0
+        G_state = 0
+        G_bm = curtime()
+        timer("resetGrid",15)
+    }
+    resetGrid(32,32,32)
+}
+
+if (clk("resetGrid")) {
+    timer("resetGrid",15)
+    switch (G_state) {
+        case 0,
+            while (G_iterate < G_pcount & perf()) {
+                local X = mod(G_iterate,G_xrange)
+                local Y = floor(G_iterate / G_xrange)
+                
+                local Dist_min = inf()
+                local V_index = 1
+                
+                for (I = 1,G_vcount) {
+                    local V_cur = G_vsample[I,vector]
+                    
+                    local Dist_x = abs(X - V_cur:x())
+                    local Dist_cur = Dist_x + abs(Y - V_cur:y())
+                    
+                    if (Dist_cur < Dist_min) {
+                        Dist_min = Dist_cur
+                        V_index = I
+                    }
+                    
+                    if (Dist_x > Dist_min) {
+                        break
+                    }
+                }
+
+                G_iterate++
+                G_plookup[G_iterate,vector] = vec(X,Y,0)
+                G_vlookup[G_iterate,number] = V_index
+                
+                if (Y % 2 == 0) {
+                    G_hlookup[G_iterate,vector] = vec(Y*9,5.1961524227066 + X*10.392304845413,0)
+                    G_nlookup[G_iterate,array] = array((X - 1) + Y*32,X + (Y - 1)*32,(X + 1) + (Y - 1)*32,(X + 1) + Y*32,(X + 1) + (Y + 1)*32,X + (Y + 1)*32)
+                }
+                else {
+                    G_hlookup[G_iterate,vector] = vec(Y*9,X*10.392304845413,0)
+                    G_nlookup[G_iterate,array] = array((X - 1) + Y*32,(X - 1) + (Y - 1)*32,X + (Y - 1)*32,(X + 1) + Y*32,X + (Y + 1)*32,(X - 1) + (Y + 1)*32)
+                }                
+            }
+            if (G_iterate == G_pcount) {
+                print(curtime() - G_bm)
+                
+                G_p2m1 = p2mCreate(G_vcount,entity():pos(),entity():angles(),256)
+                G_p2m2 = p2mCreate(G_vcount,entity():pos(),entity():angles(),256)
+
+                for (I = 1,G_vcount) {
+                    local N = G_vsample[I,vector]:z()
+                    G_p2m1:p2mSetColor(N,hsv2rgb((N - 1) / G_vcount*360,1,1))
+                    G_p2m2:p2mSetColor(I,vec())
+                    G_p2m1:p2mSetMaterial(I,"models/debug/debugwhite")
+                    G_p2m2:p2mSetMaterial(I,"models/debug/debugwhite")
+                }
+                
+                G_iterate = 0
+                G_state++    
+            }
+        break
+        case 1,
+            while (G_iterate < G_pcount & perf()) {
+                G_iterate++
+                
+                local VCell = G_vlookup[G_iterate,number]
+                local HGPos = G_hlookup[G_iterate,vector]
+                G_p2m1:p2mPushModel(VCell,"models/sprops/misc/hexplane.mdl",HGPos,ang(0,90,0))
+                
+                # lookup cell neighbors to calculate magic bodyghroup mask for p2m
+                local NList = G_nlookup[G_iterate,array]
+                local NBits = ""
+                for (I = 1,6) {
+                    NBits += (VCell == G_vlookup[NList[I,number] + 1,number]) ? 3 : 2    
+                }
+                if (NBits != "333333") {
+                    G_p2m2:p2mPushModel(VCell,table(
+                        "model" = "models/sprops/misc/hexplane.mdl",
+                        "pos" = HGPos:setZ(0.25),
+                        "ang" = ang(0,90,0),
+                        "bodygroup" = getHexBodygroup(NBits)
+                    ))
+                }
+            }
+            if (G_iterate == G_pcount) {
+                G_iterate = 0
+                G_state++    
+            }
+        break   
+        case 2,
+            G_p2m1:p2mBuild()
+            G_p2m2:p2mBuild()
+            G_state++ 
+        break         
+    }
+}

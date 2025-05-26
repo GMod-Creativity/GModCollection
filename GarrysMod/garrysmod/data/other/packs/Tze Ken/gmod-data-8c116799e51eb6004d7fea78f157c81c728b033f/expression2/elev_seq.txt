@@ -1,0 +1,97 @@
+@name Elev Sequencer
+@inputs FlrIn HydL
+@outputs TFlr THydL Seq:array OpSeq:array State
+
+function array insertForward(Num,Ar:array){
+    for(I=1,Ar:count()){
+        if(Ar[I,number]<=Num){
+            Ar:insertNumber(I,Num)
+            return Ar
+        }
+    }
+    Ar:pushNumber(Num)
+    return Ar
+}
+
+function array insertBackward(Num,Ar:array){
+    for(I=1,Ar:count()){
+        if(Ar[I,number]>=Num){
+            Ar:insertNumber(I,Num)
+            return Ar
+        }
+    }
+    Ar:pushNumber(Num)
+    return Ar
+}
+
+function number findInArray(Num,Ar:array){
+    for(I=1,Ar:count()){
+        if(Ar[I,number]==Num){
+            return 1
+        }
+    }
+    return 0
+}
+
+if(first()){
+    TFlr=1
+}
+
+#Add Floor
+if(~FlrIn&FlrIn){
+    if(!State){
+        if(FlrIn&TFlr!=FlrIn){Seq:unshiftNumber(FlrIn)}
+    }
+    if(State==1){
+        if(FlrIn&!findInArray(FlrIn,Seq)&TFlr<FlrIn){
+            Seq=insertForward(FlrIn,Seq)
+        }
+        if(FlrIn&!findInArray(FlrIn,OpSeq)&TFlr>FlrIn){
+            OpSeq=insertBackward(FlrIn,OpSeq)
+        }
+    }
+    if(State==2){
+        if(FlrIn&!findInArray(FlrIn,Seq)&TFlr>FlrIn){
+            Seq=insertBackward(FlrIn,Seq)
+        }
+        if(FlrIn&!findInArray(FlrIn,Seq)&TFlr<FlrIn){
+            OpSeq=insertForward(FlrIn,OpSeq)
+        }
+    }
+    if(!State&Seq[1, number]>TFlr&Seq:count()){
+        State=1
+        TFlr=Seq:popNumber()
+    }
+    if(!State&Seq[1, number]<TFlr&Seq:count()){
+        State=2
+        TFlr=Seq:popNumber()
+    }
+}
+
+#Next in array
+if(clk("next")){
+    stoptimer("next")
+    if(Seq:count()>=1){
+        TFlr=Seq:popNumber()
+    }
+    elseif(OpSeq:count()>=1){
+        if(OpSeq[1,number]>TFlr){
+            State=1
+        }
+        if(OpSeq[1,number]<TFlr){
+            State=2
+        }
+        Seq=OpSeq
+        OpSeq=array()
+        TFlr=Seq:popNumber()
+    }
+    else{
+        State=0
+    }
+}
+
+THydL=TFlr*100
+
+if(State&HydL==THydL){
+    timer("next",10000)
+}

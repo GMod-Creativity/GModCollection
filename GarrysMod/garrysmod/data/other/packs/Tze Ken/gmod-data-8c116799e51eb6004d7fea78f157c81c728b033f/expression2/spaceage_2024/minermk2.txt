@@ -1,0 +1,64 @@
+@name MinerCore 2024-V2
+#Control Inputs
+@inputs On Return Teleporter:entity
+@inputs Ore MaxOre Energy MaxEnergy StuckRoids:array
+
+@outputs LaserCmd Teleport TargetPos:vector Roid:entity
+@outputs Home:vector Init RechargeState
+@trigger On Return Ore Energy StuckRoids
+@autoupdate
+
+if(first()|dupefinished()){
+    findByClass("sa_terminal_pump")
+    Home = find():pos() + vec(100,100,250)
+    TargetPos = Home
+    Roid = noentity()
+}
+
+if(first()|duped()){
+    Init = 1
+    RechargeState = 0
+    Teleport = 0
+    function nextRoid() {
+        findExcludeEntities(StuckRoids)
+        findByClass("sa_roid")
+        Roid = findClosest(Home)
+        TargetPos = Roid:pos()
+    }
+}
+
+# Return
+if(~Return | Ore==MaxOre | Energy < MaxEnergy*0.1){
+    TargetPos = Home
+    Roid = noentity()
+    if(!Init & Energy < MaxEnergy*0.05){
+        RechargeState = 1
+    }
+}
+
+event tick() {
+    # Prevent recharge state at dupe
+    if(Init & Energy >= MaxEnergy*0.05){
+        Init = 0
+        RechargeState = 0
+    }
+    
+    # Laser
+    LaserCmd = On && !RechargeState
+    
+    # Teleportation trigger
+    if(TargetPos:distance(Teleporter:pos()) > 15){
+        Teleport = !Teleport
+    }
+    else{
+        Teleport = 0
+    }
+    
+    if(On & !RechargeState & (!Roid:isValid() | changed(StuckRoids:count()))){
+        nextRoid()
+    }
+    if(RechargeState == 1 & Energy >= MaxEnergy*0.15){
+        Init = 0
+        RechargeState = 0
+    }
+}

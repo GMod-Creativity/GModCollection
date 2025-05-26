@@ -1,0 +1,43 @@
+@name Render Image
+@inputs Connected
+@outputs DigitalScreen:wirelink I
+@outputs File:string Width Height Length
+
+if(first()){
+    entity():createWire(entity():isWeldedTo(), "Connected", "Connected")
+    DigitalScreen = entity():isWeldedTo():wirelink()
+    print(fileLoad("cat.txt"))
+}
+
+event fileLoaded(FilePath:string, Data:string) {
+    print("File loaded: "+FilePath)
+    Headers = Data:sub(4, 20)
+    Headers = Headers:sub(1, Headers:find("\n")-1)
+    HeaderArray = Headers:explode(" ")
+
+    Width = HeaderArray[1, string]:toNumber()
+    Height = HeaderArray[2, string]:toNumber()
+    File = Data:sub(16) # Cut off PPM Header
+    Length = File:length()
+}
+
+if(~Connected & Connected){
+    # Clear screen
+    # DigitalScreen[1048574] = 1
+    # Set color mode
+    DigitalScreen[1048569] = 1 # Per address color
+    DigitalScreen[1048573] = Width # Set width
+    DigitalScreen[1048572] = Height # Set height
+    I = 0
+}
+
+interval(500)
+Size = 2000
+if(File:length() > 0 & I < File:length()){
+    # Render in chunks
+    for(J=1, Size){
+        Value = toByte(File[I+J])
+        DigitalScreen[I+J-1] = Value
+    }
+    I+=Size
+}

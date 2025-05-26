@@ -1,0 +1,154 @@
+@name Universal EGP 2024
+@outputs EGP:wirelink Nodes:array TextSize HudMode
+@outputs Storages:array ResourcesTable:table CurrentPlayer:entity
+@persist XSize YSize Spacing ShowValues OffsetIndex OffsetPos:vector2 
+@autoupdate
+
+#Draw Rate
+interval(1000)
+
+#Initialize
+if(first()|dupefinished()){
+    EGP=entity():isWeldedTo():wirelink()
+
+    CurrentPlayer = owner()
+    ShowValues = 1
+    XSize = 500
+    YSize = 440
+    OffsetPos = vec2(6,6)
+    Spacing = 8
+    OffsetIndex = 400
+    HudMode = EGP:egpConnectedUsers():count()
+}
+
+#Draw
+if(first()|duped()){
+    function vector colorHash(String:string){
+        R = 50 + hash(String + "red")%101
+        G = 50 + hash(String + "green")%101
+        B = 50 + hash(String + "blue")%101
+        return vec(R, G, B)
+    }
+
+    function array getAllNodes(Owner:entity){
+        findByClass("resource_node")
+        Result = array()
+        foreach(I:number, Entity:entity=findToArray()){
+            if(Entity:owner() == Owner){
+                Result:pushEntity(Entity)
+            }
+        }
+        return Result
+    }
+    
+    function table getResources(NodeArray:array, IgnoreEmpty:number) {
+        ResTable = table()
+        foreach(I:number, Node:entity=NodeArray){
+            foreach(J:number, Resource:string=Node:lsGetResources()){
+                if(IgnoreEmpty & Node:lsGetAmount(Resource)==0){
+                    continue
+                }
+                CurMax = vec2(Node:lsGetAmount(Resource),Node:lsGetCapacity(Resource))
+                Val = ResTable[Resource, vector2]
+                Val += CurMax
+                ResTable[Resource, vector2] = Val
+            }
+        }
+        return ResTable
+    }
+
+    function void updateResources(NodeArray:array, ResourceTable:table){
+        ResTable = getResources(NodeArray, 0)
+        foreach(Resource:string, CurMax:vector2=ResourceTable){
+            ResourceTable[Resource, vector2] = ResTable[Resource, vector2]
+        }
+    }
+    
+    #Progress Bar Function
+    function void initDraw(HelpText:number){
+        if(HudMode > 0){
+            ShowValues = 0
+            XSize = 200
+            YSize = 50 * ResourcesTable:count()
+            OffsetPos = vec2(30,300)
+            OffsetIndex = 200
+        }
+
+        IngoreEmpty = 1
+        EGP:egpClear()
+        EGP:egpDrawTopLeft(1)
+        Nodes = getAllNodes(CurrentPlayer)
+        ResourcesTable = getResources(Nodes, IngoreEmpty)
+
+        Count = ResourcesTable:count()
+        I = 1
+        foreach(Resource:string, CurMax:vector2=ResourcesTable){
+            Cur = CurMax:x()
+            Max = CurMax:y()
+            CurMaxPerc = Cur/Max
+            
+            Segment = YSize/Count
+            BoxPos = vec2(0,(I-1)*Segment) + OffsetPos
+            BoxSize = vec2(XSize,(YSize-Spacing*Count)/Count)
+            EGP:egpBoxOutline(OffsetIndex+I*3,BoxPos,BoxSize)
+    
+            # Color elements
+            Rand=colorHash(Resource)
+            EGP:egpColor(OffsetIndex+I*3,Rand)
+            EGP:egpBox(OffsetIndex+I*3+1,vec2(0,0),vec2(0,0))
+            EGP:egpColor(OffsetIndex+I*3+1,Rand)
+            
+            EGP:egpText(OffsetIndex+I*3+2,"",vec2(0,0))
+            EGP:egpAlign(OffsetIndex+I*3+2,1)
+            I++
+        }
+        if(HelpText){
+            EGP:egpText(200,"Active resources from: " + CurrentPlayer:name(), vec2(10,455))
+            EGP:egpText(201,"Press use key to see yours", vec2(10,475))
+        }
+    }
+    
+    function void updateBars(ResTable:table){
+        Count = ResTable:count()
+        I = 1
+        foreach(Resource:string, CurMax:vector2=ResTable){
+            Cur = CurMax:x()
+            Max = CurMax:y()
+            CurMaxPerc = Cur/Max
+
+            Segment = YSize/Count
+            BoxPos = vec2(Spacing/2,Spacing/2+(I-1)*Segment) + OffsetPos
+            BoxSizeX = XSize*CurMaxPerc-Spacing # Fix Scaling
+            BoxSize = vec2(round(BoxSizeX/2)*2,(YSize-Count*Spacing)/Count-Spacing)
+            EGP:egpBox(OffsetIndex+I*3+1,BoxPos,BoxSize)
+            
+            ResCapitalized = Resource:sub(1,1):upper() + Resource:sub(2,Resource:length())
+            RawValues = ShowValues ? Cur:format()+"|"+Max:format() : ""
+            Str = ResCapitalized:replace("_"," ")+" "+round(CurMaxPerc*100, 1)+"% " + RawValues
+            TextSize = min(YSize/Count/1.6, 16)
+            EGP:egpText(OffsetIndex+I*3+2,Str,vec2(XSize/2,I*(YSize/Count)-(YSize/2/Count)-TextSize+Spacing/2) + OffsetPos)
+            EGP:egpSize(OffsetIndex+I*3+2,TextSize)
+            Rand=randvec(vec(50,50,50),vec(150,150,150))
+            I++
+        }
+    }
+
+    initDraw(!HudMode)
+}
+else{
+    HudMode = HudMode ? 1 : EGP:egpConnectedUsers():count()
+    if(changed(HudMode)){
+        initDraw(!HudMode)
+    }
+    updateResources(Nodes, ResourcesTable)
+    updateBars(ResourcesTable)
+}
+
+event playerUse(Player:entity, Entity:entity) {
+    if(Entity == EGP:entity() | Entity == entity()){
+        if(!HudMode){
+            CurrentPlayer=Player
+        }
+        initDraw(!HudMode)
+    }
+}

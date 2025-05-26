@@ -1,0 +1,48 @@
+@name Load Image
+@inputs Connected
+@outputs Length Width Height ConnectedOut 
+@outputs File:string DataPort:entity Loaded
+
+# To be used with a CPU to render the output File string
+if(first() | duped()){
+    function entity getFirstConnectedEntity(Root:entity, Class:string){
+        foreach(I:number, Entity:entity=Root:getConnectedEntities()){
+            if(Entity:type() == Class){
+                return Entity
+            }
+        }
+        return noentity()
+    }
+    ConnectedOut = 0
+    print(fileLoad("flower.txt"))
+}
+
+event fileLoaded(FilePath:string, Data:string) {
+    print("File loaded: "+FilePath)
+    Headers = Data:sub(4, 20)
+    Headers = Headers:sub(1, Headers:find("\n")-1)
+    HeaderArray = Headers:explode(" ")
+
+    Width = HeaderArray[1, string]:toNumber()
+    Height = HeaderArray[2, string]:toNumber()
+    File = Data:sub(16) # Cut off PPM Header
+    Length = File:length()
+    Loaded = 1
+    ConnectedOut = Loaded & Connected
+}
+
+ConnectedOut = Loaded & Connected
+if(Connected) {
+    DataPort = getFirstConnectedEntity(entity(), "gmod_wire_dataport")
+    DataPort:createWire(entity(), "Port0", "Length")
+    DataPort:createWire(entity(), "Port1", "Width")
+    DataPort:createWire(entity(), "Port2", "Height")
+    DataPort:createWire(entity(), "Port3", "ConnectedOut")
+}
+else {
+    DataPort:deleteWire("Port0")
+    DataPort:deleteWire("Port1")
+    DataPort:deleteWire("Port2")
+    DataPort:deleteWire("Port3")
+    DataPort = noentity()
+}

@@ -1,0 +1,61 @@
+@name Lift Main Computer
+#Entity Control
+@inputs LiftEnt:entity
+
+#Floor&Controls
+@inputs FloorDist ZTarget FlrIn Close
+@outputs ZPos TFlr Open ZLevel
+@outputs FList:array Timer ZSpeed
+@persist 
+#Smoother
+@persist Target Speed Acc Value Active
+@persist Rate AccLength AccRate Distance Direction IdealRate Acceleration 
+@persist LiftXY:vector
+interval(20)
+#Entity Controller
+if(first()){LiftXY=LiftEnt:pos():setZ(0)}
+if(0){LiftEnt:setPos(LiftXY:setZ(ZLevel))}
+
+
+#Floor Memory Computation
+if(first()){TFlr=1, Value=6}
+if(~FlrIn&FlrIn&!FList:concat():find(toString(FlrIn))){FList:pushString(toString(FlrIn))}
+if(ZLevel==ZTarget){Timer+=0.02,Open=1}
+else{Timer=0}
+if(Close){Timer=9.8}
+if(!(ZLevel==ZTarget)|Timer>10){Open=0}
+if(~FlrIn&FlrIn==TFlr){Timer=0}
+if(Timer>10&FList:count()!=0){TFlr=FList:shiftString():toNumber(),Timer=0}
+ZPos=(TFlr-1)*FloorDist+6
+
+#Smoother
+Speed=200
+Acc=50
+Target=ZPos
+ZLevel=Value
+ZSpeed=abs($Value*50)
+# Activate when target has been set
+if(~Target){Active = 1}
+
+# Main computation loop
+if(first() | clk()){
+# Precomputation of inputs
+    if(Acc){Acceleration=Acc*2.3}
+    else{Acceleration = Speed * 50 * 2}
+    AccLength = Speed^2 / Acceleration / 2
+    AccRate = min(Speed, Acceleration / 50)
+# Precomputation of variables
+    Distance = Target - Value
+    Direction = Distance >= 0 ? 1 : -1
+# Calculate ideal speed modifier
+    IdealRate = Speed * Direction
+    if(abs(Distance) <= AccLength){
+        IdealRate *= sqrt(abs(Distance - Rate / 50) / AccLength)}
+# Calculate final speed for iteration
+    Rate += clamp(IdealRate - Rate, -Acceleration / 50, Acceleration / 50)
+    Value += Rate / 50
+# Check if value has reached target
+    Active = abs(Rate) > AccRate
+                | abs(Distance) > AccRate / 50
+    if(!Active){ Rate = 0, Value = Target}
+    }

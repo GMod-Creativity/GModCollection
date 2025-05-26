@@ -1,0 +1,174 @@
+@name Holodeck
+@inputs Control:wirelink Camera:wirelink
+@persist FSpeed RSpeed USpeed W A S D Space
+@persist Shift Position:vector Null:entity Prefix:string
+@persist Color:vector Model:string Material:string Target:entity
+#Control Description
+#Press W and S to move forwards and backwards.
+#Press A and D to move sideways.
+#Press Space and Shift to move up and down.
+#Hold the Right Mouse button to move at the "Boost" speed.
+#Use the Mouse to look around.
+#modifyed by koster
+#To change things like movement speed and appearance, jump down to CONFIGURATION.
+runOnChat(1)
+runOnTick(1)
+
+Null = holoEntity(0)
+
+#CONFIGURATION
+Prefix = "/"
+Size  =  vec(0.3,0.3,0.3)   #Model Size
+Boost = 1.25                #Number is a percentage of bonus speed added when Mouse2 is pressed.   
+Speed = 0.3                 #Number is the default speed.
+Alpha = 255                 #Transparency of the model, 255 is solid, 0 is completely transparent.
+Offset   = vec(-25,0,7.5)   #Position of camera based on Holo position. Set to 0,0,0 for Holograms point of view.
+#END OF CONFIGURATION
+
+if(first())
+{
+    Model = "cube"              #Hologram model; Check the bottom of the code for the list.
+    Material = ""               #Material used on the model. Check the material in the Material tool for the path of the material you want to use.
+    Color = vec(125,125,255)    #Color of the hologram, in the style vec(red,green,blue)
+    holoCreate(1,Position,Size,ang(),Color)
+    holoCreate(0,Position,vec(0,0,0))
+}
+
+holoModel(1,Model)
+holoMaterial(1,Material)
+
+#Wirelink to Adv Pod Controller
+W = Control:number("W")
+A = Control:number("A")
+S = Control:number("S")
+D = Control:number("D")
+Mouse1 = Control:number("Mouse1")
+Mouse2 = Control:number("Mouse2")
+Space  = Control:number("Space")
+Shift  = Control:number("Shift")
+R   = Control:number("R")
+#End Adv Pod Controller Wirelink
+
+#some other controls
+USE = owner():keyUse()
+A1  = owner():keyAttack1()
+A2  = owner():keyAttack2()
+#end of some other controls
+
+
+
+#Wirelink to Camera Controller
+Camera:setNumber("Activated",Control:number("Active"))
+Camera:setVector("Position", Position + Offset:x()*owner():eye() + Offset:y()*Null:right() + Offset:z()*Null:up() + owner():eye()*FSpeed + Null:right()*RSpeed + Null:up()*USpeed)
+Camera:setVector("Direction", owner():eye())
+#End Camera Controller Wirelink
+
+
+Thrust = (W - S) * (Speed+(Mouse2*Boost))
+Strafe = (D - A) * (Speed+(Mouse2*Boost))
+Hover = (Space - Shift) * (Speed+(Mouse2*Boost))
+FSpeed += Thrust - FSpeed/20
+RSpeed += Strafe - RSpeed/20
+USpeed += Hover - USpeed/20
+if(Control:number("Active") == 0 | R == 1)
+{ 
+    Position = entity():pos()+entity():up()*8
+    FSpeed = 0
+    RSpeed = 0
+    USpeed = 0
+}
+else
+{
+    Position = Position + Null:forward()*FSpeed + Null:right()*RSpeed + Null:up()*USpeed
+    #added by koster
+    #invis
+    if(A1)
+    {
+        if(Target:pos() != vec(0,0,0))
+        {
+            Position = (Target:pos()+vec(0,0,Target:height()+25)) + Null:forward()*FSpeed + Null:right()*RSpeed + Null:up()*USpeed
+            holoScale(1,vec(0,0,0))
+        }
+    }
+    else
+    {
+        holoScale(1,Size)
+    }
+    #changes entity color to red
+    if(A2)
+    {
+       holoColor(1,vec(255,125,0))
+    }
+    else
+    {
+        holoColor(1,Color)
+    }
+    #end of koster's adds
+    
+}
+
+if(chatClk(owner()))
+{
+    LS = owner():lastSaid()
+    if(LS:left(Prefix:length()) == Prefix)
+    {
+        LS = LS:right(LS:length() - Prefix:length())
+        
+        CMDA = LS:explode(" ")
+        CMD = CMDA[1,string]
+        if(CMD == "goto")
+        {
+            Name = CMDA[2,string]
+            T = findPlayerByName(Name)
+            if(T)
+            {
+                hint("teleported to "+T:name(),7)
+                Position = T:pos() + vec(0,0,T:height())
+            }
+            else
+            {
+                hint("player not found",7)
+            }
+        }
+        elseif(CMD == "setmodel")
+        {
+            Model = CMDA[2,string]
+            hint("model changed to "+Model,2)
+        }
+        elseif(CMD == "setcolor")
+        {
+            Color = vec(CMDA[2,string]:toNumber(),CMDA[3,string]:toNumber(),CMDA[4,string]:toNumber())
+            hint("color changed to ("+CMDA[2,string]+","+CMDA[3,string]+","+CMDA[4,string]+")",2)
+        }
+        elseif(CMD == "settarget")
+        {
+            Name = CMDA[2,string]
+            T = findPlayerByName(Name)
+            if(T)
+            {
+                hint("target set to "+T:name(),7)
+                Target = T
+            }
+            else
+            {
+                hint("player not found",7)
+            }
+        }
+        else
+        {
+            hint("cmd not found",7)
+        }
+    }
+}
+
+holoAng(0,owner():eye():toAngle())
+holoAng(1,owner():eye():toAngle())
+holoPos(0,Position)
+holoPos(1,Position)
+
+
+
+#List of hologram models
+#cone, cube, cylinder, icosphere, icosphere2, icosphere3, prism, pyramid, sphere, sphere2, sphere3, torus, torus2, torus3
+#Keep in mind that the list might not be current, as new things may and probably will be added.
+#For the current list of hologram models, check "http://wiki.garrysmod.com/?title=Wire_Expression2#3D_Holograms

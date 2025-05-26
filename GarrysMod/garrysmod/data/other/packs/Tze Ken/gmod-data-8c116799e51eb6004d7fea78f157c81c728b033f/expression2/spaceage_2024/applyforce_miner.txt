@@ -1,0 +1,270 @@
+@name ApplyForce Mining Interface 2024-V1
+@inputs Roid:entity LaserCmd TargetPos:vector
+@trigger Roid
+
+#Wirelink Relay
+@outputs Ore MaxOre Energy MaxEnergy Health StuckRoids:array
+@outputs LaserStat GenStat StuckRoidsTable:table
+
+# Debug Persists
+# Entities
+@outputs Lasers:array OreStorages:array Scanner:entity PublicLasers:array
+@outputs SolarPanels:array StorageCache:entity
+@outputs CoreNode:entity Teleporter:entity TeleportMode
+# Roid
+@outputs MiningPoint:entity RoidRadius
+@persist MinerVars:gtable Time
+@autoupdate
+if(first()|duped()){
+    # Init variables
+    RoidOffset = 0
+    PublicLasers = array()
+    Lasers = array()
+    OreStorages = array()
+    SolarPanels = array()
+    Teleporter = noentity()
+    CoreNode = noentity()
+    Scanner = noentity()
+    StorageCache = noentity()
+    StuckRoidsTable = table()
+    Time = 0
+    MinerVars = gTable("miner")
+
+    #include "spaceage_2024/miner_utils"
+    #include "spaceage_2024/entity_discovery_utils"
+
+    # Function declarations
+    function updateWirelinks(){
+        # Outputs
+        Health = LaserCmd ? Scanner:wirelink()["Result", number] : 0
+        GenStat = SolarPanels[1, entity]:wirelink()["Out", number]
+        Ore = CoreNode:lsGetAmount("ore")
+        MaxOre = CoreNode:lsGetCapacity("ore")
+        Energy = CoreNode:lsGetAmount("energy")
+        MaxEnergy = CoreNode:lsGetCapacity("energy")
+        LaserStat = 0
+        foreach(I:number, Laser:entity = Lasers) {
+            LaserStat += Laser:wirelink()["Output", number]
+        }
+        
+        PublicLasers = MinerVars["PublicLasers", array]
+        # GTable write
+        MinerVars["Health", number] = Health
+        MinerVars["GenStat", number] = GenStat
+        MinerVars["LaserStat", number] = LaserStat
+        MinerVars["Ore", number] = Ore
+        MinerVars["MaxOre", number] = MaxOre
+        MinerVars["Energy", number] = Energy
+        MinerVars["MaxEnergy", number] = MaxEnergy
+        MinerVars["Roid", entity] = Roid
+        MinerVars["Teleporter", entity] = Teleporter
+        MinerVars["Node", entity] = CoreNode
+    }
+
+    function updateDynamicEntities() {
+        if(!Scanner:isValid()){
+            Scanner = getOwnEntity("sa_asteroid_scanner")[1, entity]
+            Scanner:lsLink(CoreNode)
+        }
+        if(!StorageCache:isValid()){
+            StorageCache = getOwnEntity("storage_cache")[1, entity]
+            StorageCache:lsLink(CoreNode)
+        }
+        if(SolarPanels:count() < 4){
+            SolarPanels = getOwnEntity("generator_energy_solar")
+            linkEntities(CoreNode, SolarPanels)
+        }
+
+        if(PublicLasers:count() > 0){
+            Lasers = PublicLasers
+        }
+        else{
+            Lasers = getOwnEntity("sa_mining_laser")
+        }
+        OreStorages = getOwnEntity("sa_storage_ore")
+
+        linkEntities(CoreNode, Lasers)
+        linkEntities(CoreNode, OreStorages)
+    }
+
+    function maintainSolarPos(RootPos:vector, ZOffset:number){
+        AimAng = ang(55,-135,0)
+        ExpandDir = AimAng:right()
+        Spacing = SolarPanels[1, entity]:radius()
+        OffsetPos = RootPos + vec(0,0, Spacing + ZOffset + 100)
+        foreach(K:number, Panel:entity=SolarPanels){
+            Pos = OffsetPos + (ExpandDir * Spacing * (K-0.5-SolarPanels:count()/2))
+            maintainPosAng(Panel, Pos, AimAng, 1)
+        }
+    }
+    
+    function maintainLaserScannerPos(MiningPoint:entity){
+        if(MiningPoint:isValid() & MiningPoint:pos():distance(Teleporter:pos()) < 1000){
+            ZOffset = 3
+            Pos = MiningPoint:toWorld(vec(ZOffset, 0, 0) * 20)
+            AimAng = getAimAngle(Pos, MiningPoint:pos()) - ang(90,0,0)
+            maintainPosAng(Scanner, Pos, AimAng, 0)
+            ScannerXwl = Scanner:wirelink()
+            ScannerXwl["On", number]=LaserCmd
+            foreach(K:number, Laser:entity=Lasers){
+                Pos = MiningPoint:toWorld(getLocalOrbit(K, Lasers:count(), 50, ZOffset) * 5 * Lasers:count())
+                AimAng = getAimAngle(Pos, MiningPoint:pos()) - ang(90,0,0)
+                maintainPosAng(Laser, Pos, AimAng, 0)
+
+                LaserXwl = Laser:wirelink()
+                AimedAtRoid = aimedAtType(Laser, Laser:up(), "sa_roid")
+                if(AimedAtRoid) {
+                    LaserXwl["On", number]=LaserCmd
+                    Laser:lsLink(CoreNode)
+                }
+                else {
+                    LaserXwl["On", number]=0
+                }
+            }
+        } else {
+            ScannerXwl = Scanner:wirelink()
+            ScannerXwl["On", number]=0
+            Pos = toWorld(vec(-10, 0, 0), ang(0,0,0), Teleporter:pos(), ang(90,0,0))
+            AimAng = ang(0,0,0)
+            maintainPosAng(Scanner, Pos, AimAng, 1)
+            foreach(K:number, Laser:entity=Lasers){
+                Pos = toWorld(getLocalOrbitStatic(K, Lasers:count(), 0) * 5 * Lasers:count(), ang(0,0,0), Teleporter:pos(), ang(90,0,0))
+                AimAng = ang(0,0,0)
+                maintainPosAng(Laser, Pos, AimAng, 1)
+                LaserXwl = Laser:wirelink()
+                LaserXwl["On", number]=0
+            }
+        }
+    }
+    
+    function maintainStoragePos(MiningPoint:entity, RoidRadius:number){
+        if(MiningPoint:isValid() & MiningPoint:pos():distance(Teleporter:pos()) < 1000){
+            ZOffset = 1.4
+            Pos = MiningPoint:toWorld(vec(ZOffset, 0, 0) * -RoidRadius)
+            #AimAng = getAimAngle(Pos, MiningPoint:pos()) - ang(90,0,0)
+            AimAng = ang(90,0,0)
+            maintainPosAng(StorageCache, Pos, AimAng, 0)
+            foreach(K:number, OreStorage:entity=OreStorages){
+                Pos = MiningPoint:toWorld(getLocalOrbit(K, OreStorages:count(), 40, 1) * -RoidRadius)
+                AimAng = getAimAngle(Pos, MiningPoint:pos()) - ang(90,0,0)
+                maintainPosAng(OreStorage, Pos, AimAng, 0)
+            }
+        } else {
+            Pos = toWorld(vec(50, 0, 0), ang(0,0,0), Teleporter:pos(), ang(90,0,0))
+            AimAng = ang(0,0,180)
+            maintainPosAng(StorageCache, Pos, AimAng, 1)
+            foreach(K:number, OreStorage:entity=OreStorages){
+                Pos = toWorld(getLocalOrbitStatic(K, OreStorages:count(), 0) * 240, ang(0,0,0), Teleporter:pos(), ang(90,0,0))
+                AimAng = getAimAngle(Pos, Teleporter:pos())
+                maintainPosAng(OreStorage, Pos, AimAng, 1)
+            }
+        }
+    }
+    
+    function updateStuckRoids(){
+        StuckRoids = array()
+        TempTable = table()
+        foreach(K:number, V:entity=StuckRoidsTable){
+            if(V:isValid()){
+                TempTable[K, entity] = V 
+                StuckRoids:pushEntity(V)
+            }
+        }
+        StuckRoidsTable = TempTable
+        MinerVars["StuckRoids", array] = StuckRoids
+    }
+}
+
+if(first()|dupefinished()) {
+    # Autowire
+    MinerE2 = getOwnE2Contains("MinerCore")
+    entity():createWire(MinerE2, "Roid", "Roid")
+    entity():createWire(MinerE2, "LaserCmd", "LaserCmd")
+    entity():createWire(MinerE2, "TargetPos", "TargetPos")
+    MinerE2:createWire(entity(), "Ore", "Ore")
+    MinerE2:createWire(entity(), "MaxOre", "MaxOre")
+    MinerE2:createWire(entity(), "Energy", "Energy")
+    MinerE2:createWire(entity(), "MaxEnergy", "MaxEnergy")
+    MinerE2:createWire(entity(), "StuckRoids", "StuckRoids")
+    MinerE2:createWire(entity(), "Teleporter", "Teleporter")
+
+    # Get static entities
+    CoreNode = getFirstConnectedEntity(entity(), "resource_node")
+    Teleporter = getFirstConnectedEntity(entity(), "gmod_wire_teleporter")
+    TeleportMode = Teleporter:isValid()
+    if(!TeleportMode){
+        Teleporter = CoreNode
+    }
+    Scanner = getFirstConnectedEntity(entity(),"sa_asteroid_scanner")
+    Scanner:lsLink(CoreNode)
+    StorageCache = getFirstConnectedEntity(entity(),"storage_cache")
+    StorageCache:lsLink(CoreNode)
+    
+    # Nocollide E2s
+    entity():noCollideAll(1)
+    entity():propFreeze(0)
+    MinerE2:noCollideAll(1)
+    MinerE2:propFreeze(0)
+    
+    # Get dynamic entities
+    updateDynamicEntities()
+}
+
+if(~Roid|first()){
+    if(Roid:isValid()){
+        MiningPoint = findMiningPoint(Roid)
+        if(!MiningPoint:isValid()){
+            StuckRoidsTable[Roid:id(), entity] = Roid
+            updateStuckRoids()
+        }
+    }
+}
+
+event entityCreated(CreatedEntity:entity) {
+    if(CreatedEntity:owner() == owner()) {
+        Type = CreatedEntity:type()
+        if(Type == "sa_asteroid_scanner" |
+            Type == "storage_cache" |
+            Type == "sa_mining_laser" |
+            Type == "sa_storage_ore" |
+            Type == "generator_energy_solar") {
+            updateDynamicEntities()
+        }
+    }
+}
+
+event playerDisconnected(Player:entity) {
+    if(Player == owner()){
+        tryFreezeAll(Teleporter:getConnectedEntities())
+        tryFreezeAll(Lasers)
+    }
+}
+
+event removed(Resetting:number) {
+    tryFreezeAll(Teleporter:getConnectedEntities())
+    tryFreezeAll(Lasers)
+}
+
+event tick() {
+    TickRateReduction = max(1, floor(Lasers:count()/10*2))
+    Time++
+    if(Time%TickRateReduction==0 & owner():isValid()){
+        if(Roid:isValid() && LaserCmd){
+            RoidOffset = Roid:radius()
+        }
+        else {
+            RoidOffset = 0
+        }
+        if(!TeleportMode){
+            maintainPosAng(CoreNode, TargetPos, ang(0,0,0), 1)
+        }
+        maintainLaserScannerPos(MiningPoint)
+        maintainStoragePos(MiningPoint, RoidOffset)
+        maintainSolarPos(Teleporter:pos(), RoidOffset)
+        
+        updateWirelinks()
+    }
+    if(changed(PublicLasers:count())){
+        updateDynamicEntities()
+    }
+}

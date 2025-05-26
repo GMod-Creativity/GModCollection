@@ -1,0 +1,58 @@
+@name Input
+@inputs Key Group:string
+@outputs Cmd:string InputType
+@persist LastKey Duplicate
+interval(120) #Adjustabe interval for those who are experiancing high ping. If you have unwanted duplicate characters, increase the interval
+
+#***Important***! Ensure that if you utilize InputType 2, that you set it back to one when you're done with your command
+
+if(Group != "") #Has the CPU initialized?
+{
+    gSetGroup(Group) #When the group is set on the CPU, set it here too
+    InputType = gGetNum("InputType") #Find out what kind of input the computer is requesting
+    if(InputType == 0) { InputType = 1, gSetNum("InputType", 1) } #If no input type is specified, default to normal
+
+    if(InputType == 1) #Waits for the user to press enter and then sends data
+    {
+        if(Duplicate >= 1) { Duplicate++ } #If the duplicate timer is running, increase it
+        if(Duplicate >= 10) { Duplicate = 0 } #If the timer hits 10, it means that it's 'ok' for a duplicate keypress to be registered
+        KP = (Key != 0 & Key != 154) #if it's a valid key and it's not shift (because we don't want to print shift)
+        if(KP & Key != 8 & Key != 9 & Key != 13 & Key != 127) #If we're not writing a null character or delete/enter character
+        {
+            if(Key == LastKey & Duplicate == 0) { Duplicate = 1 } #Start the duplicate timer to prevent wrong data entry
+            elseif(Duplicate > 2 | Duplicate == 0) #Continue and add
+            {
+                Cmd = Cmd + toChar(Key)
+                Duplicate = 0
+            }
+        }
+        if(KP & (Key == 8 | Key==127)) #Delete key pressed
+        {
+            if(Key == LastKey & Duplicate == 0) { Duplicate = 1 }
+            elseif(Duplicate > 3 | Duplicate == 0)
+            {
+                Cmd = Cmd:left(Cmd:length() - 1)
+                Duplicate = 0
+            }
+        }
+        if(KP & Key == 13 & LastKey != 13)  #If enter is pressed
+        {
+            if(gGetNum("Mode") == 0 | Cmd:lower() == "-endproc") { gSetStr("Cmd", Cmd:left(540)) } #If the CPU is asking for data - or else be sure to allow and -endproc command through - NOTE: This limits the data passing through to 540 characters, which quite frankly, is more than enough. If you need more, utilize the data through the other mode or from a library directly!
+            elseif(gGetNum("Mode") == 3) { gSetStr("Cmd2", Cmd) } #If a library is requesting data
+            Cmd = ""
+        }
+        gSetStr("InputDisplay", Cmd)
+        LastKey = Key
+    }
+    elseif(InputType == 2)
+    {
+        if(~InputType) #If the input just switched to direct handling, then clear the old data
+        {
+            Cmd = ""
+            gSetStr("InputDisplay", Cmd)
+            LastKey = 0
+            Duplicate = 0
+        }
+        if(~Key) { gSetStr("Cmd2", toChar(Key)) } #No need to set Cmd locally, just send it direct over the computer's memory. We send it on Cmd2 because it's assumed that no input can be requested if Cmd isn't already in use.
+    }
+}

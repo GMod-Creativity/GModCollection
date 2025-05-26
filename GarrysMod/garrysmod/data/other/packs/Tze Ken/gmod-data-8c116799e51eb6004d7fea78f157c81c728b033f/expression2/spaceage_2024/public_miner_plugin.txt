@@ -1,0 +1,255 @@
+@name Public Miner Interface 2024
+@outputs Egp:wirelink PublicLasers:array
+@outputs Contributors:table ContributorRates:table ContributorLasers:table Health 
+@outputs PayoutProgress CurrentPayouts:table
+@persist MinerVars:gtable Time
+@trigger
+
+if(first()|dupefinished()){
+    Egp = entity():isWeldedTo():wirelink()
+    Egp:egpClear()
+    Egp:egpDrawTopLeft(1)
+}
+
+if(first()|duped()){
+    #include "spaceage_2024/entity_discovery_utils"
+    MinerVars = gTable("miner")
+    Contributors = table()
+    Contributors[owner():name(), entity] = owner()
+    Time = 0
+    
+    function array filterByCompatible(Entities:array){
+        Array = array()
+        foreach(I:number, Entity:entity=Entities){
+            if(Entity:canToolgun() & Entity:canPhysgun()){
+                Array:pushEntity(Entity)
+            }
+        }
+        return Array
+    }
+    
+    function void updatePublicLasers(){
+        ContributorLasers = table()
+        foreach(I:string, Contributor:entity=Contributors){
+            Lasers = filterByCompatible(getPlayerEntity(Contributor, "sa_mining_laser"))
+            ContributorLasers[Contributor:name(), array] = Lasers
+        }
+
+        PublicLasers = array()
+        foreach(I:string, Lasers:array=ContributorLasers){
+            PublicLasers = joinEntityArrays(PublicLasers, Lasers)
+        }
+        MinerVars["PublicLasers", array] = PublicLasers
+    }
+    
+    function table getContributorRates(){
+        ContributorRates = table()
+        foreach(I:number, Laser:entity=PublicLasers){
+            if(Laser:isValid()){
+                Key = Laser:owner():name()
+                Rate = ContributorRates[Key, number]
+                Rate += Laser:wirelink()["Output", number]
+                ContributorRates[Key, number] = Rate
+            }
+        }
+        return ContributorRates
+    }
+    
+    function number handlePayout(Period:number, ContributorRates:table){
+        PayoutProgress = Time%Period
+        if(PayoutProgress == 0){
+            foreach(Name:string, Payout:number=CurrentPayouts){
+                if(Name != owner():name() & Payout > 0){
+                    print("Paid "+Name+" "+Payout:format() + " Credits")
+                    findPlayerByName(Name):giveCredits(Payout)
+                }
+            }
+            CurrentPayouts = table()
+        }
+        else {
+            foreach(Name:string, Rate:number=ContributorRates){
+                CurrentPayout = CurrentPayouts[Name, number]
+                CurrentPayout += Rate
+                CurrentPayouts[Name, number] = CurrentPayout
+            }
+        }
+        return PayoutProgress
+    }
+    
+    function vector colorHash(String:string, Seed:string){
+        R = 50 + hash(String + "1" + Seed)%181
+        G = 50 + hash(String + "2" + Seed)%181
+        B = 50 + hash(String + "3" + Seed)%181
+        return vec(R, G, B)
+    }
+
+    function void drawPie(EgpOffset:number, BaseOffset:number, Elements:table, Text:string, Position:vector2, Size:vector2){
+        Total = 0
+        foreach(I:string, Current:number=Elements){
+            Total+=Current
+        }
+
+        CurrentOffset = 0
+        I = EgpOffset+1
+        foreach(Key:string, Current:number=Elements){
+            Angle = Current/Total * 360
+            Color = colorHash(Key, "")
+            Egp:egpWedge(I, Position, Size)
+            Egp:egpAngle(I, 360 - CurrentOffset+BaseOffset)
+            Egp:egpSize(I, 360 - Angle)
+            Egp:egpColor(I, Color)
+            CurrentOffset+=Angle
+            I++
+        }
+        Egp:egpRemove(EgpOffset)
+        Egp:egpCircle(EgpOffset, Position, Size - vec2(40,40))
+        Egp:egpColor(EgpOffset, vec4(0,0,0,255))
+        
+        Egp:egpText(I+1, Text, Position)
+        Egp:egpAlign(I+1, 1, 1)
+    }
+    
+    function void drawPieFixed(EgpOffset:number, BaseOffset:number, Current:number, Total:number, Text:string, Position:vector2, Size:vector2, Color:vector){
+        Angle = Current/Total * 360
+        Egp:egpWedge(EgpOffset, Position, Size)
+        Egp:egpAngle(EgpOffset, BaseOffset)
+        Egp:egpSize(EgpOffset, 360-Angle)
+        Egp:egpColor(EgpOffset, Color)
+        Egp:egpCircle(EgpOffset+1, Position, Size - vec2(40,40))
+        Egp:egpColor(EgpOffset+1, vec4(0,0,0,255))
+        Egp:egpText(EgpOffset+2, Text, vec2(392,140))
+        Egp:egpAlign(EgpOffset+2, 1, 1)
+    }
+    
+    function void drawProgressBar(EgpOffset:number, Progress:number, Text:string, Position:vector2, Size:vector2, Color:vector){
+        Egp:egpBoxOutline(EgpOffset, Position, Size)
+        Egp:egpColor(EgpOffset, Color)
+        Egp:egpSize(EgpOffset, 3)
+        SizeY = floor(Size:y()*Progress/2)*2
+        Egp:egpBox(EgpOffset+1, Position+vec2(4,Size:y()-SizeY+4), vec2(Size:x()-8, SizeY-8))
+        Egp:egpColor(EgpOffset+1, Color)
+        Egp:egpText(EgpOffset+2, Text, Position + vec2(Size:x()/2, Size:y()-8))
+        Egp:egpAlign(EgpOffset+2, 0, 1)
+        Egp:egpAngle(EgpOffset+2, 90)
+        Egp:egpColor(EgpOffset+2, vec(200,200,200))
+    }
+    
+    function void drawButton(EgpOffset:number, Text:string, Position:vector2, Size:vector2, Color:vector){
+        Egp:egpRoundedBox(EgpOffset+1, Position, Size)
+        Egp:egpColor(EgpOffset+1, Color)
+        Egp:egpRadius(EgpOffset+1, 5)
+        Egp:egpText(EgpOffset+2, Text, Position+Size/2)
+        Egp:egpColor(EgpOffset+2, vec(0,0,0))
+        Egp:egpAlign(EgpOffset+2, 1, 1)
+    }
+    
+    function void drawContributorList(EgpOffset:number, ContributorTable:table){
+        Egp:egpBox(EgpOffset, vec2(0,255), vec2(512, 20))
+        Egp:egpColor(EgpOffset, vec(100,100,180))
+        Egp:egpText(EgpOffset+1, "Laser Contributors", vec2(24,255))
+        Egp:egpSize(EgpOffset+1, 18)
+        Egp:egpColor(EgpOffset+1, vec(0,0,0))
+        
+        I = 0
+        foreach(Name:string, Lasers:array=ContributorTable){
+            LaserTotal = 0
+            foreach(J:number, Laser:entity=Lasers){
+                LaserOut = Laser:wirelink()["Output", number]
+                LaserTotal += LaserOut
+            }
+            DisplayText = Name + " ["+LaserTotal:format()+"]"
+            Egp:egpText(EgpOffset+I*10+2, DisplayText, vec2(22,285 + I*20))
+            Egp:egpFont(EgpOffset+I*10+2, "Lucida Console", 14)
+            Egp:egpColor(EgpOffset+I*10+2, colorHash(Name, ""))
+            Egp:egpAlign(EgpOffset+I*10+2, 0, 1)
+            foreach(J:number, Laser:entity=Lasers){
+                if(Laser:isValid()){
+                    LaserIn = Laser:wirelink()["On", number]
+                    LaserOut = Laser:wirelink()["Output", number]
+                    Egp:egpCircle(EgpOffset+I*10+3+J, vec2(35 + DisplayText:length()*9 + ((J-1)*20), 284 + I*20), vec2(5,5))
+                    Color = LaserOut ? vec(128,200,0) : LaserIn ? vec(200, 0, 0) : vec(48,48,48)
+                    Egp:egpColor(EgpOffset+I*10+3+J, Color)
+                }
+                else{
+                    Egp:egpRemove(EgpOffset+I*10+3+J)
+                    updatePublicLasers()
+                }
+            }
+            I++
+        }
+    }
+
+    function void drawUI(){
+        #Title
+        Egp:egpBox(1, vec2(0,0), vec2(512, 30))
+        Egp:egpColor(1, vec(100,100,180))
+        Egp:egpText(2, "Miner Rental Service", vec2(25,5))
+        Egp:egpFont(2, "coolvetica", 25)
+        Egp:egpColor(2, vec(0,0,0))
+
+        # SemiPie Chart for contributors
+        ContributorRates = getContributorRates()
+        drawPie(3, Time%360, ContributorRates, "Distribution", vec2(170,140), vec2(100,100))
+        
+        # Health Wedge
+        Health = MinerVars["Health", number]
+        drawPieFixed(21, 90, 100-Health, 100, "Roid Progress", vec2(392,140), vec2(100,100), vec(0,150,100))
+        
+        # Payout bar
+        Period = 60
+        PayoutProgress = handlePayout(Period, ContributorRates)
+        drawProgressBar(25, PayoutProgress/Period, "Payout Progress", vec2(20,40), vec2(30, 200), vec(0,150,100))
+        
+        # Buttons
+        drawButton(29, "Contribute", vec2(15,470), vec2(100,30), vec(0,150,200))
+        drawButton(31, "Revoke", vec2(120,470), vec2(100,30), vec(160,160,160))
+        
+        # List of contributors
+        drawContributorList(50, ContributorLasers)
+    }
+    updatePublicLasers()
+}
+
+interval(1000)
+if(owner():isValid()){
+    Time++
+    drawUI()
+}
+
+event playerUse(Player:entity, Entity:entity) {
+    if(Entity == entity() | Entity == Egp:entity()){
+        soundPlay(1,2,"buttons/lightswitch2.wav")
+        ExistingContrib = Contributors[Player:name(), entity]
+        if(ExistingContrib:isValid() & Player != owner()){
+            Contributors:removeEntity(Player:name())
+            updatePublicLasers()
+        }
+        else{
+            Contributors[Player:name(), entity] = Player
+            updatePublicLasers()
+            if(ContributorLasers[Player:name(), array]:count() == 0) {
+                playTTS(Player:name()+" you have no lasers to contribute, check prop protection")
+            }
+        }
+        Egp:egpClear()
+    }
+}
+
+event entityCreated(CreatedEntity:entity) {
+    foreach(I:string, Contributor:entity = Contributors){
+        if(CreatedEntity:owner() == Contributor & CreatedEntity:type() == "sa_mining_laser"){
+            updatePublicLasers()
+            Egp:egpClear()
+        }
+    }
+}
+
+event removed(Resetting:number) {
+    MinerVars["PublicLasers", array] = array()
+}
+
+event playerDisconnected(Player:entity) {
+    if(Player != owner()){
+        Contributors:removeEntity(Player:name())
+    }
+}

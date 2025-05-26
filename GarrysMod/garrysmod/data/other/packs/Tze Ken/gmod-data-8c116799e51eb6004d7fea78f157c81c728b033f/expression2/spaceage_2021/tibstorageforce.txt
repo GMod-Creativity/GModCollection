@@ -1,0 +1,62 @@
+@name Tib Storage Manager
+@inputs On FollowPos:vector
+@outputs TargetPos:vector RefineryPos:vector SpawnAng:angle Refinery:entity
+@outputs Storage:entity DoorPos:vector StorageWirelink:wirelink Tiberium Time
+@autoupdate
+runOnTick(1)
+
+if(first()|dupefinished()){
+    Storage = entity():isWeldedTo()
+    SpawnAng = Storage:angles()
+    StorageWirelink = Storage:wirelink()
+
+    findIncludeModel("models/ce_mining/buildings/ce_tib_station1.mdl")
+    findInSphere(entity():pos(), 10000)
+    Refinery = findResult(1)
+    
+    Ref1 = vec(-188.442383,-54.843029,74.763550)
+    Ref2 = vec(-188.087158,41.375980,74.167847)
+    Door = vec(215.004379,-121.817581,68.786812)
+    
+    DoorPos = Refinery:toWorld(Door)
+    Ref1Pos = Refinery:toWorld(Ref1)
+    Ref2Pos = Refinery:toWorld(Ref2)
+    
+    RefineryPos = Storage:id()%2 ? Ref1 : Ref2
+}
+
+function maintainCurrentPosAng(){
+    Storage:setMass(50000)
+    Force=(TargetPos-Storage:pos())*10 - Storage:vel()
+    Force *=Storage:mass()
+    Storage:applyForce(Force)
+    
+    TarQ=quat(SpawnAng)
+    CurQ=quat(Storage)
+    Q=TarQ/CurQ
+    V=Storage:toLocal(rotationVector(Q)+Storage:pos())
+    Storage:applyTorque((150*V -12*Storage:angVelVector())*Storage:inertia())
+}
+
+Tiberium = StorageWirelink["Tiberium", number]
+maintainCurrentPosAng()
+
+# State management
+if(On){
+    Time=0
+    TargetPos = FollowPos
+}
+else{
+    Time++
+    if(Time<20){
+        TargetPos = DoorPos
+    }
+    else{
+        if(Tiberium == 0){
+            TargetPos = DoorPos
+        }
+        else{
+            TargetPos = RefineryPos
+        }
+    }
+}

@@ -1,0 +1,45 @@
+@name Apply Force Missle
+@inputs Fire Safe
+@outputs CameraPos:vector Camera:vector Trigger Activate
+@outputs Target:entity AimPos:vector Rad
+@persist Angles:angle Entity:entity Pos:vector Owner:entity
+runOnTick(1)
+EE = entity() #Expression Entity
+EE:setMass(1000)
+Owner=entity():owner()
+Entity=entity()
+Rad=Target:radius()
+
+#Firing
+if(Safe&Fire&Target!=noentity()){Activate=1}
+
+#Locking
+if(Owner:keyUse()&Owner:keyAttack1()&Owner:aimEntity()!=noentity()){
+    Target=Owner:aimEntity()
+}
+if(Owner:keyUse()&Owner:keyAttack2()){Target=noentity()}
+
+#Angle Calcs
+AimPos = Target:pos()
+Ang1 = ang(EE:elevation(AimPos), EE:bearing(AimPos), EE:angles():roll())
+Ang  = (Activate ? Ang1 : EE:angles())
+if(Activate){applyAngForce((-Ang*50-EE:angVel()*5)*EE:inertia():length())}
+#applyForce(-EE:vel()*EE:mass()) #prevent it from moving when uncommented
+
+#Position Calcs
+if(Activate){
+    Angles = angnorm(Entity:angles())
+    Pos = Entity:pos()
+    Position = Target:pos() - (Pos + ($Pos * 4))
+    Entity:applyForce(Position * Entity:mass() * 5)
+}
+
+#Detonation
+if(Target:pos():distance(Entity:pos())<=Rad+30){Activate=0}
+if(Target:pos():distance(Entity:pos())<=Rad+60&Activate){Trigger=1}
+else{Trigger=0}
+
+#Etc
+A = EE:pos()
+CameraPos = A+vec(0,0,10)
+Camera = AimPos-A

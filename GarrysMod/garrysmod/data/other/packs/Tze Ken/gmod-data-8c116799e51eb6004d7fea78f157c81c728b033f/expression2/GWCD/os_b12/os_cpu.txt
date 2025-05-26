@@ -1,0 +1,69 @@
+@name OS CPU
+@inputs
+@outputs Group:string Mode
+@persist Cmd:string LCmd:string FindID TimeOut Ping
+Clock = 200 #Used later as a method to determine when to time out. The reason is to allow for altered intervals later.
+interval((FindID ? 100 : Clock)) #Starts low to increase the speed for getting a name. Note: Take this value no lower during start because if you do, it won't leave time for other computers to reply.
+#The entire point of this E2 is to get information from linked E2's and pass the data along to where it needs to go.
+#Later designs for this will allow for multiple threads to run, however in v1, I'm only looking for basic functionality
+
+
+#The new version of the CPU focuses on global variables to pass data around.
+#It identifies itself as a single entity, separate from other groups, and then tells its modules it's group name
+
+#Variable Mode - A few things can happen
+#1. State 0 - Nothing is happening - Awaiting user input
+#2. State 1 - Computer is looking for the command
+#3. State 2 - Module has accepted the command and needs time to process it - The CPU doesn't handle this
+#4. State 3 - Module is requesting additional input on another channel - The CPU doesn't handle this so it does nothing
+#No additional states required. If the command executes sucessfully it autoreturns the mode to 0.
+
+if(first()) { FindID = 1 } #Starts the search for a group name
+if(FindID >= 1 & !Ping) #If searching for an ID
+{
+    Group = "Computer"
+    Group += toString(FindID) #Computers will be in groups numbered: Computer1, Computer2, Computer3, etc
+    gSetGroup(Group)
+    if(gGetNum("Used") == 0) { gSetNum("Used", 1), FindID = 0 } #If the name isn't taken, take it
+    else { Ping = 1, gSetNum("Ping", 1) }
+}
+if(Ping >= 1)
+{
+    gSetGroup(Group)
+    if(Ping < 3) { Ping++ } #Increment ping through timing to allow the other computer a chance to reply
+    elseif(gGetNum("Ping") == 1) #If the time is up and the other computer hasn't pinged back, overwrite the name
+    {
+        Ping = 0 #Turn off pinging in this computer
+        gSetNum("Ping", 0) #Set the group's ping to 0 so that the other computer may be pinged again
+        gSetNum("Used", 0) #Set the used variable so that on the next loop when we arn't pinging, it will take the current ID #
+    }
+    
+    if(gGetNum("Ping") == 2)
+    {
+        Ping = 0 #Turn off pinging in this computer
+        gSetNum("Ping", 0) #Set the group's ping to 0 so that the other computer may be pinged again
+        FindID++ #Try the next name
+        Group = "" #Reset the name
+    } #If it was taken, look again next time - Group is set to "" because as soon as it becomes set to a value, the other modules will begin to act
+}
+
+
+if(!FindID) #If not looking for a group
+{
+    gSetGroup(Group)
+    if(gGetNum("Ping") == 1) { gSetNum("Ping", 2) } #If a new computer is pinging us, reply so it doesn't steal our name
+
+    Cmd = gGetStr("Cmd") #This is a direct feed from the Input module
+    Mode = gGetNum("Mode") #This determines what the CPU is doing
+    if(Cmd != LCmd & Cmd != "" & Mode == 0)
+    {
+        Mode = 1 #Now searching
+        gSetNum("Mode", Mode) #Allows the other modules to begin searching for the command
+    }
+    elseif(Mode == 0) { gSetStr("Cmd", "") }
+    elseif(Mode == 1 & TimeOut > (1000 / Clock) * 2) { gSetNum("Mode", 0), TimeOut = 0 } #If after 2 seconds have passed, no module accepts it, return to default state
+    elseif(Mode == 1) { TimeOut += 1 }
+
+    LCmd = Cmd
+    if(Cmd == "-endproc") { gSetNum("Mode", 0) } #Be sure to handle this command at *all* times
+}

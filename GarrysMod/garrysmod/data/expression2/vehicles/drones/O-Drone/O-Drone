@@ -1,0 +1,894 @@
+@name O-Drone
+@inputs HUD:wirelink Forward Backward Left Right Ascend Descend
+@outputs Fire
+@persist Owner:entity Drone:entity FollowTarget:entity LiftTarget:entity PutTarget:entity PutPos:vector Target:entity Vec:vector StillPos:vector
+@persist HoloAng:angle HoloColor:vector HoloShape:string Ang:angle IsInitHUD IsStill IsTracking IsDirected IsGuarding IsHunting IsTerminator KillZone:string
+@persist IsControl IsGetting HasGot IsPutting PutTime PutWait FieldAlpha FieldSize IsHardwareShown IsOn StartTime IsAlive Field
+@persist HUDelements OCircRad LineRev LineLen CircAng CircAng2 StartingDegree RadAllies RadEnemies FriendList:table EnemyList:table
+@model models/hunter/blocks/cube05x05x05.mdl
+
+runOnTick(1)
+runOnChat(1)
+Dpos = Drone:pos()
+Opos = Owner:shootPos()
+Tpos = Target:shootPos()
+Eang = Drone:angles()
+Oang = Owner:angles()
+
+function void holo_init() { # initial hologram properties
+    HoloColor = vec(255,200,0)
+    HoloShape = "hq_torus_thin"
+    holoCreate(1)
+    holoModel(1,HoloShape)
+    holoColor(1,vec4(HoloColor,0))
+    holoScale(1,vec(2,2,2))
+}
+
+if (first() | duped()) {
+    Owner = owner()
+    Drone = entity()
+    IsInitHUD = 0
+    findIncludeClass("npc_*")
+    findIncludeClass("player")
+    findExcludeEntity(Drone)
+    findExcludeEntities(Drone:getConstraints())
+    findExcludeEntity(Owner)
+    holo_init()
+}
+
+function void hardware(Command:array) { # show or hide the physical chip and turret
+    if (Command[1,string] == "-hardware") {
+        IsHardwareShown = 1
+        Drone:setAlpha(255)
+        Constraints = Drone:getConstraints()
+        for (I=1, Constraints:count()) {
+            Constraints[I,entity]:setAlpha(255)
+        }
+        holoAlpha(1,0)
+    } elseif (Command[1,string] == "--hardware") {
+        IsHardwareShown = 0
+        Drone:setAlpha(0)
+        Constraints = Drone:getConstraints()
+        for (I=1, Constraints:count()) {
+            Constraints[I,entity]:setAlpha(0)
+        }
+        holoAlpha(1,255)
+    }
+}
+
+function void egp_init() { # initialize the HUD
+    if (!IsInitHUD) {
+        IsInitHUD = 1
+        HUDelements = 55
+        ScrH = egpScrH(Owner)
+        ScrW = egpScrW(Owner)
+        HUD:egpRoundedBoxOutline(1,vec2(ScrW/2,ScrH/2),vec2(ScrW*0.99,ScrH*0.99))
+        HUD:egpSize(1,2)
+        HUD:egpRoundedBox(2,vec2(),vec2(ScrW*0.988,ScrH*0.988))
+        HUD:egpParent(2,1)
+        HUD:egpSize(2,10)
+        HUD:egpAlpha(2,15)
+        OCircRad = ScrW*0.05
+        CircRad = ScrW*0.049
+        CircAng = 0
+        HUD:egpCircleOutline(3,vec2(ScrW*0.425,-ScrH*0.375),vec2(OCircRad))
+        HUD:egpParent(3,1)
+        HUD:egpSize(3,2)
+        HUD:egpCircle(4,vec2(),vec2(OCircRad))
+        HUD:egpParent(4,3)
+        HUD:egpText(5,"",vec2(0,-OCircRad/3))
+        HUD:egpParent(5,3)
+        HUD:egpAlign(5,1,2)
+        HUD:egpSize(5,20)
+        HUD:egpText(6,"",vec2())
+        HUD:egpParent(6,5)
+        HUD:egpAlign(6,1,0)
+        HUD:egpSize(6,20)
+        HUD:egpText(7,"",vec2())
+        HUD:egpParent(7,3)
+        HUD:egpAlign(7,1,1)
+        HUD:egpSize(7,15)
+        HUD:egpText(8,"",vec2(0,OCircRad/3))
+        HUD:egpParent(8,3)
+        HUD:egpAlign(8,1,0)
+        HUD:egpSize(8,20)
+        HUD:egpText(9,"",vec2())
+        HUD:egpParent(9,8)
+        HUD:egpAlign(9,1,2)
+        HUD:egpSize(9,20)
+        HUD:egpRoundedBoxOutline(10,vec2(-OCircRad*4,0),vec2(OCircRad*4,OCircRad*2))
+        HUD:egpParent(10,3)
+        HUD:egpSize(10,2)
+        HUD:egpRoundedBox(11,vec2(),vec2(OCircRad*3.99,OCircRad*1.99))
+        HUD:egpParent(11,10)
+        HUD:egpText(12,"",vec2(0,-OCircRad/2))
+        HUD:egpParent(12,10)
+        HUD:egpAlign(12,1,2)
+        HUD:egpSize(12,30)
+        HUD:egpText(13,"",vec2())
+        HUD:egpParent(13,12)
+        HUD:egpAlign(13,1,0)
+        HUD:egpSize(13,20)
+        LineRev = 1
+        LineLen = 0
+        HUD:egpLine(14,vec2(-OCircRad*2,0),vec2(OCircRad*2,0))
+        HUD:egpParent(14,10)
+        HUD:egpSize(14,5)
+        HUD:egpText(15,"",vec2(0,OCircRad/2))
+        HUD:egpParent(15,10)
+        HUD:egpAlign(15,1,0)
+        HUD:egpSize(15,30)
+        HUD:egpText(16,"",vec2(0,-OCircRad/4.5))
+        HUD:egpParent(16,15)
+        HUD:egpAlign(16,1,0)
+        HUD:egpSize(16,20)
+        HUD:egpLine(17,vec2(-OCircRad/1.15,-OCircRad/2),vec2(-OCircRad*2,-OCircRad/2))
+        HUD:egpParent(17,3)
+        HUD:egpSize(17,5)
+        HUD:egpLine(18,vec2(-OCircRad,0),vec2(-OCircRad*2,0))
+        HUD:egpParent(18,3)
+        HUD:egpSize(18,5)
+        HUD:egpLine(19,vec2(-OCircRad/1.15,OCircRad/2),vec2(-OCircRad*2,OCircRad/2))
+        HUD:egpParent(19,3)
+        HUD:egpSize(19,5)
+        StartingDegree = 30
+        ArcDetail = 10
+        ArcDegrees = 120
+        Radius = OCircRad/2
+        Position = vec2()
+        LinePoints = array()
+        LinePoints2 = array()
+        for(I=0,ArcDetail) {
+            LinePoints[I+1,vector2] = Position+vec2(0,Radius):rotate(StartingDegree+ArcDegrees/ArcDetail*I)
+            LinePoints2[I+1,vector2] = Position+vec2(0,Radius):rotate(StartingDegree+180+ArcDegrees/ArcDetail*I)
+        }
+        HUD:egpLineStrip(20,LinePoints)
+        HUD:egpParent(20,1)
+        HUD:egpSize(20,5)
+        HUD:egpLineStrip(21,LinePoints2)
+        HUD:egpParent(21,1)
+        HUD:egpSize(21,5)
+        HUD:egpCircle(22,vec2(),vec2(2.5))
+        HUD:egpParent(22,1)
+        for (I=20,22) {
+            HUD:egpColor(I,vec4(255,140,0,0))
+        }
+        HUD:egpLine(23,vec2(-OCircRad/2,OCircRad/1.15),vec2(-OCircRad/2,OCircRad*2))
+        HUD:egpParent(23,3)
+        HUD:egpSize(23,5)
+        HUD:egpLine(24,vec2(0,OCircRad),vec2(0,OCircRad*2))
+        HUD:egpParent(24,3)
+        HUD:egpSize(24,5)
+        HUD:egpLine(25,vec2(OCircRad/2,OCircRad/1.15),vec2(OCircRad/2,OCircRad*2))
+        HUD:egpParent(25,3)
+        HUD:egpSize(25,5)
+        HUD:egpRoundedBoxOutline(26,vec2(0,OCircRad*4),vec2(OCircRad*2,OCircRad*4))
+        HUD:egpParent(26,3)
+        HUD:egpSize(26,2)
+        HUD:egpRoundedBox(27,vec2(0,OCircRad*3.99),vec2(OCircRad*1.99,OCircRad*3.99))
+        HUD:egpParent(27,3)
+        HUD:egpCircleOutline(34,vec2(-ScrW*0.375,-ScrH*0.285),vec2(OCircRad*2))
+        HUD:egpParent(34,1)
+        HUD:egpSize(34,2)
+        HUD:egpCircle(35,vec2(),vec2(OCircRad*1.99))
+        HUD:egpParent(35,34)
+        HUD:egpCircleOutline(36,vec2(),vec2(OCircRad*1.32))
+        HUD:egpParent(36,34)
+        HUD:egpCircleOutline(37,vec2(),vec2(OCircRad*0.66))
+        HUD:egpParent(37,34)
+        HUD:egpLine(38,vec2(0,-OCircRad*2),vec2(0,OCircRad*2))
+        HUD:egpParent(38,34)
+        HUD:egpLine(39,vec2(-OCircRad*2,0),vec2(OCircRad*2,0))
+        HUD:egpParent(39,34)
+        HUD:egpCircle(40,vec2(),vec2(OCircRad*0.25,OCircRad*0.175))
+        HUD:egpParent(40,34)
+        HUD:egpFidelity(40,3)
+        HUD:egpRoundedBoxOutline(41,vec2(0,OCircRad*3.25),vec2(OCircRad*4,OCircRad*1.5))
+        HUD:egpParent(41,34)
+        HUD:egpSize(41,2)
+        HUD:egpRoundedBox(42,vec2(),vec2(OCircRad*3.99,OCircRad*1.49))
+        HUD:egpParent(42,41)
+        HUD:egpLine(43,vec2(-OCircRad*1.25,OCircRad*1.55),vec2(-OCircRad*1.25,OCircRad*2.5))
+        HUD:egpParent(43,34)
+        HUD:egpSize(43,5)
+        HUD:egpLine(44,vec2(0,OCircRad*2),vec2(0,OCircRad*2.5))
+        HUD:egpParent(44,34)
+        HUD:egpSize(44,5)
+        HUD:egpLine(45,vec2(OCircRad*1.25,OCircRad*1.55),vec2(OCircRad*1.25,OCircRad*2.5))
+        HUD:egpParent(45,34)
+        HUD:egpSize(45,5)
+        HUD:egpTextLayout(46,"RANGE\n"+5000,vec2(-OCircRad*1.95,-OCircRad*0.5),vec2(OCircRad*1.25,OCircRad))
+        HUD:egpParent(46,41)
+        HUD:egpAlign(46,1,1)
+        HUD:egpSize(46,30)
+        RadAllies = RadEnemies = 0
+        HUD:egpTextLayout(47,"ALLIES\n"+0,vec2(-OCircRad*0.5,-OCircRad*0.5),vec2(OCircRad,OCircRad))
+        HUD:egpParent(47,41)
+        HUD:egpAlign(47,1,1)
+        HUD:egpSize(47,30)
+        HUD:egpTextLayout(48,"ENEMIES\n"+0,vec2(OCircRad*0.65,-OCircRad*0.5),vec2(OCircRad*1.25,OCircRad))
+        HUD:egpParent(48,41)
+        HUD:egpAlign(48,1,1)
+        HUD:egpSize(48,30)
+        HUD:egpLine(49,vec2(-OCircRad*0.65,-OCircRad*0.75),vec2(-OCircRad*0.65,OCircRad*0.75))
+        HUD:egpParent(49,41)
+        HUD:egpSize(49,2)
+        HUD:egpCircleOutline(50,vec2(),vec2(OCircRad*0.95))
+        HUD:egpParent(50,3)
+        HUD:egpFidelity(50,15)
+        HUD:egpSize(50,2)
+        HUD:egpCircleOutline(51,vec2(),vec2(OCircRad*0.95))
+        HUD:egpParent(51,3)
+        HUD:egpFidelity(51,15)
+        HUD:egpSize(51,2)
+        HUD:egpCircleOutline(52,vec2(-OCircRad*1.5,OCircRad*1.5),vec2(OCircRad/2))
+        HUD:egpParent(52,3)
+        HUD:egpSize(52,2)
+        HUD:egpCircle(53,vec2(),vec2(OCircRad/2.01))
+        HUD:egpParent(53,52)
+        HUD:egpTextLayout(54,"CARRYING\n---",vec2(-OCircRad/2,-OCircRad/2),vec2(OCircRad))
+        HUD:egpParent(54,52)
+        HUD:egpAlign(54,1,1)
+        HUD:egpSize(54,20)
+        HUD:egpLine(55,vec2(-OCircRad/1.45,OCircRad/1.45),vec2(-OCircRad*1.15,OCircRad*1.15))
+        HUD:egpParent(55,3)
+        HUD:egpSize(55,5)
+        SpacePos = 1.7
+        for (I=1,HUDelements) {
+            if (I != 4 & I != 11 & I != 27 & I != 35 & I != 42 & I != 53) {
+                HUD:egpColor(I,vec(0,255,255))
+            } else {
+                HUD:egpColor(I,vec4(0,0,0,100))
+            }
+            if (I >= 28 & I <= 33) {
+                HUD:egpText(I,"",vec2())
+                if (I%2) {
+                    PosVec = vec2(OCircRad/16,0)
+                    HUD:egpParent(I,I-1)
+                    HUD:egpAlign(I,0,1)
+                } else {
+                    PosVec = vec2(-OCircRad/4,-OCircRad*SpacePos)
+                    SpacePos-=0.35
+                    HUD:egpParent(I,26)
+                    HUD:egpAlign(I,2,1)
+                }
+                HUD:egpPos(I,PosVec)
+                HUD:egpSize(I,15)
+            }
+            HUD:egpFont(I,"Courier New")
+        }
+    }
+}
+
+function void hud_motion() {
+    if (LineLen <= -OCircRad) {
+        LineRev = 1
+    } elseif (LineLen >= 0) {
+        LineRev = 0
+    }
+    LineLen = LineRev ? LineLen+1 : LineLen-1
+    HUD:egpLine(14,vec2(LineLen,0),vec2(-LineLen,0))
+    HUD:egpAngle(50,CircAng)
+    HUD:egpAngle(51,CircAng2)
+    CircAng++
+    CircAng2--
+    if (IsDirected & (Target:isPlayer() | Target:isNPC())) {
+        for (I=20,22) {
+            HUD:egpColor(I,vec4(255,0,0,255))
+        }
+    } elseif (IsDirected & !(Target:isPlayer() | Target:isNPC())) {
+        for (I=20,22) {
+            HUD:egpColor(I,vec4(255,140,0,255))
+        }
+    }
+}
+
+function void aoe_manipulation() {
+    findDisallowClass("npc_*")
+    findDisallowClass("player")
+    findIncludeClass("prop_physics")
+    findInSphere(Dpos,500)
+    SArray = findToArray()
+    for (I=1,SArray:count()) {
+        Prop = SArray[I,entity]
+        PropMass = Prop:mass()
+        if (Field == 1) {
+            PropVec = Dpos-Prop:pos()
+        } elseif (Field == 2) {
+            PropVec = Prop:pos()-Dpos
+        }
+        Prop:applyForce(PropVec*(PropMass*1000)^2)
+    }
+    findDisallowClass("prop_physics")
+    findIncludeClass("npc_*")
+    findIncludeClass("player")
+    Field = 0
+}
+
+function void extermination(Safety:number) {
+    findInSphere(Owner:pos(),KillZone:toNumber())
+    findSortByDistance(Owner:pos())
+    FindArray = findToArray()
+    for (I=1,FindArray:count()) {
+        Target = FindArray[I,entity]
+        if (Safety) {
+            if ((Target:isPlayer() & EnemyList[Target:name(),entity]) | ((EnemyList[Target:type(),string])
+                | (EnemyList[Target:id():toString(),entity]))) {
+                break
+            }
+        } else {
+            if ((Target:isPlayer() & !FriendList[Target:name(),entity]) | ((!FriendList[Target:type(),string])
+                & (!FriendList[Target:id():toString(),entity]))) {
+                break
+            }
+        }
+        Target = noentity()
+    }
+    StartTime = curtime()
+}
+
+function void radar() {
+    if (IsOn & !Field) {
+        RadarRadius = KillZone ? KillZone:toNumber() : 5000
+        RadiusString = RadarRadius >= 10^20 ? "N/A" : RadarRadius:toString()
+        HUD:egpSetText(46,"RANGE\n"+RadiusString)
+        findInSphere(Owner:pos(),RadarRadius)
+        DetectArray = findToArray()
+        TotalObjs = HUD:egpNumObjects()
+        if (TotalObjs-HUDelements > DetectArray:count()) {
+            for (I=DetectArray:count()+1,TotalObjs) {
+                HUD:egpRemove(I+HUDelements)
+            }
+        }
+        RadAllies = RadEnemies = 0
+        for (I=1,DetectArray:count()) {
+            CurEnt = DetectArray[I,entity]
+            EntVec = (CurEnt:pos()-Owner:pos())*(OCircRad*2)/RadarRadius
+            HUD:egpCircle(I+HUDelements,vec2(EntVec:x(),-EntVec:y()),vec2(OCircRad*0.05))
+            HUD:egpParent(I+HUDelements,34)
+            if ((CurEnt:isPlayer() & FriendList[CurEnt:name(),entity] == CurEnt) | (FriendList[CurEnt:type(),string] == CurEnt:type())
+                | (FriendList[CurEnt:id():toString(),entity] == CurEnt)) {
+                EntColor = vec(0,255,0)
+                RadAllies++
+            } elseif ((CurEnt:isPlayer() & EnemyList[CurEnt:name(),entity] == CurEnt) | (EnemyList[CurEnt:type(),string] == CurEnt:type())
+                | (EnemyList[CurEnt:id():toString(),entity] == CurEnt)) {
+                EntColor = vec(255,0,0)
+                RadEnemies++
+            } else {
+                EntColor = vec(0,0,255)
+            }
+            HUD:egpColor(I+HUDelements,EntColor)
+        }
+        HUD:egpSetText(47,"ALLIES\n"+RadAllies)
+        HUD:egpSetText(48,"ENEMIES\n"+RadEnemies)
+    } elseif (IsOn & Field & findCanQuery()) {
+        aoe_manipulation()
+    }
+}
+
+function void set_owner(Command:array, OCommand:string) { # set a new owner
+    if (Command[1,string] == "-owner") {
+        PlayerName = Command:concat(" ",2)
+        PossibleOwner = findPlayerByName(PlayerName)
+        if (PossibleOwner) {
+            Owner = PossibleOwner
+            hint(Owner:name()+" is my new owner",3)
+        } else {
+            hint("Player does not exist",3)
+        }
+    } elseif (OCommand == "--owner") {
+        Owner = owner()
+        hint("Ownership Reset",3)
+    }
+    findExcludePlayer(Owner)
+}
+
+function void friend_edit(Command:array) { # add something to the friend list
+    if (Command[1,string] == "-addf") {
+        Table = FriendList
+        OTable = EnemyList
+    } elseif (Command[1,string] == "-adde") {
+        Table = EnemyList
+        OTable = FriendList
+    }
+    if (Command[1,string]:sub(1,4) == "-add") {
+        NewFriend = Command:concat(" ",3)
+        if (NewFriend & !OTable[NewFriend,entity] & !OTable[NewFriend,string]) {
+            if (Command[2,string]:toNumber()) {
+                FPlayer = findPlayerByName(NewFriend)
+                if (FPlayer) {
+                    Table[NewFriend,entity] = FPlayer
+                }
+            } else {
+                Table[NewFriend,string] = NewFriend
+            }
+        } elseif (Owner:aimEntity():isNPC() & !OTable[Owner:aimEntity():id():toString(),entity]) {
+            Table[Owner:aimEntity():id():toString(),entity] = Owner:aimEntity()
+        } elseif (Owner:aimEntity():isPlayer() & !OTable[Owner:aimEntity():name(),entity]) {
+            Table[Owner:aimEntity():name(),entity] = Owner:aimEntity()
+        }
+    } elseif (Command[1,string] == "-removef") {
+        RemTable = FriendList
+    } elseif (Command[1,string] == "-removee") {
+        RemTable = EnemyList
+    }
+    if (Command[1,string]:sub(1,7) == "-remove") {
+        if (Command[2,string]) {
+            RemTable:remove(Command:concat(" ",2))
+        } else {
+            RemTable:remove(Owner:aimEntity():id():toString())
+        }
+    }
+}
+
+function void manipulation(Command:array) {
+    if (Command[1,string] == "-get" & Owner:aimEntity() & !Owner:aimEntity():isPlayer() & !Owner:aimEntity():isNPC()) {
+        LiftTarget = Owner:aimEntity()
+        HasGot = 0
+        IsGetting = 1
+    } elseif (Command[1,number] == 2) {
+        holoCreate(2)
+        holoModel(2,"hq_cylinder")
+        holoColor(2,HoloColor)
+        HUD:egpSetText(54,"CARRYING\n"+LiftTarget:type():sub(1,8))
+        HasGot = 1
+    } elseif (Command[1,string] == "-put" & HasGot) {
+        if (Command[2,string] & Command[3,string]) {
+            findByClass(Command[3,string])
+            PutTarget = Command[2,string]:toNumber() ? findPlayerByName(Command[3,string]) : find()
+        } else {
+            PutPos = Owner:aimPos()
+        }
+        PutWait = 0
+        IsPutting = 1
+    } elseif (Command[1,number] == 3) {
+        HUD:egpSetText(54,"CARRYING\n---")
+        PutTarget = noentity()
+        PutWait = 0
+        IsGetting = 0
+        HasGot = 0
+        IsPutting = 0
+        holoDelete(2)
+    } elseif (Command[1,string] == "-attract") {
+        Field = 1
+        FieldSize = 100
+        FieldAlpha = 255
+        holoCreate(3)
+        holoPos(3,Dpos)
+        holoModel(3,"hq_icosphere")
+        holoColor(3,vec4(255,0,0,255))
+    } elseif (Command[1,string] == "-repulse") {
+        Field = 2
+        FieldSize = 0
+        FieldAlpha = 255
+        holoCreate(3)
+        holoPos(3,Dpos)
+        holoModel(3,"hq_icosphere")
+        holoColor(3,vec4(0,0,255,255))
+    }
+}
+
+function void hologram() { # controls the hologram's position and angles
+    holoPos(1,Dpos)
+    if (IsTracking | (IsTerminator & Target) | (IsGuarding & Target) | IsHunting) {
+        HoloAng = (Target:pos()-holoEntity(1):pos()):toAngle()+ang(90,0,0) # aims at the target
+    } elseif (IsDirected | IsControl) {
+        HoloAng = (Owner:aimPos()-holoEntity(1):pos()):toAngle()+ang(90,0,0) # aims at the mouse position
+    } else {
+        HoloAng = ang(0,0,0) # resting angle
+    }
+    if (IsGetting) {
+        if (Dpos:distance(LiftTarget:pos()) < 150) {
+            if (!HasGot) {
+                manipulation(array(2))
+            }
+            holoPos(2,Dpos+(LiftTarget:pos()-Dpos):normalized()*LiftTarget:pos():distance(Dpos)/1.65)
+            holoAng(2,(LiftTarget:pos()-holoEntity(2):pos()):toAngle()+ang(90,0,0))
+            holoScale(2,vec(0.25,0.25,LiftTarget:pos():distance(Dpos)/10))
+        }
+    }
+    if (IsPutting) {
+        PutVec = PutTarget ? PutTarget:pos() : PutPos
+        if (Dpos:distance(PutVec) < 150 & HasGot) {
+            if (!PutWait) {
+                PutTime = curtime()
+                PutWait = 1
+            } elseif (curtime()-PutTime > 0.5) {
+                manipulation(array(3))
+            }
+        }
+    }
+    if (holoEntity(3)) {
+        if (FieldAlpha) {
+            holoScale(3,-vec(FieldSize))
+            holoAlpha(3,FieldAlpha)
+            FieldAlpha-=5
+            FieldSize = Field == 2 ? FieldSize+2 : FieldSize-2
+        } else {
+            holoDelete(3)
+        }
+    }
+    holoAng(1,HoloAng)
+}
+
+function void customize(Command:array) { # change the drone's color and shape
+    if (Command[1,string] == "-color" & !IsHardwareShown) {
+        if (Command[2,string]) {
+            ColorStr = Command[2,string]:explode(",")
+            HoloColor = vec(ColorStr[1,string]:toNumber(),ColorStr[2,string]:toNumber(),ColorStr[3,string]:toNumber())
+            holoColor(1,HoloColor)
+            if (holoEntity(2)) {
+                holoColor(2,HoloColor)
+            }
+        }
+    } elseif (Command[1,string] == "-shape") {
+        if (Command[2,string]) {
+            HoloShape = Command[2,string]
+            holoModel(1,HoloShape)
+        } else {
+            hint("Invalid shape",3)
+        }
+    }
+}
+
+function void flight() { # controls the drone's position
+    if (IsTracking) {
+        if ((Target:shootPos()-Opos):length() > 500) {
+            Vec = Opos+(Tpos-Opos):normalized()*100-Dpos # fly between target and owner staying near owner
+        } else {
+            Vec = Tpos+vec(0,0,50)-Dpos # fly over target's head
+        }
+    } elseif (((IsTerminator | IsHunting) & Target)) { # fly to a target
+        Vec = Tpos+vec(0,0,Target:height()+25)-Dpos
+    } elseif (IsGetting & !HasGot & LiftTarget) {
+        Vec = LiftTarget:pos()-Dpos
+    } elseif (IsPutting & HasGot) {
+        Vec = PutTarget ? PutTarget:pos()+vec(0,0,PutTarget:height()+25)-Dpos : PutPos+vec(0,0,100)-Dpos
+    } elseif (IsStill | IsControl) { # maintain current position
+        Vec = StillPos-Dpos-Drone:vel()
+        if (IsControl) {
+            if (Forward) {
+                applyForce(Drone:forward()*Drone:mass()/2)
+            } else {
+                StillPos = Drone:pos()
+            }
+        }
+        applyForce(Vec*Drone:mass())
+    } else { # float above followtarget's head
+        Vec = FollowTarget:shootPos()+vec(0,0,FollowTarget:height()/2)-Dpos
+    }
+    if (IsGetting) {
+        if (!LiftTarget) {
+            manipulation(array(3))
+        }
+        LiftVec = Dpos+vec(0,0,25)-LiftTarget:pos()
+        if (Dpos:distance(LiftTarget:pos()) < 150) {
+            LiftTarget:applyForce((LiftVec*50-LiftTarget:vel())*LiftTarget:mass())
+        }
+    }
+    if ((!IsStill & !IsControl) | (IsTerminator | IsHunting) & Target | IsGetting | IsPutting) {
+        applyForce((Vec*50-Drone:vel())*Drone:mass())
+    }
+    HUD:egpSetText(13,"X: "+round(Dpos:x()-Opos:x()):toString()+" | Y: "
+                    +round(Dpos:y()-Opos:y()):toString()+" | Z: "
+                    +round(Dpos:z()-Opos:z()):toString())
+}
+
+function void orientation() { # controls the drone's orientation
+    if (IsTracking | IsDirected | IsControl | ((IsTerminator | IsHunting) & Target) |
+        (IsGuarding & Target & (Target:shootPos()-Drone:pos()):length() <= KillZone:toNumber())) {
+        if (IsTracking | IsTerminator | IsHunting | IsGuarding) {
+            TrackPos = Target:pos() # point at target position
+            Pitch = Drone:elevation(TrackPos+vec(0,0,Target:height()*0.8))
+        } elseif (IsDirected | IsControl) {
+            TrackPos = Owner:aimPos() # point at mouse position
+            Target = Owner:aimEntity()
+            Pitch = Drone:elevation(TrackPos)
+        }
+        Yaw = Drone:bearing(TrackPos)
+        Roll = Drone:angles():roll()
+        Ang = -ang(Pitch,Yaw,Roll)*Drone:mass()*15
+        if (Target:isPlayer() | Target:isNPC()) {
+            TID = Target:isPlayer() ? Target:name() : Target:type()
+            HUD:egpSetText(9,TID)
+            HUD:egpSetText(29,Target:health():toString())
+            HUD:egpSetText(31,Target:weapon():type())
+            HUD:egpSetText(33,Target:team():toString())
+        } else {
+            HUD:egpSetText(9,Target:type())
+            for (I=29,33,2) {
+                HUD:egpSetText(I,"")
+            }
+        }
+    } else { # keeps a constant angle
+        Ang = (ang(-45,0,0)-Drone:angles())*Drone:mass()*15
+    }
+    Drone:applyAngForce(Ang + $Ang*5)
+    HUD:egpSetText(16,"P: "+round(Eang:pitch()-Oang:pitch()):toString()+" | Y: "
+                    +round(Eang:yaw()-Oang:yaw()):toString()+" | R: "
+                    +round(Eang:roll()-Oang:roll()):toString())
+    HUD:egpAngle(40,-Owner:forward():toAngle():yaw())
+}
+
+function void stop_fire(Command:array) { # the drone holds fire
+    if (Command[1,string] == "--fire" & !IsTracking) {
+        IsDirected = 0
+        IsGuarding = 0
+        IsHunting = 0
+        KillZone = ""
+        if (IsTerminator) {
+            IsTerminator = 0
+            findClearBlackEntityList()
+            findExcludeEntity(Drone)
+            findExcludeEntities(Drone:getConstraints())
+            findExcludeEntity(Owner)
+        }
+        HUD:egpSetText(8,"HOLDING FIRE")
+        HUD:egpSetText(28,"")
+        HUD:egpSetText(30,"")
+        HUD:egpSetText(32,"")
+        for (I=1,HUDelements) {
+            if (I != 4 & I != 11 & I != 27 & I != 35 & I != 42 & I != 53) {
+                HUD:egpColor(I,vec(0,255,255))
+            }
+            if (I == 9 | (I >= 28 & I <= 33)) {
+                HUD:egpSetText(I,"")
+            }
+            if (I >= 20 & I <= 22) {
+                HUD:egpAlpha(I,0)
+            }
+        }
+    }
+}
+
+function void direct_control(Command:array) {
+    if (Command[1,string] == "-dcontrol") {
+        IsControl = 1
+    } elseif (Command[1,string] == "--dcontrol") {
+        IsControl = 0
+    }
+}
+
+function void track(Mode:number, IsPlayer:number, TargetID:string) { # the drone tracks a target
+    if (IsDirected | IsTerminator) {
+        stop_fire(array("--fire"))
+    }
+    findByClass(TargetID)
+    PossibleTarget = IsPlayer ? findPlayerByName(TargetID) : find()
+    if (PossibleTarget) {
+        Target = PossibleTarget
+        if (!Mode) {
+            IsTracking = 1
+            holoModel(1,"pyramid")
+            holoScale(1,vec(2,2,4))
+            HUD:egpSetText(5,"TRACKING")
+            HUD:egpSetText(6,Target:type())
+            for (I=1,HUDelements) {
+                if (I != 4 & I != 11 & I != 27 & I != 35 & I != 42 & I != 53) {
+                    HUD:egpColor(I,vec(0,255,0))
+                }
+            }
+        } else {
+            IsHunting = 1
+            StartTime = curtime()
+            HUD:egpSetText(8,"HUNTING")
+            for (I=1,HUDelements) {
+                if (I != 4 & I != 11 & I != 27 & I != 35 & I != 42 & I != 53) {
+                    HUD:egpColor(I,vec(255,140,0))
+                }
+            }
+        }
+        HUD:egpSetText(28,"HEALTH:")
+        HUD:egpSetText(30,"WEAPON:")
+        HUD:egpSetText(32,"TEAM:")
+    }
+}
+
+function void movement(Command:array) { # control the drone's movement patterns
+    if (Command[1,string] == "-stay") {
+        IsStill = 1
+        StillPos = Drone:pos()
+        HUD:egpSetText(5,"HOLDING POSITION")
+        HUD:egpSetText(6,"")
+    } elseif (Command[1,string] == "-follow") {
+        IsStill = 0
+        HUD:egpSetText(5,"FOLLOWING")
+        if (Command[2,string] & Command[3,string]) {
+            findByClass(Command[3,string])
+            FollowTarget = Command[2,string]:toNumber() ? findPlayerByName(Command[3,string]) : find()
+        } else {
+            FollowTarget = Owner
+        }
+        FollowID = FollowTarget:isPlayer() ? FollowTarget:name() : FollowTarget:type()
+        HUD:egpSetText(6,FollowID)
+    } elseif (Command[1,string] == "-track" & (Command[2,string] == "0" | Command[2,string] == "1") & Command[3,string]) {
+        track(0,Command[2,string]:toNumber(),Command:concat(" ",3))
+    }
+}
+
+function void stop_tracking(Command:array) { # the drone stops tracking a target
+    if (Command[1,string] == "--track" & IsTracking) {
+        IsTracking = 0
+        if (!IsHardwareShown) {
+            holoModel(1,HoloShape)
+            holoColor(1,HoloColor)
+            holoScale(1,vec(2,2,2))
+        }
+        movement(array("-follow"))
+        HUD:egpSetText(28,"")
+        HUD:egpSetText(30,"")
+        HUD:egpSetText(32,"")
+        for (I=1,HUDelements) {
+            if (I != 4 & I != 11 & I != 27 & I != 35 & I != 42 & I != 53) {
+                HUD:egpColor(I,vec(0,255,255))
+            }
+            if (I == 9 | (I >= 28 & I <= 33)) {
+                HUD:egpSetText(I,"")
+            }
+        }
+    }
+}
+
+function void fire_mode(Command:array) { # switch the drone's firing mode
+    HuntConditions = Command[1,string] == "-hunt" & (Command[2,string] == "0" | Command[2,string] == "1") & Command[3,string]
+    if (Command[1,string] == "-dfire" | Command[1,string]:sub(1,6) == "-guard" |
+        HuntConditions | Command[1,string]:sub(1,5) == "-kill") {
+        if (Command[1,string] == "-dfire") {
+            stop_tracking(array("--track"))
+            stop_fire(array("--fire"))
+            IsDirected = 1
+            HUD:egpSetText(8,"DIRECTED FIRE")
+            for (I=1,HUDelements) {
+                if (I != 4 & I != 11 & I != 27 & I != 35 & I != 42 & I != 53) {
+                    HUD:egpColor(I,vec(255,140,0))
+                }
+            }
+        } elseif (Command[1,string]:sub(1,6) == "-guard") {
+            stop_tracking(array("--track"))
+            stop_fire(array("--fire"))
+            KillZone = Command[2,string]
+            if (KillZone) {
+                IsGuarding = Command[1,string] == "-guardall" ? 2 : 1
+                HUD:egpSetText(8,"GUARDING "+KillZone)
+                for (I=1,HUDelements) {
+                    if (I != 4 & I != 11 & I != 27 & I != 35 & I != 42 & I != 53) {
+                        HUD:egpColor(I,vec(255,140,0))
+                    }
+                }
+            }
+        } elseif (HuntConditions) {
+            stop_tracking(array("--track"))
+            stop_fire(array("--fire"))
+            track(1,Command[2,string]:toNumber(),Command:concat(" ",3))
+        } elseif (Command[1,string]:sub(1,5) == "-kill") {
+            stop_tracking(array("--track"))
+            stop_fire(array("--fire"))
+            IsTerminator = Command[1,string] == "-killall" ? 2 : 1
+            KillZone = Command[2,string]
+            HUD:egpSetText(8,"EXTERMINATING "+KillZone)
+            if (!KillZone) {
+                KillZone = "99999999999999999999"
+            }
+            for (I=1,HUDelements) {
+                if (I != 4 & I != 11 & I != 27 & I != 35 & I != 42 & I != 53) {
+                    HUD:egpColor(I,vec(255,0,0))
+                }
+            }
+        }
+        if (!HuntConditions) {
+            HUD:egpSetText(28,"HEALTH:")
+            HUD:egpSetText(30,"WEAPON:")
+            HUD:egpSetText(32,"TEAM:")
+        }
+    }
+}
+
+function void drone_init(Command:array, OCommand:string) { # activate or deactivate the drone
+    if ((Command[1,string] == "-activate" | OCommand == "-activate") & !IsOn) {
+        IsOn = 1
+        egp_init()
+        hardware(array("--hardware"))
+        movement(array("-follow"))
+        stop_fire(array("--fire"))
+        HUD:egpSetText(12,"DRONE POSITION")
+        HUD:egpSetText(15,"DRONE ORIENTATION")
+        HUD:egpSetText(54,"CARRYING\n---")
+        for (I=1,HUDelements) {
+            if (I != 4 & I != 11 & I != 27 & I != 35 & I != 42 & I != 53) {
+                HUD:egpColor(I,vec(0,255,255))
+            }
+            if (I == 14 | (I >= 36 & I <= 40) | (I >= 49 & I <= 51)) {
+                HUD:egpAlpha(I,255)
+            }
+        }
+    } elseif ((Command[1,string] == "--activate" | OCommand == "--activate") & IsOn) {
+        IsOn = 0
+        hardware(array("-hardware"))
+        holoDelete(2)
+        for (I=1,HUDelements) {
+            HUD:egpColor(I,vec(0,0,0))
+            HUD:egpSetText(I,"")
+            if (I == 14 | (I >= 20 & I <= 22) | (I >= 36 & I <= 40) | (I >= 49 & I <= 51)) {
+                HUD:egpAlpha(I,0)
+            }
+        }
+        for (I=HUDelements+1,HUD:egpNumObjects()) {
+            HUD:egpRemove(I)
+        }
+    }
+}
+
+function void fire_control() {
+    if (IsTracking & !Target:isAlive()) {
+        stop_tracking(array("--track"))
+    } elseif (IsHunting & !Target:isAlive()) {
+        Fire = 0
+        stop_fire(array("--fire"))
+    }
+    if ((IsDirected & Owner:keyReload()) | ((IsTerminator | IsHunting) & Target:isAlive() & (Target:shootPos()-Drone:pos()):length() < 150 & curtime()-StartTime <= 10)
+        | (IsGuarding & Target:isAlive() & (Target:shootPos()-Drone:pos()):length() <= KillZone:toNumber() & curtime()-StartTime <= 10)) {
+        Fire = 1
+        HUD:egpColor(7,vec(255,0,0))
+        HUD:egpSetText(7,"-FIRING-")
+    } elseif ((IsTerminator | IsGuarding) & (!Target:isAlive() | curtime()-StartTime > 10)) {
+        Fire = 0
+        HUD:egpColor(7,HUD:egpColor(3))
+        HUD:egpSetText(7,"--------")
+        HUD:egpSetText(9,"")
+        findExcludeEntity(Target)
+        Safety = IsTerminator == 2 | IsGuarding == 2 ? 0 : 1
+        extermination(Safety)
+    } elseif (IsGuarding & (Target:shootPos()-Drone:pos()):length() > KillZone:toNumber()) {
+        Fire = 0
+        HUD:egpColor(7,HUD:egpColor(3))
+        HUD:egpSetText(7,"--------")
+        HUD:egpSetText(9,"")
+        Safety = IsTerminator == 2 | IsGuarding == 2 ? 0 : 1
+        extermination(Safety)
+    } else {
+        Fire = 0
+        HUD:egpColor(7,HUD:egpColor(3))
+        Text = IsOn ? "--------" : ""
+        HUD:egpSetText(7,Text)
+    }
+}
+
+function void main() { # handles chat parsing and other stuff
+    local ParseCommand = Owner:lastSaid():explode(" ")
+    local OCommand = owner():lastSaid()
+    if (((chatClk(Owner) & ParseCommand[1,string][1] == "-") | (chatClk(owner()) & OCommand[1] == "-")) & !IsOn) {
+        drone_init(ParseCommand,OCommand)
+    } elseif (((chatClk(Owner) & ParseCommand[1,string][1] == "-") | (chatClk(owner()) & OCommand[1] == "-")) & IsOn) {
+        drone_init(ParseCommand,OCommand)
+        set_owner(ParseCommand,OCommand)
+        friend_edit(ParseCommand)
+        hardware(ParseCommand)
+        customize(ParseCommand)
+        direct_control(ParseCommand)
+        stop_tracking(ParseCommand)
+        fire_mode(ParseCommand)
+        stop_fire(ParseCommand)
+        movement(ParseCommand)
+        manipulation(ParseCommand)
+    }
+    fire_control()
+    if (IsOn) {
+        radar()
+        flight()
+        orientation()
+        hologram()
+        hud_motion()
+    }
+    if (Owner:isAlive()) {
+        IsAlive = 1
+    }
+    if (!FollowTarget:isAlive() & FollowTarget != Owner) {
+        movement(array("-follow"))
+    } 
+    if (!Owner:isAlive() & IsAlive) {
+        fire_mode(array("-killall"))
+        IsAlive = 0
+    }
+}
+
+main()

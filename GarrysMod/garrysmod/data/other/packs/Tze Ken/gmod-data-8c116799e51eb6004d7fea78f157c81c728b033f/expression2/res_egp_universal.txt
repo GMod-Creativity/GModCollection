@@ -1,0 +1,138 @@
+@name Universal EGP
+@inputs Reset
+@outputs EGP:wirelink DrawDone Excludes:array
+@outputs Storages:array Res:table ResInd:array
+
+#Excluded Resources
+Excludes=array("")
+
+#Entity Discovery
+function number findInArray(Str:string,Ar:array){
+    for(I=1,Ar:count()){
+        if(Ar[I, string]==Str){
+            return I
+        }
+    }
+    return 0
+}
+
+function number findTypeInArray(Str:string,Ar:array){
+    for(I=1,Ar:count()){
+        if(Ar[I, entity]:type()==Str){
+            return 1
+        }
+    }
+    return 0
+}
+
+function void findStorages(){
+    Storages = array()
+    Temp = entity():getConstraints()
+    for (I = 1, Temp:count()){
+        if(Temp[I, entity]:type():find("storage")!=0){
+            if(!findTypeInArray(Temp[I, entity]:type(),Storages)){
+                Storages[Storages:count()+1,entity] = Temp[I, entity]
+            }
+        }
+    }
+}
+
+function void findResources(){
+    for(I = 1, Storages:count()){
+        Temp = Storages[I, entity]:wirelink():outputs()
+        TempTab = table()
+        for(J = 1, Temp:count()){
+            if(!Res:exists(Temp[J, string]:replace("Max ",""))&Temp[J, string]!="wirelink"
+                &!findInArray(Temp[J, string]:replace("Max ",""),Excludes)){
+                TempTab:pushString(Temp[J, string]:replace("Max ",""))
+            }
+        }
+        TempAr = TempTab:toArray()
+        ResInd = ResInd:add(TempTab:flip():flip():toArray())
+        TempTab  = TempTab:flip()
+        for(J = 1, TempAr:count()){
+            TempTab[TempAr[J,string], number] = I
+        }
+        Res = Res:add(TempTab)
+    }
+    
+}
+
+#Resource Amount Function
+function vector2 getCurMax(Name:string){
+    Cur = Storages[Res[Name, number] ,entity]:wirelink()[Name,number]
+    Max = Storages[Res[Name, number] ,entity]:wirelink()["Max "+Name,number]
+    return vec2(Cur,Max)
+}
+
+#Progress Bar Function
+function void createBar1(Ar:array){
+    Count = Ar:count()
+    SOut = vec2(500,440/Count)
+    for (I = 1, Count){
+        CurMax = getCurMax(Ar[I,string])
+        CurMaxPerc = CurMax:x()/CurMax:y()
+        
+        EGP:egpBoxOutline(I*3,vec2(256,I*(500/Count)-(244/Count)),SOut)
+        EGP:egpBox(I*3+1,vec2(11+245*CurMaxPerc,I*(500/Count)-(244/Count)),vec2(490*CurMaxPerc,SOut:y()-10))
+    }    
+}
+
+function void createBar2(Ar:array){
+    Count = Ar:count()
+    for (I = 1, Count){
+        Resource = Ar[I,string]
+        CurMax = getCurMax(Ar[I,string])
+        CurMaxPerc = CurMax:x()/CurMax:y()
+        Str = Resource:replace("_"," ")+" "+round(CurMaxPerc*100)+"% "+CurMax:toString():replace(",","|")
+        Rand=randvec(vec(50,50,50),vec(200,200,200))
+
+        EGP:egpText(I*3+2,Str,vec2(256,I*(500/Count)-(244/Count)-11))
+        EGP:egpAlign(I*3+2,1)
+        EGP:egpColor(I*3,Rand)
+        EGP:egpColor(I*3+1,Rand)
+        EGP:egpColor(I*3+2,vec(255,255,255))
+    }
+}
+
+
+function void updateBars(Ar:array){
+    Count = Ar:count()
+    SOut = vec2(500,440/Count)
+    for (I = 1, Count){
+        Resource = Ar[I,string]
+        CurMax = getCurMax(Ar[I,string])
+        CurMaxPerc = CurMax:x()/CurMax:y()
+        Str = Resource:replace("_"," ")+" "+round(CurMaxPerc*100)+"% "+CurMax:toString():replace(",","|")
+        EGP:egpBox(I*3+1,vec2(11+245*CurMaxPerc,I*(500/Count)-(244/Count)),vec2(490*CurMaxPerc,SOut:y()-10))
+        EGP:egpText(I*3+2,Str,vec2(256,I*(500/Count)-(244/Count)-11))
+    }
+}
+
+#Initialize
+if(first()|dupefinished()|Reset){
+    hint("Universal EGP V1.2 By NoOneLiv3",5)
+    DrawDone=0
+    EGP=entity():isWeldedTo():wirelink()
+    EGP:egpClear()
+    findStorages()
+    findResources()
+    timer("create2",50)
+}
+
+#Delay Draw
+interval(1000)
+if(clk("create2")){
+    createBar1(ResInd)
+    timer("create3",50)
+}
+
+if(clk("create3")){
+    createBar2(ResInd)
+    DrawDone=1
+}
+
+#EGP Update
+if(DrawDone){
+    updateBars(ResInd)
+}

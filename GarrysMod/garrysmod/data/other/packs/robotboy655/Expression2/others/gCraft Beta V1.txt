@@ -1,0 +1,274 @@
+@name gCraft V1 Beta By Solece
+@inputs 
+@outputs
+@persist [R Ply Delay Block BlockM BlockC Water Sand]:array [O E E1]:entity Spawn [Size S2]:vector [WaterP WaterP2]:table
+@persist Rand X Y Z Delay1 Delay2 W MaxPropsPerSec
+@trigger 
+
+######################
+###GCRAFT BY SOLECE###
+######################
+
+interval(1)
+if(first())
+{
+    runOnLast(1)
+    runOnChat(1)
+    Spawn=1
+    ###Change this to the size you want the map to be, note that if Z is lower then 3, the gen will mess up.###
+    Size=vec(5,5,5)
+    ###
+    S2=Size
+    #Change this to the max amount of props per sec on the server
+    MaxPropsPerSec=4
+    Ply:pushEntity(owner())
+    Block[owner():id(),string]="stone"
+    BlockM[owner():id(),string]="models/props_wasteland/rockgranite02a"
+    BlockC[owner():id(),vector]=vec(150,150,150)
+    O=owner()
+    E=entity()
+    timer("spawn",100)
+    propSpawnEffect(0)
+    timer("water",5000)
+    concmd("say \"[gCraft]: Welcome to gCraft! Map gen may take up to "+((Size:x()*Size:y()*Size:z())/MaxPropsPerSec)+" seconds to spawn.\"")
+}
+
+if(Spawn&clk("spawn"))
+{
+    Z++
+    if(Z>S2:z()){Z=1,X++,S2+=vec(0,0,randint(-1,1)),S2=clamp(S2,vec(0,0,3),Size)}
+    if(X>Size:x()-1){X=0,Y++}
+    if(X==Size:x()-1&Y==Size:y()-1&Z==S2:z()){Spawn=0}
+    SpawnRanger=rangerOffset(10000,E:pos()+vec(X*36,Y*36,(Z)*36),vec(0,0,-1))
+    E1=propSpawn("models/hunter/blocks/cube075x075x075.mdl",E:pos()+vec(X*36,Y*36,(Z)*36),ang(),1)
+    if(Z==S2:z())
+    {
+        E1:setColor(vec(0,255,0))
+    }
+    elseif(Z==S2:z()-1)
+    {
+        E1:setColor(vec(90,60,20))
+    }
+    elseif(Z==1)
+    {
+        E1:setColor(vec(50,50,50))
+    }
+    else
+    {
+        E1:setColor(vec(((255/Size:z())*Z),((255/Size:z())*Z),((255/Size:z())*Z)))
+    }
+    R:pushEntity(E1)
+    E1:setMaterial("models/debug/debugwhite")
+    if(E1:getColor()!=vec(0,255,0)&E1:getColor()!=vec(0,0,155)){E1:setMaterial("models/props_wasteland/rockgranite02a")}
+    if(E1:getColor()==vec(0,255,0)){E1:setMaterial("models/props_lab/door_klab01")}
+    timer("spawn",1000/MaxPropsPerSec)
+}
+
+if(chatClk(O))
+{
+    LS=lastSaid():lower()
+    if(LS=="/r"){R:propDelete(),selfDestruct()}
+    if(LS=="/deletewater"){Water:propDelete(),WaterP=table(),Water=array()}
+    if(LS=="/s"){Spawn=0}
+    if(LS:explode(" ")[1,string]=="/add"){
+        TempPl=findPlayerByName(LS:explode(" ")[2,string])
+        Block[TempPl:id(),string]="stone"
+        BlockM[TempPl:id(),string]="models/props_wasteland/rockgranite02a"
+        BlockC[TempPl:id(),vector]=vec(150,150,150)
+        Ply:pushEntity(TempPl)
+    }    
+    if(LS:explode(" ")[1,string]=="/remove"){
+        for(I=1,Ply:count())
+        {
+            if(Ply[I,entity]:name():lower():find(LS:explode(" ")[2,string]))
+            {
+                Ply:remove(I)
+            }
+        }
+    }
+}
+
+for(Add=1,Ply:count()){
+
+    Pl=Ply[Add,entity]
+if(Pl:weapon():type()=="weapon_crowbar")
+{
+    if(
+    Pl:aimEntity()
+    &Pl:aimEntity():pos():distance(Pl:shootPos())<200
+    &Pl:aimEntity():model()=="models/hunter/blocks/cube075x075x075.mdl"){
+        Aim=Pl:aimEntity()
+        NewPos=Aim:pos()+(Pl:eyeTrace():hitNormal():normalized()*36)
+        if(Pl:keyAttack1()&Delay[Add,number]>25&Pl:aimEntity():getColor()!=vec()+50){Pl:aimEntity():propDelete(),Delay[Add,number]=0,timer("sand",10),timer("sand",100)}
+        if(Pl:keyAttack2()&Delay[Add,number]>25&WaterP[round(NewPos):toString(),number]==0)
+        {
+            Spawned=propSpawn("models/hunter/blocks/cube075x075x075.mdl",NewPos,ang(),1)
+            if(Block[Pl:id(),string]=="sand"){timer("sand",10),timer("sand",100),Sand:pushEntity(Spawned)}
+            if(Block[Pl:id(),string]=="water"){Spawned:setAlpha(100),Spawned:propNotSolid(1),Water:pushEntity(Spawned),WaterP[round(Spawned:pos()):toString(),number]=1,WaterP2[round(Spawned:pos()):toString(),entity]=Spawned}
+            if(Block[Pl:id(),string]=="glass"){Spawned:setAlpha(200)}
+            R:pushEntity(Spawned)
+            Spawned:setMaterial(BlockM[Pl:id(),string])
+            Spawned:setColor(BlockC[Pl:id(),vector])
+            Delay[Add,number]=0
+        }
+        if(Pl:keyAttack2()&Delay[Add,number]>25&WaterP[round(NewPos):toString(),number]>0){
+                WaterP[round(NewPos):toString(),number]=0,WaterP2[round(NewPos):toString(),entity]:propDelete()
+        }
+    }
+    
+}
+
+    Delay[Add,number]=Delay[Add,number]+1
+    
+        if(chatClk(Pl))
+        {
+            LS=lastSaid():lower()
+            Exp=LS:explode(" ")
+            if(LS=="/grass"){
+                Block[Pl:id(),string]="grass"
+                BlockM[Pl:id(),string]="models/props_lab/door_klab01"
+                BlockC[Pl:id(),vector]=vec(0,255,0)
+            }
+            if(LS=="/stone"){
+                Block[Pl:id(),string]="stone"
+                BlockM[Pl:id(),string]="models/props_wasteland/rockgranite02a"
+                BlockC[Pl:id(),vector]=vec(150,150,150)
+            }
+            if(LS=="/dirt"){
+                Block[Pl:id(),string]="dirt"
+                BlockM[Pl:id(),string]="models/props_wasteland/rockgranite02a"
+                BlockC[Pl:id(),vector]=vec(90,60,20)
+            }
+            if(LS=="/sand"){
+                Block[Pl:id(),string]="sand"
+                BlockM[Pl:id(),string]="models/props/cs_office/snowmana"
+                BlockC[Pl:id(),vector]=vec(240,225,125)
+            }
+            if(LS=="/water"){
+                Block[Pl:id(),string]="water"
+                BlockM[Pl:id(),string]="models/props/cs_office/snowmana"
+                BlockC[Pl:id(),vector]=vec(0,155,255)
+            }
+            if(LS=="/glass"){
+                Block[Pl:id(),string]="glass"
+                BlockM[Pl:id(),string]="models/props_combine/health_charger_glass"
+                BlockC[Pl:id(),vector]=vec()+255
+            }
+            if(LS=="/wood"){
+                Block[Pl:id(),string]="wood"
+                BlockM[Pl:id(),string]="phoenix_storms/wood"
+                BlockC[Pl:id(),vector]=vec(76,67,0)
+            }
+            if(LS=="/red"){
+                Block[Pl:id(),string]="grass"
+                BlockM[Pl:id(),string]="models/debug/debugwhite"
+                BlockC[Pl:id(),vector]=vec(255,0,0)
+            }
+            if(LS=="/blue"){
+                Block[Pl:id(),string]="grass"
+                BlockM[Pl:id(),string]="models/debug/debugwhite"
+                BlockC[Pl:id(),vector]=vec(0,0,255)
+            }
+            if(LS=="/yellow"){
+                Block[Pl:id(),string]="grass"
+                BlockM[Pl:id(),string]="models/debug/debugwhite"
+                BlockC[Pl:id(),vector]=vec(255,255,0)
+            }
+            if(LS=="/purple"){
+                Block[Pl:id(),string]="grass"
+                BlockM[Pl:id(),string]="models/debug/debugwhite"
+                BlockC[Pl:id(),vector]=vec(255,0,255)
+            }
+            if(LS=="/white"){
+                Block[Pl:id(),string]="grass"
+                BlockM[Pl:id(),string]="models/debug/debugwhite"
+                BlockC[Pl:id(),vector]=vec(255,255,255)
+            }
+            if(LS=="/green"){
+                Block[Pl:id(),string]="grass"
+                BlockM[Pl:id(),string]="models/debug/debugwhite"
+                BlockC[Pl:id(),vector]=vec(0,255,0)
+            }
+            
+            if(LS=="/types"){
+                if(Pl!=O){
+                concmd("say \"[gCraft]: Types are stone, grass, dirt, sand, wood, water, green, blue, red, purple, yellow, white, and glass.\"")
+                }
+                else{print("[gCraft]: Types are stone, grass, dirt, sand, wood, water, green, blue, red, purple, yellow, white, and glass.")}
+            }
+        }
+}
+
+if(clk("water")){
+    
+    W++
+    if(W>Water:count()){W=1}
+        B=Water[W,entity]
+        RD=rangerOffset(B:pos(),B:pos()-vec(0,0,39))
+        RF=rangerOffset(B:pos(),B:pos()+vec(39,0,0))
+        RB=rangerOffset(B:pos(),B:pos()-vec(39,0,0))
+        RR=rangerOffset(B:pos(),B:pos()+vec(0,39,0))
+        RL=rangerOffset(B:pos(),B:pos()-vec(0,39,0))
+        if(B){
+            if(RD:entity():model()=="models/hunter/blocks/cube075x075x075.mdl"|WaterP[round(B:pos()-vec(0,0,36)):toString(),number]>=3){WaterP[round(B:pos()):toString(),number]=WaterP[round(B:pos()):toString(),number]+1}
+        
+        if(RD:distance()>=39&WaterP[round(B:pos()-vec(0,0,36)):toString(),number]==0&!(RD:position():z()-36<=E:pos():z()+10))
+        {
+            WS=propSpawn("models/hunter/blocks/cube075x075x075.mdl",B:pos()-vec(0,0,36),1)
+            WS:setAlpha(200),WS:setMaterial("models/props/cs_office/snowmana"),WS:setColor(0,155,255),WS:propNotSolid(1),Water:pushEntity(WS),R:pushEntity(WS)
+            WaterP[round(WS:pos()):toString(),number]=1
+            WaterP2[round(WS:pos()):toString(),entity]=WS
+        }
+        #if(RD:hit()){
+        if(RF:distance()>=39&WaterP[round(B:pos()+vec(36,0,0)):toString(),number]==0&(WaterP[round(B:pos()-vec(0,0,36)):toString(),number]>=3|(RD:hit()&RD:entity():model()=="models/hunter/blocks/cube075x075x075.mdl")))
+        {
+            WS=propSpawn("models/hunter/blocks/cube075x075x075.mdl",B:pos()+vec(36,0,0),1)
+            WS:setAlpha(200),WS:setMaterial("models/props/cs_office/snowmana"),WS:setColor(0,155,255),WS:propNotSolid(1),Water:pushEntity(WS),R:pushEntity(WS)
+            WaterP[round(WS:pos()):toString(),number]=1
+            WaterP2[round(WS:pos()):toString(),entity]=WS
+        }
+        if(RB:distance()>=39&WaterP[round(B:pos()-vec(36,0,0)):toString(),number]==0&(WaterP[round(B:pos()-vec(0,0,36)):toString(),number]>=3|(RD:hit()&RD:entity():model()=="models/hunter/blocks/cube075x075x075.mdl")))
+        {
+            WS=propSpawn("models/hunter/blocks/cube075x075x075.mdl",B:pos()-vec(36,0,0),1)
+            WS:setAlpha(200),WS:setMaterial("models/props/cs_office/snowmana"),WS:setColor(0,155,255),WS:propNotSolid(1),Water:pushEntity(WS),R:pushEntity(WS)
+            WaterP[round(WS:pos()):toString(),number]=1
+            WaterP2[round(WS:pos()):toString(),entity]=WS
+        }
+        if(RR:distance()>=39&WaterP[round(B:pos()+vec(0,36,0)):toString(),number]==0&(WaterP[round(B:pos()-vec(0,0,36)):toString(),number]>=3|(RD:hit()&RD:entity():model()=="models/hunter/blocks/cube075x075x075.mdl")))
+        {
+            WS=propSpawn("models/hunter/blocks/cube075x075x075.mdl",B:pos()+vec(0,36,0),1)
+            WS:setAlpha(200),WS:setMaterial("models/props/cs_office/snowmana"),WS:setColor(0,155,255),WS:propNotSolid(1),Water:pushEntity(WS),R:pushEntity(WS)
+            WaterP[round(WS:pos()):toString(),number]=1
+            WaterP2[round(WS:pos()):toString(),entity]=WS
+        }
+        if(RL:distance()>=39&WaterP[round(B:pos()-vec(0,36,0)):toString(),number]==0&(WaterP[round(B:pos()-vec(0,0,36)):toString(),number]>=3|(RD:hit()&RD:entity():model()=="models/hunter/blocks/cube075x075x075.mdl")))
+        {
+            WS=propSpawn("models/hunter/blocks/cube075x075x075.mdl",B:pos()-vec(0,36,0),1)
+            WS:setAlpha(200),WS:setMaterial("models/props/cs_office/snowmana"),WS:setColor(0,155,255),WS:propNotSolid(1),Water:pushEntity(WS),R:pushEntity(WS)
+            WaterP[round(WS:pos()):toString(),number]=1
+            WaterP2[round(WS:pos()):toString(),entity]=WS
+        }
+        
+        if(WaterP[round(B:pos()):toString(),number]<=0){WaterP[round(B:pos()):toString(),number]=0,WaterP2[round(B:pos()):toString(),entity]:propDelete()}
+    }
+
+    
+    timer("water",50)
+}
+
+if(clk("sand"))
+{
+    for(SandA=1,Sand:count())
+    {
+        SB=Sand[SandA,entity]
+        DownR=rangerOffset(10000,SB:pos()-vec(0,0,36/2),vec(0,0,-1))
+        if(DownR:distance()>36){SB:setPos(DownR:entity():pos()+vec(0,0,36))}
+    }
+}
+
+if(last())
+{
+    R:propDelete()
+}
+
+

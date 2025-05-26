@@ -1,0 +1,114 @@
+@name Portable Life Support 2024
+@outputs Active Visible Target:entity Pos:vector
+@outputs EnvReg:entity Storage:entity Node:entity TibPlanet:entity
+@autoupdate
+
+if(first()|duped()){
+    Active = 0
+    Target = entity():owner()
+    Pos = entity():pos() + vec(0,0,200)
+    #include "spaceage_2024/entity_discovery_utils"
+    #include "spaceage_2024/miner_utils"
+    
+    findByClass("base_sb_planet2")
+    foreach(I:number, Planet:entity=findToArray()){
+        if(Planet:isValid() & Planet:lsInfo()["size", number] == 4832){
+            TibPlanet = Planet
+        }
+    }
+}
+
+if(first()|dupefinished()){
+    Visible = 0
+    Node = getFirstConnectedEntity(entity(), "resource_node")
+    EnvReg = getFirstConnectedEntity(entity(), "base_climate_control")
+    Storage = getFirstConnectedEntity(entity(), "storage_cache")
+    EnvReg:lsLink(Node)
+    Storage:lsLink(Node)
+    EnvReg:setAlpha(0)
+    entity():setAlpha(0)
+    Node:setAlpha(0)
+    Storage:setAlpha(0)
+    EnvReg:noCollideAll(1)
+    Storage:noCollideAll(1)
+    Node:noCollideAll(1)
+    Node:propFreeze(0)
+    Storage:propFreeze(0)
+    EnvReg:propFreeze(0)
+    entity():propFreeze(0)
+}
+
+event chat(Player:entity, Message:string, Team:number) {
+    if(Player==owner() & Message:sub(1,1) == "!"){
+        hideChat(1)
+        
+        if(Message:sub(2,3) == "on"){
+            Active = !Active
+        }
+        if(Message:sub(2,3) == "me"){
+            Active = 1
+            Target = owner()
+        }
+        if(Message:sub(2,3) == "go"){
+            Param = Message:sub(5)
+            if(Param:length() > 0){
+                Target = findPlayerByName(Param)
+            }
+            else{
+                Target = owner():aimEntity()
+                Pos = owner():aimPos() + vec(0,0,100)
+            }
+            if(Target:isPlayer()){
+                print("Going to "+Target:name())
+                Active = 1
+            }
+        }
+        if(Message:sub(2,5) == "stop"){
+            Active = 0
+            Target = noentity()
+        }
+        if(Message:sub(2,5) == "show"){
+            Visible = !Visible
+            if(Visible){
+                entity():setAlpha(255)
+                Node:setAlpha(255)
+                Storage:setAlpha(255)
+            }
+            else{
+                entity():setAlpha(0)
+                Node:setAlpha(0)
+                Storage:setAlpha(0)
+            }
+        }
+    }
+}
+
+event tick(){
+    if(Target:isValid()){
+        Pos = Target:pos() + vec(0,0,Target:radius()*3)
+        
+        # Handle tib planet bug
+        if(Target:pos():distance(TibPlanet:pos()) <= 4832){
+            entity():propNotSolid(1)
+            Node:propNotSolid(1)
+            EnvReg:propNotSolid(1)
+        }
+        else {
+            entity():propNotSolid(0)
+            Node:propNotSolid(0)
+            EnvReg:propNotSolid(0)
+        }
+    }
+    EnvRegXwl = EnvReg:wirelink()
+    if(Node:lsGetAmount("energy") > 1000){
+        EnvRegXwl["On", number]=Active
+    } else {
+        EnvRegXwl["On", number]=0
+    }
+    
+    if(Storage:pos():distance(Pos) > 10 | vec(Storage:angles()):normalized():distance(vec(0,0,0)) > 1){
+        maintainPosAng(Storage, Pos, ang(0,0,0), 0)
+    } else {
+        tryFreeze(Storage)
+    }
+}

@@ -1,0 +1,150 @@
+@name Entity HUD
+@persist E:wirelink IncludeEnts:array IncludeMdls:array PrevFind:array 
+@outputs Find:array I J DistEval LastCount
+@trigger 
+runOnTick(1)
+
+#Owner ShootPos
+function vector anchor(){
+    return entity():owner():shootPos()
+}
+
+#Draw Bounding Box
+function void drawBounds(Title:string, Color:vector4, Size:vector2, Offset:vector){
+    E:egp3DTracker(I * 3, Offset)
+    E:egpParent(I * 3,Find[I, entity])
+    
+    E:egpBoxOutline(I * 3 + 1, vec2(0, 0), Size * egpScrW(owner()) / anchor():distance(Find[I, entity]:pos()))
+    E:egpParent(I * 3 + 1, I * 3)
+    E:egpColor(I * 3 + 1, Color)
+    
+    E:egpText(I * 3 + 2, Title, vec2(-E:egpSize(I * 3 + 1):x()/2,E:egpSize(I * 3 + 1):y()/2+2))
+    E:egpFont(I * 3 + 2, "",14)
+    E:egpParent(I * 3 + 2, I * 3)
+    E:egpColor(I * 3 + 2, Color)
+}
+
+#Draw Solid Box
+function void drawSolid(Title:string, Color:vector4, Size:vector2, Offset:vector){
+    E:egp3DTracker(I * 3, Offset)
+    E:egpParent(I * 3,Find[I, entity])
+    
+    E:egpBox(I * 3 + 1, vec2(0, 0), Size * egpScrW(owner()) / anchor():distance(Find[I, entity]:pos()))
+    E:egpParent(I * 3 + 1, I * 3)
+    E:egpColor(I * 3 + 1, Color)
+    
+    E:egpText(I * 3 + 2, Title, vec2(-E:egpSize(I * 3 + 1):x()/2,E:egpSize(I * 3 + 1):y()/2+2))
+    E:egpFont(I * 3 + 2, "",14)
+    E:egpParent(I * 3 + 2, I * 3)
+    E:egpColor(I * 3 + 2, Color)
+}
+
+#Find Entities
+function void findUpdate(){
+    findInSphere(entity():pos(),1500000)
+    Find=findToArray()
+}
+
+#Set Entities
+if(first()|dupefinished()) {
+    E=entity():isWeldedTo():wirelink()
+    E:egpClear()
+    
+    #Spacebuild4
+    #IncludeEnts=array("player", "ship_core", "gmod_wire_expression2", "env_sun", "sc_turret")
+    #DarkRP
+    IncludeEnts=array("player", "gmod_wire_expression2", "ngii_a_printer")
+    IncludeMdls=array("asteroid_500")
+    foreach(I,V:string=IncludeEnts){
+        findIncludeClass(V)
+    }
+    foreach(I,V:string=IncludeMdls){
+        findIncludeModel(V)
+    }
+    findExcludeEntity(entity():owner())
+    findUpdate()
+    I = 1
+}
+
+#Render Find
+if(I <= Find:count()){
+    CurEnt = Find[I,entity]
+    Distance = anchor():distance(CurEnt:pos())
+    
+    #Default Settings
+    Text = CurEnt:type()
+    Color = vec4(255,255,255,180)
+    ESize = CurEnt:boxSize()
+    Size = vec2(max(ESize:x(), ESize:y(), ESize:z()) - 60)
+    DistBound = Size:x()*200
+    Offset = vec(0)
+    if(Size:x() <= 0) {Size = vec2(50,50)}
+    
+    #Conditional Settings
+    #Player
+    if(CurEnt:type() == "player"){
+        Text = CurEnt:name()
+        Color = vec4(teamColor(Find[I, entity]:team()),120)
+        Size = vec2(20,40)
+        DistBound = 4000
+        Offset = vec(0,0,32)
+    }
+    #Expressions
+    if(CurEnt:type() == "gmod_wire_expression2"){
+        Text = "E2 "+CurEnt:id()
+        Color = vec4(255,0,0,120)
+        Size = vec2(10)
+        DistBound = 0
+    }
+    
+    ##SPACEBUILD4##
+    #Ship Core
+    if(CurEnt:type() == "ship_core"){
+        Text = "Ship Core "+CurEnt:id()
+        Color = vec4(0,128,192,120)
+    }
+    #Turret
+    if(CurEnt:type() == "sc_turret"){
+        Text = "Turret "+CurEnt:id()
+        Color = vec4(255,0,128,120)
+    }
+    #Asteroid
+    if(CurEnt:type() == "mining_asteroid"){
+        Text = "Large Asteroid"
+        Color = vec4(255,128,0,120)
+    }
+    #Sun
+    if(CurEnt:type() == "env_sun"){
+        Text = "Sun"
+        Color = vec4(255,255,0,120)
+        DistBount = 0
+    }
+    
+    ##DARKRP##
+    if(CurEnt:type() == "ngii_a_printer"){
+        Text = "Printer"
+        Color = vec4(255,255,0,120)
+        Size = vec2(10,10)
+    }
+    
+    #Draw By DistBound
+    if(Distance > DistBound){
+        drawSolid(Text, Color, Size, Offset)
+    }
+    else{
+        drawBounds(Text, Color, Size, Offset)
+    }
+    I++
+    LastCount=Find:count()
+}
+#Clear removed entities
+else{
+    E:egpRemove(I * 3)
+    E:egpRemove(I * 3 + 1)
+    E:egpRemove(I * 3 + 2)
+    I++
+    findUpdate()
+}
+if(Find:count()!=LastCount|I>50){
+    I = 1
+}

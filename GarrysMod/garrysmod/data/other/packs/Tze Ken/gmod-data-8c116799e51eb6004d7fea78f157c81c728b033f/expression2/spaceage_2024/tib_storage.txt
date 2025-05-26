@@ -1,0 +1,83 @@
+@name TibStorage 2024
+@inputs Active CoreNode:entity
+@outputs UnloadPos:vector Storages:array Cycle
+@outputs Time
+@autoupdate
+
+if(first()|duped()){
+    #include "spaceage_2024/miner_utils"
+    #include "spaceage_2024/entity_discovery_utils"
+    
+    findByClass("sa_tibrefinery")
+    UnloadPos = find():pos()+vec(20,0,0)
+    Cycle = 0
+    Time = 0
+    Storages = array()
+    
+    function void unloadStorage(Storage:entity){
+        StorageXwl = Storage:wirelink()
+        
+        if(StorageXwl["Tiberium", number] > 0){
+            maintainPosAng(Storage, UnloadPos, ang(), 1)
+            if(UnloadPos:distance(Storage:pos()) < 30){
+                Storage:noCollideAll(0)
+            }
+        }
+        else {
+            maintainPosAng(Storage, UnloadPos+vec(20,0,200), ang(), 1)
+        }
+    }
+    
+    function void activePos(ReturnStorage:entity){
+        foreach(I:number, Storage:entity=Storages){
+            if(Storage == ReturnStorage){
+                Storage:lsUnlink()
+                unloadStorage(Storage)
+            }
+            else{
+                Pos = toWorld(getLocalOrbit(I, Storages:count(), 50, 0) * 50, ang(), CoreNode:pos(), ang(90,0,0))
+                maintainPosAng(Storage, Pos+vec(0,0,300), ang(90,0,0), 0)
+                Storage:lsLink(CoreNode)
+            }
+        }
+    }
+
+    function void inactivePos(){
+        foreach(I:number, Storage:entity=Storages){
+            Storage:lsLink(CoreNode)
+            if(CoreNode:lsGetAmount("tiberium") > 0) {
+                unloadStorage(Storage)
+            }
+            else {
+                Pos = toWorld(getLocalOrbit(I, Storages:count(), 50, 0) * 100, ang(), CoreNode:pos(), ang(90,0,0))
+                maintainPosAng(Storage, Pos, ang(90,0,0), 1)
+            }
+        }
+    }
+}
+
+if(first()|dupefinished()){
+    Storages = getOwnEntity("sa_storage_tiberium")
+}
+
+event entityCreated(Entity:entity) {
+    if(Entity:type() == "sa_storage_tiberium"){ 
+        Storages = getOwnEntity("sa_storage_tiberium")
+    }
+}
+
+event tick(){
+    Time++
+    if(Time >= 1000){
+        Time = 0
+        Cycle = (Cycle+1) % Storages:count()
+    }
+    
+    if(Active){
+        activePos(Storages[Cycle+1,entity])
+    }
+    else{
+        inactivePos()
+    }
+}
+

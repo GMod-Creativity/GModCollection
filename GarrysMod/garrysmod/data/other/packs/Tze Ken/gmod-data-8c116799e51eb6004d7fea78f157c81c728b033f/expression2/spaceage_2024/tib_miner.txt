@@ -1,0 +1,172 @@
+@name TibMiner 2024
+#Control Inputs
+@outputs TargetPos:vector TargetTib:entity
+@outputs On Active Home:vector Crystals:array
+@outputs Pod:entity CoreNode:entity WindGen:entity Drills:array 
+@outputs PodOffset:vector Moving NextPos:vector
+@autoupdate
+
+if(first()|dupefinished()){
+    findByClass("sa_tibrefinery")
+    Home = find():pos() + vec(0,0,250)
+    TargetPos = Home
+    TargetTib = noentity()
+    PodOffset = vec(0,0,330)
+    On = 0
+    Active = 0
+    Moving = 0
+}
+
+if(first()|duped()){
+    #include "spaceage_2024/miner_utils"
+    #include "spaceage_2024/entity_discovery_utils"
+    CoreNode = getFirstConnectedEntity(entity(), "resource_node")
+    Pod = getFirstConnectedEntity(entity(), "prop_vehicle_prisoner_pod")
+    WindGen = getFirstConnectedEntity(entity(), "generator_energy_wind")
+    Drills = getOwnEntity("sa_mining_drill")
+    StorageE2 = getOwnE2Contains("TibStorage")
+    StorageE2:createWire(entity(), "CoreNode", "CoreNode")
+    StorageE2:createWire(entity(), "Active", "Active")
+    
+    CoreNode:propFreeze(0)
+    StorageE2:propNotSolid(0)
+    StorageE2:propFreeze(0)
+    entity():propNotSolid(0)
+    entity():propFreeze(0)
+    
+    findByClass("sa_crystal")
+    Crystals = findToArray()
+    
+    function entity nextTib() {
+        # Blue
+        foreach(I:number, Crystal:entity=Crystals){
+            if(Crystal:isValid() &  Crystal:getSkin() == 0 & isTibMineable(Crystal)){
+                return Crystal
+            }
+        }
+        # Green
+        foreach(I:number, Crystal:entity=Crystals){
+            if(Crystal:isValid() &  Crystal:getSkin() == 1 & isTibMineable(Crystal)){
+                return Crystal
+            }
+        }
+        return noentity()
+    }
+    
+    function vector getTargetDrillPos(TargetPos:vector, TargetTib:entity){
+        if(TargetTib:isValid()){
+            return TargetPos + vec(0,0,TargetTib:radius()-50)
+        } else {
+            return TargetPos
+        }
+    }
+    
+    function vector nextSafePos(TargetPos:vector, TargetTib:entity){
+        CurPodPos = Pod:pos() - vec(0,0,Pod:radius())
+        TarDrillPos = getTargetDrillPos(TargetPos, TargetTib)
+        TarPodPos = TarDrillPos + PodOffset
+        Direction = (TarPodPos - CurPodPos):normalized()
+        
+        CurPodPos = CurPodPos + Direction*(Pod:radius())
+        Distance = TarPodPos:distance(CurPodPos)
+        Trace = newFTrace(CurPodPos, Direction, Distance)
+        Trace:smpWorld()
+        EntType = Trace:getEntity():type()
+        if(EntType == "sa_crystal" | EntType == "sa_crystaltower"){
+            if(Trace:getEntity() != TargetTib){
+                return Trace:getHitPos() + vec(0,0,Trace:getEntity():radius()*2)
+            }
+        }
+        return TargetPos
+    }
+
+    function void maintainPos(TargetPos:vector, TargetTib:entity){
+        # Drill
+        DrillPos = getTargetDrillPos(TargetPos, TargetTib)
+        foreach(I:number, Drill:entity=Drills){
+            DrillPosOffset = toWorld(getLocalOrbit(I, Drills:count(), 50, 0) * Drills:count(), ang(0,0,0), DrillPos, ang(90,0,0))
+            maintainPosAng(Drill, DrillPosOffset, ang(), 1)
+            Drill:lsLink(CoreNode)
+            Drill:noCollideAll(0)
+            DrillXwl = Drill:wirelink()
+            DrillXwl["On", number]=On
+            DrillNear = DrillPos:distance(Drill:pos()) < 100
+        }
+        
+        # Pod (max distance 350)
+        PodPos = DrillPos + PodOffset + (DrillNear ? vec() : vec(0,0,600))
+        maintainPosAng(Pod, PodPos, ang(), !Active)
+        
+        # CoreNode
+        NodePos = PodPos + vec(0,0,500)
+        maintainPosAng(CoreNode, NodePos, ang(), !Active)
+        
+        # WindGen
+        GenPos = NodePos + vec(0,0,100)
+        maintainPosAng(WindGen, GenPos, ang(), 1)
+        WindGen:lsLink(CoreNode)
+    }
+}
+
+event entityCreated(Entity:entity) {
+    if(Entity:type() == "sa_crystal"){
+        Index = 1
+        while(Index) {
+            Index = Crystals:indexOf(noentity())
+            Crystals:remove(Index)
+        }
+        Crystals:pushEntity(Entity)
+    }
+    if(Entity:type() == "sa_mining_drill"){ 
+        Drills = getOwnEntity("sa_mining_drill")
+    }
+}
+
+event chat(Player:entity, Message:string, Team:number) {
+    if(Player == owner()){
+        if(Message == "!mine"){
+            hideChat(1)
+            On=!On
+        }
+    }
+}
+
+event tick() {
+    if(On & Pod:driver() == owner()){
+        if(!TargetTib:isValid()){
+            TargetTib = nextTib()
+            TargetPos = Home
+            Active = 0
+        }
+        elseif(changed(TargetTib)){
+            TargetPos = TargetTib:pos()
+            Active = 1
+        }
+    }else{
+        TargetPos = Home
+        TargetTib = noentity()
+        Active = 0
+    }
+    
+    #Collision Detection
+    if(changed(TargetPos) & Moving == 0){
+        NextPos = nextSafePos(TargetPos, TargetTib)
+        if(NextPos != TargetPos){
+            #print("Moving")
+            Moving = 1
+        }
+    }
+    elseif(Moving) {
+        TarDrillPos = getTargetDrillPos(NextPos, TargetTib)
+        TarPodPos = TarDrillPos + PodOffset
+        if(Pod:pos():distance(TarPodPos) < 10){
+            #print("In Range of nextPos, getting new pos")
+            NextPos = nextSafePos(TargetPos, TargetTib)
+        }
+        if(NextPos == TargetPos){
+            #print("NextPos equal TargetPos end movement")
+            Moving = 0
+        }
+    }
+    maintainPos(NextPos, TargetTib)
+}

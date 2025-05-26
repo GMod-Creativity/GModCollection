@@ -1,0 +1,192 @@
+@name 39Bot (Chat)
+@inputs Ranger InTarget:entity QKill Override IsWorld ScanClk
+@inputs StopRam
+@outputs Aim PlayerTar:entity AimTar:entity Follow Fire Stay
+@outputs StaticPos:vector FollowTar:entity TurretM ScanClk
+@outputs Ram RamTarget:entity Grab Throw
+@persist Varc1 Varc2 Varc3 Follow Aim PlayerTar:entity 
+@persist Playername:string AimTar:entity Chatvar:string 
+@persist Distance QKill Stay StaticPos:vector Override
+@persist TurretM ScanClk Ram Grab Throw
+
+##### INITIAL #####
+runOnChat(1)
+##### SETTINGS #####
+E = entity():isWeldedTo()
+Owner = E:owner()
+Chatvar = Owner:lastSaid():lower()
+##### SPEECH #####
+if (Chatvar == "hello, 39bot." & chatClk(Owner)) {
+    print("Hello, master.")
+}
+if (Chatvar:sub(0,6) == "-color" & chatClk(Owner)) {
+    Varc1 = Owner:lastSaid():lower():sub(8,10):toNumber()
+    Varc2 = Owner:lastSaid():lower():sub(12,14):toNumber()
+    Varc3 = Owner:lastSaid():lower():sub(16,18):toNumber()
+    E:setColor(Varc1,Varc2,Varc3)
+    soundPlay("Deploy",1,"npc/turret_floor/ping.wav")
+    hint("Color changed.",7)
+}
+if (Chatvar:sub(0,11) == "-killplayer" & chatClk(Owner)) {
+    Playername = Owner:lastSaid():lower():sub(13,50):trim()
+    PlayerTar = findPlayerByName(Playername)
+    soundPlay("Deploy",1,"npc/turret_floor/deploy.wav")
+    Aim = 3
+    print("Attempting to terminate target...")
+}
+if (Chatvar == "-killtarget" & chatClk(Owner)) {
+    AimTar = Owner:aimEntity()
+    soundPlay("Deploy",1,"npc/turret_floor/deploy.wav")
+    Aim = 4
+    print("Attempting to terminate target...")
+}
+if (Chatvar == "-passive" & chatClk(Owner)) {
+    soundPlay("Deploy",1,"npc/turret_floor/deploy.wav")
+    Follow = 1
+    Stay = 0
+    Aim = 1
+    hint("Passive mode.",7)
+}
+if (Chatvar:sub(0,7)  == "-follow" & chatClk(Owner)) {
+    FollowName = Chatvar:sub(9,50):trim()
+    soundPlay("Deploy",1,"npc/turret_floor/deploy.wav")
+    if ( FollowName == "me" ) {
+        FollowTar = Owner
+    }
+    if ( FollowName != "me" ) {
+        FollowTar = findPlayerByName(FollowName)
+    }
+    Stay = 0
+    Follow = 1
+    hint("Following.",7)
+}
+if (Chatvar == "-stop" & chatClk(Owner)) {
+    soundPlay("Deploy",1,"npc/turret_floor/deploy.wav")
+    Follow = 0
+    Fire = 0
+    hint("Stopping.",7)
+}
+if (Chatvar == "-off" & chatClk(Owner)) {
+    soundPlay("Off",1,"npc/turret_floor/retract.wav")
+    Follow = 0
+    Aim = 0
+    Fire = 0
+    Stay = 0
+    hint("Turning off.",7)
+}
+if (Chatvar == "-look" & chatClk(Owner)) {
+    soundPlay("Deploy",1,"npc/turret_floor/deploy.wav")
+    Aim = 1
+    hint("Look mode.",7)
+}
+if (Chatvar == "-aim" & chatClk(Owner)) {
+    soundPlay("Deploy",1,"npc/turret_floor/deploy.wav")
+    Aim = 2
+    hint("Aim mode.",7)
+}
+if(Chatvar == "-info" & chatClk(Owner)) {
+    AimTar = Owner:aimEntity()
+    if ( AimTar:isPlayer() ) { 
+        print("Target is a player.") 
+        print("Name: "+AimTar:name())
+        print("Health: "+AimTar:health())
+        print("Armor: "+AimTar:armor())
+        print("Frags: "+AimTar:frags())
+    }
+    if ( AimTar:isNPC() ) { 
+        print("Target is an NPC.")
+        print("Type: "+AimTar:model())
+        print("Health: "+AimTar:health())
+    }
+    if ( AimTar:isVehicle() ) {
+        print("Target is a vehicle.")
+        print("Type: "+AimTar:model())
+    }
+    if ( AimTar:isWorld() ) {
+        print("Target is the world geometry.")
+    }
+    if ( !AimTar:isPlayer() & !AimTar:isNPC() & !AimTar:isVehicle() & !AimTar:isWorld() ) {
+        print("Target is a prop or other object.")
+        print("Type: "+AimTar:model())
+        print("Mass: "+AimTar:mass())
+        print("Size: "+AimTar:radius())
+    }
+}
+if (Chatvar == "-distance" & chatClk(Owner)) {
+    Dist = floor(Ranger)
+    print("Distance: "+Dist)
+}
+if (QKill & ~QKill) {
+    soundPlay("Deploy",1,"npc/turret_floor/deploy.wav")
+    AimTar = InTarget
+    Aim = 4
+}
+if (Chatvar == "-stay" & chatClk(Owner)) {
+    soundPlay("Deploy",1,"npc/turret_floor/deploy.wav")
+    hint("Holding position.",7)
+    StaticPos = E:pos()
+    Follow = 0
+    Stay = 1
+}
+if (Override) {
+    if (Follow) { Aim = 1 }
+    if (!Follow) { Aim = 0 }
+    soundStop("Alert1")
+}
+if (Chatvar:sub(0,6) == "-music" & chatClk(Owner)) {
+    Song = Chatvar:sub(8,11):trim():toNumber()
+    if ( Song == 1 ) { soundPlay("Music",0,"music/HL1_song10.mp3") }
+    if ( Song == 2 ) { soundPlay("Music",0,"music/HL2_song12_long.mp3") }
+    if ( Song == 3 ) { soundPlay("Music",0,"music/HL2_song20_submix0.mp3") }
+    soundVolume("Music",3)
+}
+if (Chatvar == "-stopmusic" & chatClk(Owner)) { soundStop("Music",3) }
+if (Chatvar == "-turret on" & chatClk(Owner)) { 
+    hint("Turret activated.",7)
+    TurretM = 1 
+}
+if (Chatvar == "-turret off" & chatClk(Owner)) { 
+    hint("Turret deactivated.",7)
+    TurretM = 0 
+}
+if (TurretM & $TurretM) {
+    StaticPos = E:pos()
+    Follow = 0
+    Stay = 1
+}
+if ( ScanClk ) { AimTar = InTarget }
+if ( ScanClk & TurretM & IsWorld == 0) { 
+    Aim = 4 
+}
+if (Chatvar:sub(0,4) == "-ram" & chatClk(Owner)) {
+    soundPlay("Deploy",1,"npc/turret_floor/deploy.wav")
+    FollowName = Chatvar:sub(6,50):trim()
+    FollowTar = findPlayerByName(FollowName)
+    hint("Attempting to ram player.",7)
+    Stay = 0
+    Follow = 0
+    Aim = 0
+    Ram = 1
+}
+if (Chatvar == "-stopram" & chatClk(Owner)) {
+    soundPlay("Deploy",1,"npc/turret_floor/retract.wav")
+    Ram = 0
+    hint("Ram mode off.",7)
+}
+if (StopRam) { Ram = 0 }
+if (Chatvar == "-grab" & chatClk(Owner)) {
+    soundPlay("Deploy",1,"npc/turret_floor/deploy.wav")
+    AimTar = Owner:aimEntity()
+    Grab = 1
+}
+if (Chatvar == "-drop" & chatClk(Owner)) {
+    soundPlay("Deploy",1,"npc/turret_floor/retract.wav")
+    Grab = 0
+}
+if (Chatvar == "-throw" & chatClk(Owner)) {
+    ##### soundPlay("",1,"")
+    Grab = 0
+    Throw = 1
+    timer("Throw",100)
+}
+if (clk("Throw")) { Throw = 0 }

@@ -1,0 +1,497 @@
+#HK-Drone V2 Made by Mike Dude (Blaylock1988)
+#This version was not originally inteded for release,
+#so the code has not been cleaned up yet and is
+#extreamly messy.  If you use this code or the missiles,
+#please give me credit.
+
+#credit to Jadestorm215{JBC} for the anti flip idea
+#credit to Peewee 1112 for testing, moral support
+#credit to HaloGuy for help with the sounds
+#credit to Sieze for being target practice
+#credit to Jayg20769 for help with the turrets and competition
+#credit to Dmitriy for help debugging missiles
+#credit to Riosnyper for whatever it was he did
+#credit to Grunt (Frozen), Dav1d, and Disco Biscuit for help
+#HUGE credit to Viktor for teaching me the 'for loop' for the missiles
+#credit to Disco's Public Build server and the guys there
+#credit to the WireMod forums and the people that helped there
+#credit to the others that helped but I forgot their names.
+
+
+@name HK-Drone V2
+@inputs RPod:entity LPod:entity APod:entity Pod:wirelink LTurret:entity RTurret:entity
+@outputs RThrust LThrust AThrust Time T:entity MissileReady MissileFire BombAmount I
+
+@outputs UpsideDown FlippedOff Angles:angle AAngle Stablize APitch PT:entity TurretFire
+
+@persist RPitch LPitch APitch TZ Altitude Roll Pitch RPodChange LPodChange Stablize
+@persist LTorque:vector RTorque:vector ATorque:vector Selfaware Init Inrange
+
+@persist AngVel ForwardVel SideVel SpeedCounter SpinCounter Right Left UpsideDown Torque
+
+@persist A D PT:entity T:entity F:entity Bearing Elevation Follow:vector Owner:entity Name:string Active
+@persist BombardAmount I
+
+@persist Go Defend BearingToAim BearingToFollow AAngle FlippedOff Target Aim Stay StayPos:vector
+###Weapon Systems
+@persist Fire Engage TargetPos:vector OLS:string Sounds:array Music:array RealWeapon
+@persist DistanceToTarget TPos:vector Time TargetPosMod:vector RPG RPGE:entity
+###Left LTurret
+@persist LAngles:angle LTAngles:angle LHeadingToTarget:angle
+@persist LTA:angle LTP LTY LTR LTPitch LTYaw LTRoll GyroL:angle
+###Right LTurret
+@persist RAngles:angle RTAngles:angle RHeadingToTarget:angle
+@persist RTA:angle RTP RTY RTR RTPitch RTYaw RTRoll GyroR:angle
+
+
+    runOnChat(1)
+    interval(20)
+
+
+if(first()|duped()){
+    Owner=entity():owner()
+    F=Owner
+    Time=0
+    Fire=0
+    Stay=0
+    Target=0
+    Defend=0
+    Engage=0
+    Aim=0
+    BombAmount=0
+    Torque=120 #120 normally
+    Altitude=entity():pos():z()
+    gSetGroup("Drone")
+    Sounds:setString(1,"npc/strider/striderx_alert5.wav")
+    Sounds:setString(2,"npc/strider/striderx_alert4.wav")
+    Sounds:setString(3,"npc/strider/striderx_alert2.wav")
+    Sounds:setString(4,"npc/strider/striderx_alert6.wav")
+    Sounds:setString(5,"npc/strider/striderx_alert2.wav")
+    Sounds:setString(6,"npc/strider/striderx_pain2.wav")
+    Sounds:setString(7,"npc/strider/striderx_pain5.wav")
+    Sounds:setString(8,"npc/strider/striderx_pain7.wav")
+    Sounds:setString(9,"npc/strider/striderx_pain8.wav")
+    Music:setString(1,"music/VLVX_song22.mp3")
+    Music:setString(2,"music/VLVX_song27.mp3")
+    Music:setString(3,"music/VLVX_song28.mp3")
+    Music:setString(4,"music/HL1_song25_remix3.mp3")
+    Music:setString(5,"music/VLVX_song23.mp3")
+    LTurret:setMass(8)
+    RTurret:setMass(8)
+}
+
+if(first()){
+    timer("FindRPG", 500)
+}
+if(clk("FindRPG")){
+    findIncludeClass("rpg_missile")
+    findIncludeClass("npc_grenade_frag")
+    findInSphere(entity():pos(),5000)
+    RPGE=findClosest(entity():pos())
+    timer("FindRPG", 500)
+}
+
+if(RPGE:type()=="rpg_missile"|RPGE:type()=="npc_grenade_frag"){
+    RPG=1
+}else{RPG=0}
+if(changed(RPG)){timer("Sound",0)}
+
+
+OLS=Owner:lastSaid()
+if(chatClk(Owner)){
+    if(OLS:left(3)=="/on"){
+        Active=1
+        hint("Activating",5)
+        RPod:soundPlay(0,0,"ambient/levels/citadel/portal_beam_loop1.wav")
+        LPod:soundPlay(1,0,"ambient/levels/citadel/portal_beam_loop1.wav")
+        APod:soundPlay(2,0,"ambient/levels/citadel/portal_beam_loop1.wav")
+       
+    }elseif(OLS:left(4)=="/off"&Active==1){
+        hint("Command Denied",5)
+        Stay=0
+        Selfaware=1
+    }
+    if(OLS:left(5)=="/help"){
+        hint("COMMANDS LIST:",10)
+        hint("/follow me",10)
+        hint("/follow <player name>",10)
+        hint("/stay",10)
+        hint("/defend",10)
+        hint("/passive",10)
+        hint("/aim",10)
+        hint("/target <player name>",10)
+        hint("/attack <player name>",10)
+        hint("/fire",10)
+        hint("/holdfire",10)
+        #timer("Sound",0)
+    }
+    if(Active==1&Selfaware==0){
+        timer("Sound",0)
+        if(OLS:left(7) == "/follow"){
+            Name = OLS:sub(9, OLS:length())
+            F = findPlayerByName(Name)
+            Stay=0
+            hint("Following "+F:name(), 5)
+            #timer("Sound",0)
+        }
+        if(OLS:left(5)=="/stay"){
+            StayPos=entity():pos()-vec(0,0,120)
+            Stay=1
+            Defend=0
+            findIncludeClass("npc_*")
+            findIncludeClass("player")
+            findExcludePlayer(Owner)
+            findInSphere(entity():pos(),99999999)
+            hint("Holding Position",5)
+            #timer("Sound",0)
+        }
+        if(OLS:left(8)=="/passive"){
+            Defend=0
+            Aim=0
+            Target=0
+            Engage=0
+            hint("Passive Mode",5)
+            #timer("Sound",0)
+        }
+        if(OLS:left(7)=="/target"){
+            Name = OLS:sub(9, OLS:length())
+            PT = findPlayerByName(Name)
+            Target=1
+            hint("Targetting "+PT:name(), 5)
+            Aim=0
+            Defend=0
+            #timer("Sound",0)
+        }
+        if(OLS:left(7)=="/attack"){
+            Name = OLS:sub(9, OLS:length())
+            PT,F = findPlayerByName(Name)
+            Stay=0
+            Engage=1
+            Target=1
+            Aim=0
+            Defend=0
+            hint("Attacking "+F:name(), 5)
+            #timer("Sound",0)
+        }
+        if(OLS:left(5)=="/fire"){
+            Engage=1
+            Target=1
+            Aim=0
+            Defend=0
+            hint("Fireing Upon "+PT:name(), 5)
+            #timer("Sound",0)
+        }
+        if(OLS:left(9)=="/holdfire"){
+            Engage=0
+            hint("Holding Fire",5)
+            #timer("Sound",0)            
+        }
+        if(OLS:left(6)=="/music"){
+            timer("Music",0)
+        }
+        if(OLS:left(8)=="/bombard"){
+            BombAmount = clamp(OLS:sub(10,OLS:length()):toNumber()*10,0,200)
+            timer("Bombard",0)
+        }
+    }
+}
+
+if(clk("Sound")){
+    entity():soundPlay(4,0,Sounds:string(randint(1,Sounds:count())))
+    soundPitch(4,randint(75,150)) 
+}
+if(clk("Music")){
+    soundStop(5)
+    entity():soundPlay(5,0,Music:string(randint(1,Music:count())))
+}
+
+
+if(!Active){
+    Altitude=entity():pos():z()
+}
+if(Active){
+
+
+
+    if(Stay==1){
+       Follow=StayPos
+    }else{
+        Follow=F:pos()
+    }
+    Weapon=Owner:weapon():id()
+    if(Weapon==69|Weapon==71|Weapon==63|Weapon==59|Weapon==10){
+        RealWeapon=1
+    }else{
+        RealWeapon=0
+    }
+    
+    if(Engage==1&PT:isAlive()&PT){
+        if((entity():pos():distance(TargetPos))>600){
+            MissileReady=1
+        }
+        if(entity():pos():distance(TargetPos)<5000){
+            TurretReady=1
+        }
+    }elseif(Aim==1&Owner:keyAttack1()&Owner:isAlive()&!RealWeapon){
+        TurretReady=1
+        MissileReady=1
+    }else{
+        MissileReady=0
+        TurretReady=0
+    }
+    
+
+    if(TurretReady|MissileReady){
+        Time++
+        if(Time==1){
+            TurretFire=1*TurretReady, MissileFire=0
+        }elseif(Time==50){
+            TurretFire=0*TurretReady
+            MissileFire=1*MissileReady
+        }elseif(Time==75){
+            MissileFire=2*MissileReady
+        }elseif(Time==100){
+            MissileFire=0*MissileReady
+            TurretFire=1*TurretReady
+        }elseif(Time==125){
+            MissileFire=0*MissileReady
+            TurretFire=1*TurretReady
+        }elseif(Time==150){
+            MissileFire=1*MissileReady
+            TurretFire=0*TurretReady
+        }elseif(Time==175){
+            MissileFire=2*MissileReady  
+            TurretFire=0*TurretReady
+        }elseif(Time>=200){
+            Time=0
+            MissileFire=1*MissileReady  
+            TurretFire=0*TurretReady
+        }elseif(Time==225){
+            MissileFire=2*MissileReady  
+            TurretFire=0*TurretReady
+        }elseif(Time>=250){
+            MissileFire=0
+            TurretFire=0
+            Time=0
+        }
+    }elseif(BombAmount>0){
+        Modulo=(BombAmount%20)
+        if(Modulo==5){MissileFire=1}
+        elseif(Modulo==0){MissileFire=2}
+        else{MissileFire=0}
+        BombAmount--
+        Time=0
+        TurretFire=0
+    }else{
+        Time=0
+        TurretFire=RPG
+        MissileFire=0
+    }
+    
+    
+
+    
+    if(RPG){T=RPGE}
+    else{T=PT}
+    
+    
+    
+    BearingToTarget=entity():bearing(T:pos())
+    BearingToFollow=entity():bearing(Follow)
+    BearingToAim=entity():bearing(Owner:aimPos())
+    
+    
+    
+    Forward=-Go*cos(BearingToFollow)
+    Strafe=Go*sin(BearingToFollow)*300
+    
+    
+    
+    if(Defend==1|Target==1|RPG==1){
+        Bearing=BearingToTarget
+        TargetPos=T:pos()
+    }elseif(Aim==1){
+        TargetPos=Owner:aimPos()
+        Bearing=BearingToAim
+    }else{
+        Bearing=BearingToFollow
+    }
+
+        Turn=(Bearing+5*$Bearing)/90
+    
+    Radius=300
+    Distance=entity():pos():setZ(0):distance(Follow:setZ(0))
+    if(TZ>100){Forward=0}
+    elseif(Distance>Radius){
+        Go=clamp((Distance-Radius)*1.5/Radius,-1,1)
+    }else{Go=-0.02}
+    
+    
+    soundPitch(0,clamp(abs(RPitch)*3+120,80,200))
+    soundPitch(1,clamp(abs(LPitch)*3+120,80,200))
+    soundPitch(2,clamp(abs(APitch)*3+120,80,200))
+    
+    ###Minimum Height
+        
+    rangerHitWater(1)
+    rangerFilter(entity():isWeldedTo())
+    RD = rangerOffset(9999999,entity():pos(),vec(0,0,-1))
+    Ground = RD:position():z()+150
+    
+    ###Flying Altitude
+    
+
+    
+    ###Maintain Altitude
+    
+    Altitude=clamp(Follow:z()+200,Ground,999999999)
+    Z = entity():pos():z()
+    TZ = (-Z + Altitude)
+    HoverThrust=(TZ+$TZ*15)*2
+    
+    
+    ###Angle of Thruster Pods
+    
+    GoAngle=55*(Forward)
+    TurnAngle=40*(Turn)
+    
+    
+    if(Pitch>75|abs(Roll)>90){
+        UpsideDown=-1
+        FlippedOff=0
+        APitch=entity():angles():pitch()
+    }elseif(Pitch<-30){
+        APitch=-entity():angles():pitch()
+        Stablize=0
+    }else{
+        UpsideDown=1
+        FlippedOff=1
+        Stablize=1
+        APitch=clamp((FlippedOff*Stablize*(GoAngle+SpeedCounter)),-90,90)
+    }
+    
+
+    RPitch=clamp((FlippedOff*(GoAngle+TurnAngle+SpeedCounter+SpinCounter)),-90,90)
+    LPitch=clamp((FlippedOff*(GoAngle-TurnAngle+SpeedCounter-SpinCounter)),-90,90)
+    
+    Rotation = ang(-RPitch,0,0)
+    Local = RPod:toLocal(vec(0,0,-1) + RPod:pos())
+    RTorque = (vec(0,0,1):rotate(Rotation):cross(Local) * 400 - RPod:angVelVector() * 1/3) * vec(0,RPod:inertia():y(),0)
+    RPod:applyTorque(RTorque*130)
+    
+    Rotation = ang(-LPitch,0,0)
+    Local = LPod:toLocal(vec(0,0,-1) + LPod:pos())
+    LTorque = (vec(0,0,1):rotate(Rotation):cross(Local) * 400 - LPod:angVelVector() * 1/3) * vec(0,LPod:inertia():y(),0)
+    LPod:applyTorque(LTorque*130)
+    
+    Rotation = ang(-APitch,0,0)
+    Local = APod:toLocal(vec(0,0,-1) + APod:pos())
+    ATorque = (vec(0,0,1):rotate(Rotation):cross(Local) * 400 - APod:angVelVector() * 1/3) * vec(0,APod:inertia():y(),0)
+    APod:applyTorque(ATorque*130)
+    
+    
+    ###Hover Balance
+    
+    Angles=entity():angles()
+    Roll=-Angles:roll()
+    Pitch=Angles:pitch()
+    Yaw=Angles:yaw()
+    RollCounter=(Roll+$Roll*3)*10
+    PitchCounter=(Pitch+$Pitch*4)*3.5-25
+    StrafeCounter=(SideVel+$SideVel*0.25)/3
+    
+    RThrust=clamp(FlippedOff*((HoverThrust/cos(RPitch))-RollCounter-StrafeCounter-Strafe),0,50)
+    LThrust=clamp(FlippedOff*((HoverThrust/cos(LPitch))+RollCounter+StrafeCounter+Strafe),0,50)
+    AThrust=clamp(FlippedOff*((HoverThrust/cos(APitch)*0-PitchCounter))+30*!FlippedOff,-40*!FlippedOff,40)
+    
+        
+    ###Counter Movement
+    
+    ForwardVel=entity():velL():x()
+    SideVel=entity():velL():y()
+    AngVel=entity():angVel():yaw()
+
+        SpeedCounter=(ForwardVel+$ForwardVel*1)*(1-Go)/10
+        SpinCounter=(AngVel+$AngVel*5)/6
+
+
+    TargetPosMod=TargetPos + vec(0,0,30) * (T:isPlayer()|T:isNPC()) * !T:inVehicle()
+    gSetNum("Fire",MissileFire)
+    gSetVec("TargetPos",TargetPos)
+    if(Target==1|RPG==1){
+        Speed = 1000
+        Dist = entity():pos():distance(TargetPos)
+        TPos = TargetPosMod + $TargetPosMod*(Dist/Speed)
+    }elseif(Aim==1){
+        TPos=TargetPos
+    }
+    LTurretAngles=LTurret:angles()
+    RTurretAngles=RTurret:angles()
+    LTurretCenter=LTurret:massCenter()
+    RTurretCenter=RTurret:massCenter()
+    if(Target==1|Aim==1|RPG==1|Defend==1){
+        
+        PL = LTurret:elevation(TPos)
+        YL = LTurret:bearing(TPos)
+        RL = LTurret:angles():roll()
+        LTA = -ang(PL,YL,RL) * 13
+        
+        PR = RTurret:elevation(TPos)
+        YR = RTurret:bearing(TPos)
+        RR = RTurret:angles():roll()
+        RTA = -ang(PR,YR,RR) * 13
+        
+    }else{
+        
+        LTA=(Angles-LTurretAngles)*13
+        
+        
+        RTA=(Angles-RTurretAngles)*13
+    }
+    
+        ###Left Turret
+        
+        LTAngles=(LTA*1+$LTA*5)*FlippedOff
+
+        LTurret:applyAngForce(LTAngles)
+        
+        ###Right Turret
+        
+        RTAngles=(RTA*1+$RTA*5)*FlippedOff
+
+        RTurret:applyAngForce(RTAngles)        
+        
+}else{
+    RTorque=vec(180,0,0)
+    LTorque=vec(180,0,0)
+    ATorque=vec(180,0,0)
+    RThrust=0
+    LThrust=0
+    AThrust=0
+}
+
+#Selfaware Override
+if(Active==1&Selfaware==1){
+    #Targeting/Idle
+    findIncludeClass("player")
+    if(randint(200)==2){Init=1}
+    if(Init){F=findClosest(entity():pos())}
+    if(F:isAlive()==0){Init=0,F=noentity(),PT=noentity()}
+    Inrange=(F:pos():distance(entity():pos())<=1500)
+    #Functions
+    Engage=Inrange
+    if(!Init){
+        Aim=0
+        Target=0
+        Engage=0
+    }
+    if(Init){
+        PT=F
+        Stay=0
+        Target=1
+        Aim=0
+    }
+    if(~Init|~Selfaware){
+        timer("Music",0)
+    }
+}

@@ -1,0 +1,93 @@
+@name MMM
+@persist Out:array Targ:array M1 Damage Last
+if (minquota()<2000) {exit()}
+if (first()) {
+    Last=curtime()
+    Damage=1
+    Out=array()
+    for (I=1,15)  {Out[I,number]=0}
+    Targ=array()
+    for (I=1,15)  {Out[I,number]=0}
+    for (I=1,15)  {holoCreate(I,vec(),owner():pos(),ang(),vec(255,0,255)),holoScaleUnits(I,vec(30,2,2)),holoModel(I,"hqicosphere2")}
+    runOnTick(1)
+    runOnLast(1)
+    timer("31",1200)
+}
+if (clk("31")) {holoCreate(31),holoAlpha(31,0)}
+if (first()) {
+    Data=array()
+    Str="This script is configured by default to use my weapon, 'weapon_hands', change it if you want."
+    StrC=Str:length()
+    for (I=1,StrC*2,2) {Data[I,vector]=hsv2rgb(vec(I*360/StrC,1,1))}
+    for (I=2,StrC*2,2) {Data[I,string]=Str:index(I/2)}
+    printColor(Data)
+}
+elseif (last()) {
+    Data=array()
+    Str="Thanks for using Multiple Magic Missile by Whitewater!"
+    StrC=Str:length()
+    for (I=1,StrC*2,2) {Data[I,vector]=hsv2rgb(vec(I*360/StrC,1,1))}
+    for (I=2,StrC*2,2) {Data[I,string]=Str:index(I/2)}
+    printColor(Data)
+}
+
+if (owner():weapon():type()=="weapon_hands") {
+#Move missiles.
+for (I=1,15)  {
+    if (Out[I,number]) {
+        Tar=Targ[I,entity]
+        holoAlpha(I,200)
+        Bolt=holoEntity(I)
+        Dist=Bolt:pos():distance(Tar:pos())
+        LeadA=Bolt:vel():length()*0.00005
+        LeadB=Tar:vel():length()*0.00000004
+        LeadP=Tar:vel()*LeadB*Dist-Bolt:vel()*LeadA
+        Goal=(Tar:pos()-Bolt:pos()+vec(0,0,30)+LeadP):toAngle()
+        holoAng(I,Goal)
+        holoPos(I,Bolt:pos()+Bolt:eye()*25)
+        if (Bolt:pos():distance(Tar:pos()+vec(0,0,30))<26) {
+            if (Damage) {
+                holoPos(31,Tar:pos()+vec(0,0,15))
+                holoEntity(31):shootTo(vec(0,0,1),0,100000,Damage)
+            }
+            Out[I,number]=0
+            Tar=noentity()
+        }
+        elseif (Tar:health()<=0) {
+            Out[I,number]=0
+            Tar=noentity()
+        }
+    }
+    else {holoAlpha(I,0)}
+}
+
+#Pick up mice!
+M1=owner():keyAttack1()
+
+#Fire missiles.
+if (M1&curtime()>Last+0.1) {
+    Last=curtime()
+    for (I=1,15)  {
+        if (Out[I,number]==0) {
+            findExcludeEntity(owner())
+            findIncludeClass("player")
+            findIncludeClass("prop_physics")
+            findInCone(owner():shootPos(),owner():eye(),30000,7.5)
+            A=findToArray()
+            if (find()) {
+                for (I2=1,A:count()) {
+                    if (A[I2,entity]:health()>0) {
+                        holoPos(I,owner():shootPos()+randvec(vec(-200,-200,-50),vec(200,200,50)))
+                        holoAng(I,owner():eyeAngles())
+                        Out[I,number]=1
+                        Targ[I,entity]=findResult(I2)
+                        holoEntity(I):setTrails(50,0,0.5,"trails/laser",vec(255,0,255),255)
+                        exit()
+                    }
+                }
+            }
+            exit()
+        }
+    }
+}
+}

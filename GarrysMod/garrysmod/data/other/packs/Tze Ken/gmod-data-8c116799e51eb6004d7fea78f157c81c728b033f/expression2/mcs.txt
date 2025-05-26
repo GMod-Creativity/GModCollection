@@ -1,0 +1,1108 @@
+@name MCS Interface
+#Display Inputs
+@inputs Screen:wirelink
+#Main Inputs
+@inputs Toggle Reset Points:array
+@outputs Ore MaxOre Health Energy MaxEnergy
+@outputs GenStat LaOut MinerPos:vector
+#Functional Outputs
+@outputs MiCmd MiReturn GenCmd Autostart RoidConc
+#Debug Outputs/Persists
+@persist Page:string X Y Use Alert
+#Other Outputs/Persists
+@persist THr:string TMn:string TSc:string OST:string 
+@persist ETAH ETAM ETAS CurrentPlayer:entity
+#Main Persists
+@persist On LRate Percent Time Time2 Time3
+#Password Persists
+@persist PW:string PWCen:string IAlp
+#Settings Persists
+@persist WayDispMode MinerVars:gtable
+@trigger Toggle Reset Use
+#Other Persists
+@outputs Poly:array MinXY:vector2 MaxXY:vector2 RangeXY:vector2
+
+if(first()){
+    #Init values
+    CurrentPlayer = owner()
+    On = 0
+    MiCmd = 1
+    GenCmd = 0
+    Autostart = 1
+    X = 0
+    Y = 0
+    MinXY = vec2(0,0)
+    RangeXY = vec2(0,0)
+    WayDispMode = 0
+    Use = 0
+}
+
+if(first()|duped()){
+    MinerVars = gTable("miner")
+
+    #Functions
+    #Draw Waypoint Functions
+    function vector2 getminxy(){
+        XCmp=array()
+        YCmp=array()
+        for(I=1,Points:count()){
+            XCmp[I, number] = Points[I, entity]:pos():x()
+        }
+        for(I=1,Points:count()){
+            YCmp[I, number] = Points[I, entity]:pos():y()
+        }
+        return vec2(XCmp:min(),YCmp:min())
+    }
+    
+    function vector2 getmaxxy(){
+        XCmp=array()
+        YCmp=array()
+        for(I=1,Points:count()){
+            XCmp[I, number] = Points[I, entity]:pos():x()
+        }
+        for(I=1,Points:count()){
+            YCmp[I, number] = Points[I, entity]:pos():y()
+        }
+        return vec2(XCmp:max(),YCmp:max())
+    }
+    
+    function array toXY(){
+        Poly=array()
+        for(I=1,Points:count()){
+            Poly[I, vector2] = (vec2(Points[I, entity]:pos():x(),Points[I, entity]:pos():y())-MinXY)/RangeXY*vec2(320,-320)+vec2(30,385)
+        }
+        return Poly
+    }
+    
+}
+
+interval(600)
+#GTable values
+Health = MinerVars["Health", number]
+GenStat = MinerVars["GenStat", number]
+LaOut = MinerVars["LaserStat", number]
+Ore = MinerVars["Ore", number]
+MaxOre = MinerVars["MaxOre", number]
+Energy = MinerVars["Energy", number]
+MaxEnergy = MinerVars["MaxEnergy", number]
+MinerPos = MinerVars["Teleporter", entity]:pos()
+
+#Time
+THr=toString(time("hour"))
+TMn=toString(time("min"))
+TSc=toString(time("sec"))
+if(time("hour")<10){THr="0"+THr}
+if(time("min")<10){TMn="0"+TMn}
+if(time("sec")<10){TSc="0"+TSc}
+OST=THr+":"+TMn+":"+TSc
+#Miner Stats
+if((MaxOre-Ore)/LaOut/60<_INF){
+    ETAS=floor((MaxOre-Ore)/LaOut%60)
+    ETAM=floor((MaxOre-Ore)/LaOut/60%60)
+    ETAH=floor((MaxOre-Ore)/LaOut/60/60)
+}else{ETAH=0,ETAS=0,ETAM=0}
+
+#Miner Control
+if(Ore==MaxOre){
+    MiCmd=0
+}
+#Autorestart
+if(changed(Ore)&Ore==0&Autostart==1){
+    MiCmd=1
+}
+
+#Init
+if(first()){
+    Page="startup"
+    Screen:egpClear()
+    Time3=8
+    RoidConc=0.9
+}
+if(dupefinished()){
+    Screen:egpClear()
+    RoidConc=0.9
+}
+
+#Reset
+if(Reset){Time=0,Time2=0,Percent=0
+    Screen:egpClear()
+    Page="startup"
+}
+
+#Startup Animation
+if(~Toggle&Toggle){On=!On}
+if(On&Page=="startup"){Time+=1}
+if(On&Page=="title"){Time2+=1}
+if(On&Page=="shutdown"){On=0}
+if(On&Time>11){Page="load"}
+if(!On&Time3>17){Page="startup"}
+if(On&Time2>5){Page="login"}
+if(On&Percent>=100){Page="title"}
+if(!On&Time3<=7&Page!="startup"){Page="shutdown"}
+
+#Sound
+if((~Toggle&Toggle)|(~Reset&Reset)){soundPlay(1,2,"buttons/lightswitch2.wav")}
+
+if(changed(Page)){
+    Screen:egpClear()
+}
+
+#Shutdown Page#
+if(Page=="shutdown"){
+    Time3+=1
+    Screen:egpText(1,"MCS",vec2(146,167))
+    Screen:egpColor(1,vec4(0,128,255,255))
+    Screen:egpBoxOutline(3,vec2(257,223),vec2(224,86))
+    Screen:egpColor(3,vec4(0,128,255,255))
+    Screen:egpFont(1,"coolvetica",128)
+    Screen:egpText(2,"",vec2(148,384))
+    Screen:egpFont(2,"coolvetica",22)
+    Screen:egpColor(2,vec4(0,128,255,255))
+    Time=0,Time2=0,Percent=0,IAlp=0,PW="",PWCen=""
+    if(Time3>=3&Time3<6){Screen:egpSetText(2,"Disconnecting Miner")}
+    if(Time3>=6&Time3<12){Screen:egpSetText(2,"Saving your settings")}
+    if(Time3>=13&Time3<=16){Screen:egpSetText(2,"MCS is shutting down")}
+}
+
+#Blank Page#
+if(!On&Page=="startup"){
+    Screen:egpBox(0,vec2(0,0),vec2(512,512))
+    Screen:egpColor(0,vec4(0,0,0,255))
+    Time=0,Time2=0,Percent=0
+}
+
+#Startup Page#
+if(On&Page=="startup"){
+    if(Time<=1){
+        Time3=0
+        Screen:egpText(1,"MCS V7.01",vec2(4,4))
+        Screen:egpColor(1,vec4(255,255,255,255))
+        Screen:egpText(2,"Booting System...",vec2(4,50))
+        Screen:egpColor(2,vec4(255,255,255,255))
+        Screen:egpFont(1,"lucida console",22)
+        Screen:egpFont(2,"lucida console",22)
+    }
+    if(Time==4){
+        Screen:egpSetText(2,"Booting System... Done")
+    }
+    if(Time==5){
+        Screen:egpText(3,"Checking Inputs... Done",vec2(4,68))
+        Screen:egpColor(3,vec4(255,255,255,255))
+        Screen:egpText(4,"Initializing MCS",vec2(4,86))
+        Screen:egpColor(4,vec4(255,255,255,255))
+        Screen:egpFont(3,"lucida console",22)
+        Screen:egpFont(4,"lucida console",22)
+    }
+    if(Time==6){
+        Screen:egpSetText(4,"Initializing MCS.")
+    }
+    if(Time==7){
+        Screen:egpSetText(4,"Initializing MCS..")
+    }
+    if(Time==8){
+        Screen:egpSetText(4,"Initializing MCS...")
+    }
+    if(Time==9){
+        Screen:egpSetText(4,"Initializing MCS.")
+    }
+    if(Time==10){
+        Screen:egpSetText(4,"Initializing MCS..")
+    }
+}
+
+#Loading Page#
+if(On&Page=="load"){
+    Time=0
+    LRate=random(25)
+    Percent+=LRate
+    Percent=min(Percent,100)
+    XSize = Percent/100*380/2
+    Screen:egpBox(1,vec2(66+XSize,385),vec2(floor(XSize)*2,28))
+    Screen:egpColor(1,vec4(0,128,255,255))
+    Screen:egpBoxOutline(2,vec2(256,385),vec2(388,36))
+    Screen:egpColor(2,vec4(0,128,255,255))
+    Screen:egpText(3,"Loading... "+round(Percent)+"%",vec2(64,342))
+    Screen:egpColor(3,vec4(0,128,255,255))
+    Screen:egpFont(3,"coolvetica",22)
+}
+
+#Logo Display Page#
+if(On&Page=="title"){
+    Percent=0
+    Screen:egpText(1,"MCS",vec2(146,167))
+    Screen:egpColor(1,vec4(0,128,255,255))
+    Screen:egpText(2,"(C)2010-2024 XN-Miners Corp.",vec2(135,384))
+    Screen:egpColor(2,vec4(0,128,255,255))
+    Screen:egpBoxOutline(3,vec2(257,223),vec2(224,86))
+    Screen:egpColor(3,vec4(0,128,255,255))
+    Screen:egpFont(1,"coolvetica",128)
+    Screen:egpFont(2,"coolvetica",22)
+}
+
+if(first()|duped()){
+function handleAlert(IndexOffset:number){
+    if(Ore==MaxOre|Energy/MaxEnergy<0.05){Alert=1}
+    if(Alert){
+        #Alert Base
+        Screen:egpBox(IndexOffset,vec2(256,200),vec2(256,128))
+        Screen:egpColor(IndexOffset,vec4(100,100,100,240))
+        Screen:egpCircle(IndexOffset+1,vec2(370,150),vec2(8,8))
+        Screen:egpColor(IndexOffset+1,vec4(200,0,0,200))
+        Screen:egpText(IndexOffset+2,"X",vec2(365,139))
+        Screen:egpFont(IndexOffset+2,"coolvetica",22)
+        Screen:egpColor(IndexOffset+2,vec4(0,0,0,200))
+    
+        if(Ore==MaxOre){
+        #Alert Ore Full
+        Screen:egpText(IndexOffset+3,"Ore Full!",vec2(140,150))
+        Screen:egpFont(IndexOffset+3,"coolvetica",30)
+        Screen:egpColor(IndexOffset+3,vec4(255,255,255,255))
+        Screen:egpBox(IndexOffset+4,vec2(256,240),vec2(150,30))
+        Screen:egpColor(IndexOffset+4,vec4(0,255,128,140))
+        Screen:egpText(IndexOffset+5,"Create Plug",vec2(195,228))
+        Screen:egpFont(IndexOffset+5,"coolvetica",26)
+        Screen:egpColor(IndexOffset+5,vec4(255,255,255,255))
+        Screen:egpCircle(IndexOffset+7,vec2(0,0),vec2(4,4))
+        Screen:egpParentToCursor(IndexOffset+7)
+            if(Use&X>362&Y>142&X<379&Y<159){
+            Alert=0
+            }elseif(Use&X>180&Y>225&X<332&Y<257){
+            Alert=0
+            }
+        }elseif(Energy/MaxEnergy<0.05){
+        #Alert Energy Low
+        MiCmd=0
+        Screen:egpText(IndexOffset+3,"Energy Low!",vec2(140,150))
+        Screen:egpFont(IndexOffset+3,"coolvetica",30)
+        Screen:egpColor(IndexOffset+3,vec4(255,255,255,255))
+        Screen:egpBox(IndexOffset+4,vec2(256,240),vec2(100,30))
+        Screen:egpColor(IndexOffset+4,vec4(200,0,0,200))
+        Screen:egpText(IndexOffset+5,"Close",vec2(225,228))
+        Screen:egpFont(IndexOffset+5,"coolvetica",26)
+        Screen:egpColor(IndexOffset+5,vec4(255,255,255,255))
+        Screen:egpCircle(IndexOffset+7,vec2(0,0),vec2(4,4))
+        Screen:egpParentToCursor(IndexOffset+7)
+            if((Use&X>362&Y>142&X<379&Y<159)|(Use&X>205&Y>225&X<306&Y<257)){
+            Alert=0
+            }
+        }else{Alert=0}
+    } else {
+        Screen:egpRemove(IndexOffset)
+        Screen:egpRemove(IndexOffset+1)
+        Screen:egpRemove(IndexOffset+2)
+        Screen:egpRemove(IndexOffset+3)
+        Screen:egpRemove(IndexOffset+4)
+        Screen:egpRemove(IndexOffset+5)
+        Screen:egpRemove(IndexOffset+7)
+    }
+}
+
+function adminPageButtons(){
+    #Global Buttons
+    Screen:egpBox(10,vec2(444,65),vec2(126,30))
+    Screen:egpColor(10,vec4(0,128,255,255))
+    Screen:egpText(11,"Main",vec2(385,55))
+    Screen:egpFont(11,"lucida console",20)
+    Screen:egpColor(11,vec4(0,0,0,255))
+    Screen:egpBox(12,vec2(444,100),vec2(126,30))
+    Screen:egpColor(12,vec4(0,128,255,255))
+    Screen:egpText(13,"Controls",vec2(385,90))
+    Screen:egpFont(13,"lucida console",20)
+    Screen:egpColor(13,vec4(0,0,0,255))
+    Screen:egpBox(14,vec2(444,135),vec2(126,30))
+    Screen:egpColor(14,vec4(0,128,255,255))
+    Screen:egpText(15,"Waypoints",vec2(385,125))
+    Screen:egpFont(15,"lucida console",20)
+    Screen:egpColor(15,vec4(0,0,0,255))
+    Screen:egpBox(16,vec2(444,170),vec2(126,30))
+    Screen:egpColor(16,vec4(0,128,255,255))
+    Screen:egpText(17,"Plug",vec2(385,160))
+    Screen:egpFont(17,"lucida console",20)
+    Screen:egpColor(17,vec4(0,0,0,255))
+    Screen:egpBox(18,vec2(444,205),vec2(126,30))
+    Screen:egpColor(18,vec4(0,128,255,255))
+    Screen:egpText(19,"About",vec2(385,195))
+    Screen:egpFont(19,"lucida console",20)
+    Screen:egpColor(19,vec4(0,0,0,255))
+    
+    if(!Alert&Use){
+        if(X>380&Y>49&X<504&Y<79){
+            Page="noone_main"
+        }
+        if(X>380&Y>84&X<504&Y<114){
+            Page="noone_ctrl"
+        }
+        if(X>380&Y>120&X<504&Y<148){
+            Page="noone_waypoints"
+        }
+        if(X>380&Y>156&X<504&Y<184){
+            # Plug
+            Screen:egpColor(16,vec4(0,128,255,100))
+        }
+        if(X>380&Y>190&X<504&Y<218){
+            Page="noone_about"
+        }
+    }
+}
+
+function guestPageButtons(){
+    #Global Buttons
+    Screen:egpBox(10,vec2(444,65),vec2(126,30))
+    Screen:egpColor(10,vec4(0,128,255,255))
+    Screen:egpText(11,"Main",vec2(385,55))
+    Screen:egpFont(11,"lucida console",25)
+    Screen:egpColor(11,vec4(0,0,0,255))
+    Screen:egpBox(12,vec2(444,100),vec2(126,30))
+    Screen:egpColor(12,vec4(0,128,255,255))
+    Screen:egpText(13,"About",vec2(385,90))
+    Screen:egpFont(13,"lucida console",25)
+    Screen:egpColor(13,vec4(0,0,0,255))
+
+    if(!Alert&Use){
+        if(X>380&Y>84&X<504&Y<114){
+            Page="user_about"
+        }
+        if(X>380&Y>49&X<504&Y<79){
+            Page="user_main"
+        }
+    }
+}
+
+function staticUI(User:string){
+    #Static global elements
+    Screen:egpBox(1,vec2(256,22),vec2(500,30))
+    Screen:egpColor(1,vec4(0,128,255,255))
+    Screen:egpText(2,"User: "+User,vec2(12,12))
+    Screen:egpFont(2,"coolvetica",25)
+    Screen:egpColor(2,vec4(0,0,0,255))
+    Screen:egpText(3,OST,vec2(420,12))
+    Screen:egpFont(3,"coolvetica",25)
+    Screen:egpColor(3,vec4(0,0,0,255))
+    Screen:egpBox(4,vec2(450,480),vec2(95,30))
+    Screen:egpColor(4,vec4(255,0,0,255))
+    Screen:egpText(5,"Shut Down",vec2(410,470))
+    Screen:egpColor(5,vec4(0,0,0,255))
+    Screen:egpBox(6,vec2(344,480),vec2(100,30))
+    Screen:egpColor(6,vec4(0,255,100,255))
+    Screen:egpText(7,"Switch User",vec2(300,470))
+    Screen:egpColor(7,vec4(0,0,0,255))
+    Screen:egpLine(8,vec2(380,30),vec2(380,450))
+    Screen:egpColor(8,vec4(0,128,255,255))
+    Screen:egpLine(9,vec2(0,450),vec2(512,450))
+    Screen:egpColor(9,vec4(0,128,255,255))
+    
+    #Static global buttons
+    if(!Alert & Use){
+        if(X>294&Y>466&X<394&Y<495){
+            Page="login"
+        }
+        if(X>403&Y>466&X<495&Y<495){
+            Page="shutdown"
+            On=0
+        }
+    }
+    
+    if(User == owner():name()){
+        adminPageButtons()
+    }
+    else{
+        guestPageButtons()
+    }
+
+    #Cursor
+    Screen:egpCircle(999,vec2(0,0),vec2(4,4))
+    Screen:egpParentToCursor(999)
+
+    if(changed(Page)){
+        Screen:egpClear()
+    }
+}
+
+function handleInteractive(){
+#Login Interface Page#
+if(On&Page=="login"){
+    Screen:egpBox(1,vec2(240,75),vec2(400,50))
+    Screen:egpColor(1,vec4(0,128,255,100))
+    Screen:egpText(2,"NoOneLiv3",vec2(50,50))
+    Screen:egpColor(2,vec4(0,0,0,255))
+    Screen:egpText(3,"Administrator",vec2(50,100))
+    Screen:egpColor(3,vec4(0,255,128,0))
+    Screen:egpFont(2,"coolvetica",50)
+    Screen:egpFont(3,"coolvetica",20)
+    Screen:egpBox(4,vec2(240,175),vec2(400,50))
+    Screen:egpColor(4,vec4(0,128,255,100))
+    Screen:egpText(5,"Guest",vec2(50,148))
+    Screen:egpColor(5,vec4(0,0,0,255))
+    Screen:egpText(6,"Unregistered",vec2(50,200))
+    Screen:egpColor(6,vec4(0,255,128,0))
+    Screen:egpFont(5,"coolvetica",50)
+    Screen:egpFont(6,"coolvetica",20)
+    Screen:egpBox(7,vec2(240,448),vec2(400,50))
+    Screen:egpColor(7,vec4(255,0,0,255))
+    Screen:egpCircle(8,vec2(70,448),vec2(40,40))
+    Screen:egpColor(8,vec4(255,0,0,255))
+    Screen:egpCircle(9,vec2(70,448),vec2(30,30))
+    Screen:egpColor(9,vec4(0,0,0,255))
+    Screen:egpBox(10,vec2(69,412),vec2(16,18))
+    Screen:egpColor(10,vec4(0,0,0,255))
+    Screen:egpBox(11,vec2(69,426),vec2(10,36))
+    Screen:egpColor(11,vec4(255,0,0,255))
+    Screen:egpText(12,"Shutdown",vec2(110,425))
+    Screen:egpColor(12,vec4(0,0,0,255))
+    Screen:egpFont(12,"coolvetica",50)
+    Screen:egpCircle(13,vec2(0,0),vec2(4,4))
+    Screen:egpParentToCursor(13)
+    if(X>50&Y>50&X<260&Y<92){
+        Screen:egpColor(3,vec4(0,255,128,255))
+        if(Use){
+            Page="noone_pw"
+        }
+    }else{
+        Screen:egpColor(3,vec4(0,0,0,0))
+    }
+    if(X>50&Y>148&X<260&Y<190){
+        Screen:egpColor(6,vec4(0,255,128,255))
+        if(Use){
+            Page="user_main"
+        }
+    }else{
+        Screen:egpColor(6,vec4(0,0,0,0))
+    }
+    if(X>30&Y>400&X<300&Y<490){
+        Screen:egpColor(7,vec4(255,0,0,255))
+        Screen:egpColor(12,vec4(0,0,0,255))
+        if(Use){
+            Page="shutdown"
+            On=0
+        }
+    }else{
+        Screen:egpColor(7,vec4(255,0,0,0))
+        Screen:egpColor(12,vec4(0,0,0,0))
+    }
+    PW=""
+    PWCen=""
+    Time2=0
+}
+
+if(On){
+#Password Page#
+if(Page=="noone_pw"){
+    #Button Shapes
+    Screen:egpBoxOutline(1,vec2(250,80),vec2(400,60))
+    Screen:egpColor(1,vec4(0,128,255,255))
+    Screen:egpBox(2,vec2(90,190),vec2(80,80))
+    Screen:egpColor(2,vec4(0,128,255,255))
+    Screen:egpBox(3,vec2(180,190),vec2(80,80))
+    Screen:egpColor(3,vec4(0,128,255,255))
+    Screen:egpBox(4,vec2(270,190),vec2(80,80))
+    Screen:egpColor(4,vec4(0,128,255,255))
+    Screen:egpBox(5,vec2(90,280),vec2(80,80))
+    Screen:egpColor(5,vec4(0,128,255,255))
+    Screen:egpBox(6,vec2(180,280),vec2(80,80))
+    Screen:egpColor(6,vec4(0,128,255,255))
+    Screen:egpBox(7,vec2(270,280),vec2(80,80))
+    Screen:egpColor(7,vec4(0,128,255,255))
+    Screen:egpBox(8,vec2(90,370),vec2(80,80))
+    Screen:egpColor(8,vec4(0,128,255,255))
+    Screen:egpBox(9,vec2(180,370),vec2(80,80))
+    Screen:egpColor(9,vec4(0,128,255,255))
+    Screen:egpBox(10,vec2(270,370),vec2(80,80))
+    Screen:egpColor(10,vec4(0,128,255,255))
+    Screen:egpBox(11,vec2(180,460),vec2(80,80))
+    Screen:egpColor(11,vec4(0,128,255,255))
+    Screen:egpBox(12,vec2(385,190),vec2(130,80))
+    Screen:egpColor(12,vec4(0,255,100,255))
+    Screen:egpBox(13,vec2(385,280),vec2(130,80))
+    Screen:egpColor(13,vec4(255,0,0,255))
+    Screen:egpBox(14,vec2(385,370),vec2(130,80))
+    Screen:egpColor(14,vec4(255,0,0,255))
+    
+    #Static Text
+    Screen:egpText(15,"Enter Password:",vec2(50,10))
+    Screen:egpColor(15,vec4(0,128,255,255))
+    Screen:egpText(16,"1",vec2(70,165))
+    Screen:egpColor(16,vec4(0,0,0,255))
+    Screen:egpText(17,"2",vec2(160,165))
+    Screen:egpColor(17,vec4(0,0,0,255))
+    Screen:egpText(18,"3",vec2(250,165))
+    Screen:egpColor(18,vec4(0,0,0,255))
+    Screen:egpText(19,"4",vec2(70,255))
+    Screen:egpColor(19,vec4(0,0,0,255))
+    Screen:egpText(20,"5",vec2(160,255))
+    Screen:egpColor(20,vec4(0,0,0,255))
+    Screen:egpText(21,"6",vec2(250,255))
+    Screen:egpColor(21,vec4(0,0,0,255))
+    Screen:egpText(22,"7",vec2(70,345))
+    Screen:egpColor(22,vec4(0,0,0,255))
+    Screen:egpText(23,"8",vec2(160,345))
+    Screen:egpColor(23,vec4(0,0,0,255))
+    Screen:egpText(24,"9",vec2(250,345))
+    Screen:egpColor(24,vec4(0,0,0,255))
+    Screen:egpText(25,"0",vec2(160,435))
+    Screen:egpColor(25,vec4(0,0,0,255))
+    Screen:egpText(26,"BACK",vec2(325,345))
+    Screen:egpColor(26,vec4(0,0,0,255))
+    Screen:egpText(27,"DEL",vec2(325,255))
+    Screen:egpColor(27,vec4(0,0,0,255))
+    Screen:egpText(28,"ENTER",vec2(325,165))
+    Screen:egpColor(28,vec4(0,0,0,255))
+    Screen:egpFont(15,"coolvetica",30)
+    Screen:egpFont(16,"coolvetica",80)
+    Screen:egpFont(17,"coolvetica",80)
+    Screen:egpFont(18,"coolvetica",80)
+    Screen:egpFont(19,"coolvetica",80)
+    Screen:egpFont(20,"coolvetica",80)
+    Screen:egpFont(21,"coolvetica",80)
+    Screen:egpFont(22,"coolvetica",80)
+    Screen:egpFont(23,"coolvetica",80)
+    Screen:egpFont(24,"coolvetica",80)
+    Screen:egpFont(25,"coolvetica",80)
+    Screen:egpFont(26,"coolvetica",45)
+    Screen:egpFont(27,"coolvetica",45)
+    Screen:egpFont(28,"coolvetica",45)
+    
+    #Dynamic Text
+    Screen:egpText(29,PWCen == "" ? " " : PWCen,vec2(60,50))
+    Screen:egpColor(29,vec4(0,128,255,255))
+    Screen:egpText(30,"Invalid Password!",vec2(50,115))
+    Screen:egpColor(30,vec4(255,0,0,IAlp))
+    Screen:egpFont(29,"coolvetica",60)
+    Screen:egpFont(30,"coolvetica",30)
+    
+    #Draw Mouse
+    Screen:egpCircle(31,vec2(0,0),vec2(4,4))
+    Screen:egpParentToCursor(31)
+    
+    #Functions
+    if(Use){
+        if(PW:length()<14){
+            if(X>50&Y>150&X<130&Y<230){PW=PW+"1",PWCen=PWCen+"*"
+                Screen:egpColor(2,vec4(0,128,255,100)),IAlp=0}
+            if(X>140&Y>150&X<220&Y<230){PW=PW+"2",PWCen=PWCen+"*"
+                Screen:egpColor(3,vec4(0,128,255,100)),IAlp=0}
+            if(X>230&Y>150&X<310&Y<230){PW=PW+"3",PWCen=PWCen+"*"
+                Screen:egpColor(4,vec4(0,128,255,100)),IAlp=0}
+            if(X>50&Y>240&X<130&Y<320){PW=PW+"4",PWCen=PWCen+"*"
+                Screen:egpColor(5,vec4(0,128,255,100)),IAlp=0}
+            if(X>140&Y>240&X<220&Y<320){PW=PW+"5",PWCen=PWCen+"*"
+                Screen:egpColor(6,vec4(0,128,255,100)),IAlp=0}
+            if(X>230&Y>240&X<310&Y<320){PW=PW+"6",PWCen=PWCen+"*"
+                Screen:egpColor(7,vec4(0,128,255,100)),IAlp=0}
+            if(X>50&Y>330&X<130&Y<410){PW=PW+"7",PWCen=PWCen+"*"
+                Screen:egpColor(8,vec4(0,128,255,100)),IAlp=0}
+            if(X>140&Y>330&X<220&Y<410){PW=PW+"8",PWCen=PWCen+"*"
+                Screen:egpColor(9,vec4(0,128,255,100)),IAlp=0}
+            if(X>230&Y>330&X<310&Y<410){PW=PW+"9",PWCen=PWCen+"*"
+                Screen:egpColor(10,vec4(0,128,255,100)),IAlp=0}
+            if(X>140&Y>420&X<220&Y<500){PW=PW+"0",PWCen=PWCen+"*"
+                Screen:egpColor(11,vec4(0,128,255,100)),IAlp=0}
+        }
+        if(X>320&Y>240&X<450&Y<320){PW=PW:sub(1,PW:length()-1),PWCen=PWCen:left(PWCen:length()-1)
+            Screen:egpColor(13,vec4(255,0,0,100)),IAlp=0}
+        if(X>320&Y>330&X<450&Y<410){IAlp=0,Page="login"}
+        if(X>320&Y>150&X<450&Y<230){
+            if(PW=="00"){
+                IAlp=0
+                Page="noone_main"
+            }else{
+                IAlp=255
+                Screen:egpColor(12,vec4(0,255,100,100))
+                PW="",PWCen=""
+            }
+        }
+    }
+}
+
+#####Admin Interface#####
+#Main Page#
+if(Page=="noone_main"){
+    #Page Elements
+    Screen:egpBoxOutline(20,vec2(180,65),vec2(320,30))
+    Screen:egpColor(20,vec4(85,85,85,255))
+    OrePerc = Ore/MaxOre
+    OreX = OrePerc*310/2
+    Screen:egpBox(21,vec2(25+OreX,65),vec2(floor(OreX)*2,20))
+    Screen:egpColor(21,vec4(85,85,85,255))
+    Screen:egpText(22,"Ore "+round(OrePerc*100)+"% ["+Ore:format()+"]",vec2(30,55))
+    Screen:egpFont(22,"coolvetica",21)
+    Screen:egpColor(22,vec4(255,255,255,150))
+    Screen:egpBoxOutline(23,vec2(180,100),vec2(320,30))
+    Screen:egpColor(23,vec4(0,128,128,255))
+    EnergyPerc = Energy/MaxEnergy
+    EnergyX = EnergyPerc*310/2
+    Screen:egpBox(24,vec2(25+EnergyX,100),vec2(floor(EnergyX)*2,20))
+    Screen:egpColor(24,vec4(0,128,128,255))
+    Screen:egpText(25,"Energy "+round(EnergyPerc*100)+"%",vec2(30,89))
+    Screen:egpFont(25,"coolvetica",23)
+    Screen:egpColor(25,vec4(255,255,255,150))
+    Screen:egpBoxOutline(26,vec2(180,135),vec2(320,30))
+    Screen:egpColor(26,vec4(0,230,128,125))
+    HealthPerc = Health/100
+    HealthX = HealthPerc*310/2
+    Screen:egpBox(27,vec2(25+HealthX,135),vec2(floor(HealthX)*2,20))
+    Screen:egpColor(27,vec4(0,230,128,125))
+    Screen:egpText(28,"Roid Health "+round(Health)+"%",vec2(30,125))
+    Screen:egpFont(28,"coolvetica",23)
+    Screen:egpColor(28,vec4(255,255,255,150))
+    Screen:egpText(29,"Miner Status:",vec2(20,160))
+    Screen:egpFont(29,"coolvetica",23)
+    Screen:egpColor(29,vec4(255,255,255,150))
+    Screen:egpText(30,"",vec2(145,160))
+    Screen:egpFont(30,"coolvetica",23)
+    if(MiCmd){
+        if(LaOut){
+            Screen:egpSetText(30,"Online")
+            Screen:egpColor(30,vec4(0,255,0,150))
+        } else {
+            Screen:egpSetText(30,"Idle")
+            Screen:egpColor(30,vec4(255,200,0,150))
+        }
+    }elseif(Ore<MaxOre){
+        Screen:egpSetText(30,"Offline")
+        Screen:egpColor(30,vec4(255,0,0,150))
+    }elseif(Ore==MaxOre){
+        Screen:egpSetText(30,"Complete")
+        Screen:egpColor(30,vec4(255,200,0,150))
+    }
+    Screen:egpText(31,"Generator Status:",vec2(20,180))
+    Screen:egpFont(31,"coolvetica",23)
+    Screen:egpColor(31,vec4(255,255,255,150))
+    Screen:egpText(32,"",vec2(187,180))
+    Screen:egpFont(32,"coolvetica",23)
+    Screen:egpText(33,"["+GenStat+" W]",vec2(255,180))
+    Screen:egpFont(33,"coolvetica",23)
+    Screen:egpColor(33,vec4(255,255,255,150))
+    if(GenStat){
+        Screen:egpSetText(32,"Online")
+        Screen:egpColor(32,vec4(0,255,0,150))
+    }elseif(GenCmd&!GenStat){
+        Screen:egpSetText(32,"Idle")
+        Screen:egpColor(32,vec4(0,0,255,150))
+    }else{
+        Screen:egpSetText(32,"Offline")
+        Screen:egpColor(32,vec4(255,0,0,150))
+    }
+    Screen:egpText(34,"Production Rate: "+LaOut+" Ore/Sec",vec2(20,200))
+    Screen:egpFont(34,"coolvetica",23)
+    Screen:egpColor(34,vec4(255,255,255,150))
+    Screen:egpText(35,"Miner Pos: "+floor(MinerPos),vec2(20,220))
+    Screen:egpFont(35,"coolvetica",23)
+    Screen:egpColor(35,vec4(255,255,255,150))
+    Screen:egpColor(36,vec4(255,255,255,150))
+    Screen:egpFont(36,"coolvetica",23)
+    OreValue = 1.026
+    Screen:egpText(37,"Estimated Profit: "+floor(Ore*OreValue/1000000,3):format()+"M Credits",vec2(20,240))
+    Screen:egpFont(37,"coolvetica",23)
+    Screen:egpColor(37,vec4(255,255,255,150))
+    if(ETAS>=10){
+    Screen:egpText(38,"Estimated Time Remaining: "+ETAM+":"+ETAS,vec2(20,260))
+    }else{
+    Screen:egpText(38,"Estimated Time Remaining: "+ETAM+":0"+ETAS,vec2(20,260))
+    }
+    if(ETAH>0){
+    Screen:egpText(38,"Estimated Time Remaining: "+ETAH+":"+ETAM+":"+ETAS,vec2(20,260))
+    }
+    Screen:egpFont(38,"coolvetica",23)
+    Screen:egpColor(38,vec4(255,255,255,150))
+    Screen:egpText(39,"Waypoints: "+Points:count(),vec2(20,280))
+    Screen:egpFont(39,"coolvetica",23)
+    Screen:egpColor(39,vec4(255,255,255,150))
+
+    staticUI(owner():name())
+    # Active page button
+    Screen:egpColor(10,vec4(0,255,128,255))
+    Screen:egpFont(11,"coolvetica",25)
+    #handleAlert(40)
+    
+    #Buttons
+    if(!Alert&Use){
+        if(X>144&Y>163&X<202&Y<174){
+            MiCmd=!MiCmd            
+        }
+        if(X>185&Y>182&X<244&Y<195){
+            GenCmd=!GenCmd            
+        }
+    } 
+}
+
+#Controls Page#
+if(Page=="noone_ctrl"){
+    #Page Elements
+    #Miner Control
+    Screen:egpBox(20,vec2(70,65),vec2(125,45))
+    Screen:egpColor(20,vec4(0,255,128,255))
+    Screen:egpText(21,"Autominer",vec2(8,50))
+    Screen:egpFont(21,"coolvetica",30)
+    Screen:egpColor(21,vec4(0,0,0,255))
+    Screen:egpBox(22,vec2(175,65),vec2(82,45))
+    Screen:egpColor(22,vec4(0,255,0,255))
+    Screen:egpText(23,"Online",vec2(140,50))
+    Screen:egpFont(23,"coolvetica",30)
+    Screen:egpColor(23,vec4(0,0,0,255))
+    Screen:egpBox(24,vec2(259,65),vec2(85,45))
+    Screen:egpColor(24,vec4(255,0,0,255))
+    Screen:egpText(25,"Offline",vec2(220,50))
+    Screen:egpFont(25,"coolvetica",30)
+    Screen:egpColor(25,vec4(0,0,0,255))
+    if(MiCmd){
+        if(LaOut){
+            Screen:egpColor(22,vec4(0,255,0,255))
+            Screen:egpColor(24,vec4(100,100,100,255))
+        } else {
+            Screen:egpColor(22,vec4(255,200,0,255))
+            Screen:egpColor(24,vec4(100,100,100,255))
+        }
+    }else{
+        Screen:egpColor(22,vec4(100,100,100,255))
+        Screen:egpColor(24,vec4(255,0,0,255))
+    }
+    
+    #Generator Control
+    Screen:egpBox(26,vec2(70,115),vec2(125,45))
+    Screen:egpColor(26,vec4(0,255,128,255))
+    Screen:egpText(27,"Generator",vec2(10,100))
+    Screen:egpFont(27,"coolvetica",30)
+    Screen:egpColor(27,vec4(0,0,0,255))
+    Screen:egpBox(28,vec2(175,115),vec2(82,45))
+    Screen:egpColor(28,vec4(0,255,0,255))
+    Screen:egpText(29,"Online",vec2(140,100))
+    Screen:egpFont(29,"coolvetica",30)
+    Screen:egpColor(29,vec4(0,0,0,255))
+    Screen:egpBox(30,vec2(259,115),vec2(85,45))
+    Screen:egpColor(30,vec4(255,0,0,255))
+    Screen:egpText(31,"Offline",vec2(220,100))
+    Screen:egpFont(31,"coolvetica",30)
+    Screen:egpColor(31,vec4(0,0,0,255))
+    if(GenStat){
+        Screen:egpColor(28,vec4(0,255,0,255))
+        Screen:egpColor(30,vec4(100,100,100,255))
+    }elseif(GenCmd&!GenStat){
+        Screen:egpColor(28,vec4(0,0,255,255))
+        Screen:egpColor(30,vec4(100,100,100,255))
+    }else{
+        Screen:egpColor(28,vec4(100,100,100,255))
+        Screen:egpColor(30,vec4(255,0,0,255))
+    }
+        
+    #Autostart Control
+    Screen:egpBox(32,vec2(70,165),vec2(125,45))
+    Screen:egpColor(32,vec4(0,255,128,255))
+    Screen:egpText(33,"Autostart",vec2(10,150))
+    Screen:egpFont(33,"coolvetica",30)
+    Screen:egpColor(33,vec4(0,0,0,255))
+    Screen:egpBox(34,vec2(175,165),vec2(82,45))
+    Screen:egpColor(34,vec4(0,255,0,255))
+    Screen:egpText(35,"Online",vec2(140,150))
+    Screen:egpFont(35,"coolvetica",30)
+    Screen:egpColor(35,vec4(0,0,0,255))
+    Screen:egpBox(36,vec2(259,165),vec2(85,45))
+    Screen:egpColor(36,vec4(255,0,0,255))
+    Screen:egpText(37,"Offline",vec2(220,150))
+    Screen:egpFont(37,"coolvetica",30)
+    Screen:egpColor(37,vec4(0,0,0,255))
+    if(Autostart){
+        Screen:egpColor(34,vec4(0,255,0,255))
+        Screen:egpColor(36,vec4(100,100,100,255))
+    }else{
+        Screen:egpColor(34,vec4(100,100,100,255))
+        Screen:egpColor(36,vec4(255,0,0,255))
+    }
+    
+    #Overrides
+    Screen:egpBox(38,vec2(70,215),vec2(125,45))
+    Screen:egpColor(38,vec4(0,128,255,255))
+    Screen:egpText(39,"Return",vec2(10,200))
+    Screen:egpFont(39,"coolvetica",30)
+    Screen:egpColor(39,vec4(0,0,0,255))
+    
+    #Ore Concentration Control
+    Screen:egpBox(42,vec2(107,265),vec2(200,45))
+    Screen:egpColor(42,vec4(0,128,255,255))
+    Screen:egpText(43,"Ore Quality: "+RoidConc,vec2(10,250))
+    Screen:egpFont(43,"coolvetica",30)
+    Screen:egpColor(43,vec4(0,0,0,255))
+    Screen:egpBox(44,vec2(232,265),vec2(45,45))
+    Screen:egpColor(44,vec4(0,128,255,255))
+    Screen:egpText(45,"-",vec2(222,230))
+    Screen:egpFont(45,"coolvetica",70)
+    Screen:egpColor(45,vec4(0,0,0,255))
+    Screen:egpBox(46,vec2(279,265),vec2(45,45))
+    Screen:egpColor(46,vec4(0,128,255,255))
+    Screen:egpText(47,"+",vec2(266,228))
+    Screen:egpFont(47,"coolvetica",70)
+    Screen:egpColor(47,vec4(0,0,0,255))
+
+    staticUI(owner():name())
+    # Active page button
+    Screen:egpColor(12,vec4(0,255,128,255))
+    Screen:egpFont(13,"coolvetica",25)
+    #handleAlert(48)
+    
+    if(!Alert&Use){
+        if(X>134&Y>42&X<214&Y<85){
+            MiCmd=1
+        }
+        if(X>216&Y>42&X<300&Y<85){
+            MiCmd=0
+        }
+        if(X>134&Y>92&X<214&Y<136){
+            GenCmd=1
+        }
+        if(X>216&Y>92&X<300&Y<136){
+            GenCmd=0
+        }
+        if(X>134&Y>142&X<214&Y<186){
+            Autostart=1
+        }
+        if(X>216&Y>142&X<300&Y<186){
+            Autostart=0
+        }
+        if(X>8&Y>192&X<130&Y<235){
+            MiCmd=0
+            Autostart=0
+            MiReturn=1
+            Screen:egpColor(38,vec4(0,128,255,100))
+        }
+        if(X>210&Y>243&X<254&Y<287&RoidConc>0.7){
+            RoidConc-=0.01
+            Screen:egpColor(44,vec4(0,128,255,100))
+        }
+        if(X>257&Y>243&X<301&Y<287&RoidConc<1.5){
+            RoidConc+=0.01
+            Screen:egpColor(46,vec4(0,128,255,100))
+        }
+    }else{MiReturn=0}
+}
+
+#Waypoints Page#
+if(Page=="noone_waypoints"){
+    #Page Elements
+    if(->Points){
+        if(WayDispMode==0){
+            #Graph Mode
+            Screen:egpBox(20,vec2(85,425),vec2(140,40))
+            Screen:egpColor(20,vec4(0,128,255,100))
+            Screen:egpText(21,"XY Chart",vec2(23,410))
+            Screen:egpFont(21,"coolvetica",35)
+            Screen:egpColor(21,vec4(0,0,0,255))
+            Screen:egpBox(22,vec2(230,425),vec2(140,40))
+            Screen:egpColor(22,vec4(0,128,255,255))
+            Screen:egpText(23,"XYZ List",vec2(168,410))
+            Screen:egpFont(23,"coolvetica",35)
+            Screen:egpColor(23,vec4(0,0,0,255))
+            
+            Screen:egpBoxOutline(24,vec2(190,225),vec2(350,350))
+            Screen:egpColor(24,vec4(0,128,255,255))
+            MinXY=getminxy()
+            MaxXY=getmaxxy()
+            RangeXY=MaxXY-MinXY
+            Screen:egpLineStrip(25,toXY())
+            Screen:egpColor(25,vec4(100,100,100,255))
+            Screen:egpCircle(26,toXY()[1, vector2],vec2(5,5))
+            Screen:egpColor(26,vec4(255,255,0,255))
+            if(toXY()[1, vector2]:x()<=200){
+                Screen:egpText(27," "+floor(MinerPos),toXY()[1, vector2]-vec2(-10,10))
+                Screen:egpFont(27,"coolvetica",20)
+                Screen:egpColor(27,vec4(255,255,255,150))
+            }
+            else{
+                Screen:egpText(27," "+floor(MinerPos),toXY()[1, vector2]-vec2((" "+floor(MinerPos)):length()*8,10))
+                Screen:egpFont(27,"coolvetica",20)
+                Screen:egpColor(27,vec4(255,255,255,150))
+            }
+            
+            #Cursor
+            Screen:egpCircle(156,vec2(0,0),vec2(4,4))
+            Screen:egpParentToCursor(156)
+            
+            if(!Alert&Use&X>162&Y>387&X<298&Y<463){
+                WayDispMode=1
+                Screen:egpClear()
+            }
+        }
+        else
+        {
+            #List Mode
+            Screen:egpBox(20,vec2(85,425),vec2(140,40))
+            Screen:egpColor(20,vec4(0,128,255,255))
+            Screen:egpText(21,"XY Chart",vec2(23,410))
+            Screen:egpFont(21,"coolvetica",35)
+            Screen:egpColor(21,vec4(0,0,0,255))
+            Screen:egpBox(22,vec2(230,425),vec2(140,40))
+            Screen:egpColor(22,vec4(0,128,255,100))
+            Screen:egpText(23,"XYZ List",vec2(168,410))
+            Screen:egpFont(23,"coolvetica",35)
+            Screen:egpColor(23,vec4(0,0,0,255))
+            Screen:egpText(24,"Waypoints:",vec2(10,45))
+            Screen:egpFont(24,"coolvetica",23)
+            Screen:egpColor(24,vec4(255,255,255,150))
+            
+            for(I=1,42){
+                Screen:egpRemove(24+I)
+                Screen:egpRemove(49+I)
+                Screen:egpRemove(84+I)
+                Screen:egpRemove(109+I)
+            }
+            
+            if(Points:count()<=21){
+                for(I=1,Points:count()){
+                    Screen:egpText(24+I,I+". ",vec2(10,50+15*I))
+                    Screen:egpFont(24+I,"coolvetica",20)
+                    Screen:egpColor(24+I,vec4(255,255,255,150))
+                    Screen:egpText(49+I," "+floor(Points[I, entity]:pos()),vec2(30,50+15*I))
+                    Screen:egpFont(49+I,"coolvetica",20)
+                    Screen:egpColor(49+I,vec4(255,255,255,150))
+                }
+            }
+            elseif(Points:count()<=42){
+                for(I=1,21){
+                    Screen:egpText(24+I,I+". ",vec2(10,50+15*I))
+                    Screen:egpFont(24+I,"coolvetica",20)
+                    Screen:egpColor(24+I,vec4(255,255,255,150))
+                    Screen:egpText(49+I," "+floor(Points[I, entity]:pos()),vec2(30,50+15*I))
+                    Screen:egpFont(49+I,"coolvetica",20)
+                    Screen:egpColor(49+I,vec4(255,255,255,150))
+                }
+                for(I=22,Points:count()){
+                    Screen:egpText(84+I,I+". ",vec2(195,50+15*(I-21)))
+                    Screen:egpFont(84+I,"coolvetica",20)
+                    Screen:egpColor(84+I,vec4(255,255,255,150))
+                    Screen:egpText(109+I," "+floor(Points[I, entity]:pos()),vec2(215,50+15*(I-21)))
+                    Screen:egpFont(109+I,"coolvetica",20)
+                    Screen:egpColor(109+I,vec4(255,255,255,150))
+                }
+            }
+            else{
+                for(I=1,21){
+                    Screen:egpText(24+I,I+". ",vec2(10,50+15*I))
+                    Screen:egpFont(24+I,"coolvetica",20)
+                    Screen:egpColor(24+I,vec4(255,255,255,150))
+                    Screen:egpText(49+I," "+floor(Points[I, entity]:pos()),vec2(30,50+15*I))
+                    Screen:egpFont(49+I,"coolvetica",20)
+                    Screen:egpColor(49+I,vec4(255,255,255,150))
+                }
+                for(I=22,42){
+                    Screen:egpText(84+I,I+". ",vec2(195,50+15*(I-21)))
+                    Screen:egpFont(84+I,"coolvetica",20)
+                    Screen:egpColor(84+I,vec4(255,255,255,150))
+                    Screen:egpText(109+I," "+floor(Points[I, entity]:pos()),vec2(215,50+15*(I-21)))
+                    Screen:egpFont(109+I,"coolvetica",20)
+                    Screen:egpColor(109+I,vec4(255,255,255,150))
+                }
+            }            
+            if(!Alert&Use&X>17&Y>387&X<153&Y<463){
+                WayDispMode=0
+                Screen:egpClear()
+            }
+        }
+    }
+    else{
+        Screen:egpText(20,"Waypoints Unavailable",vec2(40,200))
+        Screen:egpFont(20,"coolvetica",35)
+        Screen:egpColor(20,vec4(255,255,255,255))
+    }
+    
+    staticUI(owner():name())
+    # Active page button
+    Screen:egpColor(14,vec4(0,255,128,255))
+    Screen:egpFont(15,"coolvetica",25)
+    #handleAlert(150)
+}
+
+#About Page#
+if(Page=="noone_about"){
+    #Page Elements
+    Screen:egpText(20,"Miner Control System V7.01",vec2(10,45))
+    Screen:egpFont(20,"coolvetica",30)
+    Screen:egpColor(20,vec4(255,255,255,255))
+    Screen:egpText(21,"(C)2010-2024 XN-Miners Corp.",vec2(12,100))
+    Screen:egpFont(21,"coolvetica",18)
+    Screen:egpColor(21,vec4(255,255,255,255))
+    Screen:egpText(22,"Interface coded by NoOneLiv3",vec2(12,120))
+    Screen:egpFont(22,"coolvetica",18)
+    Screen:egpColor(22,vec4(255,255,255,255))
+    Screen:egpText(23,"Contains technology from Wiremod",vec2(12,160))
+    Screen:egpFont(23,"coolvetica",18)
+    Screen:egpColor(23,vec4(255,255,255,255))
+    
+    staticUI(owner():name())
+    # Active page button
+    Screen:egpColor(18,vec4(0,255,128,255))
+    Screen:egpFont(19,"coolvetica",25)
+    #handleAlert(24)
+}
+###End Admin Interface###
+
+######User Interface#####
+#Main Page#
+if(Page=="user_main"){
+    #Page Elements
+    Screen:egpBoxOutline(14,vec2(180,65),vec2(320,30))
+    Screen:egpColor(14,vec4(85,85,85,255))
+    Screen:egpBox(15,vec2(floor(25+(clamp(Ore/MaxOre*100,0,100)/100*310)/2),65),vec2((clamp(Ore/MaxOre*100,0,100)/100*310),20))
+    Screen:egpColor(15,vec4(85,85,85,255))
+    Screen:egpText(16,"Ore "+round(Ore/MaxOre*100)+"%",vec2(30,55))
+    Screen:egpFont(16,"coolvetica",23)
+    Screen:egpColor(16,vec4(255,255,255,150))
+    Screen:egpBoxOutline(17,vec2(180,100),vec2(320,30))
+    Screen:egpColor(17,vec4(0,128,128,255))
+    Screen:egpBox(18,vec2(floor(25+(clamp(Energy/MaxEnergy*100,0,100)/100*310)/2),100),vec2((clamp(Energy/MaxEnergy*100,0,100)/100*310),20))
+    Screen:egpColor(18,vec4(0,128,128,255))
+    Screen:egpText(19,"Energy "+round(Energy/MaxEnergy*100)+"%",vec2(30,89))
+    Screen:egpFont(19,"coolvetica",23)
+    Screen:egpColor(19,vec4(255,255,255,150))
+    Screen:egpBoxOutline(20,vec2(180,135),vec2(320,30))
+    Screen:egpColor(20,vec4(0,230,128,125))
+    Screen:egpBox(21,vec2(floor(25+(Health/100*310)/2),135),vec2(floor(Health/100*310),20))
+    Screen:egpColor(21,vec4(0,230,128,125))
+    Screen:egpText(22,"Roid Health "+round(Health)+"%",vec2(30,125))
+    Screen:egpFont(22,"coolvetica",23)
+    Screen:egpColor(22,vec4(255,255,255,150))
+    
+    staticUI("Guest (Unregistered)")
+    Screen:egpColor(10,vec4(0,255,128,255))
+    Screen:egpFont(11,"coolvetica",25)
+    #handleAlert(23)
+}
+#About Page#
+if(Page=="user_about"){
+    #Page Elements
+    Screen:egpText(14,"Miner Control System V7.01",vec2(10,45))
+    Screen:egpFont(14,"coolvetica",30)
+    Screen:egpColor(14,vec4(255,255,255,255))
+    Screen:egpText(15,"(C)2010-2024 XN-Miners Corp.",vec2(12,100))
+    Screen:egpFont(15,"coolvetica",18)
+    Screen:egpColor(15,vec4(255,255,255,255))
+    Screen:egpText(16,"Interface coded by NoOneLiv3",vec2(12,120))
+    Screen:egpFont(16,"coolvetica",18)
+    Screen:egpColor(16,vec4(255,255,255,255))
+    Screen:egpText(17,"Contains technology from Wiremod",vec2(12,160))
+    Screen:egpFont(17,"coolvetica",18)
+    Screen:egpColor(17,vec4(255,255,255,255))
+
+    staticUI("Guest (Unregistered)")
+    Screen:egpColor(12,vec4(0,255,128,255))
+    Screen:egpFont(13,"coolvetica",25)
+    #handleAlert(18)
+}
+####End User Interface###
+Use = 0
+}}}
+
+#Cursor
+event playerUse(Player:entity, Entity:entity) {
+    if(Entity == Screen:entity()){
+       CurrentPlayer = Player
+        X=Screen:egpCursor(CurrentPlayer):x()
+        Y=Screen:egpCursor(CurrentPlayer):y()
+        Use = 1
+        soundPlay(1,2,"buttons/lightswitch2.wav")
+        handleInteractive()
+    }
+}
+
+if(CurrentPlayer:isValid()){
+    X=Screen:egpCursor(CurrentPlayer):x()
+    Y=Screen:egpCursor(CurrentPlayer):y()
+}
+handleInteractive()

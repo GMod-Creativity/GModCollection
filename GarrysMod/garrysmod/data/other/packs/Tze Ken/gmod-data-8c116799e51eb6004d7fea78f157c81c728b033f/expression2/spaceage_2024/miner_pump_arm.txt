@@ -1,0 +1,108 @@
+@name Station Pump Arm 2024
+@outputs MinerTeleporter:entity MinerNode:entity MaxOre
+@outputs Pump:entity StationPump:entity Nodes:array Path:array
+@outputs InPosition Chain:array
+@persist MinerVars:gtable
+@autoupdate
+if(first()|duped()){
+    #include "spaceage_2024/miner_utils"
+    #include "spaceage_2024/entity_discovery_utils"
+    MinerVars = gTable("miner")
+}
+
+if(first()|dupefinished()){
+    findByClass("sa_terminal_pump")
+    StationPump = findClosest(entity():pos())
+    Pump = entity():isWeldedTo()
+    Pump:lsPumpLink(StationPump)
+    Pump:lsPumpSetActive(1)
+}
+
+event playerDisconnected(Player:entity) {
+    if(Player == owner()){
+        tryFreezeAll(Nodes)
+    }
+}
+
+event tick() {
+    MinerTeleporter = MinerVars["Teleporter", entity]
+    MinerNode = MinerVars["Node", entity]
+    
+    if(changed(MinerNode)){
+        findExcludeEntity(MinerNode)
+        AllNodes = getOwnEntity("resource_node")
+        Nodes = array()
+        foreach(I:number, Node:entity=AllNodes){
+            if(Node:getConnectedEntities():count() == 1){
+                Nodes:pushEntity(Node)
+            }
+        }
+        findClearBlackList()
+    }
+
+    if(owner():isValid() & MinerNode:isValid()){
+        NodeDistance = 2000
+        if(MinerTeleporter:pos():distance(Pump:pos()) < NodeDistance * (Nodes:count() + 1)){
+            Path = generateEvenlySpacedPath(Pump:pos(), MinerTeleporter:pos(), NodeDistance)
+            InPosition = 1
+        }
+        else {
+            Path = array()
+            # Allow linking directly from pump to node
+            InPosition = MinerNode:pos():distance(Pump:pos()) < NodeDistance
+        }
+        # Inactive nodes
+        for(I=Path:count()+1, Nodes:count()){
+            CurNode = Nodes[I, entity]
+            CurNode:lsUnlinkAll()
+            Pos = Pump:pos()+vec(0,100,Nodes:count() * 25 - I * 25)
+            maintainPosAng(CurNode, Pos, ang(0,0,0), 1)
+            CurNode:setAlpha(255)
+        }
+    
+        # Active nodes
+        for(I=1, Path:count()){
+            CurNode = Nodes[I, entity]
+            Pos = Path[I, vector]
+            maintainPosAng(CurNode, Pos, ang(0,0,0), 0)
+            CurNode:setAlpha(0)
+            InPosition = InPosition & CurNode:pos():distance(Pos) < 15
+        }
+        
+        # Link nodes
+        if(InPosition) {
+            Chain = array()
+            for(I=1, Path:count()){
+                CurNode = Nodes[I, entity]
+                Chain:pushEntity(CurNode)
+            }
+            Chain:pushEntity(MinerNode)
+    
+            for(I=1, Chain:count() - 1) {
+                CurNode = Chain[I, entity]
+                NextNode = Chain[I+1, entity]
+                CurNode:lsLinkNodes(NextNode)
+            }
+            Pump:lsLink(Chain[1, entity])
+        }
+        else{
+            for(I=1, Nodes:count()) {
+                CurNode = Nodes[I, entity]
+                CurNode:lsUnlinkAll()
+            }
+        }
+        
+        if(changed(InPosition) | Chain:count() == 1){
+            if(InPosition){
+                MaxOre = Pump:lsGetAmount("ore")
+                Pump:lsPumpLink(StationPump)
+                Pump:lsPumpSetResourceAmount("ore", MaxOre)
+                Pump:lsPumpSetActive(1)
+            } else {
+                Pump:lsPumpSetActive(0)
+                Pump:lsPumpUnlink()
+            }
+        }
+    }
+}
+

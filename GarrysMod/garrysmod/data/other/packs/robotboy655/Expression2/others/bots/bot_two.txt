@@ -1,0 +1,308 @@
+@name Bot
+@persist TV:vector ObjectMass:vector
+@persist Target:entity
+@persist Stabilize On 
+@persist Cursor Me 
+@persist Attack Speed 
+@persist Orbit Alive OrbitRadius
+@persist SavedMass:vector Height
+@persist Spin
+runOnTick(1)
+runOnChat(1)
+
+####################################
+#           Values                 #
+####################################
+
+Object          = entity():isWeldedTo(1)                  # Welded object
+ObjectAngle     = (Object:angles()*5+Object:angVel())*5   # Angle
+ObjectMass      = Object:massCenter()                     # Mass of center..
+ObjectRight     = Object:right()                          # Right
+ObjectForward   = Object:forward()                        # Forward
+ObjectUp        = Object:up()                             # Up
+MainOwner       = entity():owner()                        # Owner...
+Elevation       = sqrt((Object:inertia():length()^2)/3)   # Elevation
+LS              = MainOwner:lastSaid()                    # Command
+
+if(!Speed){ Speed = 1 }
+    
+####################################
+#          Commands                #
+####################################
+
+# Destruct youself
+if(chatClk(MainOwner) & LS == "!bot kill")
+{
+    hint("3a 4To MHE KILL?", 3)
+    selfDestructAll()
+}
+
+# Height regulator
+if(chatClk(MainOwner) & LS:left(11) == "!bot height") 
+{
+    Height = LS:sub(13, LS:length()):toNumber()
+    hint("New height: " + Height, 5)
+}
+
+if(chatClk(MainOwner) & LS:left(10) == "!bot speed")
+{
+    Speed = LS:sub(12, LS:length()):toNumber()
+    if(Speed < 1)
+    {
+        Speed = 1
+        hint("SpeedX can\\'t < 1!", 5)
+    } else {
+        hint("New SpeedX is " + Speed, 5)
+    }
+}
+
+if(chatClk(MainOwner) & LS == "!bot stop attack" & Attack)
+{
+    Attack = 0
+    Me = 1
+    Cursor = 0
+}
+
+
+# Attack player
+if(chatClk(MainOwner) & LS:left(11) == "!bot attack") 
+{
+    # Find by AIM
+    if(LS == "!bot attack") {
+        findIncludeClass("npc_*")
+        findIncludeClass("player")
+        findExcludePlayer(MainOwner)
+        FindSphere = findInSphere(MainOwner:pos(), 50000)
+        # Founded
+        if(FindSphere > 0) {
+            Target = findClosest(MainOwner:aimPos())
+            Attack = 1
+            Me = 0
+        } else {
+            # Self
+            Attack = 0
+            Me = 1
+            Cursor = 0
+        }
+    } else {
+        Name = LS:sub(13, LS:length())
+        Target = findPlayerByName(Name)
+        Attack = 1
+        Me = 0
+        Cursor = 0
+        hint(Target:name() + " player is next...", 5)
+        print(Target:name() + ", good bye!")
+        concmd("(BOT)" + Target:name() + ", good bye! :-)")
+    }
+}
+
+# Orbit mode
+if(chatClk(MainOwner) & LS:left(10) == "!bot orbit") 
+{
+    if(LS == "!bot orbit" | LS:sub(12, LS:length()) == "0")
+    {
+        Orbit = 0
+        hint("Orbit mode is disabled!", 5)
+    } else {
+        OrbitRadius = LS:sub(12, LS:length()):toNumber()
+        Orbit = 1
+        hint("Orbit mode enabled with " + OrbitRadius + " radius", 5)
+    }
+}
+
+# Cursor mode
+if(chatClk(MainOwner) & LS == "!bot cursor on" & !Attack) 
+{
+    Cursor = 1
+    Me = 0
+    hint("Cursor mode ON", 5)
+} elseif(chatClk(MainOwner) & LS == "!bot cursor off") {
+    Cursor = 0
+    SavedMass = ObjectMass
+    hint("Cursor mode OFF", 5)
+}
+
+# Spin
+if(chatClk(MainOwner) & LS == "!bot spin") 
+{
+    Spin = !Spin
+    if(Spin)
+    {
+        hint("Spin mode is ON", 5)
+    } else {
+        hint("Spin mode is OFF", 5)
+    }
+}
+
+# Follow
+if(chatClk(MainOwner) & LS == "!bot" & !Attack) 
+{
+    # Stop following
+    if(Me) {
+        Me = 0
+        SavedMass = ObjectMass
+        hint("I'm not following to you... Sorry :-)", 5)
+    # Start following
+    } else {
+        Me = 1
+        Cursor = 0
+        hint("I'm following to you!", 5)
+    }
+}
+
+if(chatClk(MainOwner) & LS == "!bot stab on" & !Attack) 
+{
+    Stabilize = 1
+    hint("Stabilization is ON", 5)
+} elseif(chatClk(MainOwner) & LS == "!bot stab off") {
+    Stabilize = 0
+    hint("Stabilization is OFF", 5)
+}
+
+if(chatClk(MainOwner) & LS == "!ATAC") {
+    On = 1
+    concmd("say IIpuBaC")
+    hint("Bot Bpy6/|eH", 5)
+} elseif(chatClk(MainOwner) & LS == "!bot off") {
+    On = 0
+    concmd("say (BOT)See you soon, owner... I'm sleeping")
+    hint("6oT BbIpy6/\eH", 5)
+}
+
+####################################
+#           Main Code              #
+####################################
+
+# Default settings
+if (first()) {
+    SavedMass = ObjectMass
+    Cursor = 0
+    Spin = 0
+    On = 0
+    Height = Object:radius()
+    Stabilize = 1
+    
+    Object:setMass(250)
+    
+    if(Object:type() == "prop_ragdoll")
+    {
+        Stabilize = 0
+    } else {
+        Stabilize = 1
+    }
+    
+    #concmd("say haaax :)")
+}
+
+# Apply different things and shit
+if(On) 
+{
+    # "Circle"
+    if(Orbit) 
+    {
+        Circle = vec(
+        (Height*OrbitRadius)*sin(curtime()*50),
+        (Height*OrbitRadius)*cos(curtime()*50), 
+        0)*Speed
+    } else {
+        Circle = vec(0, 0, 0)
+    }
+    
+    # Stabilization
+    if(Stabilize) 
+    {
+        Object:applyOffsetForce( ObjectUp*(ObjectAngle:pitch()), ObjectMass+ObjectForward * Elevation)
+        Object:applyOffsetForce(-ObjectUp*(ObjectAngle:pitch()), ObjectMass-ObjectForward * Elevation)
+        Object:applyOffsetForce( ObjectUp*(ObjectAngle:roll()) , ObjectMass+ObjectRight * Elevation)
+        Object:applyOffsetForce(-ObjectUp*(ObjectAngle:roll()) , ObjectMass-ObjectRight * Elevation)
+    }
+     
+    # Follow on cursor
+    if(Cursor) 
+    {
+        To = MainOwner:aimPos() + vec(0, 0, Height) + Circle - ObjectMass - Object:vel()/2
+        #print(toString(Height))
+    }
+    
+    # If not cursing and "free moving"
+    if(!Cursor & !Me & !Attack) 
+    {
+        To = SavedMass + Circle - ObjectMass + vec(0, 0, Height) - Object:vel()/2
+    }
+    
+    # Follow to you
+    if(Me) 
+    {
+        To = MainOwner:pos() + Circle - ObjectMass + vec(0, 0, MainOwner:height() + 25 + Height) - Object:vel()/2
+    }
+    
+    # Attacking player or NPC
+    if(Attack & (Target:isPlayer() | Target:isNPC())) 
+    {
+        # Player is alive... kill him
+        if(Target:isAlive()) 
+        {
+            To = (Target:pos()+vec(0,0,Target:height())-ObjectMass)*5000*Speed
+            Stabilize = 0 # No stabilize ;)
+            #timer("A", T:pos():distance(EV) * 15)
+        } elseif(Target:isAlive() == 0) { # Player is killed... Wait for him spawn
+            #timer("B", 250)
+            To = vec(0, 0, entity():pos():z())
+        }
+    }
+    
+    # Apply Main force
+    Object:applyForce(To*Object:mass())
+    
+    # Spin mode
+    if(Spin) 
+    {
+        Object:applyOffsetForce( ObjectRight * (360 * 3 + Object:angVel():yaw()), ObjectMass + ObjectForward * Elevation)
+        Object:applyOffsetForce(-ObjectRight * (360 * 3 + Object:angVel():yaw()), ObjectMass - ObjectForward * Elevation)
+    }
+}
+
+# Killer security
+if(!MainOwner:isAlive())
+{
+    # Find props... 
+    findIncludeClass("phys_*")
+    findIncludeClass("wire_*")
+    FindSphere = findInSphere(MainOwner:pos(), 10)
+    Result = findToArray()
+    if(Result:count() > 0)
+    {
+        Killer = Result:entity(1)
+        if(Killer:vel():z() > 30)
+        {
+            Target = Killer:owner()
+            Attack = 1
+            Me = 0
+            Cursor = 0
+            hint("You killed " + Killer:owner():name(), 5)
+        } else {
+            Killer = Result:entity(2)
+            if(Killer:vel():z() > 30)
+            {
+                Target = Killer:owner()
+                Attack = 1
+                Me = 0
+                Cursor = 0
+                hint("You killed " + Killer:owner():name(), 5)
+            } else {
+                Killer = Result:entity(3)
+                if(Killer:vel():z() > 30)
+                {
+                    Target = Killer:owner()
+                    Attack = 1
+                    Me = 0
+                    Cursor = 0
+                    hint("You killed " + Killer:owner():name(), 5)
+                } else {
+                    hint("Can't find you killer...", 5)
+                }
+            }
+        }
+    }
+}
+

@@ -1,0 +1,59 @@
+@name Ore Probe
+@inputs Energy Conc ConcTar Active
+@outputs On Concs:array
+@outputs Selected:array
+@outputs I T
+@persist Probe:entity Home:vector Array:array
+@trigger 
+
+function normal check_if_exists(A:array,Ent:entity){
+    for(Count=1,A:count()){
+        if(A:entity(Count)==Ent){
+            return 1
+        }
+    }
+    return 0
+}
+
+function void clear_null(){
+    for(Count=1,Selected:count()){
+        if(Selected:entity(Count):model()==""){
+            Selected:remove(Count)
+            Concs:remove(Count)
+        }
+    }
+    return
+}
+
+interval(20)
+if(first()|dupefinished()){
+    Probe=entity():isWeldedTo()
+    Home=entity():isWeldedTo():pos()
+    Probe:setMass(50000)
+    entity():setMass(0)
+    noCollideAll(entity(),1)
+    noCollideAll(Probe,1)
+    I=2
+}
+
+#Array Indexer
+findByClass("sa_asteroid")
+Array=findToArray()
+if(entity():pos():distance(Array:entity(I):pos())<20){T+=0.02}
+if(!~I&T>0.5){I--,T=0}
+if(I<=1){I=Array:count()}
+
+#Array Update
+clear_null()
+if(~Conc&Conc>=ConcTar&!check_if_exists(Selected,Array:entity(I))){Selected:pushEntity(Array:entity(I)), Concs:pushNumber(Conc)}
+
+#ApplyForce
+if(Active){
+Probe:applyForce(((Array:entity(I):pos()-Probe:pos())*40-Probe:vel())*Probe:mass())
+On=1
+}
+else{
+Probe:applyForce(((Home-Probe:pos())*40-Probe:vel())*Probe:mass())
+On=0
+T=0
+}

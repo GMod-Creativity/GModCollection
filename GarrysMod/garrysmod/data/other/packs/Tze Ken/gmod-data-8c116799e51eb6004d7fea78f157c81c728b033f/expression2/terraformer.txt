@@ -1,0 +1,147 @@
+@name AutoTerraformer
+
+#Fusion Gen
+@inputs Energy MaxEnergy FusTemp
+@outputs Mult Fus
+
+#Atmos Inputs
+@inputs AtmTemp AtmPres Atmos:table
+
+#Pressure Reg
+@inputs Nit NitMax NitPumpStat
+@outputs NitPump PresReg
+
+#Oxy Reg
+@inputs Oxy OxyMax
+@outputs OxyPump OxyVentIn OxyVentOut
+
+#Temp Reg
+@inputs Hyd Met
+@outputs MetPmp MetVentOut MetVentIn CO2Pmp CO2Vent
+@outputs HydPmp HydVentOut HydVentIn
+
+interval(100)
+
+#Multipliers
+if(first()|dupefinished()){
+    Mult=0
+}
+else{
+    Mult=200
+}
+
+#Fusion Gen
+if(Energy/MaxEnergy<=0.1){
+    Fus=!Fus
+}
+if(Energy/MaxEnergy>=0.9|FusTemp>=60){
+    Fus=0
+}
+
+if(Energy/MaxEnergy>0.1){
+    #Pressure Reg
+    if(AtmPres<=0.9|AtmPres>=1.1){
+        if(Nit/NitMax<=0.5){
+            NitPump=1
+            if(~Nit&Atmos["Nitrogen", number]==0){
+                hint("Need Nitrogen!",5)
+            }
+        }
+        else{
+            NitPump=0
+        }
+        if(Nit>0){
+            PresReg=1
+        }
+        else{
+            PresReg=0
+        }
+    }
+    else{
+        NitPump=0
+        PresReg=0
+    }
+    
+    #Oxygen Reg
+    if(Atmos["Oxygen", number]>=24){
+        OxyPump=1
+        OxyVentOut=1
+    }
+    elseif(Atmos["Oxygen", number]<=16){
+        if(Oxy>=0){
+            OxyVentIn=1
+        }
+        elseif(~Oxy){
+            OxyVentIn=0
+            hint("Need Oxygen!",5)
+        }
+    }
+    else{
+        OxyPump=0
+        OxyVentOut=0
+        OxyVentIn=0
+    }
+    
+    #Temp Reg
+    if(AtmTemp>=25){
+        if(Atmos["Methane", number]>0){
+            MetPmp=1
+            MetVentOut=1
+        }
+        else{
+            MetPmp=0
+            MetVentOut=0
+        }
+        if(Atmos["Methane", number]==0&Atmos["Carbon_dioxide", number]>0){
+            CO2Pmp=1
+            CO2Vent=1
+        }
+        else{
+            CO2Pmp=0
+            CO2Vent=0
+        }
+        if(Atmos["Methane", number]==0&Atmos["Carbon_dioxide", number]==0){
+            if(Hyd>=0){
+                HydVentIn=1
+            }
+            elseif(~Hyd){
+                HydVentIn=0
+                hint("Need Hydrogen!",5)
+            }
+        }
+    }
+    elseif(AtmTemp<=-25){
+        if(Atmos["Hydrogen", number]>0){
+            HydPmp=1
+            HydVentOut=1
+        }
+        else{
+            HydPmp=0
+            HydVentOut=0
+        }
+        if(Atmos["Hydrogen", number]==0){
+            if(Met>=0){
+                MetVentIn=1
+            }
+            elseif(~Met){
+                MetVentIn=0
+                hint("Need Methane!",5)
+            }
+        }
+    }
+}
+else{
+    NitPump=0
+    PresReg=0
+    OxyPump=0
+    OxyVentIn=0
+    OxyVentOut=0
+    MetPmp=0
+    MetVentOut=0
+    MetVentIn=0
+    CO2Pmp=0
+    CO2Vent=0
+    HydPmp=0
+    HydVentOut=0
+    HydVentIn=0
+}

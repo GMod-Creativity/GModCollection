@@ -1,0 +1,512 @@
+@name DOS Shell
+@persist EGP:wirelink 
+@outputs Screen:array TxtRGB:vector BgRGB:vector 
+@outputs CurOn CurBlink CurXY:vector2 
+@outputs TypeHist:array HistI Type:string TypeY
+
+#I/O & Memory
+@inputs Key IOBus:wirelink Mem:wirelink
+@outputs EAX
+@trigger Key
+
+interval(500)
+
+#Init variables 
+if(first() | dupefinished()){
+    EGP=entity():isWeldedTo():wirelink()
+    BgRGB = vec()
+    TxtRGB = vec()
+    Screen = array()
+    TypeHist = array()
+    CurBlink = 0
+    Type = ""
+}
+
+#Screen refresh
+function number refresh(){
+    EGP:egpBox(35,vec2(256,256),vec2(512,512))
+    EGP:egpColor(35,BgRGB)
+    for(I=1,34){
+        EGP:egpText(I,Screen[I,string],vec2(2,14.99*I-18))
+        EGP:egpSize(I,20)
+        EGP:egpColor(I,TxtRGB)
+    }
+    return 1
+}
+
+#Screen Clear
+function number clearscr(){
+    EGP:egpClear()
+    Screen=array("WireDOS v1.72")
+    TypeY=3
+    refresh()
+    return 1
+}
+
+#Screen Shift Line
+function number shiftscr(Y:number){
+    if(Y>0){
+        for(I=1,Y){
+            Screen:unshiftString(" ")
+        }
+    }
+    if(Y<0){
+        for(I=1,-Y){
+            Screen:shiftString()
+        }
+    }
+    return Y>0 ? 1 : 2
+}
+
+#Screen Write String
+function number writestr(Y:number,Str:string){
+    if(Y>=1&Y<=34){
+        Screen[Y, string] = Str
+        return 1
+    }
+    else{
+        return 0
+    }
+}
+
+#Screen Text Color
+function number txt_color(RGB:vector){
+    TxtRGB=clamp(RGB,vec(0,0,0),vec(255,255,255))
+    return 1
+}
+
+#Screen BG Color
+function number bg_color(RGB:vector){
+    BgRGB=clamp(RGB,vec(0,0,0),vec(255,255,255))
+    return 1
+}
+
+#Shift TypeY
+function shifty(){
+    if(TypeY<34){TypeY++}else{shiftscr(-1)}
+}
+
+#Cursor
+function number cursor(On:number){
+    CurOn=On
+    return 1
+}
+
+#Cursor Blink & Screen Refresh
+if(CurOn){
+    CurBlink=!CurBlink
+}
+else{
+    CurBlink=0
+}
+if(CurBlink){
+    writestr(TypeY,Type+"l")
+    refresh()
+}else{
+    writestr(TypeY,Type)
+    refresh()
+}
+
+# Get params
+function array getParams(Command:string){
+    return Command:explode(",")
+}
+
+#Shell Commands
+function number execute(Cmd:string){
+    Cmd=Cmd:replace(">","")
+    #Help
+    if(Cmd=="help"){
+        writestr(TypeY,"help - Show help menu")
+        shifty()
+        writestr(TypeY,"cls - Clear screen")
+        shifty()
+        writestr(TypeY,"txtcolor N,N,N - Change text color to [N,N,N]")
+        shifty()
+        writestr(TypeY,"bgcolor N,N,N - Change background color to [N,N,N]")
+        shifty()
+        writestr(TypeY,"echo S- Prints string S")
+        shifty()
+        writestr(TypeY,"eax - Print value in EAX")
+        shifty()
+        writestr(TypeY,"eax N - Set value of EAX to N")
+        shifty()
+        writestr(TypeY,"in N - Sets EAX to portN's Value")
+        shifty()
+        writestr(TypeY,"out N - Sets portN's value to EAX")
+        shifty()
+        writestr(TypeY,"out N,N - Sets portN's value to N")
+        shifty()
+        writestr(TypeY,"load N - Loads value from memory address N to EAX")
+        shifty()
+        writestr(TypeY,"store N - Stores EAX to memory addressN")
+        shifty()
+        writestr(TypeY,"store N,N - Stores N to memory addressN")
+        shifty()
+        writestr(TypeY," ")
+        shifty()
+        return 1
+    }
+    
+    #Clear Screen
+    elseif(Cmd=="cls"){
+        clearscr()
+        return 1
+    }
+    
+    #Change Text Color
+    elseif(Cmd:find("txtcolor")==1){
+        Cmd=Cmd:replace("txtcolor","")
+        Cmd=Cmd:replace(" ","")
+        Params = getParams(Cmd)
+        if(Params:count()==3){
+            Params = Cmd:explode(",")
+            Color = vec(Params[1, string]:toNumber(), Params[2, string]:toNumber(),Params[3, string]:toNumber())
+            txt_color(Color)
+            writestr(TypeY,"Text color changed to "+TxtRGB)
+            shifty()
+            writestr(TypeY," ")
+            shifty()
+            return 1
+        }
+        else{
+            writestr(TypeY,"Invalid arguements, txtcolor accepts [N,N,N]")
+            shifty()
+            writestr(TypeY," ")
+            shifty()
+        }
+    }
+    
+    #Change Background Color
+    elseif(Cmd:find("bgcolor")==1){
+        Cmd=Cmd:replace("bgcolor","")
+        Cmd=Cmd:replace(" ","")
+        Params = getParams(Cmd)
+        if(Params:count()==3){
+            bg_color(vec(Params[1,string]:toNumber(),Params[2,string]:toNumber(),Params[3,string]:toNumber()))
+            writestr(TypeY,"Background color changed to "+BgRGB)
+            shifty()
+            writestr(TypeY," ")
+            shifty()
+            return 1
+        }
+        else{
+            writestr(TypeY,"Invalid arguements, bgcolor accepts [N,N,N]")
+            shifty()
+            writestr(TypeY," ")
+            shifty()
+        }
+    }
+    
+    #Echo
+    elseif(Cmd:find("echo")==1){
+        Cmd=Cmd:replace("echo","")
+        Cmd=Cmd:trimLeft()
+        writestr(TypeY,Cmd)
+        shifty()
+        return 1
+    }
+    
+    #Set/Print EAX
+    elseif(Cmd:find("eax")==1){
+        Cmd=Cmd:replace("eax","")
+        Cmd=Cmd:replace(" ","")
+        Params = getParams(Cmd)
+        if(Params:count()==1&Cmd!=""){
+            EAX=Cmd:toNumber()
+            return 1
+        }
+        elseif(Cmd==""){
+            execute("echo "+EAX)
+        }
+        else{
+            writestr(TypeY,"Invalid arguements, eax accepts [] or [N]")
+            shifty()
+            writestr(TypeY," ")
+            shifty()
+        }
+    }
+    
+    #Inputs
+    elseif(Cmd:find("in")==1){
+        Cmd=Cmd:replace("in","")
+        Cmd=Cmd:replace(" ","")
+        Params = getParams(Cmd)
+        if(Params:count()==1&Cmd!=""){
+            EAX=IOBus[Cmd:toNumber()]
+            return EAX
+        }
+        else{
+            writestr(TypeY,"Invalid arguements, in accepts [N]")
+            shifty()
+            writestr(TypeY," ")
+            shifty()
+        }
+    }
+    
+    #Outputs
+    elseif(Cmd:find("out")==1){
+        Cmd=Cmd:replace("out","")
+        Cmd=Cmd:replace(" ","")
+        Params = getParams(Cmd)
+        if(Params:count()==1&Cmd!=""){
+            IOBus[Cmd:toNumber()]=EAX
+            return 1
+        }
+        elseif(Params:count()==2&Cmd!=""){
+            IOBus[Params[1,string]:toNumber()]=Params[2,string]:toNumber()
+            return 1
+        }
+        else{
+            writestr(TypeY,"Invalid arguements, out accepts [N] or [N,N]")
+            shifty()
+            writestr(TypeY," ")
+            shifty()
+        }
+    }
+    
+    #Load
+    elseif(Cmd:find("load")==1){
+        Cmd=Cmd:replace("load","")
+        Cmd=Cmd:replace(" ","")
+        Params = getParams(Cmd)
+        if(Params:count()==1&Cmd!=""){
+            EAX=Mem[Cmd:toNumber()]
+            return EAX
+        }
+        else{
+            writestr(TypeY,"Invalid arguements, load accepts [N]")
+            shifty()
+            writestr(TypeY," ")
+            shifty()
+        }
+    }
+    
+    #Store
+    elseif(Cmd:find("store")==1){
+        Cmd=Cmd:replace("store","")
+        Cmd=Cmd:replace(" ","")
+        Params = getParams(Cmd)
+        if(Params:count()==1&Cmd!=""){
+            Mem[Cmd:toNumber()]=EAX
+            if(Mem[Cmd:toNumber()]==EAX){
+                return 1
+            }
+        }
+        elseif(Params:count()==2&Cmd!=""){
+            Mem[Params[1,string]:toNumber()]=Params[2,string]:toNumber()
+            return 1
+        }
+        else{
+            writestr(TypeY,"Invalid arguements, store accepts [N] or [N,N]")
+            shifty()
+            writestr(TypeY," ")
+            shifty()
+        }
+    }
+        
+    
+    ##External Program Commands
+    #Miner#
+    elseif(Cmd=="miner"&execute("load 200")!=1){
+        execute("store 200,1")
+        execute("cls")
+        execute("echo Miner Control v2.3 Activated")
+        execute("echo ")
+        return 1
+    }
+    elseif(execute("load 200")==1){
+        if(Cmd=="status"){
+            execute("echo Miner Status")
+            execute("echo Ore: "+execute("in 0"))
+            execute("echo MaxOre: "+execute("in 1"))
+            execute("echo Completion: "+floor(execute("in 0")/execute("in 1")*100)+"%")
+            execute("echo ")
+            return 1
+        }
+        if(Cmd=="mine"){
+            execute("out 0,1")
+            execute("echo Miner Activated")
+            execute("echo ")
+            return 1
+        }
+        if(Cmd=="stop"){
+            execute("out 0,0")
+            execute("echo Miner Stopped")
+            execute("echo ")
+            return 1
+        }
+        if(Cmd=="ports"){
+            execute("echo Miner Inputs: Port0[Ore], Port1[MaxOre]")
+            execute("echo Miner Outputs: Port0[Mine]")
+            execute("echo ")
+            return 1
+        }
+        if(Cmd=="exit"){
+            execute("eax 0")
+            execute("out 0,0")
+            execute("store 200,0")
+            execute("cls")
+            execute("echo Miner Control v2.3 Exitting")
+            execute("echo ")
+            return 1
+        }
+    return 0
+    }
+    
+    #DarkRP Money Tracker
+    elseif(Cmd=="darkrp"&execute("load 201")!=1){
+        execute("store 201,1")
+        execute("cls")
+        execute("echo DarkRP Account Log v1.5 Activated")
+        execute("echo ")
+        return 1
+    }
+    elseif(execute("load 201")==1){
+        if(Cmd=="account"){
+            execute("echo Current Balance: $"+execute("load 0"))
+            execute("echo Total Income: $"+execute("load 1"))
+            execute("echo Total Expenses: $"+execute("load 2"))
+            execute("out 0,"+execute("load 0"))
+            execute("out 1,"+execute("load 1"))
+            execute("out 2,"+execute("load 2"))
+            execute("echo ")
+            return 1
+        }
+        if(Cmd:find("setbal ")==1){
+            Cmd=Cmd:replace("setbal ","")
+            Cmd=Cmd:replace(" ","")
+            if(Cmd:explode(","):count()==1&Cmd!=""){
+                execute("store 0, "+Cmd:toNumber())
+                execute("echo Balance Set to: $"+execute("load 0"))
+                execute("echo ")
+            }
+            else{
+                execute("echo Invalid Parameters")
+                execute("echo ")
+            }
+            return 1
+        }
+        if(Cmd:find("addin")==1){
+            Cmd=Cmd:replace("addin","")
+            Cmd=Cmd:replace(" ","")
+            if(Cmd:explode(","):count()==1&Cmd!=""){
+                execute("store 1, "+(Cmd:toNumber()+(execute("load 1"))))
+                execute("store 0, "+(execute("load 0")+Cmd:toNumber()))
+                execute("echo Income Stored: $"+Cmd:toNumber())
+                execute("echo ")
+            }
+            else{
+                execute("echo Invalid Parameters")
+                execute("echo ")
+            }
+            return 1
+        }
+        if(Cmd:find("addex")==1){
+            Cmd=Cmd:replace("addex","")
+            Cmd=Cmd:replace(" ","")
+            if(Cmd:explode(","):count()==1&Cmd!=""){
+                execute("store 2, "+(Cmd:toNumber()+(execute("load 2"))))
+                execute("store 0, "+(execute("load 0")-Cmd:toNumber()))
+                execute("echo Expense Stored: $"+Cmd:toNumber())
+                execute("echo ")
+            }
+            else{
+                execute("echo Invalid Parameters")
+                execute("echo ")
+            }
+            return 1
+        }
+        if(Cmd=="reset"){
+            execute("store 0, 0")
+            execute("store 1, 0")
+            execute("store 2, 0")
+            execute("echo Account Reset")
+            execute("echo ")
+            return 1
+        }
+        if(Cmd=="exit"){
+            execute("store 201,0")
+            execute("cls")
+            execute("echo DarkRP Account Log v1.5 Exitting")
+            execute("echo ")
+            return 1
+        }
+    return 0
+    }
+    
+    
+    #Unknown Command (For non programs)
+    else{
+        writestr(TypeY,"Unknown command, type 'help' for a list of commands")
+        shifty()
+        writestr(TypeY," ")
+        shifty()
+    }
+    return 0
+}
+
+
+#INITIALIZE#
+if(first()|dupefinished()){
+    Type=">"
+    
+    txt_color(vec(158,255,0))
+    bg_color(vec(10,10,30))
+    clearscr()
+    cursor(1)
+}
+
+#Typing
+#Regular Keys
+if(~Key&Key!=0&Key!=10&Key!=17&Key!=18&Key!=19&Key!=20&Key<127&Type:length()<51){
+    Type=Type+(toChar(Key))
+}
+#Numpad
+if(~Key&Key>=128&Key<=137){
+    Type=Type+(toChar(Key-80))
+}
+if(~Key&Key==138){
+    Type=Type+"/"
+}
+if(~Key&Key==139){
+    Type=Type+"*"
+}
+if(~Key&Key==140){
+    Type=Type+"-"
+}
+if(~Key&Key==141){
+    Type=Type+"+"
+}
+if(~Key&Key==143){
+    Type=Type+"."
+}
+#Backspace
+if(Key==127&Type[-1]!=">"){
+    Type=Type:sub(1,Type:length()-1)
+}
+#Return
+if(~Key&(Key==10|Key==142)){
+    TypeHist:unshiftString(Type)
+    HistI=0
+    writestr(TypeY,Type)
+    shifty()
+    execute(Type)
+    Type=">"
+}
+
+#Command History
+if(TypeHist:count()>0){
+    if(~Key&Key==17){
+        if(HistI<TypeHist:count()){
+            HistI++
+        }
+        Type=TypeHist[HistI, string]
+    }
+    if(~Key&Key==18){
+        if(HistI>1){
+            HistI--
+        }
+        Type=TypeHist[HistI, string]
+    }
+}

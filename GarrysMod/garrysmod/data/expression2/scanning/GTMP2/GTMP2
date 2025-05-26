@@ -1,0 +1,617 @@
+@name GTMP2 Lib
+@persist [GTMP_MAP_MIN GTMP_MAP_MAX]:vector [GTMP_SCREEN_RESOLUTION_XY]:vector2 [GTMP_SCREEN_RESOLUTION GTMP_MAP_MAX_Z GTMP_STARTTIME GTMP_STEP_X GTMP_STEP_Y]:number [GTMP_FILENAME]:string [GTMP_SCREEN_ENTITY]:entity
+@persist [GTMP_Plot]:vector [GTMP_State GTMP_FileString]:string [GTMP_TimeFlag GTMP_X GTMP_Y GTMP_TempLow GTMP_TempHigh GTMP_Tracking GTMP_DrawGrid GTMP_DrawPlotter GTMP_PlotTimeFlag GTMP_PlotSectorTimeFlag GTMP_TrackSectorTimeFlag]:number [GTMP_DataArray GTMP_MatColorTable GTMP_TrackArray]:array [GTMP_MapData GTMP_GridChars]:table
+#[THIS CODE IS PROVIDED TO YOU COURTESY OF FRS.  OUR IP IS 70.42.74.154:27015.
+
+Gmod Topographical Mapping Project V2
+This system provides simple 2d screen projections of maps.
+It uses pre-scanned files when possible to reduce lag.
+It also provides map-to-world and world-to-map coordinates.
+It scales around other code, adapting to prevent excess impact.
+Finally, it has a grid for referencing locations to others.
+
+
+How to use it:
+-when your code loads, add this: #include "GTMP2_Lib"
+-this imports the functions of GTMP, like copying and pasting them
+-to start GTMP, simply have in your main code loop Screen:gtmp(<arguments>)
+    -you can call Screen:gtmp(holo index for N)
+    -you can call Screen:gtmp(holoindex,low-lag mode 0/1)
+    -you can call Screen:gtmp(holoindex,low-lag mode 0/1, draw grid 0/1)
+-gtmp will handle its own set of variables, state machine, etc, updating when you call Screen:gtmp(<arguments>)
+-all you do is call it repeatedly, and IT scales and sorts ITSELF out, adapting to your e2 cpu load
+-if you use GTMP's grid (highly recommended but not necessary), it uses 5 extra holos, so Screen:gtmp(1,1,1) would use holo indexes 1-6
+#
+-to track a coordinate (show 3d location on map), use this: gtmp_trackCoordinate(holo index of tracking holo,world location vector)
+-to track lots of coordinates, use this: gtmp_trackCoordinates(holo index of first holo,array of world coordinates)
+-to plot a coordinate (2d map location to world), use this: WorldLocationVectorName = gtmp_plotProportion(holo index of tracking holo,vector2 between -1 and 1 on both axises)
+-to plot a coordinate with your aim (map aim), use this: WorldLocationVectorName = gtmp_plotCoordinate(holo index of tracking holo,your aim location)
+#
+-GTMP will print to console very basic status updates to let you know it's working ok.
+#
+-the "grid" pattern is listed below in comments
+#
+-if you STILL have issues setting it up, or just want a standalone e2 form, look at the included, commented out e2 at bottom of file
+
+#GTMP2 GRID PATTERN:
+    A B C D
+    E F G H
+    I J K L
+    M N O P
+    
+
+Technical data:
+This system produces and indexes 2D heightmaps of maps, scaled to their size
+If it is on a map which has been charted it uploads, opens, decompresses, decompiles, and renders the map data.
+If this map has not been charted before, then it will scan the map, compile the data, compress, save, and then render the map data.
+This is developed from my 2d rendering framework.
+Note that the whole thing is encapsulated as a series of functions, with the core being a monolithic function and using globals
+While having prefixed globals is considered harmful, for performance in this programming language it is considered "standard"
+Unlike GTMP1, this is intended to provide COLOR maps with water--a major improvement over GTMP1.
+The GTMP2 format is 60x60 with raw height scaling, rounded to 100u increments.  This is partially to the very low tolerances of vON with tickrate.
+Custom encoding was rejected.  I'm stuck with such a low res because of wire's redchipping.  Encoding/decoding have to be quick, and vON is lua backed.
+GTMP files have a 2-entry header in their vON encoding, the last two bits in the saved array, and a text naming convention.
+Filenames are GTMP[File Encoding System Version]-[Uppercase map name].txt"
+For example: GTMP2-FREESPACE09.txt
+]#
+
+
+###############################################################################################################################
+# PRIVATE METHODS # PRIVATE METHODS # PRIVATE METHODS # PRIVATE METHODS # PRIVATE METHODS # PRIVATE METHODS # PRIVATE METHODS #
+###############################################################################################################################
+
+
+#main "core" function for GTMP.  Provides iteration over gtmp loop and controls state machine, etc.
+#DO NOT call this directly!  Use the accessor functions instead!
+#probably only way of cleanly encapsulating it.  Accessed by the wrapper accessors at bottom
+#note it will scale itself around tickrate; although it WILL add a lot of ops when scanning and drawing, it will also
+#not be so much taht it causes problems for most e2s--cpu usage rendering, for example, is like 300us at interval(100) and 500 at interval(25)
+function wirelink:gtmpMain(Index:number,LowOverHeadMode:number,DrawGrid:number)
+{
+    #setup for gtmp
+    if(!GTMP_State)
+    {
+        #setting up rangers
+        rangerPersist(1)
+        rangerFilter(entity():getConstraints())
+        rangerHitEntities(0)
+        rangerHitWater(0)
+        #gets dimensions
+        GTMP_MAP_MAX_Z = rangerOffset(999999,entity():pos() + vec(0,0,1000),vec(0,0,1)):position():z() - 5
+        GTMP_MAP_MIN = vec(rangerOffset(999999,entity():pos():setZ(GTMP_MAP_MAX_Z),vec(1,0,0)):position():x(),rangerOffset(999999,entity():pos():setZ(GTMP_MAP_MAX_Z),vec(0,-1,0)):position():y(),GTMP_MAP_MAX_Z)
+        GTMP_MAP_MAX = vec(rangerOffset(999999,entity():pos():setZ(GTMP_MAP_MAX_Z),vec(-1,0,0)):position():x(),rangerOffset(999999,entity():pos():setZ(GTMP_MAP_MAX_Z),vec(0,1,0)):position():y(),GTMP_MAP_MAX_Z)        
+        #Resolution setting
+        GTMP_SCREEN_RESOLUTION = 60
+        #Scanning system step precomputation
+        GTMP_STEP_X = (GTMP_MAP_MAX-GTMP_MAP_MIN):x() / GTMP_SCREEN_RESOLUTION
+        GTMP_STEP_Y = (GTMP_MAP_MAX-GTMP_MAP_MIN):y() / GTMP_SCREEN_RESOLUTION
+        #Filename
+        GTMP_FILENAME = "GTMP2-"+map():upper()+""
+        #Init time
+        GTMP_STARTTIME = curtime()
+        #entity identification
+        GTMP_SCREEN_ENTITY = This:entity()
+        #a hash table declared for materials and colors
+        GTMP_MatColorTable = array(
+        vec(0,250,0),      #grass               1
+        vec(125,112,60),     #concrete, brick   2
+        vec(250,225,150),    #dirt              3
+        vec(225,225,255),    #metal             4
+        vec(0,0,250),      #water               5
+        vec(250,250,100),    #sand, bric-a-brac 6
+        vec(200,150,0),      #woods, foliage    7
+        vec(200,200,250),    #glass/ice         8
+        vec(250,250,150)    #stone and rock     9
+        #vec(255,255,255)    #snow--this is a default setting in the rendering code
+        )
+        #a grid array for point indexing
+        GTMP_GridChars = table(array("a","b","c","d"),array("e","f","g","h"),array("i","j","k","l"),array("m","n","o","p"))
+        
+        #configuring the screen; modified TerraDestroy's example
+        This[1048574]=0 #Reset Screen and whatever was on it will be cleared.
+        This[1048569]=3 #Set color mode to 3
+        This[1048575]=1 #Apply changes
+        This[1048573]=GTMP_SCREEN_RESOLUTION-1 #Set new resolution on X (Width)
+        This[1048572]=GTMP_SCREEN_RESOLUTION-1 #Set new resolution on Y (Height)
+        
+        #drawing orientation marker
+        local ScreenBoxSize = GTMP_SCREEN_ENTITY:boxMax()
+        local Up = vec(0.9,0,0.9)
+        holoCreate(Index,GTMP_SCREEN_ENTITY:toWorld(Up * ScreenBoxSize),vec(),GTMP_SCREEN_ENTITY:toWorld(ang(0,90,90)))
+        holoScaleUnits(Index,shiftL(GTMP_SCREEN_ENTITY:boxSize()) * 0.05)
+        holoModel(Index,"models/sprops/misc/alphanum/alphanum_n.mdl")
+        holoBodygroup(Index,0,3)
+        holoColor(Index,GTMP_SCREEN_ENTITY:getColor())
+        holoDisableShading(Index,1)
+        holoParent(Index,GTMP_SCREEN_ENTITY)
+        holoMaterial(Index,"phoenix_storms/fender_white")
+        
+        print(_HUD_PRINTCONSOLE,"GTMP: Screen setup was completed successfully!")
+        GTMP_State = "reading"
+    }
+    
+    #checks for a map file.  If we do not have one, we will scan, else if we do we will move on to parse it and compile our topographic table
+    elseif(GTMP_State == "reading")
+    {
+        #attempts loading of file, gives a 11 second delay on attempting to access file to give upload time.
+        #note that it takes 10s delay normally but it sometimes seems to glitch.
+        if(!GTMP_TimeFlag & fileCanLoad())
+        {
+            fileLoad(GTMP_FILENAME+".txt")
+            GTMP_TimeFlag = curtime() + 11
+        }
+        elseif(curtime() > GTMP_TimeFlag)
+        {
+            #Processing the file
+            GTMP_FileString = fileRead()
+            #if we have something indeed available, then 
+            if(!fileLoaded())
+            {
+                print(_HUD_PRINTCONSOLE,"GTMP: No valid file found, scanning map.")
+                GTMP_State = "scanning"
+            }
+            else
+            {
+                print(_HUD_PRINTCONSOLE,"GTMP: Map found on disk, decompiling data.")
+                GTMP_State = "decompiling"
+            }
+            GTMP_TimeFlag = 0
+        }
+    }
+    
+    elseif(GTMP_State == "scanning")
+    {
+        if(!GTMP_TimeFlag)
+        {
+            GTMP_X = 1
+            GTMP_Y = 1
+            GTMP_TempLow = 65536
+            GTMP_TempHigh = -65536
+            GTMP_DataArray = array()
+            GTMP_TimeFlag = curtime() + 0.25
+            print(_HUD_PRINTCONSOLE,"GTMP: Scanning now...")
+        }
+        else
+        {
+            if(curtime() > GTMP_TimeFlag)
+            {
+                while(perf(10 - (LowOverHeadMode * 5)))
+                {
+                    GTMP_TimeFlag = curtime() + (0.2 * (1+LowOverHeadMode))   #time index flag is being used to "throttle" the code
+                    if(GTMP_Y <= GTMP_SCREEN_RESOLUTION)
+                    {
+                        for(GTMP_X=1,GTMP_SCREEN_RESOLUTION)
+                        {
+                            rangerHitEntities(0)    #bleh
+                            rangerHitWater(1) #ground first
+                            local Coordinate = GTMP_MAP_MIN + vec(GTMP_X*GTMP_STEP_X,GTMP_Y*GTMP_STEP_Y,0)
+                            local Trace = rangerOffset(65536,Coordinate,vec(0,0,-1))
+                            local TraceData = Trace:position():z() / 100
+                            #low/high checking
+                            if(TraceData <= GTMP_TempLow)
+                            {
+                                GTMP_TempLow = TraceData
+                            }
+                            elseif(TraceData >= GTMP_TempHigh)
+                            {
+                                GTMP_TempHigh = TraceData
+                            }
+                            #mat checking
+                            #rangerHitWater(1)
+                            #local MatTrace = rangerOffset(999999,Coordinate,(vec(0,0,-1)))
+                            local TraceMat = Trace:matType():lower()
+                            #assigning a typecode
+                            #Note: this LOOKS like some impressively shitty code, like holy crap
+                            #however!  it's basically loop-unrolling because this is performance intensive code
+                            #and an array loop would punish us with an arbitrary overhead because of gmod's shitty
+                            #array implmeentations.  This is actually the best way to do it that I can think of, even
+                            #if it's shitty to read.
+                            
+                            #default, failure
+                            local MatCode = 0
+                            #grassy terrain
+                            if(TraceMat == "grass") {MatCode = 1}
+                            #concrete
+                            elseif((TraceMat == "concrete") | (TraceMat == "concrete_block") | (TraceMat == "brick")) {MatCode = 2}
+                            #muddy, dirty ground
+                            elseif((TraceMat == "dirt") | (TraceMat == "mud")) {MatCode = 3}
+                            #metals
+                            elseif((TraceMat == "metal") | (TraceMat == "solidmetal")) {MatCode = 4}# | (TraceMat == "Metal_Box") | (TraceMat == "metal_bouncy") | (TraceMat == "slipperymetal") | (TraceMat == "metalgrate") | (TraceMat == "metalvent") | (TraceMat == "metalpanel") | (TraceMat == "chainlink") | (TraceMat == "chain") | (TraceMat == "combine_metal")) {MatCode = 4}
+                            #water
+                            elseif((TraceMat == "slosh") | (TraceMat == "water") | (TraceMat == "wade")) {MatCode = 5}
+                            #sand, tile, bric-a-brac
+                            elseif((TraceMat == "sand") | (TraceMat == "tile") | (TraceMat == "plaster") | (TraceMat == "plastic")) {MatCode = 6}
+                            #woods, foliage
+                            elseif((TraceMat == "foliage") | (TraceMat == "wood") | (TraceMat == "wood_lowdensity") | (TraceMat == "wood_wlank") | (TraceMat == "wood_solid")) {MatCode = 7}# | (TraceMat == "Wood_Crate") | (TraceMat == "Wood_Box")) {MatCode = 7}
+                            #glass or ice
+                            elseif((TraceMat == "glass") | (TraceMat == "combine_glass") | (TraceMat == "ice") ) {MatCode = 8}
+                            #rock and stone
+                            elseif((TraceMat == "rock") | (TraceMat == "stone") | (TraceMat == "boulder") | (TraceMat == "gravel")) {MatCode = 9} #| (TraceMat == "cavern_rock")) {MatCode = 11}
+                            #snow--it'll default to this because 0 renders white
+                            elseif((TraceMat == "snow") | (TraceMat == "snow_normal")) {MatCode = 0}
+                            
+                            local FinalNumber = round(TraceData) + ((MatCode * 0.1) * (1 - ((TraceData<0) * 2)))
+                            #storage
+                            GTMP_DataArray:pushNumber(FinalNumber)
+                        }
+                        GTMP_MapData:pushArray(GTMP_DataArray)
+                        GTMP_X = 1
+                        GTMP_Y++
+                        GTMP_DataArray = array()
+    
+                        #one-time backcheck, to prevent failure--because fileload sometimes STILL fails on first spawn
+                        if(GTMP_Y == int(GTMP_SCREEN_RESOLUTION / 4))
+                        {
+                            GTMP_FileString = fileRead()
+                            if(GTMP_FileString)
+                            {
+                                print(_HUD_PRINTCONSOLE,"GTMP: turns out we DID have that map, aborting scan.")
+                                GTMP_X = 0
+                                GTMP_Y = 0
+                                GTMP_TimeFlag = 0
+                                GTMP_State = "decompiling"
+                            }
+                        }
+                    }
+                    #term
+                    else
+                    {
+                        #We're storing a very crude embedded header in the first two entries.
+                        GTMP_MapData[1,array][1,number] = floor(GTMP_TempLow)
+                        GTMP_MapData[1,array][2,number] = ceil(GTMP_TempHigh)
+                        #resetting variables to clean it all up
+                        GTMP_X = 0
+                        GTMP_Y = 0
+                        GTMP_TimeFlag = 0
+                        #letting us know it's moving on
+                        print(_HUD_PRINTCONSOLE,"GTMP: world scanned, compiling data.")
+                        GTMP_State = "compiling"
+                    }
+                }
+            }
+        }
+    }
+    
+    #Compiles scanned topographic data
+    elseif(GTMP_State == "compiling")
+    {
+        if(!GTMP_TimeFlag)
+        {
+            GTMP_TimeFlag = curtime()
+        }
+        
+        #Encoding delayed by 2 seconds
+        elseif(curtime() > (GTMP_TimeFlag + 2))
+        {
+            GTMP_FileString = vonEncode(GTMP_MapData)
+            print(_HUD_PRINTCONSOLE,"World map encoded, moving on to file writing.")
+            #cleaning up and moving to next state
+            GTMP_TimeFlag = 0
+            GTMP_State = "writing"
+        }
+    }
+    
+    #writing topographic data
+    elseif(GTMP_State == "writing")
+    {
+        if(!GTMP_TimeFlag)
+        {
+            GTMP_TimeFlag = curtime() + 3
+        }
+        elseif((curtime() > GTMP_TimeFlag) & (ops() < 500))
+        {
+            if(fileCanWrite())
+            {
+                fileWrite(GTMP_FILENAME+".txt",""+GTMP_FileString)
+                print(_HUD_PRINTCONSOLE,"GTMP: Write operation performed on "+GTMP_FILENAME+".txt!")
+            }
+            else
+            {
+                print(_HUD_PRINTCONSOLE,"GTMP: Write operation failure, drawing map anyway.")
+            }
+            GTMP_State = "rendering"
+        }
+    }
+    
+    #Decompiles the map file we have loaded into memory.
+    elseif(GTMP_State == "decompiling")
+    {
+        if(!GTMP_TimeFlag)
+        {
+            GTMP_TimeFlag = curtime() + 1
+        }
+        elseif(curtime() > GTMP_TimeFlag)
+        {
+            GTMP_MapData = vonDecodeTable(GTMP_FileString)
+            print(_HUD_PRINTCONSOLE,"GTMP: File decoded, drawing now.")
+            GTMP_State = "rendering"
+            GTMP_TimeFlag = 0
+        }
+    }
+    
+    #draws map data
+    elseif(GTMP_State == "rendering")
+    {
+        while(perf(10 - (LowOverHeadMode * 5)))
+        {
+            if(!GTMP_TimeFlag)
+            {
+                GTMP_X = 1
+                GTMP_Y = 1
+                if(!GTMP_TempLow)
+                {
+                    GTMP_TempLow = GTMP_MapData[1,array][1,number]
+                    GTMP_TempHigh = GTMP_MapData[1,array][2,number]
+                }
+                GTMP_TimeFlag = curtime() + 0.25
+            }
+            
+            elseif((GTMP_Y < GTMP_SCREEN_RESOLUTION) & (curtime() > GTMP_TimeFlag))
+            {
+                local Array = GTMP_MapData[GTMP_Y,array]
+                local HighLowDifference = (GTMP_TempHigh - GTMP_TempLow)
+                for(GTMP_X=1,GTMP_SCREEN_RESOLUTION)
+                {
+                    local Data = Array[GTMP_X,number]
+                    local Height = int(Data)
+                    local DataCell = (Height-GTMP_TempLow) / HighLowDifference
+                    #code to color
+                    local DataColorLookupIndex = int(abs(Data*10 - Height*10))
+                    local DataColor = GTMP_MatColorTable[DataColorLookupIndex,vector]
+                    #bizarre looking drawing code, lemme demystify it.
+                    #it gets the wirelink entity, sets its wirelink array access coord (all the pixels over, it wraps around.  basically y*res + x),
+                    #then uses the rgb2digi converter, and sets rgb2digi mode to 3, which is the non-fucky code off terradestroy's example in the documentation.
+                    This[(GTMP_X-1)+(GTMP_Y-1)*(GTMP_SCREEN_RESOLUTION-1)] = rgb2digi(DataColor*((1+DataCell)/2),3)
+                }
+                GTMP_Y++
+                GTMP_TimeFlag = curtime() + (0.1 + (LowOverHeadMode * 0.2))
+            }
+            elseif(GTMP_Y >= GTMP_SCREEN_RESOLUTION)
+            {
+                print(_HUD_PRINTCONSOLE,"GTMP: Drawing completed, returning to idle.")
+                GTMP_State = "idle"
+                #cleaning up
+                GTMP_TimeFlag = 0
+                GTMP_X = 0
+                GTMP_Y = 0
+                GTMP_MapData = table()  #manually deallocating memory
+            }
+        }
+    }
+    
+    #handling grids is a relatively simple affair, drawgrid is our input and GTMP_DrawGrid is stored setting.  If changed it triggers a flag.
+    if(GTMP_DrawGrid != DrawGrid)
+    {
+        if(DrawGrid)
+        {
+            local Size = GTMP_SCREEN_ENTITY:boxSize() * 0.975 
+            #central grid line
+            holoCreate(Index+1,GTMP_SCREEN_ENTITY:toWorld(vec(0,0,Size:z() * 0.5)),Size * vec(0.0205,0.0205,0.005),GTMP_SCREEN_ENTITY:angles())
+            #four sub-gridlines
+            holoCreate(Index+2,GTMP_SCREEN_ENTITY:toWorld(vec(Size:x() * -0.25,Size:y() * -0.25,Size:z() * 0.5)),Size * vec(0.01,0.01,0.005),GTMP_SCREEN_ENTITY:angles())
+            holoCreate(Index+3,GTMP_SCREEN_ENTITY:toWorld(vec(Size:x() * -0.25,Size:y() * 0.25,Size:z() * 0.5)),Size * vec(0.01,0.01,0.005),GTMP_SCREEN_ENTITY:angles())
+            holoCreate(Index+4,GTMP_SCREEN_ENTITY:toWorld(vec(Size:x() * 0.25,Size:y() * -0.25,Size:z() * 0.5)),Size * vec(0.01,0.01,0.005),GTMP_SCREEN_ENTITY:angles())
+            holoCreate(Index+5,GTMP_SCREEN_ENTITY:toWorld(vec(Size:x() * 0.25,Size:y() * 0.25,Size:z() * 0.5)),Size * vec(0.01,0.01,0.005),GTMP_SCREEN_ENTITY:angles())
+            #parenting, modeling, etc
+            for(N=1,5)
+            {
+                holoModel(Index+N,"models/mechanics/solid_steel/sheetmetal_plusb_4.mdl")
+                holoDisableShading(Index+N,1)
+                holoMaterial(Index+N,"phoenix_storms/fender_white")
+                holoColor(Index+N,vec4(GTMP_SCREEN_ENTITY:getColor(),48))
+                holoParent(Index+N,GTMP_SCREEN_ENTITY)
+            }
+        }
+        else
+        {
+            for(N=1,5)
+            {
+                holoDelete(Index+N)
+            }
+        }
+        GTMP_DrawGrid = DrawGrid
+    }
+}
+
+#utility function which converts a simple GTMP map-relative vector2 to a grid sector, using the grid_chars table for lookup and a hash function
+function string gtmp_v2ToSector(V:vector2)
+{
+    #A B C D    1 2 3 4
+    #E F G H    5 6 7 8
+    #I J K L    9 101112
+    #M N O P    13141516
+    local NormalizedV = vec2(0.5,0.5) + (vec2(V:y(),V:x()) * vec2(-0.5,-0.5))   #should normalized to 0-1 from -1/1
+    local Xmodifier = ceil(NormalizedV:x() * 4)
+    local Ymodifier = ceil(NormalizedV:y() * 4)  #0-4
+    Char = GTMP_GridChars[Ymodifier,array][Xmodifier,string]
+    return Char
+}
+
+
+########################################################################################################################
+# PUBLIC METHODS # PUBLIC METHODS # PUBLIC METHODS # PUBLIC METHODS # PUBLIC METHODS # PUBLIC METHODS # PUBLIC METHODS #
+########################################################################################################################
+
+
+#GTMP wrapper functions, you can use any of these and they all work the same (operator overloading)
+#You call these to instantiate GTMP.
+function wirelink:gtmp(Index:number)
+{
+    This:gtmpMain(Index,1,1)
+}
+function wirelink:gtmp(Index:number,LowOverHeadMode:number)
+{
+    This:gtmpMain(Index,LowOverHeadMode,1)
+}
+function wirelink:gtmp(Index:number,LowOverHeadMode:number,DrawGrid:number)
+{
+    This:gtmpMain(Index,LowOverHeadMode,DrawGrid)
+}
+
+#tracks world coordinates, with indexes starting at 
+#note that if you want to stop tracking, call it with a null array
+#you don't go "if Array:count(), track" you just call it continuously
+function void gtmp_trackCoordinates(Index:number,Locations:array)
+{
+    #only runs when everything has been set up
+    if(GTMP_State == "idle")
+    {
+        #counts of currently vs previously tracking
+        local TrackCount = Locations:count()
+        local TrackArrayCount = GTMP_TrackArray:count()
+        #difference in tracking, determines if we add or delete holos
+        local TrackDifference = TrackCount - TrackArrayCount
+        local TrackCountUpdate = TrackDifference != 0
+        #resaves the array
+        GTMP_TrackArray = Locations
+        
+        #draw holo, start tracking another entity
+        if(TrackDifference > 0)
+        {
+            local NewIndex = Index-1+TrackCount
+            holoCreate(NewIndex,GTMP_SCREEN_ENTITY:pos(),vec(),GTMP_SCREEN_ENTITY:toWorld(ang(0,90,90)))
+            holoScaleUnits(NewIndex,shiftL(GTMP_SCREEN_ENTITY:boxSize()) * 0.04)
+            holoDisableShading(NewIndex,1)
+            holoModel(NewIndex,"models/sprops/misc/alphanum/alphanum_x.mdl")
+            holoBodygroup(NewIndex,0,1)
+            holoParent(NewIndex,GTMP_SCREEN_ENTITY)
+            holoColor(NewIndex,vec4(128,255,64,128))
+            holoMaterial(NewIndex,"phoenix_storms/fender_white")
+            
+            if(!GTMP_Tracking)
+            {
+                GTMP_TimeFlag = curtime() + 0.2
+                #GTMP_Tracking = 1
+            }
+        }
+        #remoevd a vector, remove a holo.  If removed em all, turn off tracking
+        elseif(TrackDifference < 0)
+        {
+            holoDelete(Index-1+TrackArrayCount)
+            
+            if(!TrackCount)
+            {
+                GTMP_TimeFlag = curtime()
+                #GTMP_Tracking = 0
+            }
+        }
+        
+        #track actual coords based off screen boxsize, increment track timer
+        if(curtime() >= GTMP_TimeFlag)
+        {
+            for(N=1,TrackCount)
+            {
+                local RawVec = (GTMP_TrackArray[N,vector] / GTMP_MAP_MAX)
+                local LocalizedLocation = vec(RawVec:y(),RawVec:x(),1)
+                holoPos(Index-1+N,GTMP_SCREEN_ENTITY:toWorld(LocalizedLocation * GTMP_SCREEN_ENTITY:boxMax()))
+                if(GTMP_TrackSectorTimeFlag)
+                {
+                    holoModel(Index-1+N,"models/sprops/misc/alphanum/alphanum_"+gtmp_v2ToSector(vec2(LocalizedLocation))+".mdl")
+                }
+            }
+            for(N=1,10)
+            {
+                #manual cleanup on holo tracks
+                if(!GTMP_TrackArray[N,vector]) {holoDelete(Index-1+N)}
+            }
+            GTMP_TimeFlag = curtime() + 0.2   #200ms tracking
+            GTMP_TrackSectorTimeFlag = !GTMP_TrackSectorTimeFlag #400ms sector updates
+        }
+    }
+}
+
+#track one coordinate; just calls the array but with only one location.
+function void gtmp_trackCoordinate(Index:number,Location:vector)
+{
+    gtmp_trackCoordinates(Index,array(Location))
+}
+
+#plots a point on the map with a vec2 as input, which is scaled from -1 to 1.
+#so for instance, corners would be -1/-1, and 1/1.
+#itl'l return the world vector with height
+function vector gtmp_plotProportion(Index:number,LocalizedCoordinates:vector2)
+{
+    if(GTMP_State == "idle")
+    {
+        if(!GTMP_PlotTimeFlag)
+        {
+            GTMP_PlotTimeFlag = curtime() + 0.1
+            print(_HUD_PRINTCONSOLE,"GTMP: plotting enabled")
+            holoCreate(Index,GTMP_SCREEN_ENTITY:pos(),vec(),GTMP_SCREEN_ENTITY:toWorld(ang(0,90,90)))
+            holoScaleUnits(Index,shiftL(GTMP_SCREEN_ENTITY:boxSize()) * 0.04)
+            holoDisableShading(Index,1)
+            holoModel(Index,"models/sprops/misc/alphanum/alphanum_x.mdl")
+            holoBodygroup(Index,0,1)
+            holoParent(Index,GTMP_SCREEN_ENTITY)
+            holoColor(Index,vec4(255,0,0,160))
+            holoMaterial(Index,"phoenix_storms/fender_white")
+        }
+        if(curtime() > GTMP_PlotTimeFlag)
+        {
+            #Real coordinate output, some deep magic here.
+            local NormalizedCoordinates = (clamp(LocalizedCoordinates,-1,1) / 2) + vec2(0.5)
+            local WorldX = (GTMP_MAP_MAX:x() * NormalizedCoordinates:y()) + (GTMP_MAP_MIN:x() * (1-NormalizedCoordinates:y()))
+            local WorldY = (GTMP_MAP_MAX:y() * NormalizedCoordinates:x()) + (GTMP_MAP_MIN:y() * (1-NormalizedCoordinates:x()))
+            local WorldZ = rangerOffset(99999,vec(WorldX,WorldY,GTMP_MAP_MAX_Z),vec(0,0,-1)):position():z()        
+            #stores plot, draws holo, and returns value
+            GTMP_Plot = vec(WorldX,WorldY,WorldZ)
+            holoPos(Index,GTMP_SCREEN_ENTITY:toWorld(vec(LocalizedCoordinates,1) * GTMP_SCREEN_ENTITY:boxMax()))
+            GTMP_PlotTimeFlag = curtime() + 0.1
+        }
+        #model update
+        if(!GTMP_PlotSectorTimeFlag)
+        {
+            GTMP_PlotSectorTimeFlag = curtime() + 0.5
+        }
+        if(curtime() > GTMP_PlotSectorTimeFlag)
+        {
+            holoModel(Index,"models/sprops/misc/alphanum/alphanum_"+gtmp_v2ToSector(LocalizedCoordinates)+".mdl")
+            GTMP_PlotSectorTimeFlag = curtime() + 0.5
+        }
+    }
+    #pass-through failure
+    return GTMP_Plot
+}
+
+#converts a world aim coordinate to local map coord, and then recomputes that to a world coordinate
+#so you look at map, and it outputs the corresponding world position, at ground level
+function vector gtmp_plotCoordinate(Index:number,Aimpoint:vector)
+{
+    local LocalizedCoordinates = vec2(GTMP_SCREEN_ENTITY:toLocal(Aimpoint) / GTMP_SCREEN_ENTITY:boxMax())
+    return gtmp_plotProportion(Index,LocalizedCoordinates)
+}
+
+print(_HUD_PRINTCONSOLE,""+entity():getName()+": GTMP-Lib imported!")
+
+
+#[If you want to use GTMP as a standalone e2, here's your interface.
+@name gtmp wrapper
+@inputs Screen:wirelink Positions:array
+#@outputs V:vector
+#@persist Point:vector2
+interval(100) #works fine anywhere from 20-250
+if(duped() | dupefinished()) {reset()}
+if(first())
+{
+    #include "GTMP2_Lib"
+}
+else
+{
+    #we just call the function here, and it's good, it handles ALL the hard stuff behind the scenes
+    Screen:gtmp(1,0,1)  #index of holo, low lag mode is not necessary because we're using it standalone, and grid pattern is on
+    
+    #tracking holo is a green letter
+    #gtmp_trackCoordinate(7,entity():pos())  #follows itself; you can replace entity():pos() with anything.   holo index 7, because 1-6 are taken by N indicator and grid
+    #if you want to track LOTS of things, use this!
+    #gtmp_trackCoordinates(7,Positions)
+    
+    #if we wanted to use a thing where I can specify a point with keyboard, we use this
+    #not gtmp, just necessary for using keyboard to track something
+    #PointInput = vec2(owner():keyPressed("up") - owner():keyPressed("down"),owner():keyPressed("left") - owner():keyPressed("right"))
+    #Point = clamp(Point + (PointInput * 0.025),vec2(-1),vec2(1))
+    #back to gtmp, here it turns our 2d input to a 3d coordinate, on ground, plottign using holo 8
+    #V = gtmp_plotProportion(8,Point)
+    
+    #assuming we wanted to just look at the map, and have it output a world coord, that's ok, we can juse use this instead of the point stuff
+    #V = gtmp_plotCoordinate(8,owner():aimPos())
+}

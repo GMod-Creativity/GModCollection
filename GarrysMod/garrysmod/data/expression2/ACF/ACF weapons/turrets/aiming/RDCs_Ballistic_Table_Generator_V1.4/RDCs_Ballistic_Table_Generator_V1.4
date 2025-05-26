@@ -1,0 +1,87 @@
+@name RDC's Ballistic Table Generator V1.4
+@inputs Gun:entity Gunready
+@outputs ElevPos:array TTime:array 
+@persist GenComplete MV Velocity LINTPos:vector I Distance ODist Ratio Increments TableSlot Timescale2 Timescale Vel:vector Gravity:vector Drag:vector LPos:vector Pos:vector DragCoef Loops
+@trigger Gunready
+
+if(~Gunready&Gunready&MV!=Gun:acfMuzzleVel()|dupefinished())
+{
+timer("reset",1000) 
+hint("TableGenRestart",3)    
+}
+elseif(clk("reset"))
+{
+reset()   
+hint("TableGenBootup",3)
+}
+
+if(first()|dupefinished())
+{
+MV=Gun:acfMuzzleVel()
+holoCreate(1)
+#Timescale = 0.066 
+Timescale = tickInterval()
+Timescale2 = 1/66
+Increments=20
+TableSlot = 1
+#Dont edit past here
+Gravity = vec(0,0,-gravity())
+InitVel = vec(1,0,0)*MV*39.37
+Vel = InitVel
+Pos = vec(0)
+SubCaliberMult=1
+DragCoef = ( (3 * ((Gun:acfCaliber())/2*SubCaliberMult)^2 )/10000)/(100*Gun:acfProjectileMass())
+ODist=-1000000 #1 million dollars... DUN DUN DUN, this value just has to be less than 0
+
+        function vector interpolate(Smaller:vector, Larger:vector, R) {
+        return Smaller+(Larger-Smaller)/R
+    }
+#ElevPos:pushNumber(0)  
+#TTime:pushNumber(0)
+
+}
+if(!GenComplete)
+{
+interval(0)        
+
+if(holoEntity(1))
+{
+if(Distance<1200&Distance-ODist>0.01&holoEntity(1):elevation(LPos+((Pos-LPos)/2)*Ratio)>=-45)
+{
+if(Ratio<=1)
+{    
+ I++
+	local Drag = Vel:normalized() * (DragCoef * Vel:length()^2)/acfDragDiv()
+	LPos = Pos
+	Pos = Pos + Vel*Timescale
+	Vel = Vel + (Gravity - Drag)*Timescale
+
+ODist=Distance
+Distance = Pos:distance(vec(0))/39.37
+#Ratio = Distance/(Increments*TableSlot)
+Ratio = (Distance-floor(TableSlot))/(Increments*TableSlot)
+#(Dist-floor(TableSlot))/RTIncrements
+}
+else
+{
+ElevPos:pushNumber((vec(0)-(interpolate(LPos,Pos,Ratio))):z())  
+
+#ElevPos:pushNumber((vec(0)-(LPos + Pos) / 2):z()) #Red Formula 
+
+#TTime:pushNumber((I/Ratio)*Timescale)
+ 
+TTime:pushNumber(I*Timescale)
+TableSlot++  
+Ratio = (Distance-floor(TableSlot))/(Increments*TableSlot)
+}
+
+}
+else
+{
+hint("TableGenComplete",3)
+stoptimer("interval")  
+holoDelete(1)
+GenComplete=1
+}
+}
+}

@@ -1,0 +1,84 @@
+@name Ice Miner
+@inputs Amount InSeat Space Pump:string
+@outputs Active Scanner HoldJump Pos:vector Home:vector
+@persist Core:entity 
+
+interval(20)
+if(dupefinished()){
+    reset()
+}
+if(first()){
+    #include "includes/TeleSystemLib"
+    Core=entity():isWeldedTo()
+    Scanner=1
+    dsJoinGroup("ice_miner")
+    dsSend("getPos","ice_probe",1)
+}
+
+#Get CurPos
+if(dsClk("curpos")){
+    if(Pos==vec(0,0,0)){
+        Home=dsGetVector()
+        Pos=Home
+    }
+    else{
+        Pos=dsGetVector()
+    }
+}
+
+#Toggle Active
+if(~Space&Space){
+    Active=!Active
+    if(Active){
+        print("MINER: ACTIVE")
+    }
+    else{
+        print("MINER: INACTIVE")
+    }
+}
+
+#First Jump
+if(~Space&Active&Amount==0&Core:pos()!=Pos&Pump=="Unplugged"){
+    timer("move",500)
+}
+
+#AtCoord, No Ice, Call Next
+if(Active&Core:pos()==Pos&Pos!=Home&Amount==0&InSeat){
+    timer("next",3000)
+}
+
+#Jump by next call
+if(dsClk("move")&dsGetNumber()==1){
+    if(InSeat&Pump=="Unplugged"){
+        if(Pos!=Core:pos()){
+        timer("move",500)
+        }
+    }
+    else{
+        HoldJump=1
+    }
+}
+if(HoldJump&InSeat&Pump=="Unplugged"){
+    HoldJump=0
+    if(Pos!=Core:pos()){
+        timer("move",500)
+    }
+}
+
+#Cancel all if ice found
+if(Active&Amount!=0){
+    stoptimer("next")
+}
+
+#Teleport
+if(clk("move")){
+    teleportContraption(Pos,Core:angles(),Core)
+    stoptimer("move")
+    print("MINER: MOVING TO NEXT COORDINATE")
+}
+
+#Call Next Ice
+if(clk("next")){
+    dsSend("next","ice_probe",1)
+    print("MINER: REQUEST NEXT COORDINATE")
+}

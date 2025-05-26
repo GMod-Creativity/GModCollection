@@ -1,0 +1,190 @@
+@name Pathfinding - The table edition.
+@inputs End:vector Find Flat
+@outputs Pos:vector WorkArray:array
+@persist Nodes:array Index Stage
+@persist EndPos:vector SearchPos:vector StartPos:vector
+
+# When Find is pressed.
+if ( ~Find & Find ) {
+
+#first a quick iteration to clear all holograms
+I=Index*2+3
+while (I>0) {
+holoDelete(I)
+I--
+}
+
+#Reset The table with all the vector points
+Nodes=array()
+
+#for flat, 10 is added to the highest of Z.
+if (Flat) {
+Z=max(End:z(),entity():pos():z())+10
+EndPos=round( End:setZ(Z) )
+Return=StartPos=Pos=round( entity():pos():setZ(Z) )
+}
+
+# else the Z of start and end are just 10 above their position.
+else {
+EndPos=round( End + vec(0,0,10) )
+Return=StartPos=Pos=round( entity():pos() + vec(0,0,10) )
+}
+# Stage 1 is the actually path finding bit,
+# Stage 2 goes backwards through the points found at A to remove all the unneeded ones.
+Stage=1
+}
+if (Stage==1) {
+
+# Step 1:
+# Throw out an RD from the current position to the end point.
+# If that doesn't find any obstruction, YAY we are there! Off to stage2
+# If there is something in the way we need to go to step 2:
+interval(20)
+Distance=EndPos:distance(Pos)
+RD=rangerOffset(Pos,EndPos)
+
+# So the distance of the RD is compared with the actual distance
+#if the the length of the Ranger as long as the distance then we are sure it "sees" it. (The -1 is to prevent numerical errors)
+if ( RD:distance() > (Distance-1) ) {
+Nodes:setVector( EndPos:x()*EndPos:y()*EndPos:z() , Pos )
+print("Path Found!")
+Stage=2
+WorkArray=array()
+WorkArray:setVector(1,StartPos)
+Index=1
+Pos=StartPos
+SearchPos=EndPos
+}
+
+#Step 2.
+#Optimal direction is determined by rounding a normalized vector towards the point.. It's a rough direction.
+else {
+OptimalDirection=round((EndPos-Pos):normalized())*100
+
+# A trace is made in that rough direction according the distance found at step 1.
+RD=rangerOffset( Distance , Pos , OptimalDirection )
+Distance=RD:distance()
+
+# This get's the length of one "unit" in the Optimal Direction.
+# vec(100,0,0) is shorter then vec(100,100,100)
+Length=OptimalDirection:length()
+
+#The distance of the ranger is divided by the unit length
+#Floored it can give a multiple amount of units it can move.
+#This speeds up the finding process insane, when there is a large open space between two obstructions
+
+#If there is an option to move in the OptimalDirection then it does that.
+CheckNode=Pos+(OptimalDirection * floor(Distance/2/Length))
+if ( Distance > (Length+1) & !Nodes:vector( CheckNode:x()*CheckNode:y()*CheckNode:z() ) ) {
+#Return saves the current position.
+#Position is moved to the check node
+#An entry of this new position is added in a table, with the position it came from.
+#Whenever it doesn't find an available path, it reads the current position from that table and moves back to the one it came from
+
+Return=Pos
+Pos=CheckNode
+Nodes:setVector( Pos:x()*Pos:y()*Pos:z() , Return )
+}
+
+# If the previous 2 steps weren't successful then we have to do some serious checking.
+else {
+if (Flat) {
+#In workArray I put the available positions to move to
+#An possibility is available when:
+#I haven't been there
+#There is nothing between this position and there.
+I=0
+WorkArray=array()
+MinDistance=100000
+while (I<9) {
+CheckDirection=vec( (I%3)-1 , floor(I/3)-1 , 0 )*100
+CheckNode=Pos + CheckDirection
+if ( !Nodes:vector( CheckNode:x()*CheckNode:y()*CheckNode:z() ) ) {
+Length=CheckDirection:length()-1
+RD=rangerOffset(Pos , CheckNode)
+if ( RD:distance() > Length ) {
+# Here it has found a possible direction
+# The distance between the checked node and the end is determined
+# The checked node is added to an array, indexed by the distance
+# When the current distance is shorter then a earlier one, then this Node is the new favorite place to go.
+StraightDistance=floor( EndPos:distance(CheckNode) )
+WorkArray:setVector(StraightDistance, CheckNode)
+MinDistance=min( StraightDistance , MinDistance)
+}
+}
+#the +(I==4) is to skip I=5, that would be the current position, bit pointless to check :P
+I+=(1+(I==4))
+}
+}
+# The 3D version
+else {
+I=0
+WorkArray=array()
+MinDistance=100000
+while (I<27) {
+CheckDirection=( vec( I%3 , floor((I%9)/3) , floor(I/9) ) - vec(1,1,1) )*100
+CheckNode=Pos + CheckDirection
+if ( !Nodes:vector( CheckNode:x()*CheckNode:y()*CheckNode:z() ) ) {
+Length=CheckDirection:length()-1
+RD=rangerOffset(Pos , CheckNode)
+if ( RD:distance() > Length ) {
+StraightDistance=floor( EndPos:distance(CheckNode) )
+WorkArray:setVector(StraightDistance, CheckNode)
+MinDistance=min( StraightDistance , MinDistance)
+}
+}
+I+=(1+(I==12))
+}
+}
+
+# If it found a new path
+# then the position is moved to there and it starts over again
+# if no path was found, read the current position and move back to place I came from
+if (MinDistance!=100000) {
+Return=Pos
+Pos=WorkArray:vector(MinDistance)
+Nodes:setVector( Pos:x()*Pos:y()*Pos:z() , Return )
+}
+else {
+Pos=Nodes:vector( Pos:x()*Pos:y()*Pos:z() )
+}
+}
+}
+}
+
+# When it has found a route
+# It checks between the current Pos and SearchPos. (At first Pos the start, Search is the Endpoint)
+# When the ranger is obstruct, the searchpos moves the the node found before the current position
+# When the ranger isn't obstruct then Pos is moved to the current SearchPos, the SearchPos is returned to the end.
+#Every time the two points "see" each other again all the points in between are discarded.
+#Until Pos can see the endpoint, that tells the optimization is done
+
+elseif (Stage==2) {
+interval(10)
+RD=rangerOffset(Pos,SearchPos)
+Length=Pos:distance(SearchPos)-1
+if (RD:distance() > Length) {
+Index++
+if (SearchPos==EndPos) {
+print("Optimized")
+Stage=0
+holoCreate(1,StartPos,vec(3,3,3),ang(),vec(255,0,0 ))
+holoModel(1,"sphere")
+}
+holoCreate(Index*2,SearchPos,vec(3,3,3),ang(),vec( 255,0,0))
+holoModel(Index*2,"sphere")
+OldVec=WorkArray:vector(Index-1)
+Vector=OldVec-SearchPos
+HoloPos=(OldVec+SearchPos)/2
+HoloAngle=(Vector):toAngle()
+holoCreate(Index*2+1,HoloPos,vec(16,0.5,0.5),HoloAngle,vec(255,0,0))
+holoScaleUnits(Index*2+1,vec(Vector:length()*1.045 ,3,3))
+
+WorkArray:setVector(Index,SearchPos)
+Pos=SearchPos
+SearchPos=EndPos
+}
+else {
+SearchPos=Nodes:vector( SearchPos:x()*SearchPos:y()*SearchPos:z() )
+}
+}

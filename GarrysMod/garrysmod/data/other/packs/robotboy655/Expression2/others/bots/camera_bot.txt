@@ -1,0 +1,108 @@
+@name CameraBot
+@outputs DBG DBG2
+@persist E:entity TargAlt MaxAlt Zpos Epos:vector2 XY:vector2 
+@persist TargPos:vector2 AngP AngY AngR Dropping Stuck Printed
+@trigger none
+ 
+#frequency of execution#
+interval(20)           #
+ 
+if(!chatClk(owner()))
+{
+#Store the PHX plate in the E variable on first execution#
+if(first()) {E = entity():isWeldedTo() runOnChat(1)}     #
+ 
+#Reset the position of the PHX plate#
+Zpos = E:pos():z()                  #
+Epos = vec2(E:pos())                #
+#####################################
+ 
+if(clk("StuckTimer")){Stuck = 1}
+Height = 50
+if(owner():isCrouch()) {Height = 30}
+rangerFilter(E)
+rangerFilter(entity())  
+StuckRD = rangerOffset(999999999,E:pos(),
+owner():pos():setZ(owner():pos():z() + Height) - E:pos())
+if(StuckRD:entity() != owner())
+{
+if(!Dropping){timer("StuckTimer",1000)}
+}
+else{Stuck = 0 stoptimer("StuckTimer")}
+ 
+if(!Stuck)
+{
+#Work out hover height and distance to keep from owner#
+if(!Dropping)                                         #
+{                                                     #
+rangerFilter(owner())                                 #
+rangerFilter(E)                                       #
+rangerFilter(entity())                                #
+RD = rangerOffset(120,owner():pos() + 1,vec(0,0,1))   #Aims up from owner
+rangerFilter(owner())                                 #
+rangerFilter(E)                                       #
+rangerFilter(entity())                                #
+RD2= rangerOffset(35,E:pos(),vec(0,0,1))              #Aims up from Plate
+if(RD2:hit()){TargAlt = RD2:position():z() - 40}      #
+Offset = 80                                           #
+if(RD:hit()) {Offset = 100                            #
+MaxAlt = owner():pos():z() + RD:distance() - 40       #
+TargAlt = MaxAlt - 20                                 #
+Dropping = 1}                                         #
+else{TargAlt = owner():pos():z() + RD:distance() - 40}#
+if(RD2:hit() & !Dropping)                             #
+{TargAlt = RD2:position():z() - 40}                   #
+}                                                     #
+elseif(E:pos():z() < MaxAlt){Dropping = 0}            #
+#######################################################
+ 
+#Work out XY position############################################
+TargPos = vec2(owner():right())*Offset *-1 + vec2(owner():pos())#
+ 
+#Work out force to apply and convert it to a vector#
+Z = (TargAlt+100 - Zpos) * 10 + $Zpos * -200       #
+if(!Dropping)                                      #
+{                                                  #
+XY =(TargPos - Epos) * 10 + $Epos * -200           #
+}                                                  #
+else{XY = -$Epos * 200}                            #
+ApplyForce = vec(XY,Z)                             #
+####################################################
+ 
+#Declare angle to store angular force#
+ApplyAng = ang()                     #
+ 
+#Work out angular force to apply and store it in the declared angle#
+AngP = E:elevation(owner():aimPos())                               #
+ApplyAng = ApplyAng:setPitch(-AngP * 10 + $AngP * -1000)           #
+AngY = E:bearing(owner():aimPos())                                 #
+ApplyAng = ApplyAng:setYaw(-AngY * 10 + $AngY * -1000)             #
+AngR = E:angles():roll()                                           #
+ApplyAng = ApplyAng:setRoll(-AngR * 10 + $AngR * -1000)            #
+####################################################################
+ 
+#Apply the force##########
+E:applyForce(ApplyForce) #
+E:applyAngForce(ApplyAng)#
+##########################
+}
+elseif($Stuck == 1 & !Printed)
+{hint("\"CameraBot\" is stuck and can't reach you via a direct route!",5)
+ Printed = 1}
+if($Stuck == -1)
+{hint("\"CameraBot\" is now following you and is not stuck!",5)
+ Printed = 0}
+}
+elseif(lastSpoke() == owner())
+{
+    if(lastSaid():sub(0,6) == "/reset") 
+    {hint("CamBot reset!",5)
+    TargAlt = 0 MaxAlt = 0 Zpos = 0 Epos = vec2(0,0) XY = vec2(0,0)
+    TargPos = vec2(0,0) AngP = 0 AngY = 0 AngR = 0 Dropping = 0 
+    Stuck = 0 Printed = 0
+    }
+}
+#Debugging variables#
+DBG = Printed       #
+DBG2= Offset        #
+#####################

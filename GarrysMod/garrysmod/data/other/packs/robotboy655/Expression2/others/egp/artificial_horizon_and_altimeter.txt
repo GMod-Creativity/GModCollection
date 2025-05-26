@@ -1,0 +1,156 @@
+@name EGP Artificial Horizon and Altimeter - by Schmoller 
+@inputs S:wirelink
+@outputs 
+@persist 
+@trigger 
+
+interval(30)
+I = 0
+
+Altitude = toUnit("ft",entity():pos():z())
+
+Pitch = entity():angles():pitch()
+Roll = entity():angles():roll()
+
+
+#Altitude Gauge
+S:egpLine(I,60,10,60,502,255,255,255,255)
+I++
+S:egpBoxoutline(I,5,240,53,32,255,255,255,255)
+I++
+
+A = -5
+B = Altitude - (floor(Altitude / 20)*20)
+B *= -1
+
+while(A <= 5)
+{
+    Dist = ((A * 20) - B)  * 8 
+    S:egpLine(I,40,256 + Dist,60,256 + Dist,255,255,255,255)
+    I++
+    S:egpText(I,toString(round((floor(Altitude / 20)*20) - (A * 20))),10,256 + Dist,180,180,180,255)
+    S:egpSetFont(I,"arial",20)
+    I++
+    
+    A += 1
+}
+
+S:egpText(I,toString(round(Altitude)),10,246,(Altitude < 100 ? 255 : 180),(Altitude < 100 ? 100 : 180),(Altitude < 100 ? 100 : 180),255)
+S:egpSetFont(I,"arial",20)
+I++
+
+#Horizon (Pitch and Roll)
+S:egpCircle(I,256,256,350,350,255,255,255,255)
+I++
+S:egpCircle(I,256,256,348,348,90,90,200,255)
+I++
+
+
+Roll = (Roll < 0 ? Roll + 360 : Roll)
+Roll += 90
+
+#Ground Level Lines
+#S:egpLine(I,256 - 150 * (sin(Roll)),256 - 150 * cos(Roll),256 - 50 * (sin(Roll)),256 - 50 * cos(Roll),90,90,0,255)
+#I++
+#S:egpLine(I,256 + 50 * (sin(Roll)),256 + 50 * cos(Roll),256 + 150 * (sin(Roll)),256 + 150 * cos(Roll),90,90,0,255)
+#I++
+
+#Ground
+
+if(Pitch*4 >= 174)
+{
+    S:egpCircle(I,256,256,348,348,90,90,0,255)
+    I++ 
+}
+elseif(Pitch*4 >= -174)
+{
+    #Calc Ground Level
+    ZeroPosX = 256 - (Pitch * 4) * sin(Roll - 90)
+    ZeroPosY = 256 - (Pitch * 4) * cos(Roll - 90)
+    
+    MaxPosX = 256 + 174 * sin(Roll - 90)
+    MaxPosY = 256 + 174 * cos(Roll - 90)
+    
+    Theta = 2 * acos(-(Pitch * 4) / 174)
+    CordLength = 2 * 174 * sin(Theta / 2)
+    
+    Point1 = vec2(ZeroPosX - (CordLength / 2) * (sin(Roll)),ZeroPosY - (CordLength / 2) * cos(Roll))
+    Point2 = vec2(ZeroPosX + (CordLength / 2) * (sin(Roll)),ZeroPosY + (CordLength / 2) * cos(Roll))
+    
+    #Calc for quater way down
+    H = 174 * (1 - cos(Theta / 2))
+    Theta = 2 * acos(((Pitch * 4) - H/4) / 174)
+    CordLength = 2 * 174 * sin(Theta / 2)
+    ZeroPosX = 256 - ((Pitch * 4) - H/4) * sin(Roll - 90)
+    ZeroPosY = 256 - ((Pitch * 4) - H/4) * cos(Roll - 90)
+    
+    Point3 = vec2(ZeroPosX + (CordLength / 2) * (sin(Roll)),ZeroPosY + (CordLength / 2) * cos(Roll))
+    Point11  = vec2(ZeroPosX - (CordLength / 2) * (sin(Roll)),ZeroPosY - (CordLength / 2) * cos(Roll))
+    
+    #Calc for half way down
+    Theta = 2 * acos(((Pitch * 4) - (H/4)*2) / 174)
+    CordLength = 2 * 174 * sin(Theta / 2)
+    ZeroPosX = 256 - ((Pitch * 4) - (H/4)*2) * sin(Roll - 90)
+    ZeroPosY = 256 - ((Pitch * 4) - (H/4)*2) * cos(Roll - 90)
+    
+    Point4 = vec2(ZeroPosX + (CordLength / 2) * (sin(Roll)),ZeroPosY + (CordLength / 2) * cos(Roll))
+    Point10 = vec2(ZeroPosX - (CordLength / 2) * (sin(Roll)),ZeroPosY - (CordLength / 2) * cos(Roll))
+    
+    #Calc for 3 quater way down
+    Theta = 2 * acos(((Pitch * 4) - (H/4)*3) / 174)
+    CordLength = 2 * 174 * sin(Theta / 2)
+    ZeroPosX = 256 - ((Pitch * 4) - (H/4)*3) * sin(Roll - 90)
+    ZeroPosY = 256 - ((Pitch * 4) - (H/4)*3) * cos(Roll - 90)
+    
+    Point5 = vec2(ZeroPosX + (CordLength / 2) * (sin(Roll)),ZeroPosY + (CordLength / 2) * cos(Roll))
+    Point9 = vec2(ZeroPosX - (CordLength / 2) * (sin(Roll)),ZeroPosY - (CordLength / 2) * cos(Roll))
+    
+    #Calc for whole way down
+    Theta = 2 * acos(((Pitch * 4) - (H/4)*3.75) / 174)
+    CordLength = 2 * 174 * sin(Theta / 2)
+    ZeroPosX = 256 - ((Pitch * 4) - (H/4)*3.75) * sin(Roll - 90)
+    ZeroPosY = 256 - ((Pitch * 4) - (H/4)*3.75) * cos(Roll - 90)
+    
+    Point6 = vec2(ZeroPosX + (CordLength / 2) * (sin(Roll)),ZeroPosY + (CordLength / 2) * cos(Roll))
+    Point8 = vec2(ZeroPosX - (CordLength / 2) * (sin(Roll)),ZeroPosY - (CordLength / 2) * cos(Roll))
+    
+    Point7 = vec2(MaxPosX,MaxPosY)
+    #Makes the ground visible
+    GroundArr = array(Point1,Point2,Point3,Point4,Point5,Point6,Point7,Point8,Point9,Point10,Point11)
+    
+    S:egpPoly(I,GroundArr,vec4(90,90,0,255))
+    I++
+}
+
+#S:egpLine(I,ZeroPosX - (CordLength / 2) * (sin(Roll)),ZeroPosY - (CordLength / 2) * cos(Roll),ZeroPosX + (CordLength / 2) * (sin(Roll)),ZeroPosY + (CordLength / 2) * cos(Roll),150,150,0,255)
+#I++
+
+#Pitch
+#3 lines above and below the horizon
+
+A = floor(Pitch / 10)
+
+B = -2
+
+while(B <= 2)
+{
+    Dist = (Pitch + (10*(B - A))) * 4
+    
+    X = 256 - (Dist * sin(Roll - 90))
+    Y = 256 - (Dist * cos(Roll - 90))
+    
+    S:egpLine(I,X - 50 * sin(Roll),Y - 50 * cos(Roll),X + 50 * sin(Roll),Y + 50 * cos(Roll),200,180,0,255)
+    I++
+    S:egpText(I,toString((B-A) * 10),X -55 * sin(Roll),Y - 55 * cos(Roll),255,255,255,255)
+    S:egpSetFont(I,"arial",20)
+    I++
+    B++
+}
+
+S:egpLine(I,106,256,190,256,255,255,255,255)
+I++
+S:egpLine(I,322,256,406,256,255,255,255,255)
+I++
+S:egpCircle(I,256,256,8,8,255,255,255,255)
+I++
+S:egpDraw()

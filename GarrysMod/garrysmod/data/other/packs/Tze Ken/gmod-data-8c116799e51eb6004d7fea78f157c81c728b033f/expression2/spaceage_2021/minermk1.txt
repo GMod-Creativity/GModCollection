@@ -1,0 +1,99 @@
+@name Miner 2021-V1
+#Control Inputs
+@inputs On Return
+@inputs Ore MaxOre Energy MaxEnergy Health
+
+@outputs Laser Teleport TargetPos:vector RechargeState
+@outputs CurrentRoidTime InitialHealth StuckRoids:table
+@outputs Home:vector Init Target:entity
+@trigger On Return Health Ore Energy
+@autoupdate
+
+interval(1000)
+if(first()|dupefinished()){
+    Init = 1
+    findByClass("sa_terminal_pump")
+    Home = find():pos() + vec(100,100,250)
+    TargetPos = Home
+    StuckRoids = table()
+    InitialHealth = 0
+    CurrentRoidTime = 0
+    Teleport = 0
+}
+if(Init && Energy > MaxEnergy*0.1){
+    # Prevent recharge state at dupe
+    Init = 0
+    RechargeState = 0
+}
+
+function stuckRoidsToArray(){
+    Array = array()
+    TempTable = table()
+    foreach(K:number, V:entity=StuckRoids){
+        if(V:isValid()){
+            TempTable[K, entity] = V 
+            Array:pushEntity(V)
+        }
+    }
+    StuckRoids = TempTable
+    return Array
+}
+
+function nextRoid(){
+    findExcludeEntities(stuckRoidsToArray())
+    findByClass("sa_roid")
+    Target = findResult(1)
+    Size = Target:radius()/1.5
+    TargetPos = Target:pos()+vec(0,0, Size)
+}
+
+function detectStuckRoid(){
+    # Set initial health on detection start
+    if(InitialHealth == 0 && Health > 0){
+        InitialHealth = Health
+    }
+    
+    CurrentRoidTime += 1
+    
+    # Wait for 10 ticks
+    if(CurrentRoidTime > 10){
+        if (InitialHealth == 0 || InitialHealth == Health) {
+            StuckRoids[Target:id(), entity] = Target
+            nextRoid()
+        }
+    }
+}
+
+# Laser
+Laser = On && !RechargeState
+
+# Teleportation trigger
+if(TargetPos:distance(entity():pos()) > 15){
+    Teleport = !Teleport
+    
+    # Reset stuck detection params
+    CurrentRoidTime = 0
+    InitialHealth = 0
+}
+else{
+    Teleport = 0
+    if(On && !RechargeState){
+        detectStuckRoid()
+    }
+}
+
+if(On && Health==0 && !RechargeState){
+    nextRoid()
+}
+if(RechargeState == 1 && Energy==MaxEnergy){
+    Init = 0
+    RechargeState = 0
+}
+
+# Return
+if(~Return || Ore==MaxOre || Energy < MaxEnergy*0.1){
+    TargetPos = Home
+    if(Energy < MaxEnergy*0.1){
+        RechargeState = 1
+    }
+}

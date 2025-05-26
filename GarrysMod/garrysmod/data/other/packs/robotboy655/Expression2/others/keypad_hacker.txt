@@ -1,0 +1,131 @@
+@name Keypad Hacker
+@persist Keypads:array Codes:array OwnerUse:array CO:entity Display
+@trigger all
+if(first()){
+    entity():setColor(0,0,0,255)
+    Display = 1
+    CO = entity():owner()
+    runOnTick(1)
+    runOnChat(1)
+    Scan = 1
+    timer("ReScan",60000)
+}
+A = 1
+while(A <= Keypads:count()){
+    Owner = Keypads:entity(A):owner()
+    Keypad = Keypads[A,entity]
+    Down = OwnerUse[A,number]
+    Pressed = Owner:keyUse()
+    if(CO:keyAttack2() & Display & CO:shootPos():distance(Keypad:pos()) <= 100 & CO:aimEntity() == Keypad){
+        Code = Codes[A,number]
+        if(Code - 50000 > 0){hint("The code is: " + (Code - 50000) +". Enjoy!",5)}
+        else{hint("No Code Entered. Try Again Later!",3)}
+        Display = 0
+    }
+    elseif(!CO:keyAttack2() & !Display){Display = 1}
+    if(!Down & Pressed){
+        if(Keypad != noentity()){
+            if(Owner:shootPos():distance(Keypad:pos()) < 32 & Owner:aimEntity() == Keypad){
+                Code = Codes[A,number]
+                #Find Button Pressed
+                KPPL = Keypad:toLocal(Keypad:owner():aimPos()):rotate(ang())
+                #Line 1
+                if(inrange(KPPL:z(),-1.3,0)){
+                    #Col 1
+                    if(inrange(KPPL:y(),-2.2, -0.95)){Number = 1}
+                    #Col 2
+                    elseif(inrange(KPPL:y(),-0.6, 0.65)){Number = 2}
+                    #Col 3
+                    elseif(inrange(KPPL:y(),1, 2.25)){Number = 3}
+                }
+                #Line 2
+                elseif(inrange(KPPL:z(),-2.9,-1.6)){
+                    #Col 1
+                    if(inrange(KPPL:y(),-2.2 ,-0.95)){Number = 4}
+                    #Col 2
+                    elseif(inrange(KPPL:y(),-0.6, 0.65)){Number = 5}
+                    #Col 3
+                    elseif(inrange(KPPL:y(),1, 2.25)){Number = 6}
+                }
+                #Line 3
+                elseif(inrange(KPPL:z(),-4.45,-3.3)){
+                    #Col 1
+                    if(inrange(KPPL:y(),-2.2 ,-0.95)){Number = 7}
+                    #Col 2
+                    elseif(inrange(KPPL:y(),-0.6, 0.65)){Number = 8}
+                    #Col 3
+                    elseif(inrange(KPPL:y(),1, 2.25)){Number = 9}
+                }
+                elseif(inrange(KPPL:z(),0.3, 1.6)){
+                    #Abort
+                    if(inrange(KPPL:y(),-2.2, -0.15)){Number = 11}
+                    #Accept
+                    elseif(inrange(KPPL:y(),0.3, 2.25)){Number = 10}
+                }
+                if(Number){
+                    if(Number == 10 & Code < 10000){
+                            Code += 50000
+                            hint("Code entered: "+(Code - 50000),3)
+                    }
+                    elseif(Number == 11 & Code < 10000){Code = 0 hint("Code Canceled",3)}
+                    elseif(Code < 1000){
+                        Code *= 10
+                        Code += Number
+                        hint(""+Owner:name()+" Pressed: "+Number,3)
+                    }
+                    Codes[A,number] = Code
+                }
+            }   
+        }
+        else{
+            hint("Keypad "+A+" has been removed",3)
+            Keypads:removeEntity(A)
+            Codes:removeNumber(A)
+        }
+        OwnerUse[A, number] = 1
+    }
+    elseif(Down & !Pressed){
+        OwnerUse[A,number] = 0
+    }
+A++
+}
+
+if(chatClk(entity():owner())){
+    if(entity():owner():lastSaid() == "/reset"){
+        A = 1
+        CO = entity():owner()
+        while (A <= Keypads:count()){
+            Keypad = Keypads:entity(A)
+            if(CO:shootPos():distance(Keypad:pos()) <= 100 & CO:aimEntity() == Keypad){
+                hint("Code Reset!",3)
+                Codes[A,number] = 0
+            }
+            A++
+        }
+    }
+    if(CO:lastSaid() == "/scan"){
+        Scan = 1
+    }
+}
+if(clk("ReScan")){Scan = 1 timer("ReScan",60000)}
+if(Scan){
+    Keypads = array()
+    OwnerUse = array()
+    findByModel("models/props_lab/keypad.mdl")
+    findSortByDistance(entity():pos())
+    Keypads = findToArray()
+    hint("Scan complete! "+Keypads:count()+" Keypads found!",3)
+    while(Keypads:count()>13){
+        hint("Keypad removed due to gate restriction!",3)
+        Keypads:pop()
+    }
+    A = 1
+    while(A <= Keypads:count()){
+        print(""+A+": "+Keypads:entity(A):owner():name())
+        OwnerUse[A,number] = Keypads:entity(A):owner():keyUse()
+        A++
+    }
+    if(Keypads:count() > 0){
+        timer("ReDisplayCode",3000)
+    }
+}

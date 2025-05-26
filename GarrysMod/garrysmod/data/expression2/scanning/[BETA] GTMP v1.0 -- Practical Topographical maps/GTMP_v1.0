@@ -1,0 +1,299 @@
+@name GTMP v1.0
+@inputs Screen:wirelink [WorldCoordinateToTrack AimCoordinateToWorld]:vector
+@outputs WorldCoordinateFromMap:vector
+@persist State:string [World]:table [Min Max]:vector [Resolution]:vector2 ScreenResolution StepX StepY X Y Low High
+@persist [Filename Filestring]:string FileReadtime [Alphanum]:array Rawfile:array TimeoutTime Encoded StartTime 
+@persist ScreenEntity:entity Debug WorldTracking
+#[THIS CODE IS PROVIDED TO YOU COURTESY OF FRS.  OUR IP IS 70.42.74.154:27015.
+
+Gmod Topographical Mapping Project
+This system provides simple 2d screen projections of maps.
+It uses pre-scanned files as well as active scanning, for low lag.
+It also provides map-to-world and world-to-map coordinates
+
+Technical notes:
+This system produces and indexes 2D heightmaps of maps, scaled to their size
+If it is on a map which has been charted it uploads, opens, decompresses, decompiles, and renders the map data.
+If this map has not been charted before, then it will scan the map, compile the data, compress, save, and then render the map data.
+This is developed from my 2d rendering framework.
+
+The GTMP1 format is 80x80 with raw height scaling.  This is due to the very low tolerances of vON with tickrate.
+Custom encoding was rejected.  It may be reintroduced in the future, however.
+GTMP files have a 2-entry header in their vON encoding, and a text naming convention.
+Filenames are GTMP[File Encoding System Version]-[Uppercase map name].txt"
+For example: GTMP1-FREESPACE09.txt
+]#
+
+interval(50)
+if(dupefinished()) {reset()}
+
+elseif(first())
+    {
+        #Trace setup
+        rangerPersist(1)
+        rangerFilter(entity():getConstraints())
+        rangerHitEntities(0)
+        rangerHitWater(0)        
+        #scanning world dimensions
+        MaxZ = rangerOffset(999999,entity():pos() + vec(0,0,1000),vec(0,0,1)):position():z() - 5
+        #Box position finding, detects the world coordinates we're scanning down over -- storing these until we use em later for when we world-trace
+        Min = vec(rangerOffset(999999,entity():pos():setZ(MaxZ),  vec(1,0,0)):position():x(),rangerOffset(999999,ent  ity():pos():setZ(MaxZ),vec(0,-1,0)):position():y(),MaxZ)
+        Max = vec(rangerOffset(999999,entity():pos():setZ(MaxZ),  vec(-1,0,0)):position():x(),rangerOffset(999999,entity(  ):pos():setZ(MaxZ),vec(0,1,0)):position():y(),MaxZ  )        
+        #Debugging mode
+        Debug = 0
+        #Resolution setting
+        ScreenResolution = 80
+        #Scanning system step precomputation
+        StepX = (Max-Min):x() / ScreenResolution
+        StepY = (Max-Min):y() / ScreenResolution
+        #Filename
+        Filename = "GTMP1-"+map():upper()+".txt"
+        #Time indexing
+        StartTime = curtime()
+        #Screen entity
+        ScreenEntity = Screen:entity()
+        #Functions for rendering
+        #Modified TerraDestroy's example
+        function wirelink:initScreen(Screen_Size:vector2)
+            {
+                This[1048574]=0 #Reset Screen and whatever was on it will be cleared.
+                This[1048569]=3 #Set color mode to 3
+                This[1048575]=1 #Apply changes
+                This[1048573]=Screen_Size:x() #Set new resolution on X (Width)
+                This[1048572]=Screen_Size:y() #Set new resolution on Y (Height)
+            }
+        #Drawing a color pixel, also off TerraDestroy's example
+        function wirelink:drawPixel(X,Y,Color:vector,Res)
+            {
+                This[X+Y*Res]=rgb2digi(Color,3)
+            }
+        #Drawing a monochrome pixel
+        function wirelink:drawMonochromePixel(X,Y,N:number,Res)
+            {
+                This[X+Y*Res] = rgb2digi(vec(N,N,N)*255,3)
+            }
+        
+        #misc
+        function void gtmpNotify(S:string)
+            {
+                if(Debug) {print(_HUD_PRINTCONSOLE,"GTMP: "+S)}
+            }
+        #setting resolution off screenresolution
+        Resolution = vec2(ScreenResolution,ScreenResolution)
+        
+        #initting screen
+        Screen:initScreen(Resolution)
+        
+        #State set
+        State = "reading"
+    }
+
+#Scans the world
+elseif(State == "scanning")
+    {
+        while(perf(95))
+            {
+                if(changed(State) & (State == "scanning"))
+                    {
+                        X = 1
+                        Y = 1
+                        Low = 9999999
+                        High = -9999999
+                    }
+                else
+                    {
+                        #Status update
+                        setName("GTMP v1.0\nState = "+State:upper()+" ["+ round((Y/Resolution:y()) * 100) +"%]")
+                        if(Y <= Resolution:y())
+                            {
+                                #Giving it a spare array, which it'll then populate with one-line Z coordinate measurements
+                                Array = array()
+                                for(X=1,Resolution:x())
+                                    {
+                                        Coordinate = Min + vec(X*StepX,Y*StepY,0)
+                                        Trace = rangerOffset(999999,Coordinate,vec(0,0,-1))
+                                        TraceData = round(Trace:position():z() / 100)
+                                        #low/high checking
+                                        if(TraceData <= Low)
+                                            {Low = TraceData}
+                                        elseif(TraceData >= High)
+                                            {High = TraceData}
+                                        #storage
+                                        Array:pushNumber(TraceData)
+                                    }
+                                World:pushArray(Array)
+                                Y++
+                            }
+                        #term
+                        else
+                            {
+                                #We're storing a very crude embedded header in the first two entries.
+                                World[1,array][1,number] = Low
+                                World[1,array][2,number] = High
+                                State = "compiling"
+                            }
+                    }
+            }
+    }
+
+#checks for a map file.  If we do not have one, we will scan, else if we do we will move on to parse it and compile our topographic table
+elseif(State == "reading")
+    {
+        #attempts loading of file, gives a 1 second delay on attempting to access file to give upload time.
+        if(changed(State) & (State == "reading"))
+            {fileLoad(Filename)
+            FileReadtime = curtime() + 1}
+        elseif(curtime() > FileReadtime)
+            {
+                #Processing the file
+                Filestring = fileRead()
+                #if we have something indeed available, then 
+                if(Filestring:length() == 0)
+                    {gtmpNotify("No valid file found, scanning map.")
+                    State = "scanning"}
+                else
+                    {gtmpNotify("Map found on disk, decompiling data.")
+                    State = "decompiling"}
+            }
+    }
+
+#Decompiles the map file we have loaded into memory.
+elseif(State == "decompiling")
+    {
+        if(changed(State) & (State == "decompiling"))
+            {TimeoutTime = curtime()}
+        elseif(curtime() > (TimeoutTime+1))
+            {
+                World = vonDecodeTable(Filestring)
+                if(World:count() == ScreenResolution)
+                    {gtmpNotify("File decoded successfully, drawing now.")
+                    State = "rendering"}
+                else
+                    {gtmpNotify("File format invalid, rescanning world.")
+                    State = "scanning"}
+            }
+    }    
+
+#Compiles scanned topographic data
+elseif(State == "compiling")
+    {
+        if(changed(State) & (State == "compiling"))
+            {TimeoutTime = curtime()
+            setName("GTMP v1.0\nState = "+State:upper()+"--Encoding")
+            #Resolution backcheck, lets us use it standalone
+            if(Resolution != vec2(80,80))
+                {gtmpNotify("Resolution was incorrect, assuming standalone use, rendering without writing to file...")
+                State = "rendering"}}
+        
+        #Encoding delayed by 1.5 seconds
+        elseif((curtime() > (TimeoutTime + 2)) & !Encoded)
+            {Filestring = vonEncode(World)
+            Encoded = 1
+            gtmpNotify("World map encoded, moving on to file writing...")
+            gtmpNotify("Map string file length after encoding: "+Filestring:length()+"!")
+            setName("GTMP v1.0\nState = "+State:upper()+"--Writing")}
+        #Writing delayed by 3 seconds
+        elseif(Encoded & (curtime() > (TimeoutTime + 3)))
+            {
+                if(fileCanWrite())
+                    {fileWrite(Filename,""+Filestring)
+                    gtmpNotify("Write operation performed on "+Filename+"!")}
+                else
+                    {gtmpNotify("Write operation failure, drawing map anyway.")}
+                State = "rendering"
+            }
+    }
+
+#Renders our map to the screen
+elseif(State == "rendering")
+    {
+        while(perf(95))
+            {
+                if(changed(State) & (State == "rendering"))
+                    {Screen:initScreen(Resolution-vec2(1,1))
+                    X = 1
+                    Y = 1
+                    N = 0
+                    String = ""
+                    Low = World[1,array][1,number]
+                    High = World[1,array][2,number]
+                    }
+                
+                    if(Y < Resolution:y())
+                        {
+                            Array = World[Y,array]
+                            for(X=1,Resolution:x())
+                                {
+                                    DataCell = ( (Array:number(X)-Low) / (High-Low) )
+                                    Screen:drawPixel(X,Y-1,vec(DataCell,DataCell,DataCell)*255,ScreenResolu  tion-1)                      
+                                }
+                            Y++
+                        }
+                    else
+                        {
+                            State = "idle"
+                        }
+            }
+    }
+
+#idle state
+elseif(State == "idle")
+    {
+        if(changed(State) & (State == "idle"))
+            {
+                gtmpNotify("Total mapping cycle time: " + (round((curtime()-StartTime)*10))/10 +" seconds!")
+                #manual garbage collection, idk if this has an effect or not but WHAT THE FUCK WHY NOT!
+                World = table()
+                Array = array()
+            }
+        else
+            {
+                #Are you aiming at the map and outputting a vector for use?
+                if(AimCoordinateToWorld)
+                    {
+                        Coordinates = vec2(ScreenEntity:toLocal(AimCoordinateToWorld) / ScreenEntity:boxMax())
+                        if(inrange(Coordinates,vec2(-1,-1),vec2(1,1)))
+                            {
+                                #Real coordinate output, some deep magic here.
+                                NormCoords = (Coordinates / 2) + vec2(0.5,0.5)
+                                WorldX = (Max:x() * NormCoords:y()) + (Min:x() * (1-NormCoords:y()))
+                                WorldY = (Max:y() * NormCoords:x()) + (Min:y() * (1-NormCoords:x()))
+                                WorldZ = rangerOffset(99999,vec(WorldX,WorldY,MaxZ),vec(0,0  ,-1)):position():z()
+                                WorldV = vec(WorldX,WorldY,WorldZ)
+                                if(Debug) {holoCreate(250,WorldV,vec(25,25,25))}
+                                WorldCoordinateFromMap = WorldV
+                                    
+                            }
+                    }
+                #Are you tracking a world coordinate?
+                if(WorldCoordinateToTrack != vec(0,0,0))
+                    {
+                        WorldTracking = 1
+                        Local = (WorldCoordinateToTrack / Max)
+                        Local = vec(Local:y(),Local:x(),1)
+                        #World render
+                        if(changed(WorldTracking))
+                            {holoCreate(50,ScreenEntity:toWorld(Local * ScreenEntity:boxMax()),vec(1,1,1),ScreenEntity:ang  les())
+                            holoScaleUnits(50,ScreenEntity:boxSize() * 0.0125)
+                            holoDisableShading(50,1)
+                            holoModel(50,"hq_icosphere")
+                            holoParent(50,ScreenEntity)}
+                        else
+                            {holoPos(50,ScreenEntity:toWorld(Local * ScreenEntity:boxMax()))}
+                    }
+                else
+                    {
+                        WorldTracking = 0
+                        if(changed(WorldTracking) & !WorldTracking) {holoDelete(50)}
+                    }
+            }
+    }
+
+#ignore.
+elseif(State == "reset")
+    {
+        reset()
+    }
+
+#State status update
+if(changed(State)) {setName("GTMP v1.0\nState = "+State:upper())}

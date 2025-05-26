@@ -1,0 +1,157 @@
+@name Shuttle 1 Controller
+
+#LIFE SUPPORT CONTROL#
+@inputs Energy MaxEnergy
+@inputs AtmStat AtmTemp AtmPres AtmComp:table
+@outputs HotEx ColdEx AirEx Grav GravRadius AtmCmp:string
+@persist Owner:entity 
+
+#FLIGHT CONTROL#
+#Flight
+@inputs PodActive W A S D R Shift Alt 
+@inputs Angles:angle
+@outputs Active Freeze Level
+@outputs Forward Back YawLeft YawRight PitchUp PitchDown PitchAbs RollLeft RollRight
+@outputs SpeedAbs Lateral Vertical
+@outputs ThrustMult MPHLim Damper PitchMult YawMult RollMult
+@persist MoveMode
+
+interval(20)
+if(first()|dupefinished()){
+    #LIFE SUPPORT CONTROL#
+    GravRadius=360
+    Owner=entity():owner()
+}
+
+#LIFE SUPPORT CONTROL#
+if(!PodActive&Owner:pos():distance(entity():pos())<400&Energy>=20){
+    if(AtmStat==0){
+        Grav=1
+        AirEx=1
+        HotEx=1
+    }
+    else{
+        Grav=0
+        if(AtmComp["Oxygen",number]>25|AtmComp["Oxygen",number]<15|AtmPres<0.8|AtmPres>1.2){
+            AirEx=1
+        }
+        else{
+            AirEx=0
+        }
+        if(AtmTemp<-30){
+            HotEx=1
+            ColdEx=0
+        }
+        elseif(AtmTemp>30){
+            HotEx=0
+            ColdEx=1
+        }
+        else{
+            HotEx=0
+            ColdEx=0
+        }
+    }
+}
+else{
+    Grav=0
+    AirEx=0
+    HotEx=0
+    ColdEx=0
+}
+
+#FLIGHT CONTROL#
+#Flight
+if(PodActive){
+    #Mode Change
+    if(~R&R){MoveMode=!MoveMode}
+    #Normal Control
+    if(MoveMode==0){
+        #Multipliers
+        ThrustMult=1.5
+        MPHLim=80
+        Damper=1
+        YawMult=0.25
+        RollMult=0.01
+        
+        if(!Shift&!Alt&!A&!D){
+            Level=1
+            PitchMult=0.1
+        }
+        else{
+            Level=0
+            PitchMult=0.05
+        }
+        
+        #Controls
+        Forward=W
+        Back=S
+        if(Shift&Angles:pitch()>-45){
+            PitchUp=1
+        }
+        else{
+            PitchUp=0
+        }
+        if(Alt&Angles:pitch()<45){
+            PitchDown=1
+        }
+        else{
+            PitchDown=0
+        }
+        YawLeft=A
+        YawRight=D
+        if(A&Angles:roll()>-25){
+            RollLeft=1
+        }
+        else{
+            RollLeft=0
+        }
+        if(D&Angles:roll()<30){
+            RollRight=1
+        }
+        else{
+            RollRight=0
+        }
+        if(!Shift&!Alt){
+            PitchAbs=(0-Angles:pitch())
+        }
+        else{
+            PitchAbs=0
+        }
+        
+        Freeze=0
+    }
+    #Fine Controls
+    if(MoveMode==1){
+        #Multipliers
+        ThrustMult=1
+        MPHLim=20
+        Damper=15
+        PitchMult=0
+        YawMult=0
+        RollMult=0
+        
+        #Controls
+        Level=1
+        if(!W&!A&!S&!D&!Shift&!Alt){
+            Freeze=1
+        }
+        else{
+            Freeze=0
+        }
+        if(W){SpeedAbs=0.5}
+        elseif(S){SpeedAbs=-0.5}
+        else{SpeedAbs=0}
+        if(A){Lateral=-0.5}
+        elseif(D){Lateral=0.5}
+        else{Lateral=0}
+        if(Shift){Vertical=0.5}
+        elseif(Alt){Vertical=-0.5}
+        else{Vertical=0}
+        
+    }
+    Active=1
+}
+else{
+    Active=0
+    Freeze=1
+}

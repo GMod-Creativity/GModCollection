@@ -1,0 +1,201 @@
+@name Pong
+@inputs Group:string
+@outputs Running Cmd:string CCmd:string P1
+@persist Params:string Cmd2:string CCmd2:string Params2:string PaddleChange PaddleChange2 NextDraw P2 BX BY BXV BYV Count
+interval((Running ? 25 : 200))
+#The interval is lower than normal for this in order to account for fast updates usually associated with games.
+
+#Listings of one command at a time and the code that handles them
+#Variable Running - Used for functions that require running more than once (loops)
+#Variable Count - Used as a counter for any function that utilizes Running
+#Variable Playing - While not a standard variable for most libraries, I included it here so that I could avoid running code that wasn't going to change anything. I also expect this library to become quite massive in time, meaning that it should allow certain parts to run faster than usual.
+#Pong Variables - BX, the ball's X location, BY the ball's Y location, BVX, the velocity of the ball on the X axis, BVY, the velocity of the ball on the Y axis, P1, the row of the top of the paddle for player 1, P2, the row of the top of the paddle for player 2, NextDraw, tells the program what it's drawing next tick, PaddleChange, determines which way to draw next tick - the numbers correspond with the paddles
+
+
+if(Group != "")
+{
+    gSetGroup(Group)
+    Cmd = gGetStr("Cmd")
+    Cmd2 = gGetStr("Cmd2")
+    if((Cmd != "") | Running)
+    {
+        if(Cmd == "-endproc") #Clear all data
+        {
+            Running = 0
+            NextDraw = 0 #Specific to this library
+            CCmd = ""
+            CCmd2 = ""
+            Params = ""
+            Params2 = ""
+            Cmd2 = ""
+            Count = 0
+        }
+        if(Cmd != "")
+        {
+            CCmd = Cmd:left(Cmd:find(" ") - 1) #Finds the -<command> part of -<command> <parameters>
+            CCmd = CCmd:lower()
+            Params = Cmd:right(Cmd:length() - Cmd:find(" ")) #Finds the <parameters> part of -<command> <parameters> This is not (necessarily) lowercase by defualt!
+        }
+        if(Cmd2 != "")
+        {
+            CCmd2 = Cmd2:left(Cmd2:find(" ") - 1) #Finds the -<command> part of -<command> <parameters>
+            CCmd2 = CCmd2:lower()
+            Params2 = Cmd2:right(Cmd2:length() - Cmd2:find(" ")) #Finds the <parameters> part of -<command> <parameters> This is not (necessarily) lowercase by defualt!
+        }    
+        if(Cmd == "-pong")
+        {
+            if(!Running)
+            {
+                gSetNum("Mode", 3) #Tell the CPU that we're working
+                gSetNum("InputType", 2) #Tell the input we want one character representations of the keys pressed
+                gSetNum("DisplayType", 2) #Tell the output that we're using manual display, one *string* at a time (not character, that's type 3)
+                gSetNum("DisplayCLS", 1)
+                gSetNum("DisplayClock", 20)
+                Running = 1 #Tells the library that the game is running
+                Count = 1 #Reset the counter
+                NextDraw = -1 #Hold drawing till noted later, this is set to normal after initial setup
+            }
+            elseif(Running) #Run the game
+            {
+                if(toByte(Cmd2) == 113) #If a escape is pressed, quit
+                {
+                    Count = 0 #Reset the counter
+                    Running = 0 #Ensure the game stops running
+                    NextDraw = -1 #End Drawing
+                    gSetStr("Cmd", "") #Reset the Cmd
+                    gSetNum("Mode", 0) #Reset the CPU
+                    gSetNum("InputType", 1) #Reset input to default state
+                    gSetNum("DisplayType", 1) #Reset output to default state
+                    gSetNum("DisplayCLS", 1) #Clear the screen
+                    gSetNum("DisplayClock", 200)
+                }
+                if(Count == 1) #Draw borders
+                {
+                    gSetNum("DisplayWX", 0)
+                    gSetNum("DisplayWY", 0) #Tells the output module to write at the top-left corner
+                    gSetStr("DisplayToWrite", "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWW") #Tells what to write (Wall)
+                    gSetNum("DisplayUpdate", 1) #Update/Draw the above settings
+                }
+                elseif(Count == 2) #Draw borders, note settings that don't need to change, arn't.
+                {
+                    gSetNum("DisplayWY", 17) #Change the Y value to draw at
+                    gSetNum("DisplayUpdate", 1) #Update/Draw with the above setting change
+                }
+                elseif(Count <= 5 & Count >= 3) #Initial draw of ball/paddles
+                {
+                    gSetNum("DisplayWY", Count + 4) #Tells the output module to write the middle (over time)
+                    gSetStr("DisplayToWrite", "P") #Tells what to write (Paddle)
+                    gSetNum("DisplayUpdate", 1) #Update/Draw the above settings
+                }
+                elseif(Count <= 8 & Count >= 6) #Initial draw of ball/paddles
+                {
+                    gSetNum("DisplayWX", 29) #Tells the output to write to the right side of the screen
+                    gSetNum("DisplayWY", Count + 1) #Tells the output module to write the middle (over time)
+                    gSetStr("DisplayToWrite", "P") #Tells what to write (Paddle)
+                    gSetNum("DisplayUpdate", 1) #Update/Draw the above settings
+                }
+                elseif(Count == 9) #Set all default settings
+                {
+                    P1 = 7
+                    P2 = 7
+                    BX = 15
+                    BY = 8
+                    BXV = randint(2)
+                    if(BXV == 2) { BXV = -1 }
+                    BYV = randint(2)
+                    if(BYV == 2) { BYV = -1 }
+                    BXV *= 0.5, BYV *= 0.5
+                    NextDraw = 0
+                    gSetNum("DisplayWX", 15) #Tells the output module to write at the middle
+                    gSetNum("DisplayWY", 8) #Tells the output module to write at the middle
+                    gSetStr("DisplayToWrite", "B") #Tells what to write (Ball)
+                    gSetNum("DisplayUpdate", 1) #Update/Draw the above settings
+                }
+                elseif(Count > 9) #Mange ball and players
+                {
+                    if(NextDraw == 5)
+                    {
+                        gSetNum("DisplayWX", 0) #Tells the output module to write on the left
+                        gSetNum("DisplayWY", P1 + 1 + PaddleChange) #Tells the output module to write at the paddle's location
+                        gSetStr("DisplayToWrite", "P") #Tells what to write (Paddle)
+                        gSetNum("DisplayUpdate", 1) #Update/Draw the above settings
+                        PaddleChange = 0 #Tells the AI that we have moved
+                        NextDraw = 0 #Tells what to execute next time around
+                    }
+                    elseif(NextDraw == 4)
+                    {
+                        #Player AI
+                        if(toByte(Cmd2) == 17 & P1 > 1) { PaddleChange = -1 } #Find the direction of change
+                        elseif(toByte(Cmd2) == 18 & P1 < 15) { PaddleChange = 1 } #Find the direction of change
+                        else { PaddleChange = 0 }
+
+                        gSetNum("DisplayWX", 0) #Tells the output module to write on the left
+                        gSetNum("DisplayWY", P1 + 1 - PaddleChange) #Tells the output module to write at the paddle's location
+                        gSetStr("DisplayToWrite", " ") #Clear last pos
+                        gSetNum("DisplayUpdate", 1) #Update/Draw the above settings
+                        P1 += PaddleChange #Apply the change
+                        NextDraw++ #Tell what to execute next
+                    }
+                    elseif(NextDraw == 3)
+                    {
+                        gSetNum("DisplayWX", 29) #Tells the output module to write on the right
+                        gSetNum("DisplayWY", P2 + 1 + PaddleChange2) #Tells the output module to write at the paddle's location
+                        gSetStr("DisplayToWrite", "P") #Tells what to write (Paddle)
+                        gSetNum("DisplayUpdate", 1) #Update/Draw th-e above settings
+                        PaddleChange2 = 0 #Tells the AI we have moved
+                        NextDraw++ #Tells what to execute next
+                    }
+                    elseif(NextDraw == 2)
+                    {
+                        #Paddle2 AI
+                        if(P2 + 1 < BY & P2 < 14) { PaddleChange2 = 1 }
+                        elseif(P2 + 1 > BY & P2 > 1) { PaddleChange2 = -1 }
+
+                        gSetNum("DisplayWX", 29) #Tells the output module to write on the right
+                        gSetNum("DisplayWY", P2 + 1 - PaddleChange2) #Tells the output module to write at the paddle's location
+                        gSetStr("DisplayToWrite", " ") #Clear last pos
+                        gSetNum("DisplayUpdate", 1) #Update/Draw the above settings
+                        P2 += PaddleChange2 #Apply the change
+                        NextDraw++ #Tell what to execute next
+                    }
+                    elseif(NextDraw == 1)
+                    {
+                        #Ball AI
+                        Hit = ((BX <= 2 & (BY == P1 | BY == P1 + 1 | BY == P1 + 2)) | (BX >= 28 & (BY == P2 | BY == P2 + 1 | BY == P2 + 2)))
+                        if(((BX <= 2 | BX >= 28) & !Hit)) #If a player scores or escape is pressed
+                        {
+                            Running = 0 #Will reset the whole game
+                        }
+                        elseif(Hit) { BXV *= -1 } #Bounce
+                        elseif(BY <= 1 | BY >= 16) { BYV *= -1 } #Bounce
+                        BX += BXV
+                        BY += BYV
+                        gSetNum("DisplayWX", int(BX)) #Tells the output module to write to the ball's location
+                        gSetNum("DisplayWY", int(BY)) #Tells the output module to write at the balls's location
+                        gSetStr("DisplayToWrite", "B") #Write new pos
+                        gSetNum("DisplayUpdate", 1) #Update/Draw the above settings
+                        NextDraw++ #Tell what to execute next
+                    }
+                    elseif(NextDraw == 0)
+                    {
+                        gSetNum("DisplayWX", int(BX)) #Tells the output module to write to the ball's location
+                        gSetNum("DisplayWY", int(BY)) #Tells the output module to write at the balls's location
+                        gSetStr("DisplayToWrite", " ") #Clear last pos
+                        gSetNum("DisplayUpdate", 1) #Update/Draw the above settings
+                        NextDraw++ #Tell what to execute next
+                    }
+                }
+                Count++ #Increase the starting counter each iteration
+            }
+        }
+        elseif(Running == 0) #Clear data when no command is found/running
+        {
+            Cmd2 = ""
+            CCmd = ""
+            CCmd2 = ""
+            Params = ""
+            Params2 = ""
+            Count = 0
+        }
+    }
+}

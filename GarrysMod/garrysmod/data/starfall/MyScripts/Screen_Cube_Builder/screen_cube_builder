@@ -1,0 +1,193 @@
+--@name screen_cube_builder
+--@author EnoSkyFire
+--@server
+
+///////////////////////////////////////
+    /////////   SERVER   ////////// 
+//////////////////////////////////////
+
+--[[
+Starfall Scripting Environment
+
+Github: https://github.com/thegrb93/StarfallEx
+Reference Page: http://thegrb93.github.io/Starfall/
+
+Default Keyboard shortcuts: https://github.com/ajaxorg/ace/wiki/Default-Keyboard-Shortcuts
+]]
+
+--solved issue: obb measures the physics mesh and not the hitbox
+--solution: use function getHitBoxBounds instead of obbSize
+    
+local plate = 2                    -- Size of the screen. Screensizes: 2, 4, 8, 16, 24, 32
+local hidden = false                -- Give the screens a material that makes them appear invisble from the outside
+local transparent = true            -- Make the screens transparant making the inside visible
+local shadow = false                -- Allow the screens to have visible shadows
+local groundOffset = 0              -- Offset from the ground
+local deleteScreensWithChip = true  -- Delete the screens when the chip is deleted
+
+local chip = chip()
+local chipPos = chip:getPos()
+
+local plates = {
+    [2] = "models/hunter/plates/plate2x2.mdl",
+    [4] = "models/hunter/plates/plate4x4.mdl",
+    [8] = "models/hunter/plates/plate8x8.mdl",
+    [16] = "models/hunter/plates/plate16x16.mdl",
+    [24] = "models/hunter/plates/plate24x24.mdl",
+    [32] = "models/hunter/plates/plate32x32.mdl"
+}
+
+local screen = plates[plate]
+
+screens = {}
+
+
+local function hitBoxBoundsToSize(minV, maxV)
+    local size = {}
+    
+    size[1] = (minV[1] * -1) + maxV[1]
+    size[2] = (minV[2] * -1) + maxV[2]
+    size[3] = (minV[3] * -1) + maxV[3]
+    
+    return size
+end
+
+local function getDeviation(plate)
+    local deviation
+    
+    if plate == 2 then
+        deviation = 0.4--0.38
+        
+    elseif plate == 4 then
+        deviation = 0
+        
+    elseif plate == 8 then
+        deviation = 0
+        
+    elseif plate == 16 then
+        deviation = 0
+        
+    elseif plate == 24 then
+        deviation = 0
+        
+    elseif plate == 32 then
+        deviation = 0
+        
+    end
+    
+    return deviation
+end
+
+
+local function orientation(i, renderDeviation, ground, screenX, screenY, screenZ)   
+    local pos = chipPos
+    local ang = Angle(0)
+    
+    local screenGround = (screenZ / 2)
+    
+    if i == 1 then -- Bottom
+        pos = ground + Vector(0, 0, screenGround) + Vector(0, 0, groundOffset)
+        ang = Angle(0)
+        
+    elseif i == 2 then -- Top      
+        pos = ground + Vector(0, 0, screenGround + screenX + screenZ - (renderDeviation * 2)) + Vector(0, 0, groundOffset)
+        ang = Angle(0, 0, 180)
+                
+    elseif i == 3 then -- Front
+        local side = (screenY / 2) + (screenZ / 2) - renderDeviation
+        pos = ground + Vector(side, 0, screenGround + (screenZ / 2) + (screenY / 2) - renderDeviation) + Vector(0, 0, groundOffset)
+        ang = Angle(-90, 0, 0)        
+                         
+    elseif i == 4 then -- Back
+        local side = -((screenY / 2) + (screenZ / 2) - renderDeviation)
+        pos = ground + Vector(side, 0, screenGround + (screenZ / 2) + (screenY / 2) - renderDeviation) + Vector(0, 0, groundOffset)
+        ang = Angle(90, 0, 0)
+                
+    elseif i == 5 then -- Left
+        local side = ((screenY / 2) + (screenZ / 2) - renderDeviation)
+        pos = ground + Vector(0, side, screenGround + (screenZ / 2) + (screenY / 2) - renderDeviation) + Vector(0, 0, groundOffset)
+        ang = Angle(0, 0, 90)
+                
+    elseif i == 6 then -- Right
+        local side = -((screenY / 2) + (screenZ / 2) - renderDeviation)
+        pos = ground + Vector(0, side, screenGround + (screenZ / 2) + (screenY / 2) - renderDeviation) + Vector(0, 0, groundOffset)
+        ang = Angle(0, 0, -90)  
+    end
+    
+    return pos, ang
+end
+
+local function createCube(screen, plate, hidden, transparant, deleteScreensWithChip)
+    local screenTable = find.byClass("starfall_screen", function(plyScreen)
+        --If found and owned by the owner then return screen data
+        if plyScreen:getOwner() == owner() then 
+            return plyScreen
+        end
+    end)
+    
+    if table.count(screenTable) > 4 then
+        print("SCREEN BUILDER ERROR:\nBuilding a cube of screens will go over the screen limit!")
+        chip():remove()
+        return
+    end
+    
+    --local screens = {}
+    local screenSize
+    local screenX
+    local screenY
+    local screenZ
+    
+    local renderToPlateDeviation = getDeviation(plate)
+    
+    local pos = chipPos
+    local ang = Angle(0)
+    local class = "starfall_screen"
+    local model = screen
+    local frozen = true
+    
+    local start = chip:getPos() --vector
+    local endpos = chip:getPos()-Vector(0,0,15000) --vector
+    local filter = nil --table
+    local mask = 16395 --number value, 16395 is World + Brushes
+    local colgroup = nil --number
+    local ignworld = false --boolean
+        
+    local TraceData = {}
+    local TraceData = trace.trace(start, endpos, filter, mask, colgroup, ignworld)
+    //local traceDist = TraceData.HitPos:getDistance(TraceData.StartPos)
+    local traceHitPos = TraceData.HitPos --Ground
+    
+    for i=1,6 do
+        timer.create(tostring(i), (i/10), 1, function()
+            screens[i] = prop.createComponent(pos, ang, class, model, frozen)  
+            
+            if i == 1 then
+                screenSize = hitBoxBoundsToSize(screens[i]:getHitBoxBounds(0, 0))
+                screenX = screenSize[1]
+                screenY = screenSize[2]
+                screenZ = screenSize[3]
+            end
+            
+            local pos, angle = orientation(i, renderToPlateDeviation, traceHitPos, screenX, screenY, screenZ)
+            
+            screens[i]:setAngles(angle)
+            screens[i]:setPos(pos)
+            
+            if hidden and not transparent then
+                screens[i]:setMaterial("engine/writez_model")
+            elseif transparent then
+                screens[i]:setMaterial("engine/writez_model")
+                screens[i]:setColor(Color(0,0,0,1))
+            end  
+            
+            if not shadow then
+                screens[i]:setDrawShadow(shadow, nil)
+            end
+        end)
+
+    end
+    
+    prop.setPropClean(deleteScreensWithChip)
+end
+
+createCube(screen, plate, hidden, transparent, deleteScreensWithChip)

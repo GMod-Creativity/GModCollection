@@ -1,0 +1,82 @@
+@name iMine 2G
+@inputs Ore MaxOre Ranger Energy ENeeded ForceTele ForceNewRoid ForceHome ResetMe
+@outputs TeleX TeleY TeleZ DoTele
+@persist FirstRun HomeX HomeY HomeZ AstModels:array CurrentRoid:entity TeleHome IsNewRoid ArrayStart
+interval(500)
+if(ResetMe != 0) {
+    FirstRun = 0
+}
+if(FirstRun == 0) {
+    FirstRun = 1
+    IsNewRoid = 1
+    HomeX = 9352
+    HomeY = 9614
+    HomeZ = 877
+    TeleHome = 0
+    DoTele = 0
+    ArrayStart = 1
+    #CurrentRoid = null
+    AstModels = array()
+    AstModels:pushString("models/ce_ls3additional/asteroids/asteroid_500.mdl")
+    AstModels:pushString("models/ce_ls3additional/asteroids/asteroid_450.mdl")
+    AstModels:pushString("models/ce_ls3additional/asteroids/asteroid_400.mdl")
+    AstModels:pushString("models/ce_ls3additional/asteroids/asteroid_350.mdl")
+    AstModels:pushString("models/ce_ls3additional/asteroids/asteroid_300.mdl")
+    AstModels:pushString("models/ce_ls3additional/asteroids/asteroid_250.mdl")
+    AstModels:pushString("models/ce_ls3additional/asteroids/asteroid_200.mdl")
+}
+if(!TeleHome & !DoTele & (!CurrentRoid | ForceNewRoid)) {
+    if(ForceNewRoid) {
+        ArrayStart = ArrayStart + 1 
+        if(ArrayStart > AstModels:count()) {
+            ArrayStart = 1
+        }
+    }
+    NumFound = findByModel(AstModels:string(ArrayStart))
+    if(NumFound == 0) { 
+        ArrayStart = ArrayStart + 1 
+        if(ArrayStart > AstModels:count()) {
+            TeleHome = 1
+            TeleX = HomeX
+            TeleY = HomeY
+            TeleZ = HomeZ
+            DoTele = 1
+            ArrayStart = 1
+            hint("Your miner has not found any roids!",5)
+        }
+    }
+    if(NumFound > 0) {
+        IsNewRoid = 1
+        CurrentRoid = findClosest(entity():pos())
+        hint("Found Asteroid of Model "+AstModels:string(ArrayStart)+" at position: X="+CurrentRoid:pos():x()+", Y="+CurrentRoid:pos():y()+", Z="+CurrentRoid:pos():z()+"!",5)
+    }
+}
+if((Ore >= MaxOre | ForceHome) & !DoTele) {
+    TeleHome = 1
+    TeleX = HomeX
+    TeleY = HomeY
+    TeleZ = HomeZ
+    DoTele = 1
+    hint("Your miner is back!",5)
+}
+if(TeleHome & CurrentRoid & !(Ore >= MaxOre | ForceHome)) {
+    TeleHome = 0
+    IsNewRoid = 1
+}
+if((ForceTele | IsNewRoid | !Ranger) & CurrentRoid & !DoTele) {
+    RoidPos = CurrentRoid:pos()
+    TeleX = RoidPos:x()
+    TeleY = RoidPos:y()
+    TeleZ = RoidPos:z() + 800
+    IsNewRoid = 0
+    DoTele = 1
+}
+if(DoTele & !TeleHome) {
+    timer("donttele",2000)
+}
+if(clk("donttele") & !TeleHome) {
+    DoTele = 0
+}
+if(Energy < ENeeded) {
+    DoTele = 0
+}

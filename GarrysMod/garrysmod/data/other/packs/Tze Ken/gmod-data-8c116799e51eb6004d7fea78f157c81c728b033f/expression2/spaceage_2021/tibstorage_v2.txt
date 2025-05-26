@@ -1,0 +1,113 @@
+@name Tib Storage Manager V2
+@inputs On
+@outputs AllConstrained Idle
+@persist DoorPos:vector Ref1Pos:vector Ref2Pos:vector
+@persist Storages:array Holders:array
+@autoupdate
+if(first()||dupefinished()){
+    runOnTick(1)
+    findIncludePlayerProps(owner())
+    findByClass("sa_storage_tiberium")
+    Storages = findToArray()
+
+    findByClass("sa_storage_tiberium_holder")
+    Holders = findToArray()
+
+    findClearWhitePlayerPropList()
+    Players = players()
+    foreach(K, V:entity=Players){
+        findExcludePlayerProps(V)
+    }
+    findIncludeModel("models/ce_mining/buildings/ce_tib_station1.mdl")
+    findByClass("prop_physics")
+    Refinery = findResult(1)
+    
+    Ref1 = vec(-188.442383,-54.843029,74.763550)
+    Ref2 = vec(-188.087158,41.375980,74.167847)
+    Door = vec(215.004379,-121.817581,68.786812)
+    
+    DoorPos = Refinery:toWorld(Door)
+    Ref1Pos = Refinery:toWorld(Ref1)
+    Ref2Pos = Refinery:toWorld(Ref2)
+
+    # Functions
+    function maintainPosAng(Entity:entity, TargetPos:vector){
+        Entity:setMass(50000)
+        Force=(TargetPos-Entity:pos())*10 - Entity:vel()
+        Force *=Entity:mass()
+        Entity:applyForce(Force)
+        
+        TarQ=quat(ang(90,0,0))
+        CurQ=quat(Entity)
+        Q=TarQ/CurQ
+        V=Entity:toLocal(rotationVector(Q)+Entity:pos())
+        Entity:applyTorque((150*V -12*Entity:angVelVector())*Entity:inertia())
+    }
+    
+    function number getTiberium(Entity:entity){
+        return Entity:wirelink()["Tiberium", number]
+    }
+    
+    function manageStorage(I){
+        StorageEntity = Storages[I, entity]
+        Tiberium = getTiberium(StorageEntity)
+        
+        # State management
+        if(On){
+            StorageEntity:propFreeze(0)
+            StorageEntity:propNotSolid(0)
+            TargetPos = Holders[1+I%2,entity]:pos()
+        }
+        else{
+            StorageEntity:propNotSolid(1)
+            if(Tiberium == 0){
+                TargetPos = DoorPos
+            }
+            else{
+                # Transition through door
+                if(StorageEntity:getAlpha() == 250){
+                    StorageEntity:propNotSolid(0)
+                    TargetPos = I%2 ? Ref1Pos : Ref2Pos
+                    if(StorageEntity:hasConstraints("weld")){
+                        StorageEntity:setAlpha(255)
+                    }
+                }
+                else{
+                    TargetPos = DoorPos
+                    if(StorageEntity:pos():distance(DoorPos) < 15){
+                        StorageEntity:setAlpha(250)
+                    }
+                }
+            }
+        }
+        
+        #Applyforce
+        if(StorageEntity:hasConstraints("weld")){
+            StorageEntity:setMass(1)
+        }else{
+            maintainPosAng(StorageEntity, TargetPos)
+        }
+    }
+    
+    # Check attached to miner
+    function updateConstrained(){
+        AllConstrained = 1
+        foreach(K, V:entity = Storages){
+            AllConstrained = AllConstrained && V:isWeldedTo():type() == "sa_storage_tiberium_holder"
+        }
+    }
+    
+    function updateIdle(){
+        Idle = !On
+        foreach(K, V:entity = Storages){
+            Idle = Idle && V:pos():distance(DoorPos) < 15 && getTiberium(V) == 0
+        }
+    }
+}
+
+# Main code execution
+for(I=0, Storages:count()){
+    manageStorage(I)
+}
+updateConstrained()
+updateIdle()

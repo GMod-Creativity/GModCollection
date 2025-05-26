@@ -1,0 +1,103 @@
+@name LittleMan Computer
+#Edit
+@inputs Up Down Data Clk
+@outputs Addr EData
+
+#Runtime
+@inputs Run Step Reset In
+@inputs Mem:wirelink
+@outputs PCOut Acc Out Int
+@outputs Opcode Operand
+@persist State PC
+
+function void execute(OPC:number,OPA:number){
+    #Add
+    if(OPC==1){Acc=Acc+Mem[OPA]}
+    #Sub
+    elseif(OPC==2){Acc=Acc-Mem[OPA]}
+    #Store
+    elseif(OPC==3){Mem[OPA]=Acc}
+    #Load
+    elseif(OPC==5){Acc=Mem[OPA]}
+    #Branch
+    elseif(OPC==6){PC=OPA-1}
+    #Branch if Zero
+    elseif(OPC==7&Acc==0){PC=OPA-1}
+    #Branch if Positive
+    elseif(OPC==8&Acc>0){PC=OPA-1}
+    #Input
+    elseif(OPC==9&OPA==1){Int=1}
+    #Output
+    elseif(OPC==9&OPA==2){Out=Acc}
+    #Exit
+    elseif(OPC==0&OPA==0){State=0}
+    #Error
+    else{Int=2}
+}
+
+interval(20)
+
+#Edit
+EData=Mem[Addr]
+if(~Up&Up){
+    Addr++
+    if(Addr>99){
+        Addr=0
+    }
+}
+if(~Down&Down){
+    Addr--
+    if(Addr<0){
+        Addr=99
+    }
+}
+if(~Clk&Clk){
+    Mem[Addr]=Data
+}
+
+#Runtime
+if(~Run&Run){
+    if(!State&Opcode==0&Operand==0){
+        PC=0
+    }
+    State=!State
+}
+
+if(State&!Int){
+    PCOut=PC
+    Opcode=floor(Mem[PC]/100)
+    Operand=Mem[PC]-Opcode*100
+    execute(Opcode,Operand)
+    PC++
+    if(PC>100){PC=0}
+}
+
+if(~Step&Step&!Int){
+    PCOut=PC
+    Opcode=floor(Mem[PC]/100)
+    Operand=Mem[PC]-Opcode*100
+    execute(Opcode,Operand)
+    PC++
+    if(Opcode==0&Operand==0){PC--}
+    if(PC>100){PC=0}
+}
+
+if(~Reset&Reset){
+    PCOut=0
+    PC=0
+    Acc=
+    Out=0
+    Int=0
+    Opcode=0
+    Operand=0
+}
+
+#Accumilator Limit
+#if(Acc>999){Acc=0}
+#if(Acc<0){Acc=999}
+
+#Input Interrupt
+if(Int==1&~In){
+    Acc=In
+    Int=0
+}

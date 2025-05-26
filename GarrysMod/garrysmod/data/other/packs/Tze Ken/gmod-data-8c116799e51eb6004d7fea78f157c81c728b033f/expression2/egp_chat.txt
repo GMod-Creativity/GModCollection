@@ -1,0 +1,226 @@
+@name EGP Chat
+@persist EGP:wirelink 
+@persist Screen:array TxtRGB:vector BgRGB:vector 
+@persist CurOn CurBlink CurXY:vector2 
+@persist Type:string TypeY
+@inputs Key InUse User:entity
+@outputs ClearString Channel:string KBString:string 
+
+interval(2500)
+
+#Screen refresh
+function number refresh(){
+    EGP:egpBox(35,vec2(256,256),vec2(512,512))
+    EGP:egpColor(35,BgRGB)
+    for(I=1,34){
+        EGP:egpText(I,Screen:string(I),vec2(2,15*I-18))
+        EGP:egpSize(I,16)
+        EGP:egpColor(I,TxtRGB)
+    }
+    return 1
+}
+
+#Screen Clear
+function number clearscr(){
+    Screen=array("Channel: "+Channel)
+    TypeY=3
+    refresh()
+    return 1
+}
+
+#Screen Shift Line
+function number shiftscr(Y){
+    if(Y>0){
+        for(I=1,Y){
+            Screen:unshiftString(" ")
+        }
+    }
+    if(Y<0){
+        for(I=1,-Y){
+            Screen:shiftString()
+        }
+    }
+    return Y>0 ? 1 : 2
+}
+
+#Screen Write String
+function number writestr(Y:number,Str:string){
+    if(Y>=1&Y<=34){
+        Screen:setString(Y,Str)
+        return 1
+    }
+    else{
+        return 0
+    }
+}
+
+#Screen Text Color
+function number txt_color(RGB:vector){
+    TxtRGB=clamp(RGB,vec(0,0,0),vec(255,255,255))
+    return 1
+}
+
+#Screen BG Color
+function number bg_color(RGB:vector){
+    BgRGB=clamp(RGB,vec(0,0,0),vec(255,255,255))
+    return 1
+}
+
+#Shift TypeY
+function number shifty(){
+    if(TypeY<34){TypeY++}else{shiftscr(-1)}
+}
+
+#Cursor
+function number cursor(On:number){
+    CurOn=On
+    return 1
+}
+
+#Cursor Blink & Screen Refresh
+if(CurOn){
+    CurBlink=!CurBlink
+}
+else{
+    CurBlink=0
+}
+if(CurBlink){
+    writestr(TypeY,Type+"l")
+    refresh()
+}else{
+    writestr(TypeY,Type)
+    refresh()
+}
+
+#Shell Commands
+function number execute(){
+    Cmd=KBString:sub(0,72-User:name():length()):trim()
+    
+    #Help
+    if(Cmd=="-help"){
+        writestr(TypeY,"-help - Show help menu")
+        shifty()
+        writestr(TypeY,"-ch channel - Change channel to channel")
+        shifty()
+        writestr(TypeY,"-cls - Clear screen")
+        shifty()
+        writestr(TypeY,"-txtcolor R,G,B - Change text color to [R,G,B]")
+        shifty()
+        writestr(TypeY,"-bgcolor R,G,B - Change background color to [R,G,B]")
+        shifty()
+        writestr(TypeY," ")
+        shifty()
+        return 1
+    }
+    
+    #Clear Screen
+    elseif(Cmd=="-cls"){
+        clearscr()
+        return 1
+    }
+    
+    #Change Channel
+    elseif(Cmd:find("-ch")==1){
+        Cmd=Cmd:replace("-ch ",""):replace(" ","_")
+        dsLeaveGroup(Channel)
+        Channel = Cmd
+        dsJoinGroup(Channel)
+        
+        clearscr()
+        return 1
+    }
+    
+    #Change Text Color
+    elseif(Cmd:find("-txtcolor")==1){
+        Cmd=Cmd:replace("-txtcolor","")
+        Cmd=Cmd:replace(" ","")
+        if(Cmd:explode(","):count()==3){
+            txt_color(vec(Cmd:explode(","):string(1):toNumber(),Cmd:explode(","):string(2):toNumber(),Cmd:explode(","):string(3):toNumber()))
+            writestr(TypeY,"Text color changed to "+TxtRGB)
+            shifty()
+            writestr(TypeY," ")
+            shifty()
+            return 1
+        }
+        else{
+            writestr(TypeY,"Invalid arguements, txtcolor accepts [N,N,N]")
+            shifty()
+            writestr(TypeY," ")
+            shifty()
+        }
+    }
+    
+    #Change Background Color
+    elseif(Cmd:find("-bgcolor")==1){
+        Cmd=Cmd:replace("-bgcolor","")
+        Cmd=Cmd:replace(" ","")
+        if(Cmd:explode(","):count()==3){
+            bg_color(vec(Cmd:explode(","):string(1):toNumber(),Cmd:explode(","):string(2):toNumber(),Cmd:explode(","):string(3):toNumber()))
+            writestr(TypeY,"Background color changed to "+BgRGB)
+            shifty()
+            writestr(TypeY," ")
+            shifty()
+            return 1
+        }
+        else{
+            writestr(TypeY,"Invalid arguements, bgcolor accepts [N,N,N]")
+            shifty()
+            writestr(TypeY," ")
+            shifty()
+        }
+    }
+    
+    #Default: Chat
+    else{
+        dsSend("chat",Channel,User:name()+">"+Cmd)
+    }
+    return 0
+}
+
+#INITIALIZE#
+if(first()|dupefinished()){
+    EGP=entity():isWeldedTo():wirelink()
+    Channel="global"
+    dsSetScope(2)
+    dsJoinGroup(Channel)
+    
+    txt_color(vec(0,255,128))
+    bg_color(vec(10,10,30))
+    clearscr()
+    writestr(TypeY,"Type '-help' to view commands")
+    shifty()
+    cursor(1)
+    
+    Type=User:name()+">"
+}
+
+#Typing
+#Regular Keys
+if(~Key&Key!=0&Key!=13&Key!=17&Key!=18&Key!=19&Key!=20&Key!=154){
+    if(Key==127){
+        KBString = KBString:sub(0,KBString:length()-1)
+    }
+    else{
+        KBString = KBString + toChar(Key)
+    }
+    Type=User:name() + ">" + KBString:sub(0,72-User:name():length())
+}
+#Return
+if(~Key&(Key==13|Key==142)){
+    writestr(TypeY,Type)
+    shifty()
+    execute()
+    Type=User:name()+">"
+    ClearString = 1
+}
+else{
+    ClearString = 0
+}
+
+if(ClearString){KBString = ""}
+
+#Receive Chat
+if(dsClk()&Key!=13&Key!=142){
+    writestr(TypeY,dsGetString())
+    shifty()
+}

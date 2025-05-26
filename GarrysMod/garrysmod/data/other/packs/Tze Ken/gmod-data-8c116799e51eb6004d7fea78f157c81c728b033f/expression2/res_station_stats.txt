@@ -1,0 +1,315 @@
+@name Resource Station EGP
+@inputs On Screen:wirelink
+@inputs Energy MaxEnergy Water MaxWater
+@inputs Hydro MaxHydro Oxy MaxOxy Steam MaxSteam
+@inputs HWater MaxHWater Ice MaxIce
+@inputs Fus1 Fus2 Pmp Splt Heat Cmp Frz
+@inputs F1Temp F2Temp AtmStat
+
+@outputs Fus1Cmd Fus2Cmd PmpCmd SpltCmd HeatCmd CmpCmd FrzCmd
+@outputs PmpMul SpltMul HeatMul CmpMul FrzMul LSCmd LSRange
+@persist Charge Cycle
+
+@trigger 
+
+interval(200)
+
+
+
+if(first()|dupefinished()){
+    Charge=1
+    PmpMul=0
+    SpltMul=0
+    CmpMul=0
+    HeatMul=0
+    FrzMul=0
+}
+else{
+    PmpMul=120
+    SpltMul=50
+    CmpMul=50
+    HeatMul=50
+    FrzMul=50
+    LSRange=800
+}
+
+if(~On&!On){Screen:egpClear()}
+
+#####LIFE SUPPORT MANAGER#####
+if(Energy>16&AtmStat==0){
+    LSCmd=1
+}
+else{
+    LSCmd=0
+}
+
+if(On){
+    #####RESOURCE MANAGER#####
+    #Fusion Generators#
+    if(Energy/MaxEnergy<=0.2){Charge=1}
+    if(Energy>=MaxEnergy-16){Charge=0}
+    if(Charge){
+        if(Energy/MaxEnergy<=0.1){
+            if(F1Temp<68){
+                Fus1Cmd=1
+            }
+            else{
+                Fus1Cmd=0
+            }
+            if(F2Temp<68){
+                Fus2Cmd=1
+            }
+            else{
+                Fus2Cmd=0
+            }    
+        }
+        elseif(F1Temp<68|F2Temp<68){
+            if(Cycle==0){
+                Fus1Cmd=1
+                Fus2Cmd=0
+            }
+            elseif(Cycle==1){
+                Fus1Cmd=0
+                Fus2Cmd=1
+            }
+            elseif(Cycle==2){
+                Fus1Cmd=0
+                Fus2Cmd=0
+            }
+            if(F1Temp>=68&F2Temp<68){
+                Cycle=1
+            }
+            if(F1Temp<68&F2Temp>=68){
+                Cycle=0
+            }
+            if(F1Temp>=68&F2Temp>=68){
+                Cycle=2   
+            }
+        }
+    }
+    else{
+        Fus1Cmd=0
+        Fus2Cmd=0
+    }
+    
+    if(Energy/MaxEnergy>=0.05){
+        #Water Pump
+        if(Water/MaxWater<=0.85){PmpCmd=1}
+        if(Water/MaxWater>=0.99){PmpCmd=0}
+        #Water Splitter
+        if((Oxy/MaxOxy<=0.1|Hydro/MaxHydro<=0.1)&Water>1000){SpltCmd=1}
+        if(Oxy==MaxOxy&Hydro/MaxHydro>=0.99){SpltCmd=0}
+        #Water Heater
+        if(Steam/MaxSteam<=0.1&Water>1000){HeatCmd=1}
+        if(Steam==MaxSteam){HeatCmd=0}
+        if(Water/MaxWater>0.6){
+            #Water Compressor
+            if(HWater/MaxHWater<=0.1&Hydro/MaxHydro>=0.2){CmpCmd=1}
+            if(HWater/MaxHWater>=0.99){CmpCmd=0}
+            #Water Freezer
+            if(Ice/MaxIce<=0.1){FrzCmd=1}
+            if(Ice==MaxIce){FrzCmd=0}
+        }
+    }
+    else{
+        PmpCmd=0
+        SpltCmd=0
+        CmpCmd=0
+        FrzCmd=0
+        HeatCmd=0
+    }
+
+    
+    #######EGP########
+    
+    #Title Bar
+    Screen:egpBox(1,vec2(256,20),vec2(512,40))
+    Screen:egpColor(1,vec4(250,250,250,255))
+    Screen:egpText(2,"XN-Resource Centre 3.1",vec2(30,6))
+    Screen:egpFont(2,"coolvetica",30)
+    Screen:egpColor(2,vec4(0,0,0,255))
+    
+    #Energy 
+    Screen:egpBoxOutline(3,vec2(160,80),vec2(300,40))
+    Screen:egpColor(3,vec4(0,200,150,255))
+    Screen:egpBox(4,vec2(floor(15+(clamp(Energy/MaxEnergy*100,0,100)/100*290)/2),80),vec2((clamp(Energy/MaxEnergy*100,0,100)/100*290),30))
+    Screen:egpColor(4,vec4(0,200,150,255))
+    Screen:egpText(5,"Energy "+round(Energy/MaxEnergy*100)+"% ["+Energy+"/"+MaxEnergy+"]",vec2(20,69))
+    Screen:egpFont(5,"coolvetica",23)
+    
+    Screen:egpBox(6,vec2(365,80),vec2(90,40))
+    Screen:egpText(7,"Fusion 1",vec2(329,69))
+    Screen:egpFont(7,"coolvetica",23)
+    
+    Screen:egpBox(8,vec2(460,80),vec2(90,40))
+    Screen:egpText(9,"Fusion 2",vec2(424,69))
+    Screen:egpFont(9,"coolvetica",23)
+    
+    if(Fus1){
+        Screen:egpColor(6,vec4(0,255,0,255))
+        Screen:egpColor(7,vec4(0,0,0,255))
+    }
+    elseif(Fus1Cmd){
+        Screen:egpColor(6,vec4(255,0,0,255))
+        Screen:egpColor(7,vec4(0,0,0,255))
+    }
+    else{
+        Screen:egpColor(6,vec4(50,50,50,255))
+        Screen:egpColor(7,vec4(255,255,255,255))
+    }
+    if(Fus2){
+        Screen:egpColor(8,vec4(0,255,0,255))
+        Screen:egpColor(9,vec4(0,0,0,255))
+    }
+    elseif(Fus2Cmd){
+        Screen:egpColor(8,vec4(255,0,0,255))
+        Screen:egpColor(9,vec4(0,0,0,255))
+    }
+    else{
+        Screen:egpColor(8,vec4(50,50,50,255))
+        Screen:egpColor(9,vec4(255,255,255,255))
+    }
+    
+    #Water (Pumps)
+    Screen:egpBoxOutline(10,vec2(160,130),vec2(300,40))
+    Screen:egpColor(10,vec4(0,100,220,255))
+    Screen:egpBox(11,vec2(floor(15+(clamp(Water/MaxWater*100,0,100)/100*290)/2),130),vec2((clamp(Water/MaxWater*100,0,100)/100*290),30))
+    Screen:egpColor(11,vec4(0,100,220,255))
+    Screen:egpText(12,"Water "+round(Water/MaxWater*100)+"% ["+Water+"/"+MaxWater+"]",vec2(20,119))
+    Screen:egpFont(12,"coolvetica",23)
+    
+    Screen:egpBox(13,vec2(365,130),vec2(90,40))
+    Screen:egpText(14,"Pump 1",vec2(329,119))
+    Screen:egpFont(14,"coolvetica",23)
+    
+    if(Pmp){
+        Screen:egpColor(13,vec4(0,255,0,255))
+        Screen:egpColor(14,vec4(0,0,0,255))
+    }
+    elseif(PmpCmd){
+        Screen:egpColor(13,vec4(255,0,0,255))
+        Screen:egpColor(14,vec4(0,0,0,255))
+    }
+    else{
+        Screen:egpColor(13,vec4(50,50,50,255))
+        Screen:egpColor(14,vec4(255,255,255,255))
+    }
+    
+    #Hydrogen (Splitter)
+    Screen:egpBoxOutline(15,vec2(160,180),vec2(300,40))
+    Screen:egpColor(15,vec4(0,200,30,255))
+    Screen:egpBox(16,vec2(floor(15+(clamp(Hydro/MaxHydro*100,0,100)/100*290)/2),180),vec2((clamp(Hydro/MaxHydro*100,0,100)/100*290),30))
+    Screen:egpColor(16,vec4(0,200,30,255))
+    Screen:egpText(17,"Hydrogen "+round(Hydro/MaxHydro*100)+"% ["+Hydro+"/"+MaxHydro+"]",vec2(20,169))
+    Screen:egpFont(17,"coolvetica",23)
+    
+    Screen:egpBox(18,vec2(365,180),vec2(90,40))
+    Screen:egpText(19,"Splitter",vec2(329,169))
+    Screen:egpFont(19,"coolvetica",23)
+    
+    if(Splt){
+        Screen:egpColor(18,vec4(0,255,0,255))
+        Screen:egpColor(19,vec4(0,0,0,255))
+    }
+    elseif(SpltCmd){
+        Screen:egpColor(18,vec4(255,0,0,255))
+        Screen:egpColor(19,vec4(0,0,0,255))
+    }
+    else{
+        Screen:egpColor(18,vec4(50,50,50,255))
+        Screen:egpColor(19,vec4(255,255,255,255))
+    }
+    
+    #Oxygen
+    Screen:egpBoxOutline(20,vec2(160,230),vec2(300,40))
+    Screen:egpColor(20,vec4(220,60,0,255))
+    Screen:egpBox(21,vec2(floor(15+(clamp(Oxy/MaxOxy*100,0,100)/100*290)/2),230),vec2((clamp(Oxy/MaxOxy*100,0,100)/100*290),30))
+    Screen:egpColor(21,vec4(220,60,0,255))
+    Screen:egpText(22,"Oxygen "+round(Oxy/MaxOxy*100)+"% ["+Oxy+"/"+MaxOxy+"]",vec2(20,219))
+    Screen:egpFont(22,"coolvetica",23)
+    
+    #Steam (Heater)
+    Screen:egpBoxOutline(23,vec2(160,280),vec2(300,40))
+    Screen:egpColor(23,vec4(100,100,100,255))
+    Screen:egpBox(24,vec2(floor(15+(clamp(Steam/MaxSteam*100,0,100)/100*290)/2),280),vec2((clamp(Steam/MaxSteam*100,0,100)/100*290),30))
+    Screen:egpColor(24,vec4(100,100,100,255))
+    Screen:egpText(25,"Steam "+round(Steam/MaxSteam*100)+"% ["+Steam+"/"+MaxSteam+"]",vec2(20,269))
+    Screen:egpFont(25,"coolvetica",23)
+    
+    Screen:egpBox(26,vec2(365,280),vec2(90,40))
+    Screen:egpText(27,"Heater",vec2(329,269))
+    Screen:egpFont(27,"coolvetica",23)
+    
+    if(Heat){
+        Screen:egpColor(26,vec4(0,255,0,255))
+        Screen:egpColor(27,vec4(0,0,0,255))
+    }
+    elseif(HeatCmd){
+        Screen:egpColor(26,vec4(255,0,0,255))
+        Screen:egpColor(27,vec4(0,0,0,255))
+    }
+    else{
+        Screen:egpColor(26,vec4(50,50,50,255))
+        Screen:egpColor(27,vec4(255,255,255,255))
+    }
+    
+    #Heavy Water/Deuterium (Compressor/Ionizer)
+    Screen:egpBoxOutline(28,vec2(160,330),vec2(300,40))
+    Screen:egpColor(28,vec4(200,20,0,255))
+    Screen:egpBox(29,vec2(floor(15+(clamp(HWater/MaxHWater*100,0,100)/100*290)/2),330),vec2((clamp(HWater/MaxHWater*100,0,100)/100*290),30))
+    Screen:egpColor(29,vec4(200,20,0,255))
+    Screen:egpText(30,"Deuterium "+round(HWater/MaxHWater*100)+"% ["+HWater+"/"+MaxHWater+"]",vec2(20,319))
+    Screen:egpFont(30,"coolvetica",23)
+    
+    Screen:egpBox(31,vec2(365,330),vec2(90,40))
+    Screen:egpText(32,"Ionizer",vec2(329,319))
+    Screen:egpFont(32,"coolvetica",23)
+    
+    if(Cmp){
+        Screen:egpColor(31,vec4(0,255,0,255))
+        Screen:egpColor(32,vec4(0,0,0,255))
+    }
+    elseif(CmpCmd){
+        Screen:egpColor(31,vec4(255,0,0,255))
+        Screen:egpColor(32,vec4(0,0,0,255))
+    }
+    else{
+        Screen:egpColor(31,vec4(50,50,50,255))
+        Screen:egpColor(32,vec4(255,255,255,255))
+    }
+    
+    #Ice (Freezer)
+    Screen:egpBoxOutline(33,vec2(160,380),vec2(300,40))
+    Screen:egpColor(33,vec4(0,150,220,255))
+    Screen:egpBox(34,vec2(floor(15+(clamp(Ice/MaxIce*100,0,100)/100*290)/2),380),vec2((clamp(Ice/MaxIce*100,0,100)/100*290),30))
+    Screen:egpColor(34,vec4(0,150,220,255))
+    Screen:egpText(35,"Ice "+round(Ice/MaxIce*100)+"% ["+Ice+"/"+MaxIce+"]",vec2(20,369))
+    Screen:egpFont(35,"coolvetica",23)
+    
+    Screen:egpBox(36,vec2(365,380),vec2(90,40))
+    Screen:egpText(37,"Freezer",vec2(329,369))
+    Screen:egpFont(37,"coolvetica",23)
+    
+    if(Frz){
+        Screen:egpColor(36,vec4(0,255,0,255))
+        Screen:egpColor(37,vec4(0,0,0,255))
+    }
+    elseif(FrzCmd){
+        Screen:egpColor(36,vec4(255,0,0,255))
+        Screen:egpColor(37,vec4(0,0,0,255))
+    }
+    else{
+        Screen:egpColor(36,vec4(50,50,50,255))
+        Screen:egpColor(37,vec4(255,255,255,255))
+    }
+
+}
+else{
+    Fus1Cmd=0
+    Fus2Cmd=0
+    PmpCmd=0
+    SpltCmd=0
+    CmpCmd=0
+    FrzCmd=0
+    HeatCmd=0
+}

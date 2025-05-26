@@ -1,0 +1,157 @@
+@name David's Missiles!
+@persist [Force Pos HomingForce HomingDir]:vector 
+@persist [User Target SoundPlayer]:entity 
+@persist [Grav Splode_Scale1 Splode_Scale2 Splode_Alpha Scan]:normal 
+@persist [Exploded CanFire Launched Fire Use Cancel Mult GravGun Homing ValidTarg]:normal
+@persist [CanFireSound SplodeSound]:string
+
+interval(1)
+
+Fire = User:keyAttack1()
+Cancel = User:keyAttack2()
+Use = User:keyUse()
+GravGun = User:weapon():type() == "weapon_physcannon"
+
+if(first()){
+    CanFire = 1
+    User = findPlayerByName("david")
+    Launched = 0
+    SplodeSound = "weapons/flashbang/flashbang_explode1.wav"
+    CanFireSound = "ambient/levels/citadel/portal_beam_shoot5.wav"
+    holoCreate(5,User:shootPos(),vec())
+    holoParent(5,User)
+    SoundPlayer = holoEntity(5)
+}
+
+if(Use & GravGun & !Launched & CanFire & !Fire){
+    if($Use){
+        SoundPlayer:soundPlay(0,0,"npc/turret_floor/deploy.wav")
+        SoundPlayer:soundPlay(9,0,"npc/roller/mine/rmine_seek_loop2.wav")
+        Scan = 1
+    }
+    Homing = 1
+    findIncludeClass("player")
+    findIncludeClass("npc *")
+    findIncludePlayer(owner())
+    findExcludeEntity(User)
+    findInCone(User:shootPos(),User:eye(),50000,10)
+    findSortByDistance( mix(User:aimPos(),User:shootPos(),0.25) )
+    Target = findResult(1)
+    ValidTarg = (Target:isNPC() | Target:isPlayer()) & Target:isAlive()
+}
+
+if(!GravGun | (Fire & $Fire) | !Use | !CanFire){Scan = 0}
+if(!Scan & $Scan){
+    SoundPlayer:soundPlay(0,0,"npc/turret_floor/retract.wav")
+    soundStop(9)
+}
+
+if(Fire & !$Fire & GravGun){
+    Mult += 0.2
+    if(Mult == 15){print("Force: 15")}
+    if(Mult == 30){print("Force: 30")}
+    if(Mult == 45){print("Force: 45")}
+    if(Mult == 60){print("Force: 60")}
+    if(Mult == 75){print("Force: 75")}
+    if(Mult == 75){print("Force: 90")}
+    if(Mult == 100){print("Force: MAX")}
+}
+
+if(CanFire & !Exploded & !Fire & $Fire & GravGun){
+    soundPurge()
+    Force = vec(0,0,0)
+    Grav = 0
+
+    if(!Use){Target = noentity(), Homing = 0}
+    if(!$Scan){Homing = 0}
+    if(Homing & ValidTarg & $Scan){SoundPlayer:soundPlay(1,0,"npc/turret_floor/active.wav")}
+    if(!Homing){Force = User:eye()*clamp(Mult,5,100)+vec(random(-0.5,0.5),random(-0.5,0.5),0)}
+    
+    holoEntity(1):removeTrails(), holoDelete(1)
+    holoCreate(1,User:attachmentPos("anim_attachment_rh")-Force/5,vec(0,0,0)),holoScaleUnits(1,vec(0.8,0.8,8))
+    holoModel(1,"dome"), holoMaterial(1,"models/props_pipes/GutterMetal01a")
+    holoEntity(1):setTrails(2,20,3,"trails/smoke",vec(150*Homing*ValidTarg,0,0),255)
+    holoEntity(1):soundPlay(0,0,CanFireSound)
+        
+    Splode_Scale1 = 10
+    Splode_Scale2 = 1
+    Splode_Alpha = 200
+    Exploded = 0
+    CanFire = 0
+    Launched = 1
+}
+
+if(Launched){
+    if($Launched & !Force){Force = User:eye()*clamp(Mult,5,100)+vec(random(-0.5,0.5),random(-0.5,0.5),0)}
+    if(!Exploded){
+        if(Homing & ValidTarg){
+            TargetHead = Target:attachmentPos("eyes")
+            if(TargetHead){HomingForce = (TargetHead - Pos)*ValidTarg}
+            else{HomingForce = (Target:toWorld(Target:boxCenter()) - Pos)*ValidTarg}
+            
+            
+            Force = HomingForce:normalized()*10
+        }else{
+            Grav += 0.001
+            Force *= 0.995, Force += vec(0,0,-Grav)
+        }
+        
+        Pos = holoEntity(1):pos()
+        Rng = rangerOffset(10,Pos,holoEntity(1):up()*10)
+        Hit = Rng:hit() & Rng:entity()!=User
+        
+        holoPos(1,Pos+Force)
+        holoAng(1,Force:toAngle()+ang(90,0,0))
+        
+        if(Hit | (Cancel & $Cancel)){
+            Exploded = 1
+            Launched = 0
+            holoCreate(2)
+            holoCreate(3)
+            holoParent(2,Rng:entity())
+            holoParent(3,Rng:entity())
+            holoPos(2,Rng:position()) 
+            holoPos(3,Rng:position())
+            holoEntity(2):soundPlay(0,0,SplodeSound)
+            holoMaterial(2,"models/effects/splode_sheet")
+            holoMaterial(3,"models/props/de_tides/clouds")
+            holoModel(2,"hqicosphere2")
+            holoModel(3,"hqicosphere2")
+            holoScaleUnits(2,vec(100,100,100)) 
+            timer("remove",1150)
+        }
+    }
+}
+
+if(Exploded){
+    Splode_Scale1 -= 0.075
+    Splode_Scale2 += 1
+    Splode_Alpha -= 3
+    Alpha = clamp(Splode_Alpha,0,255)
+    Homing = 0
+    Target = noentity()
+    
+    holoScale(1,vec())
+    holoScale(2,vec()+1*Splode_Scale1)
+    holoScale(3,vec()+1*Splode_Scale2)
+    holoAlpha(2,Alpha+10)
+    holoAlpha(3,Alpha)
+}
+
+if(clk("remove")){
+    holoScale(1,vec())
+    holoDelete(2)
+    holoDelete(3)
+    timer("reload",300)
+    Exploded = 0, Splode_Scale1 = 10, Splode_Scale2 = 1
+    Mult = 1
+}
+
+if(clk("reload")){
+    soundPurge()
+    CanFire = 1
+    SoundPlayer:soundPlay(0,0,"npc/turret_floor/ping.wav")
+    soundVolume(5,200)
+}
+
+Mult = clamp(Mult,5,100)

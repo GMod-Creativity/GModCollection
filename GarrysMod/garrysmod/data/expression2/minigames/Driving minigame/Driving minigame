@@ -1,0 +1,378 @@
+@name ScreenGame
+@inputs Space A D Active Driver:entity
+@outputs String:string Screen2Text:string Kick
+@persist CarSpeed Shift RandomNum InactiveKickTick BlankSpace:array ScoreString:string CurrentScore OverallScores:array OverallScoresName:array ShipLoc GameState GameTitleString:string BlinkingTitleMainMenu LeftArray:array Walls:array TickNum TickNum2 GameSpeed ControlsTick GameOverTick
+@trigger 
+
+runOnTick(1)
+
+if (first()) # Initialize variables
+{
+    BlinkingTitleMainMenu = 1
+    InactiveKickTick = 0
+    
+    # CAR GAME
+    GameTitleString = "   ==============================<br><br>   ##### ##### ####<br>   #     #   # #   #<br>   #     ##### ####<br>   #     #   # #   #<br>   ##### #   # #   #<br><br>   ##### ##### ##### #####<br>   #     #   # # # # #<br>   #  ## ##### # # # #####<br>   #   # #   # # # # #<br>   ##### #   # # # # #####<br><br>   =============================="
+    
+    # Stores wall locations into memory so they do not need to be calculated (saves operations)
+    Walls = array("||         |#######################|","|#|         |######################|","|##|         |#####################|","|###|         |####################|","|####|         |###################|","|#####|         |##################|","|######|         |#################|","|#######|         |################|","|########|         |###############|","|#########|         |##############|","|##########|         |#############|","|###########|         |############|","|############|         |###########|","|#############|         |##########|","|##############|         |#########|","|###############|         |########|","|################|         |#######|","|#################|         |######|","|##################|         |#####|","|###################|         |####|","|####################|         |###|","|#####################|         |##|","|######################|         |#|","|#######################|         ||")
+    
+    # If score = -1 it means it's empty. Initializing scores for high score
+    OverallScores = array(-1,-1,-1,-1,-1,-1,-1,-1,-1,-1)
+    
+    # Initializing names for high score
+    OverallScoresName = array("NIL","NIL","NIL","NIL","NIL","NIL","NIL","NIL","NIL","NIL")
+    
+    # Blank space for adding behind names to make the high score board look nice. Saves operations for calculating how many spaces later on. Just simply BlankSpace[numberofspaces, string] to add spaces
+    BlankSpace = array(" ","  ","   ","    ","     ","      ","       ","        ","         ","          ","           ","            ","             ","              ","               ","                ","                 ","                  ","                   ","                    ","                     ","                      ","                       ","                         ","                          ","                           ","                            ","                             ","                              ")
+
+    CarSpeed = 4 # How fast the car can move. Lower = faster
+}
+
+#GameState
+#0 = Main Menu / No Players In Seat
+#1 = Playing
+#2 = Game Over
+
+timer("BlinkingTitle", 500) # Refresh rate for blinking "Press spacebar to start game"
+
+if (clk("BlinkingTitle")) # Just makes the "Press spacebar to start game" blink at main menu 
+{
+    stoptimer("BlinkingTitle")
+    if (BlinkingTitleMainMenu == 0)
+    {
+        BlinkingTitleMainMenu = 1
+    }
+    elseif (BlinkingTitleMainMenu == 1)
+    {
+        BlinkingTitleMainMenu = 0
+    }
+}
+
+if (GameState == 0) # If game is at main menu
+{
+    CurrentScore = 0
+    if (BlinkingTitleMainMenu == 0) # Just makes the "Press spacebar to start game" blink at main menu
+    {
+        String = "<br>" + GameTitleString
+    }
+    elseif (BlinkingTitleMainMenu == 1)
+    {
+        String = "<br>" + GameTitleString + "<br><br>    PRESS SPACEBAR TO START GAME"
+    }
+    
+    if (Space == 1) # If player presses spacebar
+    {
+        GameState = 1
+        ShipLoc = 17
+        LeftArray = array(12,12,12,12,12,12,12,12,12,12,12,12,12,12,12  ,12,12,12,12,12) # Reset all wall locations
+        TickNum = 0
+        TickNum2 = 0
+        ControlsTick = 0
+        GameSpeed = 30 # Speed at which the walls move initially.
+        CurrentScore = 0
+        RandomNum = randint(1,4) # Initialize the first direction the wall will move
+    }
+    
+    if (~Active && Active) # Refresh inactive kick timer
+    {
+        InactiveKickTick = 0
+    }
+    
+    if (Active == 1) # If player is in seat, start autokick timer
+    {
+        InactiveKickTick++
+    }
+    
+    if (InactiveKickTick >= 500) # Prevent player from idling in main menu that other players cant play
+    {
+        Kick = 1
+    }
+}
+
+if (!Active) # Refresh kick variable to 0 if player has been kicked out already
+{
+    Kick = 0
+}
+
+if (!Active && ~Active) # If player leaves seat or gets kicked out
+{
+    GameState = 0 # Go back to main menu
+    BlinkingTitleMainMenu = 1
+}
+
+if (GameState == 1) # If game is on-going
+{
+    ControlsTick++
+    
+    if (ControlsTick >= CarSpeed) # How fast the car can move. Lower = faster
+    {
+        if (A == 1) #If user presses A
+        {
+                ShipLoc-- # Then move car to the left
+        }
+        if (D == 1) #If user presses D
+        {
+                ShipLoc++ # Then move car to the right
+        }
+        
+        ControlsTick = 0
+    }
+    
+    TickNum++ # TickNum is the refresh rate for the walls moving
+    TickNum2++ # TickNum2 is the refresh rate for the game speed increase
+    if (TickNum >= GameSpeed) # If the tick for GameSpeed has been reached, update the walls
+    {
+        TempRand = randint(1,10)
+        
+        # Calculation of where the wall moves next: left, right, or remain straight.
+        # 1 means it will move -1 to the left
+        # 2 means it will not move at -0, but it means that it will still have the high chance to move to the left next interval
+        # 3 means it will not move at +0, but it will still have a high chance to move right next interval
+        # 4 means it will move +1 to the right
+        
+        if (LeftArray[1, number] == 1) # If the wall location already hits the left-most border
+        {
+            if (TempRand < 10) # Then 90% chance for it to move back right +1
+            {
+                RandomNum = 4
+            }
+            else # 10% chance to remain as +0
+            {
+                RandomNum = 3
+            }
+        }
+        elseif (LeftArray[1, number] == 23) # If the wall location already hits the right-most border
+        {
+            if (TempRand < 10) # Then 90% chance for it to move back left -1
+            {
+                RandomNum = 1
+            }
+            else # 10% chance to remain there as -0
+            {
+                RandomNum = 2
+            }
+        }
+        elseif (RandomNum == 1) # If the direction is currently -1
+        {
+            if (TempRand < 10) # 90% chance to continue as -1
+            {
+                RandomNum = 1
+            }
+            else # 10% chance to become -0
+            {
+                RandomNum = 2
+            }
+        }
+        elseif (RandomNum == 2) # If the direction is currently -0
+        {
+            if ((TempRand >= 1) && (TempRand <= 4)) # If TempRand is 1-4
+            {
+                RandomNum = 1 # 40% chance to go back to -1
+            }
+            elseif ((TempRand >= 5) && (TempRand <= 8)) # If TempRand is 5-8
+            {
+                RandomNum = 4 # 40% chance to become +1
+            }
+            elseif ((TempRand >= 9) && (TempRand <= 10)) # If TempRand is 9-10
+            {
+                RandomNum = 2 # 20% chance to remain as -0
+            }
+        }
+        elseif (RandomNum == 3) # If the direction is +0
+        {
+            if ((TempRand >= 1) && (TempRand <= 4)) # If TempRand is 1-4
+            {
+                RandomNum = 4 # 40% chance to go back to +1
+            }
+            elseif ((TempRand >= 5) && (TempRand <= 8)) # If TempRand is 5-8
+            {
+                RandomNum = 1 # 40% chance to become -1
+            }
+            elseif ((TempRand >= 9) && (TempRand <= 10)) # If TempRand is 9-10
+            {
+                RandomNum = 3 # 20% chance to remain as +0
+            }
+        }
+        elseif (RandomNum == 4) # If the direction is +1
+        {
+            if (TempRand < 10) # 90% chance to be still +1
+            {
+                RandomNum = 4
+            }
+            else # 10% chance to go to +0
+            {
+                RandomNum = 3
+            }
+        }
+        if (RandomNum == 1)
+        {
+            Shift = -1
+        }
+        elseif ((RandomNum == 2) || (RandomNum == 3))
+        {
+            Shift = 0
+        }
+        elseif (RandomNum == 4)
+        {
+            Shift = 1
+        }
+        
+        # Shift all wall locations downwards except top-most wall
+        LeftArray[20, number] = LeftArray[19, number]
+        LeftArray[19, number] = LeftArray[18, number]
+        LeftArray[18, number] = LeftArray[17, number]
+        LeftArray[17, number] = LeftArray[16, number]
+        LeftArray[16, number] = LeftArray[15, number]
+        LeftArray[15, number] = LeftArray[14, number]
+        LeftArray[14, number] = LeftArray[13, number]
+        LeftArray[13, number] = LeftArray[12, number]
+        LeftArray[12, number] = LeftArray[11, number]
+        LeftArray[11, number] = LeftArray[10, number]
+        LeftArray[10, number] = LeftArray[9, number]
+        LeftArray[9, number] = LeftArray[8, number]
+        LeftArray[8, number] = LeftArray[7, number]
+        LeftArray[7, number] = LeftArray[6, number]
+        LeftArray[6, number] = LeftArray[5, number]
+        LeftArray[5, number] = LeftArray[4, number]
+        LeftArray[4, number] = LeftArray[3, number]
+        LeftArray[3, number] = LeftArray[2, number]
+        LeftArray[2, number] = LeftArray[1, number]
+
+        # For top-most wall, add the randomed change in wall location
+        LeftArray[1, number] = LeftArray[1, number] + Shift
+        TickNum = 0
+    }
+    
+    if (TickNum2 >= 200) # Every 200 ticks, reduce game refresh interval by 1 (increase speed)
+    {
+        TickNum2 = 0
+        
+        if (GameSpeed >= 1)
+        {
+            GameSpeed--
+        }
+    }
+    
+    CurrentScore++
+    
+    String = "" # Empty and reset string
+    for(I = 1, 19, 1)#For lines 1 to 19
+    {
+        String = String + Walls[LeftArray[I, number], string] + "<br>" # Print lines 1 to 19
+    }
+    
+    # Create bottom-most line
+    TempArray = array("|","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","|")
+    TempArray[LeftArray[20, number]+1, string] = "|"
+    TempArray[LeftArray[20, number]+2, string] = " "
+    TempArray[LeftArray[20, number]+3, string] = " "
+    TempArray[LeftArray[20, number]+4, string] = " "
+    TempArray[LeftArray[20, number]+5, string] = " "
+    TempArray[LeftArray[20, number]+6, string] = " "
+    TempArray[LeftArray[20, number]+7, string] = " "
+    TempArray[LeftArray[20, number]+8, string] = " "
+    TempArray[LeftArray[20, number]+9, string] = " "
+    TempArray[LeftArray[20, number]+10, string] = " "
+    TempArray[LeftArray[20, number]+11, string] = "|"
+    TempArray[ShipLoc+1, string] = "A"
+    
+    for (I = 1, 36, 1)#Add to main string
+    {
+        String = String + TempArray[I, string]
+    }
+    
+    if ((ShipLoc == LeftArray[20, number]) || (ShipLoc == (LeftArray[20, number]+10))) # If ship location is same as the wall (hit the wall)
+    {
+        GameState = 2 # Game over state
+        GameOverTick = 0
+        if (CurrentScore > OverallScores:min()) # If your score is higher than the lowest score stored in high scores
+        {
+            for (I = 10, 1, -1) # Go through 1 to 10th place to insert the score in the correct place
+            {
+                if (I != 1) # check 2nd to 10th position first
+                {
+                    if (OverallScores[I-1, number] >= CurrentScore) #If the score for I-1th position is higher, then insert it into I's position
+                    {
+                        OverallScores:insertNumber(I,CurrentScore) #insert into I
+                        OverallScores:pop() # delete 11th place score
+                        DriverName = Driver:driver():name() # Get name of player
+                        
+                        ScoreString = CurrentScore:toString() # Get length of score number
+                        SpaceAvailable = 36 - (5 + ScoreString:length()) # there'll be 5 spaces taken permanently: "_1._TestName      _359328"
+                        if (DriverName:length() > SpaceAvailable) # If player name is longer than available space to print name
+                        {
+                            DriverName = DriverName:sub(1,SpaceAvailable) # truncate name
+                        }
+                        elseif (DriverName:length() < SpaceAvailable) # If player name is shorter than available space
+                        {
+                            DriverName = DriverName + BlankSpace[SpaceAvailable-DriverName:length(), string] # add blank spaces so the name can be easily printed neatly as Name+Score later on
+                        }
+                        
+                        OverallScoresName:insertString(I,DriverName)
+                        OverallScoresName:pop()
+                        break # Once score is inserted, break loop
+                    }
+                }
+                else # Else if 1st place
+                {
+                    OverallScores:insertNumber(1,CurrentScore)
+                    OverallScores:pop()
+                    DriverName = Driver:driver():name()
+                    
+                    ScoreString = CurrentScore:toString()
+                    SpaceAvailable = 36 - (5 + ScoreString:length())
+                    if (DriverName:length() > SpaceAvailable)
+                    {
+                        DriverName = DriverName:sub(1,SpaceAvailable)
+                    }
+                    elseif (DriverName:length() < SpaceAvailable)
+                    {
+                        DriverName = DriverName + BlankSpace[SpaceAvailable-DriverName:length(), string]
+                    }
+                        
+                    OverallScoresName:insertString(I,DriverName)
+                    OverallScoresName:pop()
+                }
+            }
+        }
+    }
+}
+
+if (GameState == 2) # Game over screen
+{
+    GameOverTick++
+    String = "<br><br><br>====================================<br>| XXXXX XXXXX XXXXX XXXXX          |<br>| X     X   X X X X X              |<br>| X  XX XXXXX X X X XXXXX          |<br>| X   X X   X X X X X              |<br>| XXXXX X   X X X X XXXXX          |<br>|                                  |<br>|          XXXXX X   X XXXXX XXXX  |<br>|          X   X X   X X     X   X |<br>|          X   X X   X XXXXX XXXX  |<br>|          X   X  X X  X     X   X |<br>|          XXXXX   X   XXXXX X   X |<br>===================================="
+
+    if (GameOverTick >= 200) # Kick player out of chair after 200 ticks
+    {
+        GameState = 0
+        Kick = 1
+    }
+}
+
+#Text for scoreboard
+Screen2Text = "SCORE: " + CurrentScore + "<br>____________________________________<br><br>" + "       =====High Scores=====<br>"
+if (OverallScores[1, number] == -1) #If no scores yet, append "Empty" to the end
+{
+    Screen2Text = Screen2Text + "<br>Empty"
+}
+
+for (I = 1, 10, 1) # Print scores
+{
+    if (OverallScores[I, number] != -1)
+    {
+        if (I != 10) #If it's 1st to 9th place, add a spacing before the number to make it even
+        {
+            Screen2Text = Screen2Text + "<br> " + I + ". " + OverallScoresName[I, string] + " " + OverallScores[I, number]
+        }
+        else # Number 10 has 2 digit so no need for spacing
+        {
+            Screen2Text = Screen2Text + "<br>" + I + ". " + OverallScoresName[I, string] + " " + OverallScores[I, number]
+        }
+    }
+    else
+    {
+        break
+    }
+}

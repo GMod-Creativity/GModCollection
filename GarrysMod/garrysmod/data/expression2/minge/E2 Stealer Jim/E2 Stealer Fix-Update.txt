@@ -1,0 +1,170 @@
+@name Stealer By Jim
+@persist F:array P:array A:array
+
+
+if (first() | dupefinished()){
+    # should create a little theif dude above the chip
+    holoCreate(1)
+    holoPos(1, entity():pos()+vec(0,0,3))
+    holoModel(1, "models//player/t_arctic.mdl") # Server has custom holos disabled atm 
+    holoScale(1, vec(0.3,0.3,0.3))
+    holoCreate(2)
+    holoModel(2, "models/weapons/w_crowbar.mdl")
+    holoScale(2, vec(0.3,0.3,0.3))
+    holoAng(2, ang(180,0,0))
+    holoPos(2, entity():pos()+vec(0,-7.5,14.5))
+    hint("You are using Jim Dangles E2 Finder / Stealer", 3) 
+    hint("Type /help to print commands to console",3.5) 
+
+
+    #functinon to print commands
+    function void printCommands(){
+        hint("Comands have been printed to console", 3)
+        soundPlay(0,0, "buttons/button18.wav")
+        print(_HUD_PRINTCONSOLE,"=================================================================================================================================")
+        print(_HUD_PRINTCONSOLE, "Commands are very simple")
+        print(_HUD_PRINTCONSOLE, "You have to type /find before you use /take")
+        print(_HUD_PRINTCONSOLE, "/take must be followed by a valid player name")
+        print(_HUD_PRINTCONSOLE, "/remove can use either the owners name or the chips name")
+        print(_HUD_PRINTCONSOLE, "please do not use to MALICIOUSLY")
+        print(_HUD_PRINTCONSOLE,"=================================================================================================================================") 
+        }
+
+    function void entity:tp(Pos:vector){
+        This:propManipulate(Pos, This:angles(), 1,1,0)
+        }
+    #just to make sure you only have one chip so the chip is always thed to the most recent one
+    findByClass(entity():type())
+    #findExcludeEntity(entity())
+    Init = findToArray() 
+    for(I=1, Init:count()){
+        if(Init[I, entity]:getName()==entity():getName() & Init[I, entity]!=entity() & Init[I, entity]:owner()==owner()){
+        Init[I, entity]:propDelete()
+        }
+    }
+
+    findByClass(entity():type())
+        findExcludeEntity(entity())
+        #findExcludePlayerProps(owner())
+        findSortByDistance(entity():pos())
+        F = findToArray()
+        for(I=1, F:count()){
+            Temp = F[I, entity]
+            P[I, vector] = Temp:pos()
+            A[I, angle] = Temp:angles()
+            print(I+": OWNER: "+ Temp:owner():name() + " || NAME: " + Temp:getName())
+            }
+        hint("FOUND: " + F:count()+" chip(s)", 3.7)
+    }
+
+runOnChat(1)
+if(chatClk(owner())){
+    #Making the chat info into variables
+    Chat = owner():lastSaid():explode(" ")
+    C1= Chat:string(1)
+
+    if(C1=="/hide"){
+    hideChat(1)
+    entity():setAlpha(0)
+    entity():propNotSolid(1)
+    }
+    if(C1=="/show"){
+    hideChat(1)
+    entity():setAlpha(255)
+    entity():propNotSolid(0)
+    }
+
+    #find command to fill F array
+    if(C1=="/find"){
+        hideChat(1)
+        findByClass(entity():type())
+        findExcludeEntity(entity())
+        #findExcludePlayerProps(owner())
+        findSortByDistance(entity():pos())
+        F = findToArray()
+        for(I=1, F:count()){
+            Temp = F[I, entity]
+            P[I, vector] = Temp:pos()
+            A[I, angle] Temp:angles()
+            print(I+": OWNER: "+ Temp:owner():name() + "|| NAME: " + Temp:getName())
+            }
+        hint("FOUND: "+ F:count()+" chip(s)", 3.7)
+
+        }
+
+    #take command to tp an e2 to this chip
+
+    if(C1=="/return"){
+        hideChat(1)
+        Num = owner():lastSaid():explode(" "):string(2):toNumber()
+        #F[Num entity]:tele(P[Num, vector])
+        F[Num, entity]:tp(P[Num, vector])
+        F[Num, entity]:setAng(A[Num, angle])
+        hint("Returned " + F[Num, entity]:owner():name() + "'s \ Chip" +F[Num, entity]:getName(), 3)
+        }
+
+    if (C1=="/break"){
+        hideChat(1)
+        C2=Chat:string(2)
+        C3=Chat:string(3)
+        Num = C3:toNumber()
+        F[Num, entity]:propGravity(1)
+        }
+
+    if (C1=="/take"){
+        hideChat(1)
+        C2 = Chat:string(2)
+        C3 = Chat:string(3)
+        switch(C2){
+            # take by index so the number the e2 is in the F array
+            case "index",
+            if(C3:toNumber()>=1){
+                Num = C3:toNumber()
+                Temp1 = F[Num, entity]
+                if(Temp1:isConstrained() & Temp1:isConstrainedTo()!=world() | Temp1:isConstrainedTo()!=entity()){
+                    Temp1:isConstrainedTo():propDelete()
+                    }
+
+                if(Temp1:isValid()){
+                #Temp1:tele(entity():pos()+vec(0,0,30))
+                Temp1:tp(entity():pos()+vec(0,0,30))
+                Temp1:propFreeze(1)
+                Temp1:propNotSolid(0)
+                }
+                }
+
+            if(F[C3:toNumber(),entity]==noentity()){
+                hint("No Chip Found!",3)
+                }
+            break
+
+            #takes all the e2s who are owned by somn
+            case "owner",
+            if(findPlayerByName(C3)){
+                for(I=1, F:count()){
+                    Temp = F[I, entity]
+                if(Temp:owner()==findPlayerByName(C3)){
+                    if(Temp:isConstrained() & Temp:isConstrainedTo()!=world() | Temp:isConstrainedTo()!=entity()){
+                        Temp:isConstrainedTo():propDelete()
+                        }
+                    #Temp:tele(entity:pos():pos()+vec(0,10+10*I, 30))
+                    Temp:tp(entity():pos()+vec(0,10+10*1, 30))
+                    }
+                }
+            }
+            break
+
+            case "all",
+                for(I=1, F:count()){
+                    F[I, entity]:tp(entity():pos()+vec(0,10+10*1, 30))
+
+                    #F[I, entity]:tele(entity():pos()+vec(0,10+10*1, 30))
+                    }
+            break
+
+            }
+        }
+    if(C1=="/remove"){
+        
+        }
+}

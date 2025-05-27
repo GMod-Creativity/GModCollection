@@ -1,0 +1,90 @@
+@name Anti E2-theft
+@inputs 
+@outputs 
+@persist [E2s Players Cooldowns]:array TargetedE2s:table CooldownRate
+@trigger 
+
+if (first()){
+    
+    CooldownRate = 5 #x1000 number of ticks before another chat command is engadged with the same offending player.
+    
+    function void updateE2Array(){
+        findIncludePlayerProps(owner())
+        findByClass("gmod_wire_expression2")  
+        E2s = findToArray()
+        E2s:pushEntity(entity())    
+    }
+    
+    function void updatePlayerArray(){
+        findExcludePlayer(owner())
+        findByClass("player")  
+        Players = findToArray()     
+    }
+    
+    function void restoreTargetE2s(Index:number){
+        if (TargetedE2s[Index,array]:count()>0){
+            for(I=1,TargetedE2s[Index,array]:count()){
+                TargetedE2s[Index,array][I,entity]:propNotSolid(0)        
+            }
+            TargetedE2s[Index,array]=array()
+        }    
+    }
+    
+    updatePlayerArray()    
+    updateE2Array()
+    printColor(vec(0,255,255),"[E2] Possible threats found: "+Players:count()+" players")
+    printColor(vec(0,255,255),"[E2] Expression 2's Protected: "+E2s:count())
+    timer("check",100)
+    timer("autoRefreshE2array",10000)
+}
+
+if (changed(owner():keyAttack1())){ 
+    if (owner():keyAttack1()){
+        if (owner():tool()=="wire_expression2"){
+            timer("updateE2array",2000)
+            print("New E2 added")        
+        }
+    }    
+} 
+
+if (clk("updateE2array")){
+    updateE2Array()    
+}
+
+if (clk("check")){
+    
+    for(I=1,Cooldowns:count()){
+        if (Cooldowns[I,number]>0){
+            Cooldowns[I,number]=Cooldowns[I,number]-0.1 
+        } 
+        else{
+            restoreTargetE2s(I)
+            Cooldowns:removeNumber(I)    
+        }  
+    }
+    
+    for(I=1,players():count()){
+        for(II=1,E2s:count()){
+            if (Players[I,entity]:aimEntity()==E2s[II,entity]){
+                if (Players[I,entity]:tool()=="wire_expression2"){
+                    if (E2s[II,entity]:isValid()){
+                        E2s[II,entity]:propNotSolid(1)
+                        
+                        if (Cooldowns[I,number]==0){
+                            printColor(vec(0,0,255),"[E2] ",vec(0,255,255),Players[I,entity]:name()+" was peeking at your "+E2s[II,entity]:getName()+" E2.")
+                            TargetedE2s[I,array]:pushEntity(E2s[II,entity])
+                            Cooldowns[I,number]=CooldownRate
+                        }
+                    }        
+                }    
+            } 
+        }
+    }
+    timer("check",100)
+}
+
+if (clk("autoRefreshE2array")){
+    updatePlayerArray()
+    updateE2Array() 
+    timer("autoRefreshE2array",6000)        
+}

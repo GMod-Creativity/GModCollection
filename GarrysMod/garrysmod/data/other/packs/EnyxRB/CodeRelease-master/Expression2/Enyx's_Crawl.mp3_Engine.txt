@@ -1,0 +1,215 @@
+@name Enyx's Crawl.mp3 Engine
+@inputs Pod:wirelink [Seat Base Wheel]:entity
+@outputs Active Handbrake RPM FuelAmount Gear Weld WeldStrength
+@persist Pitch On Active [EngineSound EngineStartingSound GearShiftSound OwnerID]:string Ratio:array
+@persist AutomaticGearBox IdleRPM MaxRPM GearSpeed SeatProtection DupeProtection Gear Forward HorsePower AntiRollBack
+@persist IdealDIFF AntiWheelSpin WheelDiameter Handbrake HandbrakeStrength BrakeStrength FuelAmount
+@model models/props_phx/wheels/metal_wheel1.mdl
+interval(30)
+
+Engine = entity()
+
+if (first() | dupefinished()){
+    print(Base:angles():pitch())
+    #SETTINGS
+    
+    #ENGINE SETUP
+    IdleRPM = 300
+    MaxRPM = 2000
+    
+    AutomaticGearBox = 0
+    GearSpeed = 6 #NUMBER OF GEARS YOU WISH TO HAVE IN YOUR GEARBOX. STANDARD ARE 4,6 OR 8 - INCLUDING A REVERSE GEAR
+    
+    HorsePower = 250
+    
+    Gear1Ratio = 0.1
+    Gear2Ratio = 0.2
+    Gear3Ratio = 0.3
+    Gear4Ratio = 0.4
+    Gear5Ratio = 0.5
+    Gear6Ratio = 0.1 #REVERSE GEAR    
+    #----------------------------------------#
+    
+    #FUEL
+    FuelAmount = 300
+    
+    #BRAKE STRENGTH
+    HandbrakeStrength = 99999999
+    BrakeStrength = 100000
+    
+    #SOUND SYSTEM
+    EngineSound = "acf_engines/l6_dieselsmall.wav"
+    EngineStartingSound = "acf_extra/vehiclefx/starters/starter5.wav"
+    GearShiftSound = "acf_extra/vehiclefx/trans/default_shift.wav"
+    #----------------------------------------#
+    
+    SeatProtection = 1 #THIS WILL KILL ANYBODY THAT ENTERS YOUR SEAT, THAT ISN'T YOU
+    DupeProtection = 1 #THIS WILL DELETE AS MUCH AS POSSIBLE AS SOON AS SOMEONE TRIES TO STEAL YOUR BUILD, IF THEY ARE NOT YOU
+ 
+#----------DO NOT CHANGE ANYTHING UNDER HERE!----------#
+    Handbrake = 1
+    AntiWheelSpin = 0
+    Forward = 0
+    AntiRollBack = 0
+    Gear = 1
+    MaxGearSpeed = 1000
+    Ratio = array(Gear1Ratio,Gear2Ratio,Gear3Ratio,Gear4Ratio,Gear5Ratio,Gear6Ratio)
+    Engine:setMass(150+(Gear*15))
+
+    OwnerID = owner():steamID()
+    #----------------------------------------#
+
+    #DIFF V2
+    WheelDiameter = 1.124
+    IdealDIFF = 5/(18*pi()*WheelDiameter)
+    print(IdealDIFF)
+    #----------------------------------------#
+
+}
+
+
+R = Pod:number("R")
+
+#ENGINE STARTER
+if((changed(R)) & (R==1)){On=!On}
+if((changed(On)) & (On==1)){ 
+    Engine:soundPlay(1,0,EngineStartingSound)
+    timer("Start",1000)
+    timer("smokeready",750)
+}
+
+if((clk("Start") & Active==0 & FuelAmount > 0)){Active=1}
+#----------------------------------------#
+
+#SMOKE EXHAUST EFFECT
+if(clk("smokeready")){
+    timer("smoke",100)
+    SmokeEffect = 1
+}
+    
+if (clk("smoke")){SmokeEffect = 0}
+#----------------------------------------#
+
+if(changed(On)&!On){Active=0,soundStop("Engine_Sound"),soundStop(1),soundStop(4),Handbrake}
+
+#ENGINE SOUND
+if(changed(Active)&Active){
+Seat:hintDriver("Press Alt to release the Handbrake",4)
+Seat:hintDriver("Mouse buttons to change gears",5)
+Seat:hintDriver("Shift is for the Clutch",6)
+Seat:hintDriver("Space is for the brakes",7)
+entity():soundPlay("Engine_Sound", 0, EngineSound)
+soundVolume("Engine_Sound",100)
+}
+#------------------------------------#
+
+if(FuelAmount > 0 & Active){
+
+EngineVel = Engine:angVel():yaw()    
+KPH = round(toUnit("km/h",Base:vel():length()))
+  
+    #CONTROLS
+    A = Pod:number("A")
+    D = Pod:number("D")
+    W = Pod:number("W")
+    S = Pod:number("S")
+    F = Pod:number("Light")
+    Space = Pod:number("Space")
+    Clutch = Pod:number("Shift")
+    F = Seat:driver():keyPressed("F")
+    Alt = Pod:number("Alt")
+    GearUp = Pod:number("Mouse1")
+    GearDown = Pod:number("Mouse2")
+    #------------------------------------#
+
+#ENGINE SOUND PITCH
+if (W | S & Gear < GearSpeed) {Pitch+=3.25-(Gear/2)} elseif (W | S & Gear == GearSpeed){Pitch+=3.25} else{Pitch-=3}
+if (changed(Gear)& Gear) {Pitch -=80}
+if (Pitch > MaxRPM/10) {Pitch = MaxRPM/10}
+if (Pitch < IdleRPM/20) {Pitch = IdleRPM/20}
+soundPitch("Engine_Sound", (Pitch))
+#------------------------------------#
+
+#RPM
+RPM = Pitch*10
+#------------------------------------#
+
+
+    #GEARBOX
+    if (!AutomaticGearBox){
+        
+        if (changed(GearUp)&GearUp) {Gear+=1}
+        if (changed(GearDown)&GearDown) {Gear-=1}
+        if (Gear > GearSpeed) {Gear = GearSpeed}
+        if (Gear < 1) {Gear = 1}
+        if (S) {Gear = GearSpeed}
+        if (Gear == 6 & W) {Gear = 1}
+    }
+#------------------------------------#
+    #GEAR CHANGE SOUND
+    if(changed(Gear)){Engine:soundPlay(3,soundDuration(GearShiftSound),GearShiftSound)}
+#------------------------------------#
+
+#DIFF
+WheelVel = Wheel:angVel():pitch()
+RPS = WheelVel / 360 
+Diff = abs(RPS/KPH)
+#------------------------------------#
+
+#ANTI ROLL-BACK
+if (((!W & !S) & (EngineVel<0)) | Handbrake | Clutch) {Weld = 1, WeldStrength = HandbrakeStrength} elseif (Space){Weld = 1, WeldStrength = BrakeStrength} else {Weld = 0}
+#------------------------------------#
+
+#CRAWL POWER
+Torque = ((HorsePower*1.5) * (RPM/1.5))-(20000*Ratio[Gear,number])
+if (Base:angles():pitch()<0) {PowerMultiply = Base:angles():pitch() * -15000} else {PowerMultiply=0}
+if (Diff > IdealDIFF & EngineVel > 100) {AntiWheelSpin -=2000} elseif (Diff > IdealDIFF & EngineVel < 100) {AntiWheelSpin +=2000} else {AntiWheelSpin = 0}
+if (AntiWheelSpin < -75000) {AntiWheelSpin = -75000}
+if (AntiWheelSpin > 150000) {AntiWheelSpin = 150000}
+
+
+if (W & EngineVel < (MaxRPM/(GearSpeed-1-Gear))) {Forward = (Torque+PowerMultiply)*2}
+elseif (((W|S) & Gear==GearSpeed) & EngineVel > -1000) {Forward = (Torque+PowerMultiply)*-2} else {Forward = 0}
+
+if (!Clutch){
+ForwardPower = Forward * ang(0,1,0)
+Engine:applyAngForce(ForwardPower)
+    }
+#------------------------------------#
+
+#HANDBRAKE  
+if (changed(Alt)&Alt) {timer("Handbrake",700),Engine:soundPlay(4,0,"acf_extra/vehiclefx/misc/air_brake2.wav"),Handbrake+=1}
+if (clk("Handbrake")) {soundStop(4,0)}
+if (changed(Handbrake)&Handbrake > 1) {Handbrake = 0, Seat:hintDriver("The Handbrake has been released",4)}
+#------------------------------------#
+
+#REVERSE SOUND
+if ((changed(W|S)&W|S)&Gear==GearSpeed) {Engine:soundPlay(5,0,"acf_extra/vehiclefx/misc/reverse.wav")} else {soundStop(5,0)}
+#------------------------------------#
+
+#HORN
+if (changed(F)&F) {Engine:soundPlay(6,100,"acf_extra/vehiclefx/horn/hornb1_int.wav")}
+if (changed(F)&!F) {soundStop(6,0)}
+#------------------------------------#
+
+#FUEL CONSUMPTION
+FuelAmount-=(0.005+(RPM/70000))
+
+if (changed(FuelAmount) & FuelAmount <= 0) {Active = 0}
+}
+#------------------------------------#
+
+    #DUPE PROTECTION
+    if (DupeProtection & dupefinished() & owner():steamID()!=OwnerID){
+    Base:propDelete()
+    entity():isWeldedTo():propDelete() 
+    selfDestruct()
+    }
+    #------------------------------------#
+    
+    #SEAT PROTECTION
+    if ((changed(Seat:driver()) & SeatProtection) & Seat:driver():steamID()!=OwnerID)  {
+    Seat:printDriver(1,"NOT FOR YOU!")
+    Seat:killPod()
+    }
+    #------------------------------------#

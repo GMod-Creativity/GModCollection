@@ -1,0 +1,74 @@
+@name E-Gearbox V1
+@inputs Active GearUp GearDown Clutch RPM Torque [WheelsL WheelsR]:array
+@outputs Gear
+@persist GearRatios:array Gear LWheelsDir RWheelsDir
+@trigger 
+@model models/engines/t5med.mdl
+
+if (first() | dupefinished()){
+    
+    GearRatios=array(
+        0.05,
+        0.06,
+        0.07,
+        0.08,
+        0.1,
+        -0.01
+    )
+    
+    LWheelsDir = -1
+    RWheelsDir = 1
+    
+    function void gearSound(){
+        entity():soundPlay(1,0,"acf_extra/vehiclefx/boost/gear_change_dump1.wav")
+        soundVolume(1,0.3)
+        entity():soundPlay(2,0,"acf_extra/vehiclefx/trans/default_shift.wav") 
+        timer("stopSounds",300) 
+    }
+    
+    Gear=1      
+}
+
+if (~Active & Active){
+    timer("main",50)  
+}       
+
+
+if (~Active & !Active){
+    RPM=0
+    stoptimer("main")         
+}
+
+if (~GearUp & GearUp){
+    if (Gear<GearRatios:count()){
+        Gear++
+        gearSound()        
+    }
+}
+
+if (~GearDown & GearDown){
+    if (Gear>1){
+        Gear-- 
+        gearSound()      
+    }
+}
+
+if (clk("main")){
+    Vel = entity():vel():length()
+    VelDiff = Vel/WheelsL[1,entity]:angVel():pitch()/6
+    
+    if (!Clutch){
+        for(I=1,WheelsL:count()){
+             WheelsL[I,entity]:applyAngForce(ang(((abs(WheelsL[I,entity]:angVel():pitch()/6))-(RPM*GearRatios[Gear,number]))*WheelsL[I,entity]:mass()*LWheelsDir*(Torque/20),0,0))   
+        }
+        for(I=1,WheelsR:count()){
+             WheelsR[I,entity]:applyAngForce(ang(((abs(WheelsR[I,entity]:angVel():pitch()/6))-(RPM*GearRatios[Gear,number]))*WheelsR[I,entity]:mass()*RWheelsDir*(Torque/20),0,0))  
+        }        
+    }
+    timer("main",50) 
+}
+
+if (clk("stopSounds")){
+    soundStop(1,0) 
+    soundStop(2,0)      
+}

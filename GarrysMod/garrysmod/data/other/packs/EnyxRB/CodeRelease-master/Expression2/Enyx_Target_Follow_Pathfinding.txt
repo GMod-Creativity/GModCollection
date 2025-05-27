@@ -1,0 +1,148 @@
+@name Enyx's Target Follow Pathfinding
+@inputs 
+@outputs 
+@persist CurTarget:entity [NodePos Holos]:array NodeCount DeletedNodes [CurNodePos CurTargetPos PathPos LastNodePos]:vector Robot:entity NodeDist
+@persist ShortcutEnt:entity
+@trigger 
+
+#HAVE A SEPERATE STATEMENT RUNNING A SINGLE RANGER THROUGH ALL THE AHEAD NODES, STARTING FROM THE HIGHEST ONE, TO SEE IF IT CAN CREATE A SHORTCUT
+
+if (first()){
+        
+    holoCreate(0)
+    holoColor(0,vec(0,255,0))
+    ShortcutEnt = propSpawn("models/sprops/cuboids/height24/size_1/cube_24x24x24.mdl",entity():pos(),ang(0,0,0),1)
+    ShortcutEnt:setNoCollideAll()
+    ShortcutEnt:setAlpha(0)
+    
+    function void printCol(String:string){
+        printColor(vec(127,0,255),"[E-Pathfinder] ",vec(0,0,255),String)    
+    }
+    
+    function void addNode(){
+        NodeCount++
+        local NewNode = NodePos:count()+1
+        local TargetPos = CurTarget:pos()
+        holoCreate(NewNode,TargetPos)
+        Holos:pushNumber(Holos:count()+1)
+        NodePos[NewNode,vector]=TargetPos
+        CurNodePos = NodePos[1,vector]
+        LastNodePos = NodePos[NodePos:count(),vector]
+    }
+    
+    function void nextNode(Number:number){
+        
+        if (Number==0){
+            DeletedNodes++
+            holoDelete(Holos[1,number])
+            Holos:shift()
+            NodePos:shift()
+        }
+        else{
+            for(I=1,Number){
+                DeletedNodes++
+                holoDelete(Holos[1,number])
+                Holos:shift()
+                NodePos:shift()    
+            }    
+        }
+        CurNodePos = NodePos[1,vector]
+        #print(CurNodePos)
+    }
+         
+    function void addPathFinder(Target:entity, RobotEnt:entity, NodeDistance:number){
+        NodeDist = NodeDistance
+        NodeCount=0
+        NodePos = array()
+        CurTarget = Target
+        if (CurTarget:isValid()){
+            Robot = RobotEnt
+            addNode()
+            timer("pfMain",40)
+        }
+        else{
+            printCol("Target is not a valid entity!")   
+        }
+    }
+    
+    function void setRunPathFinder(Number:number){
+        switch (Number){
+            case(0),
+                stoptimer("pfMain")
+                PathPos = vec(0,0,0)     
+            break
+            
+            case (1),
+                timer("pfMain",40)
+            break    
+        }    
+    }
+    
+    function void pathfind(){
+        if (CurNodePos!=vec(0,0,0)){
+            if ((CurNodePos-Robot:pos()):length()<10){
+                nextNode(0)    
+            }
+            holoPos(0,holoEntity(0):pos()+holoEntity(0):forward()*4)
+            holoAng(0,(CurNodePos-holoEntity(0):pos()):toAngle())
+        }
+        CurTargetPos = CurTarget:pos()
+        
+        local TargDist = (CurTargetPos-LastNodePos):length()
+        if (TargDist>NodeDist){
+            addNode()            
+        }    
+    }
+    
+    function void findShortcut(){
+        local ShortcutOptions = 40
+        local CurRobotPos = Robot:pos()
+        
+        if (ShortcutOptions > NodePos:count()){
+            ShortcutOptions = NodePos:count()       
+        }
+                            
+        if (NodePos:count()>2){
+            
+            ShortcutEnt:setPos(CurTargetPos) 
+            
+            local TargetHit = 0
+            local GetTargetPos = CurTargetPos
+            
+            #[rangerHitWater(1) #So this dude can't go underwater like a fucking shark
+            local Ranger = rangerOffset(99999,CurRobotPos,(ShortcutEnt:pos()-CurRobotPos):normalized())
+            if (Ranger:entity()==ShortcutEnt){
+                nextNode(NodePos:count()-1)
+                TargetHit = 1
+            }]#
+        
+            if (!TargetHit){
+                print(ShortcutOptions-1)
+                for(I=1,(ShortcutOptions-2)){
+                    ShortcutEnt:setPos(NodePos[ShortcutOptions-I,vector])    
+                    rangerHitWater(1) #So this dude can't go underwater like a fucking shark
+                    local Ranger = rangerOffset(99999,CurRobotPos,(ShortcutEnt:pos()-CurRobotPos):normalized())
+                    if (Ranger:entity()==ShortcutEnt){
+          
+                        nextNode(ShortcutOptions-I)
+                        break
+                    }
+                    #[else{
+                        continue    
+                    }]#
+                }
+            } 
+        }
+       
+    }
+    
+    addPathFinder(owner(),holoEntity(0),30)   
+}
+
+if (clk("pfMain")){
+    
+    pathfind()
+    findShortcut()
+
+    timer("pfMain",10)        
+}

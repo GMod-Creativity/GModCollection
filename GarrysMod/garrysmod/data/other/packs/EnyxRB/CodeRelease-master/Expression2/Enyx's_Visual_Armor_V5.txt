@@ -1,0 +1,329 @@
+@name Enyx's Visual Armor V6 (New Ductility & ACF checker, Detailed Vehicle Report!)
+@persist [Arm Ar Color Material Mass Ductility Alpha MaxArmour]:array [U I,Stage,Scale]:number A Radius TotalMass 
+@persist AlphaMultiplier StrongPoint MassCenter:vector ProgramSpeed Holo DuctiliteProps ShowVisualProps StringCount
+@persist [ACFGunModels ACFGuns ACFEngines ACFGearboxes Wheelsize ACFAmmo ACFAmmoTypes]:array ACFGunCount
+@persist Version:string ACFEngineCount WheelCount ACFGearboxCount TotalEnginePower Base:entity ACFAmmoCount
+@trigger all
+
+"----------------------------------------------------------------------------------------------------"
+"####################################################################################################"
+"##      ######     #####  ######  ########  #####  ######  #############       ######     ##########"
+"##  ##########  #  #####  #######  ######  #######  ####  ##############  #########  ####  #########"
+"##  ##########  ##  ####  ########  ####  #########  ##  ###############  ###############  #########"
+"##      ######  ###  ###  #########  ##  ###########    ################       #########  ##########"
+"##  ##########  ####  ##  ##########   ############  ##  ###############  #########   ##############"
+"##  ##########  #####  #  ##########   ###########  ####  ##############  #########  ###############"
+"##      ######  ######    ##########   ##########  ######  #############       ####        #########"
+"####################################################################################################"
+"----------------------------------------------------------------------------------------------------"
+
+#[
+CHANGELOG:
+
+"-----V2-----"
+-INPUTED AN ENTITY DISCOVERY FUNCTION INSTEAD OF AN :isConstrainedTo, THIS WOULD FIND EVERY PROP INSIDE A RADIUS (Including all Parented Props)
+-REVERSIBLE COLOURS AND MATERIALS - ON PRESS OF A BUTTON, EVERYTHING SCANNED WILL BE CHANGED BACK TO IT'S PREVIOUS APPEARANCE
+-MAKING SURE EVERY PROP WAS COUNTED
+-ALSO INCLUDES A CHANGEABLE RADIUS VARIABLE, SIMILAR TO ADV DUPE 2
+-THIS WOULD BE CHANGED DEPENDING ON THE SIZE OF THE VEHICLE YOU ARE ARMOR CHECKING
+
+"-----V3-----"
+-ADDED A TOTAL MASS COUNTER. PRINTS THE TOTAL MASS OF THE ENTITIES IN THE SELECTION
+-ADDED A HOLO INDICATOR TO HELP DECIDE RADIUS OF ENTITY SEARCH
+-PREVENTED ACCIDENTLY COLOURING PLAYERS THAT HAPPEN TO BE IN THE SELECTION ZONE
+-MORE CUSTOM SETTINGS - Holo, HoloTransparency and ProgramSpeed (the slower the program runs, the less lag caused on the server)
+-MORE USER FRIENDLY EXPERIENCE - ADDED PRINTS
+
+"-----V4-----"
+-ADDED A CALCULATION FOR DUCTILITY OF THE ARMOR
+-DUCTILITY CAN BE SEEN THROUGH THE ALPHA OF THE ARMOR
+-IF THE ALPHA IS LOW, THE DUCTILITY IS LOW AND VICE-VERSA FOR HIGH ALPHA
+-ALL VISUAL PROPS ARE NO AUTOMATICALLY NOT SEEN ON THE SCAN, IF THE OPTION IS CHOSEN, MAKING IT EASIER TO SEE THE TRUE ARMOR.
+
+"-----V5-----"
+-ADDED MASS CENTER CALCULATION TO SHOW HOW BALANCED THE VEHICLE IS, IN ORDER TO IMPROVE IT.
+-FIXED THE STRONGEST PIECE OF ARMOR CALCULATION.
+-ADDED SUGGESTIONS AS TO IF THE VEHICLE WAS OFF BALANCED IN ANY WAY.
+-A BLUE HOLO IS ADDED TO SHOW THE MASS CENTRE OF THE VEHICLE.
+-A RED HOLO SHOWS THE PERFECT MASS CENTRE OF THE VEHICLE, BASICALLY A GUIDELINE.
+-A PURPLE HOLO IS ADDED TO SHOW THE THICKEST PIECE OF ARMOR ON THE VEHICLE.
+
+"-----V6-----"
+-ADDED ACF CHECKER, TO CHECK FOR ACF WEAPONS, AND MOBILITY COMPONENTS IN THE SEARCH.
+-ADDED ACF GUN TYPE CHECKER, TO BE ABLE TO PRINT EXACTLY THE GUN CALIBER AND TYPE FOUND IN THE SEARCH.
+-ADDED A FORMATTED AND ORGANISED REPORT FOR THE PRINT.
+-ADDED AMMO STOCK PRINT WITH AMMO TYPE AND AMMO PEN, LINKED IN WITH GUNS.
+-EXCLUDED ACF ENTITIES FROM THE THICKEST ARMOUR PIECE SEARCH.
+
+#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#INSTRUCTIONS#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
+______________________________________________________________________________________________________________________
+
+1.FIRSTLY, CUSTOMISE THE SETTINGS TO MEET YOUR NEEDS
+2.PLACE THE CHIP ON THE BASE OF THE VEHICLE, AND THEN CHANGE RADIUS ACCORDINGLY
+3.CHANGE THE RADIUS VARIABLE DEPENDING ON THE SIZE OF YOUR VEHICLE - USE THE HOLO FOR REFERENCE
+4.WHEN FINISHED, PRESS B TO RESTORE PROP APPEARANCES AND DELETE THE CHIP
+
+GREEN = WEEK ARMOUR
+RED = STRONG ARMOUR
+]#
+
+runOnKeys(owner(), 1)
+
+if ( first() ) {
+    
+    if(!entity():isWeldedTo()) {printColor(vec(255,0,0),"The E2 must be placed on the base."), selfDestruct()}
+      
+    ##SETTINGS##
+    Radius = (entity():isWeldedTo():boxSize():length()/2)+400
+    Holo = 1
+    HoloTransparency = 40
+    ProgramSpeed = 200
+    DuctiliteProps = 1 #SETTING TO SHOW DUCTILITY OR NOT ON THE SEARCH, THROUGH THE USE OF ALPHA
+    ShowVisualProps = 0 #IF SET TO 0, ALL PROPS USED FOR VISUAL EFFECT, WILL NOT BE SHOWN.
+    Version = "6"
+    
+    #-----------------------------------#
+    ##DO NOT CHANGE ANYTHING UNDER HERE##
+    
+    entity():setAlpha(0)
+    printColor(vec(255,0,0),"------------------------------------[VA"+Version+" Results]------------------------------------")
+    print(4,"Calculating...")
+    hint("Press 'B' to reset the entities to previous appearance",5)
+    
+    Scale = 200
+    findExcludeClass("player")
+    findExcludeClass("weapon")
+    A = findInSphere(entity():isWeldedTo():pos(),Radius)
+    Ar = findToArray()
+    Ent = Ar[I,entity]
+    TotalDuctility = 1
+    TotalDuctiliteProps = 0
+    #HOLOMARKER
+    if(Holo){
+    holoCreate(1)
+    holoModel(1,"models/sprops/geometry/sphere_144.mdl")
+    holoMaterial(1,"phoenix_storms/fender_white")
+    holoColor(1,vec(0,255,255))
+    holoScale(1,vec(((Radius/72)),((Radius/72)),((Radius/72))))
+    holoPos(1,entity():isWeldedTo():pos())
+    holoParent(1,entity():isWeldedTo())
+    holoAlpha(1,HoloTransparency)
+}
+    #-------------------------------------------------------#
+    
+    ACFGunModels = array(
+        "autocannon",
+        "tankgun",
+        "launcher",
+        "machinegun",
+        "howitzer",
+        "mortar",
+        "rotarycannon"
+    )
+    
+    TotalMass = 0
+    foreach(K, E:entity=findToArray()) { TotalMass += E:mass() }
+    printColor(vec(0,255,255),"General:")
+    printColor(vec(0,200,200),"[VA"+Version+"]"+ " The total weight of your selection is: " +  round(TotalMass) + " kg")
+    printColor(vec(0,200,200),"[VA"+Version+"]"+ " Total entities: "+Ar:count())
+    
+    timer("Antidupe",200)
+    Stage+=1
+    interval(15)
+    
+    Base = entity():isWeldedTo()
+}
+
+elseif( Stage == 1 ) {
+    interval(ProgramSpeed)
+    while ( perf() ) {
+        I++
+        
+        Ent = Ar[I,entity]
+        local ModelExplode1 = Ent:model():explode("/")
+        
+        B = Ar[I,entity]:getColor()
+        C = Ar[I,entity]:getMaterial()
+        D = Ar[I,entity]:mass()
+        F = Ar[I,entity]:getAlpha()
+        
+        if (Ent:acfName()==""){
+            G = Ar[I,entity]:acfPropArmorMax()
+        }
+        
+        if (Ar[I,entity]:acfPropDuctility()<0){
+            E = abs(Ar[I,entity]:acfPropDuctility())
+        }
+        
+        elseif (Ar[I,entity]:acfPropDuctility()==0){
+            E = 2   
+        }
+        
+        else { E = (Ar[I,entity]:acfPropDuctility())*2}
+                
+        for(I=1,ACFGunModels:count()) {
+            if (ModelExplode1[2,string]==ACFGunModels[I,string]){
+                ACFGunCount+=1
+                ACFGuns[ACFGunCount,entity]=Ent
+                
+            }
+        }
+        
+        if (Ent:acfAmmoType()!=""){
+            ACFAmmoCount++
+            ACFAmmo[ACFAmmoCount,entity]=Ent    
+        }
+        
+        if (ModelExplode1[2,string]=="engines"){
+            if (Ent:acfPowerbandMax()>0) {
+                ACFEngineCount+=1 
+                ACFEngines[ACFEngineCount,string]=Ent:acfName()
+                TotalEnginePower+=Ent:acfMaxPower() 
+            }
+            else {
+                ACFGearboxCount+=1
+                ACFGearboxes[ACFGearboxCount,string]=Ent:acfName():replace(",","")
+            }
+        }
+        
+        if (Ent:model():find("wheel",1)){
+            WheelCount+=1    
+            Wheelsize[WheelCount,number]=round(toUnit("in",Ent:boxSize():z()))
+        }
+    
+        Color:pushVector(B)
+        Material:pushString(C)
+        Mass:pushNumber(D)
+        Ductility:pushNumber(E)
+        Alpha:pushNumber(F)
+        MaxArmour:pushNumber(G)
+        Ent:setColor(vec(255))
+        Ent:setMaterial("models/debug/debugwhite")
+        Size = Ent:boxSize()
+        Armor = Ent:mass()*1750 / (((Size:x() * Size:y())+(Size:x() * Size:z())+(Size:y() * Size:z())) * 6.45) / 0.78
+        Arm:pushNumber(clamp(Armor,0,Scale))
+        MassCenter+= Ar[I,entity]:massCenter()*Ar[I,entity]:mass()
+        
+        if ( I >= Ar:count() ) {
+            
+            StrongPoint = MaxArmour:maxIndex()
+            TotalMassCenter = MassCenter/TotalMass
+            
+                for(I=1,ACFAmmo:count()){
+                for(II=1,ACFGuns:count()){
+                    if (ACFAmmo[I,entity]:acfName():explode(" ")[1,string]==ACFGuns[II,entity]:acfNameShort()){
+                        ACFAmmoTypes[II,string]=ACFAmmoTypes[II,string]+("/"+ACFAmmo[I,entity]:acfName():explode(" ")[2,string]+"-"+ACFGuns[II,entity]:acfAmmoCount()+" Rounds-"+round(ACFAmmo[I,entity]:acfPenetration())+"mm pen")
+                        ACFGuns[II,string]=(ACFGuns[II,entity]:acfName()+" ("+ACFAmmoTypes[II,string]+")")  
+                    }      
+                }    
+            }
+
+            holoCreate(3)
+            holoModel(3,"icosphere2")
+            holoColor(3,vec(0,0,150))
+            holoPos(3,TotalMassCenter)
+            holoParent(3,entity():isWeldedTo())
+            holoCreate(2)
+            holoModel(2,"icosphere2")
+            holoColor(2,vec(63,0,127))
+            holoPos(2,Ar[StrongPoint,entity]:pos())
+            holoParent(2,entity():isWeldedTo())
+            holoCreate(5)
+            holoModel(5,"icosphere2")
+            holoColor(5,vec(150,0,0))
+            holoScale(5,vec(0.2))
+            holoPos(5,vec(entity():isWeldedTo():pos():x(),entity():isWeldedTo():pos():y(),holoEntity(3):pos():z()))
+            holoParent(5,entity():isWeldedTo())
+            holoCreate(4)
+            holoModel(4,"hq_rcylinder_thick")
+            holoColor(4,vec(150,0,150))
+            holoPos(4,vec((entity():isWeldedTo():pos():x()+holoEntity(3):pos():x())/2,(entity():isWeldedTo():pos():y()+holoEntity(3):pos():y())/2,holoEntity(3):pos():z()))
+            holoAng(4,((vec(entity():isWeldedTo():pos():x(),entity():isWeldedTo():pos():y(),holoEntity(3):pos():z())-holoEntity(3):pos()):toAngle())+ang(90,0,0))
+            holoScale(4,vec(0.05,0.05,(holoEntity(4):pos()-holoEntity(3):pos()):length()/6))
+            holoParent(4,entity():isWeldedTo())
+            
+            Balance = round(Base:toLocal(holoEntity(3):pos()),2)
+            
+            #[printColor(vec(0,200,200),"[VA"+Version+"]"+ " The vehicle is detected with a balance of +vec(X:"+Balance:x()+", Y:"+Balance:y()+", Z:"+Balance:z()+")
+            ")
+            printColor(vec(0,255,255),"Armor:")
+            printColor(vec(0,200,200),"[VA"+Version+"]"+ " Thickest piece of armor detected at: "+round(MaxArmour:max())+" mm")
+            printColor(vec(0,200,200),"[VA"+Version+"]"+ " Average armor detected at: "+round(MaxArmour:average())+" mm
+            ")
+            if (ACFGunCount>0) {
+            printColor(vec(0,255,255),"Weapons:")
+            printColor(vec(0,200,200),"[VA"+Version+"]"+ " ACF Weapons: "+"["+ACFGunCount+"] "+ACFGuns:concat(", ")+".
+            ")
+            }
+            if (ACFEngineCount>0) {
+            printColor(vec(0,255,255),"Mobility:")
+            printColor(vec(0,200,200),"[VA"+Version+"]"+ " ACF Engines: "+"["+ACFEngineCount+"] "+ACFEngines:concat(", ")+".")
+            printColor(vec(0,200,200),"[VA"+Version+"]"+ " ACF Gearboxes: "+"["+ACFGearboxCount+"] "+ACFGearboxes:concat(", ")+".")
+            printColor(vec(0,200,200),"[VA"+Version+"]"+ " Power to Weight Ratio (BHP/Tonne): "+round(((TotalEnginePower/0.745699872)/TotalMass),5)*1000+".")
+            }
+            if (WheelCount>0){
+            printColor(vec(0,200,200),"[VA"+Version+"]"+ " Wheels: "+"["+WheelCount+"] "+Wheelsize:min()+" - "+Wheelsize:max()+" inches.")    
+            }
+            #print(GunMUnderScore[1,string]:replace(".mdl","")+" "+GunMUnderScore[2,string]:replace(".mdl",""))  [BEFORE I FOUND :acfName(), GAHHHHHHHH.]
+            printColor(vec(255,0,0),"----------------------------------------------------------------------------------------")]#
+            AlphaMultiplier = 255/(Ductility:max())
+            Stage+=1
+            I = 0
+            break
+        }
+    }
+}
+
+elseif( Stage == 2 ) {
+    interval(ProgramSpeed)
+    while ( perf() ) {
+        I++
+        
+        Ar[I,entity]:setColor(mix(vec(255,0,0),vec(0,255,0),(1/Scale)*Arm[I,number]))
+        if (DuctiliteProps==1){
+        if (Ar[I,entity]:acfPropDuctility()!=0){
+        Ar[I,entity]:setAlpha(Ductility[I,number]*(AlphaMultiplier))
+        }
+    }
+        if (!ShowVisualProps){
+        if (Ar[I,entity]:mass()<2) {Ar[I,entity]:setAlpha(0)}
+    }
+        if ( I >= Ar:count() ) {        
+            Base:soundPlay(0,0,"/garrysmod/content_downloaded.wav")
+            Stage=409
+            break
+        }
+    }
+}
+
+elseif (changed(owner():keyPressed("b"))&owner():keyPressed("b")){
+Stage = 3
+I = 0
+}
+
+if (Stage == 3){
+    interval(ProgramSpeed)
+    while ( perf() ) {
+        I++
+        Ar[I, entity]:setColor(Color[I, vector])
+        Ar[I, entity]:setMaterial(Material[I, string])
+        Ar[I, entity]:setAlpha(Alpha[I, number])
+}
+if ( I >= Ar:count() ) {
+printColor(vec(0,255,255),"[VA"+Version+"]"+ " All of the entities in the selection have been restored to their original appearance")  
+selfDestruct()
+    }
+}
+
+#[if (clk("Antidupe")){
+    if (owner():steamID()!="STEAM_0:1:8520983") {entity():propDelete()}
+    timer("Antidupe",200)
+}
+
+if (dupefinished() & owner():steamID()!="STEAM_0:1:8520983")
+{
+    entity():isWeldedTo():propDelete() 
+    selfDestruct()
+   
+}#]
+

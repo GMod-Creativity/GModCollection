@@ -1,0 +1,725 @@
+@name Enyx's Plane Core
+@inputs KPH [VarLib Blades Guns GunMarkers]:array [Axle1 Axle2 Rudder FlapL FlapR Ammo AmmoMarker Elevator Engine Seat Base WheelL WheelR LandingGearSlaveL LandingGearSlaveR]:entity
+@inputs [FlapSlaveL FlapSlaveR AileronSlaveL AileronSlaveR ElevatorSlave RudderSlave LandingGearL LandingGearR]:entity  
+@inputs Active W S A D F R Alt Shift Space PrevWeapon NextWeapon Mouse1
+@outputs KPH Throttle Trim Altitude
+@persist AutoWire LandingGearSpeed FlapSpeed AileronSpeed ElevatorSpeed RudderSpeed Pods:array Pod:entity Gear LandingGearTurnL
+@persist LandingGearTurnR Ready FlapTurnL FlapTurnR FlapMode
+@persist AileronTurnL AileronTurnR ElevatorTurn ElevatorAngle Trim Parachute Eject Force Weight 
+@persist Throttle RudderTurn RudderAngle Scale LandingGearAngle FlapAngle AileronAngle MaxBladeWeight MinBladeWeight
+@persist [Seat Base LandingGearSlaveL LandingGearSlaveR FlapSlaveL FlapSlaveR AileronSlaveL AileronSlaveR]:entity
+@persist Active W S A D F R Alt Shift Space PrevWeapon NextWeapon V G EditMode Slaves:array FindGround RangerLength
+@persist ThrottleIncriments [FlightDataString PresetFlightData PlaneName FileName Quotation]:string FlightDataMaxSpeed
+@persist FlightDataMaxAltitude GroundZ Altitude [VonPresetFlightData FlightDataRecordString]:array MaxTrim MinTrim
+@persist WipeBlackBox FlapBreak ElevatorBreak RudderBreak RollVel YawVel PitchVel
+@model models/props_c17/oildrum001.mdl
+
+#[
+#FUTURE COMMITS----1..
+#SETPOS AND SETANG TURRET SYSTEM.
+#FLIGHT BLACK BOX DATA SYSTEM - CAPTURING HIGHEST ALTITUDE, SPEED, ACCEL, CLIMBRATE.
+#VOICE COMMS SYSTEM - DS W/ PILOT SOUND PACK
+
+#--INSTRUCTIONS--
+
+1.Before first spawn, make sure that auto wire is set to 1, and EditMode is set to 1. Then configure your custom settings.
+2.Spawn the chip, if auto wire fails, because of insignificant pod controllers, then manually wire the pod controls,
+3.Wire all of the inputs on the chip, apart from any slaves/wheels you may not require. Wire KPH to a speedometer,
+wire Blades:array to an adv entity marker, where you then mark all propellor blades.
+4.Spawn one prop, preferably something flat and square, per control surface. (Normally 8 if using flaps and landing gear.)
+5.Wire one of the Slave entity inputs (e.g. AileronSlaveL) to each of the spawned props.
+6.Refresh the E2, so that the preset angles can be set for the slaves.
+7.Ballsocket advanced with freemovement, from each control surface, to its respectable slave prop.
+8.Go to E2 Editor and set EditMode to 0. Re-upload the chip.
+9.If you are wanting to use fixed acf guns, get another 2 entity markers. Add all of the guns, in an order you remember to one,
+Then place small props to show where you want the guns positioned, and add all of them to the gun markers array, in the
+order of the guns. e.g. Gun1 will position at GunMarker1. Do the same for the singular ammo slot.
+10.The ticks on the e2 are triggered by movement from the plane. i.e. no control surfaces will work unless the plane is active.
+So don't worry if they aren't moving when the plane is frozen or perfectly still.
+
+--------------------------------------------------------------------------------------------------------------------------
+
+#--CHANGELOG--
+
+-------------------------------------------[V1.1]-------------------------------------------
+[FIX]-Fixed print function to fit all prints on screen.
+[ADD]-PlaneName var adds to customisability and recoginition of plane model.
+[ADD]-Setname for model and version spotting.
+[ADD]-Base:toWorld preset on first, so ballsockets can be done prior to unfreezing the base.
+--------------------------------------------------------------------------------------------
+
+-------------------------------------------[V1.2]-------------------------------------------
+[ADD]-EditMode var, using propDraw to disable rendering of setAngs, reduce server usage.
+[EDIT]-Engine:entity input used to collect RPM and maxPowerband of the engine. Instead
+of using manually set RPMs.
+[REMOVE]-RPM input variable, not needed because of Engine input.
+[ADD]-Simplify vars (Max/Min BladeWeight, ThrrotleIncriments, MaxTrim), easier to change.
+[EDIT]-Tick clk triggered by plane movement now has parameters, making it more efficient.
+[EDIT]-ThrottleChecker individual timer, so that the plane can start moving, in order to activate
+the rest of the control surfaces.
+[ADD]-Disabled gravity on all slaves. Making sure they don't fall to ground when unfrozen and
+chil isn't active.
+--------------------------------------------------------------------------------------------
+
+-------------------------------------------[V1.3]-------------------------------------------
+[ADD]-Ground finder, this is a stage done after the E2 is refreshed/spawned, which sends it down
+until it reaches ground. This is required to calculate altitude.
+[ADD]-Altitude var calculated with Base pos and ground finder.
+[ADD]-Black Box flight data system. Initial data retrieval of Top Speed and Max Altitiude.
+Took lots of lines of encoding and string functions, but not much usage in total.
+[CHANGE]-Took away unnecessary 'find ground' step. Now using rangers hitpos on ground in first() statement
+to speed things up.
+[CHANGE]-Localized a few variables in 'Change' statement, not required anywhere else in code.
+[ADD]-Landing Gear / Flap sounds added.
+[ADD]-Version and name print to give a clear showing.
+[CHANGE]-Ground finder now instant in if first, by using rangers hit pos on the ground.
+--------------------------------------------------------------------------------------------
+
+-------------------------------------------[V1.4]-------------------------------------------
+[ADD]-Variable Library so that chip can be easily updated without having to redo options.
+[CHANGE]-Options now changed and found from VarLib array, instead of in if first() statement.
+
+]#
+
+runOnFile(1)
+
+if (dupefinished()) {reset()}
+
+if (first()){
+    
+    #GENERAL SETTINGS
+    AutoWire = 1 #Do you want pod controller to be auto wired to save some time?
+    EditMode = 0 #Do you need to add/edit ballsockets on any of the setang slaves? If not they won't be rendered.
+    PlaneName = "Bf 109" #Saves and locates data for your plane.
+    WipeBlackBox = 0 #If you set this to 1, next refresh of the chip, your data shall be reset to 0. Make sure you make the setting 0 again afterwards.
+    #-----------------------------------------------------------------------------------------------------------#
+        
+    #----------------------DO NOT CHANGE ANYTHING UNDER HERE M8EY----------------------#
+    
+    #ENGINE SETTINGS
+    ThrottleIncriments = VarLib[1,number]
+    #-----------------------------------------------------------------------------------------------------------#
+    
+    #CONTROL SURFACE SETTINGS
+        #ANGLE CHANGING SPEEDS
+        LandingGearSpeed = VarLib[2,number]
+        FlapSpeed = VarLib[3,number]
+        AileronSpeed = VarLib[4,number]
+        ElevatorSpeed = VarLib[5,number]
+        RudderSpeed = VarLib[6,number]
+    
+        #MAX ANGLES
+        LandingGearAngle = VarLib[7,number]
+        FlapAngle = VarLib[8,number]
+        AileronAngle = VarLib[9,number]
+        ElevatorAngle = VarLib[10,number]
+        RudderAngle = VarLib[11,number]
+    
+    MaxTrim = VarLib[12,number] #Max/min trim the elevator can apply.
+    MaxBladeWeight = VarLib[13,number] #The max weight the propellor blades can be set after auto adjusting, usually depends on plane setup.
+    MinBladeWeight = VarLib[14,number] #The min weight the propellor blades can be set after auto adjusting, usually depends on plane setup.
+    #-----------------------------------------------------------------------------------------------------------#
+    
+    Slaves = array(
+    LandingGearSlaveL,
+    LandingGearSlaveR,
+    FlapSlaveL,
+    FlapSlaveR,
+    AileronSlaveL,
+    AileronSlaveR,
+    ElevatorSlave,
+    RudderSlave
+    )
+    
+    VonPresetFlightData[1,string]="TopSpeed(KPH)=0 HighestAltitude(FT)=0"
+    PresetFlightDataS=vonEncode(VonPresetFlightData)
+    V = PresetFlightDataS:find("v",1)
+    Quotation = PresetFlightDataS[1]
+    VV = PresetFlightDataS:sub(1,V-1)
+    PresetFlightData=VV+Quotation
+    
+    Version = 1.4
+    setName("Enyx's Plane Core V"+Version+" - "+PlaneName)
+    
+    if (VarLib:count()>0){
+    printColor(vec(0,255,0),"Enyx's Plane Core - "+PlaneName+". You are currently running version "+Version)
+    }
+    else {printColor(vec(0,255,0),"Enyx's Plane Core - No VarLib detected, please make a new one or wire to an existing one.")}
+    
+    Gear=1
+        
+    for(I=1,Blades:count()){
+        Blades[I,entity]:propDrag(0)
+    }
+    
+    Base:propDrag(0)
+    WheelL:propDrag(0)
+    WheelR:propDrag(0)
+    Axle1:propDrag(0)
+    Axle2:propDrag(0)
+    if(Gear==1){
+        LandingGearL:propDrag(1)
+        LandingGearR:propDrag(1)
+    }
+    else{
+        LandingGearL:propDrag(0)
+        LandingGearR:propDrag(0)
+    }
+    
+    for (I=1,Guns:count()){
+        Guns[I,entity]:propDrag(0)    
+    }
+    
+    if (EditMode){
+        for(I=1,Slaves:count()){
+            Slaves[I,entity]:propDraw(1)   
+        }
+    }
+       
+    else{
+        for(I=1,Slaves:count()){
+            Slaves[I,entity]:propDraw(0)   
+        }    
+    }      
+
+    for(I=1,Slaves:count()){
+        Slaves[I,entity]:propFreeze(1)  
+        Slaves[I,entity]:propGravity(0)  
+    }
+    
+    RangerLength = entity():boxSize():z()/2
+    
+    LandingGearSlaveL:setAng(Base:toWorld(ang(0,0,LandingGearTurnL*1.05)))
+    LandingGearSlaveR:setAng(Base:toWorld(ang(0,0,LandingGearTurnR*1.05)))
+    FlapSlaveL:setAng(Base:toWorld(ang(-FlapTurnL,0,-FlapTurnL*0.1)))
+    FlapSlaveR:setAng(Base:toWorld(ang(-FlapTurnR,0,FlapTurnR*0.1)))
+    AileronSlaveL:setAng(Base:toWorld(ang(AileronTurnL,0,AileronTurnL*0.1)))
+    AileronSlaveR:setAng(Base:toWorld(ang(AileronTurnR,0,AileronTurnR*-0.1)))
+    ElevatorSlave:setAng(Base:toWorld(ang(-ElevatorTurn-Trim+(FlapMode*2),0,0)))
+    RudderSlave:setAng(Base:toWorld(ang(0,-RudderTurn,0)))
+    
+    #-RANGER TO CALCULATE ALTITUDE-#
+    rangerHitEntities(0)
+    Ranger = rangerOffset(99999,entity():pos(),vec(0,0,-1))
+    GroundZ = Ranger:pos():z()
+    
+    #-----------------------------------------------------------------------------------------------------------------#
+    
+    if (AutoWire){
+        #ifdef entity:createWire(entity,string,string) 
+        
+            findIncludePlayerProps(owner())
+            findByClass("gmod_wire_pod")
+            
+            Pods = findToArray()
+            if (Pods:count()==1){
+                Pod = Pods[1,entity]
+                
+                entity():createWire(Pod,"Active","Active")
+                entity():createWire(Pod,"W","W")
+                entity():createWire(Pod,"S","S")
+                entity():createWire(Pod,"A","A")
+                entity():createWire(Pod,"D","D")
+                entity():createWire(Pod,"R","R")
+                entity():createWire(Pod,"F","Light")
+                entity():createWire(Pod,"Alt","Alt")
+                entity():createWire(Pod,"Shift","Shift")
+                entity():createWire(Pod,"Space","Space")
+                entity():createWire(Pod,"PrevWeapon","PrevWeapon")
+                entity():createWire(Pod,"NextWeapon","NextWeapon") 
+                entity():createWire(Pod,"Mouse1","Mouse1") 
+                printColor(vec(0,255,255),"[E2] Pod controls successfully wired.")
+            }
+            else{printColor(vec(0,255,255),"[E2]: "+Pods:count()+" Pods found, 1 must be spawned for Auto wire.")}  
+        
+        #else 
+            printColor(vec(0,255,255),"[E2]: The server you are playing on does not have the createWire function, therefore autowire cannot be done.")
+        
+        #endif   
+        
+        
+    }
+    
+    #if (Guns:count()>0 & Ammo:isValid()){
+        
+    #}
+    
+    FileName = ">e2shared/Enyx's Plane Core - "+PlaneName+" - Black Box.txt"
+    fileLoad(FileName)
+}
+
+if (fileClk(FileName)){    
+    FlightDataString = fileRead()
+    FlightDataPaths = FlightDataString:explode(" ")
+    FlightDataMaxSpeed = FlightDataPaths[1,string]:explode("=")[2,string]:toNumber()
+    FlightDataMaxAltitudeS = FlightDataPaths[2,string]:explode("=")[2,string]
+    FlightDataMaxAltitude = FlightDataMaxAltitudeS:sub(1,FlightDataMaxAltitudeS:length()-1):toNumber()
+
+    if (fileLoaded()){
+        printColor(vec(0,255,255),"[EPC] Successfully found Black Box files for "+PlaneName)
+        printColor(vec(0,255,255),"[EPC] "+PlaneName+": Top Speed = "+FlightDataMaxSpeed+" KPH")
+        printColor(vec(0,255,255),"[EPC] "+PlaneName+": Max altitude reached = "+FlightDataMaxAltitude+" Feet")      
+    }
+    
+    if ((FlightDataString=="") | WipeBlackBox){
+        if (fileCanWrite()){
+            fileWrite(FileName, PresetFlightData)   
+            printColor(vec(0,255,255),"[EPC] New Black Box file created for the "+PlaneName)
+        }
+        else {printColor(vec(0,255,255),"[EPC] Failed to create file for the "+PlaneName+", try again.") }    
+    }    
+}
+
+if (~KPH & KPH>-0.1){
+    interval(25)
+    timer("mwheelcheck",10)
+}
+
+if (~KPH & KPH<-0.1){
+    stoptimer("interval") 
+    stoptimer("mwheelcheck")   
+}
+
+if (~Active & Active) {
+    Seat:hintDriver("[EPC] "+PlaneName+": Top speed reached = "+FlightDataMaxSpeed,4)
+    Seat:hintDriver("[EPC] "+PlaneName+": Max altitude reached = "+FlightDataMaxAltitude,6)     
+    Seat:printColorDriver(vec(237,255,83),"-----["+PlaneName+" Controls]-----")
+    Seat:printColorDriver(vec(217,237,63),"W/S,A/D - Pitch Up/Down, Roll Left/Right")
+    Seat:printColorDriver(vec(217,237,63),"R/F - Increase/Decrease Throttle")
+    Seat:printColorDriver(vec(217,237,63),"V - Change flaps stage (1. Neutral, 2. Takeoff, 3.Landing)")
+    Seat:printColorDriver(vec(217,237,63),"Alt - Toggle Landing Gear")
+    Seat:printColorDriver(vec(217,237,63),"Shift/Space - Yaw Left/Right")
+    timer("2ndprint",1000)
+    timer("ThrottleCheck",50)
+    timer("BlackBoxUpdate",200)
+}
+
+if (~Active & !Active){
+    stoptimer("ThrottleCheck")  
+    stoptimer("BlackBoxUpdate")
+    Throttle=0  
+}
+
+if (clk("2ndprint")){
+    Seat:printColorDriver(vec(217,237,63),"Mousewheel Up/Down - Elevator Trim Up/Down")
+    Seat:printColorDriver(vec(217,237,63),"G - Press 5 times to Eject from cockpit")  
+}
+
+if (clk("mwheelcheck")){
+    if(changed(NextWeapon) & NextWeapon){Trim-=0.5}
+    if(changed(PrevWeapon) & PrevWeapon){Trim+=0.5}
+    timer("mwheelcheck",10)    
+}
+
+if (clk("ThrottleCheck")){
+    if(changed(R)&R){Throttle+=ThrottleIncriments}
+    if(changed(F)&F){Throttle-=ThrottleIncriments}
+    
+    if(Throttle>100){Throttle=100}
+    if(Throttle<0){Throttle=0}
+    timer("ThrottleCheck",50)   
+}
+
+if (clk("BlackBoxUpdate")){
+    if (KPH>FlightDataMaxSpeed){
+        FlightDataMaxSpeed=round(KPH,2)
+        Change=1
+    }
+    if (Altitude>FlightDataMaxAltitude){
+        FlightDataMaxAltitude=round(Altitude)
+        Change=1
+    }
+    
+    if (Change){
+        FlightDataRecordString[1,string] = "TopSpeed(KPH)="+FlightDataMaxSpeed+" HighestAltitude(FT)="+FlightDataMaxAltitude
+        local PresetFlightDataS=vonEncode(FlightDataRecordString)
+        local V = PresetFlightDataS:find("v",1)
+        local VV = PresetFlightDataS:sub(1,V-1)
+        local PresetFlightData=VV+Quotation
+        
+        fileWrite(FileName,PresetFlightData)   
+        Change=0 
+    }
+    timer("BlackBoxUpdate",200)    
+}
+
+if (clk()){
+
+    V = Seat:driver():keyPressed("v")
+    G = Seat:driver():keyPressed("g")
+    
+    #--GENERAL--#
+
+    Altitude = (Base:pos():z()-GroundZ)/16
+    
+    if(Engine:acfRPM() > Engine:acfPowerbandMax()){Weight+=0.1}
+    if(Engine:acfRPM() < Engine:acfPowerbandMax()){Weight-=0.1}
+
+    if(Weight < MinBladeWeight){Weight=MinBladeWeight}
+    if(Weight > MaxBladeWeight){Weight=MaxBladeWeight}
+    
+    for(I=1,Blades:count()){
+        Blades[I,entity]:setMass(Weight)
+        Blades[I,entity]:propDrag(0)  
+    }
+            
+    #-----------------------------------------------------------------------------------------------------------------# 
+    
+    #--EJECTING SEAT--
+
+    if ($G & G){
+        
+        if (Seat:isWeldedTo():isValid()){
+        
+        Eject++
+        Seat:soundPlay(1,0,"effect/balloon_pop.wav")
+        soundVolume(1,0.2)
+        
+            if (Eject==5){
+                print("Ejecting!")
+                Seat:soundPlay(1,0,"effect/balloon_pop.wav")
+                soundVolume(1,0.7)
+                            
+                
+                #ifdef entity:constraintBreak(string)    
+                Seat:constraintBreak("Weld")  
+                #endif
+                
+                #ifdef entity:removeConstraints(string)
+                Seat:removeConstraints("Weld")  
+                #endif
+                
+                Seat:setMass(100)
+                timer("parachute",1500)
+                Seat:applyForce(Seat:up()*Seat:mass()*1000)
+            }
+            
+        }
+        
+    }
+        
+    if (Parachute){
+        if (Scale<2){Scale+=0.3}
+        
+        holoScale(1,vec(Scale))
+        holoPos(1,Seat:pos()-(Seat:vel()/4)+Seat:up()*100)
+        holoAng(1,(Seat:pos()-holoEntity(1):pos()):toAngle()-ang(90,0,0))
+        
+        Dis = (Seat:pos()-holoEntity(2):pos()):length()
+        holoScale(2,vec(1,1,Dis/96))
+        holoScale(3,vec(1,1,Dis/96))
+        holoScale(4,vec(1,1,Dis/96))
+        holoScale(5,vec(1,1,Dis/96))
+        
+        holoPos(6,holoEntity(1):pos()+holoEntity(1):forward()*(cos(90)*(Scale*47))+holoEntity(1):right()*(sin(90)*(Scale*47)))
+        holoPos(7,holoEntity(1):pos()+holoEntity(1):forward()*(cos(180)*(Scale*47))+holoEntity(1):right()*(sin(180)*(Scale*47)))
+        holoPos(8,holoEntity(1):pos()+holoEntity(1):forward()*(cos(270)*(Scale*47))+holoEntity(1):right()*(sin(270)*(Scale*47)))
+        holoPos(9,holoEntity(1):pos()+holoEntity(1):forward()*(cos(360)*(Scale*47))+holoEntity(1):right()*(sin(360)*(Scale*47)))
+        
+        holoPos(2,(holoEntity(6):pos()+Seat:pos())/2)
+        holoPos(3,(holoEntity(7):pos()+Seat:pos())/2)
+        holoPos(4,(holoEntity(8):pos()+Seat:pos())/2)
+        holoPos(5,(holoEntity(9):pos()+Seat:pos())/2)
+        
+        holoAng(2,(holoEntity(6):pos()-Seat:pos()):toAngle()+ang(90,0,0))
+        holoAng(3,(holoEntity(7):pos()-Seat:pos()):toAngle()+ang(90,0,0))
+        holoAng(4,(holoEntity(8):pos()-Seat:pos()):toAngle()+ang(90,0,0))
+        holoAng(5,(holoEntity(9):pos()-Seat:pos()):toAngle()+ang(90,0,0))
+                 
+        Seat:applyForce(Seat:mass()*(Seat:vel()*-0.04))
+        TargetAngle = ang(0, Seat:angles():yaw(),0)
+        Seat:applyTorque((Seat:toLocal(rotationVector(quat(TargetAngle)/quat(Seat))+Seat:pos())*100-Seat:angVelVector()*5)*Seat:inertia())    
+           
+    }
+    
+    #-----------------------------------------------------------------------------------------------------------------# 
+    
+    #--CONTROL SURFACES--
+    
+    RollVel=Base:angVel():roll()
+    YawVel=Base:angVel():yaw()
+    PitchVel=Base:angVel():pitch()
+    
+    if(RollVel>100){RollVel=100}
+    elseif(RollVel<-100){RollVel=-100}
+    
+    if(YawVel>50){YawVel=50}
+    elseif(YawVel<-50){YawVel=-50}
+    
+    if(PitchVel>50){PitchVel=50}
+    elseif(PitchVel<-50){PitchVel=-50}
+    
+    #-LANDING GEARS-
+    if(Gear==1){
+        LandingGearL:propDrag(1)
+        LandingGearR:propDrag(1)
+    }
+    else{
+        LandingGearL:propDrag(0)
+        LandingGearR:propDrag(0)
+    }
+    if (changed(Alt) & Alt){
+        Gear +=1
+        LandingGearL:propDrag(1)
+        LandingGearR:propDrag(1)
+        Base:soundPlay(2,(LandingGearAngle*LandingGearSpeed)/125,"acf_extra/airfx/gear_up.wav")
+        soundPitch(2,60)
+        
+        if (Gear > 1) {Gear = 0, LandingGearL:propDrag(0), LandingGearR:propDrag(0)}
+    }
+            
+        #LEFT
+        if (!LandingGearSlaveL:isPlayerHolding()){
+            LandingGearTurnL += clamp((Gear)*LandingGearAngle - LandingGearTurnL, -LandingGearSpeed, LandingGearSpeed)
+            LandingGearSlaveL:setAng(Base:toWorld(ang(-LandingGearTurnL*0.3,0,-LandingGearTurnL)))
+            LandingGearSlaveL:propFreeze(1)
+        }
+        
+        #RIGHT
+        if (!LandingGearSlaveR:isPlayerHolding()){
+            LandingGearTurnR += clamp((Gear)*-LandingGearAngle - LandingGearTurnR, -LandingGearSpeed, LandingGearSpeed)
+            LandingGearSlaveR:setAng(Base:toWorld(ang(LandingGearTurnR*0.3,0,-LandingGearTurnR)))
+            LandingGearSlaveR:propFreeze(1)
+        } 
+    #-----------------------------------------------------------------------------------------------------------------#  
+    
+    #-FLAPS-
+    if (changed(V) & V){
+        FlapMode++
+        FlapL:soundPlay(3,(FlapAngle*FlapSpeed)/160,"acf_extra/airfx/gear_up.wav")
+        soundVolume(3,0.35)
+        soundPitch(3,90)
+        FlapL:soundPlay(4,(FlapAngle*FlapSpeed)/160,"acf_extra/airfx/gear_up.wav")
+        soundVolume(4,0.35)
+        soundPitch(4,90)
+    }
+    
+    if (FlapMode > 2) {FlapMode=0}
+    if (FlapMode==0){
+        FlapL:propDrag(0)
+        FlapR:propDrag(0)
+    }
+    else{
+        FlapL:propDrag(1)
+        FlapR:propDrag(1)
+    }
+            
+        #LEFT
+        if (!FlapSlaveL:isPlayerHolding()){
+            FlapTurnL += clamp((FlapMode)*FlapAngle - FlapTurnL, -FlapSpeed, FlapSpeed)
+            FlapSlaveL:setAng(Base:toWorld(ang(-FlapTurnL,0,0)))
+            FlapSlaveL:propFreeze(1)
+        }
+        
+        #Right
+        if (!FlapSlaveR:isPlayerHolding()){
+            FlapTurnR += clamp((FlapMode)*FlapAngle - FlapTurnR, -FlapSpeed, FlapSpeed)
+            FlapSlaveR:setAng(Base:toWorld(ang(-FlapTurnR,0,0)))
+            FlapSlaveR:propFreeze(1)
+        }
+        
+        #-STRAIN/BREAKING-
+        if (!FlapBreak){
+            if (FlapMode==1){
+                if (KPH>175){
+                    timer("BreakF2",1800)
+                    FlapL:soundPlay(200,0,"physics/metal/metal_solid_strain2.wav")
+                    FlapR:soundPlay(210,0,"physics/metal/metal_solid_strain2.wav")   
+                    FlapBreak=1   
+                }  
+            }
+            elseif (FlapMode==2){
+                if (KPH>135){
+                    timer("BreakF",1500)
+                    FlapL:soundPlay(20,0,"physics/metal/metal_solid_strain2.wav")
+                    FlapR:soundPlay(21,0,"physics/metal/metal_solid_strain2.wav")    
+                    FlapBreak=1
+                }        
+            }
+        }
+        else{
+            if (FlapMode==1){
+                if (KPH<=175){
+                    stoptimer("BreakF2")
+                    soundStop(200,0)
+                    soundStop(210,0)
+                    FlapBreak=0
+                }    
+            }
+            elseif (FlapMode==2){
+                if (KPH<=135){
+                    stoptimer("BreakF")
+                    soundStop(20,0)
+                    soundStop(21,0)
+                    FlapBreak=0
+                }        
+            }
+        }
+        
+    #-----------------------------------------------------------------------------------------------------------------#
+    
+    
+    #-AILERONS-
+    
+        #LEFT
+        if (!AileronSlaveL:isPlayerHolding()){
+            AileronTurnL += clamp((A-D)*AileronAngle - AileronTurnL, -AileronSpeed, AileronSpeed)
+            AileronSlaveL:setAng(Base:toWorld(ang(AileronTurnL+(RollVel*(!A&!D)*0.15),0,0)))
+            AileronSlaveL:propFreeze(1)
+        }
+        
+        #RIGHT
+        if (!AileronSlaveR:isPlayerHolding()){
+            AileronTurnR += clamp((D-A)*AileronAngle - AileronTurnR, -AileronSpeed, AileronSpeed)
+            AileronSlaveR:setAng(Base:toWorld(ang(AileronTurnR+(RollVel*(!A&!D)*-0.15),0,0)))
+            AileronSlaveR:propFreeze(1)
+        }
+    #-----------------------------------------------------------------------------------------------------------------#
+    
+    #-ELEVATOR-        
+    if(Trim>=MaxTrim){Trim=MaxTrim}
+    if(Trim<=-MaxTrim){Trim=-MaxTrim}
+    
+    if (!ElevatorSlave:isPlayerHolding()){
+        ElevatorTurn += clamp((Trim*(!W&!S)*1.6)+(W-S)*ElevatorAngle - ElevatorTurn, -ElevatorSpeed, ElevatorSpeed)
+        ElevatorSlave:setAng(Base:toWorld(ang(-ElevatorTurn+(PitchVel*(!W&!S)*0.36),0,0)))
+        ElevatorSlave:propFreeze(1)  
+    }
+    
+        #-STRAIN/BREAKING-
+        if (!ElevatorBreak){
+            if(KPH>200){
+                if (W|S){
+                    timer("BreakE",1600)
+                    Elevator:soundPlay(130,0,"physics/metal/metal_solid_strain2.wav")
+                    ElevatorBreak=1
+                }
+            }
+        }
+        else{
+            if(KPH<=200){
+                stoptimer("BreakE")
+                soundStop(130,0)
+                ElevatorBreak=0
+            }
+        }
+    
+    #-----------------------------------------------------------------------------------------------------------------#
+    
+    #-RUDDER/TAIL WHEEL-
+    
+    #THIS BREAK SPEED IS COMPLETELY UNIQUE TO EACH PLANE, CANNOT BE TRUSTED IN UNIVERSAL CODE, THEREFORE UNLESS DEVELOPED
+    #CANNOT BE ADDED TO THE COMMIT.
+    
+    if (!RudderSlave:isPlayerHolding())    {
+        RudderTurn += clamp((Shift-Space)*RudderAngle - RudderTurn, -RudderSpeed, RudderSpeed)
+        RudderSlave:setAng(Base:toWorld(ang(0,-RudderTurn+(YawVel*(!Shift&!Space)*0.36),0)))
+        RudderSlave:propFreeze(1)
+    }
+    
+        #-STRAIN/BREAKING-
+            if (!RudderBreak){
+                if (KPH>180){
+                    if (Shift|Space){
+                        timer("BreakR",1400)
+                        Rudder:soundPlay(30,0,"physics/metal/metal_solid_strain1.wav")
+                        RudderBreak=1
+                    }
+                }
+            }
+            else{
+                if (KPH<=180){   
+                    stoptimer("BreakR")  
+                    soundStop(30,0) 
+                    RudderBreak=0 
+                } 
+            }
+        
+    #-----------------------------------------------------------------------------------------------------------------#
+          
+     
+}
+
+if (clk("parachute")){
+    holoCreate(1)
+    holoModel(1,"models/props_phx/construct/metal_dome360.mdl")
+    holoParent(1,Seat)
+    holoColor(1,vec(124,135,113))
+    
+    holoCreate(2)
+    holoModel(2,"models/sprops/cylinders/size_2/cylinder_3x192.mdl")
+    holoParent(2,Seat)
+    holoColor(2,vec(0))
+    
+    holoCreate(3)
+    holoModel(3,"models/sprops/cylinders/size_2/cylinder_3x192.mdl")
+    holoParent(3,Seat)
+    holoColor(3,vec(0))
+    
+    holoCreate(4)
+    holoModel(4,"models/sprops/cylinders/size_2/cylinder_3x192.mdl")
+    holoParent(4,Seat)
+    holoColor(4,vec(0))
+    
+    holoCreate(5)
+    holoModel(5,"models/sprops/cylinders/size_2/cylinder_3x192.mdl")
+    holoParent(5,Seat)
+    holoColor(5,vec(0))
+
+    holoCreate(6)
+    holoParent(6,holoEntity(1))
+    holoAlpha(6,0)
+    
+    holoCreate(7)
+    holoParent(7,holoEntity(1))
+    holoAlpha(7,0)
+    
+    holoCreate(8)
+    holoParent(8,holoEntity(1))
+    holoAlpha(8,0)
+    
+    holoCreate(9)
+    holoParent(9,holoEntity(1))
+    holoAlpha(9,0)
+    
+    Parachute=1
+}
+
+#BREAKABLE SURFACES
+
+    #-ELEVATOR-
+    if((clk("BreakE"))&(W|S)){
+        #ifdef entity:removeAllConstraints()
+        Elevator:removeAllConstraints()
+        #endif
+                
+        Seat:soundPlay("Break",0,"physics/metal/metal_box_break1.wav")
+        soundStop(130)
+    }
+
+    #-RUDDER-
+    if((clk("BreakR"))&(Shift|Space)){
+        #ifdef entity:removeAllConstraints()
+        Rudder:removeAllConstraints()
+        #endif
+                
+        soundStop(30)
+        Seat:soundPlay(11,0,"physics/metal/metal_box_break1.wav")
+    }
+
+    #-FLAPS-
+    if((clk("BreakF")|clk("BreakF2"))&(FlapMode==1|FlapMode==2)){
+        #ifdef entity:removeAllConstraints()
+        FlapL:removeAllConstraints()
+        FlapR:removeAllConstraints()
+        #endif
+            
+        soundStop(20)
+        soundStop(21)
+        soundStop(200)
+        soundStop(210)
+        Seat:soundPlay(120,0,"physics/metal/metal_sheet_impact_hard7.wav")
+        Seat:soundPlay(130,0,"physics/metal/metal_sheet_impact_hard7.wav")
+    }
+
+#-----------------------------------------------------------------------------------------------------------------#

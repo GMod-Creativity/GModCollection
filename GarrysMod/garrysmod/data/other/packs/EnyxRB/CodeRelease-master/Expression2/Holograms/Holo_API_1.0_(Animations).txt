@@ -1,0 +1,120 @@
+@name Holo API 1.0 (Animations)
+@inputs 
+@outputs 
+@persist Anims:table ActiveAnims:array
+@trigger 
+
+if (first()){
+                    
+    function void number:createAnimation(LocalEnt:entity,StartPos:vector,EndPos:vector,StartAng:angle,EndAng:angle,CallbackOn:string,CallbackOff:string){
+        if (holoEntity(This):isValid()){
+            Anims[This,table] = table(
+                "LocalEnt" = LocalEnt,
+                "StartPos" = LocalEnt:toLocal(holoEntity(This):pos())+StartPos,
+                "EndPos" = LocalEnt:toLocal(holoEntity(This):pos())+EndPos,
+                "StartAng" = quat(StartAng),
+                "EndAng" = quat(EndAng),
+                "Speed" = 1,
+                "Dir" = 1,
+                "MixValue" = 0,
+                "CallbackOn" = CallbackOn,  
+                "CallbackOff" = CallbackOff
+            )    
+        } 
+        else{
+            print("Hologram "+This+" is not valid, and therefore cannot be animated.")    
+        }           
+    }
+    
+    function number number:animationIsActive(){
+        local CurMix = Anims[This,table]["MixValue",number]     
+        if (CurMix==1 | CurMix==0){
+            return 0   
+        } 
+        else{
+            return 1    
+        } 
+    }
+    
+    function void number:setAnimation(Active:number,Speed:number){
+        if (Anims:exists(This)){
+            if (!This:animationIsActive()){
+                Active = clamp(Active,0,1)
+                Anims[This,table]["Dir",number] = -1+(Active*2)
+                #Anims[This,table]["MixValue",number] = 0
+                Anims[This,table]["Speed",number] = abs(Speed) 
+                ActiveAnims:pushNumber(This) 
+                timer("updateAnimations",100)
+            } 
+        }          
+    }
+    
+    function number number:positionInArray(Ar:array){
+        local Found = 0
+        
+        for(A=1,Ar:count()){
+            if (This == Ar[A,number]){
+                Found = A
+                break    
+            }       
+        }
+                
+        return Found        
+    }
+    
+    function void finishAnimation(Index:number){
+        #local Element = This:positionInArray(ActiveAnims)
+        #if (Element>0){
+            ActiveAnims:removeNumber(Index)    
+        #}    
+    }
+    
+    function void updateAnimations(){
+        for(I=1,ActiveAnims:count()){
+            local Index = ActiveAnims[I,number]
+            local StartPos = Anims[Index,table]["StartPos",vector]
+            local EndPos = Anims[Index,table]["EndPos",vector]
+            local StartAng = Anims[Index,table]["StartAng",quaternion]
+            local EndAng = Anims[Index,table]["EndAng",quaternion]
+            local Speed = Anims[Index,table]["Speed",number]
+            local Dir = Anims[Index,table]["Dir",number]
+            Anims[Index,table]["MixValue",number] = Anims[Index,table]["MixValue",number] + (Speed*Dir)
+            Anims[Index,table]["MixValue",number] = clamp(Anims[Index,table]["MixValue",number],0,1)
+            local Mix = Anims[Index,table]["MixValue",number]
+            local Pos = mix(EndPos,StartPos,Mix)
+            local Ang = slerp(StartAng,EndAng,Mix)
+            local Ent = Anims[Index,table]["LocalEnt",entity]
+            holoPos(Index,Ent:toWorld(Pos))
+            holoAng(Index,Ent:toWorld(Ang:toAngle()))
+            if (Mix==0 | Mix==1){
+                local Callback = ""
+                if (Mix==0){
+                    Callback = Anims[Index,table]["CallbackOff",string]        
+                }
+                else{
+                    Callback = Anims[Index,table]["CallbackOn",string]                                      
+                }
+                if (Callback!=""){
+                    Callback()    
+                }
+                finishAnimation(I)        
+            }    
+        }
+        
+        if (ActiveAnims:count()>0){
+            timer("updateAnimations",100)    
+        }        
+    }
+
+    function angle freeRotateAngle(Angle:angle,Pitch,Yaw,Roll){
+        local A = Angle
+        local N = 1
+            A = A:rotateAroundAxis(A:forward(),Roll)
+            A = A:rotateAroundAxis(A:up(),Yaw)
+            A = A:rotateAroundAxis(A:right(),Pitch)
+        return A
+    }
+                            
+}
+
+

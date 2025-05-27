@@ -1,0 +1,64 @@
+@name Automatic ACF Gearbox
+@inputs W S [Engine Gearbox]:entity
+@outputs Throttle
+@persist MinRPM MaxRPM Torque RPM MaxGear
+@trigger 
+
+if (first()){
+    
+    #After a test or two I found out that the entity:acfPowerbandMax() function is close to 100 rpm off the rpm when the engine is at its actual max torque/power.
+    #So decided to go with my own calculations for gearing up. It's either this or the E2 is to slow to calculate the torque dropoff even at a 10 tick interval -.-
+    #ILL TEST IT
+    
+    #ifndef entity:acfPowerbandMax()
+        printColor(vec(0,255,255),"The server you are playing on doesn't have the ACF E2 extension enabled.")  
+        printColor(vec(0,255,255),"Please get the owner to type wire_expression2_extenstion_enable acf in their console, then you can use the E2.")  
+        selfDestruct()          
+    #endif
+    
+    MinRPM = Engine:acfPowerbandMin()
+    MaxRPM = Engine:acfPowerbandMax()
+    DownshiftRPM = MinRPM+((MaxRPM-MinRPM)/5)
+    MaxGear = Gearbox:acfNumGears()
+    Gearbox:acfShift(1)
+    timer("main",10)  
+}
+
+if (clk("main")){
+    Torque = Engine:acfPower()
+    RPM = Engine:acfRPM()
+    
+    if (W){
+        if (changed(Torque)){
+            if ($Torque < 0){
+                #print($RPM)
+                if ($RPM > 0){
+                    local Gear = Gearbox:acfGear()
+                    if (Gear<MaxGear){
+                        Gearbox:acfShift(Gear+1)
+                    }
+                }
+            }    
+        }
+        if (RPM<DownshiftRPM){
+            local Gear = Gearbox:acfGear()
+            if (Gear>1){
+                Gearbox:acfShift(Gear-1)
+            }
+        }
+    }
+        
+    timer("main",10)  
+}
+if (~W | ~S){
+    if (W | S){
+        Engine:acfThrottle(100)   
+    }
+    elseif (!W){
+        if (!S){
+            Engine:acfThrottle(0)      
+        }     
+    }    
+}
+
+    

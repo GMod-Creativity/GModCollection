@@ -1,0 +1,380 @@
+@name all in one tank chip by dakota V39
+@inputs Turret:entity Pod:wirelink CamController:wirelink Gun:entity Gun2:entity W A S D Space Scope CamToggle Engine:entity
+@outputs [HitPosition HitPosition2]:vector Throttle GearOut LgearTC RgearTC LgearOut RgearOut Lclutch Rclutch HardBrake Zoom
+@persist Gear Lgear Rgear GEARTIME Speed Active Dualclutch Dualgearbox Rev CamToggle ThirdPerson FirstPerson
+@persist GearboxAndTC Brakepower Turnpower ThirdPos:vector ThirdDist FirstPos:vector FirstDist
+@persist Gears AutoBrake Seat:entity MainHoloColor:vector CupolaHoloColor:vector RotateWithHull WheelCount WheelModel:string Wheels:array EntAng:angle LocAng:angle Y P ReloadSound:string TreadSound:string TurretSound:string RotationSpeed CupolaRotationSpeed POS:vector ANG:angle Tank:array HOLDANG Elevation Depression YawMin YawMax CupolaElevation CupolaDepression CupolaYawMin CupolaYawMax Cupola ShiftTime TransferCase Magnification HoloMarker
+@trigger 
+if(first()|dupefinished()){
+#Instructions - Revision 39
+
+#MAKE SURE E2 ARROW POINTS FORWARD!
+#IMPORTANT: if you want the camera to work then the only thing you should check is to have
+#client side movement checked, though you can have the extras checked without any issue
+#for example: auto unclipping and hide player, you can set client side movement if you want,
+#but I setup extra view modes and a section to change them if you understand how.
+
+#Wire Turret to an entity marker that marks the baseprop of the turret (or use the gun if you are using a casemate tank destroyer)
+#Wire Pod to the pod controller
+#Wire CamController to the cam controller
+#Wire Gun to the gun
+#Wire Gun2 to the second gun if you have one and are using two of the same gun side by side
+#Wire Throttle on the engine to Throttle
+#Wire W,A,S, and D to W,A,S, and D on the pod controller
+#Wire Engine to the engine (or one of the engines)
+#Wire CamToggle to your preference of key on the pod controller, this swaps views
+#Wire FOV on the cam controller to Zoom on the e2
+#Wire Scope to your preference of key on the pod controller, this zooms in when held
+
+#dual clutch instructions
+#Wire Gear on the dual clutch gearbox to GearOut
+#Wire Right clutch and Right brake on the gearbox to Rclutch
+#Wire Left clutch and Left brake on the gearbox Lclutch
+
+#dual gearbox instructions
+#Wire Gear on the left gearbox to LgearOut
+#Wire Gear on the right gearbox to RgearOut
+#Wire clutch and brake on the left gearbox to Lclutch
+#Wire clutch and brake on the right gearbox to Rclutch
+
+#Gearbox and TC instructions
+#Wire Gear on the Main Gearbox to Gearout unless it is a CVT, if it is a CVT don't wire it up at all
+#Wire Gear on the left transfer case to LgearTC
+#Wire Gear on the right transfer case to RgearTC
+#Wire clutch and brake on the left TC to Lclutch
+#Wire clutch and brake on the right TC to Rclutch
+
+#tips
+#for non holo crosshairs use an advanced hud indicator and link worldpos to HitPosition on the e2 or link HitPosition to an EGP E2 of your choice.
+#by default the camera is first person, set a key for toggling to go to third
+
+#this is the beginning of the section you modify, just select things
+#and read instructions and you will be fine.
+
+####                ####
+    ################
+    ### Mobility ###
+    ################
+####                ####
+
+#is it dual clutch or dual gearbox? See diagram below.
+#Key: E=Engine, GB=Gearbox/CVT, TC=Transfercase, W=drive Wheel
+#Diagram:  Dualclutch       DualGearbox         GearboxAndTC        GearboxAndTCAltConfig
+#               E                E                    E                         E
+#               |                |                    |                         |
+#      fig1     |       fig2     /\          fig3     GB               fig4     |
+#               |               /  \                  / \                       |
+#            W-GB-W          W-GB  GB-W            W-TC TC-W              W-TC-GB-TC-W
+
+#NOTE: for a CVT leading into dual transfer case setup use the Dualgearbox input, as no calculations are done to the CVT 
+#and it is not supposed to be wired. Wire the two TCs as if they are gearboxes. It looks identical to fig3 and fig4 in the diagram
+
+    Dualclutch=0    #1 if dual clutch, 0 if not. *Basically this means you only have a single gearbox*
+    Dualgearbox=1   #1 if dual gearbox, 0 if not. *Only for two gearboxes with optional CVT, not setups with gearbox + transfercases*
+    GearboxAndTC=0  #1 if Gearbox and two TCs, 0 if not. #For use with a gearbox with output split between two transfercases controling reverse
+    Gears=2         #how many gears does your gearbox have, note that CVTs have 2 gears, 2 is also the minimum.
+    Turnpower=10    #turning power, lower it if you spaz on turns, raise it to turn faster
+    Brakepower=10   #braking power, lower it if you spaz on turns or braking, raise it to brake faster
+    AutoBrake=1     #set to 0 if you want your tank to drift when not inputing any movement commands, 1 to have it stop
+    Rev=1           #Keep engine revving for quick starts at cost of fuel consumption and noise?
+    ShiftTime=10    #time in milliseconds*interval between gear shifts
+
+####                      ####
+    ######################
+    ### Turret Options ###
+    ######################
+####                      ####
+    
+    Cupola=0                  #Set to 1 if the secondary gun is mounted on a secondary turret on the turret
+    RotationSpeed=10          #how fast the turret can rotate
+    CupolaRotationSpeed=20.0  #how fast the secondary turret can rotate
+    RotateWithHull=0          #Set this to one if you want the turret to rotate with the hull
+    Magnification=10          #Scope's zoom value - goes from 1 to 90, 1 is highest zoom, 90 is lowest, set higher for low vel projectiles
+
+    #Don't set any of these to negatives or things break
+    Elevation=25          #Up 
+    Depression=10         #Down
+    YawMin=360            #Left
+    YawMax=360            #Right
+    CupolaElevation=55    #Up 
+    CupolaDepression=15   #Down
+    CupolaYawMin=360      #Right
+    CupolaYawMax=360      #Left
+
+####              ####
+    ##############
+    ### Optics ###
+    ##############
+####              ####
+
+    HoloMarker=0                  #toggles hologram crosshair where guns are aiming, NO BALLISTICS
+    MainHoloColor=vec(255,0,0)    #Set color of the main gun's crosshair
+    CupolaHoloColor=vec(0,0,255)  #Set color of the cupola's crosshair if there is one
+    ThirdPos=vec(0,0,100)           #Third person camera position relative to hull baseplate
+    ThirdDist=250                   #Third person camera distance from orbit point
+    FirstPos=vec(0,0,40)            #First Person camera position relative to turret entity input
+    FirstDist=0                     #First Person camera distance from orbit point
+
+####            ####
+    ############
+    ### MISC ###
+    ############
+####            ####
+
+    TreadSound="acf_extra/tankfx/marder_tracks.wav"         #Set soundfile of tread movement
+    TurretSound="acf_extra/tankfx/turret3.wav"              #set soundfile of turret rotation
+    WheelModel="models/sprops/trans/miscwheels/tank30.mdl"  #Set model file of roadwheel (used for friction settings)
+    
+######################################################
+########## End of things you need to change ##########
+######################################################
+
+#create hologram for aim pos of main gun
+    if(HoloMarker==1){
+        holoCreate(1,HitPosition)
+        holoModel(1, "sphere")
+        holoMaterial(1, "lights/white001")
+        holoScale(1,vec(2.5,2.5,2.5))
+        holoColor(1,MainHoloColor)
+    
+        #create hologram for aim pos of secondary gun
+        if(Cupola==1){
+            holoCreate(2,HitPosition2)
+            holoModel(2, "sphere")
+            holoMaterial(2, "lights/white001")
+            holoScale(2,vec(2.5,2.5,2.5))
+            holoColor(2,CupolaHoloColor)
+        }
+    }
+#default angle of gun found on first run
+    HOLDANG=entity():toLocal(Gun:angles()):yaw() 
+
+#get constraption to filter it from the rangers used in the turret code
+    Tank=entity():getConstraints()
+    rangerFilter(Tank)
+    rangerPersist(1)
+
+#play sounds
+    entity():isWeldedTo():soundPlay(1,0,TreadSound)
+    entity():isWeldedTo():soundPlay(2,0,TurretSound)
+    soundVolume(1,0)
+    soundPitch(1,0)
+
+#find wheels
+    Wheels=array()
+    WheelCount=1
+    for(I=1,Tank:count()){if(Tank[I,entity]:model() == WheelModel){Wheels[WheelCount,entity]=Tank[I,entity],WheelCount+=1}}
+}
+
+#finally out of the if first statement
+
+#set interval
+interval(100)
+
+#find optimal RPM values for gear changes
+ChangeRPM=Engine:acfRedline()*90/100
+DownChangeRPM=Engine:acfPowerbandMin()
+
+#zero-out/define variables
+Throttle=0
+Rclutch=0
+Lclutch=0
+
+#find Active value and seat from pod
+Active=Pod["Active",number]
+Seat=Pod["Entity",entity]
+
+#engage hardbrake if inactive or brakes are pressed
+if(Active==0|Rclutch+Lclutch>0){HardBrake=1}else{HardBrake=0}
+
+#begin active state
+if(Active==1){ 
+    #if no current camera state then start in first person
+    if(ThirdPerson == 0 & FirstPerson == 0){FirstPerson=1, ThirdPerson=0}   
+    
+    #check if cam was toggled and then swap camera
+    if(changed(CamToggle)&CamToggle==1){                                        
+        if(ThirdPerson==1){FirstPerson=1, ThirdPerson=0}
+        else{FirstPerson=0, ThirdPerson=1}
+    }
+    if(ThirdPerson==1){CAMPOSITION=entity():isWeldedTo():toWorld(ThirdPos),CAMDIST=ThirdDist}
+    else{CAMPOSITION=Turret:toWorld(FirstPos),CAMDIST=FirstDist}
+    
+    #set cam controller values
+    CamController["Activated", number]=Active
+    CamController["Position", vector]=CAMPOSITION
+    CamController["Distance", number]=CAMDIST
+    CamController["Parent", entity]=Seat
+    
+    #prevent gears from zeroing out.
+    if(GearOut==0){GearOut=1}else{GearOut=Gear}
+    if(LgearOut==0){LgearOut=1}else{LgearOut=Lgear}
+    if(RgearOut==0){RgearOut=1}else{RgearOut=Rgear}
+    
+    #handle throttle and braking
+    if(W|A|S|D){Throttle=100}
+    if(Space){Rclutch=Brakepower,Lclutch=Brakepower}
+    if(!W&!S&!A&!D&!Space&AutoBrake==1){Rclutch=Brakepower,Lclutch=Brakepower}
+    if(!W&!S&!A&!D&!Space&Rev){Throttle=100}
+    
+    #Automated gear shift handling for dual clutch
+    if(Dualclutch==1){
+        GEARTIME=GEARTIME - 1 #countdown time since last gear shift to prevent shifting too rapidly
+        #Check if only two gears to prevent running autoshift code, saving cpu
+        if(Gears==2){
+            if(S&!W){GearOut=2}
+            if(!S&W){GearOut=1}
+        }else{
+            if(S&!W&Gear!=Gears){GearOut=Gears}
+            if(W&!S&GearOut==Gears){GearOut=1}
+            if(W&!S&GEARTIME<=0){
+                if(Engine:acfRPM()>ChangeRPM&Gear<Gears-1){GEARTIME=ShiftTime,GearOut=Gear+1}
+                if(Engine:acfRPM()<DownChangeRPM&Gear>1){GEARTIME=ShiftTime,GearOut=Gear-1}
+            }
+        }
+        if(A&!Space){Rclutch=Turnpower}else{Rclutch=0}   
+        if(D&!Space){Lclutch=Turnpower}else{Lclutch=0}  
+    }
+    
+    #Automated gear shift handling for dual gearbox
+    if(Dualgearbox==1){
+        GEARTIME=GEARTIME - 1  #countdown time since last gear shift to prevent shifting too rapidly
+        if(A&!D&!W&!S){LgearOut=Gears,RgearOut=1}
+        if(D&!A&!W&!S){LgearOut=1,RgearOut=Gears}
+        #Check if only two gears to prevent running autoshift code, saving cpu
+        if(Gears==2){
+            if(!S&W){LgearOut=1,RgearOut=1}     
+            if(S&!W){LgearOut=2,RgearOut=2} 
+        }else{
+            if(S&!W&Lgear!=Gears){LgearOut=Gears,RgearOut=Gears}
+            if(W&!S&LgearOut==Gears){LgearOut=1,RgearOut=1}
+            if(W&!S&GEARTIME<=0){
+                if(Engine:acfRPM()>ChangeRPM&Lgear<Gears-1){GEARTIME=ShiftTime,LgearOut=Gear+1,RgearOut=Gear+1}
+                if(Engine:acfRPM()<DownChangeRPM&Lgear>1){GEARTIME=ShiftTime,LgearOut=Gear-1,RgearOut=Gear-1}
+            }
+        }
+        if(D&W|D&S){Rclutch=Turnpower}   
+        if(A&W|A&S){Lclutch=Turnpower}
+    }
+    
+    #Automated gear shift handling for a gearbox and TC combo setup
+    if(GearboxAndTC==1){
+        GEARTIME=GEARTIME - 1 #countdown time since last gear shift to prevent shifting too rapidly
+        #no check for if its only a 2 gear here due to TC handling reverse gear while even a 2 gear gearbox can still shift
+        if(!S&W){LgearTC=1,RgearTC=1}     
+        if(S&!W){LgearTCC=2,RgearTC=2} 
+        if(A&!D&!W&!S){LgearOut=Gears,RgearOut=1}
+        if(D&!A&!W&!S){LgearOut=1,RgearOut=Gears}
+        if(W&!S&GEARTIME<=0){
+            if(Engine:acfRPM()>ChangeRPM&Gear<Gears){GEARTIME=ShiftTime,GearOut=Gear+1}
+            if(Engine:acfRPM()<DownChangeRPM&Gear>1){GEARTIME=ShiftTime,GearOut=Gear-1}
+        }
+        if(D&W|D&S){Rclutch=Turnpower}   
+        if(A&W|A&S){Lclutch=Turnpower}
+    }
+    
+    if(Scope){Zoom=Magnification}else{Zoom=90} #setup zoom functionality
+    
+    #setup ranger and find position for hologram crosshairs and outpost position
+    rangerHitEntities(1)
+    rangerFilter(Tank)
+    HitPosition=rangerOffset(1000000,Gun:attachmentPos("muzzle"), Gun:forward()):position()
+    if(Cupola){HitPosition2=rangerOffset(1000000,(Gun2:attachmentPos("muzzle")), Gun2:forward()):position()}
+    
+    #create holograms for crosshairs, only allow driver to see
+    if(HoloMarker){
+        holoPos(1,HitPosition)
+        holoPos(2,HitPosition2)
+        holoVisible(1,players(),0)   
+        holoVisible(1,Seat:driver(),1)  
+        holoVisible(2,players(),0)   
+        holoVisible(2,Seat:driver(),1)  
+    }
+    
+    #get camera positions to use in turret code
+    CAM1=CamController["CamPos", vector]
+    CAM2=CamController["HitPos", vector]
+    CAMANG=CamController["CamAng", angle]
+
+    #begin turret code
+    if(RotateWithHull==1){
+        GunPos=Gun:attachmentPos("muzzle") - Gun:forward() * Gun:boxSize():x()*0.75
+        GunAng=(rangerOffset(9999999999,CAM2,CAMANG:forward()):pos() - GunPos):toAngle()
+        ANGLE=clamp(Gun:toLocal(GunAng),ang(-RotationSpeed),ang(RotationSpeed))+ang(0,entity():isWeldedTo():angVel():yaw()*0.12,0)
+        CLAMPANG=clamp(entity():toLocal(Gun:toWorld(ANGLE)),ang(-Elevation,-YawMin,-1),ang(Depression,YawMax,1))
+        Gun:applyAngForce((Gun:toLocal(entity():toWorld(CLAMPANG)) * 250 - Gun:angVel() * 30) * shiftL(ang(Gun:inertia())))
+        if(abs(ANGLE:yaw())>1){
+            Play=0
+            if(!(CLAMPANG:yaw()+1>=YawMax|CLAMPANG:yaw()-1<=-YawMin)){Play=1}
+            }
+        if(Cupola==1){
+            GunPos2=Gun2:attachmentPos("muzzle") - Gun2:forward() * Gun2:boxSize():x()*0.75
+            GunAng2=(rangerOffset(9999999999,CAM2,CAMANG:forward()):pos() - GunPos2):toAngle()
+            ANGLE2=clamp(Gun2:toLocal(GunAng2),ang(-CupolaRotationSpeed),ang(CupolaRotationSpeed))+ang(0,Turret:angVel():yaw()*0.12,0)
+            CLAMPANG2=clamp(entity():toLocal(Gun2:toWorld(ANGLE2)),ang(-CupolaElevation,-CupolaYawMin,-1),ang(CupolaDepression,CupolaYawMax,1))
+            Gun2:applyAngForce((Gun2:toLocal(entity():toWorld(CLAMPANG2)) * 250 - Gun2:angVel() * 30) * shiftL(ang(Gun2:inertia())))
+        }
+    }
+    else{
+        GunPos=Gun:attachmentPos("muzzle") - Gun:forward() * Gun:boxSize():x()*0.75
+        GunAng=(rangerOffset(9999999999,CAM2,CAMANG:forward()):pos() - GunPos):toAngle()
+        ANGLE=clamp(Gun:toLocal(GunAng),ang(-RotationSpeed),ang(RotationSpeed))
+        CLAMPANG=clamp(entity():toLocal(Gun:toWorld(ANGLE)),ang(-Elevation,-YawMin,-1),ang(Depression,YawMax,1))
+        Gun:applyAngForce((Gun:toLocal(entity():toWorld(CLAMPANG)) * 250 - Gun:angVel() * 30) * shiftL(ang(Gun:inertia())))
+        if(abs(ANGLE:yaw())>1){
+            Play=0
+            if(!(CLAMPANG:yaw()+1>=YawMax|CLAMPANG:yaw()-1<=-YawMin)){Play=1}
+            }
+        if(Cupola==1){
+            GunPos2=Gun2:attachmentPos("muzzle") - Gun2:forward() * Gun2:boxSize():x()*0.75
+            GunAng2=(rangerOffset(9999999999,CAM2,CAMANG:forward()):pos() - GunPos2):toAngle()
+            ANGLE2=clamp(Gun2:toLocal(GunAng2),ang(-CupolaRotationSpeed),ang(CupolaRotationSpeed))
+            CLAMPANG2=clamp(entity():toLocal(Gun2:toWorld(ANGLE2)),ang(-CupolaElevation,-CupolaYawMin,-1),ang(CupolaDepression,CupolaYawMax,1))
+            Gun2:applyAngForce((Gun2:toLocal(entity():toWorld(CLAMPANG2)) * 250 - Gun2:angVel() * 30) * shiftL(ang(Gun2:inertia())))
+        }
+    }
+}else{ #begin inactive state
+    ANG=entity():toWorld(ang(0,0,0))
+    Q=quat(ANG)/quat(Gun)
+    Torque=Gun:toLocal(rotationVector(Q) + Gun:pos())
+    Torque=((Torque*250) -Gun:angVelVector()* 50)*Gun:inertia()
+    Gun:applyTorque(Torque)
+    Gun:applyTorque(-Gun:angVelVector()*pi()/180*Gun:inertia()*1550.1*1/2)
+    if(Cupola==1){
+        ANG2=entity():toWorld(ang(0,0,0))
+        Q2=quat(ANG2)/quat(Gun2)
+        Torque2=Gun2:toLocal(rotationVector(Q2) + Gun2:pos())
+        Torque2=((Torque2*250) -Gun2:angVelVector()* 50)*Gun2:inertia()
+        Gun2:applyTorque(Torque2)
+        Gun2:applyTorque(-Gun2:angVelVector()*pi()/180*Gun2:inertia()*1550.1*1/2)
+    }
+    Rclutch=Brakepower
+    Lclutch=Brakepower
+}
+
+#Get speed of vehicle
+Vel=entity():isWeldedTo():vel()
+Speed=abs(Vel:x())+abs(Vel:y())
+
+#set tread sound volume and pitch based on speed
+if(Speed>30){
+    soundVolume(1,Active*clamp(Speed/250,0.5,1))
+    soundPitch(1,Active*clamp(Speed/2,25,100))
+}
+
+#check if tank is moving slow or cruising
+if(Speed<=150){Climb=1}
+if(Speed>150){Climb=0}
+
+#set wheel phys material to have more grip when stopped or climbing and less grip when moving fast (helps prevent flips when turning at higher speeds)
+if(changed(Climb)&Climb){for(I=1,Wheels:count()){if(Wheels[I,entity]){Wheels[I,entity]:propPhysicalMaterial("phx_tire_normal")}}}
+if(changed(Climb)&!Climb){for(I=1,Wheels:count()){if(Wheels[I,entity]){Wheels[I,entity]:propPhysicalMaterial("rubber")}}}
+
+#Setup turret sounds
+if(Play){
+    soundVolume(2,1)
+    soundPitch(2,100)
+}else{
+    soundVolume(2,0)
+    soundPitch(2,0)
+}

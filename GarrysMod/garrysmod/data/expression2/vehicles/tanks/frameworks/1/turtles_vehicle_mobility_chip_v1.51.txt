@@ -1,0 +1,127 @@
+@name Turtle's Vehicle Mobility Chip v1.51
+@inputs Active W A S D Alt Shift Space Honk Fuel EngineStart FineSteeringControls Gearbox:entity Engine:entity LTransfer:wirelink RTransfer:wirelink
+@outputs Gear Clutch EngineActive Throttle TrackWeldLatch BrakeLatch GunLock Self:entity
+@persist Throttle
+if(first()){BrakeLatch=1}
+if(!Active){GunLock=1}else{GunLock=0}
+if(!Active){BrakeLatch=1,Engine:acfThrottle(0)}
+if(!Active){exit()}
+#[Disclaimers:
+This E2 is designed for tracked vehicles and requires transfer cases to work; it's how the zero-point steering is done.
+]#
+#INSTRUCTIONS:
+
+#[
+To set up the E2, all you have to do is wire Active to something that's 1 (such as a pod controller), and wire W A S D to something which you want to use for those controls. I suggest a pod controller obviously.
+Gearbox:entity, Engine:entity, LTransfer:entity, and RTransfer:entity are all used for automatically gathering vehicle data so there's no in-E2 setup required. Just wire Gearbox:entity to your gearbox, Engine:entity
+to your engine (it works with two, but you have to manually wire the second one's "Throttle" input to the E2), wire LTransfer:entity to your left transfer case, and RTransfer:entity to your right transfer case.
+]#
+
+Self = entity()
+
+#Configuration
+DefaultGear=          1    # This can stay 1 unless you have a different gear with a lower ratio.
+EnableAutomaticBrakes=1    # Automatically brakes your vehicle when no throttle is applied.
+EnableAutomaticClutch=1    # Automatically activates the clutch when struggling.
+#-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+UseACFBrakes=         1    # In case you don't like weld latches.
+InvertReverseSteering=1    # Inverts steering controls when moving in reverse.
+SteeringBrakes=       100   # The value the brakes are set to while steering and moving at the same time.
+HighSpeedSteering=    100    # The value your brakes are set to when steering with "FineSteeringControls" enabled.
+#-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+RequiresFuel=         0    # Turn this off if you don't want to force your vehicles to use fuel.
+EnableDepletionSound= 1    #[ Plays a sound if you're out of fuel.]#                                                                                                                                                                 if(!EnableDepletionSound){
+DepletionSound=       "acf_extra/vehiclefx/boost/turbo_pop_2.wav"                                                                                                                                                              }
+#-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Modifier=             0  # Subtracts from the automatic powerband to make it less picky.
+ModifierDown=         0  # Same as the above, except this one is for addition.
+#-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Override=             0    # Enables overriding the automatic powerband settings.
+EnginePowerbandMax=   6750 # You can almost always ingnore this. It's only meant for if you have a turbine or electric motor which needs manual settings and you don't like the settings I picked.
+EnginePowerbandMin=   3000 #------You can almost always ignore this too. This is also only meant for turbines and electric motors which need manual settings due to those engines having a powerband of 1-1.
+#-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+HornSound          =  "acf_extra/vehiclefx/horn/truck_horn.wav" #The sound to be played when you try to honk.
+EngineStartingSound=  "acf_extra/vehiclefx/starters/starter7.wav" #Starting sound for your engine, assuming its Active is wired to the E2.
+EngineStoppingSound=  "acf_extra/vehiclefx/engines/gnomefather/6046down.wav" #Like the starting sound, but when it's off rather than on.
+RandintMax=1500            #The maximum amount of time possible for your engine to start up, assuming its Active is wired to the E2.
+RandintMin=1000            #The minimum amount of time possible for your engine to start up, assuming its Active is wired to the E2.
+
+#Don't edit the stuff beneath. Or do it, I can't stop you...
+
+interval(350)
+if(Space){Gear=DefaultGear}
+CurrentGear=Gearbox:acfGear()
+Throttle=Engine:acfThrottle()
+MaxGears=Gearbox:acfNumGears()-1
+MaxForwardsGear=Gearbox:acfNumGears()-1
+ModifiedRedline=Engine:acfRedline()-Modifier
+if(W&Gear==Gearbox:acfNumGears()){Gear=DefaultGear}
+ModifiedPowerbandMin=Engine:acfPowerbandMin()+ModifierDown
+if(Shift|Engine:acfRPM()<ModifiedPowerbandMin){Clutch=1,Gear=1}else{Clutch=0}
+
+if(EnableAutomaticBrakes){
+if(Throttle){BrakeLatch=0}elseif(!Throttle|Alt){BrakeLatch=1}
+}elseif(!EnableAutomaticBrakes){
+if(Alt){BrakeLatch=1}elseif(Throttle|!Alt){Brakelatch=0}
+}
+
+if(UseACFBrakes){
+if(Alt){LTransfer["Left Brake",number]=SteeringBrakes,LTransfer["Right Brake",number]=SteeringBrakes,RTransfer["Left Brake",number]=SteeringBrakes,RTransfer["Right Brake",number]=SteeringBrakes}
+}
+
+if(Engine:acfPowerbandMax()!=1|Override){
+ModifiedRedline=Engine:acfRedline()-Modifier
+ModifiedPowerbandMin=Engine:acfPowerbandMin()+ModifierDown}else{ModifiedRedline=EnginePowerbandMax,ModifiedPowerbandMin=EnginePowerbandMin}
+
+if(W|A|S|D){Engine:acfThrottle(100)}else{Engine:acfThrottle(0)}
+
+if(Shift|Engine:acfRPM()<ModifiedPowerbandMin){Clutch=1,Gear=1}else{Clutch=0}
+
+if(D&!W&!S){LTransfer["Gear",number]=2,RTransfer["Gear",number]=1,Gear=DefaultGear}else{LTransfer["Gear",number]=1}
+if(A&!W&!S){LTransfer["Gear",number]=1,RTransfer["Gear",number]=2,Gear=DefaultGear}else{RTransfer["Gear",number]=1}
+
+if(!InvertReverseSteering){
+if(D&W|D&S){LTransfer["Left Clutch",number]=1,LTransfer["Right Clutch",number]=1,LTransfer["Left Brake",number]=SteeringBrakes,LTransfer["Right Brake",number]=SteeringBrakes,RTransfer["Right Clutch",number]=0,RTransfer["Left Clutch",number]=0,RTransfer["Right Brake",number]=0,RTransfer["Left Brake",number]=0}elseif(A&W|A&S){RTransfer["Right Clutch",number]=1,RTransfer["Left Clutch",number]=1,RTransfer["Left Brake",number]=SteeringBrakes,RTransfer["Right Brake",number]=SteeringBrakes,LTransfer["Left Clutch",number]=0,LTransfer["Right Clutch",number]=0,LTransfer["Left Brake",number]=0,LTransfer["Right Brake",number]=0}
+}
+if(InvertReverseSteering){
+if(D&W|A&S){LTransfer["Left Clutch",number]=1,LTransfer["Right Clutch",number]=1,LTransfer["Left Brake",number]=SteeringBrakes,LTransfer["Right Brake",number]=SteeringBrakes,RTransfer["Right Clutch",number]=0,RTransfer["Left Clutch",number]=0,RTransfer["Right Brake",number]=0,RTransfer["Left Brake",number]=0}elseif(A&W|D&S){RTransfer["Right Clutch",number]=1,RTransfer["Left Clutch",number]=1,RTransfer["Left Brake",number]=SteeringBrakes,RTransfer["Right Brake",number]=SteeringBrakes,LTransfer["Left Clutch",number]=0,LTransfer["Right Clutch",number]=0,LTransfer["Left Brake",number]=0,LTransfer["Right Brake",number]=0}
+}
+if(!A&!D&!Alt){LTransfer["Left Clutch",number]=0,LTransfer["Right Clutch",number]=0,LTransfer["Left Brake",number]=0,LTransfer["Right Brake",number]=0,RTransfer["Right Clutch",number]=0,RTransfer["Left Clutch",number]=0,RTransfer["Right Brake",number]=0,RTransfer["Left Brake",number]=0}
+
+if(Engine:acfRPM()>ModifiedRedline&Gear<MaxForwardsGear&Gear<Gearbox:acfNumGears()&!Space){Gear++,Gear-=0}elseif(Engine:acfRPM()<ModifiedPowerbandMin&Gear>DefaultGear&Gear<Gearbox:acfNumGears()&Gear!=0&!Space){Gear--,Gear+=0}
+if(S){Gear=Gearbox:acfNumGears()}
+#--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+if(W&!A&!D|S&!A&!D){TrackWeldLatch=1}else{TrackWeldLatch=0}
+
+#--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+#Thanks to Bompi for making this work
+
+if(changed(Honk) & Honk == 1)
+{
+    soundPlay("Honk", 10, HornSound)
+}
+elseif(changed(Honk) & Honk == 0)
+{
+    soundStop("Honk")
+}
+
+#--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+if(~EngineStart){
+if(EngineStart){
+if(!EngineActive&Fuel!=0){
+soundPlay("Starting Sound",3,EngineStartingSound)
+timer("Engine Start Timer",randint(RandintMin,RandintMax))}
+else
+{EngineActive=0}}else{
+soundStop("Starting Sound")
+if(!EngineActive&!EngineStart){soundPlay("Engine Stop Timer",4,EngineStoppingSound)}
+stoptimer("Engine Stop Timer")}}
+if(EngineStart&clk("Engine Start Timer"))
+{EngineActive=1}
+if(Fuel<0.01&RequiresFuel){EngineActive=0,timer("Engine Start Timer",randint(RandintMin,RandintMax))}elseif(clk()){stoptimer("Engine Stop Timer")}
+
+
+
+

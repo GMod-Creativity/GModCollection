@@ -1,0 +1,203 @@
+@name Tank Mobility Control CVT
+@inputs  Base:entity [E1 E2 GB LGB RGB]:wirelink On W A S D Brake
+@outputs LT RT
+@persist [LWheels RWheels]:array
+@trigger On W A S D Brake
+#[
+ABOUT:
+    This E2 is designed to:
+        -control ACF tank mobility with the following engine/gearbox setup:
+            >CVT RPM control
+            >transfer case steering
+            >up to two engines
+ 
+SETUP:
+    Wire the following inputs correctly:
+ 
+        Entities:
+            -Base: the baseplate of the tank
+ 
+        Wirelinks:
+            E1: The first engine
+            E2: The second engine if it exists
+            GB: the CVT
+            LGB: the transfer case powering the left track
+            RGB: the transfer case powering the right track
+ 
+        Wire Inputs:
+            On: the Active output of a pod controller linked to the vehicle's seat
+            W,A,S,D: the corresponding outputs of above mentioned pod controller
+            Brake: the output of the above mentioned pod controller you want to brake
+ 
+    Common Issues:
+ 
+        Tank drives backwards:
+            Set a negative final drive on a gearbox.
+ 
+        Tank turns the wrong way:
+            Swap the Left and Right gearbox and sprocket inputs or swap the A and D inputs.
+]#
+if(first()|duped()|dupefinished()){
+
+    Base:propSetBuoyancy(0)
+    enableConstraintUndo(0)
+    #functions
+        
+        function array entity:getDirectConstraints(S:string){
+            local I=1
+            local Array=array()
+            while(This:isConstrainedTo(S,I):isValid()){
+                Array:pushEntity(This:isConstrainedTo(S,I))
+                I++
+            }
+            
+            return Array
+        }
+        
+        function array wirelink:getWheels(){
+            #returns all the wheels connected to the gearbox
+            local Links=This:entity():acfLinks()
+            local Count=Links:count()
+            local Wheels=array()
+            for(I=1,Count){
+                if(Links[I,entity]:type()=="prop_physics"){
+                    Wheels:pushEntity(Links[I,entity])
+                    break    
+                }
+            }
+            if(!Wheels:count()){
+                #no sprocket found
+                return Wheels
+            }
+            
+            local Constraints=Wheels[1,entity]:getDirectConstraints("AdvBallsocket")
+            Count=Constraints:count()
+            for(I=1,Count){
+                Wheels:pushEntity(Constraints[I,entity])
+            }
+            
+            return Wheels
+        }
+        
+        function wirelink:unfreezeWheels(){
+            local Wheels=This:getWheels()
+            local Count=Wheels:count()
+            Base:propFreeze(0)
+            for(I=1,Count){
+                Wheels[I,entity]:propFreeze(0)   
+            }
+        }
+        
+        function array:weldBrake(W,E:entity){
+            local Count=This:count()
+            for(I=1,Count){
+                if(W){
+                    if(E!=This[I,entity]:isWeldedTo()){
+                        weld(This[I,entity],E)
+                    }
+                }else{
+                    This[I,entity]:constraintBreak("weld",E)
+                }
+            }
+        }
+        
+    LWheels=LGB:getWheels()
+    RWheels=RGB:getWheels()
+}
+if(~On){
+    
+    LWheels:weldBrake(1,Base)
+    RWheels:weldBrake(1,Base)
+    
+    LGB:unfreezeWheels()
+    RGB:unfreezeWheels()
+    
+    if(On){
+        E1["Active",number]=1
+        E1["Throttle",number]=100
+        E2["Active",number]=1
+        E2["Throttle",number]=100
+        
+        LGB["Gear",number]=1
+        LGB["Left Clutch",number]=1
+        LGB["Right Clutch",number]=1
+        
+        RGB["Gear",number]=1
+        RGB["Left Clutch",number]=1
+        RGB["Right Clutch",number]=1
+        
+    }else{
+        E1["Active",number]=0
+        E1["Throttle",number]=0
+        E2["Active",number]=0
+        E2["Throttle",number]=0
+    }
+   
+}elseif(On){
+    
+    if(~W|~A|~S|~D|~Brake){
+        LT=(W+D)-(S+A)
+        RT=(W+A)-(S+D)
+        
+        if(!Brake){
+            if(LT){
+                E1["Throttle",number]=100
+                E2["Throttle",number]=100
+                
+                LGB["Left Clutch",number]=0
+                LGB["Right Clutch",number]=0
+                
+                LWheels:weldBrake(0,Base)
+                             
+                if(LT>0){
+                    LGB["Gear",number]=2
+                }else{
+                    LGB["Gear",number]=1
+                }
+                
+            }else{
+                LGB["Left Clutch",number]=1
+                LGB["Right Clutch",number]=1
+                
+                if(RT){
+                    LWheels:weldBrake(1,Base)
+                }
+            }
+            
+            if(RT){
+                E1["Throttle",number]=100
+                E2["Throttle",number]=100
+                
+                RGB["Left Clutch",number]=0
+                RGB["Right Clutch",number]=0
+                
+                RWheels:weldBrake(0,Base)
+                
+                if(RT>0){
+                RGB["Gear",number]=1
+                }else{
+                    RGB["Gear",number]=2
+                }
+            }else{
+                RGB["Left Clutch",number]=1
+                RGB["Right Clutch",number]=1
+                
+                if(LT){
+                    RWheels:weldBrake(1,Base)
+                }
+            }
+        }else{
+            E1["Throttle",number]=0
+            E2["Throttle",number]=0
+            
+            LWheels:weldBrake(1,Base)
+            RWheels:weldBrake(1,Base)
+            
+            LGB["Left Clutch",number]=1
+            LGB["Right Clutch",number]=1
+            
+            RGB["Left Clutch",number]=1
+            RGB["Right Clutch",number]=1
+        }
+    }
+}

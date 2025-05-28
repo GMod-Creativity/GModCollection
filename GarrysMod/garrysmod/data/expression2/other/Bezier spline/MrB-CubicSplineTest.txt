@@ -1,0 +1,49 @@
+@name MrB-CubicSplineTest
+@inputs 
+@outputs 
+@persist Click1 Click2 Points:array CurPoint PropPositions:array BezierPoints
+@trigger 
+if(first()){
+    #runOnTick(1)
+    runOnKeys(owner(), 1)
+    BezierPoints = 50
+    
+    function vector cubicSplineEval(T:number){
+        V = vec()
+        
+        Start = Points[(CurPoint  )%4+1,vector]
+        ConP1 = Points[(CurPoint+1)%4+1,vector]
+        ConP2 = Points[(CurPoint+2)%4+1,vector]
+        End   = Points[(CurPoint+3)%4+1,vector]
+        
+        XComp = Start:x()*(1-T)^3 + ConP1:x()*3*(1-T)^2*T + ConP2:x()*3*(1-T)*T^2 + End:x()*T^3
+        YComp = Start:y()*(1-T)^3 + ConP1:y()*3*(1-T)^2*T + ConP2:y()*3*(1-T)*T^2 + End:y()*T^3
+        ZComp = Start:z()*(1-T)^3 + ConP1:z()*3*(1-T)^2*T + ConP2:z()*3*(1-T)*T^2 + End:z()*T^3
+        
+        V = vec(XComp, YComp, ZComp)
+        return V
+    }
+    #Points
+    for(I = 1, 4){
+        holoCreate(I, entity():pos(), vec(0.5), ang(), vec(0,255,0), "sphere")
+    }
+    #BezierPoints
+    for(I = 1, BezierPoints){
+        holoCreate(I+10, entity():pos(), vec(0.5), ang(), vec(0,0,255), "sphere")
+    }
+}
+if(keyClk()){
+    if(owner():keyUse()){
+        Pos = owner():aimPos()
+        CurPoint++
+        if(CurPoint==5){CurPoint=1}
+        Points[CurPoint,vector] = Pos
+        holoPos(CurPoint, Pos)
+        for(I = 1, BezierPoints-1){
+            PropPositions:pushVector(cubicSplineEval(I/BezierPoints))
+        }
+        for(I = 1, BezierPoints){
+            holoPos(I+10, PropPositions:popVector())
+        }
+    }
+}

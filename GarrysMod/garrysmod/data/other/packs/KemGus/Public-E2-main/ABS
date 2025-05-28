@@ -1,0 +1,514 @@
+@name ABSv1.98 + ESCv1.75
+@inputs Driver_Brake E_Brake AEB_Brake Brake_Pedal_Input Cruise_Brake Recuperation HandBrake Wheels:array Base:entity LaunchControl Launch_Clutch Warning  
+@inputs ESC_Mode:string OverSteer UnderSteer
+@outputs ClutchFL ClutchFR ClutchRL ClutchRR BrakeFL BrakeFR BrakeRL BrakeRR SpeedByRPM IsBraking Recuperation_Br Clutch Traction:table 
+@persist  ESC MaxForce Logs DriftModeAssist RequiredSpeed  
+@persist [ TractionConst TCS Enable_TCS_N Enable_TCS_S Enable_TCS_W ESCActive ESC_Under_N ESC_Under_S ESC_Under_W ESC_Under_Mul_N ESC_Under_Mul_S ESC_Under_Mul_W]:number 
+@persist [ WheelLength WheelSpeedCalc SlipFL SlipFR SlipRL SlipRR ABS_Slip ESC_Over_N ESC_Over_Mul_N ESC_Over_S ESC_Over_Mul_S ESC_Over_W ESC_Over_Mul_W]:number
+@persist [ WheelFL WheelFR WheelRL WheelRR ]:entity
+@persist 
+@trigger none
+
+
+#-----------------
+#Made by KemGus --
+#-----------------
+
+#Description
+#-------------------------------------------------------------------------------------------------------------------------------------------
+#You need to link Driver_Brake/E_Brake/AEB_Brake to button you want to brake.(there are 3 beacuse there are other e2's that outputs brakes)#
+#Brake_Pedal_Input is for irl pedal that must have output less or equal 1                                                                  #
+#FL - front left , RR - rear right (wheels)                                                                                                # 
+#Brake to brake. LINK GEARBOX THAT IS LINKED TO WHEEL!                                                                                     #                                           
+#If you want to have rwd,fwd vehicle then you need to have dual clutch differential as well, just keep final drive to 0                    #                                                                                                                                         #
+                                                                                                                                           #
+                                                                                                                                           #
+#To use ESC you need to have dual clutch (differential) gearbox                                                                            #
+#ESC Works better on AWD vehicles                                                                                                          #
+#ESC doesn't solve whole problem, it only helps to solve it .                                                                              #    
+#When you link "Wheels" make sure to have first - front left, front right, third - RL, fourth - RR                                         #
+#-------------------------------------------------------------------------------------------------------------------------------------------
+
+if(first() | dupefinished())
+{
+
+    #ABS  
+    MaxForce = 120   #max force of braking (don't make it too hard)
+    ABS_Slip = 0.8
+       
+    #Settings of ESC
+    
+    ESC = 1                   #if ESC=1 then it activates the system if ESC=0 then it would make it inactive. Recomends to keep on everytime.If you want to see less ops on e2 then make it 0.  
+    
+
+    #Normal Mode
+    ESC_Under_N = 0.05   
+    ESC_Under_Mul_N = 20
+    
+    ESC_Over_N = 0.05    
+    ESC_Over_Mul_N = 135
+    Enable_TCS_N = 1
+    
+    #Sport Mode
+    ESC_Under_S = 0.05   
+    ESC_Under_Mul_S = 4
+    
+    ESC_Over_S = 0.07    
+    ESC_Over_Mul_S = 80
+    Enable_TCS_S = 0
+    
+    #AEB Warning Mode
+    ESC_Under_W = 0.03   
+    ESC_Under_Mul_W = 50
+    
+    ESC_Over_W = 0.07    
+    ESC_Over_Mul_W = 135
+    Enable_TCS_W = 1   
+        
+    RequiredSpeed = 32      #Until what speed SlipStart will work 
+    
+    #Tracction control Settings
+    TCS = 1               # if TCS = 1 then it activates the traction control.  
+    TractionConst = 0.82    # sensitivity of traction control
+    DriftModeAssist = 1     #assist in drift mode
+    
+    
+    #Other
+    Logs = 0 
+  
+    
+    
+    
+    #Code
+    WheelFL = Wheels[1,entity]
+    WheelFR = Wheels[2,entity]
+    WheelRL = Wheels[3,entity]
+    WheelRR = Wheels[4,entity]
+    
+    WheelLength = toUnit("km",2*(pi())*WheelFL:radius())
+    WheelSpeedCalc = WheelLength*33.33
+    
+    #DistToFront = (Base:pos() - WheelFL:pos()):length()
+    #DistToRear = (Base:pos() - WheelFL:pos()):length()
+    
+    holoCreate(1,Base:pos(),vec(1) )
+    holoCreate(2,Base:pos(),vec(1) )
+    holoCreate(3,Base:pos(),vec(1) )
+    holoCreate(4,Base:pos(),vec(1) )
+    
+    holoColor(3,vec(0,255,255))
+    holoColor(4,vec(0,255,255))
+    
+    holoAlpha(1,0)
+    holoAlpha(2,0)
+    holoAlpha(3,0)
+    holoAlpha(4,0)
+    
+    ESCActive = 0 
+    Recuperation_Br = 0 
+
+    }
+    
+    #Do not change below until you know how to!
+
+
+
+
+
+interval(5) #Keep it low for better perfomance of different intergrated systems
+
+
+
+
+###################
+#Useful constants
+##################
+
+
+RPMFL = abs(WheelFL:angVel():pitch()) /6
+RPMFR = abs(WheelFR:angVel():pitch()) /6
+RPMRL = abs(WheelRL:angVel():pitch()) /6
+RPMRR = abs(WheelRR:angVel():pitch()) /6
+
+HullYaw = (Base:angVel():yaw()) /6
+#Ang = Base:angVel():yaw()
+
+#WheelSpeedFL = WheelFL:angVel():pitch()
+#WheelSpeedFR = WheelFR:angVel():pitch()
+#WheelSpeedRL = WheelRL:angVel():pitch()
+#WheelSpeedRR = WheelRR:angVel():pitch()
+
+
+Vel = toUnit("km/h",Base:vel():length())
+
+SpeedByRPM = ((RPMFL*WheelSpeedCalc)+(RPMFR*WheelSpeedCalc)+(RPMRL*WheelSpeedCalc)+(RPMRR*WheelSpeedCalc))/4
+
+#Var_ABS_Steer = abs(SteerAngle)
+
+
+SlipFL1 = (RPMFL*WheelSpeedCalc) / Vel 
+SlipFR1 = (RPMFR*WheelSpeedCalc) / Vel 
+SlipRL1 = (RPMRL*WheelSpeedCalc) / Vel   
+SlipRR1 = (RPMRR*WheelSpeedCalc) / Vel 
+
+
+####################
+# ABS
+####################
+Recuperation_Br = Recuperation * (!ESCActive)
+
+IsBraking = min(Driver_Brake+E_Brake+AEB_Brake+Brake_Pedal_Input+Cruise_Brake+Recuperation_Br, 1) #determines if it is braking or not. made for different inputs (in case you use other e2s where it outputs brakes)
+
+if( Brake_Pedal_Input > 0 & !Driver_Brake & !E_Brake & !AEB_Brake ){   #Required to have, otherwise unsafe 
+    
+    WantedForce = MaxForce * Brake_Pedal_Input 
+    
+}
+elseif( Cruise_Brake > 0 & !Driver_Brake & !E_Brake & !AEB_Brake & !Brake_Pedal_Input ){
+    
+    WantedForce = MaxForce * Cruise_Brake
+    
+}
+elseif( Recuperation_Br > 0 & !Driver_Brake & !E_Brake & !AEB_Brake &!HandBrake){
+    
+     WantedForce = MaxForce * Recuperation_Br    
+    
+}
+
+else{ 
+    
+    WantedForce = MaxForce 
+    
+}
+local Br_FL = SlipFL1 > ABS_Slip
+local Br_FR = SlipFR1 > ABS_Slip
+local Br_RL = SlipRL1 > ABS_Slip
+local Br_RR = SlipRR1 > ABS_Slip
+
+local UnderSteerMulABS = 100
+local OverSteerMulABS = 300
+
+local UnderSteerUnBrake = UnderSteer * UnderSteerMulABS
+local OverSteerUnBrake = OverSteer * OverSteerMulABS
+
+ABS_FL = clamp(WantedForce*(Br_FL) - max(OverSteerUnBrake, 0), 0, MaxForce)
+ABS_FR = clamp(WantedForce*(Br_FR) - max(-OverSteerUnBrake, 0), 0, MaxForce)
+ABS_RL = clamp(WantedForce*(Br_RL) - max(UnderSteerUnBrake, 0), 0, MaxForce)
+ABS_RR = clamp(WantedForce*(Br_RR) - max(-UnderSteerUnBrake, 0), 0, MaxForce)
+
+
+##################
+#ESC
+#################
+ActiveESC = ((ESC_Mode == "normal") | (ESC_Mode == "sport")) & ESC  
+ActiveTCS = (Enable_TCS_N | Enable_TCS_S | Enable_TCS_W) & TCS
+SlipStart = ESC_Mode == "slip start"
+OffroadMode = ESC_Mode == "slip start"
+
+ESP = Vel > 0.8 & (ActiveESC) &!OffroadMode    #required to get some of the functions to work. ( when speed is really slow car may act really weird, so it is just a limit factor) etc.
+
+#ESCAngle = Vel * 1/( abs(SteerAngle)* C_ESC)
+  
+SlipFL = SlipFL1 < TractionConst | ((RPMFL*WheelSpeedCalc) > Vel+15) 
+SlipFR = SlipFR1 < TractionConst | ((RPMFR*WheelSpeedCalc) > Vel+15) 
+SlipRL = SlipRL1 < TractionConst | ((RPMRL*WheelSpeedCalc) > Vel+15)  
+SlipRR = SlipRR1 < TractionConst | ((RPMRR*WheelSpeedCalc) > Vel+15) 
+
+#SlipRatio = (Vel - SpeedByRPM)/Vel*100
+
+#OverSteer = (holoEntity(2):pos():z() - holoEntity(4):pos():z())/2
+#UnderSteer = abs(SteerAngle * C_steer * HullYaw^-1 * C_roll / Vel* C_speed)
+
+#Oversteer holos
+#holoPos(1,Base:toWorld( vec(DistToFront, 0, 0) ) )
+#holoPos(2,Base:toWorld( vec(-DistToRear, 0, 0) ) )
+    
+    
+#holoPos(3,Base:toWorld( vec(DistToFront + Vel, SteerAngle, 0) ) )    
+#holoPos(4,Base:toWorld( vec(-DistToRear, -Ang, 0) ) )
+#OverSteer = abs(SteerAngle * C_steer^-1 * HullYaw * C_roll / Vel* C_speed)
+
+
+
+
+#WantedAngle = Vel/(BaseLength + (Weight*(Vel*Vel)*(DistF - DistR))/(2*DistF*DistR*BaseLength))*SteerAngle 
+
+
+
+
+
+
+
+
+
+################################################
+#Braking happens here
+if( IsBraking & Vel > 10 ) { 
+    
+    BrakeFL = ABS_FL
+    BrakeFR = ABS_FR
+    BrakeRL = ABS_RL 
+    BrakeRR = ABS_RR 
+    
+    Clutch = 1  
+
+}
+
+elseif( IsBraking & Vel < 10 | LaunchControl ) {    #In case the speed is really low so no need for calculations
+    
+    BrakeFL = MaxForce  
+    BrakeFR = MaxForce 
+    BrakeRL = MaxForce 
+    BrakeRR = MaxForce
+    Clutch = 1    
+    
+}
+
+
+elseif(HandBrake){ #Just handbrakes.
+    
+    BrakeRL = MaxForce
+    BrakeRR = MaxForce
+    BrakeFL = BrakeFR = 0
+        
+}
+elseif(Launch_Clutch){
+    Clutch = 1 
+}
+
+else{
+    BrakeFL = BrakeFR = BrakeRL = BrakeRR = 0
+    Clutch = 0    
+}
+#######################
+
+
+
+
+
+
+
+
+
+    
+if(ESC & !(ESC_Mode == "sport+" | ESC_Mode == "drift") &!Clutch &!HandBrake){ 
+     
+    
+    if(OffroadMode==1 &!IsBraking &!HandBrake){
+        
+      #low speed may be more sensitive   
+        if(Vel < RequiredSpeed & SlipStart){
+            ClutchFL = SlipFL1 > 1.05   
+            ClutchFR = SlipFR1 > 1.05
+            ClutchRL = SlipRL1 > 1.05
+            ClutchRR = SlipRR1 > 1.05
+            
+            BrakeFL = ABS_FL * (SlipFL1 > 1.5)   
+            BrakeFR = ABS_FR * (SlipFR1 > 1.5)  
+            BrakeRL = ABS_RL * (SlipRL1 > 1.5)  
+            BrakeRR = ABS_RR * (SlipRR1 > 1.5)  
+                
+        }       
+        else{    #Basic offroad
+   
+            ClutchFR = SlipFR    
+            
+            ClutchFL = SlipFL 
+            
+            ClutchRL = SlipRL 
+            
+            ClutchRR = SlipRR 
+        }
+        
+    }   
+    else{
+        ClutchFL = ClutchFR = ClutchRR = ClutchRL =  0
+    }
+    
+    if( ESC_Mode == "normal" & !Warning){
+        UnderSteerThreshold = ESC_Under_N
+        UnderSteerMul = ESC_Under_Mul_N 
+        
+        OverSteerThreshold = ESC_Over_N
+        OverSteerMul = ESC_Over_Mul_N
+    }
+    elseif( ESC_Mode == "sport" & !Warning ){
+        UnderSteerThreshold = ESC_Under_S
+        UnderSteerMul = ESC_Under_Mul_S 
+        
+        OverSteerThreshold = ESC_Over_S
+        OverSteerMul = ESC_Over_Mul_S
+    }
+    elseif( Warning ){
+        UnderSteerThreshold = ESC_Under_W
+        UnderSteerMul = ESC_Under_Mul_W 
+        
+        OverSteerThreshold = ESC_Over_W
+        OverSteerMul = ESC_Over_Mul_W
+    }
+    else{
+        UnderSteerThreshold = ESC_Under_N
+        UnderSteerMul = ESC_Under_Mul_N 
+        
+        OverSteerThreshold = ESC_Over_N
+        OverSteerMul = ESC_Over_Mul_N
+    }
+
+    
+    
+    
+    if(ESP){
+
+        local Let_TCS = Vel < 25 & ActiveTCS
+        
+        #Understeer
+        local UnderSteerBrake = UnderSteer * UnderSteerMul
+        BrakeRL = clamp(-UnderSteerBrake - UnderSteerMul * UnderSteerThreshold, 0, MaxForce)
+        BrakeRR = clamp(UnderSteerBrake - UnderSteerMul * UnderSteerThreshold, 0, MaxForce)
+        ClutchRL = BrakeRL > 0 | SlipFR & Let_TCS
+        ClutchRR = BrakeRR > 0 | SlipFL & Let_TCS
+        
+        #Oversteer 
+        local OverSteerBrake = OverSteer * OverSteerMul
+        BrakeFL = clamp(OverSteerBrake - OverSteerMul * OverSteerThreshold, 0, MaxForce)
+        BrakeFR = clamp(-OverSteerBrake - OverSteerMul * OverSteerThreshold, 0, MaxForce)
+        ClutchFL = BrakeFL > 0 | SlipRL & Let_TCS
+        ClutchFR = BrakeFR > 0 | SlipRR & Let_TCS
+        
+        
+        #[
+        #Variables to make code look cleaner
+        local AEB_Ev_Let = Var_ABS_Steer > 1 #let car oversteer
+        
+        local AEB_Ev_Und = Warning*ESC_Understeer/1.7 #incase of warning do this
+        local AEB_Ev_Und_Br = Warning*ESC_Under_Brake #incase of warning do this
+        
+        local Let_Right_Ovr = HullYaw > 0 & UnderSteer < OverSteer
+        local Let_Left_Ovr =  HullYaw < 0  & UnderSteer < OverSteer
+        
+        local Let_Right_Und = HullYaw < 0 & UnderSteer > OverSteer
+        local Let_Left_Und =  HullYaw > 0 & UnderSteer > OverSteer
+        
+        local Let_TCS = Vel < 25 & ActiveTCS
+        
+        
+        ClutchRR = UnderSteer > (ESC_Understeer - AEB_Ev_Und*AEB_Ev_Let)  & Let_Right_Und #Right
+        |
+        SlipFL & Let_TCS
+            
+            
+        ClutchRL = UnderSteer > (ESC_Understeer - AEB_Ev_Und*AEB_Ev_Let) & Let_Left_Und   #Left
+        |
+        SlipFR & Let_TCS
+            
+            
+        ClutchFL = OverSteer > ESC_Oversteer & Let_Right_Ovr &!SlipFL #Right
+        |
+        SlipRL & Let_TCS
+            
+            
+        ClutchFR = OverSteer > ESC_Oversteer & Let_Left_Ovr &!SlipFR    #Left
+        |
+        SlipRR & Let_TCS 
+        
+        BrakeRR = (UnderSteer > (ESC_Understeer - AEB_Ev_Und_Br*AEB_Ev_Let)  & Let_Right_Und &!SlipRR &!IsBraking & Vel > 14)*ABS_RR  #Right
+        BrakeRL = (UnderSteer > (ESC_Understeer - AEB_Ev_Und_Br*AEB_Ev_Let) & Let_Left_Und &!SlipRL &!IsBraking & Vel > 14)*ABS_RL     #Left
+            
+                      
+        ESCActive = BrakeFR|BrakeFL|BrakeRL|BrakeRR
+
+                   
+        if( BetterSafety ){             
+            if(HullYaw >= BSConst | OverSteer >= ESC_Over_Brake & HullYaw >= BSConst/6 ){
+                BrakeFR = WantedForce
+                ClutchFR = 1  
+                ClutchRR = 1
+        
+            }
+        elseif(HullYaw <= -BSConst | OverSteer >= ESC_Over_Brake & HullYaw <= -BSConst/6 ){
+                BrakeFL = WantedForce
+                ClutchFL = 1    
+                ClutchRL = 1    
+            } #end
+        }
+            ]#
+        
+    }  
+        
+    
+       
+}
+elseif(Clutch){
+    ClutchFL = Clutch        
+    ClutchFR = Clutch 
+    ClutchRL = Clutch 
+    ClutchRR = Clutch
+}
+else{
+    ClutchFL = ClutchFR = ClutchRL = ClutchRR = 0
+}
+
+   
+
+
+if(ESC_Mode == "drift" & !IsBraking & ESC ){
+    
+    ClutchFR = ClutchFL = 1
+    
+        if(DriftModeAssist){
+    
+            if(HullYaw >= 12){
+                ClutchRR = 1
+                ClutchFL = 0
+            }
+            elseif(HullYaw <= -12){
+                ClutchRL = 1
+                ClutchFR = 0      
+            }
+            if(HullYaw >= 18){
+                BrakeRR = 1
+                BrakeFR = 1
+            }
+            elseif(HullYaw <= -18){
+                BrakeRL = 1    
+                BrakeFL = 1  
+            }    
+        }
+}
+
+
+Traction =
+    table(
+        "SlipFL" = SlipFL1,
+        "SlipFR" = SlipFR1,
+        "SlipRL" = SlipRL1,
+        "SlipRR" = SlipRR1,
+        "ESC Active" = ESCActive
+    )
+    
+
+     
+
+    
+        
+        
+
+
+
+
+
+# logs. Consider using this when needed to debug (don't forget to change it in the settings)
+if(Logs){
+    
+    #Test = (holoEntity(1):pos():z() - holoEntity(3):pos():z()) - (holoEntity(2):pos():z() -holoEntity(4):pos():z())
+    
+    holoAlpha(1,255)
+    holoAlpha(2,255)
+    holoAlpha(3,255)
+    holoAlpha(4,255)
+    
+    
+}
+
+
+

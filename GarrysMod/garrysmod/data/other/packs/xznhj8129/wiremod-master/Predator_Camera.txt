@@ -1,0 +1,154 @@
+@name Predator Ground Control
+@inputs [EGP Cam Pod FCU WeaponBus]:wirelink [Parent Chair]:entity ISRTargets:array ISRContacts CamToggle ThermalToggle ISRToggle Lock FireButton 
+@outputs Thermal CamView LockPos:vector TBear TElev RTF Fire CruiseAlt Zoom ISROn ISRCone Ops
+@persist Thermal CamView LockPos:vector Zoom CruiseAlt ISROn 
+@persist FiringCone
+@trigger CamToggle ThermalToggle ISRToggle Lock FireButton 
+if (first() | duped()) {
+    FiringCone = 20
+    Cam["Angle",angle] = ang(0,0,0)
+    Cam["Position",vector]=vec(0,0,0)
+    Cam["Distance",number]= 0
+    CruiseAlt = 10000
+    Zoom = 90
+}
+
+interval(200)
+Ops = ops()
+User = Chair:driver()
+ScreenRes=egpScrSize(Chair:driver())
+ScreenCenter=ScreenRes/2
+Cam["Activated",number] = CamView
+Cam["FLIR",number] = Thermal
+
+if (CamToggle & !CamView & ~CamToggle) {CamView=1}
+elseif (CamToggle & CamView & ~CamToggle) {CamView=0}
+if (ThermalToggle & !Thermal & ~ThermalToggle) {Thermal=1}
+elseif (ThermalToggle & Thermal & ~ThermalToggle) {Thermal=0}
+
+HitPos=Cam["HitPos",vector]
+RangeDist = round(Parent:pos():distance(HitPos))
+if (Pod["D",number] & Zoom<=10 & Zoom>1) {Zoom-=1}
+elseif (Pod["D",number] & Zoom>10) {Zoom-=10}
+if (Pod["A",number] & Zoom<10) {Zoom+=1}
+elseif (Pod["A",number] & Zoom<90) {Zoom+=10}
+if (Pod["W",number] & CruiseAlt>5000) {CruiseAlt-=500}
+if (Pod["S",number] & CruiseAlt<20000) {CruiseAlt+=500}
+Cam["FOV",number]=Zoom
+CBear = Parent:bearing(HitPos)
+CElev = Parent:elevation(HitPos)
+TBear = Parent:bearing(LockPos)
+TElev = Parent:elevation(LockPos)
+
+if (TBear< -FiringCone | TBear>FiringCone) {RTF=0}
+elseif (TElev< -FiringCone | TElev>FiringCone) {RTF=0}
+else {RTF=1}
+if (FireButton & RTF) {Fire=1}
+else {Fire=0}
+
+if (ISRToggle & ~ISRToggle) {ISROn = !ISROn}
+if (Zoom>10) {ISRCone = 5}
+else {ISRCone = Zoom/2}
+
+if (CamView) {
+    EGP:egpBoxOutline(1,ScreenCenter,vec2(810,600))
+    EGP:egpText(4,"RANGE "+RangeDist,ScreenCenter+vec2(-400,220))
+    EGP:egpSize(4,20)
+    EGP:egpText(5,"CAMPOS "+round(HitPos),ScreenCenter+vec2(-400,260))
+    EGP:egpSize(5,20)
+    EGP:egpText(6,"TARGET "+round(LockPos),ScreenCenter+vec2(-400,280))
+    EGP:egpSize(6,20)
+    EGP:egpText(7,"POS "+round(FCU["GPS",vector]),ScreenCenter+vec2(-400,240))
+    EGP:egpSize(7,20)
+    EGP:egpText(15,"FOV "+Zoom,ScreenCenter+vec2(-400,0))
+    EGP:egpSize(15,20)
+    if (Zoom<20) {EGP:egpText(25,"NFOV",ScreenCenter+vec2(-400,-20))}
+    else {EGP:egpText(25,"WIDE",ScreenCenter+vec2(-400,-20))}
+    EGP:egpSize(25,20)
+    EGP:egpText(26,"SCAN",ScreenCenter+vec2(-400,-40))
+    EGP:egpSize(26,20)
+    
+    EGP:egp3DTracker(11,LockPos)
+    if (Lock) {
+        LockPos = HitPos
+        EGP:egpText(10,"LAZE",ScreenCenter+vec2(-20,60))
+        EGP:egpSize(10,20)
+    }
+    else {EGP:egpRemove(10)}
+    if (LockPos!=vec(0,0,0)) {
+        EGP:egpCircleOutline(22,vec2(0,0),vec2(50,50))
+        EGP:egpSize(22,2)
+        EGP:egpParent(22,11)
+    }
+    else {EGP:egpRemove(22)}
+
+    if (Thermal) {EGP:egpText(12,"FLIR",ScreenCenter+vec2(-400,-300))}
+    else {EGP:egpText(12,"TV",ScreenCenter+vec2(-400,-300))}
+    EGP:egpSize(12,30)
+    EGP:egpText(13,time():toString(),ScreenCenter+vec2(240,-300))
+    EGP:egpSize(13,30)
+        
+    #crosshairs
+    EGP:egpLine(2,ScreenCenter-vec2(0,50),ScreenCenter-vec2(0,20))
+    EGP:egpLine(3,ScreenCenter+vec2(70,0),ScreenCenter+vec2(20,0))
+    EGP:egpLine(8,ScreenCenter+vec2(0,50),ScreenCenter+vec2(0,20))
+    EGP:egpLine(9,ScreenCenter-vec2(70,0),ScreenCenter-vec2(20,0))
+    EGP:egpSize(2,2)
+    EGP:egpSize(3,2)
+    EGP:egpSize(8,2)
+    EGP:egpSize(9,2)
+
+    if (RTF) {
+        EGP:egpText(14,"BORESIGHT",ScreenCenter+vec2(-40,-80))
+        EGP:egpSize(14,20)
+    }
+    else {EGP:egpRemove(14)}
+    
+    EGP:egpText(16,"BEAR "+round(CBear,1),ScreenCenter+vec2(300,-40))
+    EGP:egpSize(16,20)
+    EGP:egpText(17,"ELEV "+round(CElev,1),ScreenCenter+vec2(300,-20))
+    EGP:egpSize(17,20)
+    
+    #flight
+    EGP:egpText(18,"ALT "+round(FCU["Altitude",number]),ScreenCenter+vec2(300,0))
+    EGP:egpSize(18,20)
+    EGP:egpText(19,"VEL "+round(FCU["Speed",number]),ScreenCenter+vec2(300,20))
+    EGP:egpSize(19,20)
+    EGP:egpText(23,"FL "+CruiseAlt/100,ScreenCenter+vec2(300,40))
+    EGP:egpSize(23,20)
+    EGP:egpText(21,"ORD "+WeaponBus["Shotsleft",number],ScreenCenter+vec2(335,275))
+    EGP:egpSize(21,25)
+    
+    if (ISROn) {
+        EGP:egpText(24,"ISR MODE",ScreenCenter+vec2(-400,20))
+        EGP:egpSize(24,20)
+        EGP:egpText(27,"SIGS "+ISRContacts,ScreenCenter+vec2(-400,40))
+        EGP:egpSize(27,20)
+        for(I=1, 50) {
+            EGP:egpRemove(100+I)
+            EGP:egpRemove(50+I)
+        }
+        foreach(Key,Ent:entity = ISRTargets) {
+            EGP:egp3DTracker(100+Key,Ent:pos())
+            if (Zoom>=20) {TGTBoxSize = vec2(40,40)}
+            elseif (Zoom>3) {TGTBoxSize = vec2(100,100)}
+            else {TGTBoxSize = vec2(150,150)}
+            EGP:egpRemove(50+Key)
+            EGP:egpBoxOutline(50+Key,vec2(0,0),TGTBoxSize)
+            EGP:egpSize(50+Key,1)
+            EGP:egpParent(50+Key,100+Key)
+        }
+    }
+    elseif (~ISRToggle) {
+        EGP:egpRemove(24)
+        EGP:egpRemove(27)
+        for(I=1, 50) {
+            EGP:egpRemove(100+I)
+            EGP:egpRemove(50+I)
+        }
+    }
+        
+    #EGP:egpColor(2,TColor)
+
+}
+else {EGP:egpClear()}

@@ -1,0 +1,55 @@
+@name INS 016
+@inputs AddrRead AddrWrite DataX DataY DataZ Clk Reset Launch
+@outputs X Y Z Knots Speed Dist Hit Altitude Mul Go Bombweld
+@persist GPS:vector Table1:table Table2:table Table3:table 
+@persist Alt Go Gx Py Sz Gl Bombweld
+
+interval(80)
+    Bombweld=1
+    Alt=6000
+    Gl=8168 # MUST BE CORRECTED FOR DIFFERENT MAPS, this one Flatgrass_revoluto
+
+if (Go==1 & Launch==1) {Mul=1}
+else {Mul=0}
+
+if (Clk & ~Clk) {Table1[toString(AddrWrite),number] = DataX}
+if (Clk & ~Clk) {Table2[toString(AddrWrite),number] = DataY}
+if (Clk & ~Clk) {Table3[toString(AddrWrite),number] = DataZ}
+Tx=Table1[toString(AddrRead),number]
+Ty=Table2[toString(AddrRead),number]
+Tz=Table3[toString(AddrRead),number]
+
+Go=AddrRead <= 5 #KILL DRONE AFTER N WPT
+GPS=entity():pos()
+Gx=GPS:x()
+Py=GPS:y()
+Sz=GPS:z()
+X=Gx - Tx
+Y=Py - Ty
+if ((Dist>20000) | (Dist<-20000)) {Tz=(Tz/3)}
+if ((Dist>10000) | (Dist<-10000)) {Tz=(Tz/2)}
+Z=Sz - Tz - Alt
+Altitude=Sz+Gl
+Dist=X + Y + Z
+Knots=toUnit("knots", entity():vel():length() )
+Speed=entity():vel():length()
+#if ((Dist>15000) | (Dist<-15000)) {Alt=(Alt*2)} 
+if ((Mul==1) & (Speed<3000)) {Mul=2}
+
+if ((AddrRead==5) & (Dist<2000 & Dist>-2000)) {Z=(Sz-Tz)}
+if ((AddrRead==5) & (Dist<5000 & Dist>-5000)) {Mul=0.25}
+
+if ((Dist<500) | (Dist>-500)) {Hit=1} 
+if ((Dist>500) | (Dist<-500)) {Hit=0}
+
+if ((AddrRead==3) & (Dist<1500 & Dist>-1500)) {Bombweld=0}
+if (AddrRead>3) {Bombweld=0}
+
+
+# AddRead must be wired to an Up/Down counter gate, Wich the Increment is wired to Hit.
+# AddWrite must be wired to the device wich will feed it the Waypoints GPS parameters, telling it on wich one
+# DataX,Y and Z must be wired to your GPS-coord-memory device
+# Alt is wired to a constant value or advanced input to feed the Altitude of flight. Important.
+# X,Y,Z is for vector thrusters
+# Outputs Knots, Speed and Dist are simply for information
+# A relay is wired to Go with an advanced input, to send it off. Thruster's Mult variables are wired to the relay

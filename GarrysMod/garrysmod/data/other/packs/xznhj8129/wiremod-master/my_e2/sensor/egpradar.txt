@@ -1,0 +1,124 @@
+@name EGP radar by Unsmart
+@inputs W:wirelink Cube:entity
+@outputs 
+@persist Ang MaxDist MaxPeople Arr:array 
+@trigger
+interval(30)#runontick = bad for this, finetune for the EGP FPS convar!
+if(first())
+{
+    MaxDist=1000
+    MaxPeople=12
+    
+    #W:egpClear()
+    Ang=1
+    W:egpBox(1,0,0,512,512,255,0,0,255)#background
+    W:egpCircle(2,256,256,512,512,13,66,13,255)#circle
+   
+    #inner circle*2
+    W:egpCircle(3,512/2,512/2,512/2,512/2,255,255,255,255)#white spliter
+    W:egpCircle(4,512/2,512/2,512/2-10,512/2-10,13,66,13,255)#back to green
+   
+    #Lines
+    W:egpLine(5,256,512,256,0,150,150,150,255)#up->down
+    W:egpLine(6,0,256,512,256,150,150,150,255)#left->right
+    #hands of sweeper
+    W:egpLine(7,256,256,256,0,255,255,255,255)
+   
+    #pos info
+    W:egpText(8,round(MaxDist/2)+"",vec2(256-80,256-50),vec(100,100,100),255)
+    W:egpText(9,round(MaxDist)+"",vec2(256-200,256-50),vec(100,100,100),255)
+   
+    #render
+     
+    print("base drawn")
+   
+    
+    timer("draw",100)#max FPS
+}
+
+if(clk("draw"))
+{
+    for(I=10,MaxPeople+9)
+    {
+        W:egpCircle(I,-1,-1,10,10,0,255,255,255)
+    #    concmd("echo "+(I)+" created")
+    }
+    
+    #cover circle
+    W:egpCircle(50,-1,-1,15,15,255,0,0,255)
+    print("addons drawn")
+    
+    timer("find",50)#init timer find
+}
+
+
+
+
+if(clk("find"))
+{
+    findInSphere(entity():pos(),MaxDist)
+    findClipToClass("player")
+    #npc_*
+    #player
+    Arr=findToArray()
+    timer("find",500)#next find if the max fps is set high, use findUpdateRate()+0.05
+    #timer("find",indUpdateRate()+0.05)#uncoment me if you want fast finds, if so, comment above
+   
+    for(I=1,Arr:count())#foreach
+    {
+        Ent=Arr[I,entity]
+        Bear=Cube:bearing(Ent:pos())
+       
+    #find mul
+    Dist=clamp((Cube:pos()-Ent:pos()):length(),10,MaxDist)
+    Mul=(256/MaxDist)*Dist
+   
+    #angle math
+    RealBear= (Bear+180+(360+90))%360
+    RealBear= RealBear==0 ? -1 : RealBear
+    
+    W:egpPos(I+9,256-cos(RealBear)*Mul,256-sin(RealBear)*Mul)
+    
+    #concmd("echo "+(I+9)+" drawn")
+    
+    }
+    
+    for(I=Arr:count()+10,MaxPeople+9)
+    {
+        W:egpPos(I,-1,-1)
+        #concmd("echo "+I+" removed")
+    }
+   
+   
+   
+}
+if(clk()&!clk("find"))
+{
+    #update position, dont find new crap
+    for(I=1,Arr:count())#foreach
+    {
+        Ent=Arr[I,entity]
+        Bear=Cube:bearing(Ent:pos())
+       
+    #find mul
+    Dist=clamp((Cube:pos()-Ent:pos()):length(),10,MaxDist+10)
+    Mul=(256/MaxDist)*Dist
+   
+    #angle math
+    RealBear= (Bear+180+(360+90))%360
+    RealBear= RealBear==0 ? -1 : RealBear
+    
+    W:egpPos(I+9,256-cos(RealBear)*Mul,256-sin(RealBear)*Mul)
+    
+    #concmd("echo "+(I+9)+" updated")
+    
+    }
+}
+
+
+#hand circle
+Ang= Ang<359 ? Ang+1 : 1
+W:egpPos2(7,256+cos(Ang)*256,256+sin(Ang)*256)
+
+#render
+W:egpDraw()

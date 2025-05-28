@@ -1,0 +1,58 @@
+@name X-Ray Camera 4
+@inputs Size Depth ScreenRes DepthRes Shutter Screen:wirelink Thickness
+@outputs Progress:string 
+@persist E:entity Scanning ScreenCell RangerZ Ranger:ranger CCD:array I MinMass MaxMass Mass DepthLength RangerX RangerY ScreenRes 
+@trigger 
+runOnTick(1)
+if (first() | duped() | ~ScreenRes) {
+    E = entity()
+    Screen[1048574] = 1 # clear screen 
+    Screen[1048572] = ScreenRes
+    Screen[1048573] = ScreenRes
+    Screen[1048569] = 0 # grayscale mode
+    MinMass = 1e6
+    MaxMass = -1e6
+} 
+if (Shutter & ~Shutter) {
+    ScreenCell = I = 0
+    CCD = array()
+    Scanning = 1
+    RangerZ = 10
+    holoCreate(1)
+    holoCreate(2)
+    DepthLength = Depth / DepthRes  
+}
+while (Scanning == 1 & perf()) {
+    RangerX = (ScreenCell % ScreenRes / (ScreenRes / 2) - 1) 
+    RangerY = (floor(ScreenCell / ScreenRes) / (ScreenRes / 2) - 1) # x for y
+    Ranger = rangerOffset(E:toWorld(vec(RangerX * Size / 2, RangerY * Size / 2, RangerZ)), E:toWorld(vec(RangerX * Size / 2, RangerY * Size / 2, Depth + 10)))
+    holoPos(1, E:toWorld(vec(RangerX * Size / 2, RangerY * Size / 2, 10)))
+    holoPos(2, E:toWorld(vec(RangerX * Size / 2, RangerY * Size / 2, Depth + 10)))
+    RangerZ = E:toLocal(Ranger:position()):z()
+    if (RangerZ < Depth) {
+        if (Thickness) {
+            Mass += (DepthLength)
+            } else {
+            Mass += (DepthLength * Ranger:entity():mass() / Ranger:entity():volume()) # xray equation
+        }
+        RangerZ += DepthLength
+    } else {
+        CCD:pushNumber(Mass)
+        if (Mass > MaxMass) {MaxMass = Mass}
+        if (Mass < MinMass) {MinMass = Mass}
+        Mass = 0
+        RangerZ = 10
+        ScreenCell++
+        if (ScreenCell > ScreenRes^2) {
+            Scanning = 2
+            exit()
+        }
+    }
+}
+while (Scanning == 2 & I < ScreenRes^2 & perf()) {
+    Screen[I] = (CCD[I, number] - MinMass) * 255 / (MaxMass - MinMass)
+    I++
+}
+Progress = (ScreenCell ? round((ScreenCell * 100) / ScreenRes^2) : 0):toString() + "%"
+
+# made by Tolyzor

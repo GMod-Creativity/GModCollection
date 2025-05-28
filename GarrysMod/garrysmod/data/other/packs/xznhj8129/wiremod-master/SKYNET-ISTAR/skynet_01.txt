@@ -1,0 +1,111 @@
+@name skynet 01
+@inputs On Radar:wirelink
+@outputs Zone Threats DEFCON 
+@outputs LWon HWon LWFire HWFire LWvec:vector HWvec:vector 
+@outputs Closest:vector Closest2:vector Dist D1 D2 D3 D4 Z 
+@persist DEFCON Threats Dist
+@persist Closest:vector Closest2:vector
+@trigger 
+#DEFCON 5 TO 4 - No violent Actions
+#DEFCON 3 - Monitoring
+#DEFCON 2 - Limited Selfdefence
+#DEFCON 1 - Weapons Free, kill everything in range
+
+interval(250)
+Pos=entity():pos()
+T1=Radar["1_Ent",entity]
+T2=Radar["2_Ent",entity]
+T3=Radar["3_Ent",entity]
+T4=Radar["4_Ent",entity]
+Threats=(Radar["1",number]+Radar["2",number]+Radar["3",number]+Radar["4",number])
+
+E1=T1:pos()
+E2=T2:pos()
+E3=T3:pos()
+E4=T4:pos()
+
+L1=T1:isAlive()
+L2=T2:isAlive()
+L3=T3:isAlive()
+L4=T4:isAlive()
+
+if (L1==1) {D1=Pos:distance(E1)}
+else {D1=999999}
+if (L2==1) {D2=Pos:distance(E2)}
+else {D2=999999}
+if (L3==1) {D3=Pos:distance(E3)}
+else {D3=999999}
+if (L4==1) {D4=Pos:distance(E4)}
+else {D4=999999}
+
+if ((D1<D2 & D1<D3 & D1<D4)  & (D1!=0)) {Dist=D1
+    Closest=E1}
+elseif ((D2<D1 & D2<D3 & D2<D4)  & (D2!=0)) {Dist=D2
+    Closest=E2}
+elseif ((D3<D2 & D3<D1 & D3<D4) & (D3!=0)) {Dist=D3
+    Closest=E3}
+elseif ((D4<D1 & D4<D2 & D4<D3) & (D4!=0)) {Dist=D4
+    Closest=E4}
+else {Dist=0}
+
+    
+if (D2<Dist & (D2 > D3) & (D2 > D4)) {Closest2=E2}
+if (D3<Dist & (D3 > D2) & (D3 > D4)) {Closest2=E3}
+if (D4<Dist & (D4 > D2) & (D4 > D3)) {Closest2=E4}
+else {Closest2=E1}
+
+Zone=round(Dist/500)
+Z=12-Zone
+
+if (On>=0) {
+
+if (Threats==1 & Z<=5) {DEFCON=4}
+elseif (Threats==1 & Z<=6 ) {DEFCON=3}
+elseif (Threats==1 & Z>=7 ) {DEFCON=2}
+elseif (Threats>1 & Threats<=3 & Z<=1) {DEFCON=4}
+elseif (Threats>1 & Threats<=3 & Z<=7) {DEFCON=3}
+elseif (Threats>1 & Threats<=3 & Z>=7) {DEFCON=2}
+elseif (Threats>3 & Z<=2) {DEFCON=4}
+elseif (Threats>3 & Z<=3 & Z>2) {DEFCON=3}
+elseif (Threats>3 & Z>3 & Z<4) {DEFCON=2}
+elseif (Threats>3 & Z>=4) {DEFCON=1}
+elseif (Threats==0) {DEFCON=5}
+else {DEFCON=5}
+
+if (DEFCON<=3) {
+    TVEC1=Closest
+    TVEC2=Closest2
+    LWon=1
+    
+    if (DEFCON<3) {
+    
+        if (DEFCON==2) {LWvec=TVEC1
+            LWon=1
+        LWFire=1
+        HWon=0
+        HWFire=0
+        }
+        
+        elseif (DEFCON==1) {LWvec=TVEC2
+        HWvec=TVEC1
+        LWon=1
+        LWFire=1
+        HWon=1
+        HWFire=1}
+        else {LWon=0
+        LWFire=0
+        HWon=0
+       HWFire=0}
+    
+    }
+    
+ #   if (Threats<=2 & DEFCON<=3) {LWvec=TVEC1}
+ #   elseif (Threats>=1 & DEFCON<=3) {LWvec=TVEC2
+ #   HWvec=TVEC1}
+    
+}
+    if (DEFCON==5 | DEFCON==4) {LWon=0
+        LWFire=0
+        HWon=0
+   HWFire=0}
+}

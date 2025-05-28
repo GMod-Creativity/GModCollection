@@ -1,0 +1,109 @@
+@name Super GravGun
+@model models/weapons/w_physics.mdl
+@persist [EE OldEntity Ammo]:entity On Mouse1 Mouse2 OldMass LockAng:angle CanTD
+runOnTick(1)
+runOnChat(1)
+
+Mouse1 = owner():keyAttack1()
+Mouse2 = owner():keyAttack2()
+WType = owner():weapon():type(), AimE = owner():aimEntity()
+
+if(first() | duped())
+{
+    EE = entity(), Ammo = noentity()
+    EE:setColor(vec(128, 0, 255))
+    On = 1, OldEntity = noentity(), CanTD = 1
+    printColor(vec(255, 255, 0), "Super GravGun Enabled !")
+}
+
+if(tickClk() & Ammo & On)
+{
+    if(changed(Mouse1) & Mouse1)
+    {
+        Ammo:applyForce((owner():shootPos() + owner():eye() * 999999 - Ammo:pos()) * Ammo:mass() * 999999)
+        Ammo = noentity()
+    }
+    else
+    {
+        Length = clamp(Ammo:boxSize():length(), 80, 200) + owner():vel():length() / 5 # Adding velocity prevent object to collide with player, depending on his speed
+        Ammo:applyForce((owner():shootPos() + owner():eye() * Length - Ammo:pos()) * Ammo:mass() * 20 - Ammo:vel() * Ammo:mass())
+        TarQ = quat(LockAng)
+        CurQ = quat(Ammo)
+        Q = TarQ / CurQ
+        V = Ammo:toLocal(rotationVector(Q) + Ammo:pos())
+        Ammo:applyTorque((200 * V - 10 * Ammo:angVelVector()) * Ammo:inertia())
+    }
+}
+
+if(chatClk(owner()))
+{
+    LSA = owner():lastSaid()
+    LS  = LSA:sub(2, LSA:length()):explode(" ")
+    LS0 = LSA:index(1)
+    LS1 = LS:string(1)
+    LS2 = LS:string(2)
+    LS3 = LS:string(3)
+    LS4 = LS:string(4)
+    
+    if(LS0 == "/")
+    {
+        if(LS1 == "gravgun")
+        {
+            hideChat(1)
+            if(!On)
+            {
+                printColor(vec(255, 255, 0), "Super GravGun Enabled !")
+                On = 1
+            }
+            else
+            {
+                printColor(vec(255, 255, 0), "Super GravGun Disabled !")
+                On = 0
+            }
+        }
+    }
+}
+
+if(WType == "weapon_physcannon" & AimE:owner() == owner() & !AimE:isFrozen() & changed(Mouse1) & Mouse1 & On & !Ammo)
+{
+    AimE:applyForce((owner():shootPos() + owner():eye() * 999999 - AimE:pos()) * AimE:mass() * 999999)
+}
+
+if(WType == "weapon_physcannon" & AimE:owner() == owner() & !AimE:isFrozen() & changed(Mouse2) & Mouse2 & On & !Ammo & CanTD)
+{
+    Ammo = owner():aimEntity()
+    CanTD = 0
+    LockAng = Ammo:angles()
+    OldEntity = noentity()
+    timer("CanTDToggle", 800)
+}
+
+if(WType == "weapon_physcannon" & changed(Mouse2) & Mouse2 & On & Ammo & CanTD)
+{
+    Ammo = noentity()
+}
+
+if(WType == "weapon_physcannon" & AimE:owner() == owner() & !AimE:isFrozen() & On & !Ammo) # To prevent gravgun to pick objects, temporarily set mass to 500
+{
+    if(OldEntity != owner():aimEntity())
+    {
+        if(!OldEntity)
+        {
+            OldEntity = owner():aimEntity()
+            OldMass = OldEntity:mass()
+            OldEntity:setMass(500)
+        }
+        else
+        {
+            OldEntity:setMass(OldMass)
+            OldEntity = owner():aimEntity()
+            OldMass = OldEntity:mass()
+            OldEntity:setMass(500)
+        }
+    }
+}
+
+if(clk("CanTDToggle"))
+{
+    CanTD = !CanTD
+}

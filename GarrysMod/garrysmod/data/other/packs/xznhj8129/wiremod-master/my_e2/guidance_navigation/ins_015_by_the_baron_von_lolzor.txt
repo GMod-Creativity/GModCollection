@@ -1,0 +1,39 @@
+@name INS 015 by the Baron Von Lolzor
+@inputs AddrRead AddrWrite DataX DataY DataZ Clk Reset Launch
+@outputs X Y Z Knots Speed Dist Hit Altitude Mul
+@persist GPS:vector Table1:table Table2:table Table3:table 
+@persist Alt Go Gx Py Sz
+
+interval(100)
+    Alt=4500   # Default Altitude (Very High). Minimum yet tested sucessfully: 1500
+    Gl=0 # MUST BE CORRECTED FOR DIFFERENT MAPS, this one Flatgrass_revolution
+
+if (Go==1 & Launch==1) {Mul=1}
+else {Mul=0}
+
+if (Clk & ~Clk) {Table1[toString(AddrWrite),number] = DataX}
+if (Clk & ~Clk) {Table2[toString(AddrWrite),number] = DataY}
+if (Clk & ~Clk) {Table3[toString(AddrWrite),number] = DataZ}
+Tx=Table1[toString(AddrRead),number]
+Ty=Table2[toString(AddrRead),number]
+Tz=Table3[toString(AddrRead),number]
+
+Go=AddrRead <= 5 #KILL DRONE AFTER N WPT
+GPS=entity():pos()
+Gx=GPS:x()
+Py=GPS:y()
+Sz=GPS:z()
+X=Gx - Tx
+Y=Py - Ty
+if ((AddrRead==5) & (Dist<2000)) {Z=(Sz-Tz)}
+if ((AddrRead==5) & (Dist<5000)) {Mul=0.25}
+if (Dist<500) {Hit=1} 
+else {Hit=0}
+Z=Sz - Tz - Alt
+Altitude=Sz+Gl
+T=vec(Tx,Ty,Sz)
+Dist = T:distance(GPS)
+Knots=toUnit("knots", entity():vel():length() )
+Speed=entity():vel():length()
+if ((Mul==1) & (Speed>3000)) {Mul=0.5}  # Cruising speed
+if ((AddrRead==5) & (Launch==1) & (Dist<10000)) {Mul=0.5}

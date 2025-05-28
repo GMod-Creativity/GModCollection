@@ -1,0 +1,83 @@
+@name Virtual Wind tunnel
+@inputs E:entity Start
+@outputs AreaVector:string 
+@persist DragCoef AirDensity PhyTick Testing ForceMag Speed Xa Ya Za
+@trigger 
+# This Expression produces an "Area Vector" which is unique to the prop tested. 
+# Place the no-gravved test prop in clear space, unfrozen and link it to the
+# entity marker. Then press the "start test" numpad input. The prop should move in
+# it's x-y-z directions and then stop.
+#
+# In order to find the frontal area of the prop for use with drag equations the 
+# following equation must be used;
+#
+# FrontalArea = AreaVector:dot(positive(LocalDirectionVector))
+#
+# In words, that is the dot product of the area vector with the prop's local direction
+# vector (with the negative signs dropped). The local direction vector is the direction in
+# which the prop is or will be moving at the point of your drag calculation. For example to
+# calculate the current drag on a prop the local directionvector is given by;
+#
+# LocalDirectionVector = E:velL():normalized()
+#
+# The drag force can then be calculated using;
+# Drag = DragCoef * FrontalArea * AirDensity * E:vel():length2() * -E:vel():normalized()
+# This equation is found in my physics guide, as well as the equavalent for drag in water;
+# http://www.wiremod.com/forum/wiremod-general-chat/17874-comprehensive-gmod-physics-guide.html
+#
+runOnTick(1)
+## Constants ##
+DragCoef = 8.18205e-6
+AirDensity = 2
+PhyTick = 66.566669 # For tickrate 66 servers
+ForceMag = 200
+if (Start & ~Start) {
+    E:setMass(0.05) # Reduce mass so that acceleration is higher and the testing takes less time
+    Testing = 1
+    E:applyForce(-E:vel() * E:mass()) # Stop all translation
+    E:applyTorque(-toRad(E:angVelVector()) * E:inertia() * 1550.1) # Stop all rotation
+    exit()
+}
+if (Testing == 1) {
+    E:applyForce(E:forward() * ForceMag / PhyTick)
+    Speed = E:velL():x()
+    if (!$Speed & Speed) {
+        Xa = ForceMag / (DragCoef * AirDensity * Speed^2)
+        Testing = 2
+        exit()
+    }
+}
+if (Testing == 2) {
+    E:applyForce(-E:vel() * E:mass())
+    Testing = 3
+    exit()
+}
+if (Testing == 3) {
+    E:applyForce(E:right() * ForceMag / PhyTick)
+    Speed = E:velL():y()
+    if (!$Speed & Speed) {
+        Ya = ForceMag / (DragCoef * AirDensity * Speed^2)
+        Testing = 4
+        exit()
+    }
+}
+if (Testing == 4) {
+    E:applyForce(-E:vel() * E:mass())
+    Testing = 5
+    exit()
+}
+if (Testing == 5) {
+    E:applyForce(E:up() * ForceMag / PhyTick)
+    Speed = E:velL():z()
+    if (!$Speed & Speed) {
+        Za = ForceMag / (DragCoef * AirDensity * Speed^2)
+        Testing = 6
+        exit()
+    }
+}
+if (Testing == 6) {
+    E:applyForce(-E:vel() * E:mass())
+    Testing = 7
+    AreaVector = vec(Xa, Ya, Za):toString()
+    exit()
+}

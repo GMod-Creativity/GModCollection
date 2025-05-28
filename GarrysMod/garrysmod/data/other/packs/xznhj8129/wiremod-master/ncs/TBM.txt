@@ -1,0 +1,83 @@
+@name Tactical Ballistic Missile
+@inputs Align Arm Launch Target:vector Warhead:wirelink YieldMode AirburstMode
+@outputs Vector:vector MulV MulT Dist Phase Alt
+@persist Phase InitDist Detonated OffsetVec:vector I Launched T:vector WHMode Airburst
+@trigger Align
+interval(I)
+
+E = entity()
+Pos = E:pos()
+
+if (Arm & !Launched) {
+    if (Align) {
+        T = Target
+        Airburst = AirburstMode
+        WHMode = YieldMode
+    }
+    if (Launch) {Launched = 1}
+}
+
+if (Launched & !Detonated) {
+    I = 10
+    
+    if (WHMode==0) { #1kt
+        Warhead["YieldMode",number]=0
+        FuzeHeight = 300
+    }
+    elseif (WHMode==1) { #5kt
+        Warhead["YieldMode",number]=1
+        FuzeHeight = 400
+    }
+    elseif (WHMode==2) { #10kt
+        Warhead["YieldMode",number]=2
+        FuzeHeight = 500
+    }
+    
+    if (Phase!=3) {
+        D = Pos-T
+        A3 = toDeg(atanr(D:y(),D:x()))
+        VDx = cos(A3)*(FuzeHeight*2)
+        VDy = sin(A3)*(FuzeHeight*2)
+        OffsetVec = T-vec(VDx,VDy,0)
+    }
+    
+    Dist = vec(Pos:x() - T:x(),Pos:y() - T:y(),0):length()
+    RD = $Dist
+    X=Pos:x() - OffsetVec:x()
+    Y=Pos:y() - OffsetVec:y()
+    if (Dist>(InitDist*0.9)) {AltMod = Dist, Phase = 1}
+    elseif (Dist>(InitDist*0.4)) {AltMod = Dist/3, Phase = 2}
+    else {AltMod = FuzeHeight+(Dist/100), Phase = 3}
+    Z=Pos:z() - T:z() - AltMod
+    Vector = vec(X,Y,Z)
+    
+    Altimeter = rangerOffset(10000, entity():pos()-vec(0,0,50), vec(0,0,-1))
+    Ranger = Altimeter:position()
+    Bounds = vec2(-16000,16000)
+    if (inrange(Ranger:x(), -16000, 16000) & Ranger!=vec(0,0,0)) {Z = Ranger:z()} 
+    else {Z = T:z()}
+    Alt = entity():pos():z()-Z
+    
+    if (Phase >= 2) {Warhead["Arm",number] = 1}
+    
+    if (Phase == 3) {
+        if (Airburst & (Alt+entity():vel():z()/10)<=FuzeHeight) {Warhead["Detonate",number] = 1, Detonated = 1}
+        elseif (Alt<=100 | RD>0) {Warhead["Detonate",number] = 1, Detonated = 1}
+        else {Warhead["Detonate",number] = 0}
+    }
+    
+    MulT = 1
+    MulV = 1
+}
+else {
+    X=Pos:x() - T:x()
+    Y=Pos:y() - T:y()
+    Dist = vec(X,Y,0):length()
+    
+    I = 250
+    MulT = 0
+    MulV = 0
+    InitDist = Dist
+    Phase = 0}
+
+

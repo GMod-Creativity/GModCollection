@@ -1,0 +1,119 @@
+@name E2 Fighter
+@inputs Target:vector GroundTarget:vector RadarTarget:entity Home:vector Clk Launch Stage Abort Reset Launched1 Launched2
+@outputs Mul Go Ok Vec:vector Dist Speed Altitude Search Lock Splash GPS:vector HomeSet RollT FiringAngle
+@persist Targetpos:vector Dist
+@trigger Clk 
+
+#[
+Ground-Air Radio: Channel 4
+1: Launch
+2: Clk
+3: Reset
+4: Target X
+5: Target Y
+6: Target Z
+7: 
+
+Air-Ground Radio: Channel 5
+1: Go
+2: Lock
+3: Splash (Missiles Launched)
+4: Distance
+5: Speed
+6: Altitude
+7: HomeSet
+8: Stage (Up/Down Counter)
+
+Modes:
+0: Air-Air
+1: Combat Air Patrol
+2: Manual bombing
+3: Precision bombing
+]#
+
+
+if (Reset) {reset()}
+if (Launch) {I=50}
+else {I=250}
+interval(I)
+
+E=entity()
+GPS=entity():pos()
+Gx=GPS:x()
+Py=GPS:y()
+Sz=GPS:z()
+BeginLanding = 10000
+LandingOffset = 500
+AltCutoff = 200
+MinAlt= 5000
+Gl = Home:z()
+TgtAlt = Target:z()-Gl
+Lock = RadarTarget:id()!=0
+HomeSet = Home!=vec(0,0,0)
+Targetpos = Target
+
+if (Launch) {
+    if (Go & Launch & Speed>=3000) {Mul=0.5}
+    elseif (Go & Launch & Speed<3000) {Mul=2}
+    
+    if (Go & Stage & Dist<(BeginLanding/2)) {Mul=Dist/BeginLanding}
+    if (Go==0 | Stage>1 | Launch==0 | (Stage & Altitude<AltCutoff)) {Mul=0}
+    
+    Go=Stage <= 1 #KILL DRONE AFTER N WPT
+    
+    if (!Stage) {
+        Tx=Targetpos:x()
+        Ty=Targetpos:y()
+        Tz=Targetpos:z()
+    }
+    else {
+        Tx=Home:x()
+        Ty=Home:y()
+        Tz=Home:z()
+    }
+    
+    Dist=GPS:distance(vec(Tx,Ty,GPS:z()))
+    if (TgtAlt>MinAlt & !Stage) {CruiseAlt=TgtAlt}
+    else {CruiseAlt=MinAlt}
+    if (Stage & Dist<=BeginLanding) {Alt=(Dist/4) + LandingOffset}
+    else {Alt=CruiseAlt}
+    Altitude=Sz-Gl
+    AltDiff=Altitude-Alt
+    
+    RadarBearing = E:bearing(RadarTarget:pos())
+    RadarElev = E:elevation(RadarTarget:pos())
+    FiringAngle = (RadarBearing < 20 & RadarBearing > -20) & (RadarElev < 20 & RadarElev > -20)
+    
+    if (Alt>MinAlt) {Z = Sz - Tz}
+    else {Z=AltDiff*5}
+    if (Lock & !Stage) {
+        X = Gx-RadarTarget:pos():x()
+        Y = Py-RadarTarget:pos():y()
+        if (Dist<15000) {Z = Sz - Tz}
+        else {Z=AltDiff*5}
+    }
+    else {
+        X=Gx - Tx
+        Y=Py - Ty
+        Z=AltDiff*5
+    }
+    Vec=vec(X,Y,Z)
+    Speed=entity():vel():length()
+    
+    if (Go & !Stage & Dist<25000) {Search=1}
+    else {Search=0}
+    if (Go & !Stage & Lock & Dist<12500 & FiringAngle) {Splash=1} 
+    else {Splash=0}
+    
+    Expended = Launched1 & Launched2
+    if (Dist<1000 | Abort | Expended) {Ok=1} 
+    else {Ok=0}
+    RollV = E:angVel():roll() 
+    if (Go) {RollT = (RollV) + E:angles():roll()}
+    else {RollT = 0}
+}
+else { 
+    Mul = 0
+    Go = 0
+    RollT = 0
+}

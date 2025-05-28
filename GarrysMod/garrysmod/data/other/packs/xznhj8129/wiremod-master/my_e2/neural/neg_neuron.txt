@@ -1,0 +1,152 @@
+@name NeandertalNeuron
+@inputs Go SensData GNB MemGNB WinLose
+@outputs Action X Y Remember NewGNB Waiting Ready
+@outputs Stage NnGNB LastAction #IC Random LastAction
+@persist IC Action PX PY NnGNB Stage LastAction
+@trigger Go WinLose
+
+#interval(1000)
+#X=SensData
+#Y=Action
+#Data=Weight
+#GNB=Good/Neutral/Bad
+# GNB
+# MemGNB
+# NewGNB
+# NnGNB
+#
+Random=round(random(1,9))
+Data=SensData#round((SensData/100))
+RATE=0.5
+if (Stage==3) {Waiting=1}
+else {Waiting=0}
+
+#STAGE 0
+if (Stage==0) {Ready=1}
+if (Stage==0 & Go==1) {Remember=0
+    LastAction=IC
+    NewGNB=0
+    IC=0
+    Stage=Stage+1
+    }
+
+#STAGE 1
+if (Stage==1) {Ready=0
+    IC=1
+X=Data
+Y=IC
+Stage=Stage+1
+NnGNB=0
+}
+
+#STAGE 2
+elseif (Stage==2) {interval(100)
+    #STAGE 3 - DECISION
+    #GOOD 
+    if (MemGNB>=NnGNB & Action!=LastAction) {Action=IC
+    PX=X
+    PY=Action
+    NnGNB=MemGNB
+    Stage=Stage+1
+    }
+    #UNKNOWN OR ALREADY DONE, RANDOMIZE
+elseif (MemGNB==0 | (MemGNB>=NnGNB & Action==LastAction)) {Action=Random
+    PX=X
+    PY=Random
+    NnGNB=MemGNB
+    Stage=Stage+1
+    }
+    #BAD/GO OVER
+    
+elseif (MemGNB<=NnGNB | MemGNB==NnGNB | MemGNB<=0) {IC=Random
+    Y=IC
+    if (IC>=63) {IC=1}
+    }
+}
+
+#STAGE 4 -WAIT FOR RESULT
+elseif (Stage==3) {interval(100)
+    if (WinLose==1) {Stage=Stage+1}
+    elseif (WinLose== -1) {reset()}
+    else {reset()}
+    #if (GNB!=NnGNB | Data!=PX) {Stage=Stage+1}
+}
+
+#STAGE 5 - MEMORY UPDATE
+elseif (Stage==4) { 
+    #GOOD
+    if (GNB>=NewGNB) {X=PX
+    Y=PY
+    NewGNB=MemGNB+(2*RATE)
+    Remember=1
+    Stage=0
+    }
+    #MEH
+    elseif (GNB==NewGNB) {X=PX
+    Y=PY
+    NewGNB=MemGNB+RATE
+    Remember=1
+    Stage=0
+    }
+    #BAAAAAAD!!
+    elseif (GNB<=NewGNB) {X=PX
+    Y=PY
+    NewGNB=MemGNB-(4*RATE)
+    Remember=1
+    Stage=0
+    }
+}
+else {Remember=0
+    NewGNB=0}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Associate Value X with 0-8 (Try)
+# Good= Memory[Value,number] = Try
+# Bad= Next, if all bad start over
+# Rate=Learning rate [sic]
+#
+# see {Data=Sensory input from 1
+#
+#
+#
+# remember{NeuralMem[Data]=Action}
+# if mem empty, try else {Out=NMem[Data]=Action]
+#
+#
+# try{ 
+# Out=Try
+# NeuralMemory = Try}
+# 
+# response{
+# In=1 | 0 | -1
+# SensoryMemory= In,SensData,SensNum}
+# 
+# if In=1 then {Out=NeuralMemory
+# 
+#
+#
+#
+#Ram[AddrWrite,number] = Data
+#Reset {Ram=array()}
+#Out=Ram[AddrRead,number]
+

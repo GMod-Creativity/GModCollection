@@ -1,0 +1,188 @@
+@name Instant Car/Plane
+@inputs 
+@outputs Attack1 Attack2 Reload Alt Space Sprint Active Always10 Always100 Always1000 Always10000
+@persist [E P EW EWD]:entity 
+@persist [ENTS ENTS2]:array
+@persist [Index Engine First Speed AP Flying Weight]
+@persist [Name]:string
+@persist [Ang]:angle
+@persist [Pos APOS]:vector
+@trigger 
+Active = 1
+Always10 = 10
+Always100 = 100
+Always1000 = 1000
+Always10000 = 10000
+interval(100) 
+runOnChat(1) 
+ENTS2 = E:getConstraints()
+EWD = EW:driver()
+if(first()){
+    E = entity()
+    P = owner()
+    EW = E:isConstrainedTo()
+    ENTS = E:getConstraints()
+    ENTS[ENTS:count()+1,entity] = E
+    Speed = 250
+}
+Chat = chatClk(EWD)
+if(changed(ENTS2:count())){
+    hint(ENTS2:count()+" Entities Indexed",10)
+    ENTS = E:getConstraints()
+    ENTS[ENTS2:count()+1,entity] = E
+}
+if(EWD){
+    First = 1
+    if(changed(EWD)&EWD){
+        Controls ="
+        --Controls--
+        Hold 'L' and press 'P' to turn on engine.
+        WASD - Move.
+        Aim your cursor to steer.
+        Hold 'L' and press 'O' to configure Auto-Pilot.
+        /pos X Y Z - to change position Auto-Pilot flies to.
+        /speed [number] - changes speed multiplier. Default is 100
+        "
+    }
+    if(changed(EWD:keyPressed("P"))&EWD:keyPressed("P")&EWD:keyPressed("L")&!Engine){
+        EW:soundPlay(2,0,"vehicles/airboat/fan_motor_start1.wav")
+        EW:soundPlay(1,0,"vehicles/airboat/fan_blade_idle_loop1.wav")
+        EW:hintDriver("Engine Started Up!",10)
+        Engine = 1
+        soundStop(3)
+    }elseif(changed(EWD:keyPressed("P"))&EWD:keyPressed("P")&EWD:keyPressed("L")&Engine){
+    EW:soundPlay(3,0,"vehicles/airboat/fan_motor_shut_off1.wav")
+    EW:hintDriver("Engine Stopped!",10)
+    Engine = 0
+    soundStop(1)
+    soundStop(2)
+}
+    if(changed(EWD:keyPressed("O"))&EWD:keyPressed("O")&EWD:keyPressed("L")&!AP){
+        AP = 1
+        EW:hintDriver("Auto-Driver Turned On!",10)
+        APOS = P:aimPos()
+    }elseif(changed(EWD:keyPressed("O"))&EWD:keyPressed("O")&EWD:keyPressed("L")&AP){
+    AP = 0
+    EW:hintDriver("Auto-Driver Turned Off!",10)
+}
+    if(Chat&EWD:lastSaid():explode(" "):string(1) == "/pos"){
+        local X = EWD:lastSaid():explode(" "):string(2):toNumber()
+        local Y = EWD:lastSaid():explode(" "):string(3):toNumber()
+        local Z = EWD:lastSaid():explode(" "):string(4):toNumber()
+        Pos = vec(X,Y,Z)
+        EW:printDriver("Positioned "+X+Y+Z)
+    }
+    if(Chat&EWD:lastSaid():explode(" "):string(1) == "/speed"){
+        Speed = EWD:lastSaid():explode(" "):string(2):toNumber()
+        EW:printDriver("Changed speed to: "+Speed)
+    }
+    if(P:keyWalk()){
+        Alt = 1
+    }else{
+    Alt = 0
+}
+    if(P:keySprint()){
+            Sprint = 1
+        }else{
+        Sprint = 0
+}
+    if(P:keyAttack1()){
+            Attack1 = 1
+        }else{
+        Attack1 = 0
+}
+    if(P:keyAttack2()){
+            Attack2 = 1
+        }else{
+        Attack2 = 0
+}   
+    if(P:keyJump()){
+            Space = 1
+        }else{
+        Space = 0
+}
+    if(P:keyWalk()){
+            Alt = 1
+        }else{
+        Alt = 0
+}
+    if(Engine){
+        soundPitch(1,((EW:vel():length()/25)*3+80))
+        if(AP){
+            if(Pos){
+                for(I = 1,ENTS:count()){
+                    Ang = (Pos-ENTS[I,entity]:pos()+ENTS[I,entity]:massCenterL()):toAngle()
+                    ENTS[I,entity]:applyForce(EW:forward()*(Speed*(ENTS[I,entity]:mass()%80+(ENTS[I,entity]:vel():length()%50))))
+                    ENTS[I,entity]:setAng(Ang)
+                } 
+            }elseif(!Pos){
+            for(I = 1,ENTS:count()){
+                Ang = (APOS-ENTS[I,entity]:pos()+ENTS[I,entity]:massCenterL()):toAngle()
+                    ENTS[I,entity]:applyForce(EW:forward()*(Speed*(ENTS[I,entity]:mass()%80+(ENTS[I,entity]:vel():length()%50))))
+                    ENTS[I,entity]:setAng(Ang)
+                } 
+        }
+        }
+        if(!AP){
+            if(Flying){
+                if(EW:vel():length()<=750){
+                    Flying = 0
+                }
+                    }
+            if(EWD:keyForward()){
+                for(I = 1,ENTS:count()){
+                    ENTS[I,entity]:applyForce(EW:toWorld(vec(0,(Speed*(ENTS[I,entity]:mass()%80+(ENTS[I,entity]:vel():length()%50))),0))-EW:pos())
+                } 
+        }
+            if(EWD:keyBack()){
+                for(I = 1,ENTS:count()){
+                    ENTS[I,entity]:applyForce(EW:toWorld(vec(0,(-Speed*(ENTS[I,entity]:mass()%80+(ENTS[I,entity]:vel():length()%50))),0))-EW:pos())
+                }
+        }
+            if(EWD:keyLeft()){
+                for(I = 1,ENTS:count()){
+                    ENTS[I,entity]:applyAngForce(ang(0,50,0)*(((Speed-(EW:vel():length()%10))%75)*ENTS[I,entity]:mass()))
+                }
+        }
+            if(EWD:keyRight()){
+                for(I = 1,ENTS:count()){
+                    ENTS[I,entity]:applyAngForce(ang(0,-50,0)*(((Speed-EW:vel():length()%10)%75)*ENTS[I,entity]:mass()))
+                }
+        }
+            if(EWD:keyPressed("UP")){
+                for(I = 1,ENTS:count()){
+                    EW:applyAngForce(ang(0,0,50)*(((Speed+EW:vel():length()%25)%75)*ENTS[I,entity]:mass()))
+                    if(EW:vel():length()>=1000){
+                        Flying =1
+                    }
+                }
+        }   
+            if(Flying&EWD:keyPressed("UP")){
+                for(I = 1,ENTS:count()){
+                    ENTS[I,entity]:applyForce(vec(0,0,Speed*(EW:mass()%75*(ENTS[I,entity]:vel():length()%10))))
+                        if(EW:vel():length()<=750){
+                            Flying = 0
+                        }
+                }
+                    }
+            if(EWD:keyPressed("DOWN")){
+                for(I = 1,ENTS:count()){
+                    EW:applyAngForce(ang(0,0,-50)*(((Speed+EW:vel():length())%75)*ENTS[I,entity]:mass()))
+                }
+        }
+            if(EWD:keyPressed("LEFT")){
+                for(I = 1,ENTS:count()){
+                    ENTS[I,entity]:applyAngForce(ang(-50,0,0)*(((Speed-EW:vel():length()%50)%75)*ENTS[I,entity]:mass()))
+                }
+        }
+            if(EWD:keyPressed("RIGHT")){
+                for(I = 1,ENTS:count()){
+                    ENTS[I,entity]:applyAngForce(ang(50,0,0)*(((Speed-EW:vel():length()%50)%75)*ENTS[I,entity]:mass()))
+                }
+        }
+    } 
+    }
+}
+if(duped()){
+    reset()
+}

@@ -1,0 +1,373 @@
+@name lib/camolib
+@persist [LT Database]:table
+@persist [Camo CamoKey]:string
+@persist [Keys Props PropStorage]:array
+@persist [Spawning Count CountM NoName MatMode]:number
+@persist [Interval AutoPaint RemoveReset Wait]:number
+@persist [GetProps GetChildren SortProps PaintProps ChangeMat Reset]:number
+
+#----------------------------------- Library made by TwistedTail - Version 1.3 -----------------------------------#
+#------------------------------------------ Updates for this library: --------------------------------------------#
+#--------------------- https://github.com/TwistedTail/Public-E2s/tree/master/Camo%20E2%20V1 ----------------------#
+#--------- Remember to create a folder called "lib" inside your Expression2 folder before saving this E2 ---------#
+#---------- This E2 doesn't has to be spawned into your contraption. I also suggest you to not edit it -----------#
+
+timer("GetProps", 500)
+
+Spawning = 1
+LT = table("[255,0,0]" = "R", "[0,255,0]" = "G", "[0,0,255]" = "B", "[0,255,255]" = "C", "[255,255,0]" = "Y", "[255,0,255]" = "M")
+Keys = array("R","G","B","C","Y","M")
+
+function waitForSpawn()
+{
+    if (holoCanCreate())
+    {
+        Wait++
+        if (Wait >= 15) { Spawning = 0 }
+    }
+    else
+    {
+        Wait = 0
+    }
+}
+
+#Function to get the name of the camo that has the current map on its map list
+function string getMapCamo()
+{
+    local Map = map()
+    
+    foreach (I, C:table = Database)
+    {
+        local M = C["Maps", table]
+        
+        if (M[Map,number]){ return I }
+    }
+    return ""
+}
+
+function showMessage(Message:string)
+{
+    switch (Message)
+    {
+        case "ForcedReset",
+            printColor(vec(200,0,0),"[Camo] ", vec(255), "Forced reset detected!")
+            printColor(vec(200,0,0),"[Camo] ", vec(255), "Remember to use !cr to restart the E2 properly.")
+        break
+        case "CamoNotFound",
+            if (!Camo) { break }
+            
+            printColor(vec(200,0,0),"[Camo] ", vec(255), "Camouflage "+Camo+" not found!")
+            printColor(vec(200,0,0),"[Camo] ", vec(255), "Write !cl to list all the available camouflages.")
+        break
+        case "ListCamo",
+            local Msg   = array(vec(200,0,0),"[Camo] ", vec(120,255,120), "Available camouflages:\n", vec(255))
+            local Text  = ""
+            local Count = Database:count()
+                    
+            foreach (I, K:string = Database:keys()){ 
+                Text += K
+                if (I != Count){ Text += ", " }
+            }
+            Msg:pushString(Text)
+                    
+            printColor(Msg)
+        break
+    }
+}
+
+function number checkChildren()
+{
+    #ifdef propSpawn(string, number)
+        Prop = propSpawn("models/hunter/plates/plate.mdl", 1)
+        Prop:parentTo(entity())
+        
+        Result = entity():children()[1, entity] ? 1 : 0
+        
+        Prop:propDelete()
+        
+        return Result
+    #else
+        return 0
+    #endif
+}
+
+#Just in case the server doesn't has a decent wire version
+function array getAllProps()
+{    
+    findIncludePlayerProps(owner())
+    findExcludeEntity(owner())
+    findByClass("*")
+    
+    return findToArray()
+}
+
+#We get all the constraints, filtering the parented ones to avoid duplicates
+function entity:getProps()
+{
+    GetProps = 0
+    
+    #ifdef entity:children()
+        if (!checkChildren()){ Props = getAllProps() timer("SortProps", 500) return }
+        
+        local Array = This:getConstraints()
+        
+        Array:pushEntity(This)
+        foreach (I, E:entity = Array) { 
+            if (!E:parent()){ Props:pushEntity(E) } 
+        }
+        
+        timer("GetChildren", 500)
+    #else
+        Props = getAllProps()
+        timer("SortProps", 500)
+    #endif
+}
+
+#Function to get all the props parented to the "ancestor" props in a tree
+function array array:getChildren()
+{    
+    #ifdef entity:children()
+        Children = This
+        Found    = array()
+        
+        while (perf(100) & Children) {
+            foreach (I, E:entity = Children) { Found = Found:add(E:children()) }
+            Children = Found
+            This     = This:add(Found)
+            Found    = array()
+        }
+        
+        if (!Children:count()) { Count = GetChildren = 0 timer("SortProps", 500) return This }
+    #else
+        Count = GetChildren = 0
+        return array()
+    #endif
+}
+
+#Function to sort the props by their color
+function array:sortProps()
+{
+    while (perf(100) & Count <= This:count())
+    {
+        Count++
+        local E = This[Count, entity]
+        local C = E:getColor():toString()
+        local M = E:getMaterial()
+        local S = LT[C, string]
+        
+        if (S) { E["C", string] = S E["Mat", string] = M PropStorage:pushEntity(E) }
+    }
+    
+    if (Count >= This:count())
+    {
+        if (AutoPaint) { Camo = getMapCamo() }
+        
+        Count = SortProps = 0
+        timer("PaintProps", 500)
+    }
+}
+
+#Function to change the material of the entities
+function setMaterial(S:string, N:number)
+{
+    local DB = Database[S, table]
+    
+    while (perf(100) & CountM <= PropStorage:count())
+    {
+        CountM++
+        local E = PropStorage[CountM, entity]
+        local C = E["C", string]
+        local M = DB["Mat"+C, string]
+        
+        if (M != "na") { E:setMaterial(M) }
+    }
+    
+    if (CountM >= PropStorage:count()) { MatMode = N ChangeMat = CountM = 0 return }
+}
+
+#Function to return the material of the entities to what it had when it was first detected
+function resetMaterial(N:number)
+{    
+    while (perf(100) & CountM <= PropStorage:count())
+    {
+        CountM++
+        local E = PropStorage[CountM, entity]
+        local M = E["Mat", string]
+        
+        E:setMaterial(M)
+    }
+    
+    if (CountM >= PropStorage:count()) { MatMode = N ChangeMat = CountM = 0 return }
+}
+
+#Function that will decide if the material will be changed, resetted or kept the same
+function changeMaterial(S:string)
+{
+    local DB = Database[S, table]
+    local MM = DB["Mat", number]
+    
+    if (!ChangeMat) { return }
+    if (!DB) { ChangeMat = 0 return }
+    
+    switch (MatMode - MM)
+    {
+        case 1, resetMaterial(MM) break
+        case -1, setMaterial(S, MM) break
+        case 0, if (MatMode) { setMaterial(S, MM) }else{ MatMode = MM ChangeMat = 0 } break
+    }
+}
+
+#Function to change the color of the entities
+function paintProps(S:string)
+{
+    local DB = Database[S, table]
+    
+    if (!PaintProps) { return }
+    if (!DB) { showMessage("CamoNotFound") PaintProps = 0 return }
+    
+    while (perf(100) & Count <= PropStorage:count())
+    {
+        Count++
+        local E = PropStorage[Count, entity]
+        local C = E["C", string]
+        local V = DB[C, vector]
+        
+        if (V) { E:setColor(V) }
+    }
+    
+    if (Count >= PropStorage:count()) { PaintProps = Count = 0 return }
+}
+
+#Function to do the actions called by the different available chat commands
+function chatCommand()
+{
+    local Said = lastSaid():lower():explode(" ")
+    
+    switch (Said[1, string])
+    {
+        case "!c", hideChat(1) Camo = Said[2, string] Interval = PaintProps = ChangeMat = 1 break
+        case "!cl", hideChat(1) showMessage("ListCamo") break
+        case "!cr", hideChat(1) Camo = "undo" Reset = Interval = PaintProps = ChangeMat = 1 break
+    }    
+}
+
+function clkAction()
+{
+    if (clkName() == "interval"){ return }
+    
+    switch (clkName())
+    {
+        case "GetProps", Interval = GetProps = 1 break
+        case "GetChildren", GetChildren = 1 break
+        case "SortProps", SortProps = 1 break
+        case "PaintProps", PaintProps = ChangeMat = 1 break
+    }
+}
+
+#Function to generate a super basic set of colors based on a given vector color
+function array basicCamo(R:vector)
+{
+    local G = round(R * vec(1.18))
+    local B = round(R * vec(0.82))
+    local C = round(R * vec(1.05,1.01,1.1))
+    local Y = round(C * vec(1.22))
+    local M = round(C * vec(0.9))
+        
+    return array(R, G, B, C, Y, M)
+}
+
+#Function to add maps to set the camo automatically
+function maps(A:array) { Database[CamoKey, table]["Maps", table] = invert(A) }
+
+#Function to set all the colors of the camouflage to the same
+function colors(V:vector)
+{
+    if (!V){ return }
+    
+    Database[CamoKey, table]["R", vector] = V
+    Database[CamoKey, table]["G", vector] = V
+    Database[CamoKey, table]["B", vector] = V
+    Database[CamoKey, table]["C", vector] = V
+    Database[CamoKey, table]["Y", vector] = V
+    Database[CamoKey, table]["M", vector] = V
+}
+
+function colors(C:string, V:vector)
+{
+    if (!invert(Keys)[C, number]){ return }
+    if (!V){ return }
+    
+    Database[CamoKey, table][C, vector] = V
+}
+
+#Function to define the colors of the last added camo with an array
+function colors(A:array)
+{
+    local C = min(A:count(), 6)
+    
+    if (!C){ return }
+    
+    for (I = 1, C){
+        local M = Keys[I, string]
+        local V = A[I, vector]
+        
+        if (!V){ continue }
+        
+        Database[CamoKey, table][M, vector] = V
+    }
+}
+
+#Function to define a new material for all the painted props on the last added camo
+function material(M:string)
+{
+    Database[CamoKey, table]["Mat", number]  = 1
+    Database[CamoKey, table]["MatR", string] = M
+    Database[CamoKey, table]["MatG", string] = M
+    Database[CamoKey, table]["MatB", string] = M
+    Database[CamoKey, table]["MatC", string] = M
+    Database[CamoKey, table]["MatY", string] = M
+    Database[CamoKey, table]["MatM", string] = M
+}
+
+function material(C:string, M:string)
+{
+    if (!invert(Keys)[C, number]){ return }
+    
+    Database[CamoKey, table]["Mat", number]   = 1
+    Database[CamoKey, table]["Mat"+C, string] = M
+}
+
+#Non family friendly function to define a new material for all the painted props on the last added camo
+function material(A:array)
+{
+    local C = min(A:count(), 6)
+    
+    if (!C){ return }
+    
+    Database[CamoKey, table]["Mat", number] = 1
+    
+    for (I = 1, C){
+        local M = Keys[I, string]
+        local V = A[I, string]
+        
+        Database[CamoKey, table]["Mat"+M, string] = V
+    }
+}
+
+#Function to add a new camouflage to the database
+function addCamo(S:string) {
+    CamoKey = S:replace(" ","")
+    
+    if (!CamoKey | CamoKey == "undo") { NoName++ CamoKey = "camo"+NoName }
+    
+    Database[CamoKey, table] = table()
+        material("na")
+        Database[CamoKey, table]["Mat", number] = 0
+}
+
+CamoKey = "undo" Database[CamoKey, table] = table()
+    colors(array(vec(255,0,0), vec(0,255,0), vec(0,0,255), vec(0,255,255), vec(255,255,0), vec(255,0,255)))
+    
+addCamo("clean")
+    colors(vec(255))
+    material("")

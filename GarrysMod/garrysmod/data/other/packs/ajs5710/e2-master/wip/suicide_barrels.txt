@@ -1,0 +1,244 @@
+@name 
+@inputs 
+@outputs 
+@persist Debug RangerHeight HoloI UseWalls
+@persist BoundA:vector BoundB:vector
+@persist BarrelDims:vector NumPlayers
+@trigger 
+
+if (first()){
+    #include "e2shared/generated/array_lib"
+    #include "github/lib/blocks"
+}
+
+if (first()){
+    runOnTick(1)
+    
+    NumPlayers = 5 #how many players can play
+    
+    BarrelDims = vec(0,0,0) #dimensions of a barrel
+    RangerHeight = 150 #height at which the rangers to place barrels start
+    HoloI = 0
+    
+    UseWalls = 1
+    Debug = 0
+    
+    #returns the index of the created holo
+    function number createHolo(HoloModel:string){
+        HoloI += 1
+        holoCreate(HoloI)
+        holoModel(HoloI, HoloModel)
+        
+        return HoloI
+    }
+    
+    #returns 1 if it was able to place the barrel
+    #returns 0 if the barrel placement was not in the "map"
+    #returns -1 if unable to spawn prop
+    #returns -2 if unable to create holo
+        #starts a ranger from height of RangerHeight (height above origin Z)
+    function number placeRandomEmptyBarrel(Origin:vector, X, Y){
+        if (!propCanCreate()){
+            return -1
+        }
+        if (!holoCanCreate()){
+            return -2
+        }
+        
+        local PlaceLocation = Origin + randvec(vec(0,0,0), vec(X, Y, 0)) + vec(0,0,RangerHeight)
+        RangerData = rangerOffsetHull(RangerHeight + 500, PlaceLocation, vec(0,0,-1), BarrelDims)
+        
+        #this check doesn't work currently but is meant to determine when the ranger location starts in a building
+        if (RangerData:distance() == 0){
+            return 0
+        }
+        
+        #never collided with anything
+        if (!RangerData:hit()){
+            return 0
+        }
+        
+        local Pos = RangerData:pos()
+        local Angle = RangerData:hitNormal():toAngle() + ang(90,0,0)
+        local Prop = propSpawn("models/props_c17/oildrum001.mdl", Pos, Angle, 1)
+        Prop:setAlpha(0) #make the prop invisible
+
+        local Holo = createHolo("models/props_c17/oildrum001_explosive.mdl")
+        holoPos(Holo, Pos)
+        holoScaleUnits(Holo, holoEntity(Holo):boxSize())
+        holoAng(Holo, Angle)
+        holoAng(Holo, Prop:toWorld(ang(0,random(360),0)))
+        holoParent(Holo, Prop)
+        
+        return 1
+    }
+    
+}
+
+if (first()){
+    
+    function table:buildWall(PropModel:string, PropLength:number, PropAngleOffset:angle, StartPos:vector, EndPos:vector){
+        local Vars = This:blockValues()
+        local LastI = Vars["i", number]
+        local Offset = Vars["offset", vector]
+        local NumProps = Vars["numprops", number]
+        
+        for(I = LastI, NumProps){
+            if (This:blockPerfBreak() | !propCanCreate()){
+                Vars["i", number] = I
+                This:blockDone(0)
+                return
+            }
+            propSpawn(PropModel, StartPos + Offset:normalized()*PropLength*(I - 0.5), Offset:toAngle() + PropAngleOffset, 1)
+        }
+    }
+    function table table:buildWall(WallName:string, PropModel:string, PropLength:number, PropAngleOffset:angle, StartPos:vector, EndPos:vector){
+        local Block = This:block(WallName)
+        if (Block:blockNotDone()){
+            if (Block:blockFirst()){
+                local Vars = Block:blockValues()
+                Vars["i", number] = 1
+                Vars["offset", vector] = (EndPos - StartPos)
+                Vars["numprops", number] = ceil((EndPos - StartPos):length()/PropLength)
+            }
+            Block:buildWall(PropModel, PropLength, PropAngleOffset, StartPos, EndPos)
+        }
+        return Block
+    }
+    function table buildWall(WallName:string, PropModel:string, PropLength:number, PropAngleOffset:angle, StartPos:vector, EndPos:vector){
+        return blockRoot():buildWall(WallName, PropModel, PropLength, PropAngleOffset, StartPos, EndPos)
+    }
+    
+    function table:placeEmptyBarrels(GridSize, DeadSpace){
+        local Vars = This:blockValues()
+        
+        local LastI = Vars["i", number]
+        local SignBox = Vars["signbox", vector]
+        local XGridN = Vars["xgridn", number]
+        local YGridN = Vars["ygridn", number]
+        local GridL = Vars["gridl", vector]
+        
+        for(I = LastI, XGridN*YGridN){
+            if (This:blockPerfBreak()){
+                Vars["i", number] = I
+                return 
+            }
+            
+            local GridIndex = vec((I - 1) % XGridN, floor((I - 1)/XGridN), 0)
+            local GridBox = GridL*SignBox
+            local DeadSpaceOffset = (GridIndex + vec(1, 1, 0))*SignBox*DeadSpace
+            local GridOffset = GridIndex*GridBox
+            local Origin = BoundB + DeadSpaceOffset + GridOffset
+            
+            if (placeRandomEmptyBarrel(Origin, GridBox:x(), GridBox:y()) < 0){
+                #if we weren't able to place a barrel due to prop spawn or the like we'll try again next time
+                Vars["i", number] = I
+                This:blockDone(0)
+                return
+            }
+            
+            if (Debug){
+                local Holo = createHolo("")
+                holoPos(Holo, Origin + vec(0,0,10) + GridBox/2)
+                holoScaleUnits(Holo, GridL + vec(0, 0, 5))
+            }
+        }
+    }
+    function table table:placeEmptyBarrels(BarrelSet:string, GridSize, DeadSpace){
+        local Block = This:block(BarrelSet)
+        if (Block:blockNotDone()){
+            if (Block:blockFirst()){
+                local Vars = Block:blockValues()
+                
+                local Box = BoundA - BoundB
+                local XL = abs(Box:x())
+                local YL = abs(Box:y())
+                
+                local XGridN = floor((XL - DeadSpace)/(GridSize + DeadSpace))
+                local YGridN = floor((YL - DeadSpace)/(GridSize + DeadSpace))
+                
+                Vars["i", number] = 1
+                Vars["signbox", vector] = vec(sign(Box:x()), sign(Box:y()), sign(Box:z()))
+                Vars["xgridn", number] = XGridN
+                Vars["ygridn", number] = YGridN
+                Vars["gridl", vector] = vec((XL - DeadSpace*(1 + XGridN))/XGridN, (YL - DeadSpace*(1 + YGridN))/YGridN, 0)
+            }
+            Block:placeEmptyBarrels(GridSize, DeadSpace)
+        }
+        return Block
+    }
+    function table placeEmptyBarrels(BarrelSet:string, GridSize, DeadSpace){
+        return blockRoot():placeEmptyBarrels(BarrelSet, GridSize, DeadSpace)
+    }
+}
+
+BuildPlayArea = block("build play area")
+if (BuildPlayArea:blockNotDone()){
+    if (BuildPlayArea:blockPerfBreak()){
+        exit()
+    }
+    
+    Block = BuildPlayArea:block("playarea boundsa")
+    BlockVars = Block:blockValues()
+    if (Block:blockNotDone()){    
+        if (Block:blockFirst()){
+            print("Please designate the first boundary point by pressing \"i\"")
+        }
+        if (owner():keyPressed("i")){
+            BlockVars["point", vector] = owner():aimPos()
+        }
+        if (BlockVars:exists("point")){
+            #if we've released the i key
+            if (!owner():keyPressed("i")){
+                Block:blockDone(1)
+                print("Bound set: " + BlockVars["point", vector])
+            }
+        }
+        exit()
+    }
+    BoundA = BlockVars["point", vector]
+       
+    Block = BuildPlayArea:block("playarea boundsb")
+    BlockVars = Block:blockValues()
+    if (Block:blockNotDone()){    
+        if (Block:blockFirst()){
+            print("Please designate the second boundary point by pressing \"i\"")
+        }
+        if (owner():keyPressed("i")){
+            BlockVars["point", vector] = owner():aimPos()
+        }
+        if (BlockVars:exists("point")){
+            #if we've released the i key
+            if (!owner():keyPressed("i")){
+                Block:blockDone(1)
+                print("Bound set: " + BlockVars["point", vector])
+            }
+        }
+        exit()
+    }
+    BoundB = BlockVars["point", vector]
+    
+    if (UseWalls){
+        if (BuildPlayArea:buildWall("Wall x1", "models/hunter/plates/plate8x8.mdl", 300, ang(90,90,0), BoundA, BoundB:setX(BoundA:x())):blockNotDone()){
+            exit()
+        }
+        if (BuildPlayArea:buildWall("Wall y1", "models/hunter/plates/plate8x8.mdl", 300, ang(90,90,0), BoundA, BoundB:setY(BoundA:y())):blockNotDone()){
+            exit()
+        }
+        if (BuildPlayArea:buildWall("Wall x2", "models/hunter/plates/plate8x8.mdl", 300, ang(90,90,0), BoundB:setX(BoundA:x()), BoundB):blockNotDone()){
+            exit()
+        }
+        if (BuildPlayArea:buildWall("Wall y2", "models/hunter/plates/plate8x8.mdl", 300, ang(90,90,0), BoundB:setY(BoundA:y()), BoundB):blockNotDone()){
+            exit()
+        }
+    }
+    
+    if (BuildPlayArea:placeEmptyBarrels("random empty barrels", 100, 20):blockNotDone()){
+        exit()
+    }
+}
+
+
+
+
+

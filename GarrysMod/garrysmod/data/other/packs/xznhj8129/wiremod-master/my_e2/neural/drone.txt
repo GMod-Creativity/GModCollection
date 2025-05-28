@@ -1,0 +1,96 @@
+@name gBrain neural net test drone
+@inputs R L F B
+@outputs Ins:array Out Bearing
+@persist H:entity [Dow Rv Bv]:vector
+
+if(first()){
+    S=rangerOffset(6000,entity():pos(),vec(0,0,-1)):position()
+    
+    holoCreate(1,S+vec(0,0,5),vec(1,1,1),ang())
+    H=holoEntity(1)
+    runOnTick(1)
+    
+        Hcen=H:toWorld(H:boxCenter())
+    holoCreate(2,Hcen-vec(0,7,0),vec(1,1,1)/4,ang(90,-90,0))
+    holoCreate(3,Hcen+vec(0,7,0),vec(1,1,1)/4,ang(90,90,0))
+    holoCreate(4,Hcen+vec(7,0,0),vec(1,1,1)/4,ang(90,0,0))
+    holoCreate(5,Hcen-vec(7,0,0),vec(1,1,1)/4,ang(-90,0,0))
+    holoCreate(6,Hcen+vec(6,0,0),vec(2,2,3)/4,ang(90,0,0))
+    holoCreate(7,vec(),vec(1,1,1)/8,ang())
+    
+    holoParent(2,1) holoParent(3,1) holoParent(4,1)
+    holoParent(5,1) holoParent(6,1)
+    
+        Co="hqcone"
+    holoModel(2,Co) holoModel(3,Co) holoModel(4,Co)
+    holoModel(5,Co) holoModel(6,"hqtorus2") holoModel(7,"hqicosphere2")
+    
+    Rv=vec(1,0,0)*255
+    Bv=-vec(1,1,1)*255
+    Dow=vec(0,0,1)
+}
+
+##Operation##
+#Sensory perception
+    Hcen=H:toWorld(H:boxCenter())
+    Forw=vec(1,0,0):rotate(ang(0,H:angles():yaw(),0))
+    Righ=vec(0,1,0):rotate(ang(0,H:angles():yaw(),0))
+Fo=rangerOffset(100,Hcen,Forw)
+Ba=rangerOffset(100,Hcen,-Forw)
+Ri=rangerOffset(100,Hcen,Righ)
+Le=rangerOffset(100,Hcen,-Righ)
+    rangerHitWater(1)
+    Do=Forw-Dow/3
+    Wa=rangerOffset(500,Hcen,Do)
+Wat=Wa:distance()
+    holoPos(7,Hcen+Do*Wa:distance()+2)
+Wet=holoEntity(7):isUnderWater()
+
+Fod=Fo:distance()
+Bad=Ba:distance()
+Rid=Ri:distance()
+Led=Le:distance()
+
+holoColor(2,(Led/500)*(Led<=15 ? Rv : Bv))
+holoColor(3,(Rid/500)*(Rid<=15 ? Rv : Bv))
+holoColor(4,(Fod/500)*(Fod<=15 ? Rv : Bv))
+holoColor(5,(Bad/500)*(Bad<=15 ? Rv : Bv))
+
+#Sensory outputs
+Ins[1,number]=Fod             #Forward distance
+Ins[2,number]=Bad             #Reverse distance
+Ins[3,number]=Rid             #Right distance
+Ins[4,number]=Led             #Left distance
+Ins[5,number]=Wet             #Whether Wa ranger is hitting water
+Ins[6,number]=Wat             #Forward distance to water
+
+#Good/Bad responses
+    A=F & Fod<=15 |F & Wet & Wat
+            #Going forward with little room
+            #Similarly, going forward towards nearby water
+    B=B & Bad<=15
+            #Reversing with little room
+    C=H:isUnderWater()
+            #If the drone has fallen into the water
+    D=B & Fod<=15 |B & Wet & Wat
+            #Moving away from water and cramped spaces
+    E=F & Bad<=15
+            #Moving away from backing walls/objects
+
+if(A|B|C){  #Bad
+    Out=-1
+    if(C){reset()} #Drone "dies" in water
+}
+elseif(A|B){    #Good
+    Out=1
+}
+else{Out=0}   #Neutral response
+
+#Functional motion
+An=H:angles()+ang(0,R-L,0)
+holoAng(1,An)
+
+Do=rangerOffset(500,Hcen,vec(0,0,-1)):position()+vec(0,0,5)
+Do+=Forw*(F-B)
+holoPos(1,Do)
+Bearing=An:yaw()

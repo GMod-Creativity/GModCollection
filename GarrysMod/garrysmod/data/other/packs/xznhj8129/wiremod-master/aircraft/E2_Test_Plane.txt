@@ -1,0 +1,73 @@
+@name E2 Test Plane
+@inputs On Stage LandVec:vector Target:vector
+@outputs Ok Speed VZ Altitude YawT PitchT RollT A VT VTV:vector Bearing Elev RF Dist GlideSlope Flare PullVec:vector Z
+@persist 
+@trigger 
+interval(25)
+HoverAlt = 1000
+CruiseAlt = 5000
+BeginFinal = 12000
+VTV = vec(0,0,100000)
+Hover=0
+
+E=entity()
+VZ = E:vel():z()
+Pos = E:pos()
+Pitch = E:angles():pitch()
+Yaw = E:angles():yaw()
+
+AirSpeed=E:velL():x()
+RollV = E:angVel():roll() 
+PitchV = E:angVel():pitch() 
+YawV = E:angVel():yaw()
+
+Speed = E:vel():length()
+Altitude = Pos:z()-LandVec:z()
+LF = (AirSpeed/3600)
+PN = 1+ -sqrt(sin(Pitch)^2)
+X = (PN*2000)*cos(180+Yaw)
+Y = (PN*2000)*sin(180+Yaw)
+Z = sin(Pitch)*2000
+PullVec = Pos-vec(X,Y,Z)
+
+if (On & Stage<2) {
+    if (Stage==0) {
+        Bearing = E:bearing(Target)
+        Dist = Pos:distance(vec(Target:x(),Target:y(),Pos:z()))
+        VT = (VZ + (Altitude-CruiseAlt)*2)*LF
+        Elev = (1-(Altitude/CruiseAlt))*30
+        PitchT = (PitchV*2) + ((Pitch+Elev)*25)
+        A=2
+    }
+    elseif (Stage==1) {
+        Bearing = E:bearing(LandVec)
+        Dist = Pos:distance(vec(LandVec:x(),LandVec:y(),Pos:z()))
+        
+        if (Dist<BeginFinal) {
+            GlideSlope = (CruiseAlt*(Dist/BeginFinal))
+            Elev = 0
+            PitchT = (PitchV*2) + (Pitch+Elev*25)
+            VT = (VZ + (Altitude-GlideSlope)*20)*LF
+            A= Dist/BeginFinal
+        }
+        else {
+            Elev = (1-(Altitude/CruiseAlt))*30
+            PitchT = (PitchV*2) + ((Pitch+Elev)*25)
+            VT = (VZ + (Altitude-CruiseAlt)*20)*LF
+            A=2
+        }
+    }
+    
+    RollT = RollV + ((E:angles():roll()-Bearing)*2)
+    YawT = (YawV*5) + (Bearing*50)
+    
+    if (Dist<500) {Ok=1}
+    else {Ok=0}
+}
+else {
+    RollT=0
+    YawT=0
+    PitchT=0
+    VT=0
+    A=0
+}

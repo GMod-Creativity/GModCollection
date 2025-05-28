@@ -1,0 +1,90 @@
+@name BProp neuron
+@inputs [In1 In2 In3 In4 In5 In6 In7 In8 In9 In10] End
+@inputs [Ou1 Ou2 Ou3 Ou4 Ou5 Ou6 Ou7 Ou8 Ou9 Ou10]
+@persist Weights:array N ID It NetOut Learn
+@outputs OUT ID
+
+if(first()){
+        #Learning rate
+    Learn=0.25
+        #T is the target, a string (to allow learning towards zero)
+    
+    ID=entity():id()
+    
+        #Initial randomised weights
+    Weights=array()
+    for(V=1,10){
+        Weights:pushNumber(round(random(-1,1),2))
+    }
+    
+        #Indication holograms
+        B=entity():toWorld(vec(0,0,5))
+        A=entity():angles()
+    holoCreate(1,B,vec(),A) holoCreate(2,B,vec(),A)
+    holoModel(1,"pyramid") holoModel(2,"pyramid")
+    holoScaleUnits(1,vec(1,1,1)) holoScaleUnits(2,vec(5,5,5))
+    holoParent(1,entity()) holoParent(2,entity())
+    holoAlpha(2,170)
+}
+interval(150)
+    #Input data (previous layer) and forward data IDs (next layer)
+    Input=array() IDs=array()
+Input:pushNumber(gGetNum(In1))    IDs:pushNumber(Ou1)
+Input:pushNumber(gGetNum(In2))    IDs:pushNumber(Ou2)
+Input:pushNumber(gGetNum(In3))    IDs:pushNumber(Ou3)
+Input:pushNumber(gGetNum(In4))    IDs:pushNumber(Ou4)
+Input:pushNumber(gGetNum(In5))    IDs:pushNumber(Ou5)
+Input:pushNumber(gGetNum(In6))    IDs:pushNumber(Ou6)
+Input:pushNumber(gGetNum(In7))    IDs:pushNumber(Ou7)
+Input:pushNumber(gGetNum(In8))    IDs:pushNumber(Ou8)
+Input:pushNumber(gGetNum(In9))    IDs:pushNumber(Ou9)
+Input:pushNumber(gGetNum(In10))    IDs:pushNumber(Ou10)
+    #For ease of reference and collection, stored in arrays
+
+    #Output production
+O=0
+for(V=1,Input:count()){
+    O+=Input[V,number]*Weights[V,number]
+}
+OUT=1/1-exp(-O)
+    gSetNum(ID,OUT)
+    #Network output definer (Wire 1 into End if multiple chips)
+if(!IDs:sum()|End){gSetNum("NetOut",OUT)}
+
+    #Backpropagation
+NetOut=gGetNum("NetOut")    #Network output
+N=gGetStr("Target"):toNumber()   #Target output
+Error=N-NetOut  #Network error
+if($N & Error){
+        #Forward alteration
+    if(IDs:sum()){
+        Fo=0
+        for(V=1,IDs:count()){
+            Fo+=gGetNum(IDs[V,number])
+        }
+        For=Fo/Input:count()
+        Mod=Learn*Error*OUT*For*(1-For)
+    }
+    else{
+        Mod=Learn*Error*OUT
+    }
+    
+        #Weight modification
+    for(V=1,Input:count()){
+        W=Weights[V,number]+Mod*Input[V,number]
+        Weights[V,number]=round(W,4)
+    }
+    
+    S=round((1-Error)/(!N ? 1 : N),2)*5
+    holoScaleUnits(1,vec(S,S,S))
+    if(S>5|S<0){holoColor(2,vec(1,0,0)*255)}
+    else{holoColor(2,vec(1,1,1)*255)}
+}
+
+
+    #Rebooting simultaneous with nearby training chip
+runOnSignal("Start",1,1)
+Dis=signalSender():pos():distance(entity():pos())
+if(signalClk("Start") & Dis<=100){
+    reset()
+}

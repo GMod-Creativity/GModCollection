@@ -1,0 +1,94 @@
+@name Aiming Error Missile Mk.2 "Tigermoth"
+@inputs Fire Arm Bearing TElev PitchV YawV RollV Target:entity Speed
+@outputs LT RT UT DT RL RR Det Count 
+@persist Pok Yok B1 E1 Count Dist Rstab #Selftest Pass Fail
+@persist T:vector GPS:vector Gx Py Sz Xf Yf Zf IntTime
+interval(250) # 4 times/sec
+while (Arm!=1) {break}
+#if ((Arm==1) & (Fire==0)) {Selftest=1}
+
+runOnTick(1)
+
+#GPS
+GPS=entity():pos()
+Gx=GPS:x()
+Py=GPS:y()
+Sz=GPS:z()
+T=Target:pos()
+Tx=T:x()
+Ty=T:y()
+Tz=T:z()
+
+#Target Position Predictor
+Dist = Target:pos():distance(GPS)
+if (Speed<=1) {Speed1=2500}
+else {Speed1=Speed}
+VelX=Target:vel():x()
+VelY=Target:vel():y()
+VelZ=Target:vel():z()
+Rate=Dist/Speed1
+Xf=Tx+(VelX*Rate/4)
+Yf=Ty+(VelX*Rate/4)
+Zf=Tz+(VelX*Rate/4)
+IntTime=Dist/Speed1
+
+#while ((Fire!=1)) {continue}
+#runOnTick(1)
+
+#Elevation control
+#if (Dist>=25000) {Elev=TElev+18-Count} # EXPERIMENTAL
+if (Dist>=15000) {Elev=TElev+10}
+else {Elev=TElev}
+
+#Thrust scale control
+B1=(Bearing/180)
+E1=(Elev/180)
+if (B1<=0) {B1=((Bearing/180)-(Bearing/180)-(Bearing/180))}
+if (E1<=0) {E1=(Elev/180)-(Elev/180)-(Elev/180)}
+
+#Timer and Fuse
+Count=Count+Fire/(66.657*2)
+if (Fire==0) {Count=0}
+if ((Dist<=300) & (Dist>=0) | (Count>IntTime)) {Det=1}
+if (Count>=30) {Det=1}
+else {Det=0}
+
+#Left Thruster
+if ((Bearing>=0.5) & (Pok==1)) {LT=B1} 
+else {LT=0}
+
+#Right Thruster
+if ((Bearing<=-0.5) & (Pok==1)) {RT=B1} 
+else {RT=0}
+
+#Up Thruster
+if ((Elev>=0.5) & (Yok==1)) {UT=E1} 
+else {UT=0}
+
+#Down Thruster
+if ((Elev<=-0.5) & (Yok==1)) {DT=E1} 
+else {DT=0}
+
+#Overcorrection Cutoff
+if ((Fire==1) & (PitchV<=100)) {Pok=1}
+else {Pok=0}
+if ((Fire==1) & (YawV<=100)) {Yok=1}
+else {Yok=0}
+
+#Roll Control
+Ang=entity():angles()
+Roll=Ang:roll()
+if ((Roll>=1) | (Roll<=-1)) {Rstab=0}
+else {Rstab=1}
+
+# Left Roll Thruster
+RL= (Roll>=1 ? 10 : RollV)
+#if (Roll>=1) {RL=10}
+#elseif (Rstab==1) {RL=RollV}
+# else {RL=0}
+
+#  Right Roll Thruster
+RR= (Roll<=-1 ? 10 : RollV-RollV-RollV)
+#if (Roll<=-1) {RR=10}
+#elseif (Rstab==1) {RR=RollV-RollV-RollV}
+# else {RR=0}

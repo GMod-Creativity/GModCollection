@@ -1,0 +1,47 @@
+@name MiR-18 Fly-By-Wire
+@inputs On E:entity AltDiff MissionMode Dist Lock Stage RadarElev Wing:entity Bearing
+@outputs Ops PitchT YawT RollT Pitch
+@persist I WingMul PropRotation
+@trigger 
+interval(I)
+Ops = ops()
+if (first()) {
+    WingMul = 2.5
+    PropRotation = 45 # yaw rotation of prop
+}
+
+if (On) {
+    I = 10
+#[
+    Area = sqrt(Wing:boxSize():x()*Wing:boxSize():y())
+    LV = Wing:velL()
+    VV = Wing:pos()+(Wing:vel())
+    FrontVel = abs(vec2(LV):rotate(PropRotation):x())
+    AoA = Wing:elevation(VV)
+    if (AoA>=30 | AoA<= -30) {LiftForce=0}
+    else {LiftForce = WingMul*sin(AoA*-6)}
+    WingForce = (FrontVel * WingMul)*LiftForce
+    Wing:applyForce( Wing:up() * WingForce )
+    ]#
+    Pitch = E:angles():pitch()
+    RollV = E:angVel():roll() 
+    PitchV = E:angVel():pitch()
+    YawV = E:angVel():yaw() 
+    AltPitch = (AltDiff/15000) * 80
+    if (Pitch<60 & Pitch> -60) {RollT = RollV + (E:angles():roll()*2)}
+    else {RollT=0}
+    if (Pitch<60 & Pitch> -60) {YawT = (YawV*10) + (Bearing*25)}
+    else {YawT=0}
+    if (((MissionMode<=1 & Lock) | MissionMode==2) & Dist<15000 & !Stage) {PitchT = PitchV + ((RadarElev)*25)}
+    else {
+        if (AltDiff< -2000) {PitchT = PitchV + ((Pitch+75)*25)}
+        elseif (AltDiff>2000) {PitchT = PitchV + ((Pitch-75)*25)}
+        else {PitchT = PitchV + ((Pitch-AltPitch)*25)}
+    }
+}
+else {
+    I = 250
+    RollT = 0
+    PitchT = 0
+    YawT = 0
+}

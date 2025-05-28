@@ -1,0 +1,102 @@
+@name skynet 03
+@inputs On Contacts:array
+@outputs Activated Threats DEFCON Zone ThreatValue LWon LWFire HWon HWFire LWvec:vector ClosestEnt ClosestDist 
+@outputs ClosestArray_Ent:array ClosestArray_Dist:array
+@persist Activated DEFCON Threats
+@trigger 
+#DEFCON 5 - No violent action
+#DEFCON 4 - Monitoring
+#DEFCON 3 - Tracking
+#DEFCON 2 - Limited Selfdefence
+#DEFCON 1 - Weapons Free, kill everything in range
+
+if (first()) {
+    C1 = 1e10
+}
+
+if (Activated) {I=50}
+else {I=500}
+interval(I)
+
+MaxEngageDist = 3000
+if (On & !Activated) {
+    print("SKYNET Active")
+    #soundPlay(1,3,"hl1/fvox/targetting_system.wav")
+    soundPlay(1,3,"hl1/fvox/activated.wav")
+    Activated = 1
+}
+if (!On & Activated) {
+    Activated = 0
+    soundPlay(1,2,"hl1/fvox/deactivated.wav")
+    print("SKYNET Deactivated")
+}
+
+if (Activated) {
+    Pos=entity():pos()
+    Threats=Contacts:count()
+    
+    #Sort Closest
+    CD1 = array()
+    CD2 = array()
+    ClosestArray_Ent = array()
+    ClosestArray_Dist = array()
+    for (I=1,Threats) {
+        CD1:insertNumber(1,entity(Contacts[I,number]):pos():distance(Pos))
+        CD2:insertNumber(1,Contacts[I,number])
+    }
+    for (I=1,Threats) {
+        Smol = CD1:maxIndex()
+        ClosestArray_Ent:insertNumber(1,CD2[Smol,number])
+        ClosestArray_Dist:insertNumber(1,CD1[Smol,number])
+        CD1:remove(Smol)
+        CD2:remove(Smol)
+    }
+    ClosestDist = ClosestArray_Dist[1,number]
+    ClosestEnt = ClosestArray_Ent[1,number]
+    
+    #Threat Level 
+    Zone=round(ClosestDist/500)
+    ThreatValue = (Threats/3)/Zone
+    if (ThreatValue==0) {DEFCON=5}
+    elseif (ThreatValue < 0.33 & Zone>2) {DEFCON = 4}
+    elseif (ThreatValue < 0.66 & Zone>1) {DEFCON = 3}
+    elseif (ThreatValue < 1 & ClosestDist < MaxEngageDist & Zone>1) {DEFCON = 2}
+    elseif (ClosestDist < MaxEngageDist) {DEFCON = 1}
+    else {DEFCON = 3}
+    
+    #Actions
+    if (DEFCON<=3) {
+        TVEC=entity(ClosestEnt):pos()
+        LWvec=TVEC
+        LWon=1
+        
+        if (DEFCON<3 & DEFCON>1) {
+            LWon=1
+            HWon=1
+            LWFire=1
+        }
+        elseif (DEFCON==1) {
+            LWon=1
+            LWFire=1
+            HWon=1
+            HWFire=1
+        }
+        else {
+            LWFire=0
+            HWFire=0
+        }
+        
+    }
+    else {
+        LWon=0
+        LWFire=0
+        HWon=0
+        HWFire=0
+    }
+
+}
+else {
+    LWon = 0
+    LWFire = 0
+    DEFCON = 5
+}

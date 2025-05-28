@@ -1,0 +1,344 @@
+@name MiR18N Hellfish Block 20
+@inputs WeaponBus:wirelink Radar:wirelink LaserPos:vector LIV:vector LIV2:vector LandVec:vector LandHeading Launch Stage RTB
+@inputs Patrol MissionMode AircraftID Wing:entity Mass Reset FlightDeck
+@outputs Ops I Mode ArmWeapons GroundTargetSet WeaponsReady Dist Speed Altitude Heading VelHeading Search Lock RadarTarget:entity AircraftID
+@outputs GPS:vector Mul A Go Ok Vec:vector RadarBearing RadarElev FiringAngle TargetPos:vector Fire Winchester Expended FlightStage
+@outputs CorrectLVV:vector CorrectApproach:vector VecCorrect:vector LandPhase GlideSlope ResetCounter Deck FBW
+@outputs AltDiff Bearing MissionMode
+@persist Targetpos:vector Dist AltDiff ReleaseDist:array Map:string PatrolAngle GroundTarget:vector GroundTargetSet
+@persist GlideSlope AltMod MinAlt PatrolDist AltCutoff BeginLanding SetSpeed TargetsEngaged MaxEngagements LandPhase FBW
+@trigger None
+
+#[
+Modes:
+0: Intercept/Strike
+1: Combat Air Patrol
+
+Mission Mode: (Constant Value)
+0: Guns/None
+1: Missile
+2: Rocket
+3: Bomb
+4: LGB
+
+Pylon Weapon Type:
+0: None
+1: Missile
+2: Rocket
+3: Bomb
+4: LGB
+
+Carry Mode:
+0: 4 Pylons
+1: Only Inboard
+2: Only Outboard
+3: Empty
+
+TODO:
+Split-payload pylons
+Partial salvo firing
+Multi-target engagement
+
+]# 
+
+if (first()) { #set variables
+    Map = map()
+    ReleaseDist = array()
+    ReleaseDist[0,number] = 0 #Guns/None
+    ReleaseDist[1,number] = 10000 #Missile
+    ReleaseDist[2,number] = 9000 #Rocket 
+    ReleaseDist[3,number] = 15500 #Iron Bomb
+    ReleaseDist[4,number] = 9000 #Guided Bomb
+    AltMod = 8
+    MinAlt= 8000
+    PatrolDist = 10000
+    AltCutoff = 100
+    BeginLanding = 15000
+    SetSpeed = 3000
+    Pylon_Outboard_Type = MissionMode 
+    Pylon_Inboard_Type = MissionMode
+    MaxEngagements = 1
+    Salvo = 4
+    Carry_Mode = 0
+}
+AircraftID = AircraftID
+FlightStage = Stage
+ResetCounter = Reset
+Deck = FlightDeck
+
+if (Launch & Stage==0) {I=200}
+elseif (Launch & Stage==1 & LandPhase) {I=10}
+elseif (Launch & Stage==2) {I=5}
+else {I=250}
+interval(I)
+Ops = ops()
+
+if (MissionMode>2) {Mode=0}
+else {Mode = Patrol}
+
+if (Mass<1155) {
+    GlideSlope = 5
+    LandingOffset = 500
+    }
+else {
+    GlideSlope = 4
+    LandingOffset = 750
+    }
+
+WeaponsReady = WeaponBus["Ready",number]
+Expended = WeaponBus["Expended",number]
+Target = Radar["1_Ent",entity]:pos()
+E=entity()
+Heading = E:angles():yaw()
+Pitch = E:angles():pitch()
+GPS=E:pos()
+Gx=GPS:x()
+Py=GPS:y()
+Sz=GPS:z()
+Gl = LandVec:z()
+LandVecSet = LandVec!=vec(0,0,0)
+if (Go) {Speed = E:vel():length()}
+WaypointX = PatrolDist*cos(PatrolAngle)
+WaypointY = PatrolDist*sin(PatrolAngle)
+Waypoint = vec(WaypointX,WaypointY,Sz)
+GroundTarget = LaserPos
+GroundTargetSet = GroundTarget!=vec(0,0,0)
+VelHeading = atan(E:vel():x(),E:vel():y())+90
+AirSpeed=E:velL():x()
+
+if (Launch & LandVecSet & Wing!=noentity()) {
+    Go = (Stage <= 2)
+    ArmWeapons = (!Stage & Go)
+    FBW = 1
+    
+    if (Stage == 0) { # TARGET RUN
+        Mul = (SetSpeed/Speed)*3
+        A=Mul
+        LandPhase=0
+        
+        if (Go & !Stage & Dist<25000) {
+            Search = 1
+            RadarTarget = Radar["1_Ent",entity]
+            ContactID = RadarTarget:id()
+            Lock = ContactID!=0
+            }
+        else {
+            Search = 0
+            RadarTarget = noentity()
+            ContactID = 0
+            Lock = 0
+        }
+        
+        if ((MissionMode==1 & GroundTargetSet & !Lock) | (MissionMode==2 & GroundTargetSet)) {
+            Tx = GroundTarget:x()
+            Ty = GroundTarget:y()
+            Tz = GroundTarget:z()
+            Altitude = Sz-Tz
+            if (MissionMode==2 & Dist<15000) {Altitude = Sz-Gl}
+            else {Altitude = Sz-Gl}
+        }
+        elseif (MissionMode<3 & Lock) {
+            Tx = RadarTarget:pos():x()
+            Ty = RadarTarget:pos():y()
+            Tz = RadarTarget:pos():z()
+            Altitude = Sz-Gl
+        }
+        else {
+            if (Lock) {
+                Tx = RadarTarget:pos():x()
+                Ty = RadarTarget:pos():y()
+                Tz = RadarTarget:pos():z()
+            }
+            else{
+                Tx = GroundTarget:x()
+                Ty = GroundTarget:y()
+                Tz = GroundTarget:z()
+            }
+            Altitude = Sz-Gl
+        }
+        TargetPos = vec(Tx,Ty,Tz)
+        TgtAlt = Tz-Gl
+        if (TgtAlt>MinAlt) {Alt = TgtAlt}
+        else {Alt = MinAlt}
+        AltDiff = Altitude-Alt
+        if (Mode==1 & !Lock & MissionMode<=2) {
+            if (Dist<2000) {PatrolAngle += 22.5}
+            Dist=GPS:distance(Waypoint)
+        }
+        else {Dist=GPS:distance(vec(Tx,Ty,GPS:z()))}
+
+        GroundTargetSet = Lock | (GroundTarget!=vec(0,0,0))
+        RadarBearing = E:bearing(TargetPos)
+        RadarElev = E:elevation(TargetPos)
+        if (Lock) {Bearing=RadarBearing}
+        else {Bearing=0}
+
+        if (MissionMode==1 & (Search & Lock)) {
+            FiringAngle = (RadarBearing < 5 & RadarBearing > -5) & (RadarElev < 5 & RadarElev > -5)
+            X = Gx-RadarTarget:pos():x()
+            Y = Py-RadarTarget:pos():y()
+            if (Dist<17500 & Altitude>2000) {Z = Sz - Tz}
+            else {Z=AltDiff*AltMod}
+            
+        }
+        elseif (MissionMode==2 & GroundTargetSet) {
+            FiringAngle = (RadarBearing < 5 & RadarBearing > -5) & (RadarElev < 2 & RadarElev > -5)
+            X = Gx-TargetPos:x()
+            Y = Py-TargetPos:y()
+            if (Dist<15000 & Altitude>2000) {Z = Sz - Tz-1000}
+            else {Z=AltDiff*AltMod}
+        }
+        else {
+            FiringAngle = (RadarBearing < 5 & RadarBearing > -5) & (RadarElev < 2.5 & RadarElev > -2.5)
+            if (Mode==1 & MissionMode<3) {
+                X = Gx - WaypointX
+                Y = Py - WaypointY
+            }
+            else {   
+                X=Gx - Tx
+                Y=Py - Ty
+            }
+            Z = AltDiff*AltMod
+        }
+
+        if (MissionMode==1) {
+            if (Go & Lock & Dist<ReleaseDist[MissionMode,number] & FiringAngle & Altitude>1000) {Fire=1} 
+            else {Fire=0}
+        }
+        elseif (MissionMode==2) {
+            if (Go & Dist<ReleaseDist[MissionMode,number] & FiringAngle & Altitude>2000) {Fire=1}
+            else {Fire=0}
+        }
+        else {
+            if (Go & Dist<ReleaseDist[MissionMode,number] & Altitude>3000 & GroundTargetSet) {Fire=1}
+            else {Fire=0}
+        }
+        
+        if (TargetsEngaged>=MaxEngagements) {Winchester = 1} #removed Expended
+        if (Dist<1000 | (!Stage & Expended) | (!Stage & RTB) | Winchester) {Ok=1} 
+        else {Ok=0}   
+        VecCorrect=vec(0,0,0)
+    }
+    elseif (Stage == 1) { # RETURN TO BASE / HOLDING PATTERN / INITIAL LANDING VECTOR
+        FiringAngle = 0
+        Search = 0
+        Winchester = 0
+        Lock = 0
+        Fire = 0
+        PatrolAngle = 0
+        
+        Altitude = Sz-LandVec:z()
+        if (LandPhase==0) {
+            Tx=LIV:x()
+            Ty=LIV:y()
+            Tz=LIV:z()
+            LIVBear = E:bearing(LIV)
+            LIVElev = E:elevation(LIV)
+            Bearing=0
+        }
+        elseif (LandPhase==1) {
+            Tx=LIV2:x()
+            Ty=LIV2:y()
+            Tz=LIV2:z()
+            Alt=LIV2:z()-LandVec:z()
+            LIVBear = E:bearing(LIV2)
+            LIVElev = E:elevation(LIV2)
+            Bearing = LIVBear
+        }
+        
+        Dist=GPS:distance(vec(Tx,Ty,GPS:z()))
+        Dist2=GPS:distance(vec(LIV2:x(),LIV2:y(),GPS:z()))
+        
+        if (Dist<10000 & LandPhase==0) {Alt=LIV:z()-LandVec:z()}
+        elseif (LandPhase==1) {Alt=LIV2:z()-LandVec:z()}
+        else {Alt=MinAlt}
+        AltDiff=Altitude-Alt-250
+        
+        if (Dist>5000) {Mul = (SetSpeed/Speed)*3}
+        elseif (Altitude>AltCutoff) {Mul = (2000/Speed)*3}
+        else {Mul = 0}
+        
+        if (LandPhase==0 & Dist>5000) {A=Mul}
+        else {A=Mul/10}
+        if (LandPhase==0) {
+            X=Gx - Tx
+            Y=Py - Ty
+        }
+        else {
+            X = (Gx - CorrectApproach:x())*3
+            Y = (Py - CorrectApproach:y())*3
+        }
+        Z = AltDiff # (AltMod/3)
+        
+        if (LandPhase==0 & Dist<500) {LandPhase=1}
+        if (LandPhase==1 & Dist2<500) {Ok=1} 
+        else {Ok=0}
+        
+        CorrectApproach = vec(LandVec:x()-(Dist2*cos(LandHeading)),LandVec:y()-(Dist2*sin(LandHeading)),0)
+        CorrectLVV = vec(AirSpeed*cos(LandHeading),AirSpeed*sin(LandHeading),0)
+        if (!LandPhase) {VecCorrect=vec(0,0,0)}
+        else {VecCorrect = vec(E:vel():x(),E:vel():y(),0)-CorrectLVV}
+        
+        }
+    elseif (Stage == 2) { # FINAL APPROACH
+        FiringAngle = 0
+        Search = 0
+        Winchester = 0
+        Lock = 0
+        Fire = 0
+        PatrolAngle = 0
+        
+        Altitude = Sz-LandVec:z()
+        Tx=LandVec:x()
+        Ty=LandVec:y()
+        Tz=LandVec:z()
+
+        Dist=GPS:distance(vec(Tx,Ty,GPS:z()))
+        Bearing = E:bearing(LandVec)
+        
+        Alt=(Dist/GlideSlope) + LandingOffset
+
+        
+        X = (Gx - CorrectApproach:x())*3
+        Y = (Py - CorrectApproach:y())*3
+        Z = AltDiff/5
+    
+        if (Stage==2 & Altitude<AltCutoff) {
+            Mul=0
+            A=0
+        }
+        else {
+            Mul = ((Dist/BeginLanding)*3)*(1500/Speed)*(Mass/950)
+            A = Mul/10
+        }
+        if (Dist<500) {Ok=1} 
+        else {Ok=0}
+        
+        CorrectApproach = vec(LandVec:x()-((Dist/2)*cos(LandHeading)),LandVec:y()-((Dist/2)*sin(LandHeading)),0)
+        CorrectLVV = vec(AirSpeed*cos(LandHeading),AirSpeed*sin(LandHeading),0)
+        VecCorrect = vec(0,0,0) #vec(E:vel():x(),E:vel():y(),0)-CorrectLVV
+            
+    }
+    
+    if (Go==0 | Stage>2 | (Stage>0 & Altitude<=AltCutoff)) {
+        Mul=0
+        RollT = 0
+        YawT = 0
+        PitchT = 0
+        A = 0
+        FBW = 0
+    }
+
+    Vec=vec(X,Y,Z)+(VecCorrect*10)
+    
+}
+else {
+    Mul = 0
+    Go = 0
+    LandPhase = 0
+    A = 0
+    Fire = 0
+    FBW = 0
+    Ok = 0
+}
+

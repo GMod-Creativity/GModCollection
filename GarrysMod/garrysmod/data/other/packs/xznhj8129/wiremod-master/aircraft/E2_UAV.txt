@@ -1,0 +1,123 @@
+@name E2 UAV
+@inputs Target:vector Home:vector Clk Launch RTB Stage
+@outputs Mul A Go Ok Vec:vector Dist Speed Altitude GPS:vector RollT PitchT YawT Bearing
+@persist Targetpos:vector Dist AltDiff Map:string LaserPos:vector PatrolAngle
+@trigger Clk
+
+#[
+Modes:
+0: Patrol
+1: Flyover
+]# 
+
+if (first()) {
+    Map = map()
+    ReleaseDist = array()
+}
+
+if (Clk & ~Clk) {LaserPos = Target}
+
+if (Launch) {I=10}
+else {I=250}
+interval(I)
+
+E=entity()
+GPS=E:pos()
+Gx=GPS:x()
+Py=GPS:y()
+Sz=GPS:z()
+BeginLanding = 12000
+SetSpeed = 1000
+LandingOffset = 100
+AltCutoff = 100
+AltMod = 8
+MinAlt= 5000
+PatrolDist = 12000
+Gl = Home:z()
+HomeSet = Home!=vec(0,0,0)
+Targetpos = Target
+Speed = E:vel():length()
+Tz = Gl
+
+if (Launch & HomeSet) {
+    Go = (Stage <= 1) # KILL DRONE AFTER N WPT
+    if (Stage == 0) { # TARGET RUN
+        Mul = (SetSpeed/Speed)
+        A = -(Speed/SetSpeed)/2
+        
+        Tx=Targetpos:x()
+        Ty=Targetpos:y()
+        Altitude = Sz-Gl
+        AltDiff = Altitude-MinAlt
+        
+        WaypointX = PatrolDist*cos(PatrolAngle)
+        WaypointY = PatrolDist*sin(PatrolAngle)
+        Waypoint = vec(WaypointX,WaypointY,Sz)
+        Dist=GPS:distance(Waypoint)
+        Bearing = E:bearing(Waypoint)
+        
+        if (Dist<2000) {PatrolAngle += 22.5}
+
+        X = Gx - WaypointX
+        Y = Py - WaypointY
+        Z = AltDiff*AltMod
+        
+    }
+    elseif (Stage == 1) { # RETURN TO BASE / WINCHESTER
+        
+        Tx=Home:x()
+        Ty=Home:y()
+        Dist=GPS:distance(vec(Tx,Ty,GPS:z()))
+        
+        CruiseAlt=MinAlt
+        if (Dist<=BeginLanding) {Alt=(Dist/2) + LandingOffset}
+        else {Alt=CruiseAlt}
+        Altitude=Sz-Gl
+        AltDiff=Altitude-Alt
+        
+        X=Gx - Tx
+        Y=Py - Ty
+        Z = AltDiff*8
+        Bearing = E:bearing(Home)
+    
+        if (Go & Dist<(BeginLanding/2)) {
+            Mul = Dist/BeginLanding
+            A = (Dist/BeginLanding)/10
+            }
+        else {
+            Mul = (SetSpeed/Speed)
+            A = -(Speed/SetSpeed)/2
+        }
+    }
+    
+    if (Go==0 | Stage>1 | (Stage & Altitude<=AltCutoff)) {
+        Mul=0
+        A = 0}
+
+    Vec=vec(X,Y,Z)
+    
+    if (Dist<1000 | (!Stage & RTB)) {Ok=1} 
+    else {Ok=0}
+    
+    RollV = E:angVel():roll() 
+    PitchV = E:angVel():pitch() 
+    AltPitch = (AltDiff/15000) * 60
+    if (Go) {
+        RollT = RollV + (E:angles():roll()*3)
+        PitchT = PitchV + ((E:angles():pitch()-AltPitch)*25)
+        YawT = (E:angVel():yaw()*10*10) + (Bearing*50)
+    }
+    else {
+        RollT = 0
+        PitchT = 0
+        YawT = 0
+    }
+}
+else { 
+    Mul = 0
+    Go = 0
+    RollT = 0
+    PitchT = 0
+    YawT = 0
+    A = 0
+}

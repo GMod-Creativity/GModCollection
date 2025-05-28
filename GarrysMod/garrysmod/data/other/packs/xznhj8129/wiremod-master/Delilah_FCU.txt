@@ -1,0 +1,96 @@
+@name Delilah FCU
+@inputs Target:vector Home:vector Launch Terminal CruiseAlt Warhead:wirelink
+@outputs Mul A Go Vec:vector Dist Speed Altitude GPS:vector RollT PitchT YawT AltDiff Ang:angle ArmWH Detonate Bearing Elev RAlt 
+@persist Targetpos:vector Dist AltDiff Map:string LaserPos:vector PatrolAngle
+@trigger None
+
+if (first()) {
+    Map = map()
+}
+
+if (Launch) {I=10}
+else {I=250}
+interval(I)
+
+E=entity()
+GPS=E:pos()
+Gx=GPS:x()
+Py=GPS:y()
+Sz=GPS:z()
+SetSpeed = 2000
+AltMod = 50
+PatrolDist = 12000
+Gl = Home:z()
+Speed = E:vel():length()
+Ang = ang(E:angles():pitch()*-1,E:angles():yaw(),E:angles():roll())
+Stage=0
+
+if (Launch) {
+    Ranger = rangerOffset(20000, entity():pos()-vec(0,0,100), vec(0,0,-1))
+    RAlt = Ranger:distance()
+    Altitude = Sz-Gl
+    if (Terminal) {
+        Mul=10
+        A=1
+        ArmWH = 1
+        Warhead["Arm",number]=1
+        Dist=GPS:distance(Target)
+        if (Dist>5000) {DiveOffset = vec(0,0,3000)}
+        else {DiveOffset = vec(0,0,0)}
+        T = Target-DiveOffset
+        Bearing = E:bearing(Target)
+        Elev = E:elevation(Target)
+        X = Gx - Target:x()
+        Y = Py - Target:y()
+        if (Dist>(CruiseAlt*2)) {TAlt=CruiseAlt}
+        else {TAlt= Dist/2}
+        AltDiff = Altitude-TAlt
+        Z = (AltDiff*AltMod) + entity():vel():z()*3
+        
+        if (Dist<100 | RAlt<50) {
+            Detonate = 1
+            Warhead["Detonate",number]=1
+            }
+        else {Detonate=0}
+    }
+    else {
+        Mul = 1
+        A = 1
+        WaypointX = PatrolDist*cos(PatrolAngle)
+        WaypointY = PatrolDist*sin(PatrolAngle)
+        Waypoint = vec(WaypointX,WaypointY,Sz)
+        Dist=GPS:distance(Waypoint)
+        if (Dist<2000) {PatrolAngle += 22.5}
+        Bearing = E:bearing(Waypoint)
+        X = Gx - WaypointX
+        Y = Py - WaypointY
+        AltDiff = Altitude-CruiseAlt
+        Z = AltDiff*AltMod
+        Detonate=0
+    }
+
+
+    Vec=vec(X,Y,Z)
+    
+    RollV = E:angVel():roll() 
+    PitchV = E:angVel():pitch() 
+    AltPitch = (AltDiff/15000) * 50
+    if (!Terminal) {
+        PitchT = PitchV + ((E:angles():pitch()-AltPitch)*20)
+        RollT = RollV + (E:angles():roll()*3)
+    }
+    else {
+        PitchT = PitchV + (Elev*50)
+        RollT = RollV + (E:angles():roll()*3)
+    }
+    YawT = (E:angVel():yaw()*10*10) + (Bearing*50)
+}
+else { 
+    Mul = 0
+    Go = 0
+    RollT = 0
+    PitchT = 0
+    YawT = 0
+    A = 0
+}
+

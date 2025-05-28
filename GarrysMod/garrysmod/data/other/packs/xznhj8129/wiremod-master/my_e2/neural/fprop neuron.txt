@@ -1,0 +1,93 @@
+@name Neuron
+@inputs V1 V2 Target Reset
+@persist W1 W2 Learn It Train:entity
+@persist IN1 IN2 N Wire
+@outputs OUT
+
+if(first()){
+    Wire=0
+        #If null, globals from the Train chip
+        #otherwise, from the input wires
+    
+        #Learning rate
+    Learn=0.25
+        #T is the target, a string (to allow learning towards zero)
+    
+        #Initial randomised weights
+    W1=round(random(-1,1),2)
+    W2=round(random(-1,1),2)
+        print("Weight 1: "+W1)
+        print("Weight 2: "+W2)
+    
+        #Indication holograms
+        B=entity():toWorld(vec(0,0,5))
+    holoCreate(1,B) holoCreate(2,B)
+    holoModel(1,"pyramid") holoModel(2,"pyramid")
+    holoScaleUnits(1,vec(1,1,1)) holoScaleUnits(2,vec(5,5,5))
+    holoParent(1,entity()) holoParent(2,entity())
+    holoAlpha(2,170)
+    
+    if(!Wire){
+        holoCreate(3,entity():toWorld(vec(0,0,1)))
+        holoParent(3,entity()) holoModel(3,"hqcone")
+        holoScaleUnits(3,vec(3,3,7))
+            Train=owner()
+    }
+}
+interval(150)
+    #Training data
+if(!Wire){
+        T=gGetStr(Train:id()*3+3):explode("/")
+    IN1=T[1,string]:toNumber()
+    IN2=T[2,string]:toNumber()
+    N=T[3,string]:toNumber()  #Target output number
+}
+else{
+    IN1=V1
+    IN2=V2
+    N=Target
+}
+
+    #Output production
+O=(IN1*W1)+(IN2*W2)
+OUT=1/1-exp(-O)
+
+    #Forward propagation
+if($N){
+    Error=N-OUT
+    
+    W1+=(Learn*IN1*Error) #Modify weight 1
+    W2+=(Learn*IN2*Error) #Modify weight 2
+    
+        #Scale indication hologram
+    S=((1-Error)/(!N ? 1 : N))*5
+    holoScaleUnits(1,vec(S,S,S))
+    
+    if(Error){
+        holoColor(1,vec(1,1,1)*255)
+        It=1
+    }
+    else{
+        holoColor(1,vec(0,1,0)*255)
+        if(It){
+            holoEntity(1):soundPlay(1,0,"buttons/blip1.wav")
+            soundPitch(1,150)
+            
+            It=0
+        }
+    }
+    
+    if(N){gSetNum(Train:id()*3+1,Error)}
+    else{gSetNum(Train:id()*3+2,Error)}
+}
+
+    #Rebooting simultaneous with nearby training chip
+runOnSignal("Start",1,1)
+Dis=signalSender():pos():distance(entity():pos())
+if(signalClk("Start") & Dis<=100 & !Wire|Wire & Reset & $Reset){
+    W1=round(random(-1,1),2)
+    W2=round(random(-1,1),2)
+        Train=signalSender()
+}
+V=Train:pos()-holoEntity(3):pos()
+holoAng(3,V:toAngle()+ang(90,0,0))

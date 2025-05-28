@@ -1,0 +1,87 @@
+@name controller 004
+@inputs Go Int CMD Arg Arg2 Mem:array POp ProgAddr Input InputClk
+@outputs ProgDone Out CPUOn WrAddr AddrRead AddrRead2 Mem:array Argument Argument2 
+@outputs PPos Output:array Interrupt InputWait Lop In
+@persist Lop In 
+@trigger CMD Go ProgAddr InputClk
+Code=742617000027 #Master LOP Code
+if (POp!=0 & Lop!=POp) {Lop=POp}
+if (CMD==1) {   #Set Command
+    AddrRead=0
+    AddrRead2=0
+    if (Arg2==Code) {Argument2=Lop}
+    else {Argument2=Arg2}
+    Argument=0
+    Mem[Arg,number]=Argument2
+    Lop=Argument2
+    }
+elseif (CMD==23) { #Setlop
+    AddrRead=0
+    AddrRead2=0
+    WrAddr=Arg-Code
+    Mem[WrAddr,number]=Lop
+}
+elseif (CMD==25) { #Clear
+    AddrRead=0
+    AddrRead2=0
+    WrAddr=Arg-Code
+    Mem[WrAddr,number]=0
+}
+elseif (CMD!=1 & CMD!=23 & CMD!=25) { #Not a Set Command
+    #arg1
+    if (Arg>Code) { #Memory Call
+    AddrRead=Arg-Code
+    Argument=Mem[AddrRead,number]
+    }
+    elseif (Arg==Code) {Argument=Lop
+        AddrRead=0} #Last Op Call
+    else {Argument=Arg #Normal Argument
+        AddrRead=0}
+    #arg2
+    if (Arg2>Code) {    #Memory Call
+    AddrRead2=Arg2-Code
+    Argument2=Mem[AddrRead2,number]}
+    elseif (Arg2==Code) {Argument2=Lop
+        AddrRead2=0}   #Last Op Call
+    else {Argument2=Arg2    #Normal Argument
+        AddrRead2=0}
+}
+else {WrAddr=0}
+if (CMD==21 & InputClk==1) {In=1} #input
+if (CMD==21 & In==0) {CPUOn=0
+    InputWait=1
+    Interrupt=1
+}
+elseif (CMD==21 & In==1) {Lop=Input
+Interrupt=0
+InputWait=0}
+else {Lop=POp
+    Interrupt=0
+InputWait=0}
+
+if (CMD==22) {Output[Argument,number]=Argument2} #output
+
+if (CMD==1) {CPUOn=0
+	}  
+elseif ((CMD!=0 & CMD!=1 & CMD!=10 & CMD!=11 & CMD!=20) & (CMD!=21 & CMD!=22 & CMD!=23 & CMD!=25) & Go>=0.1) {CPUOn=1}
+elseif (CMD==11) {ProgDone=1
+	if (Arg!=0) {Out=Argument}
+	else {Out=Lop}
+	}
+elseif ((CMD==10 & Argument>=1) | (CMD==20)) {CPUOn=0
+PPos=Argument2}
+
+else {Out=0
+PPos=ProgAddr
+ProgDone=0
+    }
+
+if (CMD!=10 & CMD!=20) {PPos=ProgAddr}
+
+if (ProgDone==1) {CPUOn=0
+	Out=Lop
+	WrAddr=0
+AddrRead=0
+AddrRead2=0	
+}
+else {Out=0}

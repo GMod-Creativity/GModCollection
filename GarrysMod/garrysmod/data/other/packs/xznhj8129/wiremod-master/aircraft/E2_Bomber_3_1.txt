@@ -1,0 +1,42 @@
+@name E2 Bomber 4
+@inputs Gl GPS:vector Objective:vector Clk Launch Stage Abort
+@outputs Mul A Go Ok Vector:vector Speed Dist Altitude Alt Roll
+@persist GPS:vector Waypoints:table
+@persist Alt 
+@trigger Clk
+interval(50)
+
+E=entity()
+CruiseAlt=10000
+BeginLanding=15000
+Go = Stage<= 1 #KILL DRONE AFTER N WPT
+Sz=GPS:z()
+
+if (Clk & ~Clk & Launch==0) {Waypoints[toString(1),vector] = GPS}
+if (Clk & ~Clk) {Waypoints[toString(0),vector] = Objective}
+T = Waypoints[toString(Stage),vector]
+
+if (Go==1 & Launch==1 & (Stage==0 | ( Stage==1 & Dist>BeginLanding))) {Mul=1
+    A=1}
+elseif (Go==1 & Launch==1 & Stage==1 & Dist<=BeginLanding) {Mul=1
+    A=0.25}
+else {Mul=0
+    A=0}
+
+
+if (Stage==1 & Dist<=BeginLanding) {Alt=(Dist/2)+250}
+else {Alt=CruiseAlt}
+Altitude=Sz-Gl
+AltDiff=Altitude-Alt
+Z=AltDiff*4
+
+
+Vec=GPS-T
+Vector=vec(Vec:x(),Vec:y(),Z)
+TPN=vec(T:x(),T:y(),GPS:z())
+Dist=TPN:distance(GPS)
+Speed=entity():vel():length()
+RollV = E:angVel():roll() 
+Roll = (RollV*-1) + E:angles():roll() * -1
+
+Ok=(Dist<=1000 | Abort==1)

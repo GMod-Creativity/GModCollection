@@ -1,0 +1,97 @@
+@name R21-B SLBM
+@inputs Position:vector TargetPos:vector Arm Launch TgtClk Reset WHARM WHDET Warhead:wirelink
+@outputs Target:vector Phase Vector:vector MulV MulT Det Dv Dist Alt Boost WarheadArm TargetSet RVWeld MulRV InitRange
+@persist Gl Phase Dist Alt Altmod Boost Time Target:vector I InitRange FuzeHeight
+@trigger None
+interval(I)
+
+#Phase 0: Liftoff
+#Phase 1: Boost
+#Phase 2: Coast
+#Phase 3: Terminal
+
+if (first()|duped()) {I=100}
+if (Reset) {reset()}
+if (TgtClk) {Target=TargetPos}
+TargetSet = Target!=vec(0,0,0)
+if (Arm & Launch==0) {
+    Gl = Position:z()
+    InitRange = vec(Target:x(),Target:y(),0):distance(vec(Position:x(),Position:y(),0))
+    FuzeHeight = 10
+}
+if (Arm & Launch) {
+    I = 50
+    Gx=Position:x()
+    Py=Position:y()
+    Sz=Position:z()
+
+    Tx=Target:x()
+    Ty=Target:y()
+    Tz=Target:z()
+    Underwater = entity():isUnderWater()
+    #Dist = Target:distance(Position)
+    Dist = vec(Gx - Tx,Py - Ty,0):length()
+    RD = $Dist
+
+    if (Phase==3) {
+        Altimeter = rangerOffset(10000, entity():pos()-vec(0,0,50), vec(0,0,-1))
+        Ranger = Altimeter:position()
+        Bounds = vec2(-16000,16000)
+        if (inrange(Ranger:x(), -16000, 16000) & Ranger!=vec(0,0,0)) {Gl = Ranger:z()} 
+        else {Gl = Tz}
+    }
+    Alt = Sz-Gl
+    
+    if (Phase==0 & Alt>1000 & !Underwater) {Phase=1}
+    if (Phase==1 & Dist<(InitRange/2)) {Phase=2} #(Dv>0 & Alt>10000) | Dist<20000 | RC<0
+    if (Phase==2 & Dist<=15000) {Phase=3} 
+    
+    if (Phase<=1) {Boost=1}
+    else {Boost=0}
+
+    if (Boost==1) {MulT=1}
+    else {MulT=0}
+    
+    if (Phase==1 & InitRange>30000) {Altmod = Dist}
+    elseif (Phase==1) {Altmod = Dist*0.6}
+    
+    if (Phase==2 & InitRange>30000) {Altmod = Dist*0.7}
+    elseif (Phase==2) {Altmod = Dist*0.4}
+    
+    if (Phase==3) {
+        Altmod = FuzeHeight+(Dist/100)
+        WarheadArm=1
+        if ((Alt+entity():vel():z()/20)<=FuzeHeight | RD>0) {Det=1}
+    }
+    
+    if (Phase>=2) {
+        MulV = 0
+        RVWeld = 0
+        MulRV = 1
+    }
+    else {
+        MulV = 1
+        RVWeld = 1
+        MulRV = 0
+    }
+    
+    if (WHARM) {Warhead["Arm",number] = 1}
+    if (WHDET) {Warhead["Detonate",number] = 1}
+    
+    X=Gx - Tx
+    Y=Py - Ty
+    #X=Gx - Tx
+    #Y=Py - Ty
+    Z=Sz - Tz - Altmod
+    if (Phase==0) {Vector = vec(0,0,-100000)}
+    else {Vector=vec(X,Y,Z)}
+
+}
+else {
+    Phase = 0
+    MulV = 0
+    MulT = 0
+    Det = 0
+    WarheadArm = 0
+    RVWeld = 1
+    MulRV = 0}

@@ -1,0 +1,81 @@
+@name cosmos 1 computer
+@inputs On Go Gyro:entity Target:vector KillVel Reset
+@outputs TV:vector Bear Elev Ang:angle ReqAng:angle
+@outputs Dist Vel Err Kvv:vector Xtraj:vector TrajErr:vector Throt Retro Time T A Burn
+@persist Wpt:vector Burn T P0:vector T1 Time Throt RT
+@trigger Reset
+interval(100)
+#BUILD A REAL ONE!!!
+#[MISSION PHASES
+PHASE 0-STANDBY
+PHASE 1- LAUNCH
+PHASE 2- ALIGN (WPT)
+PHASE 3- DEPARTUNE BURN
+PHASE 4- COAST
+PHASE 5- RETROBURN TO V.0
+PHASE 6- ALIGN (HOME RE-ENTRY POINT)
+PHASE 7- RETURN BURN
+PHASE 8- RETROBURN TO V.500
+RE-ENTRY, END PROGRAM
+]#
+if (Reset==1) {reset()}
+Ang=Gyro:angles()
+GPS=Gyro:pos()
+#TV=Wptmem[Phase,vector]
+V=500
+Vel=Gyro:vel():length()
+A=$Vel*10
+A1=122.5
+Kvv=Gyro:vel()*5
+TV=Target
+
+Bear=Gyro:bearing(TV)
+Elev=Gyro:elevation(TV)
+Hd=heading(vec(0,0,0),ang(0,0,0),TV)
+RP=Ang:pitch()+Elev
+RY=Ang:yaw()+Bear
+RR=0
+Ca=Ang-ang(RP,RY,RR)
+ReqAng=ang(Ca:pitch(),Ca:yaw(),(Ang:roll()* -1))
+
+Av=Gyro:angVel()
+Mass=Gyro:mass()
+Dist=GPS:distance(TV)
+Err=sqrt(Bear^2+Elev^2)
+
+
+if (On==1) {
+if (KillVel==1) {Gyro:applyForce(Kvv * 10 * -1)}
+if (Retro==0 & Dist>1000) {
+    if (Err>5) {Gyro:applyAngForce((ReqAng*Mass)-(Av*2000))}
+    else {Gyro:applyAngForce((ReqAng*Mass)-(Av*3500))}
+}
+elseif (Retro==1 | Dist<=1000) {Gyro:applyAngForce((Av*3500) * -1)}
+Acceltime=(V/A1)
+if (Go==1 & Burn==0) {Burn=1
+    P0=GPS
+    Tx=(A1*Acceltime)
+    Time=((Dist-Tx)/V)+Acceltime
+    T=1
+    Throt=1}
+if (Burn==1) {
+    Xtraj=P0-((P0-TV)/Time*T)
+    TrajErr=GPS-Xtraj
+    T=T+0.1
+    if (Vel>=V) {Throt=0}
+    if (T>=Time | Dist<=1000) {Burn=0
+        Retro=1
+        RT=Vel/122.5
+        T=0}
+}
+if (Retro==1) {
+    Throt= -1
+    T=T+0.1
+    if (T>=RT) {Throt=0
+        Retro=0
+        reset()}
+}
+}
+
+
+

@@ -1,0 +1,81 @@
+@name Genetic Vector Finder
+@inputs On Entity:entity Reset
+@outputs Distance BreedGene:vector
+@persist Counter Warning Gate:entity [HoloGene HoloScore]:array
+@persist Ti Run Genes It
+
+if (Reset==1) {reset()}
+
+if (On==1) {
+    runOnTick(1)
+    Ti=realtime()
+    Gate = entity()
+    Owner= owner()
+    
+    Genes=20
+    for (I=1,Genes) {
+        holoCreate(I)
+        holoAlpha(I,120)
+    }
+    
+    Run=1
+}
+
+Goal = round(Entity:pos(),3)
+
+if (Counter == 2 & Run) {
+    Counter = 0
+    
+    Distance = HoloScore[1,number]
+    Breed = 1
+        #Finding the "fittest" algorithm
+    for (I=2,Genes) {
+        Score = HoloScore[I,number]
+        if (Score < Distance) {
+            Distance = Score
+            Breed = I
+        }
+    }
+    
+        #"Fittest" algorithm becomes the BreedGene
+    BreedGene = round(HoloGene[Breed,vector],3)
+    
+        #Gene augmentation
+    for (I=1,Genes) {
+        P=(I==Breed ? vec() : randvec(-Distance,Distance))
+        HoloGene[I,vector] = BreedGene+P
+            #Change distance to a constant if you wish
+            
+        holoPos(I,Goal)
+        It++
+    }
+    
+    if (!round(Distance,3) & !Warning) {
+        
+        print("Genetic algorithm complete.")
+        Str = "The target pos was        "+round(Goal)+"."
+        print(Str)
+        Str = "The algorithm achieved "+round(BreedGene)+"."
+        print(Str)
+        print("Deviance: "+round(BreedGene:distance(Goal),5)+".")
+        print("Iterations: "+It)
+        print("Time taken: "+round(realtime()-Ti,2)+" seconds.")
+        
+        owner():soundPlay(1,1,"buttons/blip1.wav")
+        
+        Warning = 1
+        Run=0
+    } elseif (Distance & Warning) {
+        Warning = 0
+    }
+} elseif(Run) {
+    for (I=1,Genes) {
+        Holo = holoEntity(I)
+        Pos = Holo:pos()
+        Dir = HoloGene[I,vector]
+        Pos +=(Dir-Pos)/2
+        holoPos(I,Pos)
+        HoloScore[I,number]=Pos:distance(Goal)
+    }
+    Counter++
+}

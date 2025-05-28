@@ -1,0 +1,147 @@
+@name E2 Bomber 4.0
+@inputs WeaponBus:wirelink GroundTarget:vector Clk Launch Stage BombsightRate Home:vector WeaponMode BombMode
+@outputs Mul Go Ok Vec:vector Dist Speed Altitude Fire GPS:vector RollT PitchT YawT
+@outputs Expended WeaponsReady
+@persist Targetpos:vector Dist AltDiff Map:string LaserPos:vector 
+@trigger Clk
+
+#[
+Modes:
+0: AGM
+1: Area bombing
+2: Precision bombing
+
+Weapon Mode:
+0: Iron Bomb
+1: Auxiliary
+
+Bombing mode:
+0: Release distance
+1: Bombsight
+]# 
+
+if (Clk & ~Clk) {LaserPos = GroundTarget}
+
+Mode = 1
+WeaponsReady = WeaponBus["Ready",number]
+if (BombMode==1) {Expended = Stage>0}
+else {Expended = WeaponBus["Expended",number]}
+
+if (Launch) {I=10}
+else {I=250}
+interval(I)
+
+E=entity()
+GPS=E:pos()
+Gx=GPS:x()
+Py=GPS:y()
+Sz=GPS:z()
+Map = map()
+ReleaseDist = 13000 #Iron Bomb: 8500 for 5000 alt, 13000 for 8000
+BeginLanding = 12500
+SetSpeed = 5000
+if (Expended) {LandingOffset = 250}
+else {LandingOffset = 500}
+AltCutoff = 200
+AltMod = 12
+MinAlt= 10000
+Gl = Home:z()
+TgtAlt = GroundTarget:z()-Gl
+HomeSet = Home!=vec(0,0,0)
+Targetpos = GroundTarget
+Speed = E:vel():length()
+
+if (Launch & HomeSet) {
+    Go = (Stage <= 1) # KILL DRONE AFTER N WPT
+    
+    if (Stage == 0) { # TARGET RUN
+        Mul = (SetSpeed/Speed)*3
+        
+        Tx=Targetpos:x()
+        Ty=Targetpos:y()
+        Tz=Targetpos:z()
+        if (TgtAlt>MinAlt) {Alt = TgtAlt}
+        else {Alt = MinAlt}
+        Altitude = Sz-Gl
+        AltDiff = Altitude-Alt
+
+        X=Gx - Tx
+        Y=Py - Ty
+        Z = AltDiff*AltMod
+        
+        if (BombMode==1 & Go & BombsightRate<=0) {Fire=1}
+        elseif (BombMode==0 & Go & Dist<ReleaseDist) {Fire=1}
+        else {Fire=0}
+    }
+    elseif (Stage == 1) { # RETURN TO BASE / WINCHESTER
+        FiringAngle = 0
+        Search = 0
+        Lock = 0
+        Fire = 0
+        
+        Tx=Home:x()
+        Ty=Home:y()
+        Tz=Home:z()
+        
+        CruiseAlt=MinAlt
+        if (Dist<=BeginLanding) {Alt=(Dist/3) + LandingOffset}
+        else {Alt=CruiseAlt*1.25}
+        Altitude=Sz-Gl
+        AltDiff=Altitude-Alt
+        
+        X=Gx - Tx
+        Y=Py - Ty
+        Z = AltDiff*5
+    
+        if (Go & Dist<(BeginLanding/2)) {
+            if (Expended) {
+                Mul = (Dist/BeginLanding)
+                A = (Dist/BeginLanding) /2
+            }
+            else {
+                Mul = (Dist/BeginLanding)
+                A = (Dist/BeginLanding)
+            }
+                
+            }
+        else {
+            Mul = 999999999
+        }
+        if (Stage & Altitude<AltCutoff) {Mul=0}
+    }
+    
+    Bearing = E:bearing(vec(Tx,Ty,Tz))
+    Dist=GPS:distance(vec(Tx,Ty,GPS:z()))
+    if (Go==0 | Stage>1 | (Stage>0 & Altitude<=AltCutoff)) {Mul=0}
+
+    Vec=vec(X,Y,Z)
+    
+    if (Dist<1000 | (!Stage & Expended & !WeaponMode) | (!Stage & WeaponMode & Fire)) {Ok=1} 
+    else {Ok=0}
+    
+    PMul=80
+    AltPitch = (AltDiff/10000) * 85
+    PitchV = E:angVel():pitch()
+    RollV = E:angVel():roll() 
+    YawV = E:angVel():yaw()
+    if (Go) {
+        RollT = RollV + (E:angles():roll()*2)
+        YawT = (Bearing*100) + YawV*2
+        if (Stage==0) {PitchT = PitchV + ((E:angles():pitch()-AltPitch)*PMul)}
+    }
+    else {
+        RollT = 0
+        PitchT = 0
+        YawT = 0
+    }
+    
+}
+else { 
+    Mul = 0
+    Go = 0
+    RollT = 0
+    PitchT = 0
+    YawT = 0
+    A = 0
+    Fire = 0
+}

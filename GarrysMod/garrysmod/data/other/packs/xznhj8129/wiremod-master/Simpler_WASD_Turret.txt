@@ -1,0 +1,87 @@
+@name Simpler WASD Turret
+@inputs Active [Gun Base]:entity W A S D Shift
+@outputs GunAng:angle LocalToGun:angle ElevWeld TraverseWeld
+@persist Elevation Depression Yaw RotateSpeed FOV
+@persist Rangefinder:ranger [ScreenRes Res]:vector2 CamOffset:vector 
+@persist [Inertia Hold]:angle CamL:entity User:entity 
+
+
+Up = W
+Down = S
+Right = A
+Left = D
+ElevWeld = (!Up & !Down)
+TraverseWeld = (!Left & !Right)
+#############################################################################################################################
+
+    #Do not touch this
+    
+if(first()||dupefinished())
+{
+    holoCreate(1)
+    holoAlpha(1,0)
+}
+
+elseif ( ~Active & Active ) {
+
+#############################################################################################################################
+ 
+    #Stuff you can adjust
+    #Gun Stuff
+    
+    #Elevation (How high the gun aims in degrees)
+    Elevation = 10
+    #Depression (How low the gun aims in degrees)
+    Depression = 7.5
+    #How far around the gun can left and right in degrees (180 is all the way around, 90 is flush to each side)
+    Yaw = 180
+    #How fast the gun turns, this is an arbitrary number and must be adjusted to your liking, Higher is faster
+    RotateSpeed = 15
+   
+    #Turret Sound     Just replace the sound path with whatever sound you like
+    Gun:soundPlay(1,0,"vehicles/tank_turret_loop1.wav")
+    soundPitch(1,0)
+    
+#############################################################################################################################    
+    
+    #Stuff you probably should not touch below
+    
+    #Gun Stuff
+    Elevation*=-1
+    Inertia = shiftL(ang(Gun:inertia()))
+    Hold = entity():toLocal(Gun:angles())
+    
+    interval( 35 )
+    timer("tracker",100)
+    stoptimer("stop-gun-spinning")
+} elseif ( ~Active & !Active ) {
+    stoptimer("interval")
+    stoptimer("tracker")
+    soundPitch(1,0)
+    timer("stop-gun-spinning",100)
+}   elseif (clk("tracker")) {
+    
+    timer("tracker",100)
+} elseif( clk() ) {
+
+    #Sound Stuff
+    soundPitch(1,clamp(Gun:angVelVector():length()*10*(Gun:angVelVector():length()>10),0,80))
+
+    #Ang Force Stuff
+    local GunAng = (Gun:pos()):toAngle()
+    local Force = Gun:toWorld(clamp(Gun:toLocal(GunAng),ang(-RotateSpeed),ang(RotateSpeed)))
+    local Clamped = clamp(entity():toLocal(Force),ang(Elevation,-Yaw,-1),ang(Depression,Yaw,1))
+    #LocalToGun = Gun:toLocal(entity():toWorld(Clamped))
+    YawSpd = (Left*-1 + Right)*2*(8-(Shift*7))
+    DepressSpd = (Up*-1 + Down)*(1.5-(Shift))
+    LocalToGun = ang(DepressSpd,YawSpd,0)
+    Gun:applyAngForce((LocalToGun * 250 - Gun:angVel() * 47) * Inertia) #250, 47
+    
+    interval( 35 )
+} elseif (clk("stop-gun-spinning")) {
+    Gun:applyAngForce(-Gun:angVel() * 30 * Inertia)
+    
+    if (Gun:angVelVector():length() > 0.1) {
+        timer("stop-gun-spinning",100)
+    }
+}

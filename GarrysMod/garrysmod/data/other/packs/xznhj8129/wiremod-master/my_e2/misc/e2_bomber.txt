@@ -1,0 +1,56 @@
+@name E2 Bomber
+@inputs AddrRead AddrWrite DataX DataY DataZ Clk Reset Launch
+@outputs X Y Z Knots Speed Dist Hit Altitude Mul
+@persist GPS:vector Table1:table Table2:table Table3:table 
+@persist Alt Go Gx Py Sz
+
+interval(100)
+    Bombweld=1
+    Alt=6000   # Default Altitude (Very High). Minimum yet tested sucessfully: 1500
+    Gl=0 # MUST BE CORRECTED FOR DIFFERENT MAPS, this one Flatgrass_revolution
+
+if (Go==1 & Launch==1) {Mul=1}
+else {Mul=0}
+
+if (Clk & ~Clk) {Table1[toString(AddrWrite),number] = DataX}
+if (Clk & ~Clk) {Table2[toString(AddrWrite),number] = DataY}
+if (Clk & ~Clk) {Table3[toString(AddrWrite),number] = DataZ}
+Tx=Table1[toString(AddrRead),number]
+Ty=Table2[toString(AddrRead),number]
+Tz=Table3[toString(AddrRead),number]
+
+Go=AddrRead <= 5 #KILL DRONE AFTER N WPT
+GPS=entity():pos()
+Gx=GPS:x()
+Py=GPS:y()
+Sz=GPS:z()
+X=Gx - Tx
+Y=Py - Ty
+if ((Dist>30000 | Dist<-30000)) {Tz=(Tz/1.9)}
+if ((Dist>20000 | Dist<-20000)) {Tz=(Tz/1.3)}
+if ((Dist>10000 | Dist<-10000)) {Tz=(Tz/1.15)}
+Z=Sz - Tz - Alt
+Altitude=Sz+Gl
+Dist=X + Y + Z
+Knots=toUnit("knots", entity():vel():length() )
+Speed=entity():vel():length()
+if ((Mul==1) & (Speed<3100)) {Mul=2}  # Cruising speed
+if ((Dist<700) | (Dist>-700)) {Hit=1} 
+if ((Dist>700) | (Dist<-700)) {Hit=0}
+if ((AddrRead==5) & (Launch==1) & (Dist<10000 | Dist>-10000)) {Mul=0.5}
+
+
+
+#if ((Dist>15000) | (Dist<-15000)) {Alt=(Alt*2)} 
+#if ((AddrRead==5) & (Dist>20000 | Dist<-20000)) {Tz=(Tz/1.6)}
+#if ((AddrRead==5) & (Dist>10000 | Dist<-10000)) {Tz=(Tz/1.1)}
+#if ((AddrRead==5) & (Dist<1000 & Dist>-1000)) {Z=(Sz-Tz)}
+
+
+# AddRead must be wired to an Up/Down counter gate, Wich the Increment is wired to Hit.
+# AddWrite must be wired to the device wich will feed it the Waypoints GPS parameters, telling it on wich one
+# DataX,Y and Z must be wired to your GPS-coord-memory device
+# Alt is wired to a constant value or advanced input to feed the Altitude of flight. Important.
+# X,Y,Z is for vector thrusters
+# Outputs Knots, Speed and Dist are simply for information
+# A relay is wired to Go with an advanced input, to send it off. Thruster's Mult variables are wired to the relay

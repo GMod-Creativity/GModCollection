@@ -1,0 +1,59 @@
+@name M2 Ballistic Missile
+@inputs Position:vector TargetPos:vector Arm Launch TgtClk Reset
+@outputs Target:vector Phase Vector:vector MulV Booster Sustainer Det Dv Dist Alt Boost WarheadArm StageWeld #Milage
+@persist Gl Phase Dist Alt Altmod Boost Time Target:vector
+interval(50)
+
+#Phase 0: Liftoff
+#Phase 1: Boost
+#Phase 2: Coast
+#Phase 3: Terminal
+if (Reset) {reset()}
+
+if (TgtClk) {Target=TargetPos}
+
+if (Arm & Launch==0) {Gl = Position:z()}
+if (Arm & Launch) {
+    Gx=Position:x()
+    Py=Position:y()
+    Sz=Position:z()
+    Alt=Sz-Gl
+    Tx=Target:x()
+    Ty=Target:y()
+    Tz=Target:z()
+    Dist = Target:distance(Position)
+    Dv = $Dist
+    
+    if (Phase==0 & Alt>1000) {Phase=1}
+    if (Phase==1 & ((Dv>0 & Alt>10000) | Dist<25000)) {Phase=2} 
+    if (Phase==2 & Dist<=15000) {Phase=3} 
+    
+    if (Phase<=1) {Boost=1}
+    else {Boost=0}
+    
+    if (Boost==1) {Booster=1}
+    else {Booster=0}
+    
+    if (Phase==1) {Altmod = Dist}
+    if (Phase==2) {Altmod = Dist*0.7}
+    if (Phase==3) {
+        Altmod=0
+        WarheadArm=1
+        if (Dist<500) {Det=1}
+    }
+    
+    X=Gx - Tx
+    Y=Py - Ty
+    Z=Sz - Tz - Altmod
+    if (Phase==0) {Vector = vec(0,0,-100000)}
+    else {Vector=vec(X,Y,Z)}
+    MulV = 1
+
+}
+else {
+    Phase = 0
+    MulV = 0
+    Booster = 0
+    Det = 0
+    WarheadArm = 0
+    StageWeld = 1}

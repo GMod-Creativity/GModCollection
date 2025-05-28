@@ -1,0 +1,624 @@
+@name T-56M
+@inputs [PodController EntityMarker CamController EyePod EGP PropSpawner1 Hydr1 Hydr2 HydrHatch ]:wirelink DupeMode
+@outputs L R T Weld WeldHatch WeldTurret Zero Screen Lamp CPU
+@persist [Chassis LTrack RTrack Turret Cannon MG]:entity
+@persist DupeFlag SpawnStage Nums Vehicle:array
+@persist Direction Moving RoofDown
+@persist EC1 EC2 EC3 ECH Heat Length AmmoType GuidedMode Shoot:vector LastShell_2:entity
+@persist CLK NC FLIR FLIR_ Wheels:array
+
+#Wire motor multiply = 1000, friction=0 ,axis friction = 0
+#All unghosted props must be set in "metal" in phys properties
+#Weight: Chassis, Turret = 50000; Wheel = 7000/14000
+#CamController set: coordinates local to parent, client side movement,
+#auto unclip (ignore water), draw player and parent prop.
+#Cannon: audo-remove spawned prop in 30 sec.
+
+runOnTick(1)
+
+Active=PodController["Active",number]
+ThirdPerson=PodController["ThirdPerson",number]
+Mouse1=PodController["Mouse1",number]
+Shells=PropSpawner1["Props",array]
+LastShell=PropSpawner1["LastSpawned",entity]
+EyePod["Enable",number]=GuidedMode
+
+#=====Spawn=====
+if(SpawnStage==0) {timer("TankPartsSpawn",100)}
+if(clk("TankPartsSpawn"))
+{
+    Vehicle=entity():getConstraints()
+    VCount=Vehicle:count()
+    if(changed(VCount)==0)
+    {
+        Zero=0 #to welders "Stretch" ports
+        Screen=1 #EGP mode
+        Hydr1["Constant",number]=500000 Hydr2["Constant",number]=500000 HydrHatch["Constant",number]=500000
+        Hydr1["Damping",number]=2000 Hydr2["Damping",number]=2000 HydrHatch["Damping",number]=1000
+        Chassis=EntityMarker["Entity1",entity]
+        LTrack=EntityMarker["Entity2",entity]
+        RTrack=EntityMarker["Entity3",entity]
+        Turret=EntityMarker["Entity4",entity]
+        Cannon=EntityMarker["Entity5",entity]
+        Nums=Vehicle:count()
+        if(Chassis:isValid()) {SpawnStage=1 timer("clk",100)}
+    }
+    else{timer("TankPartsSpawn",100)}
+}
+
+#=====Weight and Painting=====
+if(SpawnStage==1)
+{
+    Prop=Vehicle[Nums,entity]
+    if(Prop==Chassis) {Prop:setMass(50000) Prop:setMaterial("models/props_canal/metalwall005b") Prop:setColor(127,140,103) Tmp=1}
+    if(Prop==Turret) {Prop:setMass(50000) Prop:setColor(100,100,100) Tmp=1} 
+    if(Prop:model()=="models/hunter/blocks/cube1x2x05.mdl")
+    {
+        if(Prop:angles():pitch()>10) {Prop:setMass(50000)}
+        else {Prop:setMass(10000)}
+        Prop:setMaterial("models/props_canal/metalwall005b") Prop:setColor(127,140,103) Tmp=1
+    }
+    if(Prop:model()=="models/hunter/triangles/05x05x05.mdl")
+    {
+        if(abs(Prop:angles():roll())>30) {Prop:setMass(18670)}
+        else {Prop:setMass(100)}
+        Prop:setMaterial("models/props_canal/metalwall005b") Prop:setColor(127,140,103) Tmp=1
+    }
+    if(Prop:model()=="models/xeon133/offroad/off-road-40.mdl")
+        {
+            if(Prop==LTrack|Prop==RTrack) {Prop:setMass(14000)}
+            else{Prop:setMass(7000)}
+            Prop:setColor(100,100,100) Tmp=1
+        }
+    if(Prop:model()=="models/hunter/plates/plate05x05.mdl")
+    {
+        if(Prop:hasConstraints("Axis")>0) {Prop:setMass(1000)}
+        else {Prop:setMass(100)}
+        Prop:setMaterial("models/props_canal/metalwall005b") Prop:setColor(127,140,103) Tmp=1
+    }
+    if(Prop:model()=="models/hunter/plates/plate05x075.mdl"|Prop:model()=="models/hunter/misc/platehole1x1a.mdl"
+    |Prop:model()=="models/hunter/plates/plate05x1.mdl"|Prop:model()=="models/hunter/plates/plate05x5.mdl")
+        {Prop:setMass(1000) Prop:setMaterial("models/props_canal/metalwall005b") Prop:setColor(127,140,103) Tmp=1}
+    if(Prop:model()=="models/hunter/triangles/1x1x2.mdl"|Prop:model()=="models/hunter/blocks/cube075x4x025.mdl"
+    |Prop:model()=="models/hunter/blocks/cube05x1x025.mdl"|Prop:model()=="models/hunter/blocks/cube025x05x025.mdl")
+        {Prop:setMass(20000) Prop:setMaterial("models/props_canal/metalwall005b") Prop:setColor(127,140,103) Tmp=1}
+    if(Prop:model()=="models/hunter/blocks/cube150x150x025.mdl"|Prop:model()=="models/hunter/blocks/cube025x2x025.mdl"|
+    Prop:model()=="models/hunter/blocks/cube1x1x025.mdl"|Prop:model()==""|Prop:model()=="models/hunter/blocks/cube05x075x025.mdl")
+        {Prop:setMass(5000) Prop:setMaterial("models/props_canal/metalwall005b") Prop:setColor(127,140,103) Tmp=1}
+    if(Prop:model()=="models/props_phx/construct/metal_plate1.mdl")
+        {Prop:setMass(16000) Tmp=1}
+    if(Prop==Cannon) {Prop:setMass(500) Prop:setMaterial("models/props_combine/metal_combinebridge001") Tmp=1}
+    if(Prop:model()=="models/props_c17/TrapPropeller_Engine.mdl"|Prop:model()=="models/nova/airboat_seat.mdl")
+        {Prop:setMass(10000) Tmp=1}
+    if(Prop:model()=="models/weapons/w_smg1.mdl") {MG=Prop Prop:setMass(2) Prop:setAlpha(0)}
+    if(Prop:model()=="models/squad/sf_bars/sf_bar25x25x6.mdl") {Prop:setAlpha(0)}
+    if(Tmp==0) {Prop:setMass(10) Prop:setColor(150,150,150)}
+    Nums--
+    if(Nums==0) {SpawnStage=2 Freezer=0}
+}
+
+#=====Caterpillars=====
+if(SpawnStage==2)
+{
+    if(Nums<Vehicle:count())
+    {
+        Nums++
+        Prop=Vehicle[Nums,entity]
+        if(Prop:model()=="models/xeon133/offroad/off-road-40.mdl"&Prop!=LTrack&Prop!=RTrack)
+        {
+            if(sign(Chassis:toLocal(Prop:pos()):x())==sign(Chassis:toLocal(LTrack:pos()):x()))
+            {
+                if(inrange((LTrack:pos()):distance(Prop:pos()),50,70)) {Wheels[1,entity]=Prop}
+                if(inrange((LTrack:pos()):distance(Prop:pos()),110,130)) {Wheels[2,entity]=Prop}
+                if(inrange((LTrack:pos()):distance(Prop:pos()),170,190)) {Wheels[3,entity]=Prop}
+                if(inrange((LTrack:pos()):distance(Prop:pos()),225,245)) {Wheels[4,entity]=Prop}
+            }
+            else
+            {
+                if(inrange((RTrack:pos()):distance(Prop:pos()),50,70)) {Wheels[5,entity]=Prop}
+                if(inrange((RTrack:pos()):distance(Prop:pos()),110,130)) {Wheels[6,entity]=Prop}
+                if(inrange((RTrack:pos()):distance(Prop:pos()),170,190)) {Wheels[7,entity]=Prop}
+                if(inrange((RTrack:pos()):distance(Prop:pos()),225,245)) {Wheels[8,entity]=Prop}
+            }
+        }
+    }
+    if(Nums==Vehicle:count()) {SpawnStage=3}
+}
+
+#=====Holo decoration=====
+if(SpawnStage==3)
+{
+    if(NC<22)
+    {
+        NC++
+        holoCreate(NC)
+        holoModel(NC,"cube")
+        holoColor(NC,vec(50,50,50))
+        holoShadow(NC,1)
+        holoMaterial(NC,"phoenix_storms/middle")
+        holoParent(NC,Chassis)
+    }
+    if(NC==11)
+    {
+        holoAng(8,Chassis:toWorld(ang(-51,-90,90)))
+        holoScale(8,vec(2.452,0.4,1.8)) #x12
+        holoAng(9,Chassis:toWorld(ang(59,-90,90)))
+        holoScale(9,vec(2.144,0.4,1.8)) #x12
+        holoAng(10,Chassis:toWorld(ang(-51,90,90)))
+        holoScale(10,vec(2.452,0.4,1.8)) #x12
+        holoAng(11,Chassis:toWorld(ang(59,90,90)))
+        holoScale(11,vec(2.144,0.4,1.8)) #x12
+    }
+    if(NC==22)
+    {
+        holoAng(19,Chassis:toWorld(ang(-51,-90,90)))
+        holoScale(19,vec(2.452,0.4,1.8)) #x12
+        holoAng(20,Chassis:toWorld(ang(59,-90,90)))
+        holoScale(20,vec(2.144,0.4,1.8)) #x12
+        holoAng(21,Chassis:toWorld(ang(-51,90,90)))
+        holoScale(21,vec(2.452,0.4,1.8)) #x12
+        holoAng(22,Chassis:toWorld(ang(59,90,90)))
+        holoScale(22,vec(2.144,0.4,1.8)) #x12
+        NC=24
+        holoCreate(23)
+        holoModel(23,"hq_tube")
+        holoShadow(23,1)
+        holoMaterial(23,"models/props_combine/metal_combinebridge001")
+        holoColor(23,vec(150,150,150))
+        holoPos(23,Cannon:toWorld(vec(-6,-90,6)))
+        holoAng(23,Cannon:toWorld(ang(0,0,90)))
+        holoScale(23,vec(0.95,0.95,15))
+        holoParent(23,Cannon)
+    }
+    if(inrange(NC,24,26))
+    {
+        holoCreate(NC)
+        holoModel(NC,"plane")
+        holoAlpha(NC,0)
+        holoMaterial(NC,"particles/fire1")
+        holoParent(NC,Cannon)
+        NC++
+    }
+    if(inrange(NC,27,29))
+    {
+        holoCreate(NC)
+        holoModel(NC,"cylinder")
+        holoShadow(NC,1)
+        holoColor(NC,vec(150,150,150))
+        holoMaterial(NC,"models/props_combine/metal_combinebridge001")
+        holoParent(NC,MG)
+        NC++
+    }
+    if(NC==30)
+    {
+        holoPos(24,Cannon:toWorld(vec(-6,-230,6)))
+        holoAng(24,Cannon:toWorld(ang(0,90,90)))
+        holoPos(25,Cannon:toWorld(vec(-6,-230,6)))
+        holoAng(25,Cannon:toWorld(ang(0,90,0)))
+        holoPos(26,Cannon:toWorld(vec(-6,-210,-2)))
+        holoAng(26,Cannon:toWorld(ang(270,90,0)))
+        holoPos(27,MG:toWorld(vec(-10,2,3)))
+        holoAng(27,MG:toWorld(ang(90,0,0)))
+        holoScale(27,vec(0.1,0.1,3))
+        holoPos(28,MG:toWorld(vec(-25,2,1.5)))
+        holoAng(28,MG:toWorld(ang(90,0,0)))
+        holoScale(28,vec(0.1,0.1,2))
+        holoPos(29,MG:toWorld(vec(-25,2,3)))
+        holoAng(29,MG:toWorld(ang(90,0,0)))
+        holoScale(29,vec(0.15,0.15,2))
+        SpawnStage=4
+    }
+}
+
+#=====MAIN=====
+Driver=PodController["Entity",entity]:driver()
+PlayerAng=PodController["Entity",entity]:toLocal(Driver:eyeAngles())
+if(Heat>0) {Heat--}
+if(clk("clk")) {timer("clk",100) CLK=1}
+
+#=====Activate/Exit=====
+if(changed(Active))
+{
+    if(Active)
+    {
+        HydrHatch["Length",number]=0
+        WeldTurret=0
+        DupeFlag=0
+        Freezer=0
+        EntityMarker["Entity6",entity]:soundPlay(1,1.3,"vehicles/crane/crane_startengine1.wav")
+        EntityMarker["Entity6",entity]:soundPlay(2,0,"vehicles/diesel_loop2.wav") #vehicles/airboat/fan_motor_idle_loop1.wav
+        soundVolume(1,0.7) soundVolume(2,0.7)
+        EGP:egpClear()
+        EGP:egpLine(1,vec2(256,246),vec2(256,251))
+        EGP:egpColor(1,224,0,0,255)
+        EGP:egpLine(2,vec2(256,266),vec2(256,261))
+        EGP:egpColor(2,224,0,0,255)
+        EGP:egpLine(3,vec2(249,256),vec2(253,256))
+        EGP:egpColor(3,224,0,0,255)
+        EGP:egpLine(4,vec2(263,256),vec2(259,256))
+        EGP:egpColor(4,224,0,0,255)
+        EGP:egpText(5,"SPEED",vec2(420,480))
+        EGP:egpSize(5,24)
+        EGP:egpColor(5,255,240,20,220)
+        EGP:egpFont(5,"Marlett")
+        EGP:egpText(6,"Km/h",vec2(470,480))
+        EGP:egpSize(6,24)
+        EGP:egpColor(6,255,240,20,220)
+        EGP:egpFont(6,"Marlett")
+        
+        EGP:egpText(20,"1: Armor piercing",vec2(420,425))
+        EGP:egpSize(20,24)
+        EGP:egpFont(20,"Arial")
+        EGP:egpText(21,"2: Autocannon",vec2(420,440))
+        EGP:egpSize(21,24)
+        EGP:egpFont(21,"Arial")
+        EGP:egpText(22,"3: TV guided",vec2(420,455))
+        EGP:egpSize(22,24)
+        EGP:egpFont(22,"Arial")
+        EGP:egpText(23,"AMMUNITION:",vec2(420,405))
+        EGP:egpSize(23,24)
+        EGP:egpFont(23,"Marlett")
+        EGP:egpText(25,"N: Thermal vision",vec2(420,385))
+        EGP:egpSize(25,24)
+        EGP:egpFont(25,"Arial")
+        EGP:egpText(26,"F: Lights",vec2(420,370))
+        EGP:egpSize(26,24)
+        EGP:egpFont(26,"Arial")
+    
+        EGP:egpBox(30,vec2(452,420),vec2(3,3))
+        EGP:egpColor(30,255,255,20,220)
+        EGP:egpSize(30,vec2(64,3))
+        EGP:egpBox(31,vec2(452,420),vec2(3,3))
+        EGP:egpColor(31,255,0,0,220)
+        EGP:egpSize(31,vec2(3,3))
+        EGP:egpRoundedBox(40,vec2(453,434),vec2(90,140))
+        EGP:egpColor(40,0,0,0,80)
+    }
+    if(Active==0)
+    {
+        HydrHatch["Length",number]=35
+        WeldHatch=0
+        WeldTurret=1
+        soundStop(2)
+        EntityMarker["Entity6",entity]:soundPlay(3,2,"vehicles/airboat/fan_motor_shut_off1.wav")
+    }
+}
+
+#=====Camera=====
+if(changed(ThirdPerson)|changed(GuidedMode)|changed(Active))
+{
+    if(ThirdPerson==0)
+    {
+        CamController["Activated",number]=Active
+        CamController["Parent",entity]=Turret
+        CamController["Position",vector]=vec(-40,0,80)
+        CamController["Distance",number]=200
+    }
+    if(ThirdPerson)
+    {
+        CamController["Activated",number]=Active
+        CamController["Parent",entity]=Turret
+        CamController["Position",vector]=vec(10,0,40)
+        CamController["Distance",number]=10
+    }
+    if(GuidedMode)
+    {
+        CamController["Activated",number]=Active
+        CamController["Parent",entity]=LastShell
+        CamController["Position",vector]=vec(0,0,10)
+        CamController["Distance",number]=1
+    }
+}
+if(changed(FLIR))
+{
+    if(FLIR) {CamController["FLIR",number]=1} 
+    else{CamController["FLIR",number]=0}
+}
+
+#=====C-56-43 cannon=====
+if(Mouse1&!EC1&!EC2&!ECH&!GuidedMode&CPU<0.8) {EC1=1 PropSpawner1["Spawn",number]=1}
+if(changed(LastShell)&LastShell)    #Audo-remove spawned prop in 30 sec.
+{
+    if(AmmoType==0) #AP
+    {
+        LastShell_2=LastShell
+        LastShell:setMass(50000)
+        LastShell:applyForce(LastShell:forward()*1000000000)
+        Turret:applyForce(LastShell:forward()*-10000000)
+        Cannon:soundPlay(11,0,"ambient/explosions/explode_4.wav")
+        Shoot=LastShell:forward()
+        Heat+=200
+        timer("reload_mc",2000)
+        timer("correction",40)
+    }
+    if(AmmoType==1) #AC
+    {
+        LastShell_2=LastShell
+        LastShell:setMass(100)
+        LastShell:applyForce(LastShell:forward()*1000000000)
+        Turret:applyForce(LastShell:forward()*-1000000)
+        Cannon:soundPlay(10,1,"weapons/ar2/npc_ar2_altfire.wav")
+        Shoot=LastShell:forward()+randvec(-1000,1000)/100000 #Accuracy
+        Heat+=48
+        timer("reload_mc",250)
+        timer("correction",40)
+    }
+    if(AmmoType==2) #GM
+    {
+        LastShell_2=LastShell
+        LastShell:setMass(50000)
+        LastShell:soundPlay(12,0,"thrusters/rocket04.wav")
+        LastShell:setTrails(80,80,1,"trails/laser",vec(200,200,200),255)
+        LastShell:applyAngForce(ang(-10000000,0,0))
+        GuidedMode=1 FLIR_=FLIR
+        FLIR=1
+        Heat+=200
+        timer("reload_mc",3000)
+        timer("homing_time",25000)
+    }
+    PropSpawner1["Spawn",number]=0
+    LastShell:setAlpha(0)
+}
+if(clk("reload_mc")) {EC1=0}
+if(clk("reload_gc")) {EC2=0}
+if(clk("effect")) {holoAlpha(24,0) holoAlpha(25,0) holoAlpha(26,0)}
+if(clk("relaunch")) {LastShell_2=noentity() LastShell:applyForce(Shoot*1000000000)}
+if(clk("correction"))
+{
+    LastShell:applyForce(LastShell:vel()*-LastShell:mass())
+    holoAlpha(24,255) holoAlpha(25,255) holoAlpha(26,255)
+    timer("relaunch",1)
+    if(AmmoType==0)
+    {
+        holoScale(24,vec(12,12,0)) holoScale(25,vec(12,12,0)) holoScale(26,vec(6,8,0))
+        LastShell:setTrails(80,80,1,"trails/laser",vec(200,200,200),255)
+        timer("effect",75)
+    }
+    if(AmmoType==1)
+    {
+        LastShell:setTrails(80,80,0.08,"trails/laser",vec(255,150,50),255)
+        holoScale(24,vec(8,6,0)) holoScale(25,vec(8,6,0)) holoScale(26,vec(3,4,0))
+        timer("effect",40)
+    }
+}
+
+if(GuidedMode)
+{
+    if(changed(Mouse1)&Mouse1&EC2) {stoptimer("homing_time") timer("reload_gc",1000) soundStop(12) GuidedMode=0 LastShell_2=noentity() FLIR=FLIR_}
+    if(!LastShell_2:isValid()) {stoptimer("homing_time") timer("reload_gc",500) GuidedMode=0 FLIR=FLIR_}
+    if(clk("homing_time")) {GuidedMode=0 timer("reload_gc",500) LastShell_2=noentity() FLIR=FLIR_}
+    if(LastShell_2:vel():length()<2000) {LastShell_2:applyForce(LastShell_2:forward()*10000000)}
+    LastShell_2:applyAngForce(-100000*(ang(EyePod["Y",number],EyePod["X",number],LastShell_2:angles():roll()*0.5)))
+    EyePod["SetViewAngle",angle]=LastShell_2:angles()+ang(0,-90,0)
+    EC2=1
+}
+for(NumShells=1,Shells:count())
+{
+    perf(80)
+    CurShell=Shells[NumShells,entity]
+    if(CurShell!=LastShell_2) {CurShell:applyForce(CurShell:vel()*1000000000000)}
+}
+
+#=====CANNON=====
+Vert=-PlayerAng:pitch()+Cannon:eyeAngles():roll() #for setup in building
+if(abs(Vert)>20) {Vert=sign(Vert)*20}
+Length-=0.02*Vert
+if(Length>48) {Length=48}
+if(Length<25) {Length=25}
+if(Active==0|RoofDown) {Length=46}
+Hydr1["Length",number]=Length
+Hydr2["Length",number]=Length
+
+#=====TURRET=====
+ChassisAngSpeed=Chassis:angVel():yaw()
+TurretAngSpeed=Turret:angVel():yaw()
+Horiz=Turret:toLocal(PlayerAng):yaw()
+X1=-Horiz*(1-GuidedMode)
+if(abs(X1)>10) {X1=10*sign(X1)}
+if(abs(Horiz)<10) {X2=Active*0.23*(X1+TurretAngSpeed)} else{X2=0}
+if(abs(-ChassisAngSpeed+TurretAngSpeed)>70) {X1=X1*0.1}
+T=Active*X1+X2+0.05*TurretAngSpeed
+
+#=====TIMED=====
+if(CLK)
+{
+    CLK=0
+    CPU=ops()/softQuota()
+    ChassisAng=Chassis:angles():yaw()
+    Speed=-Chassis:velL():y()
+    KmH=floor(toUnit("km/h",Speed+5))
+    LSpeed=LTrack:angVel():roll()
+    RSpeed=RTrack:angVel():roll()
+    W=PodController["W",number]
+    A=PodController["A",number]
+    S=PodController["S",number]
+    D=PodController["D",number]
+    Space=PodController["Space",number]
+    Shift=PodController["Shift",number]
+    if(Driver:keyPressed("1")&Active) {AmmoType=0}
+    if(Driver:keyPressed("2")&Active) {AmmoType=1}
+    if(Driver:keyPressed("3")&Active) {AmmoType=2}
+    if(abs(Chassis:angles():roll())>90) {RoofDown=1} #For setup (default_ang=0,0,0)
+    else {RoofDown=0}
+    
+    #=====Way correction=====
+    if(W&!A&!D)
+    {
+        Delta=Direction-ChassisAng
+        if(Delta>180) {Delta=Delta-360}
+        if(Delta<-180) {Delta=Delta+360}
+        if(abs(Delta)>6) {Direction=ChassisAng+3*sign(Delta)} #Reset way direction
+        Correction=Delta-ChassisAngSpeed*0.5
+    }
+    
+    #=====Moving=====
+    if(S) {X=A,A=D,D=X} #Reverse
+    L0=W+D-A-S
+    R0=W-D+A-S
+    if(Shift) {OverAcc=25 Acc=80} else{OverAcc=0 Acc=50} #Turbo
+    if(abs(LSpeed)>2000|abs(RSpeed)>2000) {AccMul=OverAcc Fast=1} else{AccMul=Acc}
+    if(A|D)
+    {
+        if(abs(LSpeed+RSpeed)>400) {AccMul=OverAcc}
+        if(Fast) {AccMul=25}
+        Direction=ChassisAng
+    }
+    L=-AccMul*sign(L0)+Correction
+    R=AccMul*sign(R0)+Correction
+    
+    #=====Break=====
+    if(Active==0|Space==1)
+    {
+        if(abs(LSpeed)+abs(RSpeed)>200)
+        {
+            L=0.1*LSpeed
+            R=0.1*RSpeed
+            if(abs(L)>50) {L=50*sign(L)}
+            if(abs(R)>50) {R=50*sign(R)}
+        }
+        else{Weld=1}
+    }
+    if(L0!=0|R0!=0) {Weld=0 Moving=1} else{Moving=0}
+    if(Shift&Space) {Weld=1 L=0 R=0}
+    if(DupeFlag) {L=0 R=0 Weld=0 WeldTurret=0}
+
+    #=====Additional=====
+    if(DupeMode) {DupeFlag=1}
+    if(Active&HydrHatch["Length",number]<6) {WeldHatch=1}
+    if(Driver:keyPressed("N")&Active) {NVis=1} else{NVis=0}
+    if(Driver:keyPressed("F")&Active) {Light=1} else{Light=0}
+    if(changed(Light)&Light==1)
+    {
+        if(Lamp) {Lamp=0} 
+        else{Lamp=1}
+    }
+    if(changed(NVis)&NVis==1)
+    {
+        if(FLIR) {FLIR=0}
+        else{FLIR=1}
+    }
+    
+    #=====HUD=====
+    EGP:egpRemove(100)
+    EGP:egpText(100,toString(floor(KmH)),vec2(445,475))
+    EGP:egpSize(100,36)
+    if(Shift) {EGP:egpColor(100,255,0,0,220)} else{EGP:egpColor(100,255,240,20,220)}
+    if(Lamp) {EGP:egpColor(26,255,100,20,220)} else{EGP:egpColor(26,255,240,20,220)}
+    if(FLIR) {EGP:egpColor(25,255,100,20,220)} else{EGP:egpColor(25,255,240,20,220)}
+    EGP:egpFont(100,"Lucida Console")
+    if(Heat>512) {ECH=1 EGP:egpColor(23,255,0,0,220)}
+    if(Heat<320) {ECH=0 EGP:egpColor(23,255,240,20,220)}
+    if(changed(AmmoType)|changed(Active))
+    {
+        EGP:egpColor(20,150,150,150,220) EGP:egpColor(21,150,150,150,220) EGP:egpColor(22,150,150,150,220)
+        if(AmmoType==0) {EGP:egpColor(20,255,150,20,220)}
+        if(AmmoType==1) {EGP:egpColor(21,255,0,0,220)}
+        if(AmmoType==2) {EGP:egpColor(22,20,255,20,220)}
+    }
+    EGP:egpSize(30,vec2(64-Heat/8,3)) #64
+    EGP:egpPos(30,vec2(452+Heat/16,420)) #410
+    EGP:egpSize(31,vec2(Heat/8,3)) #64
+    EGP:egpPos(31,vec2(421+Heat/16,420)) #410
+
+    #=====Diesel=====
+    if(changed(Moving))
+    {
+        if(Shift==0)
+        {
+            if(Moving) {EntityMarker["Entity6",entity]:soundPlay(4,0,"vehicles/crane/crane_slow_to_idle_loop4.wav")}
+            if(Moving==0){soundStop(4) EntityMarker["Entity6",entity]:soundPlay(5,0.01,"vehicles/crane/crane_idle_loop3.wav",1)}
+        }
+        if(Shift)
+        {
+            if(Moving)
+            {
+                EntityMarker["Entity6",entity]:soundPlay(4,0,"vehicles/crane/crane_slow_to_idle_loop4.wav") 
+                soundPitch(4,180,1)
+            }
+            if(Moving==0) {
+                soundStop(4)
+                EntityMarker["Entity6",entity]:soundPlay(5,0.01,"vehicles/crane/crane_idle_loop3.wav",1)
+                soundPitch(5,180)
+            }
+        }
+    }
+    if(changed(Shift))
+    {
+        if(Shift) {soundPitch(4,180,1)}
+        if(Shift==0) {soundPitch(4,100,1)}
+    }
+    
+    #=====Caterpillars=====
+    if(CPU<0.75)
+    {
+        LPos1=Chassis:toLocal(LTrack:pos())-vec(0,-13,18)
+        LPos2=Chassis:toLocal(Wheels[1,entity]:pos())-vec(0,0,22)
+        LPos3=Chassis:toLocal(Wheels[2,entity]:pos())-vec(0,0,22)
+        LPos4=Chassis:toLocal(Wheels[3,entity]:pos())-vec(0,0,22)
+        LPos5=Chassis:toLocal(Wheels[4,entity]:pos())-vec(0,13,18)
+        LPos1a=LPos1+vec(0,-5,41)
+        LPos2a=LPos2+vec(0,0,55)
+        LPos4a=LPos4+vec(0,0,55)
+        LPos5a=LPos5+vec(0,5,41)
+        holoPos(1,Chassis:toWorld((LPos1+LPos2)/2))
+        holoAng(1,Chassis:toWorld((LPos1-LPos2):toAngle())+ang(0,0,90))
+        holoScale(1,vec(LPos1:distance(LPos2)/12,0.4,1.8)) #x12
+        holoPos(2,Chassis:toWorld((LPos2+LPos3)/2))
+        holoAng(2,Chassis:toWorld((LPos2-LPos3):toAngle())+ang(0,0,90))
+        holoScale(2,vec(LPos2:distance(LPos3)/12,0.4,1.8)) #x12
+        holoPos(3,Chassis:toWorld((LPos3+LPos4)/2))
+        holoAng(3,Chassis:toWorld((LPos3-LPos4):toAngle())+ang(0,0,90))
+        holoScale(3,vec(LPos3:distance(LPos4)/12,0.4,1.8)) #x12
+        holoPos(4,Chassis:toWorld((LPos4+LPos5)/2))
+        holoAng(4,Chassis:toWorld((LPos4-LPos5):toAngle())+ang(0,0,90))
+        holoScale(4,vec(LPos4:distance(LPos5)/12,0.4,1.8)) #x12
+        holoPos(5,Chassis:toWorld((LPos1a+LPos2a)/2))
+        holoAng(5,Chassis:toWorld((LPos1a-LPos2a):toAngle())+ang(0,0,90))
+        holoScale(5,vec(LPos1a:distance(LPos2a)/12,0.4,1.8)) #x12
+        holoPos(6,Chassis:toWorld((LPos4a+LPos5a)/2))
+        holoAng(6,Chassis:toWorld((LPos4a-LPos5a):toAngle())+ang(0,0,90))
+        holoScale(6,vec(LPos4a:distance(LPos5a)/12,0.4,1.8)) #x12
+        holoPos(7,Chassis:toWorld((LPos2a+LPos4a)/2))
+        holoAng(7,Chassis:toWorld((LPos2a-LPos4a):toAngle())+ang(0,0,90))
+        holoScale(7,vec(LPos2a:distance(LPos4a)/12,0.4,1.8)) #x12
+        holoPos(8,Chassis:toWorld(LPos1-vec(0,-3.5,-30.5)))
+        holoPos(9,Chassis:toWorld(LPos1-vec(0,-6,-10)))
+        holoPos(10,Chassis:toWorld(LPos5-vec(0,3.5,-30.5)))
+        holoPos(11,Chassis:toWorld(LPos5-vec(0,6,-10)))
+        
+        RPos1=Chassis:toLocal(RTrack:pos())-vec(0,-13,18)
+        RPos2=Chassis:toLocal(Wheels[5,entity]:pos())-vec(0,0,22)
+        RPos3=Chassis:toLocal(Wheels[6,entity]:pos())-vec(0,0,22)
+        RPos4=Chassis:toLocal(Wheels[7,entity]:pos())-vec(0,0,22)
+        RPos5=Chassis:toLocal(Wheels[8,entity]:pos())-vec(0,13,18)
+        RPos1a=RPos1+vec(0,-5,41)
+        RPos2a=RPos2+vec(0,0,55)
+        RPos4a=RPos4+vec(0,0,55)
+        RPos5a=RPos5+vec(0,5,41)
+        holoPos(12,Chassis:toWorld((RPos1+RPos2)/2))
+        holoAng(12,Chassis:toWorld((RPos1-RPos2):toAngle())+ang(0,0,90))
+        holoScale(12,vec(RPos1:distance(RPos2)/12,0.4,1.8)) #x12
+        holoPos(13,Chassis:toWorld((RPos2+RPos3)/2))
+        holoAng(13,Chassis:toWorld((RPos2-RPos3):toAngle())+ang(0,0,90))
+        holoScale(13,vec(RPos2:distance(RPos3)/12,0.4,1.8)) #x12
+        holoPos(14,Chassis:toWorld((RPos3+RPos4)/2))
+        holoAng(14,Chassis:toWorld((RPos3-RPos4):toAngle())+ang(0,0,90))
+        holoScale(14,vec(RPos3:distance(RPos4)/12,0.4,1.8)) #x12
+        holoPos(15,Chassis:toWorld((RPos4+RPos5)/2))
+        holoAng(15,Chassis:toWorld((RPos4-RPos5):toAngle())+ang(0,0,90))
+        holoScale(15,vec(RPos4:distance(RPos5)/12,0.4,1.8)) #x12
+        holoPos(16,Chassis:toWorld((RPos1a+RPos2a)/2))
+        holoAng(16,Chassis:toWorld((RPos1a-RPos2a):toAngle())+ang(0,0,90))
+        holoScale(16,vec(RPos1a:distance(RPos2a)/12,0.4,1.8)) #x12
+        holoPos(17,Chassis:toWorld((RPos4a+RPos5a)/2))
+        holoAng(17,Chassis:toWorld((RPos4a-RPos5a):toAngle())+ang(0,0,90))
+        holoScale(17,vec(RPos4a:distance(RPos5a)/12,0.4,1.8)) #x12
+        holoPos(18,Chassis:toWorld((RPos2a+RPos4a)/2))
+        holoAng(18,Chassis:toWorld((RPos2a-RPos4a):toAngle())+ang(0,0,90))
+        holoScale(18,vec(RPos2a:distance(RPos4a)/12,0.4,1.8)) #x12
+        holoPos(19,Chassis:toWorld(RPos1-vec(0,-3.5,-30.5)))
+        holoPos(20,Chassis:toWorld(RPos1-vec(0,-6,-10)))
+        holoPos(21,Chassis:toWorld(RPos5-vec(0,3.5,-30.5)))
+        holoPos(22,Chassis:toWorld(RPos5-vec(0,6,-10)))
+    }
+}

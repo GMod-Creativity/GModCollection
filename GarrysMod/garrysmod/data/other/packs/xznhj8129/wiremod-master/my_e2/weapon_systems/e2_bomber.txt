@@ -1,0 +1,52 @@
+@name E2 Bomber
+@inputs Gl DataX DataY DataZ Clk Launch Stage Abort Reboot
+@outputs Mul A Go Ok Vector:vector Speed Dist Altitude Reset Bombsaway
+@persist GPS:vector Home:table Targetpos:table
+@persist Alt Gx Py Sz
+if (Clk & ~Clk & Launch==0) {Home[toString(0),number] = Gx}
+if (Clk & ~Clk & Launch==0) {Home[toString(1),number] = Py}
+if (Clk & ~Clk & Launch==0) {Home[toString(2),number] = Sz}
+if (Clk & ~Clk) {Targetpos[toString(0),number] = DataX}
+if (Clk & ~Clk) {Targetpos[toString(1),number] = DataY}
+if (Clk & ~Clk) {Targetpos[toString(2),number] = DataZ}
+
+
+interval(50)
+if (Stage==2 | Reboot==1) {Reset=1}
+else {Reset=0}
+
+if (Stage==0 & Launch==1 & Dist<=12000) {Bombsaway=1} #12k carpet, 1.5k 500lb
+else {Bombsaway=0}
+
+if (Go==1 & Launch==1) {Mul=1
+    A=1}
+else {Mul=0
+    A=0}
+
+if (Stage==0) {Tx=Targetpos[toString(0),number]}
+else {Tx=Home[toString(0),number]}
+if (Stage==0) {Ty=Targetpos[toString(1),number]}
+else {Ty=Home[toString(1),number]}
+if (Stage==0) {Tz=Targetpos[toString(2),number]}
+else {Tz=Home[toString(2),number]}
+Tpos=vec(Tx,Ty,Sz)
+
+Go=Stage <= 1 #KILL DRONE AFTER N WPT
+
+if (Altitude<=2500 & Stage<=1) {Alt=20000}
+else {Alt=3000}
+
+GPS=entity():pos()
+Gx=GPS:x()
+Py=GPS:y()
+Sz=GPS:z()
+X=Gx - Tx
+Y=Py - Ty
+Z=Sz - Alt
+Vector=vec(X,Y,Z)
+Dist=Tpos:distance(GPS)
+Altitude=Sz-Gl
+Speed=entity():vel():length()
+
+if (Dist<=750 | Abort==1) {Ok=1} 
+else {Ok=0}

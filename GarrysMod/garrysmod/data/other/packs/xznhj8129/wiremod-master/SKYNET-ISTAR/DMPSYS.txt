@@ -1,0 +1,109 @@
+@name Decision Making and Planning System
+@inputs On Radio:array CIFSYS:wirelink Reset
+@outputs Activated Orders:array U_Roster:table T_Roster:table UnitStatus:array
+@outputs RadioOut:array DID
+@persist Activated Orders:array UnitStatus:array C2 DID
+@persist U_Roster:table T_Roster:table RadioOut:array
+@trigger None
+
+if (Reset) {
+    Orders = array("","","","","","","","")
+    UnitStatus = array("10013","10013","","","","","","")
+    }
+
+if (first()) {
+    Orders = array("","","","","","","","")
+    UnitStatus = array("10013","10013","","","","","","")
+}
+
+if (Activated) {Interval=50}
+else {Interval=500}
+interval(Interval)
+
+MaxEngageDist = 5000
+CIFSYS_Active = CIFSYS["Activated",number]
+
+if (On & !Activated) {
+    if (CIFSYS_Active==1) {
+        print("SKYNET Active")
+        #soundPlay(1,3,"hl1/fvox/targetting_system.wav")
+        #soundPlay(1,3,"hl1/fvox/activated.wav")
+        Activated = 1
+    }
+    else {
+        #soundPlay(1,2,"hl1/fvox/warning.wav")
+        print("SKYNET Error: CIFSYS not connected")
+    }
+}
+if (!On & Activated) {
+    Activated = 0
+    #soundPlay(1,2,"hl1/fvox/deactivated.wav")
+    print("SKYNET Deactivated")
+}
+
+if (Activated) {
+    if (!CIFSYS_Active) {
+        #soundPlay(1,2,"hl1/fvox/warning.wav")
+        print("SKYNET Error: CIFSYS not connected")
+        print("SKYNET Shutting down")
+        Activated = 0
+    }
+    
+    Pos = entity():pos()
+    DEFCON = CIFSYS["DEFCON",number]
+    KillList = CIFSYS["KillList",array]
+    
+    # Radio
+    Code_NewOrder = 10000:toString()
+    Code_Busy = 10001:toString()
+    Code_Free = 10002:toString()
+    Code_Abort = 10003:toString()
+    Code_Report = 10004:toString()
+    Code_MissionComplete = 10005:toString()
+    Code_Roger = 10006:toString()
+    Code_EnRoute = 10007:toString()
+    Code_Immobilized = 10008:toString()
+    Code_Incapacitated = 10009:toString()
+    Code_Engaging = 10010:toString()
+    Code_Shutdown = 10011:toString()
+    Code_Activate = 10012:toString()
+    Code_Ready = 10013:toString()
+    Code_WaitForReply = 10014:toString()
+    
+    UI1=Radio[1,string]
+    UI2=Radio[2,string]
+    UI3=Radio[3,string]
+    UI4=Radio[4,string]
+    UI5=Radio[5,string]
+    UI6=Radio[6,string]
+    UI7=Radio[7,string]
+    UI8=Radio[8,string]
+    UI = array(UI1,UI2,UI3,UI4,UI5,UI6,UI7,UI8)
+    
+    # Orders
+    if (DEFCON<3) {
+        for (Target=1,KillList:count()) {
+            T_Assigned = U_Roster:exists(KillList[Target,number]:toString())
+            
+            for (Unit=1,8) {
+                if (!T_Assigned & KillList[Target,number]!=0) {
+                    U_Assigned = 0
+                    Status = UnitStatus[Unit,string]
+                    if ((Status==Code_Ready | Status==Code_Free)) {
+                        Orders[Unit,string] = Code_NewOrder+"."+KillList[Target,number]:toString()
+                        UnitStatus[Unit,number] = 10014
+                        U_Roster[KillList[Target,number]:toString(),number] = Unit
+                        T_Roster[Unit:toString(),number] = KillList[Target,number]
+                        RadioOut[Unit,string] = Orders[Unit,string]
+                        T_Assigned=1
+                        U_Assigned=1
+                    }
+                }
+            }
+        }    
+    }
+
+}
+else {
+    DEFCON = 5
+}

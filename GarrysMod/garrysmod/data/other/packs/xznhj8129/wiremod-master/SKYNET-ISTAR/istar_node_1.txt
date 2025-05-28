@@ -1,0 +1,70 @@
+@name istar node 1
+@inputs Go ST1:table ST2:table ST3:table ST4:table
+@outputs Run Clean Count N1bp:table Nn X Y Lstr:string
+@persist N1bp:table NotTL:table NotID:table Tt:table St:table Run Count Clean C Exec TC
+@trigger Go
+if (Run==1 | Clean==1 | Exec==1) {I=10}
+else {I=250}
+interval(I)
+#4*4=16
+
+
+if (Go==1) {Tt1=ST1
+    Tt2=ST2
+    Tt3=ST3
+    Tt4=ST4
+    Tt=table(Tt1,Tt2,Tt3,Tt4)
+    Exec=1
+    C=1
+    Count=1
+    TC=1
+}
+
+if (Exec==1) {
+    String=(Tt[Count,table])[C,string]
+    Findk=String:find("K")
+    Findx=String:find("X")
+    TLS=String:sub(1,Findk-1)
+    IDS=String:sub((Findk+1),(Findx-1))
+    TL=TLS:toNumber()
+    ID=IDS:toNumber()
+    NotTL[TC,number]=TL
+    NotID[TC,number]=ID
+    St[TC,string]=String
+    C=C+1
+    TC=TC+1
+	if (C>8) {Count=Count+1
+	    C=1}
+	if (Count>4) {Run=1
+	    #n1bp=table()#########
+	    C=1
+	    Count=1
+    	    Exec=0}
+    }
+
+if (Run==1) {Lstr=N1bp:toString()
+    X=NotTL:maxIndex()
+    Y=NotID[X,number]
+    E=entity((NotID[X,number]))
+    Xstr="K"+Y+"X"
+    Find=Lstr:find(Xstr)
+    Str=St[X,string]
+    if (Find==0 & Y!=0) {
+    N1bp[C,string]=Str
+    C=C+1
+    }
+    NotTL[X,number]=0
+    NotID[X,number]=0
+    St[X,string]=""
+    Count=Count+1
+    if (Count>32) {Run=0
+        Clean=1
+        Count=0
+        C=1}
+    
+}
+if (Clean==1) {Nn=N1bp:count()
+    if (Nn>32) {N1bp:pop()}
+    else {Clean=0}
+}
+

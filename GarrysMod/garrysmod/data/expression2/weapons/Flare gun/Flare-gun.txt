@@ -1,0 +1,87 @@
+@name Flare Gun
+@inputs 
+@outputs 
+@persist Fired R1:ranger E:entity Boom:entity Tick Parented Ammo
+@trigger 
+
+###########################
+#     Made by Squetus     #
+#   Redistribute freely   #
+# Give credit when needed #
+###########################
+
+if(first()){
+    runOnTick(1)
+    runOnChat(1)
+    holoCreate(1)
+    holoModel(1,"models/weapons/c_models/c_scorch_shot/c_scorch_shot.mdl")
+    holoParentAttachment(1,owner(),"anim_attachment_RH")
+    propSpawnEffect(0)
+    lightCreate(1)
+    lightColor(1,vec(255,0,0))
+    hint("Replaces your pistol",5)
+    hint("Say \"^ammo\" to switch between using pistol ammo, and having infinite ammo.",5)
+    hint("This weapon is made to fire one flare at a time",5)
+    Ammo=1
+}
+
+if(chatClk(owner()) && owner():lastSaid() == "^ammo"){
+    hideChat(1)
+    Ammo=!Ammo
+    switch(Ammo){
+        case 1,
+        hint("Ammo usage is on!",5)
+        break
+        
+        case 0,
+        hint("Ammo usage is off!",5)
+        break
+    }
+}
+
+if(holoEntity(1):pos() != owner():attachmentPos("anim_attachment_RH") && Parented == 0){
+    holoPos(1,owner():attachmentPos("anim_attachment_RH"))
+}
+
+if(holoEntity(1):angles() != owner():weapon():angles() && Parented == 0){
+    holoAng(1,owner():weapon():angles())
+}
+
+if(changed(owner():weapon())){
+    if(owner():weapon():type() == "weapon_pistol"){
+        owner():weapon():setAlpha(0)
+        holoAlpha(1,255)
+    }
+    else{
+        holoAlpha(1,0)
+        owner():weapon():setAlpha(255)
+    }
+}
+
+if(changed(owner():keyAttack1()) && Fired == 0 && owner():weapon():type()=="weapon_pistol" && owner():keyAttack1() && (owner():weapon():clip1() > 0|Ammo == 0)){
+    Fired=1
+    owner():soundPlay(1,5,"weapons/doom_flare_gun.wav")
+    E=propSpawn("models/weapons/w_models/w_flaregun_shell.mdl",owner():attachmentPos("anim_attachment_RH"),(owner():shootPos()):toAngle(),0)
+    E:applyForce(E:forward()*E:mass()*1500)
+}
+
+rangerFilter(E)
+rangerFilter(owner())
+rangerFilter(lightEntity(1))
+
+if(R1:hit()){
+    Fired=0
+    Boom=propSpawn("models/props_junk/gascan001a.mdl",E:pos(),1)
+    E:propBreak()
+    Boom:propBreak()
+}
+
+if(E:isValid()){
+    R1=rangerOffsetHull(10,E:pos(),E:forward(),vec(10,10,10))
+    lightPos(1,E:pos())
+    lightToggle(1,1)
+}
+else{
+    R1=ranger(owner(),0)
+    lightToggle(1,0)
+}

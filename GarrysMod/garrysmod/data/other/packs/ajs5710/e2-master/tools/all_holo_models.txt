@@ -1,0 +1,180 @@
+@name 
+@inputs 
+@outputs OutputTable:table Status:string LastJ LastI CurAimHolo:entity HoloModels:array
+@persist Status:string Lines:array OutputTable:table CurArray:array HoloModels:array
+@persist LastI LastJ HoloI Origin:vector CurAimHolo:entity
+@persist HoloGridDepth HoloGridSize HoloZOffset SpaceBetweenGroups UnselectedAlpha
+@trigger 
+
+interval(100)
+
+if (first()){
+    #vars
+        HoloGridDepth = 5
+        HoloGridSize = 25
+        HoloZOffset = 25 #height above the chip to place holo
+        SpaceBetweenGroups = 5
+        UnselectedAlpha = 100
+    #end vars
+    
+    runOnHTTP(1)
+    
+    httpRequest("https://raw.githubusercontent.com/wiremod/wire/e4d74f04cc2964a76fb2b3f901b0d9e9ef2faee2/lua/entities/gmod_wire_expression2/core/hologram.lua")
+    httpRequestUrl()
+    
+    Status = "init"
+    HoloI = 0
+    LastI = 1
+    LastJ = 1
+    
+    Origin = entity():pos()
+    LookupTable = table()
+    
+    function array createNewList(ListName:string){
+        if (OutputTable:exists(ListName)){
+            createNewList(ListName + " ")
+        }else{
+            Array = array()
+            OutputTable[ListName, array] = Array
+            return Array
+        }
+    }
+    
+    function number createHolo(HoloModel:string, Color:vector){
+        HoloI += 1
+        holoCreate(HoloI)
+        holoModel(HoloI, HoloModel)
+        holoColor(HoloI, Color)
+        
+        return HoloI
+    }
+    
+    function number createHolo(HoloModel:string){
+        return createHolo(HoloModel, randvec(0, 255))
+    }
+    
+    function void registerHolo(HoloEnt:entity, Model:string, Key:string){
+        HoloModels:pushEntity(HoloEnt)
+        HoloEnt["HoloModel", string] = Model
+        HoloEnt["KeyGroup", string] = Key
+    }
+}
+
+
+if (httpClk()){
+    Lines = httpData():explode("\n")
+    Status = "parse_lines"
+}else{
+    if (Status == "parse_lines"){
+        for(I = LastI, Lines:count()){
+            if (!perf()){
+                LastI = I
+                break
+            }
+            
+            CurLine = Lines[I, string]
+            
+            if (OutputTable:count() > 0){
+                
+                #we're done #nothing else to do
+                if (CurLine:find("}")){
+                    Status = "draw"
+                    LastI = 1
+                    break
+                }
+                
+                
+                IsComment = CurLine:find("--")
+                
+                if (IsComment > 0){ #comments start new lists
+                    CurArray = createNewList(CurLine:sub(IsComment + 2))
+                }elseif(CurLine:find("\=") > 0){ #relevant lines have = in them
+                    CurArray:pushString(CurLine:sub(CurLine:find("[\"") + 2, CurLine:find("\"]") - 1))
+                }
+                
+            }else{
+                #beginning of model list
+                if (CurLine:find("ModelList = {") > 0){
+                    CurArray = createNewList("default list")
+                }
+            }
+        }
+    }elseif(Status == "draw"){
+        
+        for(J = LastJ, OutputTable:count()){
+            Key = OutputTable:keys()[J, string]
+            CurArray = OutputTable[Key, array]
+            
+            for(I = LastI, CurArray:count()){
+                if (perf()){
+                    LastJ = 1
+                    LastI = 1
+                    Status = "done"
+                }else{
+                    LastJ = J
+                    LastI = I
+                    Status = "draw"
+                    break
+                }
+                
+                CurModel = CurArray[I, string]
+                CurHolo = createHolo(CurModel)
+                
+                Row = ((I - 1)%HoloGridDepth)
+                Col = floor((I - 1)/HoloGridDepth)
+                
+                holoPos(CurHolo, vec(Row*HoloGridSize, Col*HoloGridSize, HoloZOffset) + Origin)
+                holoAlpha(CurHolo, UnselectedAlpha)                
+                holoParent(CurHolo, entity())
+                
+                registerHolo(holoEntity(CurHolo), CurModel, Key)
+            }
+            
+            if (LastI == 1){
+                Floor = createHolo("", vec(0,0,0))
+                RowSize = HoloGridSize*HoloGridDepth
+                ColSize = HoloGridSize*(ceil(CurArray:count()/HoloGridDepth))
+                
+                FloorBox = vec(RowSize, ColSize, 1)
+                
+                holoScaleUnits(Floor, FloorBox)
+                holoPos(Floor, (FloorBox - vec(HoloGridSize, HoloGridSize, 0))/2 + Origin)
+                holoParent(Floor, entity())
+                
+                Origin += vec(0, ColSize + SpaceBetweenGroups, 0)
+            }
+            
+        }
+    }elseif(Status == "done"){
+        if (owner():keyUse()){
+            CurAimHolo:setAlpha(UnselectedAlpha)
+            
+            for(I = LastI, HoloModels:count()){
+                if (perf()){
+                    LastI = 1
+                }else{
+                    LastI = I
+                    break
+                }
+                
+                AimHolo = HoloModels[I, entity]
+                DistToHolo = (AimHolo:pos() - owner():shootPos()):length()
+                AimPos = DistToHolo*owner():eye() + owner():shootPos()
+                
+                if ((AimHolo:pos() - AimPos):length() < AimHolo:radius()){
+                    CurAimHolo = AimHolo
+                    break
+                }
+            }
+            
+            if (CurAimHolo:isValid()){
+                CurAimHolo:setAlpha(255)
+                
+                if (changed(CurAimHolo)){
+                    print(CurAimHolo["HoloModel", string] + ":" + CurAimHolo["KeyGroup", string])
+                }
+            }
+        }
+    }
+}
+

@@ -1,0 +1,174 @@
+@name 
+@inputs
+@outputs Color:vector Threats:array Status:string BaseHolo
+@persist Color:vector Radius Alpha Origin:vector FindRange FindResults:array Status:string LastI NewThreats:array BaseHolo
+@trigger 
+
+if (first()){
+    runOnTick(1)
+    runOnChat(1)
+    
+    #defaults
+    Radius = -250
+    Color = vec(0, 255, 0)
+    Alpha = 100
+    Origin = entity():pos()
+    FindRange = 1000
+    
+    
+    function number array:asNum(N){
+        return This:string(N):toNumber(10)
+    }
+    
+    function init(){
+        #base holo
+        holoCreate(BaseHolo)
+        holoModel(BaseHolo, "hq_sphere")
+        holoColor(BaseHolo, Color)
+        holoAlpha(BaseHolo, Alpha)
+        holoScaleUnits(BaseHolo, vec(Radius*2, Radius*2, Radius*2))       
+        holoPos(BaseHolo, Origin) 
+        
+        print("!color: " + Color:toString())
+        print("!alpha: " + Alpha)
+        print("!radius: " + Radius)
+        print("!range: " + FindRange)
+    }
+    
+    BaseHolo = 1000
+    init()
+}
+
+
+if (chatClk(owner())){
+    LastSaid = owner():lastSaid()
+    
+    if (LastSaid[1] == "!"){
+        LastSaidArr = LastSaid:sub(2):explode(" ")
+        Command = LastSaidArr:shiftString()
+        
+        if (Command == "color:"){
+            Color = vec(LastSaidArr:asNum(1), LastSaidArr:asNum(2), LastSaidArr:asNum(3))
+        }
+        if (Command == "radius:"){
+            Radius = LastSaidArr:asNum(1)
+        }
+        if (Command == "alpha:"){
+            Alpha = LastSaidArr:asNum(1)
+        }
+        if (Command == "recenter"){
+            Origin = owner():pos()
+        }
+        if (Command == "range:"){
+            FindRange = LastSaidArr:asNum(1)
+        }
+        
+        init()
+    }
+}else{
+    if (Status == ""){
+        if(findCanQuery()){
+            findInSphere(Origin, FindRange)
+            findClipFromSphere(Origin, abs(Radius))
+            findExcludeClass("gmod_tool")
+            findExcludeClass("weapon_physgun")
+            findExcludeClass("weapon_physcannon")
+            findExcludeClass("laserpointer")
+            findExcludeClass("remotecontroller")
+            findExcludeClass("none")
+            findExcludeClass("gmod_camera")
+            findExcludeClass("weapon_medkit")
+            findExcludeClass("trigger_soundscape")
+            
+            FindResults = findToArray()
+            Status = "init_threats"
+        }
+    }elseif (Status == "init_threats"){
+        NewThreats = array()
+        LastI = 1
+        Status = "build_threats"
+    }elseif (Status == "build_threats"){
+        Status = "threats_built" #in case of empty results
+        
+        for(I = LastI, FindResults:count()){
+            if (perf()){
+                LastI = I
+                Status = "threats_built"
+            }else{
+                Status = "build_threats"
+                break
+            }
+            
+            Prop = FindResults[I, entity]
+            
+            MoveDistance = (Prop:pos() - Origin):length()
+            MoveOffset = MoveDistance*Prop:vel():normalized()
+            HitPosition = MoveOffset + Prop:pos()
+            
+            #if ((HitPosition - Origin):length() <= Radius + Prop:radius()){
+            if ((HitPosition - Origin):length() <= abs(Radius)){
+                TimeToImpact = MoveOffset:length()/(Prop:vel():length())
+                if (TimeToImpact < 60){
+                    NewThreats:pushEntity(Prop)
+                }
+            }
+
+        }
+    }elseif(Status == "threats_built"){
+        #get rid of any extra holos
+        for(I = (NewThreats:count() + 1), Threats:count()){
+            HoloIndex = I + 1
+            holoDelete(HoloIndex)
+        }
+        
+        Threats = NewThreats
+        Status = ""
+        
+        HoloScale = abs(Radius)/FindRange
+        #minibase
+        holoCreate(1)
+        holoModel(1, "hq_sphere")
+        holoPos(1, Origin)
+        holoScaleUnits(1, vec(Radius*2, Radius*2, Radius*2)*HoloScale*sign(Radius))
+        holoColor(1, Color)
+        holoAlpha(1, Alpha)
+        
+        #render threats
+        foreach(I, Threat:entity = Threats){
+            HoloIndex = I + 1
+            holoCreate(HoloIndex)
+            if (Threat:isPlayer()){
+                holoModel(HoloIndex, "npc_combine_s")
+            }else{
+                holoModel(HoloIndex, Threat:model())
+            }
+            holoScaleUnits(HoloIndex, Threat:boxSize()*HoloScale)
+            holoPos(HoloIndex, (Threat:pos() - Origin)*HoloScale + Origin)
+            holoAng(HoloIndex, Threat:angles())
+            holoAnim(HoloIndex, Threat:getAnimation())
+        }
+    }
+    
+    if (Threats:count() > 0){
+        holoColor(BaseHolo, vec(255, 0, 0))
+    }else{
+        holoColor(BaseHolo, Color)
+    }
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

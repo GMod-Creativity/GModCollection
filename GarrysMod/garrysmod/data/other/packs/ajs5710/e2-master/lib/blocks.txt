@@ -1,0 +1,254 @@
+@name 
+@inputs 
+@outputs 
+@persist BlockTables:table
+@trigger 
+
+#[ Structure of PerfedTables
+    {
+        "perfname" => {
+            "done" => 0 or 1 flag indicating if work for the block is done
+            "values" => returns a table that the calling function should use to persist state
+            "exec_number" => number indicating what execution of the block we are on
+            "return" => this value is expected to be set by any functions that are written to use a block #it should be set in a blockLast() check
+    }
+]#
+
+#[ Expected function useage
+    Block = block("uniquenameforblock")
+    if (Block:blockNotDone()){
+        Vars = Block:blockValues()
+        if (Block:blockFirst()){
+            some setup maybe init some values like
+            Vars["i", number] = 1
+        }
+        
+        for(I = Vars["i", number], 10){
+            do some stuff
+            
+            if (Block:blockPerfBreak()){
+                Vars["i", number] = I
+                exit()
+            }else{
+                Vars["i", number] = 1 #not important here but if this was a nested loop it could be
+            }
+        }
+        
+        #if block execution is aborted for a reason other than performance it is important to let the block know that it is not done
+        if (propCanCreate()){
+            Block:blockDone(0)
+            exit()
+        }
+        
+        if (Block:blockLast()){
+            #do some cleanup and maybe set final values (like a return)
+        }
+    }
+]#
+
+if (first()){
+    BlockTables = table()
+    BlockTables["child_blocks", table] = table()
+    BlockTables["completed_children", number] = 0
+    
+    function table blockRoot(){
+        return BlockTables
+    }
+    
+    function table table:blockTable(Id:string){
+        return This[Id, table]
+    }
+    
+    function number table:blockNotDone(){
+        #if our children are all completed 
+        if (This["child_blocks", table]:count() == This["completed_children", number]){
+            return !This["done", number]
+        }
+        return 1
+    }
+    
+    function table:blockDone(N:number){
+        This["done", number] = N
+    }
+    
+    function number table:workNotDone(){
+        return !This["done", number]
+    }
+    
+    
+    function table table:block(Id:string){
+        Blocks = This["child_blocks", table]
+        if (Blocks:exists(Id)){
+            local BlockTable = Blocks:blockTable(Id)
+            
+            if (BlockTable:blockNotDone()){
+                BlockTable["exec_number", number] = BlockTable["exec_number", number] + 1
+            }elseif(!BlockTable["notified_parent", number]){
+                #if we're done when the code would go to declare us then we are for real done and need to notify our parent
+                    #delaying our reaction like this also delays our parent from being done by one execution this is sometimes neccessary for the next child block to be declared 
+                BlockTable["notified_parent", number] = 1
+                This["completed_children", number] = This["completed_children", number] + 1
+                if (BlockTable:exists("on_notify")){
+                    local OnNotify = BlockTable["on_notify", array]
+                    foreach(I, Func:string = OnNotify){
+                        Func(BlockTable, This)
+                    }
+                }
+            }
+            return BlockTable
+        }else{
+            local BlockTable = table()
+            BlockTable["done", number] = 0
+            BlockTable["values", table] = table()
+            BlockTable["exec_number", number] = 0
+            BlockTable["child_blocks", table] = table()
+            BlockTable["completed_children", number] = 0
+            BlockTable["on_notify", array] = array()
+            Blocks[Id, table] = BlockTable
+            
+            return BlockTable
+        }
+    }
+    function table block(Id:string){
+        return blockRoot():block(Id)
+    }
+    
+    function table table:blockValues(){
+        return This["values", table]
+    }
+    
+    function number table:blockPerfBreak(N:number){
+        if (perf(N)){
+            This:blockDone(1)
+            return 0
+        }else{
+            This:blockDone(0)
+            return 1
+        }
+    }
+    function number table:blockPerfBreak(){
+        return This:blockPerfBreak(80)
+    }
+    
+    function number table:blockFirst(){
+        return (This["exec_number", number] == 0)
+    }
+    
+    function number table:blockLast(){
+        return This["done", number]
+    }
+    
+    function table table:blockReset(Id:string){
+        This["child_blocks", table]:remove(Id)
+        return block(Id)
+    }
+    function table blockReset(Id:string){
+        return blockRoot():blockReset(Id)
+    }
+    
+    function table:blockResetAll(){
+        This["child_blocks", table]:clear()
+    }
+    function blockResetAll(){
+        blockRoot():blockResetAll()
+    }
+    
+    function table:blockOnNotify(Func:string){
+        This["on_notify", array]:pushString(Func)
+    }
+}
+
+#block loops #do not call blockPerfBreak() on a block that is a loop its work becomes done based solely on work being done for all of its children
+if (first()){
+    function table table:blockLoop(Values:array, Name:string){
+        local Block = This:block("loop(array)" + Name)
+        if (Block:blockNotDone()){
+            local Vars = Block:blockValues()
+            if (Block:blockFirst()){
+                Vars["i", number] = 1
+                Vars["arr", array] = Values
+                Vars["iterable_type", string] = "array"
+            }
+        }
+        return Block
+    }
+    function table table:blockLoop(Values:array){
+        return This:blockLoop(Values, "")
+    }
+    function table blockLoop(Values:array){
+        return blockRoot():blockLoop(Values, "")
+    }
+    
+    function table table:blockLoop(Values:table, Name:string){
+        local Block = This:block("loop(table)" + Name)
+        if (Block:blockNotDone()){
+            local Vars = Block:blockValues()
+            if (Block:blockFirst()){
+                Vars["i", number] = 1
+                Vars["arr", table] = Values
+                Vars["iterable_type", string] = "table"
+            }
+        }
+        return Block
+    }
+    function table table:blockLoop(Values:table){
+        return This:blockLoop(Values, "")
+    }
+    function table blockLoop(Values:table){
+        return blockRoot():blockLoop(Values, "")
+    }
+    
+    function table table:blockForLoopValue(Type:string){
+        I = This:blockValues()["i", number]
+        local Block = This:block("value" + I)
+        if (Block:blockNotDone()){
+            local Vars = Block:blockValues()
+            if (Block:blockFirst()){
+                switch(This:blockValues()["iterable_type", string]){
+                    case "array", switch(Type){
+                        case "string", Vars["value", string] = This:blockValues()["arr", array][This:blockValues()["i", number], string], break
+                        case "number", Vars["value", number] = This:blockValues()["arr", array][This:blockValues()["i", number], number], break
+                    }, break
+                    case "table", switch(Type){
+                        case "string", Vars["value", string] = This:blockValues()["arr", table][This:blockValues()["i", number], string], break
+                        case "number", Vars["value", number] = This:blockValues()["arr", table][This:blockValues()["i", number], number], break
+                        case "table", Vars["value", table] = This:blockValues()["arr", table][This:blockValues()["i", number], table], break
+                    }, break
+                }
+                Block:blockOnNotify("blockIncrementI")
+            }
+        }
+        return Block
+    }
+    
+    function table:blockIncrementI(Parent:table){
+        local Vars = Parent:blockValues()
+        Vars["i", number] = Vars["i", number] + 1
+        
+        if (Vars["iterable_type", string] == "array"){        
+            if (Vars["i", number] > Vars["arr", array]:count()){
+                Vars["i", number] = Vars["arr", array]:count()
+                Parent:blockDone(1)
+            }
+        }elseif(Vars["iterable_type", string] == "table"){
+            if (Vars["i", number] > Vars["arr", table]:count()){
+                Vars["i", number] = Vars["arr", table]:count()
+                Parent:blockDone(1)
+            }
+        }
+    }
+    
+    #[
+    #shortcuts the rest of the loop by replacing the arr value of the block with an empty
+    function table:blockLoopQuit(){
+        local Vars = This:blockValues()
+        if (Vars["iterable_type", string] == "array"){        
+            Vars["arr", array] = array()
+        }elseif(Vars["iterable_type", string] == "table"){
+            Vars["arr", table] = table()
+        }
+    }
+    ]#
+    
+}
+

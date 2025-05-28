@@ -1,0 +1,53 @@
+@name 
+@inputs 
+@outputs Out:string
+@persist AppID:string
+@trigger 
+
+#requires a file in e2files to store the appID
+
+if (first()){    
+    runOnHTTP(1)
+    runOnChat(1)
+    runOnFile(1)
+    
+    fileLoad("appID.txt")
+    LastIndex = 1
+    function string string:insertFormattingBreaks(){ #this function is necessary because at a certain point the text screen stops displaying [a-z0-9\.] line if it is too long
+        if (This:length() > 40){
+            Sections = array()
+            NTimes = floor(This:length()/40)
+            for(I = 1, NTimes){
+                Sections:pushString(This:sub((I - 1)*40 + 1, I*40))
+            }
+            Sections:pushString(This:sub((NTimes)*40 + 1))
+            return Sections:concat("\n")
+        }else{
+            return This
+        }
+    }
+    function array processHTMLResult(HTML:string){
+        Pods = array()
+        while(HTML:find("<pod") != 0){
+            Pods:pushString((HTML:match("<pod.-title='(.-)'.->.-<plaintext>(.-)</plaintext>.-</pod>")):concat(": "):insertFormattingBreaks())
+            HTML = HTML:sub(HTML:find("</pod>", HTML:findRE("<pod")) + 6)
+        }
+        return Pods
+    }
+}
+
+if (chatClk()){
+    #triggered by chat
+    if (lastSpoke() == owner()){
+        if (lastSaid():sub(0, 9) == "evaluate:"){
+            httpRequest("http://api.wolframalpha.com/v2/query?input=" + httpUrlEncode(lastSaid():sub(10)) + "&appid=" + AppID)
+        }
+    }
+}elseif(fileClk()){
+    AppID = fileRead()
+}else{
+    #triggered by query result
+    HTMLResult = httpData()
+    Out = processHTMLResult(HTMLResult):concat("\n")
+    #print(Out)
+}

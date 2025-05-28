@@ -1,0 +1,185 @@
+@name New and Improved [Instant Base]
+@inputs 
+@outputs 
+@persist Filename:string Radius Save SaveE:array Offset:vector I SaveInfo:string PPOS:vector #/save
+@persist Load Loadname:string Offset2:vector BaseString:array Index PropList:array PropPos:vector Prop:entity PropAng:angle PropPosition:array PropAngle:array PropModel:array #/load
+@persist Regen Index2 Check Int Index3#/regen
+@trigger 
+runOnChat(1)
+interval(100)
+P = owner()
+E = entity()
+LS = P:lastSaid()
+LSS = LS:explode(":") 
+LSS2 = LS:explode(" ")
+Chat = chatClk(P)
+Chat2 = chatClk()
+if(first()){
+        function hide(){
+            hideChat(1)
+            printColor(vec(0,255,0),"[Hidden]",vec(random(0,255),random(0,255),random(0,255)),+P:name(),vec(255,255,255),": "+LS)
+    }
+    Radius = 500
+    Regen = 1
+}
+if(LS == "/help"&Chat){
+    print("/save:name:radius:offsetX:offsetY:offsetZ")
+    print("/load:name:offsetX:offsetY:offsetZ")
+    print("/clear")
+    print("/regen")
+    hide()
+}
+####/save#######################################################################################################################################
+if(Chat & LSS[1,string] == "/save"){
+    Filename = LSS[2,string]
+    if(Radius){
+        Radius = LSS[3,string]:toNumber()
+    }
+    if(LSS[4,string]){
+        Offset = vec(LSS[4,string]:toNumber(),LSS[5,string]:toNumber(),LSS[6,string]:toNumber())
+        hint("Offsetted by: "+Offset2:toString(),10)
+    }
+    Save = 1
+    timer("saving",100)
+    PPOS = P:pos()
+    hide()
+}
+
+if(fileCanWrite()){
+    if(Save){
+        if(changed(Save)&Save){
+            hint("Saving in a radius of "+Radius+"...",10)
+        }
+        findIncludeClass("prop_*")
+        findInSphere(PPOS,Radius)
+        findSortByDistance(PPOS)
+        SaveE = findToArray()
+        if(SaveE:count()>=I){
+            if(clk("saving")){
+                I++
+                timer("saving",50)
+                SaveE[I, entity]:setAlpha(100)
+                SaveE[I-5, entity]:setAlpha(255)
+                SaveInfo = SaveInfo + SaveE[I,entity]:model() + "|" + (SaveE[I,entity]:pos()-PPOS):toString() + "|" + SaveE[I,entity]:angles():toString() + "|"
+            }
+        }elseif(SaveE:count()<I){
+            if(changed(SaveE:count()<I)&SaveE:count()<I){
+                hint("Saved!",10)
+                hint("Saved "+I+" prop(s)!",10)
+            }
+            SaveE[I-4, entity]:setAlpha(255)
+            SaveE[I-3, entity]:setAlpha(255)
+            SaveE[I-2, entity]:setAlpha(255)
+            SaveE[I-1, entity]:setAlpha(255)
+        SaveInfo = SaveInfo:replace("[",""):replace("]","")
+        fileWrite(">e2shared/" +Filename+ ".txt" , SaveInfo)
+        stoptimer("saving")
+        Save = 0
+        SaveE:clear()
+        SaveInfo = ""
+        I = 0
+    }
+            
+    }
+}elseif(Save){
+    print("Cannot Write To File.",10)
+    Save = 0
+}
+####/save#######################################################################################################################################
+####/load#######################################################################################################################################
+if(Chat&LSS[1,string] == "/load"){
+    Loadname = LSS[2,string]
+    if(LSS[3,string]){
+        Offset2 = vec(LSS[3,string]:toNumber(),LSS[4,string]:toNumber(),LSS[5,string]:toNumber())
+        hint("Offsetted by: "+Offset2:toString(),10)
+    }
+    Load = 1
+    hide()
+    PPOS = P:pos()
+}
+if(Load){
+        fileLoad(">e2shared/"+Loadname+".txt")
+        if(changed(Load)&Load){
+            hint("Loading File: "+Loadname+".This Might Take A While...",10)
+        }
+        if(changed(fileLoaded())&fileLoaded()){
+            BaseString = fileRead():explode("|")
+            timer("load",1)
+            if(changed(fileLoaded())&fileLoaded()){
+                hint("File Loaded! Spawning your base!",10)
+            }
+}
+    if(clk("load")){
+        if(BaseString:count()>Index){
+            timer("load",100)
+            Index++
+            Tmp = BaseString[Index+1,string]:explode(",")
+            PropPos = vec(Tmp[1,string]:toNumber(),Tmp[2,string]:toNumber(),Tmp[3,string]:toNumber())
+            Tmp = BaseString[Index+2,string]:explode(",")
+            PropAng = ang(Tmp[1,string]:toNumber(),Tmp[2,string]:toNumber(),Tmp[3,string]:toNumber())
+            Prop = propSpawn(BaseString[Index,string], PropPos + PPOS + Offset2, PropAng,1)
+            PropList[Index,entity] = Prop
+            PropModel[Index,string] = PropList[Index,entity]:model()
+            PropPosition[Index,vector] = PropList[Index,entity]:pos()
+            PropAngle[Index,angle] = PropList[Index,entity]:angles()
+    }
+        if(Index>=BaseString:count()){ 
+            Index3 = BaseString:count()
+            BaseString:clear()
+            Index = 0
+            Load = 0
+            stoptimer("Load")
+            hint("Dupe finished spawning!",10)
+            hint("Spawned "+round(Index3/3)+" prop(s)!",10)
+        }
+    }
+}
+####/load#######################################################################################################################################
+####/clear#######################################################################################################################################
+if(LS == "/clear"&Chat){
+    PropList:propDelete()
+    PropList:clear()
+    PropPosition:clear()
+    PropAngle:clear()
+    Load = 0
+    hide()
+    reset()
+}
+####/clear#######################################################################################################################################
+####/regen#######################################################################################################################################
+timer("check",150)
+if(Regen&!Load){
+    timer("regen",150)
+    if(Chat&LS == "/regen"){
+        Regen = 0
+        hint("Regeneration turned off.",10)
+        hide()
+        stoptimer("regen")
+    }
+}elseif(!Regen){
+if(Chat&LS == "/regen"){
+    Regen = 1
+    hint("Regeneration turned on.",10)
+    hide()
+}
+}
+if(clk("regen")&!Load&Regen){
+    timer("regen",50)
+    Index2++
+    if(round(PropList[Index2,entity]:pos()) != round(PropPosition[Index2,vector])){
+        PropList[Index2,entity]:propDelete()
+    }
+    if(!PropList[Index2-1,entity]){
+        PropList[Index2-1,entity] = propSpawn(PropModel[Index2-1,string], PropPosition[Index2-1,vector], PropAngle[Index2-1, angle],1)
+    }
+}
+if(Index2>Index3){
+    Index2 = 0
+}
+####/regen#######################################################################################################################################
+####/reset#######################################################################################################################################
+if(LS == "/reset"&Chat){
+    reset()
+    hide()
+}
+####/reset#######################################################################################################################################

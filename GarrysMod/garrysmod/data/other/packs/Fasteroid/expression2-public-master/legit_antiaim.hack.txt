@@ -1,0 +1,48 @@
+@name legit_antiaim.hack
+@inputs 
+@outputs 
+@persist Props:array Queue:table Radius
+@trigger
+
+if( first() ){
+    runOnTick(1)
+    propSpawnUndo(0)
+    Radius = 82
+}
+
+foreach(N,K:entity = players()){
+    
+    if(K==owner()){ continue }
+    
+    if( !K["shield",entity]:isValid() & !Queue:exists(K:steamID()) ){
+        Queue[K:steamID(),entity] = K
+    }
+    else{
+        local NextOwnerPos = owner():shootPos() + owner():vel()*tickInterval()*10
+        local NextKPos = K:shootPos() + K:vel()*tickInterval()*5
+        local Dir = (NextOwnerPos - NextKPos):normalized()
+        K["shield",entity]:setPos( NextOwnerPos - Dir * Radius )
+        K["shield",entity]:setAng( Dir:toAngle() )
+    }
+    
+}
+
+while( Queue:count() & propCanCreate() ){
+    foreach(N,K:entity = Queue){
+        H = propSpawn("models/props_c17/Frame002a.mdl",entity():pos(),1)
+        H:setMaterial("lights/white")
+        H:setColor(vec(50,100,255),100)
+        H["ply",entity] = K
+        K["shield",entity] = H
+        Props:pushEntity(H)
+        Queue:remove(N)
+    }
+}
+
+for(I=Props:count(),1,-1){
+    if(!Props[I,entity]:isValid()){
+        Props:remove(I)    
+    }    
+}
+
+

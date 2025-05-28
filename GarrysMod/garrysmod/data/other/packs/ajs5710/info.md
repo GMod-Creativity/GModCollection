@@ -1,0 +1,3 @@
+Author: ajs5710 (lego1042)
+Info:
+- e2-master: Garry's Mod Expression 2 Chips

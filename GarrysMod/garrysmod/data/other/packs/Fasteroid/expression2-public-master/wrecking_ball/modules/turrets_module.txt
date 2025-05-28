@@ -1,0 +1,320 @@
+@name wreckingballturrets
+@outputs 
+@persist TURRETS_TRANSFORM_SPEED TURRETS_SPREAD_SPEED TURRETS_SPREAD_OFFSET TURRETS_SPREAD_START TURRETS_SPREAD_EXTRA TURRETS_FIRING_INTERVAL TURRETS_SECOND_BARREL_OFFSET TURRETS_RECOIL_RATE TURRETS_GROUP_OFFSETS:array TURRETS_DEFAULT_ANGLE:angle TURRETS_DEFAULT_QUAT:quaternion 
+@persist TURRETS_SOUNDS:array TURRETS_SOUNDATTACHMENTS:array
+@persist TURRETS_TurretMounts:table TURRETS_TransformProgress TURRETS_TurretPool:array TURRETS_Firing TURRETS_FireIndex TURRETS_MountIndex TURRETS_ActiveTurretMatrix:array TURRETS_CurSpread TURRETS_TransformState TURRETS_CurWirelink:wirelink TURRETS_SoundClk
+@persist TURRETS_MissingTurrets_ TURRETS_TransformRate_ # this is ONLY persisted to work with a timer
+@trigger
+
+#include "betterhololib"
+
+#include "wrecking_ball/models/gunmountl_cheap"
+#include "wrecking_ball/models/gunmountr_cheap"
+#include "wrecking_ball/models/gunbarrel_cheap"
+
+#include "wrecking_ball/modules/sentspawning_module"
+#include "wrecking_ball/modules/tracefilter_module"
+#include "wrecking_ball/modules/tickrate_module"
+
+if( first() ){
+    
+    # configurable stuff
+    
+    TURRETS_TRANSFORM_SPEED   = 0.1
+    TURRETS_RECOIL_RATE       = 0.05
+    
+    TURRETS_SPREAD_SPEED      = 0.007 # how fast to spread
+    TURRETS_SPREAD_START      = 0.008 # starting spread value
+    TURRETS_SPREAD_OFFSET     = -0.15 # negative = wait before blooming
+    TURRETS_SPREAD_EXTRA      = 0.035 # amount to add to starting spread
+    
+    TURRETS_FIRING_INTERVAL   = 70    # turret interval
+    
+    TURRETS_SECOND_BARREL_OFFSET = -9.25
+    TURRETS_GROUP_OFFSETS     = array( vec(30,-1.5,-2), vec(30,-1.5,TURRETS_SECOND_BARREL_OFFSET-2) )
+    
+    TURRETS_DEFAULT_ANGLE     = ang(0,0,0)
+    TURRETS_DEFAULT_QUAT      = quat(TURRETS_DEFAULT_ANGLE)
+    
+    # pls don't touch
+    
+    TURRETS_TransformState     = 1
+    TURRETS_TransformRate_     = TURRETS_TransformProgress = TURRETS_MountIndex = TURRETS_CurSpread = TURRETS_MissingTurrets_ = TURRETS_Firing =0
+    TURRETS_TurretMounts       = table()
+    TURRETS_TurretPool         = array()
+    TURRETS_ActiveTurretMatrix = array()
+    
+    TURRETS_CurWirelink        = nowirelink()
+    
+    TURRETS_SOUNDS             = array("npc/stalker/stalker_footstep_left1.wav","npc/stalker/stalker_footstep_left2.wav","npc/stalker/stalker_footstep_right1.wav","npc/stalker/stalker_footstep_right2.wav")
+    TURRETS_SoundClk           = 0
+    TURRETS_SOUNDATTACHMENTS   = array("r_origin_ent","t_origin_ent")
+    
+    # external library interface
+    
+    function number turrets_recoilCurve(X:number){
+        X = 1-X
+        local A = (X-1)
+        local B = 256/27
+        return A*A*A*X*B*5
+    }
+    
+    sents_onTurretsReady("turrets_onCreated")
+    function turrets_onCreated(Turrets:array){
+        foreach(_:number, T:entity = Turrets){
+            rangerFilter(T)
+            TURRETS_TurretPool:pushEntity(T)
+            TRACEFILTER_IGNORABLES:pushEntity(T)
+        }        
+    }
+    
+    function string turrets_getTurretKey(TurretNum:number){
+        return "turret"+TurretNum
+    }
+    
+    function table turrets_createTurretMount(Parent:entity, LocalRotationOrigin:vector, Side:string){
+        
+        local LocalTurretOrigin = vec(17,0,3.25)
+        
+        local OriginR = holoStructCreate("gunmount"+Side+"_cheap", Parent:toWorld(LocalRotationOrigin) )
+        holoAng( OriginR, Parent:angles() )
+        
+        local Gun2Offset = vec(0,0,TURRETS_SECOND_BARREL_OFFSET)
+        
+        local Gun1PosW = holoEntity(OriginR):toWorld(LocalTurretOrigin)
+        local Gun2PosW = holoEntity(OriginR):toWorld(LocalTurretOrigin+Gun2Offset)
+        
+        local OriginT = holoAlloc(Gun1PosW)
+        holoAlpha(OriginT,0)
+    
+        holoParent(OriginR, Parent)
+        holoParent(OriginT, OriginR)
+
+        local Gun1 = holoStructCreate("gunbarrel", Gun1PosW)
+        local Gun2 = holoStructCreate("gunbarrel", Gun2PosW)
+        
+        holoParent(Gun1, OriginT)
+        holoParent(Gun2, OriginT)
+        
+        local Mount = table(
+            "index"  = TURRETS_MountIndex,
+            "parent" = Parent,
+            "r_origin_holo"  = OriginR,
+            "r_origin_ent"   = holoEntity(OriginR),
+            "r_origin_pos"   = LocalRotationOrigin,
+            "t_origin_holo"  = OriginT,
+            "t_origin_ent"   = holoEntity(OriginT),
+            "t_origin_pos"   = LocalTurretOrigin,
+            (turrets_getTurretKey(1)+"_gun_holo") = Gun1,
+            (turrets_getTurretKey(1)+"_gun_pos")  = vec(),
+            (turrets_getTurretKey(2)+"_gun_holo") = Gun2,
+            (turrets_getTurretKey(2)+"_gun_pos")  = Gun2Offset,
+            "visible"        = 1
+        )
+        
+        TURRETS_MountIndex+=2
+        
+        TURRETS_TurretMounts:pushTable(Mount)
+        return Mount
+        
+    }
+    
+    function number:turrets_setChildrenAlpha(Alpha:number){
+        local Children = This:getChildren()
+        foreach(_:number,HoloID:number = Children){
+            holoAlpha(HoloID,Alpha)
+        }
+    }
+
+    function turrets_processTurret(Mount:table, Turret:entity, TurretKey:string, GroupOffset:vector){
+        
+        if( !Turret:isValid() ){ return } # nothing to do
+        
+        local Holo     = Mount[TurretKey+"_gun_holo",number]
+        local LocalPos = Mount[TurretKey+"_gun_pos",vector] 
+        
+        local PrevRecoil = Turret["recoil",number]
+        local NewRecoil  = max(PrevRecoil-TURRETS_RECOIL_RATE * TICKRATE_TimeScalar_, 0)
+        if(NewRecoil != PrevRecoil){
+            holoPos(Holo, Mount["t_origin_ent",entity]:toWorld(LocalPos + vec(turrets_recoilCurve(NewRecoil),0,0)))
+        }
+        Turret["recoil",number] = NewRecoil
+        
+        if(Turret["wbtlinked",number] & !Turret:parent():isValid()){
+            
+            local HoloID   = Mount["t_origin_holo",number]
+            local HoloEnt = Mount["t_origin_ent",entity]
+            
+            local OldPos = HoloEnt:pos()
+            local OldAng = HoloEnt:angles()
+            
+            holoAng(HoloID, Turret:angles())
+            holoPos(HoloID, Turret:toWorld(-GroupOffset))
+            
+            Turret:parentTo(HoloEnt)
+            Turret:setAlpha(0)
+            
+            holoPos(HoloID, OldPos)
+            holoAng(HoloID, OldAng)
+        }
+
+    }
+    
+    function turrets_tryAcquireTurret(Mount:table, CurTurret:entity, TurretKey:string, TurretNum:number){
+        if( CurTurret:isValid() ){ return }          # don't need to do anything
+        else { TURRETS_MissingTurrets_++ }           # detected missing turret
+        if( !TURRETS_TurretPool:count() ){ return }  # can't do anything for now
+        
+        TURRETS_MissingTurrets_--                    # filled missing turret
+        
+        local NewTurret = TURRETS_TurretPool:popEntity()
+        NewTurret["wbtlinked",number] = 1
+        Mount[TurretKey,entity] = NewTurret
+        TURRETS_ActiveTurretMatrix[ Mount["index",number] + TurretNum, entity ] = NewTurret
+    }
+    
+    function turrets_processTurretMount(Mount:table){
+        local Parent   = Mount["parent",entity]
+
+        if(TURRETS_TransformRate_!=0){
+            local T2 = clamp(TURRETS_TransformProgress*2-1,0,1)
+            local T1 = clamp(TURRETS_TransformProgress*2,0,1)
+            holoPos(Mount["r_origin_holo",number], Parent:toWorld( Mount["r_origin_pos",vector] * T1 ) )
+            holoPos(Mount["t_origin_holo",number], Mount["r_origin_ent",entity]:toWorld( Mount["t_origin_pos",vector] * T2 ) )
+        }
+        
+        if(Mount["visible",number]){
+            if(TURRETS_TransformProgress == 0){
+                Mount["visible",number] = 0
+                Mount[turrets_getTurretKey(1)+"_gun_holo",number]:turrets_setChildrenAlpha(0)
+                Mount[turrets_getTurretKey(2)+"_gun_holo",number]:turrets_setChildrenAlpha(0)
+            }
+        }
+        else{
+            if(TURRETS_TransformProgress > 0){
+                Mount["visible",number] = 1
+                Mount[turrets_getTurretKey(1)+"_gun_holo",number]:turrets_setChildrenAlpha(255)
+                Mount[turrets_getTurretKey(2)+"_gun_holo",number]:turrets_setChildrenAlpha(255)       
+            }
+        }
+        
+        foreach(TurretNum:number, T_Offset:vector = TURRETS_GROUP_OFFSETS){
+            local TurretKey = turrets_getTurretKey(TurretNum)
+            local Turret    = Mount[TurretKey,entity]
+            
+            turrets_tryAcquireTurret(Mount, Turret, TurretKey, TurretNum)
+            
+            Turret = Mount[TurretKey,entity] # we might have acquired a turret
+            
+            turrets_processTurret(Mount, Turret, TurretKey, T_Offset)
+        }
+    }
+
+    
+    function turrets_aimAll(Target:vector){
+        local AimableProgress = TURRETS_TransformProgress # might be subject to change later
+        
+        if(AimableProgress){
+            foreach(_:number, Mount:table = TURRETS_TurretMounts){
+
+                local Dir = Target - Mount["r_origin_ent",entity]:pos()
+                      Dir = Mount["parent",entity]:toLocalAxis(Dir)
+                local AimAng = Dir:toAngle()
+                
+                # if AimableProgress is an int, don't slerp since it's expensive
+                if(!!AimableProgress != AimableProgress){
+                    AimAng = slerp(TURRETS_DEFAULT_QUAT, quat(AimAng), AimableProgress):toAngle()   
+                }
+                
+                local FinalAng = toWorldAng(vec(),AimAng,vec(),Mount["parent",entity]:angles())
+                holoAng(Mount["r_origin_holo",number], FinalAng)
+                
+            }
+        }
+    }
+    
+    function turrets_setFiring(Firing:number){
+        Firing = Firing & (TURRETS_TransformProgress==1)
+        if(TURRETS_Firing != Firing){
+            if(Firing){
+                TURRETS_FireIndex = 0
+                timer("turrets_firetick",0)
+            }
+            else {
+                local T = TURRETS_ActiveTurretMatrix[ TURRETS_FireIndex+1, entity ]:wirelink()
+                T["Fire",number]   = 0
+                T["Spread",number] = TURRETS_SPREAD_EXTRA
+            }
+            TURRETS_Firing = Firing
+        }
+    }
+    
+    timer("turrets_turretfinder",500)
+    
+}
+
+event tick(){
+    
+    local Delta = TURRETS_TransformProgress
+    TURRETS_TransformProgress = clamp(TURRETS_TransformProgress + TURRETS_TRANSFORM_SPEED * TICKRATE_TimeScalar_ * TURRETS_TransformState, 0, 1)
+    
+    local SoundClk = floor(TURRETS_TransformProgress * 2)
+    local PlaySound_ = 0
+    if(TURRETS_SoundClk != SoundClk){
+        TURRETS_SoundClk = SoundClk
+        PlaySound_ = SoundClk
+    }
+    
+    TURRETS_TransformRate_ = TURRETS_TransformProgress - Delta
+    
+    TURRETS_MissingTurrets_ = 0
+    foreach(N:number, Mount:table = TURRETS_TurretMounts){
+        turrets_processTurretMount(Mount)
+        if(PlaySound_){
+            local Att = TURRETS_SOUNDATTACHMENTS[PlaySound_, string]
+            local Snd = TURRETS_SOUNDS[randint(1,TURRETS_SOUNDS:count()), string]
+            Mount[Att,entity]:soundPlay("turret_"+N+"_"+PlaySound_,0.5,Snd)
+        }
+    }
+    
+    if( !TURRETS_Firing ){
+        TURRETS_CurSpread = max(TURRETS_SPREAD_OFFSET, TURRETS_CurSpread - TURRETS_SPREAD_SPEED * TICKRATE_TimeScalar_)
+    }
+
+    # TURRETS_TransformRate_ = $TURRETS_TransformProgress -- broken on old compiler??
+    
+}
+
+if( clk("turrets_firetick") & TURRETS_Firing & TURRETS_MountIndex ){
+    
+    if(TURRETS_TransformProgress == 1){
+        timer("turrets_firetick",TURRETS_FIRING_INTERVAL)
+        
+        TURRETS_CurWirelink["Fire",number] = 0
+    
+        local Turret = TURRETS_ActiveTurretMatrix[ TURRETS_FireIndex+1, entity ]
+        local InitialID = TURRETS_FireIndex
+        
+        while(1){
+            TURRETS_FireIndex = (TURRETS_FireIndex + 1) % TURRETS_MountIndex
+            Turret            = TURRETS_ActiveTurretMatrix[ TURRETS_FireIndex+1, entity ]
+            
+            if(Turret:isValid() | (TURRETS_FireIndex == InitialID)){ break }
+        }
+        
+        TURRETS_CurWirelink = Turret:wirelink()
+        TURRETS_CurSpread   = min(TURRETS_CurSpread + TURRETS_SPREAD_SPEED * TICKRATE_TimeScalar_, TURRETS_SPREAD_EXTRA)
+        Turret["recoil",number] = 1
+        
+        TURRETS_CurWirelink["Fire",number] = 1    
+        TURRETS_CurWirelink["Spread",number] = max(0, TURRETS_CurSpread) + TURRETS_SPREAD_START
+        
+        timer("turrets_currentoff",tickInterval())
+        
+    }
+    
+}
+
+if( clk("turrets_currentoff") ){
+    TURRETS_CurWirelink["Fire",number] = 0
+}

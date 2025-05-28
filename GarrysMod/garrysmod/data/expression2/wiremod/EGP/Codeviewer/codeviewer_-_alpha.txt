@@ -1,0 +1,968 @@
+@name Codeviewer - Alpha
+@inputs EGP:wirelink
+@persist BuildSpeed OpsLimit ReadyToShow TotalTexts Switcher SlothStep SlothSwapped SlothDone Wait Initiated LineIndex
+@persist [FilePath FileContent CachedText]:string
+@persist [Syntax]:table
+@persist [FileLines CachedLines UserFunctions E2Functions UserVariables SlothCopy]:array
+@persist [User]:entity
+
+interval(100)
+
+if(first())
+{
+    # [ ----------------------------------------------------------------- ] #
+                        # [ --- Description --- ] #
+    #[
+        EGP Codeviewer, Version Alpha.
+        Author: Sixmax, Sixmax#0266 on Discord
+        
+        Functionality:
+            - Displays E2 Code with all Syntax Colors.
+            
+     
+           
+        How it works:
+            Everytime before a different step is being started, I visualize the current FileContext.
+            After that I remove all the keywords, such as if, matrix4, else, #ifdef and repeat the first step.
+            
+            It is the easiest way to visualize files without major lag.
+
+
+
+        
+        Regarding bugs message me on Discord.
+        
+        
+        
+        I take full credit for this Project.
+        
+        Copyright 2020 Sixmax, all rights Reserved
+   ]#
+    
+    # [ ----------------------------------------------------------------- ] #
+                            # [ --- Config --- ] #
+
+    User = owner() # Has no functionality yet. 
+    BuildSpeed = 10
+    OpsLimit = 4500
+    LineIndex = 1
+    FilePath = ">e2shared/testingText.txt"
+
+    Syntax = table(
+        "preproc" = table(
+                        "col" = vec(240,240,160)
+                        ),
+                        
+        "comments" = table(
+                        "col" = vec(128)
+                        ),
+                        
+        "strings" = table(
+                        "col" = vec(150,150,180)
+                        ),
+    
+        "keywords" = table(
+                        "col" = vec(160,240,240),
+                        "words" = array("if", "function", "foreach", "return", "local", "break", "case", "else", "for", "while", "continue", "elseif")
+                        ),
+                        
+        "uservalues" = table(
+                        "col" = vec(160, 240, 160)
+                        ),
+                            
+        "types" = table(
+                        "col" = vec(240,160,96),
+                        "words" = array("wirelink", "matrix2", "matrix", "matrix4", "string", "vector2", "vector4", "array", "table", "gtable", "gTable", "angle", "vector", "entity", "number", "void", "normal", "bone", "quaternion")
+                        ),
+                        
+        "numbers" = table(
+                        "col" = vec(247,167,167)
+                        ),
+                        
+        "userfunctions" = table(
+                        "col" = vec(102,122,102)
+                        ),
+                        
+        "e2function" = table(
+                        "col" = vec(160,160,240)
+                        ),
+                        
+        "enums" = table(
+                        "col" = vec(240,160,240)
+                        ),
+                        
+        "ppcommands" = table(
+                        "col" = vec(240,96,240),
+                        "words" = array("#ifdef", "#else", "#endif")
+                        ),                      
+                        
+        "default" = vec(255)
+    )
+    
+    # [ ----------------------------------------------------------------- ] #
+                        # [ --- Helpers --- ] #  
+   
+    function array array:combSort()
+    {
+        local Step = This:count()
+        local Copy = This
+        local Swapped = 1
+        while(Swapped | Step > 1)
+        {
+            Swapped = 0
+            
+            for(I = 1, Copy:count() - Step + 1)
+            {
+                if(Copy[I + 1, string]:length() > Copy[I, string]:length())
+                {
+                    local Store = Copy[I + 1, string]
+                    Copy[I + 1, string] = Copy[I, string]
+                    Copy[I, string] = Store
+                    Swapped = 1   
+                }       
+            }    
+            
+            if(Step > 1)
+            {
+                Step = Step / 1.3   
+            }
+        }
+        
+        return Copy
+    }
+
+    function number prevention()
+    {
+        return perf(50) & ops() < OpsLimit   
+    }
+    
+    SlothDone = 0
+    SlothStep = -1
+    SlothCopy = array()
+    SlothSwapped = -1   
+    function array array:slothSort() # combSort but slow
+    {
+        if(SlothStep == -1 | !SlothCopy:count() | SlothSwapped == -1)
+        {
+            SlothDone = 0
+            SlothStep = This:count()  
+            SlothCopy = This    
+            SlothSwapped = 1   
+        }
+    
+        if(clk("sloth") & prevention())
+        {            
+            if(SlothSwapped | SlothStep > 1)
+            {
+                SlothSwapped = 0
+                
+                for(I = 1, SlothCopy:count() - SlothStep + 1)
+                {
+                    if(SlothCopy[I + 1, string]:length() > SlothCopy[I, string]:length())
+                    {
+                        local Store = SlothCopy[I + 1, string]
+                        SlothCopy[I + 1, string] = SlothCopy[I, string]
+                        SlothCopy[I, string] = Store
+                        SlothSwapped = 1   
+                    }       
+                }    
+                
+                if(SlothStep > 1)
+                {
+                    SlothStep = SlothStep / 1.3   
+                }
+            }
+            
+            if(SlothSwapped == 0 & SlothStep < 1)
+            {
+                SlothDone = 1    
+            }
+            else
+            {
+                timer("sloth", BuildSpeed)   
+            }
+        }
+        else
+        {
+            timer("sloth", BuildSpeed)                  
+        }
+        
+        if(SlothDone)
+        {       
+            SlothStep = -1
+            return SlothCopy   
+        }             
+        
+        return array()
+    }
+    
+    Syntax["functions", table]["words", array]:combSort()
+    Syntax["types", table]["words", array]:combSort()
+    Syntax["ppcommands", table]["words", array]:combSort()
+    
+    function string ws(Size)
+    {
+        local B = ""
+        for(I = 1, Size){ B += " " } 
+        return B 
+    }
+   
+    function number string:isUpper()
+    {
+        local B = toByte(This)        
+        if(B >= 65 & B <= 90){ return 1 }            
+        return 0
+    }
+    
+    function number string:isLower()
+    {
+        local B = toByte(This)        
+        if(B >= 97 & B <= 122){ return 1 }            
+        return 0        
+    }
+    
+    function number string:isLetter()
+    {
+        if(This:isLower() | This:isUpper()){ return 1 }                  
+        return 0        
+    }
+    
+    function number string:isNumber()
+    {
+        local B = toByte(This)     
+        if(B >= 48 & B <= 57){ return 1 }                
+        return 0   
+    }
+ 
+    function number string:isSpecial()
+    {
+        if(!This:isLetter() & !This:isNumber()){ return 1 }           
+        return 0
+    }
+
+    function number string:isWhitespace()
+    {
+        if(This:replaceRE("%s", "") == ""){ return 1 }               
+        return 0      
+    }
+    
+    function number string:wtfWire(B:string)
+    {
+        if(This == B){ return 0 }
+        return 0   
+    }
+
+    function number array:exists(S:string)
+    {
+        foreach(I, N:string = This)
+        {
+            if(N == S){ return 1 }       
+        }   
+        
+        return 0
+    }
+
+    function void newText(Text:string, Col:vector)
+    {
+        EGP:egpTextLayout(TotalTexts, Text, vec2(5,5), vec2(9999))     
+        EGP:egpSize(TotalTexts, 12)
+        EGP:egpAlpha(TotalTexts, 255)
+        EGP:egpColor(TotalTexts, Col)  
+        EGP:egpFont(TotalTexts, "Lucida Console") #"Courier New")      
+        EGP:egpAlpha(TotalTexts, 0)
+        
+        TotalTexts++      
+    } 
+    
+    function void loadFile(Path:string)
+    {
+        fileLoad(Path)
+        IsLoading = 1   
+    }
+    
+    function string readFile()
+    {
+        if(!fileLoading())
+        {
+            IsLoading = 0
+            return fileRead()
+        }    
+        
+        return ""
+    }
+  
+    function void updateCache(NewContext:string)
+    {
+        CachedContext = NewContext
+        CachedLines = CachedContext:explode("\n")   
+    }
+
+    function void setProgress(Type:string, Current, Maximum)
+    {
+        local Percentage = floor((100 / Maximum) * Current, 1)
+        setName("[ Sixmax' Codeviewer Beta ]\n[Workload]: " + Type + "\n[Progress]: " + Percentage + "%")   
+    }
+
+    function vector col4Key(Key:string)
+    {
+        if(!Syntax:exists(Key))
+        {
+            return Syntax["default", vector]      
+        }
+        
+        return Syntax[Key, table]["col", vector]
+    }
+        
+    function array words4Key(Key:string)
+    {
+        if(!Syntax:exists(Key))
+        {
+            return array()
+        }        
+        
+        return Syntax[Key, table]["words", array]
+    }
+
+    function array table:toArr()
+    {
+        local Result = array()
+        foreach(I, Key:number = This:keys())
+        {
+            local Dir = This[Key, array][1, string]
+            
+            if(!Result:exists(Dir))
+            {
+                Result:pushString(Dir)
+            }
+        }
+        return Result 
+    }
+
+    function number getProgress(Percent)
+    {
+        return (250 / 100) * Percent   
+    }
+    
+    function void setProgress(Progress)
+    {
+        EGP:egpSize(16, vec2(getProgress(Progress), 50))           
+    }    
+    
+    function void showLoading()
+    {
+        setProgress(0)   
+        
+        EGP:egpAlpha(15, 255)
+        EGP:egpAlpha(16, 255)
+        EGP:egpAlpha(17, 255)              
+    }
+    
+    function void hideLoading()
+    {
+        EGP:egpAlpha(15, 0)
+        EGP:egpAlpha(16, 0)
+        EGP:egpAlpha(17, 0)     
+        
+        setProgress(0)                     
+    }
+
+    function void hideText()
+    {   
+        for(I = 1, TotalTexts - 1)
+        {
+            EGP:egpAlpha(I, 0)   
+        }
+    }
+    
+    function void showText()
+    {
+        for(I = 1, TotalTexts - 1)
+        {
+            EGP:egpAlpha(I, 255)   
+        }   
+    }
+
+    # [ ----------------------------------------------------------------- ] #
+                    # [ --- Main Functions --- ] #
+
+    function string string:getPreprocType()
+    {      
+        if(This:sub(1,2) == "@n")
+        {
+            return "name"
+        }        
+        elseif(This:sub(1,2) == "@t")
+        {
+            return "trigger"   
+        }
+        elseif(This:sub(1,2) == "@m")
+        {
+            return "model"   
+        }
+        elseif(This:sub(1,2) == "@o")
+        {
+            return "outputs"
+        }
+        elseif(This:sub(1,2) == "@i")
+        {
+            return "inputs"   
+        }
+        elseif(This:sub(1,2) == "@p")
+        {
+            return "persist"   
+        }        
+    
+        return ""
+    }
+    
+    function array array:findPreprocSnippets()
+    {
+        local Result = array()
+        
+        foreach(L, Line:string = This)
+        {
+            local NoSpace = Line:replaceRE("%s", "")
+            
+            if(NoSpace == "")
+            {
+                continue
+            }
+            
+            if(NoSpace:sub(1,1) == "@")
+            {
+                local Type = NoSpace:getPreprocType()
+                
+                if(Type == "trigger" | Type == "model" | Type == "name")
+                {
+                    Result:pushString(Line)  
+                    continue 
+                }             
+
+                Result:pushString("@" + Type)                   
+            }
+            else
+            {
+                if(!NoSpace:sub(1,1):isSpecial())
+                {
+                    break   
+                }
+            }
+        }
+        
+        return Result   
+    }
+
+    function array array:findComments()
+    {       
+        local Result = array()
+        
+        local Comment = ""
+        local Type = "nil"
+    
+        foreach(L, Line:string = This)
+        {
+            local Chars = Line:explode("")
+            
+            foreach(I, Char:string = Chars)
+            {
+                # [ --- Identify Comment Type --- ] #
+                if(Type == "nil")
+                {                                     
+                    if(Char == "#")  
+                    {
+                        local NextChar = Chars[I + 1, string]
+                        
+                        if(NextChar == "[")
+                        {
+                            Type = "multi"              
+                        }                   
+                        else
+                        {
+                            Type = "single"      
+                        }    
+                    }
+                }
+                # [ ----------------------------- ] #
+                
+                # [ --- Handle all the inline stuff --- ] #
+                if(Type == "single")
+                {
+                    Comment += Char                  
+                }
+                elseif(Type == "multi")
+                {
+                    Comment += Char
+                    
+                    if(Char == "#")
+                    {
+                        local PrevChar = Chars[I - 1, string]
+                        
+                        if(PrevChar == "]")
+                        {
+                            Result:pushString(Comment) 
+                            Comment = "" 
+                            Type = "nil"                               
+                        } 
+                    }               
+                }
+                # [ ----------------------------------- ] #
+            }
+            
+            if(Type == "single")
+            {
+                Result:pushString(Comment) # A single comment can only be in 1 line, so reset everything when a new line starts, but save the comment.
+                Comment = "" 
+                Type = "nil" 
+            }
+            elseif(Type == "multi")
+            {
+                Comment += "\n" # If the comment is still in multi, it means another line has started. So make a new line.
+            }
+        }   
+        
+        if(Type != "nil")
+        {
+            Result:pushString(Comment)       
+        }
+        
+        return Result
+    }
+
+    function array array:findAllStrings() # Not using Patterns for this one because Strings can go into multiple lines
+    {
+        local Result = array()
+        local String = ""
+        local InString = 0
+        
+        foreach(L, Line:string = This)
+        {
+            local Chars = Line:explode("")
+            
+            foreach(I, Char:string = Chars)
+            {
+                if(!InString)
+                {
+                    if(Char == "\"") 
+                    {
+                        InString = 1 
+                    } 
+                }     
+                else
+                {                  
+                    String += Char
+                    
+                    local NextChar = Chars[I + 1, string]
+     
+                    if(Char == "\"")
+                    {
+                        String = "\"" + String
+                        
+                        if(!Result:exists(String))
+                        {
+                            Result:pushString(String)
+                        }
+                        
+                        String = ""  
+                        InString = 0 
+                    }       
+                }    
+            } 
+            
+            if(InString)
+            {
+                String += "\n"   
+            }  
+        }
+        
+        return Result
+    }
+    
+    function array string:gfindVariables()
+    {
+        local Result = This:gmatch("_?%u[%l%u%d_]*", 1):toArr()
+        return Result   
+    }
+    
+    function array string:gfindE2Functions()
+    {
+        local Functions = This:gmatch(":?%l[%u%l&d]*%(", 1):toArr()
+        
+        if(!Functions:count())
+        {
+            return array()   
+        }
+        
+        local Result = array()
+        
+        foreach(I, Function:string = Functions)
+        {            
+            local Func = Function:replaceRE("[%s|(|:]", "")
+            
+            if(!words4Key("keywords"):exists(Func))
+            {
+                Result:pushString(Func)   
+            }   
+        }
+
+        Result = Result:combSort()
+        
+        return Result  
+    }
+    
+    function array string:gfindUserFunctions()
+    {
+        local Functions = This:gmatch("function [a-z]*[a-z|A-Z|0-9]*[ ]?[a-z]*[a-z|A-Z|0-9]*[:| ]?[a-z][a-z|A-Z|0-9]*", 1):toArr()
+       # printTable(Functions)
+        
+        if(!Functions:count())
+        {
+            return array()   
+        }
+        
+        local Result = array()
+        
+        foreach(I, Function:string = Functions)
+        {
+            local Func = Function:replaceRE("function[ ]?[a-z]*[a-z|A-Z|0-9]*[ ]?[a-z]*[a-z|A-Z|0-9]*[:| ]", "")            
+            Result:pushString(Func)                  
+        }
+        
+        Result = Result:combSort()
+        
+        return Result
+    }
+    
+    function array string:gfindEnums()
+    {
+        return This:gmatch("[(: ]_[A-Z]*[A-Z0-9]*_*[A-Z0-9]*_*[A-Z0-9]*_*[A-Z0-9]*_*[A-Z0-9]*_*[A-Z0-9]*_*[A-Z0-9]*_*[A-Z0-9]*_*[A-Z0-9]*_*[A-Z0-9]*", 1):toArr():combSort()        
+    }
+
+    function string string:removeNumbers()
+    {   
+        return This:replaceRE("[0-9]", " ")
+    }
+    
+    function string array:getTextSnippet(StartLine, EndLine)
+    {  
+        local Block = ""
+        foreach(L, Line:string = This)
+        {
+            if(L < StartLine)
+            {
+                continue   
+            }   
+            elseif(L > EndLine)
+            {
+                break   
+            }
+            else
+            {
+                Block += Line + "\n"
+            }
+        }
+
+        return Block
+    }
+
+    function string array:removeFromLines(Input:array)
+    {
+        local Constructor = ""
+        
+        foreach(L, Line:string = This)
+        {
+            local Temp = Line
+            
+            foreach(I, Blacklisted:string = Input)
+            {
+                if(Blacklisted:find("\n"))
+                {
+                    local BLines = Blacklisted:explode("\n")
+                                
+                    foreach(B, BLine:string = BLines)
+                    {
+                        if(Temp:find(BLine))
+                        {
+                            Temp = Temp:replace(BLine, ws(BLine:length()))   
+                        }        
+                    }  
+                }
+                else
+                {
+                    if(Temp:find(Blacklisted))
+                    {
+                        Temp = Temp:replace(Blacklisted, ws(Blacklisted:length()))   
+                    }          
+                }     
+            }   
+            
+            Constructor += Temp + "\n"
+        }
+        
+        return Constructor  
+    }
+
+    function void cache(In:string)
+    {
+        CachedText = In
+        CachedLines = In:explode("\n")   
+    }
+
+    function void makeNew(WordsToRemove:array, Key:string)
+    {
+        newText(CachedText, col4Key(Key))
+        cache(CachedLines:removeFromLines(WordsToRemove))
+    }
+
+    function void array:viewCode(Start, End)
+    {
+        if((clk("bt") & prevention()) | Wait)
+        {
+            switch(Switcher)
+            {
+                case 0,
+                    hideText()
+                    showLoading()
+                    cache(This:getTextSnippet(Start,End))    
+                break
+                
+                case 1,
+                    # Preprocessor
+                    setProgress(10)
+                    makeNew(CachedLines:findPreprocSnippets(), "preproc")               
+                break
+                
+                case 2,
+                    # Strings
+                    setProgress(20)
+                    makeNew(CachedLines:findAllStrings(), "strings")                               
+                break
+
+                case 3,
+                    # ppcommands
+                    setProgress(25)
+                    makeNew(words4Key("ppcommands"), "ppcommands")
+                break
+                                
+                case 4,
+                    # Comments 
+                    setProgress(30)      
+                    makeNew(CachedLines:findComments(), "comments")                
+                break
+
+                case 5,
+                    setProgress(40)
+                    # user functions
+                    UserFunctions = CachedText:gfindUserFunctions()
+                break
+                
+                case 6, #[ Little Buffer to avoid crashing. The step from 5 to 7 is crazy expensive ]# break 
+                
+                case 7,
+                    setProgress(50)
+                    # e2functions
+                    E2Functions = CachedText:gfindE2Functions()
+                break
+                
+                case 8,
+                    setProgress(55)
+                    # keywords
+                    makeNew(words4Key("keywords"), "keywords")
+                break
+
+                case 9,
+                    setProgress(60)
+                    # types 
+                    makeNew(words4Key("types"), "types")
+                break
+
+                case 10,
+                    # Function evaluation 
+                    local NewE2 = array()
+                    
+                    foreach(I, EFunc:string = E2Functions)
+                    {
+                        if(UserFunctions:exists(EFunc))
+                        {
+                            continue
+                        }   
+                        
+                        if(!NewE2:exists(EFunc) & !words4Key("types"):exists(EFunc))
+                        {
+                            NewE2:pushString(EFunc) 
+                        }     
+                                          
+                        local Ca = (10 / E2Functions:count()) * I
+                        setProgress(60 + Ca)
+                    }
+                    
+                    makeNew(NewE2, "e2function")                                                           
+                    makeNew(UserFunctions, "userfunctions")   
+                    
+                    UserFunctions:clear()
+                    E2Functions:clear()
+                break
+                
+                case 11,
+                    # user variables
+                    UserVariables = CachedText:gfindVariables()
+                    
+                    setProgress(85)
+                break
+
+                case 12,
+                    # ppcommands
+                    local Enums = CachedText:gfindEnums()
+                    
+                    local Temp = array()
+                    foreach(I, Variable:string = UserVariables)
+                    {
+                        if(Enums:exists(Variable))
+                        {
+                            continue      
+                        }   
+                        
+                        Temp:pushString(Variable)
+                        
+                        local Ca = (5 / UserVariables:count()) * I
+                        setProgress(85 + Ca)
+                    }
+                    
+                    UserVariables = Temp
+                    
+                    makeNew(Enums, "enums") 
+                break
+                
+                case 13,
+                    # user variable sorting (needs to be seperated, if there are many variables. there has to time inbetween like a cooldown
+                    local Vars = array()
+                    
+                    if(changed(UserVariables:count() > 75) & UserVariables:count() > 75)
+                    {
+                        printColor(vec(255,0,0), "High amount of Variables detecting. Initiating slow sorting")   
+                    }
+                    
+                    if(UserVariables:count() > 75)
+                    {
+                        Vars = UserVariables:slothSort()   
+                        Wait = 1    
+                    }
+                    else
+                    {
+                        Vars = UserVariables:combSort()   
+                    }
+                    
+                    if(Vars:count() > 0)
+                    {
+                        Wait = 0
+                        makeNew(Vars, "uservalues")  
+                        setProgress(95)
+                    }                  
+                break
+                
+                case 14,
+                    # numbers
+                    makeNew("0123456789":explode(""), "numbers")
+                    setProgress(97.5)
+                break
+                
+                case 15,
+                    newText(CachedText, col4Key(""))
+                    
+                    setProgress(100)
+
+                    showText()
+                    
+                    hideLoading()
+                break
+            }
+            
+            if(!Wait)
+            {
+                Switcher++
+            }
+
+            timer("bt", BuildSpeed) 
+        }
+        else
+        {
+            timer("bt", BuildSpeed)   
+        }
+    }
+    
+    # 13 TextLayouts
+    
+    # [ ----------------------------------------------------------------- ] #    
+                    # [ --- Other EGP Garbage --- ] #
+
+    function void buildEGP()
+    {
+        EGP:egpClear()
+        EGP:egpDrawTopLeft(1) 
+                                   
+        local ScreenCenter = vec2(256,256)          
+        
+        # [ --- Progressbar --- ] #
+        local BarProgress = 50
+        local BarPos = ScreenCenter - vec2(125, 25)
+        
+        EGP:egpBox(15, BarPos, vec2(250,50)) # Bar Background
+        EGP:egpColor(15, vec(255,0,0))
+        
+        EGP:egpBox(16, BarPos, vec2(getProgress(0), 50))
+        EGP:egpColor(16, vec(0,255,0)) # Bar Progress
+        
+        EGP:egpBoxOutline(17, BarPos, vec2(250,50))    
+        EGP:egpColor(17, vec(160,160,240)) # Bar Outline
+        
+        EGP:egpAlpha(15, 0)
+        EGP:egpAlpha(16, 0)
+        EGP:egpAlpha(17, 0)       
+        
+        
+        # [ --- Errorbox --- ] #
+         
+    }
+    
+    # [ ----------------------------------------------------------------- ] #
+                    # [ --- Data Initialization --- ]#
+    Switcher = 0
+    ReadyToShow = 0
+    TotalTexts = 1
+    FileContent = ""
+    LineIndex = max(LineIndex, 1)
+    FileLines = array()   
+}
+
+if(!EGP:entity())
+{
+    local PossibleEGP = entity():isWeldedTo()
+    if(PossibleEGP != noentity())
+    {
+        if(PossibleEGP:type() == "gmod_wire_egp")
+        {
+            EGP = PossibleEGP:wirelink()        
+        }
+    }
+}
+
+if(changed(EGP:entity()) & EGP:entity())
+{    
+    buildEGP()
+    loadFile(FilePath)   
+}
+
+if(fileLoaded() & ReadyToShow == 0)
+{
+    if(EGP:entity())
+    {
+        FileContent = readFile()
+        FileLines = FileContent:explode("\n")    
+        ReadyToShow = 1
+    }
+}
+
+if(ReadyToShow)
+{
+    FileLines:viewCode(LineIndex, LineIndex + 41)
+    Initiated = 1
+}

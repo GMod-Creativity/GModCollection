@@ -1,0 +1,60 @@
+@name CCIP2
+@inputs Target:entity Compute 
+@outputs Smodel:string Tickstocompute Calc Tick Position:vector
+@persist Acceleration:vector Drag:vector Ticktime Velt:vector Position:vector Velocity:vector Boxx Boxy Boxz Box:vector Area Xdirmod Ydirmod Zdirmod Airdensity Tick Universaldragcoefficient Speedlimit
+@trigger 
+#thanks Tolyzor
+Initialvelocity = entity():vel()
+Initialposition = entity():pos()
+interval(1)
+    Boxx = 21.150
+    Boxy = 58.099
+    Boxz = 21.150
+    Xdirmod = 1
+    Ydirmod = 1
+    Zdirmod = 1
+
+if (Compute & ~Compute) {
+    Calc = 1
+    Tick = 0
+    Tickstocompute = 0
+    rangerPersist(1)
+    rangerHitWater(1) # can't calculate trajectories under water (yet :D)
+    rangerHitEntities(1)
+    rangerFilter(Target) 
+    Flightpathposition = array()
+    Flightpathvelocity = array()
+    Speedlimit = speedLimit() # "sv_maxvelocity" in console
+    Airdensity = airDensity() # "air_density" in console 
+    Universaldragcoefficient = 8.18205e-6 # found by experiment
+    Ticktime = 1/67 # (seconds) # decrease this number to increase accuracy for when acceleration becomes too great for the algorithm to handle
+    Position = Initialposition
+    if (Initialvelocity:length() > Speedlimit) {Velocity = Initialvelocity:normalized() * Speedlimit} else {Velocity = Initialvelocity} # gmod speed limit
+    Acceleration = vec(0, 0, -gravity())
+    Flightpathposition[0, vector] = Position
+    Flightpathvelocity[0, vector] = Velocity
+    }
+Tickstocompute += Calc
+while (Calc & (Position:z()> -14330)) { # increase this number before adding any additional code to this loop or it will red chip
+    Area = positive(Target:toLocal(Target:pos() + Velocity):normalized()):dot(vec((Boxy * Boxz) / Xdirmod, (Boxz * Boxx) / Ydirmod, (Boxx * Boxy) / Zdirmod))
+    # calculating orthangonaly projected cross sectional area; dot product of the local direction vector with the local (x, y, z) area of the prop
+    Drag = Universaldragcoefficient * Area * Airdensity * Velocity:length()^2 * -Velocity:normalized()
+    # using the drag equation; Force = C * A * p * v^2, and then sign convention means it opposes velocity
+    Acceleration = vec(0, 0, -gravity()) + (Drag / Target:mass())
+    # using Newton's 2nd law; F = Ma -> a = F/M
+    Velt = Velocity + Acceleration * Ticktime 
+    # using the equation of motion; v = vi + at
+    # we make the assumption that acceleration is constant for the length of the physics game tick 
+    if (Velt:length() > Speedlimit) {Velt = Velt:normalized() * Speedlimit}
+    # gmod speed limit
+    Position = Position + 0.5 * (Velocity + Velt) * Ticktime
+    # using the equation of motion; s = si + 1/2(vi + v)t
+    Velocity = Velt
+    Tick++
+    Flightpathposition[Tick, vector] = Position
+    Flightpathvelocity[Tick, vector] = Velocity
+    if (rangerOffset(Flightpathposition[Tick - 1, vector], Position):hit()) {Calc = 0} 
+}
+# last edited 20/12/2009
+# made by Tolyzor, contact for support at the wiremod forums
+# feel free to edit/use parts or all of this code so long as you credit me!

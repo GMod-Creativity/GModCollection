@@ -1,0 +1,124 @@
+@name E2 Interceptor
+@inputs Target:vector Radar:wirelink Clk Launch Stage Abort PatrMode
+@outputs Mul Go Ok Vec:vector Speed Dist Altitude Splash Lock GPS:vector Tpos:vector
+@persist GPS:vector Home:table Targetpos:table 
+@persist Alt Gl Dist C
+@trigger Clk 
+if (Launch==1) {I=50}
+else {I=250}
+interval(I)
+Alt=5000
+Gl= -15800 # MUST BE CORRECTED FOR DIFFERENT MAPS, 
+GPS=entity():pos()
+Gx=GPS:x()
+Py=GPS:y()
+Sz=GPS:z()
+Ospd=2.5
+Odist=4000
+Oalt=4000
+T=Radar["1_Ent",entity]
+Lock=Radar["1",number]
+
+DataX = Target:x()
+DataY = Target:y()
+DataZ = Target:z()
+
+
+if (Clk & ~Clk & Launch==0) {Home[toString(0),number] = Gx
+    Home[toString(1),number] = Py
+    Home[toString(2),number] = Sz}
+if (Clk & ~Clk) {Targetpos[toString(0),number] = DataX
+    Targetpos[toString(1),number] = DataY
+    Targetpos[toString(2),number] = DataZ}
+
+if (Launch==1) {
+
+if (Go==1 & Launch==1 & Speed>=3000) {Mul=0.5}
+elseif (Go==1 & Launch==1 & Speed<3000) {Mul=2}
+if (PatrMode==0) {
+    if (Go==1 & Stage==1 & Dist<3000) {Mul=0.1}
+    if (Go==0 | Stage>1 | Launch==0) {Mul=0}
+}
+else {
+    if (Go==1 & Stage==3 & Dist<5000) {Mul=0.1}
+    if (Go==0 | Stage>3 | Launch==0) {Mul=0}
+}
+    
+if (PatrMode==1) {Go=Stage <= 3 #KILL DRONE AFTER N WPT
+    if (Stage==1 | Stage==2) {
+        Tpos=T:pos()
+    }
+    if (Stage==0) {Tx=Targetpos[toString(0),number]
+        Ty=Targetpos[toString(1),number]
+        Tz=Targetpos[toString(2),number]
+        C=0
+        Tv=vec(Tx,Ty,0)}
+    elseif (Stage==1) {C=C+1
+        Tx=cos(C*Ospd)*Odist
+        Ty=sin(C*Ospd)*Odist
+        Tz=Gl+Oalt
+        Tv=vec(Tx,Ty,Tz)}
+    elseif (Stage==2) {C=0
+        Tx=Tpos:x()
+        Ty=Tpos:y()
+        Tz=Tpos:z()
+        Tv=vec(Tx,Ty,Tz)}
+    else {Tx=Home[toString(0),number]
+        Ty=Home[toString(1),number]
+        Tz=Home[toString(2),number]
+        C=0
+        Tv=vec(Tx,Ty,Tz)}
+}
+else {Go=Stage <= 1 #KILL DRONE AFTER N WPT
+    if (Stage==0) {Tx=Targetpos[toString(0),number]
+        Ty=Targetpos[toString(1),number]
+        Tz=Targetpos[toString(2),number]}
+    else {Tx=Home[toString(0),number]
+        Ty=Home[toString(1),number]
+        Tz=Home[toString(2),number]}
+    Tv=vec(Tx,Ty,Tz)
+}
+
+
+Dist=GPS:distance(Tv)
+
+X=Gx - Tx
+Y=Py - Ty
+if (PatrMode==0) {
+    if (Stage==0 & Dist>10000) {Z=Sz-(Tz+Alt)}
+    elseif (Stage==0 & Dist<10000) {Z=Sz-Tz+200}
+    elseif (Stage==1 & Dist<3000) {Z=(Sz-Tz)}
+    else {Z=Sz-(Gl+Alt)}
+}
+else {
+    if (Stage==1 & Dist>10000) {Z=Sz-(Tz+Alt)}
+elseif (Stage==2 & Dist<=10000) {Z=Sz-Tz}
+elseif (Stage==2 & Dist>10000) {Z=Sz-Tz+200}
+elseif (Stage==3 & Dist<3000) {Z=(Sz-Tz)}
+else {Z=Sz-(Gl+Alt)}
+}
+Vec=vec(X,Y,Z)
+Altitude=Sz-Gl
+Knots=toUnit("knots", entity():vel():length() )
+Speed=entity():vel():length()
+#if ((Dist>15000) | (Dist<-15000)) {Alt=(Alt*2)} 
+#if ((AddrRead==5) & (Dist<5000 & Dist>-5000)) {Mul=0.25}
+if (PatrMode==0) {
+    if (Stage==0 & Dist<7500) {Splash=1
+        Ok=1} 
+    else {Splash=0}
+    if (Dist<1000 | Abort==1) {Ok=1} 
+    else {Ok=0}
+}
+else {
+    if (Stage==2 & Lock==1 & Dist<7500) {Splash=1} 
+    else {Splash=0}
+    if (Dist<1500 | Abort==1) {Ok=1} 
+    elseif (Stage==2 & Lock==1 & Ok==1 & Splash==0) {Ok=0}
+    elseif (Stage==1 & Lock==1 & Ok==0) {Ok=1}
+    elseif (Stage==2 & Splash==1) {Ok=1}
+    elseif (Stage==3 & Dist<2500) {Ok=1}
+    else {Ok=0}
+    
+}
+}

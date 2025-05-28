@@ -1,0 +1,531 @@
+@name holo dup
+@inputs 
+@outputs Status:string SaveNames:array Name:string LastI Scale
+@persist SaveNames:array Saves:array Status:string Name:string Func:array
+@persist LastI Buffer:string FileName:string ExportFileName:string
+@persist Constrained:array CurBuild:string Scale Orient UseProps SpamDelay SpamDelayed AsFunc OverwriteOnExport
+@trigger 
+
+runOnFile(1)
+runOnChat(1)
+#interval(300)
+interval(50)
+
+if (first()){
+    ################################################
+    #Explanation
+    ################################################
+    #There are 3 main commands:
+    #!list
+    #!saveas name #note that the chip must be reloaded afterwards (could fix but too lazy)
+    #!load name
+    #!loadprops name #this loads the save using props instead of holos ignores final orientation and scaling
+    
+    #One extra command was added:
+    #!exportfunction name #builds an e2 into the ExportFileName file (in the data/e2files folder)
+    ExportFileName = "sampleOutput.txt"
+    OverwriteOnExport = 1
+    
+    #And Several auxilliary commands
+    #!hide #hide and show toggle the alpha of the chip 
+    #!show
+    #!setscale number
+    #!dontorient #dontorient tells the chip not to align all props with the chips own angles once finished spawning (orient is the default)
+    #!orient #orient tells the chip to align all props with its own angles once finished spawning
+    #!spamdelay number #number is in milliseconds this is the time to wait between prop spawns
+    
+    #when save or load is used the chip attempts to load from the file set with
+    #FileName = "holooutpost.txt"
+    FileName = "holoframes.txt"
+    #I would not recommend saving more than about a dozen structures into the same file
+    #if you're going to use other files make sure they end in .txt
+    #you can find the files in garrysmod/garrysmod/data/e2files
+    #they are of the structure: 
+    
+    #StructureName
+    #\tOriginalAngles
+    #\t\tModel
+    #\t\tPosition
+    #\t\tAngles
+    #\t\tMaterial
+    #\t\tColor
+    #\tOriginalAngles
+    #\t\tModel
+    #\t\tPosition
+    #\t\tAngles
+    #\t\tMaterial
+    #\t\tColor
+    #\tOriginalAngles
+    #\t\tModel
+    #\t\tPosition
+    #\t\tAngles
+    #\t\tMaterial
+    #\t\tColor
+    #StructureName
+    #\tOriginalAngles
+    #\t\tModel
+    #\t\tPosition
+    #\t\tAngles
+    #\t\tMaterial
+    #\t\tColor
+    #\tOriginalAngles
+    #\t\tModel
+    #\t\tPosition
+    #\t\tAngles
+    #\t\tMaterial
+    #\t\tColor
+    
+    ################################################
+    #create initial current object
+    ################################################
+    function init(){
+        UseProps = 0
+        SpamDelay = 0
+        SpamDelayed = 0
+        LastI = 1
+        
+        for(I = LastI, Constrained:count()){
+            if (minquota() < 500){ #madness
+                LastI = I
+                Status = "init"
+                break
+            }else{
+                LastI = 1
+                Status = "initcomplete"
+            }
+            CurPanel = Constrained[I, entity]
+            
+            holoCreate(I)
+            holoModel(I, CurPanel:model())
+            holoPos(I, CurPanel:pos())
+            holoAng(I, CurPanel:angles())
+            holoMaterial(I, CurPanel:getMaterial())
+            holoColor(I, CurPanel:getColor())
+            holoParent(I, entity())
+            
+            CurBuild += "\t" + entity():angles() + "\n"
+            CurBuild += "\t\t" + CurPanel:model() + "\n"
+            CurBuild += "\t\t" + (CurPanel:pos() - entity():pos()) + "\n"
+            CurBuild += "\t\t" + CurPanel:angles() + "\n"
+            CurBuild += "\t\t" + CurPanel:getMaterial() + "\n"
+            CurBuild += "\t\t" + CurPanel:getColor() + "\n"
+        }
+    }
+    
+    ################################################
+    #functions
+    ################################################
+    
+    #attempts to load the file after checking if a file can be loaded
+    function loadSaves(){
+        if (fileCanLoad()){
+            fileLoad(FileName)
+            Status = "loading"
+        }else{
+            Status = "loadwaiting"
+        }
+    }
+    
+    #after file has been loaded attempts to process it for saves
+    function processFile(){
+        local LineArray = fileRead():explode("\n")
+        for(I = LastI, LineArray:count()){
+            if (minquota() < 500){ #madness
+                LastI = I
+                Status = "processing"
+                break
+            }else{
+                LastI = 1
+                Status = ""
+            }
+            local Line = LineArray[I, string]
+            if (Line[1] != "\t" && Line != ""){ #if it does not start with a tab then it is a name
+                SaveNames:pushString(Line)
+                if (SaveNames:count() != 1){#if this is not the first name
+                    Saves:pushString(Buffer)
+                }
+                Buffer = ""
+            }else{
+                Buffer += Line + "\n"
+            }
+        }
+        if (Status == ""){ #if processing is finished
+            Saves:pushString(Buffer)
+            hint("Ready", 5)
+        }
+    }
+    
+    #when there is a file error hints a more helpful error than the number enum
+    function hintFileError(Error){
+        if (Error == _FILE_UNKNOWN){
+            hint("Unable to load file: file unknown", 3)
+        }elseif(Error == _FILE_TIMEOUT){
+            hint("Unable to load file: file timeout", 3)
+        }elseif(Error == _FILE_404){
+            hint("Unable to load file: file 404", 3)
+        }elseif(Error == _FILE_TRANSFER_ERROR){
+            hint("Unable to load file: file transfer error", 3)
+        }
+        Status = ""
+    }
+    
+    function saveCurrentAs(As:string){
+        if (As == ""){
+            hint("Unable to save without a name", 3)
+        }else{
+            if (fileCanWrite()){
+                fileAppend(FileName, As + "\n" + CurBuild)
+                Status = "saving"
+            }else{
+                Status = "appending"
+            }
+        }
+    }
+    
+    function findFromName(As:string){
+        if (As != ""){
+            for(I = 1, SaveNames:count()){
+                if (SaveNames[I, string]:lower() == As:lower()){
+                    Name = SaveNames[I, string]
+                    CurBuild = Saves[I, string]
+                    Status = "build"
+                    
+                    break
+                }
+            }
+            if (Status == ""){
+                #we found no save matching given name
+                hint("No save could be loaded from: " + As, 3)
+            }
+        }else{
+            hint("Cannot load save from empty string", 3)
+        }
+    }
+    
+    function vector string:toVector(){
+        local Temp = This:trim()
+        Temp = Temp:sub(2, Temp:length() - 1)
+        local TempSplit = Temp:explode(",")
+        return vec(TempSplit[1, string]:toNumber(), TempSplit[2, string]:toNumber(), TempSplit[3, string]:toNumber())
+    }
+    function angle string:toAngle(){
+        local Temp = This:trim()
+        Temp = Temp:sub(2, Temp:length() - 1)
+        local TempSplit = Temp:explode(",")
+        return ang(TempSplit[1, string]:toNumber(), TempSplit[2, string]:toNumber(), TempSplit[3, string]:toNumber())
+    }
+    
+    function generateFromCurBuild(){
+        local LineArray = CurBuild:explode("\n")
+        I = LastI
+        holoCreate(0)
+        holoAlpha(0, 0)
+        holoAng(0, ang(0,0,0))
+        local OrigAngles = LineArray[I - 6, string]:toAngle()
+        
+        while(I < LineArray:count()){
+            if (minquota() < 500 || !holoCanCreate()){ #madness
+                LastI = I
+                Status = "building"
+                break
+            }else{
+                LastI = 1
+                Status = ""
+            }
+            I += 6
+            if (LineArray[I - 1, string] != ""){
+                local HoloIndex = I/6
+                local CurModel = LineArray[I - 5, string]:trim()
+                local CurPos = LineArray[I - 4, string]:toVector()
+                local CurAngs = LineArray[I - 3, string]:toAngle()
+                local CurMat = LineArray[I - 2, string]:trim()
+                local CurColor = LineArray[I - 1, string]:toVector()
+                
+                holoCreate(HoloIndex)
+                holoModel(HoloIndex, CurModel)
+                holoPos(HoloIndex, CurPos*Scale + entity():pos())
+                if (Scale != 1){
+                    holoScaleUnits(HoloIndex, holoEntity(HoloIndex):boxSize()*Scale)
+                }
+                holoAng(HoloIndex, CurAngs)
+                holoMaterial(HoloIndex, CurMat)
+                holoColor(HoloIndex, CurColor)
+                holoParent(HoloIndex, 0)
+            }
+        }
+        if (Status == ""){
+            if (Orient){
+                holoAng(0, entity():angles() - OrigAngles)
+            }
+            holoParent(0, entity())
+            hint("Load Complete", 5)
+        }
+    }
+    
+    function string number:exportString(){
+        local String = This:toString()
+        
+        if (String:find("e")){
+            local StringParts = String:explode("e")
+            
+            local Zeros = StringParts[2, string]:toNumber()
+            local Number = StringParts[1, string]:explode("."):concat("")            
+            
+            if (sign(Zeros) > 0){
+                return Number + "0":repeat(abs(Zeros))
+            }else{
+                local Num = Number:toNumber()                
+                local Number = abs(Num):toString()
+
+                return ((sign(Num) < 0) ? "-" : "") + "0." + "0":repeat(abs(Zeros) - 1) + Number
+            }
+        }
+        
+        return String
+    }
+    
+    function string vector:exportString(){
+        return "vec(" + This:x():exportString() + "," + This:y():exportString() + "," + This:z():exportString() + ")"
+    }
+    
+    function string string:exportString(){
+        return "\"" + This + "\""
+    }
+    
+    function string angle:exportString(){
+        return "ang(" + This:pitch():exportString() + "," + This:yaw():exportString() + "," + This:roll():exportString() +  ")"
+    }
+    
+    function generateFuncFromCurBuild(){
+        
+        local LineArray = CurBuild:explode("\n")
+        I = LastI
+        local OrigAngles = LineArray[I - 6, string]:toAngle()
+        
+        while(I < LineArray:count()){
+            if (minquota() < 500 || !holoCanCreate()){ #madness
+                LastI = I
+                Status = "building"
+                break
+            }else{
+                LastI = 1
+                Status = ""
+            }
+            I += 6
+            if (LineArray[I - 1, string] != ""){
+                local HoloIndex = I/6
+                local CurModel = LineArray[I - 5, string]:trim()
+                local CurPos = LineArray[I - 4, string]:toVector()
+                local CurAngs = LineArray[I - 3, string]:toAngle()
+                local CurMat = LineArray[I - 2, string]:trim()
+                local CurColor = LineArray[I - 1, string]:toVector()
+                
+                Func:pushString("    holo(" + 
+                    CurPos:exportString() + "," +
+                    CurAngs:exportString() + "," + 
+                    CurColor:exportString() + "," + 
+                    CurModel:exportString() + "," + 
+                    CurMat:exportString() + "," + 
+                    "255, HoloMaster)"
+                )
+            }
+        }
+        if (Status == ""){
+            Func:pushString("}") #close the if (first)
+            Func:pushString("")
+            Func:pushString("if(Index<=HoloMaster:count()){")
+            Func:pushString("    loadHolo(StartingHoloIndex, ScaleFactor, StartingPosition, HoloMaster, Index)")
+            Func:pushString("    Index = Index + 1")
+            Func:pushString("    interval(10)")
+            Func:pushString("}else{")
+            Func:pushString("    hint(\"" + Name + " loaded\", 5)")
+            Func:pushString("    holoParent(0, entity())")
+            Func:pushString("}")
+            
+            FuncOutput = Func:concat("\n")
+            fileWrite(ExportFileName, FuncOutput)
+            hint("Export Complete", 5)
+            if (OverwriteOnExport == 1){
+                entity():remoteSetCode(FuncOutput)
+            }
+        }
+    }
+    
+    function generatePropsFromCurBuild(){
+        local LineArray = CurBuild:explode("\n")
+        I = LastI
+        
+        while(I < LineArray:count()){
+            if (minquota() < 500 || !propCanCreate() || SpamDelayed){ #madness
+                LastI = I
+                Status = "building"
+                break
+            }else{
+                LastI = 1
+                Status = ""
+            }
+            I += 6
+            if (LineArray[I - 1, string] != ""){
+                local HoloIndex = I/6
+                local CurModel = LineArray[I - 5, string]:trim()
+                local CurPos = LineArray[I - 4, string]:toVector()
+                local CurAngs = LineArray[I - 3, string]:toAngle()
+                local CurMat = LineArray[I - 2, string]:trim()
+                local CurColor = LineArray[I - 1, string]:toVector()
+                
+                local Spawned = propSpawn(CurModel, CurPos + entity():pos(), CurAngs, 1)
+                Spawned:setMaterial(CurMat)
+                Spawned:setColor(CurColor)
+                #weld(Spawned, entity())
+            }
+            if (SpamDelay > 0){
+                SpamDelayed = 1
+                timer("spam-delay", SpamDelay)
+            }
+        }
+        if (Status == ""){
+            hint("Load Complete", 5)
+        }
+    }
+    
+    function processChatCommand(Command:string){
+        local Lower = Command:lower()
+        if (Lower:find("!saveas") == 1){
+            Name = Command:sub(8):trim()
+            hint("Saving", 5)
+            saveCurrentAs(Name)
+        }elseif(Lower:find("!list") == 1){
+            print(SaveNames:concat(", "))
+        }elseif(Lower:find("!loadprops") == 1){
+            findFromName(Command:sub(11):trim())
+            UseProps = 1
+            AsFunc = 0
+        }elseif(Lower:find("!load") == 1){
+            findFromName(Command:sub(6):trim())
+            UseProps = 0
+            AsFunc = 0
+        }elseif(Lower:find("!hide") == 1){
+            entity():setAlpha(0)
+            hint("Chip hidden", 5)
+        }elseif(Lower:find("!show") == 1){
+            entity():setAlpha(255)
+            hint("Chip shown", 5)
+        }elseif(Lower:find("!setscale") == 1){
+            Scale = Command:sub(10):trim():toNumber()
+            hint("Scale set to " + Scale, 5)
+        }elseif(Lower:find("!dontorient") == 1){
+            Orient = 0
+            hint("Orientation disabled", 5)
+        }elseif(Lower:find("!orient") == 1){
+            Orient = 1
+            hint("Orientation enabled", 5)
+        }elseif(Lower:find("!spamdelay") == 1){
+            SpamDelay = Command:sub(11):trim():toNumber()
+            hint("Anti prop-spam delay set to " + SpamDelay/1000.0 + " seconds", 5)
+        }elseif(Lower:find("!exportfunction") == 1){
+            findFromName(Command:sub(16):trim())
+            UseProps = 0
+            AsFunc = 1
+        }
+    }
+    
+    ################################################
+    #init chip
+    ################################################
+    
+    Name = "" #name is the name of the currently loaded object
+    CurBuild = ""
+    Constrained = entity():getConstraints()
+    Scale = 1
+    Orient = 1
+    hint("Loading", 5)
+    if (Constrained:count() > 0){
+        init()
+    }else{
+        Status = "initcomplete"
+    }
+    LastI = 1
+}else{
+    if (clk("spam-delay")){
+        SpamDelayed = 0
+    }
+
+    if (Status == "init"){
+        init()
+    }elseif(Status == "initcomplete"){
+        loadSaves()
+    }elseif (Status == "loadwaiting"){ #if we are waiting to load the file
+        loadSaves() #try to reload the file
+    }elseif(Status == "loading"){ #if we've started the file load
+        if (fileClk()){ #and we've finished loading the file
+            Status = "processing"
+            SaveNames:clear()
+            Saves:clear()
+        }
+    }elseif(Status == "processing"){
+        processFile()
+    }elseif(Status == "appending"){
+        saveCurrentAs(Name)
+    }elseif(Status == "saving"){
+        loadSaves() #after save reload the file
+    }elseif(Status == "build"){
+        holoDeleteAll()
+        Status = "building"
+        if (AsFunc){        
+            Func = array(
+                "@name holo " + Name,
+                "@persist [HoloMaster]:table [Index,HoloTotal]:number",
+                "@persist StartingHoloIndex ScaleFactor StartingPosition:vector",
+                "",
+                "if(first()|dupefinished()){",
+                "",
+                "    StartingHoloIndex = 0",
+                "    ScaleFactor = 1",
+                "    StartingPosition = entity():pos()",
+                "",
+                "    HoloMaster:clear() # Initiates table",
+                "",                        
+                "    function void holo(Position:vector,Angle:angle,Color:vector,Model:string,Material:string,Alpha,Table:table){",
+                "        Table:pushArray(array(Position,Angle,Color,Model,Material,Alpha))",
+                "    }",   
+                "",
+                "    #all holos will be parented to the StartingHoloIndex so adjustments to position and angle can be made via that holo",
+                "    function void loadHolo(StartingHoloIndex, ScaleFactor, StartingPosition:vector, Table:table, Index:number){",
+                "        local Position = Table[Index,array][1,vector]*ScaleFactor + StartingPosition",
+                "        local Angle = Table[Index,array][2,angle]",
+                "        local Color = Table[Index,array][3,vector]",
+                "        local Model = Table[Index,array][4,string]",
+                "        local Material = Table[Index,array][5,string]",
+                "        local Alpha = Table[Index, array][6,number]",
+                "",        
+                "        local I = Index + StartingHoloIndex",
+                "",        
+                "        holoCreate(I)",
+                "        holoPos(I, Position)",
+                "        holoAng(I, Angle)",
+                "        holoColor(I, Color)",
+                "        holoModel(I, Model)",
+                "        holoMaterial(I, Material)",
+                "        holoAlpha(I, Alpha)",
+                "        holoScaleUnits(I, holoEntity(I):boxSize()*ScaleFactor)",
+                "        holoParent(I,StartingHoloIndex)",
+                "    } ",
+                ""
+            )
+        }
+    }elseif(Status == "building"){
+        if (UseProps){
+            generatePropsFromCurBuild()
+        }elseif(AsFunc){
+            generateFuncFromCurBuild()
+        }else{
+            generateFromCurBuild()
+        }
+    }elseif(Status == ""){ #if we're not doing anything
+        if (chatClk(owner())){ #if we're running because of a chat input
+            if (owner():lastSaid()[1] == "!"){ #owner gave a command let's try and process it
+                processChatCommand(owner():lastSaid())
+            }
+        }
+    }
+}

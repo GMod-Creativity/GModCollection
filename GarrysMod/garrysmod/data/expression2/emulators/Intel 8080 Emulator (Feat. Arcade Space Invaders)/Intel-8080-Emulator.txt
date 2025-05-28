@@ -1,0 +1,509 @@
+@name 8080 C (Intel) Emulator
+@inputs Video:wirelink
+@outputs 
+@persist [InPort OutPort Memory]:array  #Memory & Ports
+@persist A B C D E H L F SP PC          #Registers
+@persist Sf Zf Hf Pf Cf If              #Flags
+@persist Shift Offset                   #Shift Register
+
+@persist [ROM Mode]:string MemC         #E2 stuff
+@persist Debug:gtable OpCount PCold MaxOps Clock VC1 VC2 [OpCounter OpSetCounter]:gtable#DEBUG STUFF
+@trigger 
+
+
+
+while (Mode == "loadrom" & perf() & maxquota() > 500) {
+    Memory[round(MemC/2),number] = (ROM[MemC+1] + ROM[MemC+2]):toNumber(16)
+    if (MemC > 17*1024) {Mode = "run",break}
+    MemC+= 2
+}
+
+while (Mode == "video" & maxquota() > 500) {
+    Byte = Memory[VC1,number]
+    #if (Byte) {print(Byte)}
+    for (N = 0,7) {
+        VC2++
+        Bit = bShl(1,N)
+        if (bAnd(Byte,Bit)) {
+            Video[VC2] = 0xFFFFFF
+        }else{
+        Video[VC2] = 0x0
+    }
+        
+    }
+    VC1++
+    if (VC1 > (8200 + 0x2400)) {
+        Mode = "run"
+        
+        if (If) {
+            SP-= 2
+            Memory[SP+1,number] = bShr(bAnd(PC,0xFF00),8)
+            Memory[SP,number] = bAnd(PC,0xFF)
+            PC = 0x10
+        }
+        break
+    }
+}
+
+    
+while (Mode == "run" & perf() & maxquota() > 2000) {
+    Clock++
+    
+if (Clock == 3000) {
+    if (If) {
+        SP-= 2
+        Memory[SP+1,number] = bShr(bAnd(PC,0xFF00),8)
+        Memory[SP,number] = bAnd(PC,0xFF)
+        PC = 0x08
+    }
+}
+if (Clock == 6000) {
+    Mode = "video"
+    Clock = 0
+    VC1 = 0x2400
+    VC2 = 0
+}
+
+    Op = Memory[PC,number]
+    D8 = Memory[PC+1,number]
+    D16 = bShl(Memory[PC+2,number],8) + Memory[PC+1,number]
+    PCold = PC
+    PC+= 1
+    
+#[    OpCounter[Op,number] = OpCounter[Op,number]+1
+    OpSetCounter[bAnd(Op,0xF0),number] = OpSetCounter[bAnd(Op,0xF0),number]+1
+    
+    ]#
+    #Control & Interupt   
+    if (Op == 0x00) {}
+    elseif(Op == 0xF3) {If = 0}
+    elseif(Op == 0xFB) {If = 1}
+    
+    #INPUT & OUTPUT
+    elseif (Op == 0xDB) {A = InPort[D8,number],PC+= 1}
+    elseif (Op == 0xD3) {
+        if (D8 == 4) {
+            Shift = bShr(bAnd(Shift,0xFF00),8) + bShl(A,8)
+            InPort[3,number] = bShr(bAnd(bShl(Shift,Offset),0xFF00),8)
+        }elseif (D8 == 2) {
+            Offset = bAnd(0x7,A)
+            InPort[3,number] = bShr(bAnd(bShl(Shift,Offset),0xFF00),8)
+        }
+        PC+= 1
+    }
+            
+    
+    #JUMP
+    elseif (Op == 0xC3) { PC = D16 }
+    elseif (Op == 0xC2) { if (!Zf) {PC = D16} else { PC+= 2 } }
+    elseif (Op == 0xCA) { if (Zf)  {PC = D16} else { PC+= 2 } }
+    elseif (Op == 0xD2) { if (!Cf) {PC = D16} else { PC+= 2 } }
+    elseif (Op == 0xDA) { if (Cf)  {PC = D16} else { PC+= 2 } }
+    elseif (Op == 0xF2) { if (!Sf) {PC = D16} else { PC+= 2 } }
+    elseif (Op == 0xFA) { if (Sf)  {PC = D16} else { PC+= 2 } }
+    
+    #CALL 
+    elseif (Op == 0xCD) { PC+= 2,           SP-=2, Memory[SP+1,number] = bShr(bAnd(PC,0xFF00),8), Memory[SP,number] = bAnd(PC,0xFF), PC = D16 }
+    elseif (Op == 0xC4) { PC+= 2, if (!Zf) {SP-=2, Memory[SP+1,number] = bShr(bAnd(PC,0xFF00),8), Memory[SP,number] = bAnd(PC,0xFF), PC = D16 } }
+    elseif (Op == 0xCC) { PC+= 2, if (Zf)  {SP-=2, Memory[SP+1,number] = bShr(bAnd(PC,0xFF00),8), Memory[SP,number] = bAnd(PC,0xFF), PC = D16 } }
+    elseif (Op == 0xD4) { PC+= 2, if (!Cf) {SP-=2, Memory[SP+1,number] = bShr(bAnd(PC,0xFF00),8), Memory[SP,number] = bAnd(PC,0xFF), PC = D16 } }
+    elseif (Op == 0xDC) { PC+= 2, if (Cf)  {SP-=2, Memory[SP+1,number] = bShr(bAnd(PC,0xFF00),8), Memory[SP,number] = bAnd(PC,0xFF), PC = D16 } }
+    
+    #RETURN
+    elseif (Op == 0xC9) {           PC = bShl(Memory[SP+1,number],8) + Memory[SP,number], SP+= 2}
+    elseif (Op == 0xC0) { if (!Zf) {PC = bShl(Memory[SP+1,number],8) + Memory[SP,number], SP+= 2} }
+    elseif (Op == 0xC8) { if (Zf)  {PC = bShl(Memory[SP+1,number],8) + Memory[SP,number], SP+= 2} }
+    elseif (Op == 0xD0) { if (!Cf) {PC = bShl(Memory[SP+1,number],8) + Memory[SP,number], SP+= 2} }
+    elseif (Op == 0xD8) { if (Cf)  {PC = bShl(Memory[SP+1,number],8) + Memory[SP,number], SP+= 2} }
+    
+    #RESET
+    elseif (Op == 0xC7) { SP-=2, Memory[SP+1,number] = bShr(bAnd(PC,0xFF00),8), Memory[SP,number] = bAnd(PC,0xFF), PC = 0x0  }
+    elseif (Op == 0xCF) { SP-=2, Memory[SP+1,number] = bShr(bAnd(PC,0xFF00),8), Memory[SP,number] = bAnd(PC,0xFF), PC = 0x8  }
+    elseif (Op == 0xD7) { SP-=2, Memory[SP+1,number] = bShr(bAnd(PC,0xFF00),8), Memory[SP,number] = bAnd(PC,0xFF), PC = 0x10 }
+    elseif (Op == 0xDF) { SP-=2, Memory[SP+1,number] = bShr(bAnd(PC,0xFF00),8), Memory[SP,number] = bAnd(PC,0xFF), PC = 0x18 }
+    elseif (Op == 0xE7) { SP-=2, Memory[SP+1,number] = bShr(bAnd(PC,0xFF00),8), Memory[SP,number] = bAnd(PC,0xFF), PC = 0x20 }
+    elseif (Op == 0xEF) { SP-=2, Memory[SP+1,number] = bShr(bAnd(PC,0xFF00),8), Memory[SP,number] = bAnd(PC,0xFF), PC = 0x28 }
+    elseif (Op == 0xF7) { SP-=2, Memory[SP+1,number] = bShr(bAnd(PC,0xFF00),8), Memory[SP,number] = bAnd(PC,0xFF), PC = 0x30 }
+    elseif (Op == 0xFF) { SP-=2, Memory[SP+1,number] = bShr(bAnd(PC,0xFF00),8), Memory[SP,number] = bAnd(PC,0xFF), PC = 0x38 }
+    
+    #STACK PUSH
+    elseif (Op == 0xC5) { SP-= 2, Memory[SP+1,number] = B, Memory[SP,number] = C }
+    elseif (Op == 0xD5) { SP-= 2, Memory[SP+1,number] = D, Memory[SP,number] = E }
+    elseif (Op == 0xE5) { SP-= 2, Memory[SP+1,number] = H, Memory[SP,number] = L }
+    elseif (Op == 0xF5) {
+        SP-= 2
+        Memory[SP+1,number] = A
+        Memory[SP,number] = (Cf + 16*Hf + 32*If + 64*Zf + 128*Sf)
+    }
+    
+    #STACK POP
+    elseif (Op == 0xC1) { B = Memory[SP+1,number], C =  Memory[SP,number], SP+=2 }
+    elseif (Op == 0xD1) { D = Memory[SP+1,number], E =  Memory[SP,number], SP+=2 }
+    elseif (Op == 0xE1) { H = Memory[SP+1,number], L =  Memory[SP,number], SP+=2 }
+    elseif (Op == 0xF1) {
+        A = Memory[SP+1,number]
+        F = Memory[SP,number]
+        SP+=2
+        Cf = bAnd(1,F)
+        Hf = sign(bAnd(16,F))
+        If = sign(bAnd(32,F))
+        Zf = sign(bAnd(64,F))
+        Sf = sign(bAnd(128,F))
+    }
+    
+    #INC
+    elseif (Op == 0x03) { C = bAnd(C+1,0xFF), if (!C) {B = bAnd(B+1,0xFF)} }
+    elseif (Op == 0x13) { E = bAnd(E+1,0xFF), if (!E) {D = bAnd(D+1,0xFF)} }
+    elseif (Op == 0x23) { L = bAnd(L+1,0xFF), if (!L) {H = bAnd(H+1,0xFF)} }
+    elseif (Op == 0x33) {SP++}
+
+    elseif (Op == 0x3C) {Cf = sign(bAnd(A+1,256)), A = bAnd(A+1,0xFF), Zf = !A, Sf = sign(bAnd(A,128)) }
+    elseif (Op == 0x04) {Cf = sign(bAnd(B+1,256)), B = bAnd(B+1,0xFF), Zf = !B, Sf = sign(bAnd(B,128)) }
+    elseif (Op == 0x0C) {Cf = sign(bAnd(C+1,256)), C = bAnd(C+1,0xFF), Zf = !C, Sf = sign(bAnd(C,128)) }
+    elseif (Op == 0x14) {Cf = sign(bAnd(D+1,256)), D = bAnd(D+1,0xFF), Zf = !E, Sf = sign(bAnd(D,128)) }
+    elseif (Op == 0x1C) {Cf = sign(bAnd(E+1,256)), E = bAnd(E+1,0xFF), Zf = !E, Sf = sign(bAnd(E,128)) }
+    elseif (Op == 0x24) {Cf = sign(bAnd(H+1,256)), H = bAnd(H+1,0xFF), Zf = !H, Sf = sign(bAnd(H,128)) }
+    elseif (Op == 0x2C) {Cf = sign(bAnd(L+1,256)), L = bAnd(L+1,0xFF), Zf = !L, Sf = sign(bAnd(L,128)) }
+    elseif (Op == 0x34) {
+        Cf = sign(bAnd(Memory[bShl(H,8) + L,number] + 1,256))
+        Tmp = bAnd(Memory[bShl(H,8) + L,number] + 1,0xFF)
+        Zf = !Tmp
+        Sf = sign(bAnd(Tmp,128))
+        Memory[bShl(H,8) + L,number] = Tmp
+    }
+    
+    #DEC
+    elseif (Op == 0x0B) { C = bAnd(C-1,0xFF), if (C == 0xFF) {B = bAnd(B-1,0xFF)} }
+    elseif (Op == 0x1B) { E = bAnd(E-1,0xFF), if (E == 0xFF) {D = bAnd(D-1,0xFF)} }
+    elseif (Op == 0x2B) { L = bAnd(L-1,0xFF), if (L == 0xFF) {H = bAnd(H-1,0xFF)} }
+    elseif (Op == 0x3B) {SP--}
+    
+    elseif (Op == 0x3D) { A = bAnd(A-1,0xFF), Zf = !A, Sf = sign(bAnd(A,128)), Cf = 0 }
+    elseif (Op == 0x05) { B = bAnd(B-1,0xFF), Zf = !B, Sf = sign(bAnd(B,128)), Cf = 0 }
+    elseif (Op == 0x0D) { C = bAnd(C-1,0xFF), Zf = !C, Sf = sign(bAnd(C,128)), Cf = 0 }
+    elseif (Op == 0x15) { D = bAnd(D-1,0xFF), Zf = !D, Sf = sign(bAnd(D,128)), Cf = 0 }
+    elseif (Op == 0x1D) { E = bAnd(E-1,0xFF), Zf = !E, Sf = sign(bAnd(E,128)), Cf = 0 }
+    elseif (Op == 0x25) { H = bAnd(H-1,0xFF), Zf = !H, Sf = sign(bAnd(H,128)), Cf = 0 }
+    elseif (Op == 0x2D) { L = bAnd(L-1,0xFF), Zf = !L, Sf = sign(bAnd(L,128)), Cf = 0 }
+    
+    elseif (Op == 0x35) {
+        HL1 = bAnd(Memory[bShl(H,8) + L,number]-1,0xFF)
+        Zf = !sign(HL1)
+        Sf = sign(bAnd(HL1,128))
+        Memory[bShl(H,8) + L,number] = HL1
+        Cf = 0
+    }
+    
+    #LOGICAL AND
+    elseif (Op == 0xA7) { A = bAnd(A,A), Cf = 0, Zf = !A, Sf = sign(bAnd(A,128)) }
+    elseif (Op == 0xA0) { A = bAnd(A,B), Cf = 0, Zf = !A, Sf = sign(bAnd(A,128)) }
+    elseif (Op == 0xA1) { A = bAnd(A,C), Cf = 0, Zf = !A, Sf = sign(bAnd(A,128)) }
+    elseif (Op == 0xA2) { A = bAnd(A,D), Cf = 0, Zf = !A, Sf = sign(bAnd(A,128)) }
+    elseif (Op == 0xA3) { A = bAnd(A,E), Cf = 0, Zf = !A, Sf = sign(bAnd(A,128)) }
+    elseif (Op == 0xA4) { A = bAnd(A,H), Cf = 0, Zf = !A, Sf = sign(bAnd(A,128)) }
+    elseif (Op == 0xA5) { A = bAnd(A,L), Cf = 0, Zf = !A, Sf = sign(bAnd(A,128)) }
+    elseif (Op == 0xA6) { A = bAnd(A,Memory[bShl(H,8) + L,number]), Cf = 0, Zf = !A, Sf = sign(bAnd(A,128)) }
+    elseif (Op == 0xE6) { A = bAnd(A,D8), Cf = 0, Zf = !A, Sf = sign(bAnd(A,128)), PC+= 1 }
+    
+    #LOGICAL OR
+    elseif (Op == 0xB7) { A = bOr(A,A), Cf = 0, Zf = !A, Sf = sign(bAnd(A,128)) }
+    elseif (Op == 0xB0) { A = bOr(A,B), Cf = 0, Zf = !A, Sf = sign(bAnd(A,128)) }
+    elseif (Op == 0xB1) { A = bOr(A,C), Cf = 0, Zf = !A, Sf = sign(bAnd(A,128)) }
+    elseif (Op == 0xB2) { A = bOr(A,D), Cf = 0, Zf = !A, Sf = sign(bAnd(A,128)) }
+    elseif (Op == 0xB3) { A = bOr(A,E), Cf = 0, Zf = !A, Sf = sign(bAnd(A,128)) }
+    elseif (Op == 0xB4) { A = bOr(A,H), Cf = 0, Zf = !A, Sf = sign(bAnd(A,128)) }
+    elseif (Op == 0xB5) { A = bOr(A,L), Cf = 0, Zf = !A, Sf = sign(bAnd(A,128)) }
+    elseif (Op == 0xB6) { A = bOr(A,Memory[bShl(H,8) + L,number]), Cf = 0, Zf = !A, Sf = sign(bAnd(A,128)) }
+    elseif (Op == 0xF6) { A = bOr(A,D8), Cf = 0, Zf = !A, Sf = sign(bAnd(A,128)), PC+= 1  }
+    
+    #LOGICAL XOR
+    elseif (Op == 0xAF) { A = bXor(A,A), Cf = 0, Zf = !A, Sf = sign(bAnd(A,128)) }
+    elseif (Op == 0xA8) { A = bXor(A,B), Cf = 0, Zf = !A, Sf = sign(bAnd(A,128)) }
+    elseif (Op == 0xA9) { A = bXor(A,C), Cf = 0, Zf = !A, Sf = sign(bAnd(A,128)) }
+    elseif (Op == 0xAA) { A = bXor(A,D), Cf = 0, Zf = !A, Sf = sign(bAnd(A,128)) }
+    elseif (Op == 0xAB) { A = bXor(A,E), Cf = 0, Zf = !A, Sf = sign(bAnd(A,128)) }
+    elseif (Op == 0xAC) { A = bXor(A,H), Cf = 0, Zf = !A, Sf = sign(bAnd(A,128)) }
+    elseif (Op == 0xAD) { A = bXor(A,L), Cf = 0, Zf = !A, Sf = sign(bAnd(A,128)) }
+    elseif (Op == 0xAE) { A = bXor(A,Memory[bShl(H,8) + L,number]), Cf = 0, Zf = !A, Sf = sign(bAnd(A,128)) }
+    elseif (Op == 0xEE) { A = bXor(A,D8), Cf = 0, Zf = !A, Sf = sign(bAnd(A,128)), PC+= 1  }
+    
+    #CMA
+    elseif (Op == 0x2F) { A = bXor(A,0xFF) }
+    
+    #ARITHMATIC ADD
+    elseif (Op == 0x87) { A = A+A, Cf = sign(bAnd(A,256)), Zf = !A, Sf = sign(bAnd(A,128)), A = bAnd(A,0xFF) }
+    elseif (Op == 0x80) { A = A+B, Cf = sign(bAnd(A,256)), Zf = !A, Sf = sign(bAnd(A,128)), A = bAnd(A,0xFF) }
+    elseif (Op == 0x81) { A = A+C, Cf = sign(bAnd(A,256)), Zf = !A, Sf = sign(bAnd(A,128)), A = bAnd(A,0xFF) }
+    elseif (Op == 0x82) { A = A+D, Cf = sign(bAnd(A,256)), Zf = !A, Sf = sign(bAnd(A,128)), A = bAnd(A,0xFF) }
+    elseif (Op == 0x83) { A = A+E, Cf = sign(bAnd(A,256)), Zf = !A, Sf = sign(bAnd(A,128)), A = bAnd(A,0xFF) }
+    elseif (Op == 0x84) { A = A+H, Cf = sign(bAnd(A,256)), Zf = !A, Sf = sign(bAnd(A,128)), A = bAnd(A,0xFF) }
+    elseif (Op == 0x85) { A = A+L, Cf = sign(bAnd(A,256)), Zf = !A, Sf = sign(bAnd(A,128)), A = bAnd(A,0xFF) }
+    elseif (Op == 0x86) { A = A+Memory[bShl(H,8) + L,number], Cf = sign(bAnd(A,256)), Zf = !A, Sf = sign(bAnd(A,128)), A = bAnd(A,0xFF) }
+    elseif (Op == 0xC6) { A = A+D8, Cf = sign(bAnd(A,256)), Zf = !A, Sf = sign(bAnd(A,128)), A = bAnd(A,0xFF), PC+= 1 }
+    
+    #ARITHMATIC SUB   
+    elseif (Op == 0x97) { Tmp = bAnd(A-A,0xFF), Cf = (Tmp >= A) & A, Zf = !Tmp, Sf = sign(bAnd(Tmp,128)), A = Tmp }
+    elseif (Op == 0x90) { Tmp = bAnd(A-B,0xFF), Cf = (Tmp >= A) & B, Zf = !Tmp, Sf = sign(bAnd(Tmp,128)), A = Tmp }
+    elseif (Op == 0x91) { Tmp = bAnd(A-C,0xFF), Cf = (Tmp >= A) & C, Zf = !Tmp, Sf = sign(bAnd(Tmp,128)), A = Tmp }
+    elseif (Op == 0x92) { Tmp = bAnd(A-D,0xFF), Cf = (Tmp >= A) & D, Zf = !Tmp, Sf = sign(bAnd(Tmp,128)), A = Tmp }
+    elseif (Op == 0x93) { Tmp = bAnd(A-E,0xFF), Cf = (Tmp >= A) & E, Zf = !Tmp, Sf = sign(bAnd(Tmp,128)), A = Tmp }
+    elseif (Op == 0x94) { Tmp = bAnd(A-H,0xFF), Cf = (Tmp >= A) & H, Zf = !Tmp, Sf = sign(bAnd(Tmp,128)), A = Tmp }
+    elseif (Op == 0x95) { Tmp = bAnd(A-L,0xFF), Cf = (Tmp >= A) & L, Zf = !Tmp, Sf = sign(bAnd(Tmp,128)), A = Tmp }
+    elseif (Op == 0xD6) { Tmp = bAnd(A-D8,0xFF),Cf = (Tmp >= A) & D8, Zf = !Tmp,Sf = sign(bAnd(Tmp,128)), A = Tmp, PC+= 1 }
+    
+    elseif (Op == 0x96) {
+        Tmp = bAnd(A-Memory[bShl(H,8) + L,number],0xFF)
+        Cf = (Tmp >= A) & Memory[bShl(H,8) + L,number]
+        Zf = !Tmp
+        Sf = sign(bAnd(Tmp,128))
+        A = Tmp
+    }
+    
+    
+    #SBBI
+    elseif (Op == 0xDE) {
+        Tmp = bAnd(A-D8-Cf,0xFF)
+        Cf = (Tmp >= A) & (D8|Cf)
+        Zf = !Tmp
+        Sf = sign(bAnd(Tmp,128))
+        A = Tmp
+        PC+= 1
+    }
+    
+    #ARITHMATIC ADC
+    elseif (Op == 0x8F) { A = A+A+Cf, Cf = sign(bAnd(A,256)), Zf = !A, Sf = sign(bAnd(A,128)), A = bAnd(A,0xFF) }
+    elseif (Op == 0x88) { A = A+B+Cf, Cf = sign(bAnd(A,256)), Zf = !A, Sf = sign(bAnd(A,128)), A = bAnd(A,0xFF) }
+    elseif (Op == 0x89) { A = A+C+Cf, Cf = sign(bAnd(A,256)), Zf = !A, Sf = sign(bAnd(A,128)), A = bAnd(A,0xFF) }
+    elseif (Op == 0x8A) { A = A+D+Cf, Cf = sign(bAnd(A,256)), Zf = !A, Sf = sign(bAnd(A,128)), A = bAnd(A,0xFF) }
+    elseif (Op == 0x8B) { A = A+E+Cf, Cf = sign(bAnd(A,256)), Zf = !A, Sf = sign(bAnd(A,128)), A = bAnd(A,0xFF) }
+    elseif (Op == 0x8C) { A = A+H+Cf, Cf = sign(bAnd(A,256)), Zf = !A, Sf = sign(bAnd(A,128)), A = bAnd(A,0xFF) }
+    elseif (Op == 0x8D) { A = A+L+Cf, Cf = sign(bAnd(A,256)), Zf = !A, Sf = sign(bAnd(A,128)), A = bAnd(A,0xFF) }
+    elseif (Op == 0x8E) { A = A+Memory[bShl(H,8) + L,number]+Cf, Cf = sign(bAnd(A,256)), Zf = !A, Sf = sign(bAnd(A,128)), A = bAnd(A,0xFF) }
+    elseif (Op == 0xCE) { A = A+D8+Cf, Cf = sign(bAnd(A,256)), Zf = !A, Sf = sign(bAnd(A,128)), A = bAnd(A,0xFF), PC+= 1 }
+    
+    #ARITHMATIC CMP
+    elseif (Op == 0xBF) { Tmp = bAnd(A-A,0xFF), Cf = (Tmp >= A & A ? 1 : 0), Zf = !Tmp, Sf = sign(bAnd(Tmp,128)) }
+    elseif (Op == 0xB8) { Tmp = bAnd(A-B,0xFF), Cf = (Tmp >= A & B ? 1 : 0), Zf = !Tmp, Sf = sign(bAnd(Tmp,128)) }
+    elseif (Op == 0xB9) { Tmp = bAnd(A-C,0xFF), Cf = (Tmp >= A & C ? 1 : 0), Zf = !Tmp, Sf = sign(bAnd(Tmp,128)) }
+    elseif (Op == 0xBA) { Tmp = bAnd(A-D,0xFF), Cf = (Tmp >= A & D ? 1 : 0), Zf = !Tmp, Sf = sign(bAnd(Tmp,128)) }
+    elseif (Op == 0xBB) { Tmp = bAnd(A-E,0xFF), Cf = (Tmp >= A & E ? 1 : 0), Zf = !Tmp, Sf = sign(bAnd(Tmp,128)) }
+    elseif (Op == 0xBC) { Tmp = bAnd(A-H,0xFF), Cf = (Tmp >= A & H ? 1 : 0), Zf = !Tmp, Sf = sign(bAnd(Tmp,128)) }
+    elseif (Op == 0xBD) { Tmp = bAnd(A-L,0xFF), Cf = (Tmp >= A & L ? 1 : 0), Zf = !Tmp, Sf = sign(bAnd(Tmp,128)) }
+    
+    elseif (Op == 0xBE) {
+        Tmp = bAnd(A-Memory[bShl(H,8) + L,number],0xFF)
+        Cf = (Tmp >= A & Memory[bShl(H,8) + L,number] ? 1 : 0)
+        Zf = !Tmp
+        Sf = sign(bAnd(Tmp,128))
+    }
+    
+    elseif (Op == 0xFE) {
+        Tmp = bAnd(A-D8,0xFF)
+        Cf = (Tmp >= A) & D8
+        Zf = !Tmp
+        Sf = sign(bAnd(Tmp,128))
+        PC+= 1
+    }
+        
+    #ARITHMATIC 16BIT ADD
+    elseif (Op == 0x09) {
+        HL = bShl(H,8) + L + bShl(B,8) + C
+        Cf = sign(bAnd(0x10000,HL))
+        H = bShr(bAnd(HL,0xFF00),8)
+        L = bAnd(HL,0x00FF)
+    }
+    elseif (Op == 0x19) {
+        HL = bShl(H,8) + L + bShl(D,8) + E
+        Cf = sign(bAnd(0x10000,HL))
+        H = bShr(bAnd(HL,0xFF00),8)
+        L = bAnd(HL,0x00FF)
+    }
+    elseif (Op == 0x29) {
+        HL = (bShl(H,8) + L)*2
+        Cf = sign(bAnd(0x10000,HL))
+        H = bShr(bAnd(HL,0xFF00),8)
+        L = bAnd(HL,0x00FF)
+    }
+    elseif (Op == 0x39) {
+        HL = bShl(H,8) + L + SP
+        Cf = sign(bAnd(0x10000,HL))
+        H = bShr(bAnd(HL,0xFF00),8)
+        L = bAnd(HL,0x00FF)
+    }
+    
+    #SHIFT & ROTATE
+    elseif (Op == 0x0F) { A = bOr(bShr(A,1),bShl(A,7)), Cf = sign(bAnd(A,128)) }
+    elseif (Op == 0x1F) { Tmp = A, A = bShr(A,1), if (Cf) {A = bOr(A,128)}, Cf = bAnd(Tmp,1) }
+    elseif (Op == 0x07) { A = bAnd(0xFF, bOr( bShl(A,1) , bShr(A,1) ) ), Cf = bAnd(A,1) }
+    
+    #CARRY OPERATIONS
+    elseif (Op == 0x37) { Cf = 1 } 
+
+    #MOVE, READ & WRITE
+    elseif (Op == 0x7F) {}
+    elseif (Op == 0x78) {A = B}
+    elseif (Op == 0x79) {A = C}
+    elseif (Op == 0x7A) {A = D}
+    elseif (Op == 0x7B) {A = E}
+    elseif (Op == 0x7C) {A = H}
+    elseif (Op == 0x7D) {A = L}
+    elseif (Op == 0x7E) {A = Memory[bShl(H,8) + L,number]}
+
+    elseif (Op == 0x47) {B = A}
+    elseif (Op == 0x40) {}
+    elseif (Op == 0x41) {B = C}
+    elseif (Op == 0x42) {B = D}
+    elseif (Op == 0x43) {B = E}
+    elseif (Op == 0x44) {B = H}
+    elseif (Op == 0x45) {B = L}
+    elseif (Op == 0x46) {B = Memory[bShl(H,8) + L,number]}
+
+    elseif (Op == 0x4F) {C = A}
+    elseif (Op == 0x48) {C = B}
+    elseif (Op == 0x49) {}
+    elseif (Op == 0x4A) {C = D}
+    elseif (Op == 0x4B) {C = E}
+    elseif (Op == 0x4C) {C = H}
+    elseif (Op == 0x4D) {C = L}
+    elseif (Op == 0x4E) {C = Memory[bShl(H,8) + L,number]}
+    
+    elseif (Op == 0x57) {D = A}
+    elseif (Op == 0x50) {D = B}
+    elseif (Op == 0x51) {D = C}
+    elseif (Op == 0x52) {}
+    elseif (Op == 0x53) {D = E}
+    elseif (Op == 0x54) {D = H}
+    elseif (Op == 0x55) {D = L}
+    elseif (Op == 0x56) {D = Memory[bShl(H,8) + L,number]}
+
+    elseif (Op == 0x5F) {E = A}
+    elseif (Op == 0x58) {E = B}
+    elseif (Op == 0x59) {E = C}
+    elseif (Op == 0x5A) {E = D}
+    elseif (Op == 0x5B) {}
+    elseif (Op == 0x5C) {E = H}
+    elseif (Op == 0x5D) {E = L}
+    elseif (Op == 0x5E) {E = Memory[bShl(H,8) + L,number]}
+    
+    elseif (Op == 0x67) {H = A}
+    elseif (Op == 0x60) {H = B}
+    elseif (Op == 0x61) {H = C}
+    elseif (Op == 0x62) {H = D}
+    elseif (Op == 0x63) {H = E}
+    elseif (Op == 0x64) {}
+    elseif (Op == 0x65) {H = L}
+    elseif (Op == 0x66) {H = Memory[bShl(H,8) + L,number]}
+    
+    elseif (Op == 0x6F) {L = A}
+    elseif (Op == 0x68) {L = B}
+    elseif (Op == 0x69) {L = C}
+    elseif (Op == 0x6A) {L = D}
+    elseif (Op == 0x6B) {L = E}
+    elseif (Op == 0x6C) {L = H}
+    elseif (Op == 0x6D) {}
+    elseif (Op == 0x6E) {L = Memory[bShl(H,8) + L,number]}
+    
+    elseif (Op == 0x77) { Memory[bShl(H,8) + L,number] = A }
+    elseif (Op == 0x70) { Memory[bShl(H,8) + L,number] = B }
+    elseif (Op == 0x71) { Memory[bShl(H,8) + L,number] = C }
+    elseif (Op == 0x72) { Memory[bShl(H,8) + L,number] = D }
+    elseif (Op == 0x73) { Memory[bShl(H,8) + L,number] = E }
+    elseif (Op == 0x74) { Memory[bShl(H,8) + L,number] = H }
+    elseif (Op == 0x75) { Memory[bShl(H,8) + L,number] = L } 
+    
+    elseif (Op == 0x0A) { A = Memory[bShl(B,8) + C,number] }
+    elseif (Op == 0x1A) { A = Memory[bShl(D,8) + E,number] }
+    elseif (Op == 0x3A) { A = Memory[D16,number], PC+= 2 }
+    
+    elseif (Op == 0x01) { B = Memory[PC+1,number], C = Memory[PC,number], PC+= 2 }
+    elseif (Op == 0x11) { D = Memory[PC+1,number], E = Memory[PC,number], PC+= 2 }
+    elseif (Op == 0x21) { H = Memory[PC+1,number], L = Memory[PC,number], PC+= 2 }
+    elseif (Op == 0x31) { SP = D16, PC+= 2 }
+    
+    elseif (Op == 0x3E) { A = D8, PC+= 1 }
+    elseif (Op == 0x06) { B = D8, PC+= 1 }
+    elseif (Op == 0x0E) { C = D8, PC+= 1 }
+    elseif (Op == 0x16) { D = D8, PC+= 1 }
+    elseif (Op == 0x1E) { E = D8, PC+= 1 }
+    elseif (Op == 0x26) { H = D8, PC+= 1 }
+    elseif (Op == 0x2E) { L = D8, PC+= 1 }
+    elseif (Op == 0x36) { Memory[bShl(H,8) + L,number] = D8, PC+= 1 }
+    
+    elseif(Op == 0x02) { Memory[bShl(B,8) + C,number] = A }
+    elseif(Op == 0x12) { Memory[bShl(D,8) + E,number] = A }
+    elseif(Op == 0x32) { Memory[D16,number] = A, PC+= 2 }
+    elseif(Op == 0x22) { Memory[D16+1,number] = H, Memory[D16,number] = L, PC+= 2 }
+        
+    elseif(Op == 0x2A) { H = Memory[D16+1,number], L = Memory[D16,number], PC+= 2 }
+    
+    elseif (Op == 0xEB) {
+        Tmp1 = D
+        Tmp2 = E
+        D = H
+        E = L
+        H = Tmp1
+        L = Tmp2
+    }
+    
+    #XTHL
+    elseif (Op == 0xE3) {
+        Tmp1 = H
+        Tmp2 = L
+        H = Memory[SP+1,number]
+        L = Memory[SP,number]
+        Memory[SP+1,number] = Tmp1
+        Memory[SP,number] = Tmp2
+    }
+    
+    #PCHL
+    elseif (Op == 0xE9) {PC = bShl(H,8) + L}
+    
+    
+    
+    #ERROR
+    else {print("invalid Opcode: " + Op:toString(16)), Mode = "error"}
+    
+#[    OpCount++
+    Debug["opcount",number] = OpCount
+    Debug[OpCount,array] = array(OpCount,Op,D16,PCold,SP,A,B,C,D,E,H,L,Sf,Zf,  Hf,Pf,Cf,If)
+    ]#
+}
+
+    
+if (first()) {  
+    
+    runOnTick(1)
+    runOnFile(1)
+    runOnChat(1)
+
+    Video[1048572] = 224
+    Video[1048573] = 256
+    Video[1048569] = 2
+    
+    Mode = "load"
+    
+    PC = 0
+    SP = 0xF000
+    
+    InPort[1,number] = 0x01
+    InPort[2,number] = 0x00
+    
+    Debug = gTable("debug2")
+    Debug:clear()
+    OpCounter = gTable("Op1")
+    OpSetCounter = gTable("Op2")
+    OpCounter:clear()
+    OpSetCounter:clear()
+    OpCount = 0
+    
+}
+
+elseif (Mode == "load" & fileCanLoad()) {
+    fileLoad("space.txt")
+    Mode = "loading"
+}
+elseif (Mode == "loading" & fileClk("space.txt")) {
+    print(fileStatus())
+    ROM = fileRead()
+    Mode = "loadrom"
+}

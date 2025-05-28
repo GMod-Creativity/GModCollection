@@ -1,0 +1,70 @@
+@name ABM
+@inputs Arm Fire Target:entity Warhead:wirelink
+@outputs Ready Self:entity Vector:vector A Mul Launch Dist Time IntTime RD Speed
+@persist MinDist TRAM:vector GPS:vector Time Launch InitAlt DT I Detonated
+@trigger None
+if (first()|duped()) {I=250}
+interval(I)
+#Performance Constants
+MaxTime=1000
+Self=entity()
+GPS=Self:pos()
+T=Target:pos()
+
+if (Arm==1) {
+    if (Arm==1 & Fire==0 & Launch==0) {
+        InitAlt=GPS:z()
+    }
+
+    TRAM=T
+    if ((TRAM:x())!=0) {Ready=1}
+    else {Ready=0}
+    
+    #targeting
+    Dist = TRAM:distance(GPS)
+    AltDiff = GPS:z()-T:z()
+    RD = $Dist
+    
+    #firing
+    if (Ready & Fire & !Detonated) {Launch=1}    
+    if (Launch & !Detonated) {
+        Warhead["Arm",number]=1
+        I = 5
+        Time = Time+1
+        
+        #flight guidance
+        IntDist = GPS:distance(T)
+        Speed = entity():vel():length()
+        if (Speed<=2000) {Speed1=4000}
+        else {Speed1=Speed}
+        
+        IntTime = Dist/Speed1
+        Solution = T + (Target:vel()*IntTime)
+        Guidance = GPS - (Solution*1)
+        if (Dist>10000) {VertOffset = vec(0,0,100)}
+        else {VertOffset = vec(0,0,0)}
+        Vector = Guidance - VertOffset
+        
+        #engines
+        if (Time>0 & Time<=20) {A=10}
+        elseif (Time>10) {A=10
+            Mul=10}
+        else {A=0
+            Mul=0}
+        
+        #det
+        if (Time>50 & (RD>0 | Dist<400)) {Explode = 1}
+        if (Ready==1 & Launch==1 & Time>=10 & (Time>=MaxTime | Explode==1)) {
+            Warhead["Detonate",number]=1
+            Detonated = 1}
+    }
+    else {
+        A = 0
+        Mul = 0
+        I = 10000
+        Launch = 0
+    }
+}
+else {reset()}
+
+#By Baron Von Kekstein

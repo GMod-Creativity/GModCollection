@@ -1,0 +1,63 @@
+@name Command and Control System
+@inputs On DMPSYS:wirelink UO1:string UO2:string UO3:string UO4:string
+@outputs UI1:string UI2:string UI3:string UI4:string
+@persist Activated CommIn:wirelink
+@trigger None
+interval(100)
+if (Activated) {Interval=50}
+else {Interval=500}
+interval(Interval)
+
+MaxEngageDist = 5000
+DMPSYS_Active = DMPSYS["Activated",number]
+
+if (On & !Activated) {
+    RadioOut = DMPSYS["RadioOut",array]
+    UI = DMPSYS["UI",array]
+    UnitStatus = DMPSYS["UnitStatus",array]
+    T_Roster = DMPSYS["T_Roster",table]
+    U_Roster = DMPSYS["U_Roster",table]
+    Orders = DMPSYS["Orders",array]
+    
+    Code_NewOrder = 10000:toString()
+    Code_Busy = 10001:toString()
+    Code_Free = 10002:toString()
+    Code_Abort = 10003:toString()
+    Code_Report = 10004:toString()
+    Code_MissionComplete = 10005:toString()
+    Code_Roger = 10006:toString()
+    Code_EnRoute = 10007:toString()
+    Code_Immobilized = 10008:toString()
+    Code_Incapacitated = 10009:toString()
+    Code_Engaging = 10010:toString()
+    Code_Shutdown = 10011:toString()
+    Code_Activate = 10012:toString()
+    Code_Ready = 10013:toString()
+    Code_WaitForReply = 10014:toString()
+    
+    CommRadio = DMPSYS["",array]
+    UI1 = CommRadio[1,string]
+    UI2 = CommRadio[2,string]
+    UI3 = CommRadio[3,string]
+    UI4 = CommRadio[4,string]
+    
+    CommIn[1,string] = UO1
+    CommIn[2,string] = UO2
+    CommIn[3,string] = UO3
+    CommIn[4,string] = UO4
+
+    # Command
+    for (Unit=1,8) {
+        if (RadioOut[Unit,string] == Code_Roger) {RadioOut[Unit,string] = ""}
+        elseif (UI[Unit,string] == Code_Roger & UnitStatus[Unit,string] == Code_Busy) {RadioOut[Unit,string]= ""}
+        elseif (UI[Unit,string] == Code_Roger) {UnitStatus[Unit,string] = Code_Busy}
+        elseif (UI[Unit,string] == Code_MissionComplete & UnitStatus[Unit,string] != Code_Free) {
+            UnitStatus[Unit,string] = Code_Free
+            RadioOut[Unit,string] = Code_Roger
+            DID = T_Roster[Unit:toString(),number]
+            U_Roster:remove(DID:toString())
+            T_Roster:remove(Unit:toString())
+            Orders[Unit,string]=""
+        }
+    }
+}

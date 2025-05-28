@@ -1,0 +1,104 @@
+@name Sorcerer-256 PC
+@inputs Power Clk Command:string Input Ack IO_in_1:array IO_in_2:array DriveIn:array
+@outputs Program:array Out:string Output IO_out_1:array IO_out_2:array PMode O:string
+@outputs Cmd:string DriveOut:array Reg1 Reg2
+@persist RAM:array Out:string Output Argv:array Program:array PCount PMode Bool O:string
+@persist PrintList PrintListCount Test:array ScrnBuff:array Reg1 Reg2 LastRes
+@trigger #Clk #Ack
+
+if (Ack==0 & Out!="") {Output=1}
+else {Out=""
+    Output=0}
+    
+RAMSize=256
+if (first()) {for (I=1,RAMSize) {RAM[I,string]=""}}
+if (Power) {
+    if (PMode==1) {interval(100)}
+    else {interval(2000)}
+    
+    if (PrintList) {
+        Cmd="printlist"}
+    else{
+        if (Input & PMode==0) {InCommand = Command}
+        elseif (PMode==1) {
+            InCommand = Program[PCount,string]
+            PCount += 1
+        }
+        Argv=InCommand:explode(" ")
+        Cmd = Argv[1,string]
+        RestArg = InCommand:sub(InCommand:find(" ")+1)
+        Arg2 = Argv[2,string]
+        Arg3 = Argv[3,string]
+        Arg4 = Argv[4,string]
+        Arg5 = Argv[5,string]
+    }
+    
+    if (Cmd=="test") {Out="Success"}
+    elseif (Cmd=="printlist") {
+        Out=PrintListCount+" "+Program[PrintListCount,string]
+        if (PrintListCount==Program:count()) {
+            PrintList=0
+            PrintListCount=0
+            }
+        else{PrintListCount+=1}
+        }
+    elseif (Cmd=="print") {Out=RestArg}
+    elseif (Cmd=="printprog") {
+        PrintList=1
+        Out="Printing Program"
+        }
+    elseif (Cmd=="run") {
+        PCount=0
+        PMode=1
+    }
+    elseif (Cmd=="prog" & Input) {
+        Program:pushString(RestArg)
+        Out = Program:count()+" "+RestArg
+    }
+    elseif (Cmd=="progclr") {Program=array()}
+    elseif (Cmd=="proglen") {Out = Program:count():toString()}
+    elseif (Cmd=="goto") {PCount = Arg2:toNumber()}
+    elseif (Cmd=="printio") {
+        if (Arg2=="1") {Out = IO_in_1[Arg3:toNumber(),number]:toString()}
+        if (Arg2=="2") {Out = IO_in_2[Arg3:toNumber(),number]:toString()}
+    }
+    elseif (Cmd=="setio") {
+        if (Arg2=="1") {IO_out_1[Arg3:toNumber(),number] = Arg4:toNumber()}
+        if (Arg2=="2") {IO_out_2[Arg3:toNumber(),number] = Arg4:toNumber()}
+    }
+    elseif (Cmd=="mem2io") {
+        if (Arg2=="1") {IO_out_1[Arg3:toNumber(),number] = RAM[Arg4:toNumber(),string]:toNumber()}
+        if (Arg2=="2") {IO_out_2[Arg3:toNumber(),number] = RAM[Arg4:toNumber(),string]:toNumber()}
+    }
+    elseif (Cmd=="io2mem") {
+        if (Arg2=="1") {RAM[Arg4:toNumber(),string] = IO_in_1[Arg3:toNumber(),number]:toString()}
+        if (Arg2=="2") {RAM[Arg4:toNumber(),string] = IO_in_2[Arg3:toNumber(),number]:toString()}
+    }
+    elseif (Cmd=="wdisk") {
+        DriveOut[Arg2:toNumber(),number]=Arg3:toNumber()
+    }
+    elseif (Cmd=="rdisk") {
+        Reg1 = DriveIn[Arg2:toNumber(),number]
+    }
+    elseif (Cmd=="setreg") {
+        Reg1 = Arg2:toNumber()
+    }
+    elseif (Cmd=="regmem") {
+        if (Arg2=="1") {RAM[Arg4:toNumber(),string] = Reg1:toString()}
+        if (Arg2=="2") {RAM[Arg4:toNumber(),string] = Reg1:toString()}
+    }
+    elseif (Cmd=="setmem") {
+        RAM[Arg2:toNumber(),string] = Arg3
+    }
+    elseif (Cmd=="printmem") {
+        Out = RAM[Arg2:toNumber(),string]
+    }
+    
+    elseif (Cmd=="stop") {PMode=0}
+    elseif (Input & Command!="") {Out="Syntax Error"}
+    
+    
+    InCommand=""
+
+}
+if (Out!="") {O=Out}

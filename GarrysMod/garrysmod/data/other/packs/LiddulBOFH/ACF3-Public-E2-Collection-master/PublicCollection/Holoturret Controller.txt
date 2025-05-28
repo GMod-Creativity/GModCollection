@@ -1,0 +1,868 @@
+@name Holoturret Controller
+@inputs On [Base Seat G1 TR1]:entity [Pod Cam1 EGP]:wirelink
+@outputs APos:vector
+@persist Init Ready [Filter HUDcolors Turrets Coplanars Fixeds AmmoIndex]:array TurretCount CoplanarCount FixedsCount [Ammo AmmoTypes Guns FCSMode]:table [Driver CParent Gun ACFGun]:entity FOV GunIndex FCSIndex FLIR
+@persist GunLock CamDist MV DC G:vector DPos:vector DAng:angle
+@persist GTracker BTracker TTracker GState:string GRounds CurCam CamCount Cams:table
+@trigger On Init Ready
+#[
+ABOUT:
+    This E2 is designed to:
+        -control multiple holoturrets on ACF vehicles
+        -allow the creation of multiple camera positions for ACF vehicles
+        -allow selection of different gun groups for ammo selection and ballistics
+        -allow for ammo selection of up to 3 ammo types per gun group
+        -provide a HUD with useful data such as ammo count, selected ammo type, range, gun aim-point, predicted impact point, and turret angle
+        -act as an easy to manipulate framework for ballistic functions
+        
+    Default Controls:
+        1: ammo type 1
+        2: ammo type 2
+        3: ammo type 3
+        4: change weapon group
+        5: change ballistics mode
+        c: unlock turret
+        v: change cam position
+        mouse scroll: change zoom
+        backslash: toggle FLIR
+SETUP:
+    BASIC WIRING:
+        -You will need:
+            >This E2
+            >a pod controller linked to a seat
+            >a cam controller linked to the same seat
+                -"Client side movement" and "Auto-unclip" should be checked
+            >an EGP HUD
+            >an entity facing forwards and level with your hull, ideally your baseplate
+            >an ACFGun
+        -wiring:
+            >wire the inputs of this E2 as follows:
+                -On: Active on the Pod Controller
+                -Base: Baseplate, or other entity facing forwards on the hull
+                -Seat: Your seat
+                -G1: The main gun of the tank
+                -TR1: The turret ring of the tank
+                -Pod: Wirelink to the Pod Controller
+                -Cam1: Wirelink to the Cam Controller
+                -EGP: Wirelink to the EGP
+    
+    CHANGING CAM POSITIONS:
+        -cams are created in the init() function
+        -to create a cam call the initCamPos() function inside the init() function
+        -function usage
+            >initCamPos()
+                arguments:
+                    P: the parent of the camera
+                    O: the offset of the camera local to the parent
+                    D: the distance of the camera from the point of rotation
+    
+    CHANGING A TURRET'S CHARACTERISTICS:
+        -edit the initTurret() function's inputs inside the init() function
+            >see ADDING A NEW TURRET for details
+    
+    ADDING A NEW TURRET:
+        -turrets are created in the init() function
+        -add the relevant entities to @inputs
+        -to create a turret call the initTurret(), initCoplanar, or initFixed() functions inside the init() function
+        -Coplanars have independent pitch but their only yaw is gun convergence
+        -fixed guns are simply paranted to another object
+        -always create turrets stacked on top of or attached to other turrets after the one they are attached to
+            >stack turrets by setting the baseplate of the B input of the stacked turret to the turret you want to attach it to.
+        -baseplates should be facing forwards and be upright
+        -function usage
+            >initTurret()
+                arguments:
+                    G: main gun of the turret
+                    Tr: turret ring entity (if it exists, otherwise noentity())
+                    B: baseplate entity
+                    Rate: turret traverse rate in degrees per second
+                    MinA: minimum angle limits
+                    MaxA: maximum angle limits
+                    EO: elevation offset local to gun
+                    YO: yaw offset local to turret ring or gun if turret ring is invalid
+            >initCoplanar()
+                arguments:
+                    Gun1: the left converging gun on the coplanar if it exists, else noentity()
+                    Gun2: the right converging gun on the coplanar if it exists, else noentity()
+                    G: the entity used as the G argument in initTurret()
+                    Ev: the entity the coplanar rotates around
+                    Rate: turret traverse rate in degrees per second
+                    MinA: minimum angle limits
+                    MaxA: maximum angle limits
+                
+            >initFixed()
+                arguments:
+                    A: array of entities to be fixed
+                    P: entity that entities in A will be attached to
+    
+    ADDING A NEW GUN GROUP TO WEAPON SELECTION:
+        -the selectable gun groups are defined in initWeaponSelection() by the Guns table
+        -format for defining gun groups is Guns[gun index,array]=array(gun group parent, gun1, gun2, gun3...etc)
+    
+    CHANGING EGP COLORS:
+        -EGP colors are determined by the HUDcolors variable,it is set inside the EGPinit() function and should be edited there.
+    
+    CHANGING EGP HUD:
+        -the EGP HUD is defined in the egpInit() function
+        -The EGP is run by the egpUpdate() and updateEGPSelectors() functions, they can be edited/removed as well.
+        -The EGP is manipulated at several other points by key inputs, these can be removed as well. find them by pressing Ctrl+F and searching for EGP
+    
+    ADDING NEW BALLISTIC MODE:
+        -ballistic modes set inside the selectFCS() function by defining the runFCS() function inside the case block.
+            >name your new ballistic mode by adding it as a string to the FCSMode array at the top of the selectFCS() function.
+            >write your ballistic mode as a new runFCS() function inside the case block.
+            
+FAQ:
+
+    How do I move the camera position?
+        -Edit the initCamPos() function inside the init() function.
+    
+    How do I create another camera position such as a driver view or aim down sights?
+        -Add another initCamPos() function inside the init() function.
+    
+FOR QUESTIONS & ISSUES: https://discord.gg/eKydWE @worldpeace#1541
+]#
+
+if(first()|duped()|dupefinished()){
+        
+    #initialization
+        holoDeleteAll()
+        CamCount=0
+        CurCam=0
+        TurretCount=0
+        CoplanarCount=0
+        FixedsCount=0
+        Turrets=array()
+        Coplanars=array()
+        Fixeds=array()
+    #functions
+        function initTurret(G:entity,Tr:entity,B:entity,Rate,MinA:angle,MaxA:angle,EO:vector,YO:vector){
+            #[arguments:
+                    G: main gun of the turret
+                    Tr: turret ring entity (if it exists, otherwise noentity())
+                    B: baseplate entity
+                    Rate: turret traverse rate in degrees per second
+                    MinA: minimum angle limits
+                    MaxA: maximum angle limits
+                    EO: elevation offset local to gun
+                    YO: yaw offset local to turret ring or gun if turret ring is invalid
+            ]#
+            
+            if(B["Parent",entity]:isValid()){
+                B=B["Parent",entity]
+            }
+            
+            local Amount=holoAmount()
+            local Holo=holoCreate(Amount+1,G:toWorld(EO),vec(0.05,25,0.05),Base:toWorld(ang()),vec(255,0,0))
+            holoShadow(Amount+1,0)
+            if(Tr:isValid()){
+                holoCreate(Amount+2,Tr:toWorld(YO),vec(0.05,0.05,25),Base:toWorld(ang()),vec(0,0,255))
+                holoShadow(Amount+2,0)
+            }else{
+                holoCreate(Amount+2,G:toWorld(YO),vec(0.05,0.05,25),Base:toWorld(ang()),vec(0,0,255))
+                holoShadow(Amount+2,0)
+            }
+            
+            G["Parent",entity]=Holo
+            Holo["Child",entity]=G
+            Holo["Index",number]=Amount+1
+            Holo["R_Child",entity]=Tr
+            Holo["Ring",entity]=holoEntity(Amount+2)
+            Tr["Parent",entity]=holoEntity(Amount+2)
+            Holo["R_Index",number]=Amount+2
+            Holo["Base",entity]=B
+            Holo["Rate",number]=Rate*tickInterval()
+            Holo["Min_A",angle]=MinA
+            Holo["Max_A",angle]=MaxA
+            
+            Turrets:pushEntity(Holo)
+            TurretCount++
+            
+        }
+        
+        function initCoplanar(Gun1:entity,Gun2:entity,G:entity,Ev:entity,Rate,MinA:angle,MaxA:angle){
+            #[arguments:
+                Gun1: the left converging gun on the coplanar if it exists, else noentity()
+                Gun2: the right converging gun on the coplanar if it exists, else noentity()
+                G: the entity used as the G argument in initTurret()
+                Ev: the entity the coplanar rotates around
+                Rate: turret traverse rate in degrees per second
+                MinA: minimum angle limits
+                MaxA: maximum angle limits
+            ]#
+            G=G["Parent",entity]
+            if(G:isValid()&Ev:isValid()){
+                local Amount=holoAmount()
+                local Holo=holoCreate(Amount+1,Ev:toWorld(vec()),vec(0.05,25,0.05),G:toWorld(ang()),vec(255,0,0))
+                holoShadow(Amount+1,0)
+                
+                Ev["Parent",entity]=Holo
+                Holo["Child",entity]=Ev
+                Holo["Index",number]=Amount+1
+                Holo["Base",entity]=G["Ring",entity]
+                Holo["R_Index",number]=holoIndex(G["Ring",entity])
+                Holo["Rate",number]=Rate*tickInterval()
+                Holo["Min_A",angle]=MinA
+                Holo["Max_A",angle]=MaxA
+                
+                if(Gun1:isValid()){
+                    local Amount=holoAmount()
+                    holoCreate(Amount+1,Holo:toWorld(Holo:toLocal(Gun1:pos())*vec(0,1,0)),vec(0.05,0.05,25),G:toWorld(ang()),vec(0,0,255))
+                    holoShadow(Amount+1,0)
+                    Holo["G1_Dist",number]=(Holo:toLocal(Gun1:pos())*vec(0,1,0)):length()
+                    Holo["G1",number]=Amount+1
+                    Holo["G1_Max",number]=abs(MinA:yaw())
+                    Holo["G1_Child",entity]=Gun1
+                    
+                }
+                if(Gun2:isValid()){
+                    local Amount=holoAmount()
+                    holoCreate(Amount+1,Holo:toWorld(Holo:toLocal(Gun2:pos())*vec(0,1,0)),vec(0.05,0.05,25),G:toWorld(ang()),vec(0,0,255))
+                    holoShadow(Amount+1,0)
+                    Holo["G2_Dist",number]=(Holo:toLocal(Gun1:pos())*vec(0,1,0)):length()
+                    Holo["G2",number]=Amount+1
+                    Holo["G2_Max",number]=MaxA:yaw()
+                    Holo["G2_Child",entity]=Gun2
+                }
+                
+                Coplanars:pushEntity(Holo)
+                CoplanarCount++
+            }
+        }
+        
+        function initFixed(A:array,P:entity){
+            local Count=A:count()
+            for(I=1,Count){
+                local E=A[I,entity]
+                    if(E:isValid()){
+                    E["F_Parent",entity]=P
+                    Fixeds:pushEntity(A[I,entity])
+                    FixedsCount++
+                }
+            }
+        }
+        
+        function initCamPos(P:entity,O:vector,D){
+            CamCount++
+            
+            local Amount=holoAmount()
+            local Camera=holoCreate(Amount+1,P:pos()+P:toWorld(O)-P:pos(),vec(0.1,0.1,0.1),P:toWorld(ang()),vec(0,255,0))
+            
+            if(P["Parent",entity]:isValid()){
+                P=P["Parent",entity] 
+            }
+            holoParent(Amount+1,P)
+            
+            Cams["Parent"+CamCount,entity]=Camera
+            Cams["Offset"+CamCount,vector]=O
+            Cams["Distance"+CamCount,number]=D
+            Cams["FilterDistance"+CamCount,number]=D+O:length()
+            
+        }
+        
+        function init(){
+            initTurret(G1,TR1,Base,40,ang(-7,-360,0),ang(7,360,0),vec(0,0,0),vec(0,0,0))
+                
+            initCamPos(Base,vec(0,0,200),200)
+            initCamPos(TR1,vec(0,-50,50),0)
+        }
+        
+        function entity:buildTurret(){
+            This["Child",entity]:parentTo(This)
+            This["R_Child",entity]:parentTo(This["Ring",entity])
+            holoParent(This["Index",number],This["R_Index",number])
+            holoParent(This["R_Index",number],This["Base",entity])
+            holoAlpha(This["Index",number],0)
+            holoScale(This["Index",number],vec())
+            holoAlpha(This["R_Index",number],0)
+            holoScale(This["R_Index",number],vec())
+        }
+        
+        function entity:buildCoplanar(){
+            This["G1_Child",entity]:parentTo(holoEntity(This["G1",number]))
+            This["G2_Child",entity]:parentTo(holoEntity(This["G2",number]))
+            This["Child",entity]:parentTo(This)
+            holoParent(This["G1",number],This["Index",number])
+            holoParent(This["G2",number],This["Index",number])
+            holoParent(This["Index",number],This["R_Index",number])
+            
+            holoAlpha(This["Index",number],0)
+            holoScale(This["Index",number],vec())
+            holoAlpha(This["G1",number],0)
+            holoScale(This["G1",number],vec())
+            holoAlpha(This["G2",number],0)
+            holoScale(This["G2",number],vec())
+        }
+        
+        function entity:buildFixed(){
+            local P=This["F_Parent",entity]
+            while(P:type()!="gmod_wire_hologram"&P:isValid()){
+                    P=P:parent()
+            }
+            
+            if(P:isValid()){
+                This:parentTo(P)   
+            }else{
+                print("Error: failed to find valid parent for fixed entity: "+This:toString())
+            }
+        }
+        
+        function moveTurrets(P:vector,O:angle){
+            for(I=1,TurretCount){
+                local E=Turrets[I,entity]
+                H=E:heading(P)-O
+                Ca=E["Base",entity]:toLocal(E:angles())
+                Ta=clamp(Ca-H,Ca-ang(E["Rate",number]),Ca+ang(E["Rate",number]))
+                Na=clamp(Ta,E["Min_A",angle],E["Max_A",angle])
+                #This:setAng(This["Base",entity]:toWorld(Na))
+                holoAng(E["R_Index",number],E["Base",entity]:toWorld(Na*ang(0,1,0)))
+                holoAng(E["Index",number],E["Base",entity]:toWorld(Na))
+            }
+        }
+        
+        function moveCoplanars(P:vector,O:angle){
+            for(I=1,CoplanarCount){
+                local E=Coplanars[I,entity]
+                H=E:heading(P)-O
+                Ca=E["Base",entity]:toLocal(E:angles())
+                Ta=clamp(Ca-H,Ca-ang(E["Rate",number]),Ca+ang(E["Rate",number]))
+                Na=clamp(Ta,E["Min_A",angle],E["Max_A",angle])
+                holoAng(E["Index",number],E["Base",entity]:toWorld(Na*ang(1,0,0)))
+                
+                D1=ang(0,min(atan(E["G1_Dist",number],E:pos():distance(P)),E["G1_Max",number]),0)
+                D2=ang(0,min(atan(E["G2_Dist",number],E:pos():distance(P)),E["G2_Max",number]),0)
+                holoAng(E["G1",number],E:toWorld(-D1))
+                holoAng(E["G2",number],E:toWorld(D2))
+            }
+        }
+        
+        function build(){
+            for(I=1,TurretCount){
+                Turrets[I,entity]:buildTurret()    
+            }
+            
+            for(I=1,CoplanarCount){
+                Coplanars[I,entity]:buildCoplanar()
+            }
+            
+            for(I=1,FixedsCount){
+                Fixeds[I,entity]:buildFixed()   
+            }
+            
+            for(I=1,CamCount){
+                holoScale(holoIndex(Cams["Parent"+I,entity]),vec())   
+            }
+            
+        }
+        
+        function hudHolos(){
+            local Alpha=0
+            local Size=vec(1)
+            local Amount=holoAmount()
+            #aimPos holo
+            holoCreate(Amount+1,entity():pos())
+            holoAlpha(Amount+1,Alpha)
+            GTracker=Amount+1
+            
+            #ballistic holo
+            holoCreate(Amount+2,entity():pos())
+            holoAlpha(Amount+2,Alpha)
+            BTracker=Amount+2
+            
+            #target holo
+            holoCreate(Amount+3,entity():pos())
+            holoAlpha(Amount+3,Alpha)
+            TTracker=Amount+3
+        }
+        
+        function wirelink:egpInit(){
+            #colors for use on HUD
+                HUDcolors[1,vector4]=vec4(0,255,0,150)
+                HUDcolors[2,vector4]=vec4(255,0,0,150)
+                HUDcolors[3,vector4]=vec4(0,0,0,150)
+                
+                SC=egpScrSize(Driver)/2+vec2(-1,0)
+            
+            #crosshair
+                Points=array()
+                for(I=1,2){
+                    Points:pushVector2(SC+vec2(sin(120*I),cos(120*I))*15)
+                    Points:pushVector2(SC+vec2())
+                }
+                This:egpPolyOutline(1,Points), This:egpColor(1,HUDcolors[1,vector4])
+            
+            #gun aimpoint
+                This:egp3DTracker(2,vec())
+                This:egpParent(2,holoEntity(GTracker))
+                
+                Points=array()
+                for(I=1,3){
+                        Points:pushVector2(vec2(sin(120*I),cos(120*I))*5)
+                        Points:pushVector2(vec2())
+                    }
+                This:egpPolyOutline(3,Points),This:egpColor(3,HUDcolors[1,vector4]), This:egpParent(3,2)
+            
+            #ballistics
+                This:egp3DTracker(4,vec()), This:egpParent(4,holoEntity(BTracker))
+                Points=array()
+                for(I=1,3){
+                        Points:pushVector2(vec2(sin(120*I),cos(120*I))*15)
+                        Points:pushVector2(vec2())
+                    }
+                This:egpPolyOutline(5,Points), This:egpColor(5,HUDcolors[1,vector4]), This:egpParent(5,4)
+            
+            #turret direction
+                This:egpCircleOutline(6,SC,vec2(100,100)), This:egpColor(6,HUDcolors[1,vector4])
+                    
+                This:egpBox(7,SC,vec2()),
+                This:egpLine(8,SC+vec2(0,-135),SC+vec2(0,-155)), This:egpColor(8,HUDcolors[1,vector4])
+                This:egpTriangle(9,vec2(10,-105),vec2(-10,-105),vec2(0,-130)), This:egpColor(9,HUDcolors[1,vector4]), This:egpParent(9,7)
+            
+            #speedometer
+                This:egpText(10,"0km/hr",SC+vec2(0,160)), This:egpFont(10,"Arial"), This:egpColor(10,HUDcolors[1,vector4]), This:egpAlign(10,1,2)
+                
+            #rangefinder
+                This:egpText(11,"0m",SC+vec2(-30,15)), This:egpFont(11,"Arial"), This:egpColor(11,HUDcolors[1,vector4]), This:egpAlign(11,2,2)
+                
+            #selected weapon ammo
+                This:egpText(12,G1:acfCaliber()+"mm "+G1:acfAmmoType(),SC+vec2(-10,-135)), This:egpFont(12,"Arial"), This:egpAlign(12,2,2)
+                if(G1:acfReady()){
+                    This:egpColor(12,HUDcolors[1,vector4])
+                }else{
+                    This:egpColor(12,HUDcolors[3,vector4])
+                }
+            
+            #FCS selection
+                This:egpText(13,FCSMode[FCSIndex,string],SC+vec2(10,-135)),This:egpFont(13,"Arial"), This:egpAlign(13,0,2)
+                This:egpColor(13,HUDcolors[3,vector4])
+                
+            #target indicator
+                This:egp3DTracker(14,vec()), This:egpParent(14,holoEntity(TTracker))
+                Points=array()
+                for(I=1,3){
+                    Points:pushVector2(vec2(sin(120*I),cos(120*I))*30)
+                }
+                This:egpPolyOutline(15,Points), This:egpColor(15,HUDcolors[1,vector4]), This:egpParent(15,14)
+            
+            #ammo counters
+                for(I=1,3){
+                    local S=""
+                    if(AmmoIndex[GunIndex,number]==I){
+                        S=">"
+                    }
+                    
+                    This:egpText(15+I,S+AmmoTypes[GunIndex,array][I,string],SC+vec2(-10,-135-I*16)), This:egpFont(15+I,"Arial")
+                    This:egpAlign(15+I,2,2), This:egpColor(15+I,HUDcolors[1,vector4])
+                }
+                local Count=Ammo[GunIndex,array]:count()
+                local Ammo1=0
+                local Ammo2=0
+                local Ammo3=0
+                for(I=1,Count){
+                    switch(Ammo[GunIndex,array][I,entity]:acfRoundType()){
+                        case AmmoTypes[GunIndex,array][1,string],
+                            Ammo1+=Ammo[GunIndex,array][I,entity]:acfRounds()
+                        break
+                        case AmmoTypes[GunIndex,array][2,string],
+                            Ammo2+=Ammo[GunIndex,array][I,entity]:acfRounds()
+                        break
+                        case AmmoTypes[GunIndex,array][3,string],
+                            Ammo3+=Ammo3+Ammo[GunIndex,array][I,entity]:acfRounds()
+                        break
+                    }
+                    This:egpText(19,Ammo1:toString(),SC+vec2(10,-151)), This:egpFont(19,"Arial")
+                    This:egpAlign(19,0,2), This:egpColor(19,vec4())
+                    
+                    This:egpText(20,Ammo2:toString(),SC+vec2(10,-167)), This:egpFont(20,"Arial")
+                    This:egpAlign(20,0,2), This:egpColor(20,vec4())
+                    
+                    This:egpText(21,Ammo3:toString(),SC+vec2(10,-183)), This:egpFont(21,"Arial")
+                    This:egpAlign(21,0,2), This:egpColor(21,vec4())
+                }
+                Count=AmmoTypes[GunIndex,array]:count()
+                for(I=1,Count){
+                    This:egpColor(18+I,HUDcolors[1,vector4])
+                }
+        }
+        
+        function wirelink:egpUpdate(){
+            #gun angles
+                This:egpAngle(7,Gun:angles():yaw()-Base:angles():yaw())
+            #speedometer
+                This:egpSetText(10,round(Base:vel():length()*3600*0.0000254*0.75,0)+"km/hr")
+            #rangefinder
+                This:egpSetText(11,round(toUnit("m",Gun:pos():distance(APos)))+"m")
+                
+        }
+        
+        function wirelink:updateEGPSelectors(){
+            for(I=1,3){
+                local S=""
+                if(AmmoIndex[GunIndex,number]==I){
+                    S=">"
+                }
+                    This:egpSetText(15+I,S+AmmoTypes[GunIndex,array][I,string])
+            }
+            This:egpSetText(12,ACFGun:acfCaliber()+"mm "+ACFGun:acfAmmoType())
+            
+            local Count=Ammo[GunIndex,array]:count()
+            local Ammo1=0
+            local Ammo2=0
+            local Ammo3=0
+            for(I=1,Count){
+                switch(Ammo[GunIndex,array][I,entity]:acfRoundType()){
+                    case AmmoTypes[GunIndex,array][1,string],
+                        Ammo1+=Ammo[GunIndex,array][I,entity]:acfRounds()
+                    break
+                    case AmmoTypes[GunIndex,array][2,string],
+                        Ammo2+=Ammo[GunIndex,array][I,entity]:acfRounds()
+                    break
+                    case AmmoTypes[GunIndex,array][3,string],
+                        Ammo3+=Ammo3+Ammo[GunIndex,array][I,entity]:acfRounds()
+                    break
+                }
+                This:egpSetText(19,Ammo1:toString()),This:egpColor(19,vec4())
+                    
+                This:egpSetText(20,Ammo2:toString()),This:egpColor(20,vec4())
+                    
+                This:egpSetText(21,Ammo3:toString()),This:egpColor(21,vec4())
+                }
+                Count=AmmoTypes[GunIndex,array]:count()
+                for(I=1,Count){
+                    This:egpColor(18+I,HUDcolors[1,vector4])
+                }
+                
+            #ammo type
+                This:egpSetText(12,ACFGun:acfCaliber()+"mm "+ACFGun:acfAmmoType())
+                if(ACFGun:acfReady()){
+                    This:egpColor(12,HUDcolors[1,vector4])
+                }else{
+                    This:egpColor(12,HUDcolors[3,vector4])
+                }
+        }
+        
+        function array entity:getAmmoTypes(){
+            local Links=This:acfLinks()
+            local Count=Links:count()
+            #The order we want ammo types returned, AP type munitions first
+            local Types=array("AP","APCR","APDS","APFSDS","APHE","FL","HP","HEAT","HEATFS","HE","GLATGM","FLR","SM")
+            local TypeCount=Types:count()
+            local Crates=table()
+            local ReturnArray=array()
+            
+            for(I=1,Count){
+                Crates[Links[I,entity]:acfAmmoType(),number]=1
+            }
+            
+            for(I=1,TypeCount){
+                if(Crates[Types[I,string],number]==1){
+                    ReturnArray:pushString(Types[I,string]) 
+                }
+            }
+            return ReturnArray
+        }
+        
+        function array:loadAmmo(S:string){
+            Count=This:count()
+            for(I=1,Count){
+                if(This[I,entity]:acfAmmoType()==S){
+                       This[I,entity]:acfActive(1)
+                }else{
+                    This[I,entity]:acfActive(0)
+                }
+            }
+        }
+        
+        function entity:updateBallistics(){
+            Fuze=0
+            
+            switch(This:acfAmmoType()){
+                case"FL",
+                    MV=fromUnit("m",This:acfMuzzleVel())*0.75
+                    DC=(3.1416*(This:acfFLSpikeRadius()*0.1)^2)/10000/(This:acfProjectileMass()*acfDragDiv())
+                break
+                case "APDS",
+                    MV=fromUnit("m",This:acfMuzzleVel())*0.75
+                    DC=(3.1416*(This:acfCaliber()*0.375*0.05)^2)/10000/(This:acfProjectileMass()*acfDragDiv())
+                break
+                case "APFSDS",
+                    MV=fromUnit("m",This:acfMuzzleVel())*0.75
+                    DC=(3.1416*(This:acfCaliber()*0.29*0.05)^2)/10000/(This:acfProjectileMass()*acfDragDiv())
+                break
+                case "APCR",
+                    MV=fromUnit("m",This:acfMuzzleVel())*0.75
+                    DC=(3.1416*(This:acfCaliber()*0.29*0.05)^2)*1.25/10000/(This:acfProjectileMass()*acfDragDiv())
+                break
+                case "Empty",
+                    MV=fromUnit("m",900)*0.75
+                    DC=0
+                break
+                default,
+                    MV=fromUnit("m",This:acfMuzzleVel())*0.75
+                    DC=(3.1416*(This:acfCaliber()*0.05)^2)/10000/(This:acfProjectileMass()*acfDragDiv())
+                break
+            }
+        }
+        
+        function entity array:selectGun(){
+            Count=This:count()
+            
+            for(I=2,Count){
+                if(This[I,entity]:isValid()){
+                    return This[I,entity]
+                }
+            }
+            
+            return noentity()
+        }
+        
+        function initWeaponSelection(){
+            #initialize weapon selection
+                Guns[1,array]=array(G1:parent(),G1)
+                
+                GunIndex=1
+                Gun=Guns[GunIndex,array][1,entity]
+                ACFGun=Guns[GunIndex,array]:selectGun()
+            
+            #get ammo types
+                local Count=Guns:count()
+                
+                for(I=1,Count){
+                    Ammo[I,array]=Guns[I,array][2,entity]:acfLinks()
+                    AmmoTypes[I,array]=Guns[I,array][2,entity]:getAmmoTypes()
+                    
+                    #set starting ammo type
+                    AmmoIndex[I,number]=1
+                    Ammo[I,array]:loadAmmo(AmmoTypes[I,array][AmmoIndex[I,number],string])
+                }
+        }
+        
+        function array array:filterValid(){
+            local Count=This:count()
+            local Array=array()
+            for(I=1,Count){
+                if(This[I,entity]:isValid()){
+                    Array:pushEntity(This[I,entity])   
+                }
+            }
+            return Array
+        }
+        
+        function changeCam(){
+            CurCam=1+(CurCam%CamCount)
+            
+            Cam1["Parent",entity]=Cams["Parent"+CurCam,entity]
+            Cam1["Position",vector]=Cams["Parent"+CurCam,entity]:pos()
+            Cam1["Distance",number]=Cams["Distance"+CurCam,number]
+            CamDist=Cams["FilterDistance"+CurCam,number]
+        }
+        
+        function selectFCS(Mode){
+            #initialize FCS
+            FCSMode[1,string]="OFF"
+            FCSMode[2,string]="STAT"
+
+            switch(Mode){
+                case 1,
+                    #manual aim
+                    function runFCS(){
+                        APos=Cam1["HitPos",vector]
+                        GState=ACFGun:acfState()
+                        GRounds=ACFGun:acfAmmoCount()
+                        if(changed(GState)|changed(GRounds)){
+                            ACFGun:updateBallistics()
+                            EGP:updateEGPSelectors()
+                        }
+                        moveTurrets(APos,ang())
+                        moveCoplanars(APos,ang())
+                        GR=rangerOffset(1000000000,Gun:pos(),Gun:forward())
+                        holoPos(GTracker,GR:pos())
+                    }
+                break
+                case 2,
+                    #static dragless parabolic
+                    function runFCS(){
+                        APos=Cam1["HitPos",vector]
+                        GState=ACFGun:acfState()
+                        GRounds=ACFGun:acfAmmoCount()
+                        if(changed(GState)|changed(GRounds)){
+                            ACFGun:updateBallistics()
+                            EGP:updateEGPSelectors()
+                        }
+                        
+                        local GunPos=Gun:pos()
+                        local X=sqrt((APos:x()-GunPos:x())^2+(APos:y()-GunPos:y())^2)
+                        local Y=APos:z()-GunPos:z()
+                        local Gr=-G:z()
+                        
+                        #this is messy
+                        local Fwd=(GunPos-APos):toAngle():pitch()
+                        if(Fwd>90){
+                            Fwd=Fwd-360   
+                        }
+                        
+                        local Def=atan((MV^2)-sqrt((MV^4)-Gr*((Gr*X^2)+(2*(MV^2)*Y))),Gr*X)
+                        Def=Fwd-Def
+                        DAng=ang(Def,0,0)
+                        
+                        moveTurrets(APos,DAng)
+                        moveCoplanars(APos,DAng)
+                        GR=rangerOffset(1000000000,Gun:pos(),Gun:forward())
+                        BR=rangerOffset(1000000000,Gun:pos(),Gun:toWorld(-DAng):forward())
+                        holoPos(GTracker,GR:pos())
+                        holoPos(BTracker,BR:pos())
+                    }
+                break
+                default,
+                    function runFCS(){
+                        
+                    }
+                break
+            }
+        }
+        
+        function parseKeyInputs(){
+            Key=keyClkPressed()
+            State=keyClk(Driver)
+            #print(Key)
+            
+            #holds
+            switch(Key){
+                case "example",
+                
+                break
+            }
+            
+            #presses
+            if(State==1){
+                switch(Key){
+                    case "mouse_wheel_up",
+                        FOV=clamp(FOV/2,1.171875,75)
+                        Cam1["FOV",number]=FOV
+                    break
+                    case "mouse_wheel_down",
+                        FOV=clamp(FOV*2,1.171875,75)
+                        Cam1["FOV",number]=FOV
+                    break
+                    case "v",
+                        changeCam()
+                    break
+                    case "1",
+                        AmmoIndex[GunIndex,number]=min(Key:toNumber(),AmmoTypes[GunIndex,array]:count())
+                        Ammo[GunIndex,array]:loadAmmo(AmmoTypes[GunIndex,array][AmmoIndex[GunIndex,number],string])
+                        ACFGun:updateBallistics()
+                        EGP:updateEGPSelectors()
+                    break
+                    case "2",
+                        AmmoIndex[GunIndex,number]=min(Key:toNumber(),AmmoTypes[GunIndex,array]:count())
+                        Ammo[GunIndex,array]:loadAmmo(AmmoTypes[GunIndex,array][AmmoIndex[GunIndex,number],string])
+                        ACFGun:updateBallistics()
+                        EGP:updateEGPSelectors()
+                    break
+                    case "3",
+                        AmmoIndex[GunIndex,number]=min(Key:toNumber(),AmmoTypes[GunIndex,array]:count())
+                        Ammo[GunIndex,array]:loadAmmo(AmmoTypes[GunIndex,array][AmmoIndex[GunIndex,number],string])
+                        ACFGun:updateBallistics()
+                        EGP:updateEGPSelectors()
+                    break
+                    case "4",
+                        holoUnparent(BTracker)
+                        GunIndex=1+(GunIndex%Guns:count())
+                        Gun=Guns[GunIndex,array][1,entity]
+                        ACFGun=Guns[GunIndex,array]:selectGun()
+                        ACFGun:updateBallistics()
+                        holoPos(BTracker,Gun:pos())
+                        EGP:updateEGPSelectors()
+                    break
+                    case "5",
+                        holoUnparent(BTracker)
+                        FCSIndex=1+(FCSIndex%FCSMode:count())
+                        selectFCS(FCSIndex)
+                        if(FCSIndex>2){
+                            EGP:egpSetText(13,FCSMode[FCSIndex,string])
+                        }else{
+                            EGP:egpSetText(13,FCSMode[FCSIndex,string])
+                        }
+                        if(FCSIndex==2){
+                            EGP:egpColor(13,HUDcolors[1,vector4])
+                        }else{
+                            EGP:egpColor(13,HUDcolors[3,vector4])
+                        } 
+                        ACFGun:updateBallistics()
+                    break
+                    case "c",
+                        GunLock=!GunLock
+                    break
+                    case "backslash",
+                        FLIR=!FLIR
+                        Cam1["FLIR",number]=FLIR
+                    break
+                }
+            }
+        }
+    
+    #initialize holo skeleton
+    init()
+    
+    FCSIndex=1
+    selectFCS(FCSIndex)
+    FCSName=FCSMode[FCSIndex,string]
+    
+    G=vec(0,0,-gravity())
+
+    hudHolos()
+    GunLock=1
+
+    Init=1
+}elseif(Init&On){
+    
+    if(Init==1){
+        build()
+        changeCam()
+        
+        Filter=Base:getConnectedEntities()
+        
+        Cam1["FilterEntities",array]=Filter
+            
+        initWeaponSelection()
+        
+        rangerPersist(1)
+        rangerFilter(Filter)
+    
+        Init=2
+    }elseif(Init==2){
+        Ready=1
+        Init=0
+    }
+}
+
+if(changed(On)){
+    if(On){
+        runOnKeys(Driver,0)
+        Driver=Seat:driver()
+        runOnKeys(Driver,1)
+        EGP:egpInit()
+        Cam1["Activated",number]=1
+        timer("hclk",250)
+        
+    }else{
+        Cam1["Activated",number]=0
+        runOnTick(0)
+    }
+}elseif(Ready&On){
+    if(keyClk(Driver)){
+        parseKeyInputs()
+    }
+    runOnTick(1)
+    
+    if(!GunLock){
+        if(tickClk()){
+            runFCS()   
+        }
+    }
+    
+    if(clk("hclk")){
+        EGP:egpUpdate()
+        timer("hclk",250)       
+    }
+}

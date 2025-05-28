@@ -1,0 +1,157 @@
+@name The World
+@inputs 
+@outputs 
+@persist [Attack Attack2 Reload Use Tog Activated FIRE Reset I2 Act Debug]:number 
+@persist [O Entity Holo E]:entity 
+@persist [Prop Prop2 Location]:array 
+@persist [Name]:string 
+@persist [Angle]:angle
+@trigger 
+                                                                                    ###################
+                                                                                    # A S T H E T I C #
+                                                                                    # M A D E         #
+                                                                                    # B Y             #
+                                                                                    # K O I T         #
+                                                                                    # P R E S S       #
+                                                                                    # H               #
+                                                                                    # F O R           #
+                                                                                    # H E L P         #
+                                                                                    ###################
+interval(10)
+O = owner()
+E = entity()
+Attack = O:keyAttack2()
+Attack2 = O:keyAttack1()
+Reload = O:keyReload()
+Use = O:keyUse()
+Help = O:keyPressed("h")
+Debug = 0
+if(first()){
+    E:setPos(vec(-328,13635,-7671))
+    E:propNotSolid(1)
+    E:setAlpha(0)
+    E:propDraw(0)
+    function select(Ent:entity, Num:number){
+        local Ent2 = Ent:toString()
+        Ent2 = Ent2:replace("["," ")
+        Ent2 = Ent2:replace("]"," ")
+        if(Num == 1){
+            printColor(vec(255,0,0), "Selected: ", vec(0,255,0), Ent2)
+        }elseif(!Num){
+        hint("Selected: " + Ent2, 10)
+    }elseif(Num >= 2){
+    printColor(vec(255,0,0), "Selected: ", vec(0,255,0), Ent2)
+    hint("Selected: " + Ent2, 10)
+}
+    }
+    
+    function debug(Ent:entity, Num:number){
+        if(Num){
+            local Rand = vec(random(0,255),random(0,255),random(0,255))
+            printColor(Rand,Ent:toString())
+            printColor(Rand,Ent:name())
+            printColor(Rand,round(Ent:pos(),1):toString() + " Pos")
+            printColor(Rand,round(Ent:angles(),1):toString() + " Ang")
+            printColor(Rand,round(Ent:pos():distance(O:pos()),1):toString() + " Dist")
+        }
+    }
+}
+#Help
+if(changed(Help)&Help | changed(O:lastSaid()== "/help")&O:lastSaid()== "/help"){
+    printColor(vec(255,0,0), "Help: ", vec(0,255,0), "Right click ", vec(255,255,255), "on a target to select it. ", vec(0,255,0), "Reload ", vec(255,255,255), "to clear selection." )
+    printColor(vec(255,0,0), "Help: ", vec(0,255,0), "Right click ", vec(255,255,255), "again to spawn bolts. ", vec(0,255,0), "Use ", vec(255,255,255), "to clear bolts." )
+    printColor(vec(255,0,0), "Help: ", vec(0,255,0), "Left click again ", vec(255,255,255), "to start. ", vec(0,255,0), "Reload ", vec(255,255,255), "to cancel." )
+}
+#Selection of target
+if(changed(Attack)&Attack&!Activated){
+    Entity = O:aimEntity()
+    Holo = holoCreate(0)
+    holoAlpha(0,0)
+    holoPos(0, Entity:pos())
+    if(Entity:isValid()&Entity:pos():distance(O:pos())<500){
+        select(Entity, 2)
+        timer("sound",1600)
+        Holo:soundPlay(1,1, "weapons/physcannon/physcannon_charge.wav")
+        Activated = 1
+        debug(Entity,Debug)
+    }elseif(!Entity:isValid() | Entity:pos():distance(O:pos())>500){
+    debug(Entity,Debug)
+    if(!Entity:isValid()){
+        hint("Invalid target!",10)
+    }elseif(Entity:pos():distance(O:pos())>500){
+    hint("Too far away!!",10)
+}
+}
+}
+if(clk("sound")){
+    Holo:soundPlay(1,1, "phx/explode00.wav")
+}
+#Process of attack
+if(Activated){
+    holoCreate(1)
+    if(I2<=500){
+        I2++
+    }
+    holoModel(1, "hq_icosphere")
+    holoColor(1, vec(0,0,0),200)
+    holoPos(1, Entity:pos())
+    holoScale(1, vec(-I2,-I2,-I2))
+    if(Activated&!Tog){
+        Prop[-1, entity] = propSpawn("models/hunter/misc/sphere2x2.mdl", Entity:pos(), ang(vec(0,0,0)),1)
+        Tog = 1
+        debug(Prop[-1, entity],Debug)
+    }
+    
+    if(!Prop[-1, entity]&!FIRE){
+        Prop[-1, entity] = propSpawn("models/hunter/misc/sphere2x2.mdl", Entity:pos(), ang(vec(0,0,0)),1)
+        debug(Prop[-1, entity],Debug)
+    }
+    Prop[-1, entity]:setPos(Entity:pos())
+    Prop[-1, entity]:setAlpha(0)
+    
+    if(changed(Attack)&Attack&Prop2:count()<=50&Entity:pos():distance(O:pos())<500&!Act){
+        Prop[0,entity] = propSpawn("models/Items/CrossbowRounds.mdl", O:pos()+ vec(0,0,80), ang(vec(0,0,0)),1)
+        Prop2:pushEntity(Prop[0,entity])
+    }elseif(changed(Attack)&Attack&Prop2:count()>=50 | changed(Attack)&Attack&Entity:pos():distance(O:pos())>500){
+    if(Prop2:count()>=50){
+        hint("Too many props!",10)
+    }
+    if(Entity:pos():distance(O:pos())>500){
+        hint("Too far away!",10)
+}
+    Act = 0
+}
+    if(!FIRE){
+        Angle = (Entity:pos() + vec(0,0,30) - Prop[0,entity]:pos()):toAngle()
+        Prop[0,entity]:setAng(Angle)
+    }
+    
+    if(changed(Attack2)&Attack2){
+        FIRE = 1
+    }
+    
+    if(FIRE){
+        for(I = 1, Prop2:count()){
+            Prop2[I, entity]:propFreeze(0)
+            #ifdef Prop2[I, entity]:noCollideAll(0)
+            #endif
+            Prop2[I, entity]:applyForce(Prop2[I, entity]:forward()*1000*Prop2[I, entity]:mass())
+            Angle = (Entity:pos() + vec(0,0,30) - Prop2[I, entity]:pos()):toAngle()
+            Prop2[I, entity]:setAng(Angle)
+        }
+        timer("reset",5000)
+        Prop[-1, entity]:propDelete()
+    }
+}
+
+#Clearing everything
+if(changed(Reload)&Reload | clk("reset") | ops()>=maxquota()){
+    holoDelete(1)  
+    Prop[-1, entity]:propDelete()
+    Prop2:propDelete()
+    reset()
+}
+if(changed(Use)&Use){
+    Prop2:propDelete()
+    Prop2:clear()
+}

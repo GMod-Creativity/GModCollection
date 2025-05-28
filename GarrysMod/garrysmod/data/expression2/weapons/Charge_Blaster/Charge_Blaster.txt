@@ -1,0 +1,147 @@
+@name Charge Blaster
+@inputs 
+@outputs 
+@persist [P E Prop Prop2]:entity Debug Started Time Range Passive Locked I2 I [Props Holos]:array [Aim]:angle [PAim Local]:vector
+@trigger 
+                                                                                    ###################
+                                                                                    # A S T H E T I C #
+                                                                                    # M A D E         #
+                                                                                    # B Y             #
+                                                                                    # K O I T         #
+                                                                                    # P R E S S       # IF PROP IS BANNED, 
+                                                                                    # H               # REPLACE: "models/props_phx/torpedo.mdl"
+                                                                                    # F O R           # WITH: "models/props_phx/cannonball_solid.mdl"
+                                                                                    # H E L P         # REPLACE BY CLICKING CTRL + F AND SELECTING REPLACE TAB
+                                                                                    ################### 
+interval(100)
+P = owner()
+E = entity()
+if(first()){
+    E:setPos(vec(-328,13635,-7671))
+    E:propNotSolid(1)
+    E:setAlpha(0)
+    E:propDraw(0)
+}
+if(changed(P:keyAttack2())&P:keyAttack2()&!Locked){
+    Passive = 0
+    Prop2 = propSpawn("models/hunter/blocks/cube025x025x025.mdl",P:attachmentPos("anim_attachment_RH"),ang(vec(0,0,0)),1)
+    Prop2:setAlpha(0)
+    Prop2:propNotSolid(1)
+    Prop2:propDraw(0)
+    Started = 1
+    holoCreate(1, P:pos()+vec(0,0,100))
+    holoScale(1, vec(0,0,0))
+    holoColor(1, vec(0,255,0), 100)
+    holoCreate(2, P:pos()+vec(0,0,100))
+    holoScale(2, vec(0,0,0))
+    holoColor(2, vec(255,0,0), 100)
+    holoEntity(1):soundPlay(1,100000, "ambient/energy/electric_loop.wav")
+    Range = 500
+    Time = 250
+    E:setPos(vec(-328,13635,-7671))
+    E:propNotSolid(1)
+    E:setAlpha(0)
+    E:propDraw(0)
+}
+if(changed(P:keyReload())&P:keyReload()&!Passive){
+    Passive = 1
+}elseif(Passive&changed(P:keyReload())&P:keyReload()){
+Passive = 0
+}
+if(Passive){
+    timer("generate",100)
+}
+if(P:keyAttack2()&!Locked){
+    Prop2:setPos(P:attachmentPos("anim_attachment_RH"))
+    local Aim2 = (P:aimPos() - Prop2:pos()):toAngle()
+    Prop2:setAng(Aim2)
+    holoPos(1, P:attachmentPos("anim_attachment_RH"))
+    holoPos(2, P:attachmentPos("anim_attachment_RH"))
+    timer("generate",100)
+}elseif(Started){
+holoAng(1, ang(vec(random(-360,360),random(-360,360),random(-360,360))))
+holoAng(2, ang(vec(random(-360,360),random(-360,360),random(-360,360))))
+if(!Prop2){
+    Prop2 = propSpawn("models/hunter/blocks/cube025x025x025.mdl",P:attachmentPos("anim_attachment_RH"),ang(vec(0,0,0)),1)
+    Prop2:setAlpha(0)
+    Prop2:propNotSolid(1)
+    Prop2:propDraw(0)
+}
+Locked = 1
+if(changed(Locked)&Locked){
+    Prop2:setTrails(10,100,1,"trails/laser",vec(0+I*200,255+I*200,0),255)
+    stoptimer("powerlevel")
+    holoCreate(0, P:aimPos())
+    holoAlpha(0, 0)
+    PAim = P:aimPos()
+    soundStop(1)
+    P:soundPlay(1,1,"weapons/physcannon/energy_disintegrate4.wav")
+    if(Props:count()>=50){
+        Range = 750
+        timer("explode",1250)
+    }
+    if(Props:count()>=100){
+        Range = 1500
+        Time = 175
+    }
+    if(Props:count()>=150){
+        Range = 1750
+        Time = 125
+    }   
+    if(Props:count()>=200){
+        Range = 2250
+        Time = 100
+    }
+}
+Aim = (PAim - Prop2:pos()):toAngle()
+Prop2:setAng(Aim)
+Prop2:applyForce(Prop2:forward()*(3500+ Props:count()*2))
+Prop2:propFreeze(0)
+holoPos(1, Prop2:pos())
+holoPos(2, Prop2:pos())
+if(Prop2:pos():distance(holoEntity(0):pos())<500){
+    Prop2:propBreak()
+    Prop = propSpawn("models/props_phx/torpedo.mdl",holoEntity(0):pos(),ang(vec(0,0,0)),1)
+    Prop:propBreak()
+    for(I = 1, Props:count()){
+        Props[I, entity]:setPos(holoEntity(0):pos()+vec(random(-Range,Range),random(-Range,Range),random(-Range/2,Range/2)))
+        Props[I, entity]:propBreak()
+    }
+    timer("reset",1000)
+    holoDeleteAll()
+}
+}
+if(clk("reset")|P:keyWalk()){
+    Prop2:propDelete()
+    Props:propDelete()
+    Prop:propDelete() 
+    Passive = 0
+    reset()
+}
+if(clk("explode")){
+    timer("explode",Time)
+    I2++
+    Props[I2, entity]:setPos(Prop2:pos() - (Prop2:forward()*1000))
+    Props[I2, entity]:propBreak()
+}
+if(clk("generate")){
+    I+=0.01
+    holoScale(1, vec(-I+1,-I+1,-I+1))
+    holoScale(2, vec(-I,-I,-I))
+    holoAng(1, ang(vec(random(-360,360),random(-360,360),random(-360,360))))
+    holoAng(2, ang(vec(random(-360,360),random(-360,360),random(-360,360))))
+    Prop = propSpawn("models/props_phx/torpedo.mdl",vec(0,0,0),ang(vec(0,0,0)),1)
+    Prop:setAlpha(0)
+    Prop:propNotSolid(1)
+    Props:pushEntity(Prop)
+    timer("powerlevel",1000)
+}
+if(clk("powerlevel")){
+    hint("Charge Power: "+Props:count():toString(),1.5)
+}
+
+if(changed(P:keyPressed("h"))&P:keyPressed("h")){
+    printColor(vec(255,0,0), "Help: ", vec(0,255,0), "Right click ", vec(255,255,255), "to charge. ", vec(0,255,0), "Release ", vec(255,255,255), "to fire." )
+    printColor(vec(255,0,0), "Help: ", vec(0,255,0), "Reload ", vec(255,255,255), "to passively charge. ", vec(0,255,0), "Walk ", vec(255,255,255), "to clear." )
+}
+

@@ -1,0 +1,63 @@
+@name Cruise Missile M1
+@inputs Sensor:entity Hit INSvec:vector Clk Fire
+@outputs Thruster:vector MulV A Det Dist FirstDist  #Nexttgt 
+@outputs Lock Rdist Insdist Alt T:vector Altmod Terminal Search Roll
+@persist Dist GPS:vector Altmod Lock Terminal DistRAM FirstDist
+@persist Rdist Insdist Radar:vector INS:vector
+@trigger Clk
+interval(50)
+#SELF AWARENESS AND VARIABLES
+Gl= -11166
+GPS=entity():pos()
+E=entity()
+Vel=entity():vel()
+Sz=GPS:z()
+Alt=Sz-Gl
+CAlt=3500 #CRUISE ALTITUDE
+
+if (Clk==1) {INS=INSvec
+    T=INS
+    FirstDist=INSvec:distance(GPS)}
+
+if (Fire==0) { #SAFE MODE
+    Lock=0
+    Det=0
+    A=0
+    MulV=0
+}
+else { #FIRE
+#search and acquisition
+Rdist = Sensor:pos():distance(GPS)
+Insdist = INSvec:distance(GPS)
+if (Dist<=(FirstDist*0.75)) {Search=1}
+else {Search=0}  
+if (Search==1 & Hit!=0) {Lock=1}
+if (Lock==1) {Dist=Rdist
+    Radar=Sensor:pos()
+    T=Radar}
+else {Dist=Insdist
+    T=INS}
+if (Fire==1 & (Dist<=10000 | Lock==1)) {Terminal=1}
+
+#vector navigation
+if (Terminal==1) {Altmod=Dist/2}
+else {if (Alt<(CAlt-1000)) {Altmod=20000}
+    elseif (Alt<CAlt) {Altmod=10000}
+    else {Altmod=CAlt}
+}
+Altvec=vec(0,0,(Altmod-Alt)*2)
+Thruster=GPS-T-Altvec
+if (Dist>=500) {A=1}
+else {A=0}
+if (Fire==1) {MulV=1}
+else {MulV=0}
+RollAng = E:angles():roll()
+RollV = E:angVel():roll() 
+if (RollAng<5 & RollAng> -5) {Roll=RollV}
+else {Roll=RollAng + (RollV)}
+
+#fuzing
+if (Dist<=250 | (Dist<=1000 & Dist>=DistRAM)) {Det=1}
+else {Det=0}
+DistRAM=Dist
+}

@@ -1,0 +1,108 @@
+@name 
+@inputs 
+@outputs I HitPlayer
+@persist MaxLength Color:vector TotalLength PreviousI Status:string StatusDone
+@persist DesiredVector:vector Origin:vector RemainingLength I
+@trigger 
+
+if (first()){
+    runOnTick(1000)    
+    
+    TotalLength = 1500
+    MaxLength = 500 #the maximum length a holo can be #admin only command wire_holograms_size_max controls this
+    Color = randvec(vec(0,0,0), vec(255,255,255))
+    
+    ScanIgnore = array()
+    ScanIgnore:pushEntity(entity())
+    ScanIgnore:pushEntity(holoEntity(1))
+    rangerFilter(ScanIgnore)
+
+    Status = "init"
+    
+    function init(){
+        DesiredVector = entity():up()
+        Origin = entity():pos()
+        
+        #DesiredVector = entity():owner():eye()
+        #Origin = entity():owner():shootPos() + DesiredVector*20
+        
+        RemainingLength = TotalLength
+        I = 0
+        StatusDone = 1
+    }
+    
+    function bounce(){
+        while(RemainingLength > 0){
+            if(perf()){
+                StatusDone = 1
+            }else{
+                StatusDone = 0
+                break
+            }
+            
+            I++
+               
+            RangerData = rangerOffset(MaxLength, Origin, DesiredVector)
+            Length = RangerData:distance()
+            
+            holoCreate(I)
+            holoAng(I, DesiredVector:toAngle() + ang(90,0,0))
+            holoModel(I, "hq_cylinder")
+            holoScaleUnits(I, vec(1, 1, Length))
+            holoPos(I, Origin + DesiredVector*Length/2)
+            holoColor(I, Color)
+            holoAlpha(I, 150)
+            
+            HitNormal = RangerData:hitNormal()
+            DesiredVector =  DesiredVector - 2*(DesiredVector:dot(HitNormal))*HitNormal
+            DesiredVector = DesiredVector:normalized()
+            Origin = RangerData:pos()
+            
+            if (RangerData:entity():isPlayer()){
+                RemainingLength = 0
+                HitPlayer = 1
+            }else{
+                HitPlayer = 0
+                RemainingLength -= Length
+            }
+        }
+    }
+    
+    function cleanup(){
+        #get rid of any extra holos laying around
+        for(J = I + 1, PreviousI){
+            holoDelete(J)
+        }
+        
+        PreviousI = I
+        StatusDone = 1
+    }
+}
+
+
+if(Status == "init"){
+    if (StatusDone == 1){
+        StatusDone = 0
+        Status = "bounce"
+    }else{
+        init()
+    }
+}
+
+if(Status == "bounce"){
+    if (StatusDone == 1){
+        StatusDone = 0
+        Status = "cleanup"
+    }else{
+        bounce()
+    }
+}
+
+if (Status == "cleanup"){
+    if (StatusDone == 1){
+        StatusDone = 0
+        Status = "init"
+    }else{
+        cleanup()
+    }
+}

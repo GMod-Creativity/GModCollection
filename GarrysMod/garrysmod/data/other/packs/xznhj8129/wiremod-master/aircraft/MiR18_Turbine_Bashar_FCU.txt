@@ -1,0 +1,308 @@
+@name MiR18B Bashar Block 51
+@inputs WeaponBus:wirelink Radar:wirelink LaserPos:vector Home:vector Launch Stage RTB Clk Patrol MissionMode Wing:entity
+@inputs Fuel FuelUse RPM
+@outputs Mode ArmWeapons GroundTargetSet WeaponsReady Dist Speed Altitude Search Lock RadarTarget:entity
+@outputs GPS:vector Mul Go Ok Vec:vector RadarBearing RadarElev FiringAngle TargetPos:vector Guns Fire Winchester Expended
+@outputs FuelTime AltDiff Ops FBW Thrust Throttle
+@persist Targetpos:vector Dist AltDiff ReleaseDist:array Map:string PatrolAngle GroundTarget:vector GroundTargetSet
+@persist GlideSlope AltMod MinAlt PatrolDist AltCutoff BeginLanding SetSpeed TargetsEngaged MaxEngagements FBW
+@persist Tx Ty Tz VarsSet
+@trigger Clk
+
+#[
+Ground-Air Radio: Channel 4
+1: Launch
+2: Clk
+3: Reset
+4: Target X
+5: Target Y
+6: Target Z
+7: 
+
+Air-Ground Radio: Channel 5
+1: Go
+2: Lock
+3: Fire (Missiles Launched)
+4: Distance
+5: Speed
+6: Altitude
+7: HomeSet
+8: Stage (Up/Down Counter)
+
+Modes:
+0: Intercept/Strike
+1: Combat Air Patrol
+
+Mission Mode: (Constant Value)
+0: Guns
+1: Missile
+2: Rocket
+3: Bomb
+4: LGB
+
+Pylon Weapon Type:
+0: Missile
+1: Rocket
+2: Bomb
+3: LGB
+
+Carry Mode:
+0: 4 Pylons
+1: Only Inboard
+2: Only Outboard
+3: Empty
+
+TODO:
+Split-payload pylons
+Partial salvo firing
+Multi-target engagement
+
+]# 
+
+if (first()) { #set variables
+    Map = map()
+    ReleaseDist = array()
+    ReleaseDist[0,number] = 8000 #Guns 
+    ReleaseDist[1,number] = 10000 #Missile
+    ReleaseDist[2,number] = 9000 #Rocket 
+    ReleaseDist[3,number] = 15500 #Iron Bomb
+    ReleaseDist[4,number] = 9000 #Guided Bomb
+    GlideSlope = 4
+    AltMod = 8
+    MinAlt= 8000
+    PatrolDist = 12000
+    AltCutoff = 200
+    BeginLanding = 12000
+    SetSpeed = 3000
+    Pylon_Outboard_Type = MissionMode 
+    Pylon_Inboard_Type = MissionMode
+    MaxEngagements = 1
+    Salvo = 4
+    Carry_Mode = 0
+}
+
+if (Launch) {I=100}
+elseif (Launch & !Stage & Lock) {I=10}
+else {I=250}
+interval(I)
+Ops = ops()
+
+if (Clk & ~Clk) {
+    GroundTarget = LaserPos
+    GroundTargetSet = 1}
+
+if (MissionMode>2) {Mode=0}
+else {Mode = Patrol}
+WeaponsReady = WeaponBus["Ready",number]
+Expended = (WeaponBus["Expended",number] | !WeaponsReady)
+Target = Radar["1_Ent",entity]:pos()
+E=entity()
+GPS=E:pos()
+Gx=GPS:x()
+Py=GPS:y()
+Sz=GPS:z()
+if (Expended) {LandingOffset = 200}
+else {LandingOffset = 500}
+Gl = Home:z()
+HomeSet = Home!=vec(0,0,0)
+Speed = E:vel():length()
+WaypointX = PatrolDist*cos(PatrolAngle)
+WaypointY = PatrolDist*sin(PatrolAngle)
+Waypoint = vec(WaypointX,WaypointY,Sz)
+FuelTime = (Fuel/FuelUse) # minutes
+
+if (Launch & HomeSet & Wing!=noentity()) {
+    VarsSet = 0
+    Go = (Stage <= 1 & RPM>8000)
+    ArmWeapons = (!Stage & Go)
+    FBW = 1
+    
+    if (Stage == 0) { # TARGET RUN
+        Mul = (SetSpeed/Speed)*3
+        Thrust = 1000000
+        Throttle = 100
+        
+        if (Go & !Stage & Dist<25000) {
+            Search = 1
+            RadarTarget = Radar["1_Ent",entity]
+            ContactID = RadarTarget:id()
+            Lock = ContactID!=0
+            }
+        else {
+            Search = 0
+            RadarTarget = noentity()
+            ContactID = 0
+            Lock = 0
+        }
+        
+        if ((MissionMode<2 & GroundTargetSet & !Lock) | (MissionMode==2 & GroundTargetSet)) {
+            Tx = GroundTarget:x()
+            Ty = GroundTarget:y()
+            Tz = GroundTarget:z()
+            Altitude = Sz-Tz
+            if (MissionMode==2 & Dist<15000) {Altitude = Sz-Gl}
+            else {Altitude = Sz-Gl}
+        }
+        elseif (MissionMode<3 & Lock) {
+            Tx = RadarTarget:pos():x()
+            Ty = RadarTarget:pos():y()
+            Tz = RadarTarget:pos():z()
+            Altitude = Sz-Gl
+        }
+        else {
+            if (Lock) {
+                Tx = RadarTarget:pos():x()
+                Ty = RadarTarget:pos():y()
+                Tz = RadarTarget:pos():z()
+            }
+            else{
+                Tx = GroundTarget:x()
+                Ty = GroundTarget:y()
+                Tz = GroundTarget:z()
+            }
+            Altitude = Sz-Gl
+        }
+        TargetPos = vec(Tx,Ty,Tz)
+        TgtAlt = Tz-Gl
+        if (TgtAlt>MinAlt) {Alt = TgtAlt}
+        else {Alt = MinAlt}
+        AltDiff = Altitude-Alt
+        if (Mode==1 & !Lock & MissionMode<=2) {
+            if (Dist<2000) {PatrolAngle += 22.5}
+            Dist=GPS:distance(Waypoint)
+        }
+        else {Dist=GPS:distance(vec(Tx,Ty,GPS:z()))}
+
+        GroundTargetSet = Lock | (GroundTarget!=vec(0,0,0))
+        RadarBearing = E:bearing(TargetPos)
+        RadarElev = E:elevation(TargetPos)
+
+        if (MissionMode==0 & (Search & Lock)) {
+            FiringAngle = (RadarBearing < 2.5 & RadarBearing > -2.5) & (RadarElev < 5 & RadarElev > -5)
+            X = Gx-RadarTarget:pos():x()
+            Y = Py-RadarTarget:pos():y()
+            if (Dist<17500 & Altitude>2000) {Z = Sz - Tz-1000}
+            else {Z=AltDiff*AltMod}
+            
+        }
+        elseif (MissionMode==1 & (Search & Lock)) {
+            FiringAngle = (RadarBearing < 5 & RadarBearing > -5) & (RadarElev < 5 & RadarElev > -5)
+            X = Gx-RadarTarget:pos():x()
+            Y = Py-RadarTarget:pos():y()
+            if (Dist<17500) {Z = Sz - Tz}
+            else {Z=AltDiff*AltMod}
+            
+        }
+        elseif (MissionMode==2 & GroundTargetSet) {
+            FiringAngle = (RadarBearing < 5 & RadarBearing > -5) & (RadarElev < 2 & RadarElev > -5)
+            X = Gx-TargetPos:x()
+            Y = Py-TargetPos:y()
+            if (Dist<15000) {Z = Sz - Tz-1000}
+            else {Z=AltDiff*AltMod}
+        }
+        else {
+            FiringAngle = (RadarBearing < 5 & RadarBearing > -5) & (RadarElev < 2.5 & RadarElev > -2.5)
+            if (Mode==1 & MissionMode<3) {
+                X = Gx - WaypointX
+                Y = Py - WaypointY
+            }
+            else {   
+                X=Gx - Tx
+                Y=Py - Ty
+            }
+            Z = AltDiff*AltMod
+        }
+
+        if (MissionMode==0) {
+            if (Go & Lock & FiringAngle & Dist<8000) {Guns=1}
+            else {Guns=0}
+            if (Go & Lock & (Alt<3000 & Dist<5000)) {Winchester=1} 
+            else {Winchester=0}
+        }
+        elseif (MissionMode==1) {
+            if (Go & Lock & Dist<ReleaseDist[MissionMode,number] & FiringAngle & Altitude>1000) {Fire=1} 
+            else {Fire=0}
+        }
+        elseif (MissionMode==2) {
+            if (Go & Dist<ReleaseDist[MissionMode,number] & FiringAngle & Altitude>2000) {Fire=1}
+            else {Fire=0}
+        }
+        else {
+            if (Go & Dist<ReleaseDist[MissionMode,number] & Altitude>3000 & GroundTargetSet) {Fire=1}
+            else {Fire=0}
+        }
+        
+        if (TargetsEngaged>=MaxEngagements) {Winchester = 1} #Expended
+        
+        if (FuelTime <= 0.3) {RTB=1} #Fuel Bingo
+        
+    }
+    elseif (Stage == 1) { # RETURN TO BASE / WINCHESTER
+        if (!VarsSet) {
+            RTB = 0
+            FiringAngle = 0
+            Search = 0
+            Guns = 0
+            Winchester = 0
+            Lock = 0
+            Fire = 0
+            PatrolAngle = 0
+            Tx = Home:x()
+            Ty = Home:y()
+            Tz = Home:z()
+            VarsSet = 1
+        }
+        
+        Altitude = Sz-Home:z()
+        Dist=GPS:distance(vec(Tx,Ty,GPS:z()))
+        
+        if (Dist<=BeginLanding) {Alt=(Dist/GlideSlope) + LandingOffset}
+        else {Alt=MinAlt}
+        AltDiff=Altitude-Alt
+        
+        X=Gx - Tx
+        Y=Py - Ty
+        Z = AltDiff*AltMod
+    
+        if (Go & Dist<(BeginLanding/2)) {
+            Mul = (Dist/BeginLanding)/2
+            Thrust = ((Dist/BeginLanding)/5)*50
+            }
+        else {
+            Mul = (SetSpeed/Speed)*3
+            Thrust = Mul*1000
+        }
+        if (Stage>=1 & Altitude<AltCutoff) {
+            Mul=0
+            Thrust = 0
+            Throttle = 0
+            }
+    }
+    else {
+        Mul=0
+        Throttle = 0
+    }
+    
+    if (Go==0 | Stage>1 | (Stage>0 & Altitude<=AltCutoff)) {
+        Mul=0
+        RollT = 0
+        PitchT = 0
+        Thrust = 0
+        FBW = 0
+    }
+
+    Vec=vec(X,Y,Z)
+    
+    if ((Go & Dist<1000) | (!Stage & (Expended | RTB | Winchester))) {Ok=1} 
+    else {Ok=0}
+}
+else { 
+    Guns = 0
+    Mul = 0
+    Go = 0
+    Fire = 0
+    Ok = 0
+    Thrust = 0
+    Throttle = 0
+}
+

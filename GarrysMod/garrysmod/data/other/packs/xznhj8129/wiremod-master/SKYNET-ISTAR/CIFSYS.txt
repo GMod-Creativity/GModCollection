@@ -1,0 +1,73 @@
+@name Cognition and Information Fusion System
+@inputs On ISRSYS:wirelink Reset
+@outputs Activated Threats DEFCON Zone ThreatValue KillList:array
+@persist Activated DEFCON Threats KillList:array NKL:array C2 Counter
+@trigger None
+if (Reset) {
+    C1 = 1e10
+    KillList = array()
+    }
+
+if (first()) {
+    C1 = 1e10
+}
+
+if (Activated) {Interval=50}
+else {Interval=500}
+interval(Interval)
+
+MaxEngageDist = 5000
+ZoneDist = 4000
+ISRSYS_Active = ISRSYS["Activated",number]
+
+if (On & !Activated) {
+    if (ISRSYS_Active==1) {
+        Activated = 1
+    }
+}
+if (!On & Activated) {
+    Activated = 0
+    print("SKYNET Deactivated")
+}
+
+if (Activated) {
+    if (!ISRSYS_Active) {
+        print("SKYNET Error: ISRSYS not connected to CIFSYS")
+        Activated = 0
+    }
+    
+    ClosestArray_Dist = ISRSYS["ClosestArray_Dist",array]
+    ClosestArray_Ent = ISRSYS["ClosestArray_Ent",array]
+    Pos = entity():pos()
+    Threats = ClosestArray_Ent:count()
+    ClosestDist = ClosestArray_Dist[1,number]
+    ClosestEnt = ClosestArray_Ent[1,number]
+    
+    # DEFCON Level
+    Zone=1+round(ClosestDist/ZoneDist)
+    ThreatValue = Threats/Zone
+    if (ThreatValue==0) {DEFCON=5}
+    elseif (ThreatValue < 0.33 & Zone>2) {DEFCON = 4}
+    elseif (ThreatValue < 0.66 & Zone>1) {DEFCON = 3}
+    elseif (ThreatValue < 1 & ClosestDist < MaxEngageDist & Zone>1) {DEFCON = 2}
+    elseif (ClosestDist < MaxEngageDist) {DEFCON = 1}
+    else {DEFCON = 3}
+    
+    # Threat Recognition
+    C_Ent = ClosestArray_Ent[Counter,number]
+    C_Dist = entity(ClosestArray_Ent[Counter,number]):pos():distance(Pos)
+    C_Zone = 1+round(C_Dist/ZoneDist)
+    C_Health = entity(C_Ent):health()
+    C_TV = Threats/C_Zone
+    if (C_TV>0.5 & DEFCON<3 & C_Ent!=0 & C_Health>0) {NKL:pushNumber(C_Ent)}
+    Counter++
+    if (Counter>Threats) {
+        Counter=0
+        KillList=NKL
+        NKL=array()
+    }
+
+}
+else {
+    DEFCON = 5
+}

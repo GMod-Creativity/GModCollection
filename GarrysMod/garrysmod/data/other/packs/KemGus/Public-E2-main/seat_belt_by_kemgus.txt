@@ -1,0 +1,168 @@
+@name Seat Belt by KemGus
+@inputs Base:entity Seats:array Pods:array Engine_Active
+@outputs [Buckle Warnings]:array Warning
+@persist [Version Seats_Count Pods_Count Tutorial]:number
+@persist [C_Warning Green]:vector 
+@trigger none
+
+
+#Up to date version - 
+
+if(first() | dupefinished()){
+    
+    #Settings
+    Belt_Left_Offset = vec(4, 1, 2)
+    Belt_Right_Offset = vec(0, 0, 0)
+    
+    Belt_Pos_Offsets = table(
+        "models/lubprops/seat/raceseat.mdl" = vec(0, 8, 17),
+        "models/lubprops/seat/raceseat2.mdl" = vec(-0.5, 7.3, 17),
+        "models/nova/airboat_seat.mdl" = vec(0, -2.4, 15)
+    )
+
+    Belt_Ang_Offsets = table(
+        "models/lubprops/seat/raceseat.mdl" = 135,
+        "models/lubprops/seat/raceseat2.mdl" = 135,
+        "models/nova/airboat_seat.mdl" = 135
+    )
+        
+    Belt_Material = "WTP/cloth_1"
+    Belt_Color = vec(36, 36, 36)
+    Belt_Model = "models/Gibs/HGIBS_rib.mdl"
+    Belt_Scale = vec(1.5 , 2.2 , 2)
+    
+    #Other
+    Tutorial = 0  
+    
+    Version = 0.2 
+    C_Warning = vec(255,22,22)
+    Green = vec(33,255,0)
+    
+    #Do not change anything below until you know
+        
+    Seats_Count = Seats:count()
+    Pods_Count = Pods:count()
+    
+    Warning = 0
+    
+    for(S = 1, Seats_Count){
+        
+        local Seat_Pos = Seats[S, entity]:pos()
+        
+        local Left = S % 2 
+        local Right = !Left
+        
+        holoCreate(S, Seats[S, entity]:pos()) #Seatbelt holo
+        holoAlpha(S, 0)
+        holoColor(S, Belt_Color)
+        holoModel(S, Belt_Model)
+        holoMaterial(S, Belt_Material)
+        holoScale(S, Belt_Scale)
+                
+        if(Tutorial){
+            holoCreate(S+Seats_Count, Pods[S, entity]:pos())
+        }
+        
+
+        if(Left){
+            #holoColor(S, Green)
+            #holoColor(S+Seats_Count, Green)
+            holoPos(S, Seat_Pos + Belt_Pos_Offsets[Seats[S, entity]:model(), vector] + Belt_Left_Offset)
+            holoAng(S, Base:toWorld(ang(0, 0, -Belt_Ang_Offsets[Seats[S, entity]:model(), number])))
+            holoParent(S, Seats[S, entity])
+        }
+        elseif(Right){
+            #holoColor(S, C_Warning)
+            #holoColor(S+Seats_Count, C_Warning)
+            
+            holoPos(S, Seat_Pos + Belt_Pos_Offsets[Seats[S, entity]:model(), vector] + Belt_Right_Offset)
+            holoAng(S, Base:toWorld(ang(180, 180, Belt_Ang_Offsets[Seats[S, entity]:model(), number])))
+            holoParent(S, Seats[S, entity])
+        }
+        #else{
+            #holoAlpha(S, 0)
+            #holoAlpha(S+Seats_Count, 0)
+        #}
+    }
+    
+    #Initial creation of array
+    Buckle = array()
+    Warnings = array()
+
+    
+    
+    if(Tutorial){  
+              
+            WarnCount = 0 
+            
+            if(!Seats_Count ){
+                printColor(C_Warning, "Link seats!")
+                WarnCount += 1
+            }
+            
+            if(!Pods_Count){
+                printColor(C_Warning, "Link the pods!")
+                WarnCount += 1
+            }
+            
+            if(!Base & !~Base){
+                printColor(C_Warning, "Link the base!")
+                WarnCount += 1
+            }
+            
+            
+            if(Seats_Count != Pods_Count){ 
+                local Missing = abs(Seats_Count-Pods_Count)
+                printColor(C_Warning, Missing, " Seat/Pod is missing!")
+                WarnCount += 1
+            }
+            
+            
+            if(!WarnCount){
+                printColor(Green,"Ready to use")
+            }
+     }
+    
+    setName(
+                "Seat Belt Ver: " + Version + "\n"
+                + "Made by : KemGus" + "\n" + "\n"  
+                + "Seats linked:" + Seats_Count + "\n" 
+                + "Pods linked:" + Pods_Count + "\n" + "\n"
+                + "Tutorial:" + Tutorial + "\n" 
+                + "Warnings:" + WarnCount + "\n" 
+    )   
+}
+
+interval(300)
+
+for(I = 1, Pods_Count){
+    local PodWirelink = Pods[I, entity]:wirelink()
+
+    Active = PodWirelink["Active", number]
+    Key_F = PodWirelink["Light", number]
+    
+    if(Active | Tutorial) {
+        if(Key_F | Tutorial) {
+            Buckle[I, number] = 1
+            holoAlpha(I, 255)
+        }
+    } else {
+        Buckle[I, number] = 0
+        holoAlpha(I, 0)
+    }
+    
+    if(!Buckle[I, number] & Active){
+        Warnings[I, number] = 1
+    }
+    else{ 
+        Warnings[I, number] = 0
+    }
+}
+
+Warning = 0
+
+foreach(K, V:number = Warnings) {
+    if(V > 0 & Engine_Active) {
+        Warning = 1 
+    }
+}

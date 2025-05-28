@@ -1,0 +1,228 @@
+@name ACF Gun Control System
+@inputs Guns:array Seat:entity
+@outputs 
+@persist [ActivationKeys, KeysInUse, ActiveGuns, ActiveIndicies, ActiveAmmo]:array [FireKey ReloadKey NextAmmoTypeKey]:string 
+@persist [Ammo AmmoList]:table KeyPressed:string SeatMode Valid Player:entity
+@trigger 
+
+if (first()){
+    runOnKeys(owner(),1)
+    
+    #@Author Enyx - Contact me on steam if you are having trouble with this chip, or wish
+    #to offer possible improvements.
+    
+    #This E2 works both as a gun selector and ammo changer, allowing for multiple guns
+    #with multiple different types of ammo for each gun. It is very easy to setup and
+    #even easier to use. Simply sort the keys you wish to use for activating different
+    #guns by following the next instruction set, spawn a wire advanced entity marker, and link
+    #the guns in order of which gun you'd like used with which key. If you wish to use
+    #this system for a seat, make sure SeatMode is selected to 1, and Seat is wired to
+    #the appropriate seat. Finalize by setting the key set you wish to use and refresh
+    #the E2 to complete the setup. 
+    
+    FireKey = "mouse_left"
+    ReloadKey = "r"
+    NextAmmoTypeKey = "lshift"
+    
+    SeatMode = 1 #Do you want these keys to only work when in a seat?
+    
+    #This array is in order of the guns added to the array,
+    #meaning the first gun in the array will be activated using
+    #key 1. This follows for all keys in the array. You can change each "key"
+    #to any key you want to use. If you want to add more keys, add another
+    #index to the array, changing the key. If you want multiple guns
+    #activated by the same key, just change both "key" strings to the same.
+    #the number of activation keys used depends on the number of guns in the array
+    #e.g. if 10 guns are in the array, then 10 activation keys in the array will be used.
+    
+    ActivationKeys = array( 
+        "1",  
+        "3",  
+        "3",  
+        "4",  
+        "5",  
+        "6", 
+        "7",
+        "8",
+        "9",
+        "0"
+    )
+    
+    if (Guns:count()>ActivationKeys:count()){
+        local Diff = Guns:count() - ActivationKeys:count()
+        error("Please add "+Diff+" more keys to the ActivationKeys array!")    
+    }
+    
+    function void msg(Msg:string){
+        printColor(vec(0,255,255),Msg)        
+    }
+    
+    function void changeAmmotype(Index:number,OldType:string,NewType:string){
+        local OldAmmoBoxes = Ammo[Index,table][OldType,table]
+        local NewAmmoBoxes = Ammo[Index,table][NewType,table]
+        
+        for(I=1,OldAmmoBoxes:count()){
+            OldAmmoBoxes[I,entity]:acfActive(0)        
+        } 
+        
+        for(I=1,NewAmmoBoxes:count()){
+            NewAmmoBoxes[I,entity]:acfActive(1)        
+        }
+        
+        Guns[Index,entity]:acfReload()           
+    }
+    
+    function void findLinkedAmmo(Index:number,Links:array){
+        if (Guns[Index,entity]:acfIsGun()){
+            local Gun = Guns[Index,entity]
+            local Table = Ammo[Index,table]
+            
+            if (Links:count()>0){
+                for(I=1,Links:count()){
+                    local Ent = Links[I,entity]
+                    if (Ent:type()=="acf_ammo"){
+                        local Type = Ent:acfAmmoType()
+                        if (!Table:exists(Type)){
+                            Table[Type,table] = table()
+                            AmmoList[Index,table]:pushString(Type)                           
+                        }
+                        Table[Type,table]:pushEntity(Ent)                   
+                    }        
+                }
+                ActiveAmmo[Index,number] = 1
+            }
+            else{
+                msg("Please link ammo to your guns and refresh the chip")    
+            }
+        } 
+        else{
+            msg("This system is for ACF guns only!")    
+        }   
+    }
+        
+    if (Guns:count()==0){
+        msg("Please add Guns to the array using the advanced entity marker tool and refresh the chip.")    
+    }
+    else{
+        for(I=1,Guns:count()){
+            KeysInUse:pushString(ActivationKeys[I,string])
+            Ammo[I,table] = table()
+            AmmoList[I,table] = table() 
+            findLinkedAmmo(I,Guns[I,entity]:acfLinks())                           
+        }
+        msg("Gun activation Keys: "+KeysInUse:concat(", "))        
+    }
+    
+    if (!SeatMode){
+        Player = owner()    
+    }
+    
+    Valid = 1
+}
+
+if (changed(Seat:driver())){
+    if (SeatMode){
+        if (Seat:driver():isValid()){
+            Valid = 1
+            Player = Seat:driver()       
+        }
+        else{
+            Valid = 0
+            Player = owner()   
+        }
+    }
+}
+
+if (keyClk(Player)){
+    if (Valid){
+        local TempGuns = array()
+    
+        for(I=1,KeysInUse:count()){
+            if (owner():keyPressed(KeysInUse[I,string])){
+                if (ActiveGuns:exists(1)){
+                    for(I=1,ActiveGuns:count()){
+                        ActiveGuns[I,entity]:acfFire(0)    
+                    }    
+                }
+                                               
+                TempGuns:pushEntity(Guns[I,entity])
+                KeyPressed = KeysInUse[I,string]
+            }    
+        }
+        
+        if (TempGuns:count()>0){
+            ActiveGuns = TempGuns:clone()
+            ActiveIndicies = array()
+            for(I=1,ActiveGuns:count()){
+                for(J=1,Guns:count()){
+                    if (ActiveGuns[I,entity]==Guns[J,entity]){
+                        ActiveIndicies:pushNumber(J)
+                        break
+                    }
+                }        
+            }   
+        }
+        
+        if (owner():keyPressed(KeyPressed)){
+        
+            if (ActiveGuns:count()==1){
+                msg("Activated gun: "+ActiveGuns[1,entity]:acfName()+" ("+KeyPressed+")")    
+            }
+            else{
+                local ACFNames = array()
+                for(I=1,ActiveGuns:count()){
+                    ACFNames:pushString(ActiveGuns[I,entity]:acfName())    
+                }
+                msg("Activated guns: "+ACFNames:concat(", ")+" ("+KeyPressed+")")    
+            }    
+        
+        }
+        
+        else{
+            if (changed(owner():keyPressed(FireKey))){      
+                if (owner():keyPressed(FireKey)){
+                    for(I=1,ActiveGuns:count()){
+                        ActiveGuns[I,entity]:acfFire(1)        
+                    }            
+                }
+                else{
+                    for(I=1,ActiveGuns:count()){
+                        ActiveGuns[I,entity]:acfFire(0)        
+                    }            
+                }
+            }
+            elseif (changed(owner():keyPressed(ReloadKey))){
+                if (owner():keyPressed(ReloadKey)){
+                    msg("Reloading")                
+                    for(I=1,ActiveGuns:count()){
+                        ActiveGuns[I,entity]:acfReload()       
+                    }            
+                }          
+            }
+            if (changed(owner():keyPressed(NextAmmoTypeKey))){
+                if (owner():keyPressed(NextAmmoTypeKey)){
+                    for(I=1,ActiveGuns:count()){
+                        local Index = ActiveIndicies[I,number]
+                        if (AmmoList[Index,table]:count()>1){
+                            local CurAmmo = ActiveAmmo[Index,number]
+                            local NextAmmo = 0
+                            if ((CurAmmo+1)>AmmoList[Index,table]:count()){
+                                NextAmmo = 1        
+                            }
+                            else{
+                                NextAmmo = CurAmmo+1           
+                            }
+                            
+                            ActiveAmmo[Index,number] = NextAmmo
+                            changeAmmotype(Index,AmmoList[Index,table][CurAmmo,string],AmmoList[Index,table][NextAmmo,string])
+                            msg(Guns[Index,entity]:acfName() + " ammo changing to: "+AmmoList[Index,table][NextAmmo,string]+" ("+KeyPressed+")")
+                        }
+                        else{
+                            msg("You currently only have "+AmmoList[Index,table][1,string]+" connected to the "+Guns[Index,entity]:acfName()+" ("+KeyPressed+")")    
+                        }       
+                    }        
+                }        
+            }
+        }
+    }
+}

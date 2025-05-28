@@ -1,0 +1,245 @@
+@name Pet Cube
+@inputs 
+@outputs 
+@persist [Prop]:entity [DeathNo Follow Message Age Defend Jump Target Sit Reporduce Return HungerT Sing] [Force]:vector
+@persist [Follow2 Message2 Age2 Defend2 Jump2 Target2 Sit2 Reproduce2 Return2 HungerT2 Sing2]
+@persist [Sounds]:array
+@model models/props_lab/kennel_physics.mdl
+interval(100)
+runOnChat(1)
+#variables
+P = owner()
+E = entity()
+LS = P:lastSaid()
+LSS = LS:explode(" ")
+#first
+if (first()){
+    hint("Type /help for help",10)
+    Prop = propSpawn("models/hunter/blocks/cube025x025x025.mdl",E:pos()+vec(0,0,40),ang(0,0,0),0)
+    Prop:setMaterial("models/debug/debugwhite")
+    holoCreate(1,Prop:pos())
+    holoColor(1, vec(random(0,255),random(0,255),random(0,255)))
+    timer("Move",randint(100,2500))
+    function hide(){
+        hideChat(1) 
+        printColor(vec(255,255,0),"[Hidden]",vec(random(0,255),random(0,255),random(0,255)),+P:name(),vec(255,255,255),": "+LS)
+    }
+    function age(){
+        Prop:setColor(255-(Age%50),255-(Age%50),255-(Age%50))
+        Prop:setMass(Prop:mass()+Age%1)
+    }
+    Age = 1
+}
+#pet's aura
+holoParent(1, Prop)
+holoScale(1, vec(-1.5,-1.5,-1.5))
+holoPos(1, Prop:pos())
+#death and respawning
+if(changed(Message)&Message){
+    hint("Respawning your pet...",10)
+}
+if(!Prop){
+    Message = 1
+    timer("Respawn",5000)
+    if(clk("Respawn")){
+    DeathNo++
+    Prop = propSpawn("models/hunter/blocks/cube025x025x025.mdl",E:pos()+vec(0,0,40),ang(0,0,0),0)
+    Prop:setMaterial("models/debug/debugwhite")
+    holoCreate(1,Prop:pos())
+    holoColor(1, vec(random(0,255),random(0,255),random(0,255)))
+    hint("Your pet has been respawned and died "+DeathNo+" times!",10)
+    Age = 1
+}
+}else{
+Message = 0
+}
+#moving pet
+if(clk("Move")&P:vel():length() == 0){
+    timer("Move",randint(100,2500))
+    Prop:applyForce(vec(random(5,10+(Age/50)),random(5,10+(Age/50)),random(5,10+(Age/50))))
+}elseif(P:vel():length() != 0 ){
+        Follow = 1
+}
+if(Follow&P:vel():length() != 0){
+    Force = P:pos() - Prop:pos()
+    Prop:applyForce(Force*(0.5+(Age/100)))
+}elseif(P:vel():length() == 0 ){
+        timer("Move",randint(100,2500))
+}
+if(Defend | Jump | Target | Sit){
+Prop:applyForce(Force*(100+(Age*2)))
+Follow = 0
+stoptimer("Move")
+}else{
+Follow = 1
+timer("Move",randint(100,2500))
+}
+#Aging pet
+timer("age",100000)
+if(clk("age")&Prop){
+    Age++
+    timer("age",100000)
+    hint("Your pet is now : "+ Age +" years old!",10)
+    if(Age>= 20 & randint(0,10000) == 1){
+        hint("Your pet has died of natural causes.",10)
+        Prop:propBreak()
+    }
+    if(Age>= 50 & randint(0,1000) == 1){
+        hint("Your pet has died of natural causes.",10)
+        Prop:propBreak()
+    }
+    if(Age>= 100 & randint(0,1000) == 1){
+        hint("Your pet has died of old age.",10)
+        Prop:propBreak()
+    }
+    if(Age>= 150 & randint(0,100) == 1){
+        hint("Your pet has died of old age.",10)
+        Prop:propBreak()
+    }
+    if(Age>= 200 & randint(0,10) == 1){
+        hint("Your pet has died of old age.",10)
+        Prop:propBreak()
+    }
+    if(Age>= 250 & randint(0,5 )== 1){
+        hint("Your pet has died of old age.",10)
+        Prop:propBreak()
+    }
+    if(Age>= 300){
+        hint("Your pet has died of old age.",10)
+        Prop:propBreak()
+    }
+    age()
+}
+#/defend
+if(Age >= 15 & chatClk(P)&LS == "/defend"){
+if(chatClk(P)&LS == "/defend"){
+    hide()
+    Defend = 1
+}
+
+if(Defend &!Target){
+    if(changed(Defend)&Defend){
+        hint("Your pet is now defending you!",10)
+        hint("Type /defend again to turn defend off.",10)
+        timer("defend",100)
+        if(clk("defend")){
+            Defend2 = 1
+}
+    if(Defend2 & chatClk(P)&LS == "/defend"){
+        hide()
+        Defend2 = 0
+        stoptimer("defend")
+        Defend2 = 0
+        hint("Your pet has stopped defending you!",10)
+    }
+    }
+    findIncludeClass("player")
+    findInSphere(P:pos(),1000)
+    findExcludePlayer(P)
+    findSortByDistance(P:pos())
+    if(find():isValid()){
+        Force = (find():pos() - Prop:pos()) + Prop:massCenterL()-vec(0,0,randint(0,60+Age*2))
+    }
+}elseif(Target & !Defend){
+        hint("You're targeting a player!",10)
+}
+}elseif(Age <= 15 & chatClk(P) & LSS:string(1) == "/defend"){
+        hide()  
+        hint("Your pet isn't old enough to know this trick.",10)
+}
+#/target
+if(Age >= 13 & chatClk(P) & LSS:string(1) == "/target"){
+    if(chatClk(P)&LSS:string(1) == "/target"){
+    hide()
+    Defend = 1
+    findPlayerByName(LSS:string(2))
+}
+
+if(!Defend &Target){
+    if(changed(Target)&Target){
+        hint("Your pet is now targeting this player: " + find():name(),10)
+        hint("Type /stoptarget again to stop targeting players.",10)
+        timer("target",100)
+        if(clk("target")){
+            Target2 = 1
+}
+    if(Target2 & chatClk(P)&LS == "/target"){
+        hide()
+        Target2 = 0
+        stoptimer("target")
+        Target = 0
+        hint("Your pet has stopped targeting players!",10)
+    }
+    }
+    if(find():isValid()){
+        Force = (find():pos() - Prop:pos()) + Prop:massCenterL()-vec(0,0,20)
+    }
+}elseif(!Target & Defend){
+        hint("You're pet is defending you!",10)
+}
+}elseif(Age <= 13 & chatClk(P) & LSS:string(1) == "/target"){
+    hint("Your pet isn't old enough to know this trick.",10)
+}
+#/teleport
+if(Age >= 10 & chatClk(P)&LS == "/teleport"){
+    
+}elseif(Age <= 10 & chatClk(P) & LSS:string(1) == "/teleport"){
+    hint("Your pet isn't old enough to know this trick.",10)
+}
+#/sit
+if(Age >= 5 & chatClk(P)&LS == "/sit"){
+    
+}elseif(Age <= 5 & chatClk(P) & LSS:string(1) == "/sit"){
+    hint("Your pet isn't old enough to know this trick.",10)
+}
+#/jump
+if(Age >= 5 & chatClk(P)&LS == "/jump"){
+    
+}elseif(Age <= 5 & chatClk(P) & LSS:string(1) == "/jump"){
+    hint("Your pet isn't old enough to know this trick.",10)
+}
+#/return
+if(Age >= 2 & chatClk(P)&LS == "/return"){
+    
+}elseif(Age <= 2 & chatClk(P) & LSS:string(1) == "/return"){
+    hint("Your pet isn't old enough to know this trick.",10)
+}
+#/reproduce
+if(Age >= 13 & chatClk(P)&LS == "/reproduce"){
+    
+}elseif(Age <= 13 & chatClk(P) & LSS:string(1) == "/reproduce"){
+    hint("Your pet isn't old enough to reproduce.",10)
+}
+#feeding / hydrating / hunger / thirst
+#/sing
+#/change color
+#Console
+#0
+ConMaster = "pet."
+ConE = "="
+ConAd = "add"
+ConR = "remove"
+ConA = "amount"
+ConEn = "do."
+#1
+ConAg = "age."
+ConD = "defend."
+ConT = "target."
+ConTele = "teleport."
+ConS = "sit."
+ConB = "babie."
+#1
+if(LSS:string(1) == ConMaster+ConAg+ConAd+ConE & chatClk(P)){
+    hide()
+    Age = LSS:string(2):toNumber()
+    hint("Your pet is now age "+LSS:string(2),10)
+    age()
+}
+
+
+
+
+
+
+
+

@@ -1,0 +1,126 @@
+@name Colorpicker
+@inputs UserOverride:entity
+@persist EGP:wirelink H S V A
+@persist [SVPos SVSize APos ASize HPos HSize]:vector2
+@outputs RGB:vector RGBA:vector4
+if(first()){
+    # init colors
+    # changing this does not automatically move the cursors
+    H = 0, S = 1, V = 1, A = 255
+    RGB=hsv2rgb(H,S,V)
+    RGBA=vec4(RGB,A)
+    
+    # get egp this e2 was placed on
+    EGP = entity():isWeldedTo():wirelink()
+    EGP:egpClear()
+    EGP:egpDrawTopLeft(1) # center+size sucks
+    
+    local Padding = 16 # padding between elements
+    local SquareScale = 128 # grid size of the square tile
+    
+    # main square (saturation+value)
+    SVPos = vec2(Padding)
+    SVSize = vec2(256)
+    EGP:egpBox(1, SVPos, SVSize)
+    EGP:egpColor(1, RGB)
+    EGP:egpBox(2, SVPos, SVSize)
+    EGP:egpMaterial(2, "vgui/gradient-r")
+    EGP:egpBox(3, SVPos, SVSize)
+    EGP:egpMaterial(3, "vgui/gradient-d")
+    EGP:egpColor(3, vec())
+    # sv cursor
+    EGP:egpPoly(4, vec2(), vec2(-4), vec2(-4, -12), vec2(4, -12), vec2(4, -4))
+    EGP:egpColor(4, vec(127))
+    EGP:egpBox(5, SVPos,vec2()) # dummy box to keep cursor centered
+    EGP:egpParent(4, 5)
+    
+    # alpha
+    APos = SVPos + vec2(SVSize:x()+Padding, 0)
+    ASize = vec2(32, 256)
+    EGP:egpPoly(6,
+        vec4(APos, vec2()),
+        vec4(APos:x()+ASize:x(), APos:y(), ASize:x()/SquareScale, 0),
+        vec4(APos+ASize, ASize/SquareScale),
+        vec4(APos:x(), APos:y()+ASize:y(), 0, ASize:y()/SquareScale)
+    )
+    EGP:egpMaterial(6,"vgui/bg-lines")
+    EGP:egpBox(7, APos, ASize)
+    EGP:egpMaterial(7, "vgui/gradient-u")
+    EGP:egpColor(7, RGB)
+    # cursor
+    EGP:egpBox(8, APos-vec2(2), vec2(ASize:x()+4,4))
+    EGP:egpColor(8,vec(127))
+    
+    # hue
+    HPos = APos + vec2(ASize:x()+Padding, 0)
+    HSize = vec2(32, 256)
+    EGP:egpBox(9,HPos, HSize)
+    EGP:egpMaterial(9,"gui/colors.png")
+    # cursor
+    EGP:egpBox(10, HPos-vec2(2), vec2(HSize:x()+4,4))
+    EGP:egpColor(10,vec(127))
+    
+    # preview box
+    local PreviewPos = SVPos + vec2(0, SVSize:y()+Padding)
+    local PreviewSize = vec2(SVSize:x() + Padding + ASize:x() + Padding + HSize:x(), 32)
+    EGP:egpPoly(11,
+        vec4(PreviewPos, vec2()),
+        vec4(PreviewPos:x()+PreviewSize:x(), PreviewPos:y(), PreviewSize:x()/SquareScale, 0),
+        vec4(PreviewPos+PreviewSize, PreviewSize/SquareScale),
+        vec4(PreviewPos:x(), PreviewPos:y()+PreviewSize:y(), 0, PreviewSize:y()/SquareScale)
+    )
+    EGP:egpMaterial(11,"vgui/bg-lines")
+    EGP:egpBox(12, PreviewPos, PreviewSize)
+    EGP:egpColor(12,RGBA)
+    
+    EGP:egpText(13,
+        format("%3d,%3d,%3d,%3d     %3d,%1.2g,%1.2g",RGB:x(),RGB:y(),RGB:z(),A,H,S,V),
+        PreviewPos + vec2(0, PreviewSize:y())
+    )
+    	
+    timer("update", 0)
+}
+
+if(clk("update")){
+    # UserOverride allows this E2 to be used as addon to something else, like my drawing E2
+    User = UserOverride ?: owner()
+    local Use = User:keyUse()
+    local Change = 0
+    if(Use){
+        local Cursor = EGP:egpCursor(User)
+        local EdgeExtra=vec2(2)
+        if(inrange(Cursor-SVPos, -EdgeExtra, SVSize+EdgeExtra)){
+            Cursor = clamp(Cursor-SVPos, vec2(), SVSize)
+            EGP:egpPos(5, SVPos+Cursor)
+            
+            S = 1 - Cursor:x()/SVSize:x()
+            V = 1 - Cursor:y()/SVSize:y()
+            Change = 1
+        }
+        elseif(inrange(Cursor-APos, -EdgeExtra, ASize+EdgeExtra)){
+            Cursor = clamp(Cursor-APos, vec2(), ASize)
+            EGP:egpPos(8,APos+vec2(-2, Cursor:y()-2))
+            A = 255*(1 - Cursor:y()/ASize:y())
+            Change = 1
+        }
+        elseif(inrange(Cursor-HPos, -EdgeExtra, HSize+EdgeExtra)){
+            Cursor = clamp(Cursor-HPos, vec2(), HSize)
+            EGP:egpPos(10,HPos+vec2(-2, Cursor:y()-2))
+            H = 360*(1 - Cursor:y()/ASize:y())
+            EGP:egpColor(1, hsv2rgb(H, 1, 1))
+            Change = 1
+        }
+    }
+    if(Change) {
+        RGB=hsv2rgb(H,S,V)
+        EGP:egpColor(7,RGB)
+        RGBA=vec4(RGB,A)
+        EGP:egpColor(12,RGBA)
+        EGP:egpSetText(13,format("%3d,%3d,%3d,%3d     %3d,%1.2g,%1.2g",RGB:x(),RGB:y(),RGB:z(),A,H,S,V))
+        
+        timer("update", 30) # update more frequently when actively used
+    }
+    else {
+        timer("update", 150)
+    }
+}

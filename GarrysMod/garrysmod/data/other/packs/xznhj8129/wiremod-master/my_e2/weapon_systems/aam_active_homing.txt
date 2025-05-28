@@ -1,0 +1,69 @@
+@name active homing aam
+@inputs Ready TgtID RadarEnt:entity RadarLock DataX DataY DataZ Fire
+@outputs Vec:vector Mul Det Weld Dist A Cycle Seek Lock TotalTimer
+@persist I Mem:vector Splash Lock Seek RadarPos:vector TID Timer TotalTimer TL
+@trigger Fire
+interval(I)
+TL = RadarLock!=0
+if (Splash==1) {I=50}
+else {I=250
+    Weld=1}
+R=I/1000
+RadarRange=10000
+
+if (Ready==1) {
+    Mem=vec(DataX,DataY,DataZ)
+    TID=TgtID
+    if (Fire==1) {Splash=1}
+    }
+
+if (Splash==1) { 
+    Timer+=0.05
+    TotalTimer+=0.05
+    if (TL==0) {Lock=0}
+    if (Lock==1) {
+        Ent=RadarEnt
+        RadarPos=Ent:pos()
+        if (TL==0) {Det=1}
+    }
+    GPS=entity():pos()
+    if (Lock==0) {T=Mem}
+    else {T=RadarPos}
+    if (Dist>10000) {Tz=((T:z())/2)}
+    else {Tz=T:z()}
+    Gz=GPS:z()
+    Zm=Gz-Tz
+    Vec=vec(((GPS-T):x()),((GPS-T):y()),Zm)
+    Dist = Vec:length()
+    
+    if (Splash>=1) {
+        if (Timer>=0.75) {Mul=1
+            A=1}
+        Weld=0} 
+    else {Mul=0
+        Weld=1
+        Det=0
+        A=0}
+    if (Splash>=1 & Dist<200) {Det=1} 
+    elseif (Splash>=1 & TotalTimer>20) {Det=1}
+    else {Det=0}
+    
+    if (Dist<=RadarRange & Lock==0) {Seek=1}
+    else {Seek=0}
+    if (Seek==1) {
+        if (Timer>1) {Timer=0.75}
+        elseif (Timer>=0.75 & Timer<0.85) {Cycle=1}
+        elseif (Timer>=0.85 & Timer<0.95) {Cycle=0}
+        Ent=RadarEnt
+        Eid=Ent:id()
+        if (Eid==TID) {
+            Lock=1
+            Seek=0
+            Cycle=0
+            Ent=RadarEnt
+            RadarPos=Ent:pos()
+        }
+        else {Cycle==1}
+    }
+}
+if (Fire==0 & Ready==0 & Splash==0) {reset()}

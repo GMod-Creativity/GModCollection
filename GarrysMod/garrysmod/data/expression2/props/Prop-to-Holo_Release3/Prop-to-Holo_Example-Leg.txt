@@ -1,0 +1,109 @@
+@name Prop to Holo Example Leg
+@persist [E Foot Femur]:entity
+@persist P2HI P2HOI P2HC P2HBase:entity P2HTable:table
+@persist P2H2I P2H2OI P2H2C P2H2Base:entity P2H2Table:table
+ 
+interval(100)
+ 
+if(first())
+{
+    function number cosine(A, B, C)
+    {
+        return acos((A^2 + B^2 - C^2) / (2*A*B))
+    }
+   
+    function ik(L1,L2,Hip:entity,Foot:vector,Chassis:entity,I1,I2)
+    {    
+        local Axis = Chassis:toLocalAxis(Foot - Hip:pos())
+        local Angle = Axis:toAngle():setRoll(-bearing(Hip:pos(), Chassis:angles(), Foot))
+        local Dist = min(Axis:length(), L1 + L2)
+        local Quat = quat(Angle) * qRotation(vec(0,90 + cosine(Dist, L1, L2),0))
+       
+        holoAng(I1, Chassis:toWorld(Quat:toAngle()))
+        holoAng(I2, Hip:toWorld(ang(cosine(L2, L1, Dist) + 180, 0, 0)))
+    }
+   
+    runOnLast(1)
+   
+    E = entity()
+   
+    Foot = propSpawn("models/sprops/geometry/sphere_12.mdl", owner():shootPos() + (owner():eye() * 60) + vec(0, 0, 5), 1)
+   
+    #Hip Holo
+    holoCreate(1)
+    holoParent(1, E)
+   
+    #Knee Holo
+    holoCreate(2, holoEntity(1):toWorld(vec(0, 0, 40)))
+    holoParent(2, 1)
+   
+    #Foot Holo
+    holoCreate(3, holoEntity(2):toWorld(vec(0, 0, 40)))
+    holoParent(3, 2)
+   
+    #Femur Holo
+    holoCreate(4, holoEntity(1):toWorld(vec(0, 0, 20)), vec())
+    holoParent(4, 1)
+   
+    #Tibia Holo
+    holoCreate(5, holoEntity(2):toWorld(vec(0, 0, 20)), vec())
+    holoParent(5, 2)
+   
+    P2HC = 2
+    P2HTI = 0
+    P2HOI = 5
+    P2HBase = holoEntity(4) #Change to whatever entity you wish
+    #Model, Material, Skin, Color, Position, and Angle (both position and angle are relative to base)
+    P2HTable[1, array] = array("models/props_junk/propane_tank001a.mdl", "", 0, vec4(255,255,255,255), vec(14.54174709,-0.51611328,6.05078363), ang(-0.19132827,-32.61684418,-0.26326972))
+    P2HTable[2, array] = array("models/props_junk/sawblade001a.mdl", "", 0, vec4(255,255,255,255), vec(-0.02368363,-12.27539062,11.38964844), ang(-75.47806549,-6.86957407,-78.01259613))
+   
+    P2H2C = 4
+    P2H2TI = 0
+    P2H2OI = 7
+    P2H2Base = holoEntity(5) #Change to whatever entity you wish
+    #Model, Material, Skin, Color, Position, and Angle (both position and angle are relative to base)
+    P2H2Table[1, array] = array("models/props_c17/furnituretoilet001a.mdl", "", 0, vec4(255,255,255,255), vec(-12.34448814,-12.25439453,31.21679497), ang(-6.20104742,-9.98744869,-9.00301838))
+    P2H2Table[2, array] = array("models/props_combine/breenchair.mdl", "", 0, vec4(255,255,255,255), vec(11.14819527,23.08740234,-11.47753716), ang(-8.42744064,75.19940186,-2.09052467))
+    P2H2Table[3, array] = array("models/cranes/crane_frame.mdl", "", 0, vec4(255,255,255,255), vec(-93.87014008,119.55957031,138.18650818), ang(-82.93695068,-172.15899658,-175.0196991))
+    P2H2Table[4, array] = array("models/props_junk/PropaneCanister001a.mdl", "", 0, vec4(255), vec(15, 0, 25), ang()) #Added in-code
+}
+ 
+if(P2HI < P2HC)
+{
+    while(perf() & holoCanCreate() & P2HI < P2HC)
+    {
+        P2HI++
+        local TA = P2HTable[P2HI, array]
+        local TI = P2HI + P2HOI
+ 
+        holoCreate(TI, P2HBase:toWorld(TA[5, vector]), vec(1), P2HBase:toWorld(TA[6, angle]))
+        holoModel(TI, TA[1, string])
+        holoMaterial(TI, TA[2, string])
+        holoSkin(TI, TA[3, number])
+        holoColor(TI, TA[4, vector4])
+        holoParent(TI, P2HBase)
+    }
+}elseif(P2H2I < P2H2C)
+{
+    while(perf() & holoCanCreate() & P2H2I < P2H2C)
+    {
+        P2H2I++
+        local TA = P2H2Table[P2H2I, array]
+        local TI = P2H2I + P2H2OI
+ 
+        holoCreate(TI, P2H2Base:toWorld(TA[5, vector]), vec(1), P2H2Base:toWorld(TA[6, angle]))
+        holoModel(TI, TA[1, string])
+        holoMaterial(TI, TA[2, string])
+        holoSkin(TI, TA[3, number])
+        holoColor(TI, TA[4, vector4])
+        holoParent(TI, P2H2Base)
+    }
+}else
+{
+    ik(40, 40, holoEntity(1), Foot:pos(), E, 1, 2)
+}
+ 
+if(last())
+{
+    Foot:propDelete()
+}

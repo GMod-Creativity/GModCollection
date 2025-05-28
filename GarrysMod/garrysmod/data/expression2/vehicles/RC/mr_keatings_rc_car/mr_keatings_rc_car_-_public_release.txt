@@ -1,0 +1,160 @@
+@name Mr. Keating's RC car - Public Release
+@inputs Driver:entity
+@persist E2:entity Color:vector TrailColor:vector Model:string ModelEnt:entity Mass
+@persist Throttle Steering Flipped SoundPlaying SpeedMultiplier SteerSensitivity SteerMultiplier HandbreakMultiplier MaxHandbreak Gravity DownforceMultiplier
+@persist Angle:angle Force:vector Rangerhit LeftW RightW SelfRightTimer SelfRight 
+@trigger none
+@model models/props_c17/playground_swingset_seat01a.mdl
+#[
+        It's Quick! It's Fast! It's Mr. Keating's Electric RC Car!
+        Public Release: Free distribution by any method.
+        Any changes will be posted on #script-share on the S37K Discord
+        
+        Instructions:
+            1. Spawn a Pod Controller in any location
+            2. Wire Driver [ENTITY] to the same output of the pod controller.
+            3. Apply "Super Ice" physical properties material to the E2
+            4. Acquire wire weapon "Remote Control"
+            5. Link the remote controller by pressing left mouse button
+            6. Turn on pod controller by pressing E away from the pod controller
+            7. Enjoy! Try changing the model and color to your liking.
+        
+        TIP: If your E2 turns red, simply reload the E2.
+]#
+if(first()) {
+    
+# - Basic Settings | Easy settings
+    
+    Color = vec(255,255,255)
+    # - Color in R,G,B. 255 is the highest value possible.
+    TrailColor = Color
+    # - Trail color in R,G,B. Give a color vector for custom trail color.
+    Model = "models/buggy.mdl"
+    # - Set the model of your RC.
+    SpeedMultiplier = 7.5
+    # - Higher is faster.
+    # - Default 7.5
+    DownforceMultiplier = 1
+    # - Higher is a more powerful downforce. Good for holding the RC at high speed.
+    # - Default 1
+    
+# - Advanced Settings | May cause instability if values are too extreme!
+    
+    SteerSensitivity = 0.05
+    # - Lower is more sensitive.
+    # - Default 0.05
+    SteerMultiplier = 2000
+    # - Higher is more powerful steering.
+    # - Default 2000
+    HandbreakMultiplier = 0.1
+    # - Higher is more powerful handbreak.
+    # - Default 0.1
+    MaxHandbreak = 30
+    # - Higher is a more harsh handbrake, lower is a slower handbreak effect
+    # - Default 30
+    Gravity = 1
+    # - Propcore must be enabled/allowed for this to work.
+    # - Automatically disabled upon loss of contact with surface.
+
+    
+#[========================END OF USER CONFIGURATION========================]#
+#[===========================ADVANCED USERS ONLY===========================]#
+    
+    # - Model Spawning & Physical Settings
+    
+    E2 = entity()
+    E2:setAlpha(0)
+    E2:propPhysicalMaterial("superice")
+    E2:setMass(15)
+    E2:propGravity(Gravity)
+    Mass = E2:mass()
+    setName("Mr. Keating's RC Car V1: "+Model)
+    holoEntity(1):removeTrails()
+    holoCreate(1,E2:toWorld(vec(0,0,-1)),vec(1/6),E2:toWorld(ang(-2,90,0)),Color,Model)
+    holoParent(1,E2)
+    holoEntity(1):setTrails(25,0,1,"trails/laser",TrailColor,255,2,1)
+    
+    
+    timer("updateslow",0)
+    timer("updatefast",0)
+    
+    function number isWall(Rd:ranger) {
+        return Rd:hitWorld()|Rd:entity():isFrozen()
+    }
+    
+}
+
+if(dupefinished()){
+    reset()
+    E2:propPhysicalMaterial("superice")
+}
+
+#----- Slow Update -----#
+
+if(clk("updateslow")) {
+    Rangerhit = rangerOffset(10,E2:boxCenterW(),E2:up()*-1):hit()
+    LeftW = isWall(rangerOffset(10,E2:boxCenterW(),E2:right()))
+    RightW = isWall(rangerOffset(10,E2:boxCenterW(),-E2:right()))
+    timer("updateslow",500)
+}
+
+#----- Fast Update -----#
+
+if(clk("updatefast")) {
+    
+    local Vel = E2:velL()
+    
+    Throttle = (Driver:keyForward()-Driver:keyBack())*SpeedMultiplier
+    Steering = ((Driver:keyLeft()-Driver:keyRight())*SteerMultiplier)
+    
+    
+    #Force Angle
+    Angle = E2:angles()
+    #Forward Force
+    Force = vec(-Throttle,0,0)
+    #Sliding Elimination
+    Force += Vel*vec((LeftW|RightW)*-0.05,-0.5,0)
+    #Downforce
+    Force += vec(0,0,-15*DownforceMultiplier)
+    #Braking
+    if (Driver:keyJump()) {
+        Force += vec(clamp(-Vel:x()/10,-MaxHandbreak,MaxHandbreak),0,0)
+    }
+    
+    
+    applyForce(Force:rotate(Angle)*Mass*Rangerhit)
+    applyTorque(vec(0,0,Steering-(E2:angVel():yaw()/SteerSensitivity))*E2:inertia()*Rangerhit)
+    
+    if(Throttle!=0&!SoundPlaying&Rangerhit) {
+        SoundPlaying = 1
+        soundStop(2)
+        soundPlay(1,0,"vehicles/sgmcars/models/first.wav")
+        soundPitch(1,175)
+        soundVolume(1,0.35)
+    }elseif(Throttle==0&SoundPlaying){
+        SoundPlaying = 0
+        soundStop(1)
+        soundPlay(2,5,"vehicles/sgmcars/models/throttle_off.wav")
+        soundPitch(2,175)
+        soundVolume(2,0.35)
+    }
+    
+    if(!Rangerhit&!SelfRight) {
+        SelfRight = 1
+        timer("right",2500)
+        E2:propGravity(1)
+    }elseif(Rangerhit) {
+        SelfRight = 0
+        stoptimer("right")
+        E2:propGravity(Gravity)
+    }
+    
+    timer("updatefast",50)
+    
+    
+}
+
+if(clk("right")){
+    applyTorque(vec(310,100,0)*Mass)
+    timer("right",1000)
+}

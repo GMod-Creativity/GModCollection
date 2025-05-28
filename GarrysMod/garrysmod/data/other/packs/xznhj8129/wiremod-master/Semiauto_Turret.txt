@@ -1,0 +1,76 @@
+@name Semiauto Turret
+@inputs On Sensor:wirelink Ranger:wirelink  
+@outputs Turret Engage Fire NoLos Acquire TargetDist Aimvec:vector 
+@persist Fwd Left Right GPS:vector Stop Go Timer NoLos TargetPos:vector 
+@persist DestVect:vector AutoVec:vector Acquire Engage Fire DriveTimer
+@trigger On 
+
+#Version 1.1
+
+I = 100
+interval(I)
+Null=vec(0,0,0)
+
+# NAVIGATION
+GPS=entity():pos()
+Gx=GPS:x()
+Py=GPS:y()
+Sz=GPS:z()
+E=entity()
+Speed=E:vel():length()
+Hdg=E:angles():yaw()
+Bear=E:bearing(AutoVec)
+Dist=E:pos():distance(AutoVec)
+SafeaimvecX=Gx+(cos(Hdg)*1000)
+SafeaimvecY=Py+(sin(Hdg)*1000)
+SafeaimvecZ=Sz+100
+Safeaimvec=vec(SafeaimvecX,SafeaimvecY,SafeaimvecZ)
+
+# SENSORS
+Acquire = Sensor["1",number]
+Target = Sensor["1_Ent",entity]
+TargetID = Target:id()
+TargetPos = Target:pos()
+TargetDist = TargetPos:distance(GPS)
+RangerPos = Ranger["Pos",vector]
+RangerEntity = Ranger["Entity",entity]
+
+# TARGETING
+if (On==1) {Turret=1
+
+        if (Acquire==1) {
+            if (TargetPos==Null) {Aimvec=Safeaimvec
+            Engage=0}
+            else {Aimvec=TargetPos+vec(0,0,40)
+                Engage=1}
+        }
+  elseif (Acquire==0) {Aimvec=Safeaimvec}
+  else {Aimvec=Safeaimvec}
+    }
+    else {Turret=0
+        Engage=0
+        Aimvec=Safeaimvec}
+
+# GUN INTERLOCK
+    ErrorMax=75
+
+    AimingError = TargetPos:distance(RangerPos)
+    EntityHit = Target == RangerEntity
+
+    if (Engage==0) {
+        Fire = 0
+        NoLos = 0
+        Timer = 0}
+
+    if (Engage==1) {
+        Timer= Timer + I
+        if ((Timer>10000) & (AimingError>ErrorMax)) {
+            NoLos = 1
+            Timer = 0}
+        else {NoLos=0}
+  if (EntityHit) {NoLos=0}
+    }
+
+    if (TargetPos == Null | RangerPos == Null) {Fire=0}
+    elseif ((AimingError <= ErrorMax) & (NoLos == 0)) {Fire=1}
+    else {Fire=0}

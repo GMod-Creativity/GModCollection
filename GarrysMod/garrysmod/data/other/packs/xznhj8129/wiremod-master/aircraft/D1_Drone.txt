@@ -1,0 +1,44 @@
+@name D1 Drone
+@inputs AddrRead AddrWrite DataX DataY DataZ Clk Reset Launch
+@outputs Vec:vector T:vector Knots Speed Dist Hit Altitude Mul Turn Roll
+@persist GPS:vector Table1:table Table2:table Table3:table 
+@persist Go
+if (Go==1) {I=50}
+else {I=250}
+interval(I)
+    Alt=8000   # Default Altitude (Very High). Minimum yet tested sucessfully: 1500
+    Gl= -11300 # MUST BE CORRECTED FOR DIFFERENT MAPS, this one Flatgrass_revolution
+
+if (Go==1 & Launch==1 & Speed<4000) {Mul=1}
+elseif (Go==1 & Launch==1 & Speed>4000) {Mul=0.2}  # Cruising speed
+else {Mul=0}
+
+if (Clk & ~Clk) {Table1[AddrWrite,number] = DataX}
+if (Clk & ~Clk) {Table2[AddrWrite,number] = DataY}
+if (Clk & ~Clk) {Table3[AddrWrite,number] = DataZ}
+Tx=Table1[AddrRead,number]
+Ty=Table2[AddrRead,number]
+Tz=Table3[AddrRead,number]
+
+Go=AddrRead <= 5 #KILL DRONE AFTER N WPT
+GPS=entity():pos()
+E=entity()
+Gx=GPS:x()
+Py=GPS:y()
+Sz=GPS:z()
+X=Gx - Tx
+Y=Py - Ty
+Z=Sz - (Tz + Alt)
+if (Dist<1000) {Hit=1} 
+else {Hit=0}
+if (Dist<4000) {Turn=1}
+else {Turn=0}
+Altitude=Sz-Gl
+T=vec(Tx,Ty,Tz)
+T2=vec(Tx,Ty,Sz)
+Vec=vec(X,Y,Z)
+Dist = T2:distance(GPS)
+Knots=toUnit("knots", entity():vel():length() )
+Speed=entity():vel():length()
+RollV = E:angVel():roll() 
+Roll = RollV + E:angles():roll()

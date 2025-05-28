@@ -1,0 +1,326 @@
+@name PNGLib
+@persist DEFLATE_MAX_BLOCK_SIZE
+# Source -- https://github.com/Vurv78/expression2-public-e2s
+# Author -- Vurv
+# Version -- 1.3
+
+NULL_CHAR = toChar(0)
+DEFLATE_MAX_BLOCK_SIZE = 65535
+
+function putBigUint32(Val, Tbl:table, Index) {
+    Tbl[Index, number] = bAnd( bShr(Val, 24), 255)
+    Tbl[Index + 1, number] = bAnd( bShr(Val, 16), 255)
+    Tbl[Index + 2, number] = bAnd( bShr(Val, 8), 255)
+    Tbl[Index + 3, number] = bAnd( bShr(Val, 0), 255)
+}
+
+function pngWriteBytes([Output Data]:table, Index, Len) {
+    for (I = Index, Index + Len - 1) {
+        Output:pushString( toChar( Data[I, number] ) )
+    }
+}
+function pngWriteBytes([Output Data]:table, Index) {
+    for(I = Index, Index + Data:count() - 1){
+        Output:pushString( toChar( Data[I, number] ) )
+    }
+}
+function pngWriteBytes([Output Data]:table) {
+    for(I = 1, Data:count()) {
+        Output:pushString(toChar( Data[I, number] ))
+    }
+}
+
+function number pngCRC32(Data:table, Index, Len, CRC){
+    CRC = bNot(CRC)
+    for(I = Index, Index + Len - 1) {
+        local Byte = Data[I, number]
+        # Unfolded for loop between 0,7
+        CRC = bXor( bShr(CRC, 1), bAnd( -bAnd( bXor( CRC, bShr(Byte, 0) ), 1 ), 0xEDB88320 ) )
+        CRC = bXor( bShr(CRC, 1), bAnd( -bAnd( bXor( CRC, bShr(Byte, 1) ), 1 ), 0xEDB88320 ) )
+        CRC = bXor( bShr(CRC, 1), bAnd( -bAnd( bXor( CRC, bShr(Byte, 2) ), 1 ), 0xEDB88320 ) )
+        CRC = bXor( bShr(CRC, 1), bAnd( -bAnd( bXor( CRC, bShr(Byte, 3) ), 1 ), 0xEDB88320 ) )
+        CRC = bXor( bShr(CRC, 1), bAnd( -bAnd( bXor( CRC, bShr(Byte, 4) ), 1 ), 0xEDB88320 ) )
+        CRC = bXor( bShr(CRC, 1), bAnd( -bAnd( bXor( CRC, bShr(Byte, 5) ), 1 ), 0xEDB88320 ) )
+        CRC = bXor( bShr(CRC, 1), bAnd( -bAnd( bXor( CRC, bShr(Byte, 6) ), 1 ), 0xEDB88320 ) )
+        CRC = bXor( bShr(CRC, 1), bAnd( -bAnd( bXor( CRC, bShr(Byte, 7) ), 1 ), 0xEDB88320 ) )
+    }
+    return bNot(CRC)
+}
+
+function table:pngWriteRaw(Pixels:table) {
+    local Count = Pixels:count()
+
+    local PositionX = This["positionX", number]
+    local PositionY = This["positionY", number]
+    local UncompRemain = This["uncompRemain", number]
+    local Height = This["height", number]
+    local LineSize = This["lineSize", number]
+    local DeflateFilled = This["deflateFilled", number]
+    local CRC = This["crc", number]
+    local Adler = This["adler", number]
+    local Buffer = This["output", table]
+    #local BufferLen = Buffer:count()
+
+    local PixelPointer = 1
+    while( Count > 0 ) {
+        assert(PositionY < Height, "All image pixels already written")
+        if(DeflateFilled == 0) {
+            local Size = DEFLATE_MAX_BLOCK_SIZE
+            Size = min(Size, UncompRemain)
+
+            local Header = table(
+                bAnd( (UncompRemain <= DEFLATE_MAX_BLOCK_SIZE), 255 ),
+                bAnd( bShr( Size, 0), 255 ),
+                bAnd( bShr( Size, 8), 255 ),
+                bAnd( bXor( bShr(Size, 0), 255 ), 255),
+                bAnd( bXor( bShr(Size, 8), 255 ), 255)
+            )
+            #BufferLen += 5 # Header length is 5
+
+            Buffer:pushString(toChar( Header[1, number] ))
+            Buffer:pushString(toChar( Header[2, number] ))
+            Buffer:pushString(toChar( Header[3, number] ))
+            Buffer:pushString(toChar( Header[4, number] ))
+            Buffer:pushString(toChar( Header[5, number] ))
+
+            pngCRC32(Header, 1, 5, CRC)
+        }
+
+        assert(PositionX < LineSize & DeflateFilled < DEFLATE_MAX_BLOCK_SIZE)
+
+        if (PositionX == 0) {
+            Buffer:pushString( NULL_CHAR )
+
+            # Unfolded for loop between 0,7
+            CRC = bXor( bShr(CRC, 1), bAnd( -bAnd( CRC, 1 ), 0xEDB88320 ) )
+            CRC = bXor( bShr(CRC, 1), bAnd( -bAnd( CRC, 1 ), 0xEDB88320 ) )
+            CRC = bXor( bShr(CRC, 1), bAnd( -bAnd( CRC, 1 ), 0xEDB88320 ) )
+            CRC = bXor( bShr(CRC, 1), bAnd( -bAnd( CRC, 1 ), 0xEDB88320 ) )
+            CRC = bXor( bShr(CRC, 1), bAnd( -bAnd( CRC, 1 ), 0xEDB88320 ) )
+            CRC = bXor( bShr(CRC, 1), bAnd( -bAnd( CRC, 1 ), 0xEDB88320 ) )
+            CRC = bXor( bShr(CRC, 1), bAnd( -bAnd( CRC, 1 ), 0xEDB88320 ) )
+            CRC = bXor( bShr(CRC, 1), bAnd( -bAnd( CRC, 1 ), 0xEDB88320 ) )
+            CRC = bNot(CRC)
+
+            # Inline pngAdler32 with table(0) as the input
+            local S1 = bAnd(Adler, 0xFFFF) % 65521
+            local S2 = (bShr(Adler, 16) + S1) % 65521
+            Adler = bOr( bShl(S2, 16), S1 )
+
+            PositionX++
+            UncompRemain--
+            DeflateFilled++
+        } else {
+            local N = DEFLATE_MAX_BLOCK_SIZE - DeflateFilled
+            if (LineSize - PositionX < N){
+                N = LineSize - PositionX
+            }
+
+            N = min(N, Count)
+            assert(N > 0)
+
+            # Inlined pngWriteBytes(ttnn)
+            for (I = PixelPointer, PixelPointer + N - 1) {
+                Buffer:pushString( toChar( Pixels[I, number] ) )
+            }
+
+            # Hello
+            CRC = bNot(CRC)
+            for(I = PixelPointer, PixelPointer + N - 1) {
+                local Byte = Pixels[I, number]
+                # Unfolded for loop between 0,7
+                CRC = bXor( bShr(CRC, 1), bAnd( -bAnd( bXor( CRC, bShr(Byte, 0) ), 1 ), 0xEDB88320 ) )
+                CRC = bXor( bShr(CRC, 1), bAnd( -bAnd( bXor( CRC, bShr(Byte, 1) ), 1 ), 0xEDB88320 ) )
+                CRC = bXor( bShr(CRC, 1), bAnd( -bAnd( bXor( CRC, bShr(Byte, 2) ), 1 ), 0xEDB88320 ) )
+                CRC = bXor( bShr(CRC, 1), bAnd( -bAnd( bXor( CRC, bShr(Byte, 3) ), 1 ), 0xEDB88320 ) )
+                CRC = bXor( bShr(CRC, 1), bAnd( -bAnd( bXor( CRC, bShr(Byte, 4) ), 1 ), 0xEDB88320 ) )
+                CRC = bXor( bShr(CRC, 1), bAnd( -bAnd( bXor( CRC, bShr(Byte, 5) ), 1 ), 0xEDB88320 ) )
+                CRC = bXor( bShr(CRC, 1), bAnd( -bAnd( bXor( CRC, bShr(Byte, 6) ), 1 ), 0xEDB88320 ) )
+                CRC = bXor( bShr(CRC, 1), bAnd( -bAnd( bXor( CRC, bShr(Byte, 7) ), 1 ), 0xEDB88320 ) )
+            }
+            CRC = bNot(CRC)
+
+            local S1 = bAnd(Adler, 0xFFFF)
+            local S2 = bShr(Adler, 16)
+            for(I = PixelPointer, PixelPointer + N - 1) {
+                S1 = (S1 + Pixels[I, number]) % 65521
+                S2 = (S2 + S1) % 65521
+            }
+            Adler = bOr( bShl(S2, 16), S1 )
+
+            Count -= N
+            PixelPointer += N
+            PositionX += N
+            UncompRemain -= N
+            DeflateFilled += N
+        }
+
+        if (DeflateFilled >= DEFLATE_MAX_BLOCK_SIZE){
+            DeflateFilled = 0
+        }
+
+        if (PositionX == LineSize){
+            PositionX = 0
+            PositionY++
+            if (PositionY == Height){
+                local Footer = table(
+                    0, 0, 0, 0,
+                    0, 0, 0, 0,
+                    0, 0, 0, 0,
+                    0x49, 0x45, 0x4E, 0x44,
+                    0xAE, 0x42, 0x60, 0x82
+                )
+                putBigUint32(Adler, Footer, 1)
+                pngCRC32(Footer, 1, 4, CRC)
+                putBigUint32(CRC, Footer, 5)
+
+                pngWriteBytes(Buffer, Footer)
+                This["done", number] = 1
+            }
+        }
+    }
+
+    This["positionX", number] = PositionX
+    This["positionY", number] = PositionY
+    This["uncompRemain", number] = UncompRemain
+    This["height", number] = Height
+    This["lineSize", number] = LineSize
+    This["deflateFilled", number] = DeflateFilled
+    This["crc", number] = CRC
+    This["adler", number] = Adler
+}
+
+function table createPNG( [Width Height]:number, ColorMode:string){
+    # colormode "rgb" = 1
+    # colormode "rgba" = 2
+    local CM = ColorMode:lower()
+    local Type = CM=="rgb" ? 1 : CM=="rgba" ? 2 : 0
+    assert(Type != 0, "PNG Created with invalid colormode, please give \"rgb\" or \"rgba\"")
+    local BytesPerPixel = 3
+    local ColorType = 2
+    if(Type == 2){
+        BytesPerPixel = 4 # rgba
+        ColorType = 6 # rgba
+    }
+
+    local State = table(
+        "width" = Width,
+        "height" = Height,
+        "done" = 0,
+        "output" = table(),
+        "png" = 1,
+        "type" = Type,
+
+        "crc" = 0,
+        "adler" = 1,
+        "positionX" = 0,
+        "positionY" = 0,
+        "deflateFilled" = 0
+    )
+
+    local LineSize = Width * BytesPerPixel + 1
+    State["lineSize", number] = LineSize
+
+    local UncompRemain = LineSize * Height
+    State["uncompRemain", number] = UncompRemain
+
+    local NumBlocks = ceil(UncompRemain / DEFLATE_MAX_BLOCK_SIZE)
+    local IdatSize = NumBlocks * 5 + 6 + UncompRemain
+    local Header = table(
+        0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+        0x00, 0x00, 0x00, 0x0D,
+        0x49, 0x48, 0x44, 0x52,
+        0, 0, 0, 0,
+        0, 0, 0, 0,
+        0x08, ColorType, 0x00, 0x00, 0x00,
+        0, 0, 0, 0,
+        0, 0, 0, 0,
+        0x49, 0x44, 0x41, 0x54,
+        0x08, 0x1D
+    )
+    local CRC = State["crc", number]
+    putBigUint32(Width, Header, 17)
+    putBigUint32(Height, Header, 21)
+    putBigUint32(IdatSize, Header, 34)
+
+    putBigUint32(pngCRC32(Header, 13, 17, CRC), Header, 30)
+    pngWriteBytes(State["output", table], Header)
+
+    State["crc", number] = pngCRC32(Header, 38, 6, 0)
+    return State
+}
+
+function table createPNG(Width, Height) {
+    return createPNG(Width, Height, "rgb")
+}
+
+# Library Funcs
+
+function table:writeVector(V:vector){ # Rounds the numbers in case there are decimals since decimals will break the image.
+    assert(This["type", number] == 1, "This PNG is not in RGB format.")
+    V = round(V)
+    This:pngWriteRaw( table(V[1], V[2], V[3]) )
+}
+
+function table:writeVectorFast(V:vector){ # Writes a pixel without trying to round it or anything, assuming it is already rounded and won't break the PNG.
+    This:pngWriteRaw( table(V[1], V[2], V[3]) )
+}
+
+function table:writeRGB(R, G, B){ # Rounds the numbers in case there are decimals since decimals will break the image.
+    assert(This["type", number] == 1, "This PNG is not in RGB format.")
+    This:pngWriteRaw( table( round(R), round(G), round(B) ))
+}
+
+function table:writeRGBFast(R, G, B) { # Writes a pixel without trying to round it or anything, assuming it is already rounded and won't break the PNG.
+    This:pngWriteRaw( table(R, G, B) )
+}
+
+function table:writeVector4(V:vector4){ # Rounds the numbers in case there are decimals since decimals will break the image.
+    assert(This["png", number], "This is not a png object.")
+    assert(This["type", number] == 2, "This PNG is not in RGBA format.")
+    V = round(V)
+    This:pngWriteRaw( table( V[1], V[2], V[3], V[4] ) )
+}
+
+function table:writeVector4Fast(V:vector4){ # Writes a pixel without trying to round it or anything, assuming it is already rounded and won't break the PNG.
+    This:pngWriteRaw( table( V[1], V[2], V[3], V[4] ))
+}
+
+function table:writeRGBA(R, G, B, A){ # Rounds the numbers in case there are decimals since decimals will break the image.
+    assert(This["type", number] == 2, "This PNG is not in RGBA format.")
+    This:pngWriteRaw( table( round(R), round(G), round(B), round(A) ) )
+}
+
+function table:writeRGBAFast(R, G, B, A) { # Writes a pixel without trying to round it or anything, assuming it is already rounded and won't break the PNG.
+    This:pngWriteRaw( table( R, G, B, A ) )
+}
+
+function table table:output() {
+    assert(This["png", number], "This is not a png object.")
+    return This["output", table]
+}
+
+function number table:done() {
+    assert(This["png", number], "This is not a png object.")
+    return This["done", number]
+}
+
+function void table:export(FilePath:string) {
+    assert(This["png", number], "This is not a png object.")
+    fileWrite( FilePath, This["output", table]:concat("") )
+}
+
+# Library Funcs
+
+# Example of how to use the library
+P = createPNG(2, 2, "rgb")
+P:writeRGBFast(255, 0, 0)
+P:writeRGBFast(0, 255, 0)
+P:writeRGBFast(0, 0, 255)
+P:writeRGBFast(255, 255, 255)
+
+print( P["done", number] )
+
+P:export("out.png")
+
+print( opcounter() )

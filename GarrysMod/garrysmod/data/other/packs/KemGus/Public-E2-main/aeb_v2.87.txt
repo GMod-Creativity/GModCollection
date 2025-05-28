@@ -1,0 +1,536 @@
+@name AEB v2.87
+@inputs Base:entity Active W S DistR DistL DistC AEB_Mode:string PSensor_Dist:number PSensor_Active Cruise_On
+@outputs Brake Warning CTS LeftMan RightMan WhiteList [Reason]:string 
+@outputs EvasiveManuever CollisionF CollisionL CollisionR CenterTargetDist LeftDistanceToCenter LeftTargetDist RightDistanceToCenter RightTargetDist Target BrakeDistance DistTo CTS_L CTS_R Dist 
+@persist Array:array BrakeT WarningT BrakeP WarningP ShowHolos Type:string
+@persist [SideReact Cruise_SideReact MovMult Road_Friction Warn_M Brake_M Evasive_Static Evasive_Move]:number
+@persist BaseVec:vector HorVel_R HorVel_L [LEnt REnt CenterEnt]:entity 
+@persist PlayerMove Mat:string
+@trigger Active AEB_Mode
+
+if(first() | dupefinished()){
+    
+    Road_Friction = 0.8 # from 0 to 1. 
+    
+    WarningT = 2.4  #More - less responsive. For static obstacles
+    BrakeT = 3.2    #More - less responsive. For static obstacles    
+    
+    WarningP = 9 #More - less responsive. For parking sensor
+    BrakeP = 2.9 #More - less responsive. For moving obstacles
+    
+    Evasive_Static = 1.4 #make sure to have more than 1. 1 == BrakeT. Constant is BrakeT*Evasive_Static
+    
+    
+    #moving target
+    MovMult = 1.2 
+    
+    Evasive_Move = 1.4 #Keep it more than MovMult
+    
+    Warn_M = 0.85
+    Brake_M = 1 
+    
+    #side traces
+    SideReact = 0.69 
+    Cruise_SideReact = 0.25
+    
+    ShowHolos = 0     # useful for adjustment. 
+
+    #Owner=owner()
+    
+    
+    #Debug
+    
+    Mat = "models/wireframe"                   #you can change it but no sense.
+    
+    
+    
+    #holoCreate(64)
+    #holoCreate(65)
+    #holoCreate(66)
+    
+    #l
+    if(ShowHolos){
+        holoMaterial(1,Mat)
+        holoMaterial(3,Mat)
+        holoMaterial(4,Mat)
+        holoMaterial(5,Mat)
+        holoMaterial(30,Mat)
+        holoMaterial(40,Mat)
+        holoMaterial(50,Mat)
+        holoMaterial(10,Mat)
+        holoMaterial(20,Mat)
+        holoMaterial(100,Mat)
+        holoMaterial(200,Mat)
+        holoMaterial(30, Mat)
+        holoMaterial(50, Mat)
+        holoMaterial(40, Mat)
+        holoMaterial(300, Mat)
+        holoMaterial(400, Mat)
+        holoMaterial(500, Mat)    
+        
+        local StartN = 55 
+        local Start = Base:toWorld(vec(StartN,0,0)) 
+        local End   = Base:toWorld(vec(10000, 0, 0)) 
+        local Size = vec(95)
+        local SideDistR = -(DistR + 45) / 2
+        local SizeR  = vec(DistR + SideDistR) * 2#vec(LeftSize/1.2)  
+        local StartR = Base:toWorld(vec(SizeR:x() / 2 - 70,-(DistR + 45) / 2,0))
+        local EndR   = Base:toWorld(vec(10000, SideDistR, 0))       #adjust
+        local SideDistL = -(DistL + 45) / 2
+        local SizeL  = vec(DistL + SideDistL) * 2#vec(RightSize/1.2)
+        local StartL = Base:toWorld(vec(SizeL:x() / 2 - 70,-SideDistL,0))
+        local EndL   = Base:toWorld(vec(10000, -SideDistL, 0))       #adjust      
+        
+        holoCreate(1, Start)
+        holoCreate(2, End)
+        holoCreate(10, StartL)
+        holoCreate(20, EndL)
+        holoCreate(100, StartR)
+        holoCreate(200, EndL)
+        
+    
+        holoScaleUnits(1, Size)
+        holoScaleUnits(2, Size)
+        holoScaleUnits(10, SizeL)
+        holoScaleUnits(20, SizeL)
+        holoScaleUnits(100, SizeR)
+        holoScaleUnits(200, SizeR)
+    
+        holoColor(40, vec(255, 255, 0))            
+        holoColor(50, vec(0, 255, 255))
+        holoColor(30, vec(255, 255, 0))
+        
+        #r        
+        holoColor(300, vec(0, 0, 255))        
+        holoColor(400, vec(255, 255, 0))
+        holoColor(500, vec(255, 255, 255))
+    }
+    else{
+        holoDeleteAll()
+    }
+    
+    
+    rangerPersist(1)
+    
+    #ignore
+    CTS = CTS_L = CTS_R = 0
+    PlayerMove = 0 
+    Array = array() 
+    CollisionL = CollisionR = 0 
+    Type = ""
+    
+    
+}
+if(first() | duped()){
+    function number pointToLineDist(X, Y, X1, Y1, X2, Y2) {
+        local A = X - X1
+        local B = Y - Y1
+        local C = X2 - X1
+        local D = Y2 - Y1
+        local Dot = A * C + B * D
+        local Len_sq = C * C + D * D
+        local Param = -1
+    
+        #in case of 0 length line
+        if(Len_sq != 0) {
+            Param = Dot / Len_sq
+        }
+    
+        local XX = 0
+        local YY = 0
+    
+        if(Param < 0) {
+            XX = X1
+            YY = Y1
+        } elseif(Param > 1) {
+            XX = X2
+            YY = Y2
+        } else {
+            XX = X1 + Param * C
+            YY = Y1 + Param * D
+        }
+    
+        local Dx = X - XX
+        local Dy = Y - YY
+    
+        return sqrt(Dx * Dx + Dy * Dy)
+    }
+    
+    #Gets base of the parented prop
+    function entity entity:rootParent() {
+        return This:parent() ? This:parent():rootParent() : This
+    }
+    
+}    
+
+
+#remove these later
+DistL = clamp(DistL * 1.25, 250, 512)
+DistR = clamp(DistR * 1.25, 250, 512)
+
+#Made by KemGus
+
+#do not change anything below
+
+if(AEB_Mode != "disabled" & Active){ 
+        
+    
+    Speed = toUnit("km/h", Base:vel():length())
+    
+    BaseVec = Base:velL() * 0.06858
+    
+    if(CTS >= 7 & !PlayerMove | Speed < 5 ){
+        StartN = 55
+    }
+    else{
+        StartN = 135
+    } 
+    
+    interval(125)
+    
+    
+    
+        local Start = Base:toWorld(vec(StartN,0,0))          #adjust
+        local End   = Base:toWorld(vec(10000, 0, 0))       #adjust
+        local Size  = vec(95)                             #adjust 
+        
+        #local SideDistR = -DistR/2 - DistC / 2 * (DistL < DistR ? 1 : -1)
+        local SideDistR = -(DistR + 45) / 2
+        local SizeR  = vec(DistR + SideDistR) * 2#vec(LeftSize/1.2)  
+        local StartR = Base:toWorld(vec(SizeR:x() / 2 - 70,-(DistR + 45) / 2,0))
+        local EndR   = Base:toWorld(vec(10000, SideDistR, 0))       #adjust
+        
+        local SideDistL = -(DistL + 45) / 2
+        local SizeL  = vec(DistL + SideDistL) * 2#vec(RightSize/1.2) 
+        local StartL = Base:toWorld(vec(SizeL:x() / 2 - 70,-SideDistL,0))
+        local EndL   = Base:toWorld(vec(10000, -SideDistL, 0))       #adjust 
+        
+        rangerFilter(Array) # We don't want to hit our own base
+        rangerIgnoreWorld(1)
+        
+        local Trace    = rangerOffsetHull(Start, End, Size)        
+        local Angle    = (Start - End):toAngle()
+        local HitPos   = Trace:pos()
+        local Center   = (Start + HitPos) * 0.5
+              Distance = (Start - HitPos):length()
+        #local VelocityL = Trace:entity():vel()
+        #local Velocity = VelocityL:length2()
+        
+        
+        local LTrace    = rangerOffsetHull(StartL, EndL, SizeL)        
+        local LAngle    = (StartL - EndL):toAngle()
+        local LHitPos   = LTrace:pos()
+        local LCenter   = (StartL + LHitPos) * 0.5
+              LDistance = (StartL - LHitPos):length()
+        #local LVelocityL = LTrace:entity():vel()
+        #local LVelocity = LVelocityL:length2()
+        
+        
+        local RTrace    = rangerOffsetHull(StartR, EndR, SizeR)      
+        local RAngle    = (StartR - EndR):toAngle()
+        local RHitPos   = RTrace:pos()
+        local RCenter   = (StartR + RHitPos) * 0.5
+              RDistance = (StartR - RHitPos):length()
+        #local RVelocityL = RTrace:entity():vel()
+        #local RVelocity = RVelocityL:length2()
+        
+    
+        if(ShowHolos){            
+            if (Trace:hit()){                                               
+                local EmptyCenter   = (HitPos + End) * 0.5
+                local EmptyDistance = (HitPos - End):length()
+                
+                holoCreate(3, HitPos)   
+                holoCreate(4, Center)   
+                holoCreate(5, EmptyCenter)
+                
+                holoScaleUnits(3, Size)
+                
+                holoScaleUnits(4, vec(Distance, 1, 1))
+                holoAng(4, Angle)
+        
+                holoScaleUnits(5, vec(EmptyDistance, 1, 1))
+                holoAng(5, Angle)
+        } 
+        else{
+                holoScaleUnits(3, vec(Distance, 1, 1))
+                holoAng(3, Angle)
+        } 
+        
+            
+            
+        #########################
+        
+        if (LTrace:hit()){ 
+            local LEmptyCenter   = (LHitPos + EndL) * 0.5
+            local LEmptyDistance = (LHitPos - EndL):length()
+            
+            holoCreate(30, LHitPos)
+            holoScaleUnits(30, SizeL)
+            
+            
+            holoCreate(40, LCenter)
+            holoScaleUnits(40, vec(LDistance, 1, 1))
+            holoAng(40, LAngle)
+            
+            holoCreate(50, LEmptyCenter)
+            holoScaleUnits(50, vec(LEmptyDistance, 1, 1))
+            holoAng(50, LAngle)
+        } 
+        else {
+                holoCreate(30, LCenter)
+                holoScaleUnits(30, vec(LDistance, 1, 1))
+                
+                
+                
+                holoAng(30, LAngle)
+        } 
+            
+           
+            
+            
+        #########################
+        
+        if (RTrace:hit()){ 
+            local REmptyCenter   = (RHitPos + EndR) * 0.5
+            local REmptyDistance = (RHitPos - EndR):length()
+            
+            holoCreate(300, RHitPos)
+            holoScaleUnits(300, SizeR)
+            
+            holoCreate(400, RCenter)
+            holoScaleUnits(400, vec(RDistance, 1, 1))
+            holoAng(400, RAngle)
+            
+            holoCreate(500, REmptyCenter)
+            holoScaleUnits(500, vec(REmptyDistance, 1, 1))
+            holoAng(500, RAngle)
+        } 
+        else{
+            holoCreate(300, RCenter)
+            holoScaleUnits(300, vec(RDistance, 1, 1))      
+            holoAng(300, RAngle)
+        } 
+                                
+    }
+    else{holoDeleteAll()}
+    
+    CenterEnt = Trace:entity()
+    Root_CenterEnt = CenterEnt:rootParent()
+    
+    LEnt  = LTrace:entity()        
+    REnt  = RTrace:entity()
+        
+    Own   = CenterEnt:owner()
+    Model = CenterEnt:model() 
+        
+    WhiteList =
+        Model == "models/props_junk/bicycle01a.mdl" 
+        | 
+        Type == "player" 
+        | 
+        LEnt:model() == "models/props_junk/bicycle01a.mdl"  
+        | 
+        LEnt:type() == "player"
+        | 
+        REnt:model() == "models/props_junk/bicycle01a.mdl" 
+        | 
+        REnt:type() == "player"
+    
+    
+    
+    HitOwner = !WhiteList & (Own == owner()) ? 1 : 0 
+
+    local X1 = (Base:pos() + Base:forward() * -10000):x()
+    local Y1 = (Base:pos() + Base:forward() * -10000):y()
+    
+    local X2 = (Base:pos() + Base:forward() * 10000):x()
+    local Y2 = (Base:pos() + Base:forward() * 10000):y()
+
+    LeftDistanceToCenter = toUnit("km/h", pointToLineDist(LEnt:pos():x(), LEnt:pos():y(), X1, Y1, X2, Y2))
+    LeftTargetDist = toUnit("km/h", LTrace:distance())
+
+    RightDistanceToCenter = toUnit("km/h", pointToLineDist(REnt:pos():x(), REnt:pos():y(), X1, Y1, X2, Y2))
+    RightTargetDist = toUnit("km/h", RTrace:distance())
+    
+    CenterDistanceToCenter =  toUnit("km/h", pointToLineDist(CenterEnt:pos():x(), CenterEnt:pos():y(), X1, Y1, X2, Y2))
+    CenterTargetDist = toUnit("km/h", Trace:distance())
+
+    Root_LEnt = LEnt:rootParent()
+    Root_REnt = REnt:rootParent()
+
+    #AngleLeft = LEnt:vel():length() > 5 ? -Base:toLocal(LEnt:vel():toAngle()):yaw() : 0
+    #AngleRight = REnt:vel():length() > 5 ? Base:toLocal(REnt:vel():toAngle()):yaw() : 0
+
+    
+    
+    #ignore our props
+    if (Trace:hit() & !WhiteList) {
+        if(CenterEnt:owner() == owner() ) {
+            Array:pushEntity(CenterEnt)
+        }
+    }
+    if (LTrace:hit() & !WhiteList) {
+        if(LEnt:owner() == owner() ) {
+            Array:pushEntity(LEnt)
+        }
+    }
+    if (RTrace:hit() & !WhiteList) {
+        if(REnt:owner() == owner() ) {
+            Array:pushEntity(REnt)
+        }
+    }
+    
+    HorVel_R = -(Root_REnt:vel() * 0.06858):dot(Base:right())
+    CTS_R =  (Root_REnt:vel() * 0.06858):dot(Base:forward())
+    
+    HorVel_L = (Root_LEnt:vel() * 0.06858):dot(Base:right())
+    CTS_L =  (Root_LEnt:vel() * 0.06858):dot(Base:forward())
+    
+    HorVel_F = abs((Root_CenterEnt:vel() * 0.06858):dot(Base:right()))
+    
+    CollisionL = (BaseVec:y() + HorVel_L) / LeftDistanceToCenter 
+    CollisionR = (BaseVec:y() + HorVel_R) / RightDistanceToCenter
+    CollisionF = (BaseVec:y() + HorVel_F) / CenterDistanceToCenter
+    
+    ReactSide = SideReact*!Cruise_On + Cruise_SideReact*Cruise_On
+    
+    if(CollisionL >= ReactSide & LeftTargetDist < CenterTargetDist  ){
+        Dist = LeftTargetDist
+        CTS = CTS_L
+        
+        Type  = LEnt:type() 
+    }
+    elseif(CollisionR >= ReactSide & RightTargetDist < CenterTargetDist  ){
+        Dist = RightTargetDist
+        CTS = CTS_R
+        
+        Type  = REnt:type()
+    }
+    else{
+        Dist = CenterTargetDist       #Distance. Don't even ask why is it km/h
+        CTS = (Root_CenterEnt:vel() * 0.06858):dot(Base:forward())
+        Type  = CenterEnt:type()
+    }
+    
+    Target = Type != ""
+    
+    if(Target){
+        DistTo = clamp(Dist+CTS, 0, inf())        #Distance - Speed of entity infront
+    }
+    else{
+        DistTo = inf()
+    }   
+
+    BrakeDistance = (0.278*DistTo / 2+0.039 * (Speed*Speed) / Road_Friction)          #Braking distance formula. 0.9 is friction here afaik, so I can play with it in future. And I forgot how the formula works
+
+    
+    PlayerMove = ((Type == "player") & (CTS <17 | (HorVel_R < 17 & CollisionL > SideReact) | (HorVel_L < 17 & CollisionL > SideReact)))
+    
+    
+    if(!PSensor_Active &!PlayerMove & CTS >= 7 ) {
+        #For target that has speed
+        
+        local Warn_AEB = ((( Speed - CTS ) / ( Dist * MovMult )) > Warn_M    | Dist < 1.7 ) & (AEB_Mode == "warning" | AEB_Mode == "enabled" &!HitOwner &!S)       
+        local Brake_AEB = ((( Speed - CTS ) / ( Dist * MovMult )) > Brake_M    | Dist < 1.65 ) & (AEB_Mode == "enabled" &!HitOwner &!S)
+        
+        local Evasive_Const = ((( Speed - CTS ) / ( Dist * MovMult )) > Evasive_Move) &!HitOwner &!S 
+
+        
+        Warning = Warn_AEB
+        Brake = Brake_AEB 
+         
+        #Warning = (BrakeDistance >= DistTo*CTS*3.5*FDWarning1 &!S & Speed>2 &!BlackList &Speed>CTS+15 |Distance <55 |$CTS<-(CTS/WarningT)&DistTo<20) &!HitOwner &!changed(Trace:hit()) &Trace:hit()
+        #Brake = (BrakeDistance >= DistTo*CTS*3.5*BrakeT &!S & Speed>2 &!BlackList &Speed>CTS+20 |Distance <45 |$CTS<-(CTS/BrakeT) &DistTo<15) &!HitOwner &!changed(Trace:hit()) &Trace:hit()
+               
+        EvasiveManuever = Evasive_Const   
+
+        Reason = ""
+    
+        }
+    else{
+        
+    #for static object
+        local Warn_AEB = BrakeDistance >= DistTo * WarningT &!S &!HitOwner & !PSensor_Active & (AEB_Mode == "warning" | AEB_Mode == "enabled")
+        local Warn_Sensor = ((PSensor_Dist/Speed ) <= 6 | PSensor_Dist <= WarningP)  &!~W &!~S & PSensor_Active   
+        
+        local Brake_AEB = BrakeDistance >= DistTo * BrakeT & !S &!HitOwner & !PSensor_Active & Speed>2 & AEB_Mode == "enabled"
+        local Brake_Sensor = ((PSensor_Dist/Speed ) <= 5.8 | PSensor_Dist <= BrakeP)  &!~W &!~S & PSensor_Active & sign($PSensor_Dist) < 0
+        
+        local Evasive_Const = BrakeDistance >= DistTo * BrakeT*Evasive_Static & !S &!HitOwner & !PSensor_Active & DistC>1 & Speed>2 & AEB_Mode == "enabled"
+        
+        Warning = Warn_AEB | Warn_Sensor
+        
+        
+        Brake = Brake_AEB | Brake_Sensor
+        
+        
+        EvasiveManuever = Evasive_Const
+        
+        if( Warn_AEB){
+            Reason = "AEB"
+        }
+        elseif( Warn_Sensor){
+            Reason = "Sensor"
+        }
+        else{ 
+            Reason = ""
+        }
+    
+    
+    }
+
+
+    
+    
+    #########
+    #side traces prediction. Left
+    
+      
+    
+    RightMan = DistR>DistL &  EvasiveManuever &!(CollisionR > ReactSide)
+    LeftMan = DistL>DistR &  EvasiveManuever &!(CollisionL > ReactSide)
+    
+    #[
+    if((~Brake) & Brake==1){
+        print(
+              "BaseVec ", BaseVec:y(),
+            
+              "AngleRight", AngleRight,
+              "CollisionR", CollisionR,
+            
+              "HorVel_L ", HorVel_L,
+              "HorVel_R ", HorVel_R, 
+                   
+              "Dist R", RightTargetDist,
+              "Dist L", LeftTargetDist,
+            
+              "DistCent L", LeftDistanceToCenter,
+              "DistCent R", RightDistanceToCenter
+            
+                      
+            )
+    }
+    ]#
+
+} 
+else {
+    Warning = Brake = 0 
+    holoDeleteAll()
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,55 @@
+@name Otto Von Lolzor's Cruise Missile 3
+@inputs Gl Sensor:entity Hit INSvec:vector Clk Fire
+@outputs Thruster:vector MulV A Det Dist  #Nexttgt 
+@outputs Lock Rdist Insdist Alt T:vector Altmod Terminal Search FirstDist
+@persist Dist GPS:vector Altmod Lock Terminal DistRAM FirstDist
+@persist Rdist Insdist Radar:vector INS:vector
+@trigger Clk
+interval(50)
+#SELF AWARENESS AND VARIABLES
+GPS=entity():pos()
+Vel=entity():vel()
+Sz=GPS:z()
+Alt=Sz-Gl
+CAlt=3000 #CRUISE ALTITUDE
+
+if (Clk==1) {INS=INSvec
+    T=INS
+    FirstDist=INSvec:distance(GPS)}
+
+if (Fire==0) { #SAFE MODE
+    Lock=0
+    Det=0
+    A=0
+    MulV=0
+}
+else { #FIRE
+#search and acquisition
+Rdist = Sensor:pos():distance(GPS)
+Insdist = INSvec:distance(GPS)
+if (Dist<=20000) {Search=1}
+else {Search=0}  
+if (Search==1 & Hit!=0) {Lock=1}
+if (Lock==1) {Dist=Rdist
+    Radar=Sensor:pos()
+    T=Radar}
+else {Dist=Insdist
+    T=INS}
+if (Fire==1 & (Dist<=10000 | Lock==1)) {Terminal=1}
+
+#vector navigation
+if (Terminal==1) {Altmod=Dist/2}
+else {if (Alt<CAlt) {Altmod=30000}
+    else {Altmod=CAlt}}
+Altvec=vec(0,0,(Altmod-Alt)*2)
+Thruster=GPS-T-Altvec
+if (Dist>=500) {A=1}
+else {A=0}
+if (Fire==1) {MulV=1}
+else {MulV=0}
+
+#fuzing
+if (Dist<=250 | (Dist<=1000 & Dist>=DistRAM)) {Det=1}
+else {Det=0}
+DistRAM=Dist
+}

@@ -1,0 +1,123 @@
+@name E2 Interceptor v2.1
+@inputs Target:vector RadarTarget:entity Home:vector Clk Launch Stage Abort Reset
+@outputs Mul Go Ok Vec:vector Dist Speed Altitude Search Lock Splash GPS:vector HomeSet RollT
+@persist GPS:vector Targetpos:table Dist
+@trigger Clk 
+#[
+Ground-Air Radio: Channel 4
+1: Launch
+2: Clk
+3: Reset
+4: Target X
+5: Target Y
+6: Target Z
+7: 
+
+Air-Ground Radio: Channel 5
+1: Go
+2: Lock
+3: Splash (Missiles Launched)
+4: Distance
+5: Speed
+6: Altitude
+7: HomeSet
+8: Stage (Up/Down Counter)
+
+Landing offsets:
+Loaded: 750
+Unloaded: 400
+]#
+
+
+if (Launch) {I=50}
+else {I=250}
+interval(I)
+
+if (Home==vec(0,0,0)) {HomeSet=0}
+else {HomeSet=1}
+Gl=Home:z()
+E=entity()
+GPS=entity():pos()
+Gx=GPS:x()
+Py=GPS:y()
+Sz=GPS:z()
+BeginLanding = 20000
+FinalApproach = 10000
+LandingOffset = 200
+AltCutoff = 200
+Descent = 4
+BeginDiv = 1
+MinAlt= 7500
+TgtAlt = Target:z()-Gl
+T=RadarTarget
+Lock= T:id()!=0
+
+DataX = Target:x()
+DataY = Target:y()
+DataZ = Target:z()
+
+if (Reset) { }
+
+if (Clk & ~Clk) {
+    Targetpos[toString(0),number] = DataX
+    Targetpos[toString(1),number] = DataY
+    Targetpos[toString(2),number] = DataZ
+}
+
+if (Launch) {
+    if (Go & (!Stage | (Stage & Dist>BeginLanding))) {MaxSpeed=3500}
+    else {MaxSpeed=2000}
+    
+    if (Go & Launch & Speed>=MaxSpeed) {Mul=0.2}
+    elseif (Go & Launch & Speed<MaxSpeed) {Mul=2}
+    
+    if (Go & Stage & Dist<8000) {Mul=(Dist/BeginLanding)}
+
+    if (Go==0 | Stage>1 | Launch==0 | (Stage & Altitude<AltCutoff)) {Mul=0}
+    Go=Stage <= 1 #KILL DRONE AFTER N WPT
+    
+    if (!Stage) {
+        Tx=Targetpos[toString(0),number]
+        Ty=Targetpos[toString(1),number]
+        Tz=Targetpos[toString(2),number]
+    }
+    else {
+        Tx=Home:x()
+        Ty=Home:y()
+        Tz=Home:z()
+        Tv=vec(Tx,Ty,Tz)
+    }
+    
+    Dist=GPS:distance(vec(Tx,Ty,GPS:z()))
+    if (TgtAlt>MinAlt & !Stage) {CruiseAlt=TgtAlt}
+    else {CruiseAlt=MinAlt}
+    
+    X=(Gx - Tx)
+    Y=(Py - Ty)
+
+    if (Stage & Dist<BeginLanding & Dist>FinalApproach) {Alt=CruiseAlt/2}
+    elseif (Stage & Dist<FinalApproach) {Alt=(Dist/Descent) + LandingOffset}
+    else {Alt=CruiseAlt}
+    
+    Altitude=Sz-Gl
+    AltDiff=Altitude-Alt
+    Z=AltDiff*5
+    
+    Vec=vec(X,Y,Z)
+    Speed=entity():vel():length()
+    
+    if (Go & !Stage & Dist<20000) {Search=1}
+    else {Search=0}
+    if (Go & !Stage & Dist<10000 & Lock) {Splash=1} 
+    else {Splash=0}
+    
+    if (Dist<1000 | Abort | Splash) {Ok=1} 
+    else {Ok=0}
+    RollV = E:angVel():roll() 
+    RollT = ((RollV) + E:angles():roll()) *2
+}
+else { 
+    Mul=0
+    Go=0
+    RollT=0
+}

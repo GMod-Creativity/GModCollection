@@ -1,0 +1,393 @@
+@name Turret Controller
+@inputs 
+@outputs [Fire1 Fire2 Duck Sprint Walk Use Reload Active Proximity On Tracking LargeNumber] [TargetVector E2Location]:vector [TargetEntity E2]:entity  [Mode2 EntityName SelectedList EntityList Excluded EntityModel Entity]:string 
+@persist Mode Manual EntityList:string I4 Hide1 Tracking I8 I9 Follow ModeName:string Find:array MovingConstraint:array Hide I7 Location:vector Name Names:array TargetAngle:angle X3 Y3 Z3 I Moving:array I2 Excluded:string PProps:array On Type:string Distance Radius X Y Z X2 Y2 Z2 All Average:vector Selection
+@trigger 
+interval(100)
+runOnChat(1)
+E = entity()
+P = owner()
+TargetVector = Find[I, entity]:pos()
+TargetEntity = Find[I, entity]
+EntityName = Find[I, entity]:name()  
+EntityModel = Find[I, entity]:model()
+E2Location = E:pos()
+Entity = Find[I, entity]:toString()
+Mode2 = ModeName
+E2 = E
+if(Names&I7<=Names:count()-1){
+    
+    while(I7<Name&opcounter()<maxquota()){
+        I7++
+        Excluded = Excluded + " \n " + Names[I7,entity]:toString()   
+        format(Excluded)
+    }
+    
+}
+if(changed(Mode)&Mode==Mode){
+    EntityList = ""
+    I8 = 0
+}
+if(Find&I8<=Find:count()-1){
+    while(I8<Find:count()&opcounter()<maxquota()){
+        I8++
+        if(!EntityList){
+            if(Mode != 1){
+                EntityList = Find[I8,entity]:model()
+            }else{
+            EntityList = Find[I8,entity]:toString()
+        }
+                
+        }else{
+        if(Mode != 1){
+            EntityList = EntityList + " \n " + Find[I8,entity]:model()
+        }else{
+        EntityList = EntityList + " \n " + Find[I8,entity]:toString()
+    }
+                
+        }   
+        format(EntityList)
+        
+    }
+}
+if(Moving&I9<=Moving:count()-1){
+    while(I9<Moving:count()&opcounter()<maxquota()){
+        I9++
+        if(!SelectedList){
+            SelectedList = Moving[I9,entity]:model()
+        }else{
+            SelectedList = SelectedList + " \n " + Moving[I9,entity]:model()
+        }   
+        format(SelectedList)
+        
+    }
+}
+if(first()){
+    X=0
+    Y=0
+    Z=0
+    X2=0
+    Y2=0
+    Z2=0
+    #[
+    P - Change Mode
+    Y - Toggle Tracking
+    O - Switch Target
+    I - Add Prop to control
+    L - Toggle On/Off
+    K - Refresh Targeting
+    J - Toggle Proximity 
+    U - Toggle Selection/Automatic mode
+    .translate x y z x=x2 y=y2 z=z2 : Translates the objects to X Y and Z with noise of X=X2, Y=Y2, and Y=Y3
+    .follow x y z - follows you, offsetting with X Y and Z
+    .radius number : changes the radius of [Proximity]
+    .exclude:exclude - excludes a person from scan and proximity.
+    .clear - clears all excluded.
+    .freeze - freezes selected props and unfreeze constrained props to selected
+    .invisible - makes all props invisible
+    ]#
+    On = 1
+    I = 1
+    Active = 1
+    Radius = 1000
+    Selection = 0 
+    All = 0
+    LargeNumber = 999999999999999999
+    function hide(){
+            hideChat(1)
+            printColor(vec(0,255,0),"[Hidden]",vec(random(0,255),random(0,255),random(0,255)),+P:name(),vec(255,255,255),": "+P:lastSaid())
+    }
+}
+if(chatClk(P)&P:lastSaid():explode(" "):string(1) == ".translate"){
+    for(I = 1,Moving:count()){
+        local LS = P:lastSaid():explode(" ")
+        if(LS:string(5)){
+            X=LS:string(5):explode("="):string(1):toNumber()
+            X2=LS:string(5):explode("="):string(2):toNumber()
+            Y=LS:string(6):explode("="):string(1):toNumber()
+            Y2=LS:string(6):explode("="):string(2):toNumber()
+            Z=LS:string(7):explode("="):string(1):toNumber()
+            Z2=LS:string(7):explode("="):string(2):toNumber()
+        }
+        Moving[I, entity]:setPos(Moving[I, entity]:pos()+vec(LS:string(2):toNumber()+random(X,X2),LS:string(3):toNumber()+random(Y,Y2),LS:string(4):toNumber()+random(Z,Z2)))
+    }
+    local LS = P:lastSaid():explode(" ")
+    hint("Translated ("+LS:string(2):toNumber()+" "+LS:string(3):toNumber()+" "+LS:string(4):toNumber()+")"+" with [("+X+","+X2+") ("+Y+","+Y2+") "+Z+","+Z2+")] as noise.",10)
+    hide()
+}
+if(chatClk(P)&P:lastSaid():explode(":"):string(1) == ".exclude"){
+    findIncludeClass("player")
+    findPlayerByName(P:lastSaid():explode(":"):string(2))
+    hint(P:lastSaid():explode(":"):string(2),10)
+    if(find():isPlayer()){
+        Names[Name,entity] = find()
+        hint("excluded: "+Names[Name,entity]:name(),10)
+        Name++
+    }else{
+    hint("Error: Player not found.",10)
+}
+    hide()
+}
+if(chatClk(P)&P:lastSaid():explode(" "):string(1) == ".hide"&!Hide){
+    hint("Hiding props!",10)
+    MovingConstraint = Moving[1, entity]:getConstraints()
+    for(I = 1, Moving:count()){
+        MovingConstraint = Moving[I, entity]:getConstraints()
+        for(I = 1, MovingConstraint:count()){
+            MovingConstraint[I, entity]:setAlpha(0)
+        }
+        Moving[I, entity]:setAlpha(0)
+    }
+    Hide = 1
+    hide()
+}elseif(chatClk(P)&P:lastSaid():explode(" "):string(1) == ".hide"&Hide){
+MovingConstraint = Moving[1, entity]:getConstraints()
+for(I = 1, Moving:count()){
+    MovingConstraint = Moving[I, entity]:getConstraints()
+    for(I = 1, MovingConstraint:count()){
+        MovingConstraint[I, entity]:setAlpha(255)
+    }
+    Moving[I, entity]:setAlpha(255)
+}
+hint("Unhiding props!",10)
+Hide = 0
+hide()
+}
+
+if(chatClk(P)&P:lastSaid():explode(" "):string(1) == ".freeze"){
+    Hide1 = 1
+    for(I = 1, Moving:count()){
+        MovingConstraint = Moving[I, entity]:getConstraints()
+        for(I = 1, MovingConstraint:count()){
+            MovingConstraint[I, entity]:propFreeze(0)
+        }
+        Moving[I, entity]:propFreeze(1)
+}
+    hint("Frozen props!",10)
+    hide()
+}
+if(chatClk(P)&P:lastSaid():explode(" "):string(1) == ".follow"&!Follow&P:lastSaid():explode(" "):string(2)){
+    Follow = 1
+    if(P:lastSaid():explode(" "):string(2)){
+        X3 = P:lastSaid():explode(" "):string(2):toNumber()
+        Y3 = P:lastSaid():explode(" "):string(3):toNumber()
+        Z3 = P:lastSaid():explode(" "):string(4):toNumber()
+    }
+    hint("Following.",10)
+    hide()
+}elseif(chatClk(P)&P:lastSaid():explode(" "):string(1) == ".follow"&Follow&!P:lastSaid():explode(" "):string(2)){
+Follow = 0
+hint("Stopped Following.",10)
+hide()
+}
+if(Follow){
+    for(I = 1, Moving:count()){
+        Moving[I, entity]:setPos(P:pos()+vec(X3,Y3,Z3))
+    }
+}
+if(chatClk(P)&P:lastSaid():explode(" "):string(1) == ".radius"){
+    Radius = P:lastSaid():explode(" "):string(2):toNumber()
+    hint("Radius is now: "+Radius,10)
+    hide()
+}
+if(chatClk(P)&P:lastSaid():explode(" "):string(1) == ".clear"){
+    Name = 0
+    Names:clear()
+    hint("cleared all names",10)
+    hide()
+}
+if(changed(P:keyPressed("k"))&P:keyPressed("k")){
+    Refresh = 1
+}
+if(changed(P:keyPressed("l"))&P:keyPressed("l")&On == 0){
+    On = 1
+    hint("E2 turned on.", 10)
+}elseif(On == 1&changed(P:keyPressed("l"))&P:keyPressed("l")){
+    On = 0
+    hint("E2 turned off.", 10)
+} 
+if(changed(P:keyPressed("u"))&P:keyPressed("u")&Selection == 0){
+    Selection = 1
+    hint("Automatic Targeting turned on.", 10)
+}elseif(Selection == 1&changed(P:keyPressed("u"))&P:keyPressed("u")){
+    Selection = 0
+    hint("Automatic Targeting off.", 10)
+    stoptimer("u")
+}
+if(changed(P:keyPressed("j"))&P:keyPressed("j")&Distance == 0){
+    Distance = 1
+    hint("Proximity turned on.", 10)
+}elseif(Distance == 1&changed(P:keyPressed("j"))&P:keyPressed("j")){
+    Distance = 0
+    hint("Proximity turned off.", 10)
+}
+if(changed(P:keyPressed("p"))&P:keyPressed("p")){
+    Mode++
+}
+if(changed(P:keyPressed("y"))&P:keyPressed("y")&Tracking == 0){
+    Tracking = 1
+    hint("Tracking turned on.", 10)
+}elseif(Tracking == 1&changed(P:keyPressed("y"))&P:keyPressed("y")){
+    Tracking = 0
+    hint("Tracking turned off.", 10)
+}
+if(changed(P:keyPressed("o"))&P:keyPressed("o")){
+    I++
+    hint("Targeting: "+Find[I,entity]:name()+". With Model: "+Find[I,entity]:model()+" I = "+I,10)
+        if(I>Find:count()){
+            I = 0
+    }
+}
+if(changed(P:keyPressed("i"))&P:keyPressed("i")){
+    if(P:aimEntity():isValid()){
+        I2++
+        Moving[I2, entity] = P:aimEntity()
+        hint("Added: "+Moving[I2, entity]:model()+" as a tracking prop.",10)
+    }else{
+    hint("Invalid Target!",10)
+}
+}
+switch(Mode){
+    case 0, 
+    ModeName = "Manual, Mode 0"
+    break
+    case 1, 
+    ModeName = "Player, Mode 1"
+    Type = "player"
+    break
+    case 2,
+    ModeName = "NPCs, Mode 2"
+    Type = "npc_*"
+    break
+    case 3,
+    ModeName = "Props, Mode 3"
+    Type = "prop_*"
+    break
+    case 4,
+    ModeName = "Vehicles, Mode 4"
+    Type = "prop_vehicle_*"
+    break
+    case 5,
+    ModeName = "Wire, Mode 5"
+    Type = "wire_*"
+    break
+    case 6,
+    Mode = 0
+    ModeName = "Manual, Mode 0"
+    break
+}
+if(changed(I2)&I2|changed(Mode)&Mode==Mode){
+        for(I6 = 1,Moving:count()){
+            Average = ((Average + Moving[I6, entity]:pos())/Moving:count())
+        }
+    }else{
+    Average = E:pos()
+}
+if(changed(Mode)&Mode==Mode | Refresh){
+    if(!Selection){
+        findExcludeEntities(Names)
+        findExcludePlayerProps(P)
+        findExcludeEntity(P)
+        findByClass(Type)
+        findSortByDistance(Average)
+        I = 1
+    }
+    Find = findToArray()
+    if(Mode<6){
+        hint("Targeted: "+Find[I, entity]:toString()+". With Model: "+Find[I,entity]:model()+". out of "+Find:count()+" Targets",5)
+    }
+    if(!Refresh){
+        hint("Changed to Mode: "+ModeName,10)
+    }
+}    
+if(Find[I, entity]:isNPC()&Selection|Find[I, entity]:isPlayer()&Selection){
+    if(!Find[I, entity]:isAlive()){
+        I++
+    }
+}
+if(Selection){
+    timer("scan",100)
+}
+if(clk("scan")|clk("scan2")){
+    findExcludeEntities(Names)
+    findExcludePlayerProps(P)
+    findExcludeEntity(P)
+    findByClass(Type)
+    findSortByDistance(Average)
+    Find = findToArray()
+    I = 1
+    timer("scan2",100)
+}
+if(On){
+    if(P:keyAttack1()){
+        Fire = 1
+    }else{
+    Fire = 0
+}
+    if(P:keyAttack2()){
+        Fire2 = 1
+    }else{
+    Fire2 = 0
+}
+    if(P:keyDuck()){
+        Duck = 1
+    }else{
+    Duck = 0
+}
+    if(P:keySprint()){
+        Sprint = 1
+    }else{
+    Sprint = 0
+}
+    if(P:keyWalk()){
+        Walk = 1
+    }else{
+    Walk = 0
+}
+    if(P:keyUse()){
+        Use = 1
+    }else{
+    Use = 0
+}
+    if(P:keyReload()){
+        Reload = 1
+    }else{
+    Reload = 0
+}
+    if(Distance){
+        while(perf(50)){
+            I4++
+            if(!All){
+                if(Find[I, entity]:pos():distance(Moving[I4, entity]:pos())<Radius&Find[I, entity]:isAlive()){
+                    Proximity = 1
+                }else{
+                Proximity = 0
+            }
+        }
+        if(I4>=Moving:count()){
+            I4 = 0
+        }
+        }
+    }else{
+    Proximity = 0
+}
+    if(Tracking){
+        for(I3 = 1, Moving:count()){
+            if(Mode>=1){
+                if(Find[I, entity]:isPlayer()){
+                    TargetAngle = ((Find[I, entity]:pos() - Moving[I3, entity]:pos())+(Find[I, entity]:attachmentPos("eyes")-Find[I, entity]:pos())):toAngle()
+                }else{
+                TargetAngle = ((Find[I, entity]:pos() - Moving[I3, entity]:pos())):toAngle()
+            }
+            }elseif(Mode<1){    
+        TargetAngle =(P:aimPos() - Moving[I3, entity]:pos()):toAngle()
+    }
+            Moving[I3, entity]:setAng(TargetAngle)
+        }
+    }
+}else{
+Proximity = 0
+}
+if(duped()){
+    reset()
+}

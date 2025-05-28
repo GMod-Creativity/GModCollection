@@ -1,0 +1,569 @@
+@name Adv Track Chip
+@inputs [VarLib Track1 Track2 Track3 Track4 ReturnRollers1 ReturnRollers2 ReturnRollers3 ReturnRollers4]:array 
+@outputs Off #"OFF" is an output, so that you can connect it to a trans & steering chip, to make christie tanks.
+@persist [Track1Pos Track2Pos Track3Pos Track4Pos]:array [Hunterscaler]:vector
+@persist TracksConnected Slacktrack Width Thickness M Heightmod RollerSizeMod
+@persist [Radii1 Radii2 Radii3 Radii4]:array Interval Selected Color:vector State Rollerratio Rollers Skin:string
+@persist Static Track1Wheels Track2Wheels Track3Wheels Track4Wheels Forebackstretch Track1Rollers Track2Rollers Track3Rollers Track4Rollers TrailingIdler
+@autoupdate
+#Todo: find other efficiency enhancements
+#Note: if you get a "function not defined at runtime!" error, tell wire to go eat a bag of dicks, and then reset the chip.  it'll be fine.
+#Wire's op count is dick.  Pay attention to the CPU time and felt lag, you'll notice this is no worse than any past track chip, actually better due to efficiency increases in felt lag
+#This is due to wire counting acessing a var in an array as 10 ops, but a var as 1.  it has no actual effect on lag
+
+#######################################################################################################################################
+#USING THIS SHOULD BE FUCKSIMPLE
+#Make sure your wheels on each side are in a line.  You can do interleaved wheels using offset makesphericals.
+#Use an adv e marker to select one track at a time, from to back, link all the wheels that are tracked.
+#Always start at track 1.  So like if i have 2 tracks, do track 1 and 2, dont' do track 1 and 3 or whatever.
+#Minor adjustments can be made below as shown, read the annotations!
+
+if(first())
+    {
+        FrontSprocketSizeMod = VarLib:number(1) #Adjusts the size of the front sprocket, just some fine tuning
+        WheelSizeMod = VarLib:number(2) #Adjust the side of the roadwheels, just some fine tuning
+        RearSprocketSizeMod = VarLib:number(3) #Adjusts the size of the rear sprocket, just some fine tuning
+        RollerSizeMod = VarLib:number(4) #Adjusts the size of the return rollres, just some fine tuning
+        Forebackstretch = VarLib:number(5) #Foreback stretching for the first & last roadwheels
+        Slack = VarLib:number(6)   #Does it have the tracks droop along the top?
+        Static = VarLib:number(7)  #are these tracks static entirely, like for a bulldozer with parented wheels?  You can change this using chat "static 0/1"
+        Width = VarLib:number(8) #How wide the tracks are.  1 is default.  0.5 would be a teeny tankette, 1 most tanks, 2 a bulldozer.
+        TrailingIdler = VarLib:number(9) #if it has a trailing idler
+        Color = VarLib:vector(10) #Color the treads
+        
+#######################################################################################################################################
+
+#Index lists
+#[
+1-24 - Sprocket-lowertrack-rearsprocket track1
+25-50 - Uppertrack track1
+Repeats from 51-200 these for tracks 2-3-4
+200 - Track1 upper run if noslack
+201-224 - Track 1 holo return rollers, not supported
+Repeats from 225-300 these for tracks 2-3-4
+]#
+        
+        Heightmod = 0.5 #used to scale wheels, default is 0.5.  SLIGHT increases/decreases will affect scaling
+        
+        Thickness = 0.09#The thickness of the actual track, hard-set to 0.09.
+        
+        Slacktrack = Slack * (Rollers ==0)
+        
+        State = 1 #Apparently it doesn't like if i try to run optimizers with runtime
+        
+        Hunterscaler = vec(0.25,0.25,0.125)
+        
+        Skin = entity():getMaterial()
+        
+        #THIS DOES NOT ALWAYS WORK, SO IT GOT REMOVED
+        Rollers = 0 #Does it feature return rollers made of holo?  You can do these with props instead, and leave this to 0
+        Rollerratio = 0.4 #Holo return roller size ratio, default is 0.4
+        
+        #Scaler for our props, we may remove or adjust this if we go to sprops holomodelany
+        M = 0.085
+        #How many tracks we got?
+        TracksConnected = Track1:entity(1):isValid() + Track2:entity(1):isValid() + Track3:entity(1):isValid() + Track4:entity(1):isValid()
+        
+        #Function that gets a track's wheels' positions, and sets them in an array for indexing
+        function array getPositions(Ents:array)
+            {
+                local I = 1
+                local Count = Ents:count()
+                local TempArray = array()
+                while(I <= Count)
+                    {TempArray:setVector(I,Ents:entity(I):pos())
+                    I++}
+                return TempArray
+            }        
+        
+        function number getRadiusBoxBased(Entity:entity)
+            {
+                return Entity:boxSize():x()*0.8
+            }
+        
+        #Stores radii of all our stuff
+        I = 1
+        while(Track1:entity(I):isValid())
+            {
+                Radii1:setNumber(I,getRadiusBoxBased(Track1:entity(I)))
+                if(I==1) {Radii1:setNumber(1,Radii1:number(1) + FrontSprocketSizeMod)}
+                elseif(I==Track1:count()) {Radii1:setNumber(I,Radii1:number(I) + RearSprocketSizeMod)}
+                else{Radii1:setNumber(I,Radii1:number(I) + WheelSizeMod)}
+                I++
+            }
+        I = 1
+        while(Track2:entity(I):isValid())
+            {
+                Radii2:setNumber(I,getRadiusBoxBased(Track2:entity(I)))
+                if(I==1) {Radii2:setNumber(1,Radii2:number(1) + FrontSprocketSizeMod)}
+                elseif(I==Track1:count()) {Radii2:setNumber(I,Radii2:number(I) + RearSprocketSizeMod)}
+                else{Radii2:setNumber(I,Radii2:number(I) + WheelSizeMod)}
+                I++
+            }
+        I = 1
+        while(Track3:entity(I):isValid())
+            {
+                Radii3:setNumber(I,getRadiusBoxBased(Track3:entity(I)))
+                if(I==1) {Radii3:setNumber(1,Radii3:number(1) + FrontSprocketSizeMod)}
+                elseif(I==Track1:count()) {Radii3:setNumber(I,Radii3:number(I) + RearSprocketSizeMod)}
+                else{Radii3:setNumber(I,Radii3:number(I) + WheelSizeMod)}
+                I++
+            }
+        I = 1
+        while(Track4:entity(I):isValid())
+            {
+                Radii4:setNumber(I,getRadiusBoxBased(Track4:entity(I)))
+                if(I==1) {Radii4:setNumber(1,Radii4:number(1) + FrontSprocketSizeMod)}
+                elseif(I==Track1:count()) {Radii4:setNumber(I,Radii4:number(I) + RearSprocketSizeMod)}
+                else{Radii4:setNumber(I,Radii4:number(I) + WheelSizeMod)}
+                I++
+            }    
+        
+        #Function to create a segment of track
+        function void createTrack(Ents:array,Num,M,Width,Thickness,Heightmod,Slack,NumAdjusted,Radii:array)
+            {
+                local FixedNum = Num+NumAdjusted
+                local Slackmodnum = FixedNum + (Slack*25)
+                local LocalHeightmod = -Heightmod
+                if(Slack) {LocalHeightmod = Heightmod} #resets it to on top of your tracks not below
+                #Gets angles between and center point with proper offsets
+                local P1 = (Ents:entity(Num):pos() + entity():up() * (Radii:number(Num)*LocalHeightmod))
+                local P2 = (Ents:entity(Num+1):pos() + entity():up() * (Radii:number(Num+1)*LocalHeightmod))
+                local Axis = entity():toLocalAxis(P1-P2)
+                local Atan = atan(-Axis:z(),Axis:x())
+                #Create the actual holo
+                holoCreate(Slackmodnum,(P1+P2)/2,vec(((P1-P2):length())*M,Width,Thickness))
+                holoAng(Slackmodnum,entity():toWorld(ang(Atan,0,0)))
+            }
+        
+        #Function to create a rounded sprocket
+        function void createSprockets(Ents:array,Num,M,Width,Thickness,Heightmod,NumAdjusted,Radii:array,Hunterscaler:vector)
+            {
+                local Count = Ents:count()
+                local FrontSprocket = Ents:entity(1)
+                local RearSprocket = Ents:entity(Count)
+                local FrontSprocketSize = Radii:number(1)
+                local RearSprocketSize = Radii:number(Count)
+                #scaler
+                local Scalemod = (M*1+(Thickness/20))
+                local FrontScaler = FrontSprocketSize * Scalemod
+                local RearScaler = RearSprocketSize * Scalemod
+                #affixing indexes
+                local FrontIndex = NumAdjusted+Count+1
+                local RearIndex = NumAdjusted+Count+2
+                #Create the holos
+                holoCreate(FrontIndex,FrontSprocket:pos()+(entity():right() * (Width*6)),vec(FrontScaler,FrontScaler,Width)*Hunterscaler)
+                holoCreate(RearIndex,RearSprocket:pos()+(entity():right() * -(Width*6)),vec(RearScaler,RearScaler,Width)*Hunterscaler)
+                holoModel(FrontIndex,"models/hunter/tubes/tube1x1x2c.mdl")
+                holoModel(RearIndex,"models/hunter/tubes/tube1x1x2c.mdl")
+                holoAng(FrontIndex,entity():toWorld(ang(0,180,90)))
+                holoAng(RearIndex,entity():toWorld(ang(0,0,90)))
+            }
+
+        #Function to scale a segment of track
+        function void updateTrack(Ents:array,Num,M,Width,Thickness,Heightmod,Slack,NumAdjusted,Up:vector,Forward:vector,Radii:array,TrackPos:array,TrackWheels,Forebackstretch)
+            {
+                local FixedNum = Num+NumAdjusted
+                #Gets angles between and center point with proper offsets
+                local P1Base = TrackPos:vector(Num)
+                local P2Base = TrackPos:vector(Num+1)
+                #Stretching first/track link
+                if(Num == 2) {P1Base = P1Base + (Forward * Forebackstretch)}
+                elseif(Num == 1) {P2Base = P2Base + (Forward * Forebackstretch)}
+                elseif(Num == TrackWheels-1) {P1Base = P1Base - (Forward * Forebackstretch)}
+                elseif(Num == TrackWheels-2) {P2Base = P2Base - (Forward * Forebackstretch)}
+                #
+                local P1Down = (Up * (Radii:number(Num)*-Heightmod))
+                local P2Down = (Up * (Radii:number(Num+1)*-Heightmod))
+                local P1DownPoint = (P1Base + P1Down)
+                local P2DownPoint = (P2Base + P2Down)
+                local P1minusP2Down = P1DownPoint-P2DownPoint
+                local Axis = entity():toLocalAxis(P1minusP2Down)
+                local Atan = atan(-Axis:z(),Axis:x())
+                local HoloAng = entity():toWorld(ang(Atan,0,0))
+                #angles the actual holo for the bottom
+                holoAng(FixedNum,HoloAng)
+                #Scales the holo
+                holoScale(FixedNum,vec(((P1minusP2Down):length())*M,Width,Thickness))
+                holoPos(FixedNum,(P1DownPoint+P2DownPoint)/2)
+                if(Slack)
+                    {
+                        local Slackmodnum = FixedNum + (Slack*25)
+                        local P1Up = -P1Down
+                        local P2Up = -P2Down
+                        local P1UpPoint = (P1Base + P1Up)
+                        local P2UpPoint = (P2Base + P2Up)
+                        local P1minusP2Up = P1UpPoint-P2UpPoint
+                        #Angling - split so it'll save you calculating axis/atan/e:toWorld/toLocal if not necessary
+                        if(Radii:number(Num) != Radii:number(Num+1))
+                            {
+                                local AxisUp = entity():toLocalAxis(P1minusP2Up)
+                                local AtanUp = atan(-AxisUp:z(),AxisUp:x())
+                                holoAng(Slackmodnum,entity():toWorld(ang(AtanUp,0,0)))
+                            }
+                        else
+                            {
+                                holoAng(Slackmodnum,HoloAng)
+                            }
+                        #Scales the holo
+                        holoScale(Slackmodnum,vec(((P1minusP2Up):length())*M,Width,Thickness))
+                        holoPos(Slackmodnum,(P1UpPoint+P2UpPoint)/2)
+                    }
+
+            }
+        
+        #Function used for determining statics
+        function number staticCleared(Ents:array)
+            {
+                return (Ents:count() <= 2)
+            }
+        
+        #Function to cleanup stray track links, pushed as an update to v7 beta
+        function void cleanupStrayLinks(Track1Wheels,Track2Wheels,Track3Wheels,Track4Wheels,Slacktrack)
+            {
+                holoDelete(Track1Wheels)
+                if(Slacktrack) {holoDelete(Track1Wheels+25)}
+                holoDelete(Track2Wheels+50)
+                if(Slacktrack) {holoDelete(Track2Wheels+75)}
+                holoDelete(Track3Wheels+100)
+                if(Slacktrack) {holoDelete(Track3Wheels+125)}
+                holoDelete(Track4Wheels+150)
+                if(Slacktrack) {holoDelete(Track4Wheels+175)}
+                
+            }
+        
+        
+        #Setting return rollers & shit
+        
+            function void spawnRollersAndTrack(Ents:array,Rollers,M,Width,Thickness,Heightmod,Radii:array,Index,Rollerratio,ReturnRollers:array,RollerSizeMod)
+                {
+                    #Gets angles between and center point with proper offsets
+                    if(ReturnRollers:count() ==0)
+                        {
+                            local P1 = (Ents:entity(1):pos() + entity():up() * (Radii:number(1)*Heightmod))
+                            local P2 = (Ents:entity(Ents:count()):pos() + entity():up() * (Radii:number(Ents:count())*Heightmod))
+                            local Axis = entity():toLocalAxis(P1-P2)
+                            local Atan = atan(-Axis:z(),Axis:x())
+                            local CenterWheel = Ents:entity(round(2+(Ents:count()-1))/2)
+                            #Create the actual holo
+                            
+                            holoCreate(Index,(P1+P2)/2,vec(((P1-P2):length())*M,Width,Thickness))
+                            holoAng(Index,entity():toWorld(ang(Atan,0,0)))
+                            local Drop = entity():up() * -(CenterWheel:radius()/2)
+                            local X = 1
+                            while(X <= Rollers)
+                                {
+                                    local Point = ((P1*((X-0.5)/Rollers))+(P2*(1-((X-0.5)/Rollers)))) + (entity():up() * -((CenterWheel:boxSize():x() * (Rollerratio/2)))+(M*15))
+                                    holoCreate(Index+X,Point,vec(Rollerratio,0.75,Rollerratio))
+                                    holoModel(Index+X,CenterWheel:model())
+                                    X++
+                                }
+                        }
+                    else
+                        {
+                            local P1 = (Ents:entity(1):pos() + (entity():up() * (Radii:number(1)*Heightmod)))
+                            local P2 = (ReturnRollers:entity(1):pos() + entity():up() * ((ReturnRollers:entity(1):radius()+RollerSizeMod)*Heightmod))
+                            local Axis = entity():toLocalAxis(P1-P2)
+                            local Atan = atan(-Axis:z(),Axis:x())
+                            holoCreate(Index,(P1+P2)/2,vec(((P1-P2):length())*M,Width,Thickness))
+                            holoAng(Index,entity():toWorld(ang(Atan,0,0)))
+                            X = 1
+                            while(X <= ReturnRollers:count()-1)
+                                {
+                                    local P1 = (ReturnRollers:entity(X):pos() + entity():up() * ((ReturnRollers:entity(X):radius()+RollerSizeMod)*Heightmod))
+                                    local P2 = (ReturnRollers:entity(X+1):pos() + entity():up() * ((ReturnRollers:entity(X+1):radius()+RollerSizeMod)*Heightmod))
+                                    local Axis = entity():toLocalAxis(P1-P2)
+                                    local Atan = atan(-Axis:z(),Axis:x())
+                                    holoCreate(Index+X,(P1+P2)/2,vec(((P1-P2):length())*M,Width,Thickness))
+                                    holoAng(Index+X,entity():toWorld(ang(Atan,0,0)))
+                                    X++
+                                }
+                            local P1 = (ReturnRollers:entity(X):pos() + entity():up() * ((ReturnRollers:entity(X):radius()+RollerSizeMod)*Heightmod))
+                            local P2 = (Ents:entity(Ents:count()):pos() + (entity():up() * (Radii:number(Ents:count())*Heightmod)))
+                            local Axis = entity():toLocalAxis(P1-P2)
+                            local Atan = atan(-Axis:z(),Axis:x())
+                            holoCreate(Index+X,(P1+P2)/2,vec(((P1-P2):length())*M,Width,Thickness))
+                            holoAng(Index+X,entity():toWorld(ang(Atan,0,0)))
+                        }
+                }
+            
+            #updates trailing idlers automatically
+            function void updateTrailingIdler(TrackPos:array,TrackWheels,ReturnRollers:array,TrackRollers,Index,Heightmod,Radii:array,Up:vector,M,Width,Thickness,NumAdjusted,Right:vector)
+                {
+                    local Roller = ReturnRollers:entity(TrackRollers)
+                    local P1 = Roller:pos() + (Up * ((Roller:radius()+RollerSizeMod)*Heightmod))
+                    local P2 = (TrackPos:vector(TrackWheels) + (Up * (Radii:number(TrackWheels)*Heightmod)))
+                    local Axis = entity():toLocalAxis(P1-P2)
+                    local Atan = atan(-Axis:z(),Axis:x())
+                    holoAng(Index,entity():toWorld(ang(Atan,0,0)))
+                    holoPos(Index,(P1+P2)/2)
+                    holoScale(Index,vec(((P1-P2):length())*M,Width,Thickness))
+                    holoPos(NumAdjusted+TrackWheels+2,TrackPos:vector(TrackWheels)+(Right*(Width*-6)))
+                }
+            
+        #Getting amount of wheels
+        Track1Wheels = Track1:count()
+        Track2Wheels = Track2:count()
+        Track3Wheels = Track3:count()
+        Track4Wheels = Track4:count()
+        
+        #Getting amount of return rollers
+        Track1Rollers = ReturnRollers1:count()
+        Track2Rollers = ReturnRollers2:count()
+        Track3Rollers = ReturnRollers3:count()
+        Track4Rollers = ReturnRollers4:count()
+        
+        
+
+    }#END FIRST
+
+elseif(State ==1)
+    {
+        
+        Wheels = Track1Wheels+Track2Wheels+Track3Wheels+Track4Wheels
+        Interval = clamp((round(Wheels*2) * (4 + (Slacktrack*1.5))) * 5,150*5,300*5)#Twice interval rate
+        if(staticCleared(Track1) & staticCleared(Track2) & staticCleared(Track3) & staticCleared(Track4)) {Static = 1}
+        if(Wheels > 20)
+            {Static = 1
+            hint("You have a shitlord amount of wheels, and we're not gonna have that you fucktard.",7)}
+        
+        #Actually building our tracks
+            
+        #Creating our tracks for each sprocket
+        Num = 1
+        NumAdjusted = 0
+        createSprockets(Track1,Num,M,Width,Thickness,Heightmod,NumAdjusted,Radii1,Hunterscaler)
+        while(Num <= Track1Wheels)
+            {
+                createTrack(Track1,Num,M,Width,Thickness,Heightmod,0,NumAdjusted,Radii1)
+                if(Slacktrack)
+                {createTrack(Track1,Num,M,Width,Thickness,Heightmod,Slacktrack,NumAdjusted,Radii1)}
+                Num++
+            }
+        
+        Num = 1
+        NumAdjusted = 50
+        createSprockets(Track2,Num,M,Width,Thickness,Heightmod,NumAdjusted,Radii2,Hunterscaler)
+        while(Num <= Track2Wheels)
+            {
+                createTrack(Track2,Num,M,Width,Thickness,Heightmod,0,NumAdjusted,Radii2)
+                if(Slacktrack)
+                {createTrack(Track2,Num,M,Width,Thickness,Heightmod,Slacktrack,NumAdjusted,Radii2)}
+                Num++
+            }
+        
+        Num = 1
+        NumAdjusted = 100
+        createSprockets(Track3,Num,M,Width,Thickness,Heightmod,NumAdjusted,Radii3,Hunterscaler)
+        while(Num <= Track3Wheels)
+            {
+                createTrack(Track3,Num,M,Width,Thickness,Heightmod,0,NumAdjusted,Radii3)
+                if(Slacktrack)
+                {createTrack(Track3,Num,M,Width,Thickness,Heightmod,Slacktrack,NumAdjusted,Radii3)}
+                Num++
+            }
+        
+        Num = 1
+        NumAdjusted = 150
+        createSprockets(Track4,Num,M,Width,Thickness,Heightmod,NumAdjusted,Radii4,Hunterscaler)
+        while(Num <= Track4Wheels)
+            {
+                createTrack(Track4,Num,M,Width,Thickness,Heightmod,0,NumAdjusted,Radii4)
+                if(Slacktrack)
+                {createTrack(Track4,Num,M,Width,Thickness,Heightmod,Slacktrack,NumAdjusted,Radii4)}
+                Num++
+            }
+    State++
+    }
+        
+elseif(State ==2)
+    {
+        #Spawning return tracks and roller
+        if(!Slacktrack)
+            {
+                if(Track1Wheels > 0) {spawnRollersAndTrack(Track1,Rollers,M,Width,Thickness,Heightmod,Radii1,200,Rollerratio,ReturnRollers1,RollerSizeMod)}
+                if(Track2Wheels > 0) {spawnRollersAndTrack(Track2,Rollers,M,Width,Thickness,Heightmod,Radii2,225,Rollerratio,ReturnRollers2,RollerSizeMod)}
+                if(Track3Wheels > 0) {spawnRollersAndTrack(Track3,Rollers,M,Width,Thickness,Heightmod,Radii3,250,Rollerratio,ReturnRollers3,RollerSizeMod)}
+                if(Track4Wheels > 0) {spawnRollersAndTrack(Track4,Rollers,M,Width,Thickness,Heightmod,Radii4,275,Rollerratio,ReturnRollers4,RollerSizeMod)}
+            }
+        
+        #Setting colors/materials
+        #Temp mats for return rollers
+        if(Rollers > 0)
+            {Tempmat = Track1:entity(1):getMaterial()
+            Tempcolor = Track1:entity(1):getColor()}
+        else
+            {Tempmat = Skin
+            Tempcolor = Color}
+            
+        while(I<=300)
+            {if(I != 200|225|250|275)
+                {
+                    holoMaterial(I,Tempmat)
+                    holoColor(I,Tempcolor)
+                }
+            I++
+            }
+        
+        I = 0
+        while(I<=200)
+            {
+                if(holoEntity(I):isValid())
+                    {holoMaterial(I,Skin)
+                    holoColor(I,Color)}
+                I++
+            }
+        I = 225
+            if(holoEntity(I):isValid())
+                    {holoMaterial(I,Skin)
+                    holoColor(I,Color)}
+
+        I = 250
+            if(holoEntity(I):isValid())
+                    {holoMaterial(I,Skin)
+                    holoColor(I,Color)}
+
+        I = 275
+            if(holoEntity(I):isValid())
+                    {holoMaterial(I,Skin)
+                    holoColor(I,Color)}
+        
+        #if(Rollers >0) {State++}
+        State++
+    }
+
+elseif(State ==3)
+    {
+        #parenting
+        I = 1
+        while(I<300)
+            {
+                if(holoEntity(I):isValid()) {holoParent(I,entity())}
+                I++
+                
+            }
+        Interval = Interval/5
+        #Cleaning stray links
+        cleanupStrayLinks(Track1Wheels,Track2Wheels,Track3Wheels,Track4Wheels,Slacktrack)
+        
+        State++
+    }
+
+elseif(State ==4)
+    {
+    runOnChat(1)
+    
+    if (chatClk(owner()))
+        {
+            Chat = owner():lastSaid():lower()
+            Split  = Chat:sub(1,Chat:length()):explode(" ")
+            Key = Split:string(1):lower()
+            if(Key == "reset")
+                {
+                    hideChat(1)
+                    reset()
+                }
+            elseif(Key == "link")
+                {
+                    holoColor(Selected,Color)
+                    Selected = Split:string(2):toNumber()
+                    hideChat(1)
+                    holoColor(Selected,vec(255,0,0))
+                    hint("Link "+Selected+" Valid "+holoEntity(Selected):isValid(),3)
+                }
+            elseif(Key == "wheels")
+                {
+                    hideChat(1)
+                    hint("Wheels: "+(Track1:count()+Track2:count()+Track3:count()+Track4:count()),3)
+                }
+            elseif(Key == "tracks")
+                {
+                    hideChat(1)
+                    Sub = Split:string(2):lower()
+                    if(Sub == "off")
+                        {
+                            Off = 1
+                            X = 0
+                            while(X<500)
+                                {holoDelete(X)
+                                X++}
+                        }
+                    else {Off = 0
+                    reset()}
+                }
+            elseif(Key == "int")
+                {
+                    hideChat(1)
+                    NewInt = Split:string(2):toNumber()
+                    hint("Changing int from "+Interval+" to "+NewInt+"!",5)
+                    Interval = NewInt
+                }
+            elseif(Key == "static")
+                        {
+                            hideChat(1)
+                            Static = clamp((Split:string(3):toNumber()),0,1)
+                        }
+        }
+    
+    elseif(Off ==0)
+        {
+            if(Static) {Interval = 9999^9999}
+            Up = entity():up()#Need this every tick
+            Forward = entity():forward()#Need this every tick
+            Right = entity():right()#Need this every tick
+            #Here is where we actually update the tracks, we're calling the functions earlier written.
+            if(TracksConnected >=1)
+                {
+                    Track1Pos = getPositions(Track1)
+                    Num = 1
+                    NumAdjusted = 0
+                    if(Track1Rollers & TrailingIdler) {updateTrailingIdler(Track1Pos,Track1Wheels,ReturnRollers1,Track1Rollers,Track1Rollers+200,Heightmod,Radii1,Up,M,Width,Thickness,NumAdjusted,Right)}
+                    while(Num <= Track1Wheels)
+                        {
+                            updateTrack(Track1,Num,M,Width,Thickness,Heightmod,Slacktrack,NumAdjusted,Up,Forward,Radii1,Track1Pos,Track1Wheels,Forebackstretch)
+                            Num++
+                        }
+                }
+            
+            if(TracksConnected >=2)
+                {
+                    Track2Pos = getPositions(Track2)   
+                    Num = 1
+                    NumAdjusted = 50
+                    if(Track2Rollers & TrailingIdler) {updateTrailingIdler(Track2Pos,Track2Wheels,ReturnRollers2,Track2Rollers,Track2Rollers+225,Heightmod,Radii2,Up,M,Width,Thickness,NumAdjusted,Right)}
+                    while(Num <= Track2Wheels)
+                        {
+                            updateTrack(Track2,Num,M,Width,Thickness,Heightmod,Slacktrack,NumAdjusted,Up,Forward,Radii2,Track2Pos,Track2Wheels,Forebackstretch)
+                            Num++
+                        } 
+                }
+            
+            if(TracksConnected >=3)
+                {
+                    Track3Pos = getPositions(Track3)
+                    Num = 1
+                    NumAdjusted = 100
+                    if(Track3Rollers & TrailingIdler) {updateTrailingIdler(Track3Pos,Track3Wheels,ReturnRollers3,Track3Rollers,Track3Rollers+250,Heightmod,Radii3,Up,M,Width,Thickness,NumAdjusted,Right)}
+                    while(Num <= Track3Wheels)
+                        {
+                            updateTrack(Track3,Num,M,Width,Thickness,Heightmod,0,NumAdjusted,Up,Forward,Radii3,Track3Pos,Track3Wheels,Forebackstretch)
+                            Num++
+                        } 
+                }
+            
+            if(TracksConnected ==4)
+                {
+                    Track4Pos = getPositions(Track4)
+                    Num = 1
+                    NumAdjusted = 150
+                    if(Track4Rollers & TrailingIdler) {updateTrailingIdler(Track4Pos,Track4Wheels,ReturnRollers4,Track4Rollers,Track4Rollers+275,Heightmod,Radii4,Up,M,Width,Thickness,NumAdjusted,Right)}
+                    while(Num <= Track4Wheels)
+                        {
+                            updateTrack(Track4,Num,M,Width,Thickness,Heightmod,0,NumAdjusted,Up,Forward,Radii4,Track4Pos,Track4Wheels,Forebackstretch)
+                            Num++
+                        }
+                }
+        }
+    }
+interval(Interval * (1+((Track1:entity(1):vel():length() > 300)*0.5)))
+#print(""+Forward,Forebackstretch)

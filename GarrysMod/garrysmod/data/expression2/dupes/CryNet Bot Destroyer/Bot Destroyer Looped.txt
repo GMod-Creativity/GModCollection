@@ -1,0 +1,106 @@
+@name Bot Destroyer Looped
+@persist [Bots E2s MaliciousOwners MaliciousOwnerName Owners OwnerName]:array I Deleted Malicious BotFind StartBotCount BotDestroy
+@persist MaliciousOwnerCount OwnerCount NoMatch
+ 
+interval(20)
+runOnChat(1)
+
+if (dupefinished()) {reset()}
+
+if (first()){
+
+    dsSetScope(2)
+    dsJoinGroup("CryNet")   
+
+    Bots = dsProbe("CryNet")
+    StartBotCount = Bots:count()
+        
+    findByClass("gmod_wire_expression2")
+    E2s = findToArray()
+
+    BotFind = 1
+    
+    timer("loop",10000)
+}
+
+if (clk("loop")) {reset()}
+
+if (BotFind){
+    
+    I++
+    
+    if (E2s[I,entity]:getName()==""){
+        Bots[I+StartBotCount,entity]=E2s[I,entity]  
+    }
+    
+    setName("[Bot Destroyer] - E2 Queue: "+(E2s:count()-I)+" | Bots found: "+Bots:count())
+    
+    if (I>E2s:count()){   
+        I=0
+        BotFind=0
+        BotDestroy=1
+    }
+    
+}
+
+if (BotDestroy){
+    
+  I++
+  NoMatch=0
+
+    if (Bots[I,entity]:owner():trusts(owner())){
+        Bots[I,entity]:propDelete()
+        Deleted++
+        
+        for (H=0,Owners:count()){
+            if (Bots[I,entity]:owner() != Owners[H,entity]){
+                NoMatch++
+            }
+        }
+        
+        if (NoMatch==1+Owners:count()){
+            OwnerCount++
+            Owners[OwnerCount,entity] = Bots[I,entity]:owner()
+            OwnerName[OwnerCount,string] = Bots[I,entity]:owner():name()    
+        }
+    }
+    
+    else {
+        
+        Malicious++
+        
+        for (H=0,MaliciousOwners:count()){
+            if (Bots[I,entity]:owner() != MaliciousOwners[H,entity]){
+                NoMatch++
+            }
+        }
+        
+        if (NoMatch==1+MaliciousOwners:count()){
+            MaliciousOwnerCount++
+            MaliciousOwners[MaliciousOwnerCount,entity] = Bots[I,entity]:owner()
+            MaliciousOwnerName[MaliciousOwnerCount,string] = Bots[I,entity]:owner():name()    
+        }
+        
+    }
+    
+    setName("[Bot Destroyer] - Deleted: "+Deleted+" | Malicious E2s Alive: "+(Malicious-1)+" | Malicious Owners Left: "+MaliciousOwners:count())
+        
+    if (I>Bots:count()){
+        I=0
+        BotDestroy=0
+        entity():soundPlay(1,0,"buttons/blip1.wav")
+        if (Deleted>0) {printColor(vec(0,255,255),"[Bot Destroyer] - Deleted "+Deleted+" Bots")}
+        
+        if (OwnerCount>0){
+            printColor(vec(0,255,255),"[Bot Destroyer] - Bots deleted from: "+OwnerName:concat(", "))
+        }
+        
+        if (MaliciousOwnerCount>0){
+            concmd("say [Bot Destroyer] - "+MaliciousOwnerName:concat(", ")+" you must run a Bot Destroyer to get rid of your bots.")
+            entity():soundPlay(2,0,"buttons/button16.wav")    
+        }
+        
+        stoptimer("interval")
+    }
+       
+}

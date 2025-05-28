@@ -1,0 +1,257 @@
+@name Pie's Health e2
+@inputs Clk Dmg Type:string Attacker:entity Delete:entity
+@outputs Constant Health Dead Reset
+@persist HPmax InCombat CombatCooldown Resist:table Vuln:table Special:table
+@persist Contraption:array Constraints:array A
+
+#[
+This e2 is complicated, and has a lot of features. A quick breakdown is here:
+Adjustable HP max and current health without editing e2
+Damage resistances
+Damage vulnerabilities
+Damage multiplier for specific weapons/damage types
+Combat detection to restrict some features and stay balanced
+Cinematic destruction
+Automatic deletion upon destruction
+
+Most features can be edited through chat. No e2 editor required!
+Supported chat commands:
+!set hpmax [number]: sets the maximum hp for the e2. THIS DOES NOT AFFECT CURRENT HP, ONLY THE MAX.
+!set combatcooldown [number]: sets the cooldown for determining whether or not you are in combat, with the number being the delay in seconds.
+!set health [number]: sets the current health to the provided number. If it exceeds the max, it is instead set to the max. Cannot be used in combat.")
+!refill: sets the current hp to the max. Cannot be used in combat.")
+!add resistance [string]: adds a damage resistance to the damage type. You can only have 2 damage resistances for balance reasons.")
+!add vulnerabilty [string]: adds a damage vulnerability to the damage type. No cap for vulnerabilities.")
+!addspecial [string] [number]: used for more specific/special modifiers. Supports damage types and specific weapons. String is type or weapon, number is the modifier.")
+!remove [string]: removes all resistances/vulnerabilities/modifiers for the given damage type or weapon.
+
+    SETUP GUIDE
+    
+MAKE SURE THE E2 IS ATTACHED TO THE CONTRAPTION! IF IT IS SEPERATE IT WONT WORK!
+==Required steps:==
+wire e2 clk to wiredmg clk
+wire e2 dmg to wiredmg damage
+wire wiredmg on to e2 constant
+wire wiredmg reset to e2 reset
+
+==Optional steps:==
+For damage resistance/vulnerabilities:
+wire e2 type to wiredmg type
+wire e2 attacker to wiredmg attacker
+
+For more cinematic deaths:
+Wire e2 delete to any e2s that need to stop once the machine dies (like legs controllers for a mech)
+wire e2 dead to any other things that need to go off when the machine dies (like wire explosives)
+
+need multiple e2s to die when machine dies? parent all e2s to a single prop and then delete that prop
+]#
+
+if(first()){
+    Constant = 1
+    HPmax = 200
+    Health = HPmax
+    CombatCooldown = 15
+    runOnChat(1)
+    printColor(vec(255),"Thank you for using pie's health e2. Say ",vec(0,255,0),"!info",vec(255)," for stuff like chat commands and info on built in mechanisms.")
+    printColor(vec(255),"This has a lot of features, so you may feel overwhelmed at first. Take it slow, it's fine. Check e2 comments for a setup guide.")
+}
+
+if(chatClk(owner())){
+    B = owner():lastSaid():explode(" ")
+    T1 = B[1,string]
+    T2 = B[2,string]
+    T3 = B[3,string]
+    if(T1:lower()+" "+T2:lower() == "!set hpmax"){
+        HPmax = T3:toNumber()
+        hint("HP max is now"+HPmax,3)
+    }
+    if(T1:lower()+" "+T2:lower() == "!set combatcooldown"){
+        if(T3:toNumber() >= 5){
+            CombatCooldown = T2:toNumber()
+            hint("Combat cooldown is now "+T2:toNumber(),3)
+        }
+        else{
+            hint("Nice try. For balance reasons, combat cooldown cannot be below 5 seconds.",3)
+        }
+    }
+    if(T1:lower()+" "+T2:lower() == "!set health"){
+        if(InCombat){
+            hint("Cannot set health when in combat.",3)
+        }
+        else{
+            Health = T3:toNumber()
+            if(Health > HPmax){Health = HPmax}
+            hint("Health has been set!",3)
+        }
+    }
+    
+    if(T1:lower() == "!refill"){
+        if(!InCombat){
+            Health = HPmax
+            hint("Health refilled!",3)
+        }
+        else{
+            hint("You cannot refill health in combat. Say \"!info\" for info on combat and other mechanisms.",3)
+        }
+    }
+    if(T1:lower() == "!add" & (T3:lower() == "explosive" | T3:lower() == "bullet" | T3:lower() == "club" | T3:lower() == "crush" | T3:lower() == "fall" | T3:lower() == "other")){
+        if(T2:lower() == "resistance"){
+            if(Resist:count() >= 2){
+                hint("Too many resistances, cannot add more.",3)
+            }
+            else{
+                Resist[T3:lower(),number] = 1
+                if(Vuln:exists(T3:lower())){
+                    Vuln:remove(T3:lower())
+                    hint("That damage type was already a vulnerability. Removed vulnerability and added resistance.",3)
+                }
+                elseif(Special:exists(T3:lower())){
+                    Special:remove(T3:lower())
+                    hint("That was a special modifier. Removed special and added resistance.",3)
+                }
+                else{
+                    hint("Created resistance.",3)
+                }
+            }
+        }
+        if(T2:lower() == "vulnerability"){
+            Vuln[T3:lower(),number] = 1
+            if(Resist:exists(T3:lower())){
+                Resist:remove(T3:lower())
+                hint("That damage type was already a resistance. Removed resistance and added vulnerability.",3)
+            }
+            elseif(Special:exists(T3:lower())){
+                Special:remove(T3:lower())
+                hint("That was a special modifier. Removed special and added vulnerability.",3)
+            }
+            else{
+                hint("Created vulnerability.",3)
+            }
+        }
+    }
+    elseif(T1:lower() == "!add"){
+        hint("Invalid damage type, try again.",3)
+    }
+    #!addspecial is used for special damage multipliers for specific weapons.
+    #SYNTAX: !addspecial [string] [number]: put the weapon name into string and damage multiplier into number.
+    #EXAMPLE: !addspecial weapon_crowbar 1000 would multiply damage taken from crowbars by 1000.
+    if(T1:lower() == "!addspecial"){
+        Special[T2:lower(),number] = T3:toNumber()
+        if(Resist:exists(T2:lower())){
+            Resist:remove(T2:lower())
+        }
+        if(Vuln:exists(T2:lower())){
+            Vuln:remove(T2:lower())
+        }
+        hint("Added a special modifier for "+T2,3)
+    }
+    if(T1:lower() == "!remove"){
+        Resist:remove(T2:lower())
+        Vuln:remove(T2:lower())
+        Special:remove(T2:lower())
+        hint("Removed damage modifier.",3)
+    }
+    
+    if(T1:lower() == "!info"){
+        printColor(vec(255,0,0),"==PIE'S HEALTH E2 INFO==",vec(0,255,0),"
+Chat commands:",vec(255)," This health e2 has some chat commands for adjusting stats and mechanics. Commands use ! as a prefix.")
+printColor("!set hpmax [number]",vec(255),": sets the maximum hp for the e2. THIS DOES NOT AFFECT CURRENT HP, ONLY THE MAX.")
+printColor("!set combatcooldown [number]",vec(255),": sets the cooldown for determining whether or not you are in combat, with the number being the delay in seconds.")
+printColor("!set health [number]",vec(255),": sets the current health to the provided number. If it exceeds the max, it is instead set to the max. Cannot be used in combat.")
+printColor("!refill",vec(255),": sets the current hp to the max. Cannot be used in combat.")
+printColor("!add resistance [string]",vec(255),": adds a damage resistance to the damage type. You can only have 2 damage resistances for balance reasons.")
+printColor("!add vulnerabilty [string]",vec(255),": adds a damage vulnerability to the damage type. No cap for vulnerabilities.")
+printColor("!addspecial [string] [number]",vec(255),": used for more specific/special modifiers. Supports damage types and specific weapons. String is type or weapon, number is the modifier.")
+printColor("
+",vec(0,255,0),"COMBAT:")
+printColor(vec(255),"This E2 has a system to tell if you are in combat. Some features are unavailable in combat.")
+printColor(vec(255),"If the E2 detects damage taken, it starts a "+CombatCooldown+" second timer and tells itself you are in combat. If the timer hits 0, you exit combat.")
+
+
+printColor(vec(0,255,0),"RESISTANCES & VULNERABILITIES:")
+printColor(vec(255),"Damage resistances work by taking half damage when that damage type is detected. Vulnerabilities are the opposite, taking double damage from certain types.")
+printColor(vec(255),"Damage types are explosive, bullet, crush, club, fall, and other.")
+    }
+}
+
+#the actual damage calculation
+if(Clk & !Reset & Health > 0){
+    Reset = 1
+    timer("reset",1)
+    hint("damage taken",1)
+    stoptimer("combat")
+    #resistance calculation
+    print(Dmg)
+    if(Resist:exists(Type:lower())){
+        Health = Health - floor(Dmg/2)
+        
+    }
+    #vulnerable calculation
+    elseif(Vuln:exists(Type:lower())){
+        Health = Health - ceil(Dmg*2)
+    }
+    #special modifiers
+    elseif(Special:exists(Attacker:weapon():type():lower())){
+        Health = Health - ceil(Dmg*Special[Attacker:weapon():type():lower(),number])
+    }
+    elseif(Special:exists(Type:lower())){
+        Health = Health - ceil(Dmg*Special[Type:lower(),number])
+    }
+    else{
+        Health = Health - Dmg
+    }
+    print(Health)
+    InCombat = 1
+    #stoptimer("combat")
+    timer("combat",CombatCooldown*1000)
+}
+
+if(clk("reset")){
+    Reset = 0
+}
+
+if(clk("combat")){
+    hint("no longer in combat",3)
+    InCombat = 0
+}
+
+#dying
+#[
+==what i plan on happening when the e2 registers death:== 
+various parts of contraption catch fire
+any movement e2s are deleted, making it immobile. if this happens with a mech, the mech will fall over.
+all players in attached seats or pods die
+a 5-10 second timer starts, deletes the whole contraption when it finishes.
+]#
+
+if(Health <= 0 & !Dead){
+    if(!Contraption:exists(1)){Contraption = entity():getConnectedEntities()}
+    Dead = 1
+    if(Delete:isValid()){Delete:propDelete()}
+    A = 0
+    #loop through every entity in the contraption
+    while(A < Contraption:count()){
+        A++
+        #[Contraption[A,entity]:constraintBreak("axis")
+        Contraption[A,entity]:constraintBreak("ballsocket")
+        Contraption[A,entity]:constraintBreak("rope")]#
+        
+        #kill pod occupants if current entity is a pod.
+        if(Contraption[A,entity]:type() == "prop_vehicle_prisoner_pod"){
+            Contraption[A,entity]:killPod()
+        }
+        #chance to set on fire
+        X = randint(1,10)
+        #print(X)
+        if(X == 1){
+            Contraption[A,entity]:ignite()
+        }
+        
+    }
+    timer("delete everything",10000)
+    
+}
+
+if(clk("delete everything")){
+    Contraption:propDelete()
+}

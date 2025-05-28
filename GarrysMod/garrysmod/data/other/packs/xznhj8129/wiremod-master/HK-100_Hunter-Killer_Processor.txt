@@ -1,0 +1,147 @@
+@name HK-100 Hunter-Killer Processor
+@inputs On Destination:vector Sensor:wirelink Ranger:wirelink Mode 
+@outputs Go Dist LW RW LWB RWB Stop Boost Aimvec:vector 
+@outputs Turret Engage Fire NoLos Acquire TargetDist Left Right Fwd
+@persist Fwd Left Right GPS:vector Stop Go Timer NoLos TargetPos:vector 
+@persist DestVect:vector AutoVec:vector Acquire Engage Fire DriveTimer
+@trigger On 
+
+#Version 1.1
+
+I = 100
+interval(I)
+Null=vec(0,0,0)
+
+# OPERATING MODE
+    if (Mode == 0) { # MANUAL MODE
+    AutoVec = Destination
+    }
+    elseif (Mode == 1) { #SEMI-AUTONOMOUS MODE
+    if ((TargetPos == Null) | (Acquire == 0)) {AutoVec = Destination}
+    elseif ((Acquire == 1) & (TargetPos != Null)) {AutoVec = TargetPos}
+    }
+
+# NAVIGATION
+    GPS=entity():pos()
+    Gx=GPS:x()
+    Py=GPS:y()
+    Sz=GPS:z()
+    Max=1000 #Max Speed
+    E=entity()
+    Speed=E:vel():length()
+    Hdg=E:angles():yaw()
+    Bear=E:bearing(AutoVec)
+    Dist=E:pos():distance(AutoVec)
+    SafeaimvecX=Gx+(cos(Hdg)*1000)
+    SafeaimvecY=Py+(sin(Hdg)*1000)
+    SafeaimvecZ=Sz+100
+    Safeaimvec=vec(SafeaimvecX,SafeaimvecY,SafeaimvecZ)
+    Vx=AutoVec:x()
+    Vy=AutoVec:y()
+    DirVec=vec(Vx,Vy,SafeaimvecZ)
+
+# PROPULSION 
+if (On==0) {Stop=0
+    Go=0
+    LW=0
+    RW=0}
+else {
+    
+if (Dist>=100 & On==1) {Go=1
+    Stop=0}
+elseif (Dist<100) {Go=0
+    Stop=1}
+else {Go=0
+    Stop=1}
+
+if (Go==1) {
+    if (Bear<=5 & Bear>= -5) {Fwd=1}
+    else {Fwd=0}
+    if (Bear< -2) {Left=1}
+    else {Left=0}
+    if (Bear>2) {Right=1}
+    else {Right=0}
+}
+else {Fwd=0
+    Left=0
+    Right=0}
+
+if (Fwd==1 & Speed<Max) {LW=1
+    RW=1
+    if (Speed<200 & On==1) {Boost=1}
+    else {Boost=0}
+    }
+elseif (Fwd==1 & Speed>Max) {Boost=0
+    LW=0.1
+    RW=0.1
+    LWB=(Speed-Max)
+    RWB=(Speed-Max)}
+elseif (Left==1) {Boost=0
+    LW= -1
+    RW=1}
+elseif (Right==1) {Boost=0
+    LW= 1
+    RW= -1}
+
+if (On==0) {LW=0
+RW=0}
+
+if (Go==0 & Stop==1) {LWB=100
+    RWB=100
+    LW=0
+    RW=0}
+
+if (Stop==0 & Speed<Max) {LWB=0
+RWB=0}
+}
+
+# SENSORS
+    Acquire = Sensor["1",number]
+    Target = Sensor["1_Ent",entity]
+    TargetID = Target:id()
+    TargetPos = Target:pos()
+    TargetDist = TargetPos:distance(GPS)
+    RangerPos = Ranger["Pos",vector]
+    RangerEntity = Ranger["Entity",entity]
+ 
+# TARGETING
+    if (On==1) {Turret=1
+        
+        if (Acquire==1) {
+            if (TargetPos==Null) {Aimvec=Safeaimvec
+            Engage=0}
+            else {Aimvec=TargetPos+vec(0,0,40)
+                Engage=1}
+        }
+        elseif (Acquire==0 & Stop==0 & Dist>500) {Aimvec=DirVec
+            Engage=0}
+  elseif (Acquire==0) {Aimvec=Safeaimvec}
+  else {Aimvec=Safeaimvec}
+    }
+    else {Turret=0
+        Engage=0
+        Aimvec=Safeaimvec}
+
+# GUN INTERLOCK
+    ErrorMax=75
+
+    AimingError = TargetPos:distance(RangerPos)
+    EntityHit = Target == RangerEntity
+
+    if (Engage==0) {
+        Fire = 0
+        NoLos = 0
+        Timer = 0}
+
+    if (Engage==1) {
+        Timer= Timer + I
+        if ((Timer>10000) & (AimingError>ErrorMax)) {
+            NoLos = 1
+            Timer = 0}
+        else {NoLos=0}
+  if (EntityHit) {NoLos=0}
+    }
+
+    if (TargetPos == Null | RangerPos == Null) {Fire=0}
+    elseif ((AimingError <= ErrorMax) & (NoLos == 0)) {Fire=1}
+    else {Fire=0}

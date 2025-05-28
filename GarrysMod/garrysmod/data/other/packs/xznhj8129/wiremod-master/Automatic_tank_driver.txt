@@ -1,0 +1,78 @@
+@name Automatic tank driver
+@inputs Active Dest:vector Engine:wirelink Gearbox:wirelink TCL:wirelink TCR:wirelink
+@outputs Speed Break Bear Dist W A S D Shift Throttle SafeAimVec:vector
+@persist 
+@trigger 
+interval(200)
+E = entity()
+Speed = toUnit("km/h",E:vel():length())
+Bear=E:bearing(Dest)
+Dist=E:pos():distance(Dest)
+RPM = Engine["RPM",number]
+Hdg=E:angles():yaw()
+SafeaimvecX=E:pos():x()+(cos(Hdg)*1000)
+SafeaimvecY=E:pos():y()+(sin(Hdg)*1000)
+SafeaimvecZ=E:pos():z()+100
+SafeAimVec=vec(SafeaimvecX,SafeaimvecY,SafeaimvecZ)
+
+if (Dest!=vec(0,0,0) & Dist>500) {Go=1}
+else {Go=0}
+
+if (Go) {
+    Break = 0
+    if (Speed>27 & RPM>2000) {Gearbox["Gear",number] = 5}
+    elseif (Speed>21 & RPM>2000) {Gearbox["Gear",number] = 4}
+    elseif (Speed>17 & RPM>2000) {Gearbox["Gear",number] = 3}
+    elseif (Speed>9 & RPM>2000) {Gearbox["Gear",number] = 2}
+    elseif (Speed<=9) {Gearbox["Gear",number] = 1}
+    
+    if (Bear< -30) {
+        A = 1
+        D = 0
+        Shift = 1
+    }
+    elseif (Bear< -2) {
+        A = 1
+        D = 0
+        Shift = 0
+    }
+    elseif (Bear>30) {
+        A = 0
+        D = 1
+        Shift = 1
+    }
+    elseif (Bear>2) {
+        A = 0
+        D = 1
+        Shift = 0
+    }
+    else {
+        A=0
+        D=0
+        Shift=0
+    }
+
+}
+else {
+    A=0
+    D=0
+    Shift=0
+    Break = 1
+}
+Gearbox["Left Brake",number] = (S)*100
+Gearbox["Right Brake",number] = (S)*100
+Gearbox["Left Clutch",number] = (A& !Shift)*100
+Gearbox["Right Clutch",number] = (D& !Shift)*100
+TCL["Gear",number] = (A*Shift)+1
+TCR["Gear",number] = (D*Shift)+1
+
+Throttle = Go*100
+Engine["Throttle",number] = Throttle
+
+if (!Active) {
+    Gearbox["Left Brake",number]=100
+    Gearbox["Right Brake",number]=100
+    Gearbox["Left Clutch",number] = 100
+    Gearbox["Right Clutch",number] = 100
+    Break=1
+}

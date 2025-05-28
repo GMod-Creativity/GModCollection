@@ -1,0 +1,114 @@
+@name Auto-Pilot[Plane]
+@inputs 
+@outputs Attack1 Attack2 Reload Sprint
+@persist [E P EW EWD]:entity 
+@persist [ENTS ENTS2]:array
+@persist [Index Engine First Speed AP Weight]
+@persist [Name]:string
+@persist [Ang]:angle
+@persist [Pos]:vector
+@trigger 
+interval(100) 
+runOnChat(1) 
+ENTS2 = E:getConstraints()
+EWD = EW:driver()
+if(first()){
+    E = entity()
+    P = owner()
+    EW = E:isConstrainedTo()
+    ENTS = E:getConstraints()
+    ENTS[ENTS:count()+1,entity] = E
+    Speed = 150
+}
+Chat = chatClk(EWD)
+if(changed(ENTS2:count())){
+    hint(ENTS2:count()+" Entities Indexed",10)
+    ENTS = E:getConstraints()
+    ENTS[ENTS2:count()+1,entity] = E
+}
+if(EWD){
+    First = 1
+    if(changed(EWD)&EWD){
+        EW:printDriver("
+        --Controls--
+        Hold 'L' and press 'P' to turn on engine.
+        W - Move forward.
+        Aim your cursor to steer.
+        Hold 'L' and press 'O' to configure Auto-Pilot.
+        /pos X Y Z to change position Auto-Pilot flies to.
+        ")
+    }
+    if(changed(EWD:keyPressed("P"))&EWD:keyPressed("P")&EWD:keyPressed("L")&!Engine){
+        EW:soundPlay(2,0,"vehicles/airboat/fan_motor_start1.wav")
+        EW:soundPlay(1,0,"vehicles/airboat/fan_blade_idle_loop1.wav")
+        EW:hintDriver("Engine Started Up!",10)
+        Engine = 1
+        soundStop(3)
+    }elseif(changed(EWD:keyPressed("P"))&EWD:keyPressed("P")&EWD:keyPressed("L")&Engine){
+    EW:soundPlay(3,0,"vehicles/airboat/fan_motor_shut_off1.wav")
+    EW:hintDriver("Engine Stopped!",10)
+    Engine = 0
+    soundStop(1)
+    soundStop(2)
+}
+    if(Chat&EWD:lastSaid():explode(" "):string(1) == "/pos"){
+        local X = EWD:lastSaid():explode(" "):string(2):toNumber()
+        local Y = EWD:lastSaid():explode(" "):string(3):toNumber()
+        local Z = EWD:lastSaid():explode(" "):string(4):toNumber()
+        Pos = vec(X,Y,Z)
+        EW:printDriver("Positioned "+X+Y+Z)
+    }
+    if(P:keyWalk()){
+        Alt = 1
+    }else{
+    Alt = 0
+}
+    if(P:keySprint()){
+            Sprint = 1
+        }else{
+        Sprint = 0
+}
+    if(P:keyAttack1()){
+            Attack1 = 1
+        }else{
+        Attack1 = 0
+}
+    if(P:keyAttack2()){
+            Attack2 = 1
+        }else{
+        Attack2 = 0
+}
+    if(Engine){
+        soundPitch(1,((EW:vel():length()/25)*3.5+80))
+    if(!AP){
+        if(EWD:keyForward()){
+            for(I = 1,ENTS:count()){
+                ENTS[I,entity]:applyForce(EW:toWorld(vec(0,(Speed*((ENTS[I,entity]:mass()*80)/100)),0))-EW:pos())
+            }
+    }
+        if(EWD:keyBack()){
+            for(I = 1,ENTS:count()){
+                ENTS[I,entity]:applyForce(EW:toWorld(vec(0,(-Speed*((ENTS[I,entity]:mass()*80)/100)),0))-EW:pos())
+            }
+    }
+        if(EWD:keyLeft()){
+            for(I = 1,ENTS:count()){
+                ENTS[I,entity]:applyAngForce(ang(0,50,0)+((Speed-E:vel():length()*0.7550)*ENTS[I,entity]:mass()+50))
+            }
+    }
+        if(EWD:keyRight()){
+            for(I = 1,ENTS:count()){
+                ENTS[I,entity]:applyAngForce(ang(0,-50,0)+((Speed+E:vel():length()*0.7550)*ENTS[I,entity]:mass()+50))
+            }
+    }
+        if(EWD:keyJump()){
+            for(I = 1,ENTS:count()){
+                EW:applyForce(EW:toWorld(vec(0,0,Speed+((EW:mass()*0.25)+EW:vel():length()*0.5)))-EW:pos())
+            }
+    }
+} 
+    }
+}
+if(duped()){
+    reset()
+}

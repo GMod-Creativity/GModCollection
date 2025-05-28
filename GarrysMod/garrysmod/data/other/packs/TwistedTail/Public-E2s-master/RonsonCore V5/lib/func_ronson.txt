@@ -1,0 +1,573 @@
+@name lib/func_ronson
+@persist [Gun Turret Base WeldLatch]:entity
+@persist [Critical Crates Fuel Chairs WireEnts Emitters PhysEnts Entities Protected SafeAmmo Panels]:array
+@persist [FireSounds ExplosionSounds PanelSounds TypeTable SafeLookup]:table
+@persist [Wait Count DrownTime Ammo TotalAmmo NoCrew Finished]:number
+@persist [OnDestroyed OnHull OnTurret OnExplosion OnDrowned OnPanels Suicide]:number
+@persist [Amount IsFrozen]:number
+@persist [IsAmphibious CanDarkenProps PropDarknessMult]:number
+@persist [HullForceMult TurretForceMult PanelForceMult AutoCleanProps]:number
+@persist [Interval CanPopTurret ExplosionProbability MinCriticalCaliber]:number
+
+#--------------------------------- Library made by TwistedTail --------------------------------#
+#--------------------------------------- Version 1.0.3 ----------------------------------------#
+#--------------------------------- Updates for this library: ----------------------------------#
+#------------ https://github.com/TwistedTail/Public-E2s/tree/master/RonsonCore%20V5 -----------#
+#------------- Create a folder called "lib" inside your E2 folder before saving this ----------#
+#------------------ This E2 doesn't has to be spawned into your contraption. ------------------#
+
+SafeLookup = invert(SafeAmmo)
+TypeTable = table(
+    "acf_ammo" = Crates,
+    "acf_fueltank" = Fuel,
+    "gmod_wire_gate" = WireEnts,
+    "gmod_wire_output" = WireEnts,
+    "gmod_wire_speedometer" = WireEnts,
+    "gmod_wire_adv_emarker" = WireEnts,
+    "prop_vehicle_prisoner_pod" = Chairs,
+    "particlecontroller_normal" = Emitters
+)
+
+timer("Spawning", 200)
+
+enableConstraintUndo(0)
+
+#In case E:constraintBreak() doesn't exist, we make it work with E:removeAllConstraints().
+#ifndef entity:constraintBreak()
+    function entity:constraintBreak() { This:removeAllConstraints() }
+#endif
+
+#Every message that could be displayed by the E2 will be stored here
+function showMessage(Message:string)
+{
+    local Red   = vec(255, 50, 50)
+    local Green = vec(120, 255, 120)
+    local White = vec(255)
+    
+    switch (Message)
+    {
+        case "OutdatedWire",
+            setName("RonsonCore V5 - Update Wiremod!\nUsing Backup FindByClass Mode")
+            
+            hint("This server is using an outdated version of Wiremod!", 5)
+
+            printColor(Red, "[RonsonCore V5] ", White, "You're using an outdated version of Wiremod!")
+            printColor(Red, "[RonsonCore V5] ", White, "Findind all your spawned entities instead.")
+        break
+        case "NoEntsFound",
+            printColor(Red, "[RonsonCore V5] ", White, "No entities were found! Shutting down the E2.")
+            printColor(Red, "[RonsonCore V5] ", White, "Make sure to wire ", Red, "Base [ENTITY]", White, " before resetting the E2.")
+        break
+        case "FoundEnts",       
+            printColor(Green, "[RonsonCore V5] ", White, "Contraption found!")
+            printColor(Green, "[RonsonCore V5] ", White, "Found ", Red, Entities:count(), White, " entities.")
+        break
+        case "NoCriticalEnts",
+            printColor(Red, "[RonsonCore V5]: ", White, "No critical ammo crates or fuel tanks were found.")
+        break
+        case "CriticalAmmoFound",
+            local Count = Critical:count()
+        
+            printColor(Green, "[RonsonCore V5] ", White, "Found ", Red, Count, White, " critical ammo crate" + (Count != 1 ? "s." : "."))
+        break
+        case "NoAmmoFound",
+            printColor(Red, "[RonsonCore V5] ", White, "Found ", Red, "zero", White, " critical ammo crates. Tweak MinCriticalCaliber?")
+        break
+        case "FuelFound",
+            local Count = Fuel:count()
+        
+            printColor(Green, "[RonsonCore V5] ", White, "Found ", Red, Count, White, " fuel tank" + (Count != 1 ? "s." : "."))
+        break
+        case "ChairsFound",
+            local Count = Chairs:count()
+        
+            printColor(Green, "[RonsonCore V5] ", White, "Found ", Red, Count, White, " chair" + (Count != 1 ? "s." : "."))
+        break
+        case "NoChairsFound",
+            printColor(Red, "[RonsonCore V5] ", White, "Found ", Red, "zero", White, " chairs.")
+        break
+        case "StartupComplete",
+            printColor(Green, "[RonsonCore V5] ", White, "Startup complete. You're ready to go.")
+            
+            Interval = 1
+        break
+        case "SpawnFinish",
+            if (Entities:count() <= 1)
+            {
+                showMessage("NoEntsFound")
+
+                break
+            }
+
+            showMessage("FoundEnts")
+
+            local HasAmmo = Critical:count()
+            local HasFuel = Fuel:count()
+            local HasChair = Chairs:count()
+            
+            if (HasAmmo | HasFuel)
+            {
+                if (HasAmmo) { showMessage("CriticalAmmoFound") }
+                else { showMessage("NoAmmoFound") }
+                
+                if (HasFuel) { showMessage("FuelFound") }
+            }
+            else
+            {
+                showMessage("NoCriticalEnts")
+            }
+            
+            if (HasChair) { showMessage("ChairsFound") }
+            else { showMessage("NoChairsFound") }
+            
+            showMessage("StartupComplete")
+        break
+    }
+}
+
+function addFireSound(Ent:entity, Path:string, IsLooped:number)
+{
+    FireSounds:pushTable(table(
+        "Ent" = Ent,
+        "Path" = Path,
+        "Dur" = IsLooped ? 99999 : soundDuration(Path)
+    ))
+}
+
+function addExplosionSound(Ent:entity, Path:string, IsLooped:number)
+{
+    ExplosionSounds:pushTable(table(
+        "Ent" = Ent,
+        "Path" = Path,
+        "Dur" = IsLooped ? 99999 : soundDuration(Path)
+    ))
+}
+
+function addPanelSound(Ent:entity, Path:string, IsLooped:number)
+{
+    PanelSounds:pushTable(table(
+        "Ent" = Ent,
+        "Path" = Path,
+        "Dur" = IsLooped ? 99999 : soundDuration(Path)
+    ))
+}
+
+#Extremely ghetto function, used to detect when the contraption stops spawning holograms so we can get all of them
+function waitForSpawn()
+{
+    local Timer = "Spawning"
+
+    if (Amount == holoAmount())
+    {
+        Wait += 1
+        if (Wait >= 8) { Timer = "GetContraption" }
+    }
+    else
+    {
+        Wait = 0
+    }
+
+    Amount = holoAmount()
+
+    timer(Timer, 100)
+}
+
+#Basic function to darken the contraption's entities when it gets destroyed based on the PropDarknessMult variable.
+function darkenProps()
+{
+    if (!CanDarkenProps) { return }
+    
+    PropDarknessMult = clamp(PropDarknessMult, 0, 1)
+    
+    foreach (I:number, E:entity = Entities)
+    {
+        if (E:getAlpha() > 50)
+        {
+            local GetColor = E:getColor()
+            local SetColor = vec((GetColor[1] + GetColor[2] + GetColor[3]) / 3)
+
+            E:setColor(SetColor * PropDarknessMult)
+        }
+    }
+}
+
+#This is only intended to protect props that are relevant to this E2 itself by making them not solid so everything goes as intended.
+function protectProps()
+{
+    if (!OnDestroyed & IsFrozen == Base:isFrozen()) { return }
+    
+    IsFrozen = Base:isFrozen()
+    
+    local Solid = Base ? !IsFrozen & !OnDestroyed : 0
+    
+    foreach (K:number, V:entity = Protected) { V:propNotSolid(Solid) }
+}
+
+#If a safe ammo crate gets hit, we just clear the compartment and throw the panels away
+function removeSafeAmmo()
+{
+    if (OnPanels) { return }
+    
+    OnPanels = 1
+    
+    timer("PanelFire", 20000)
+    
+    for (I = Critical:count(), 1, -1)
+    {
+        local Key = toString(Critical[I, entity])
+        
+        if (SafeLookup:exists(Key)) { Critical:remove(I) }
+    }
+    
+    SafeAmmo:propDelete()
+    
+    foreach (K:number, V:table = PanelSounds)
+    {
+        local Ent = V["Ent", entity]
+        local Path = V["Path", string]
+        local Duration = V["Dur", number]
+            
+        Ent:soundPlay("Panel" + K, Duration, Path)
+    }
+    
+    local Up = Gun:up()
+    local Right = Gun:right()
+    local Forward = Gun:forward()
+    local PanelForce = PanelForceMult * 35000
+    
+    foreach (K:number, V:entity = Panels)
+    {
+        local Direction = Up + Right * random(-0.25,0.25) + Forward * random(-0.25,0.25)
+        
+        V:constraintBreak()
+        V:propGravity(1)
+        V:setMass(50)
+        V:applyForce(PanelForce * Direction)
+        V:applyTorque(PanelForce * Direction)
+    }
+}
+
+#If the vehicle is on fire then we kill all the people on pods and then we delete those pods
+function killChairs()
+{
+    if (OnHull)
+    {
+        foreach (K:number, V:entity = Chairs) { V:killPod() }
+    }
+
+    Chairs:propDelete()
+    
+    Interval = 0
+}
+
+#This is where the magic is done, of course if CanPopTurret is not zero. Otherwise it's just sounds and a little jump.
+function explodeVehicle()
+{
+    if (OnExplosion | !OnHull){ return }
+    
+    local Probability  = clamp(floor(ExplosionProbability), 0, 100)
+    local RandomChance = randint(1, 100)
+
+    if (inrange(RandomChance, 1, Probability))
+    {
+        local HullForce   = Base:mass() * HullForceMult * Ammo/TotalAmmo
+        local TurretForce = Gun:mass() * 1.5 * TurretForceMult * Ammo/TotalAmmo
+        
+        OnExplosion = 1
+            
+        stoptimer("First")
+        timer("First", 0)
+
+        Base:applyForce(HullForce * 500 * Gun:up())
+        Base:applyTorque(HullForce * 1500 * (Gun:right() * random(-0.75,0.75) + Gun:forward() * random(-0.75,0.75)))
+        
+        foreach (K:number, V:table = ExplosionSounds)
+        {
+            local Ent = V["Ent", entity]
+            local Path = V["Path", string]
+            local Duration = V["Dur", number]
+            
+            Ent:soundPlay("Expl" + K, Duration, Path)
+        }
+        
+        if (!CanPopTurret) { return }
+        
+        WeldLatch:propDelete()
+        
+        protectProps()
+
+        Gun:constraintBreak()
+        Gun:propGravity(1) #Just in case
+        OnTurret = 0
+
+        if (Turret)
+        {
+            local RightPerc = Gun:right() * random(-0.25, 0.25)
+            local ForwardPerc = Gun:forward() * random(-0.25, 0.25)
+            
+            Turret:setMass(Gun:mass() * 1.5)
+            Turret:constraintBreak()
+            Turret:propGravity(1)
+            
+            weld(Gun, Turret)
+            
+            Turret:applyForce(TurretForce * 1200 * (Gun:up() + RightPerc + ForwardPerc))
+            Turret:applyTorque(TurretForce * 100 * (RightPerc + ForwardPerc))
+        }
+        else
+        {
+            Gun:applyForce(TurretForce * 400 * (Gun:up() * random(0.1, 0.3) + Gun:forward()))
+        }
+    }
+}
+
+#This will get called no matter how the vehicle gets destroyed.
+function destroyVehicle()
+{
+    if (OnDestroyed) { return }
+    
+    if (!OnDrowned & !Suicide & !NoCrew)
+    {
+        OnHull = OnTurret = 1
+        
+        foreach (K:number, V:entity = Critical) { Ammo += V:acfRounds() }
+        
+        foreach (K:number, V:table = FireSounds)
+        {
+            local Ent = V["Ent", entity]
+            local Path = V["Path", string]
+            local Duration = V["Dur", number]
+            
+            Ent:soundPlay("Fire" + K, Duration, Path)
+        }
+    }
+    
+    OnDestroyed = 1
+
+    Critical:propDelete()
+    Crates:propDelete()
+    Fuel:propDelete()
+    
+    darkenProps()
+    explodeVehicle()
+        
+    timer("First", 1000)
+    timer("Second", 6000)
+    timer("Delete", 12000)
+}
+
+#Called when we need to get the entire contraption
+#If the required function doesn't exists then we just get all your stuff
+function getContraption()
+{
+    local Timer = "SortEntities"
+
+    #ifdef entity:getConnectedEntities(...)
+        Entities = Base:getConnectedEntities("All", "-Wires", "-Nocollide")
+        PhysEnts = Base:getConnectedEntities("All", "-Parented", "-Wires", "-Nocollide")
+    #else
+        showMessage("OutdatedWire")
+
+        findIncludePlayerProps(owner())
+        findByClass("*")
+
+        Entities = findToArray()
+        Entities:pushEntity(entity())
+        
+        PhysEnts = Base:getConstraints()
+        
+        for (I = PhysEnts:count(), 1, -1)
+        {
+            local Ent = PhysEnts[I, entity]
+            
+            if (Ent:parent()) { PhysEnts:remove(I) }
+        }
+        
+        PhysEnts:pushEntity(Base)
+    #endif
+
+    if (Entities:count() <= 1)
+    {
+        Timer = "EndMessage"
+    }
+
+    timer(Timer, 200)
+}
+
+#This is where we throw all the relevant entities into different arrays.
+#The types and arrays where those will go are defined with the table called TypeTable
+function sortProps()
+{
+    local Timer = "SortEntities"
+    
+    while (perf() & Count < Entities:count())
+    {
+        Count += 1
+        local Entity = Entities[Count, entity]
+        local Type   = Entity:type()
+        
+        if (TypeTable:exists(Type) & Entity != Base & Entity != Gun)
+        {
+            local Array  = TypeTable[Type, array]
+            local Index  = Array:count() + 1
+            
+            Entity["Exists", number] = 1
+            
+            switch(Type)
+            {
+                case "acf_ammo",
+                    Array[Index, entity] = Entity
+                        
+                    if (Entity:acfCaliber() >= MinCriticalCaliber & Entity:acfAmmoType() != "SM")
+                    {
+                        TotalAmmo += Entity:acfRounds()
+                        
+                        Critical:pushEntity(Entity)
+                    }
+                break
+                case "particlecontroller_normal",
+                    Array[Index, entity] = Entity:parent()
+                break
+                default,
+                    Array[Index, entity] = Entity
+                break
+            }
+        }
+    }
+    
+    if (Count >= Entities:count())
+    {
+        Count     = SortProps = 0
+        Protected = WireEnts:add(Emitters)
+        Protected:pushEntity(entity())
+
+        if (Turret & Turret != Gun) { Protected:pushEntity(Turret) }
+        
+        Timer = "EndMessage"
+    }
+    
+    timer(Timer, 200)
+}
+
+#This is a function we will constantly call in order to check our ammo is fine.
+function checkAmmo()
+{
+    if (OnDestroyed | !Critical:count()) { return }
+    
+    for (I = Critical:count(), 1, -1)
+    {
+        local Entity   = Critical[I, entity]
+        local Exists   = Entity["Exists", number]
+        local Munition = Entity:acfRounds()
+        local Wirelink = Entity:wirelink()
+        local OnFire   = Wirelink:number("On Fire")
+        
+        if (!Munition & Exists) { continue }
+        
+        if (OnFire & Munition | !Exists & !IsFrozen)
+        {
+            if (SafeLookup:exists(toString(Entity))) { removeSafeAmmo()  }
+            else { destroyVehicle() }
+            
+            return
+        }
+        elseif (!Exists & IsFrozen) { Critical:remove(I) }
+    }
+}
+
+#Same as checkAmmo() but now with fuel.
+function checkFuel()
+{
+    if (OnDestroyed | !Fuel:count()){ return }
+    
+    for (I = Fuel:count(), 1, -1)
+    {
+        local Entity   = Fuel[I, entity]
+        local Exists   = Entity["Exists", number]
+        local HasFuel  = Entity:acfFuel()
+        
+        if (!HasFuel & Exists){ continue }
+        
+        if (!Exists)
+        { 
+            if (!IsFrozen) { destroyVehicle() return }
+            else { Fuel:remove(I) }
+        }
+    }
+}
+
+#We will also check if our contraption still has chairs on it, otherwise we will declare it useless and destroy it.
+function checkChairs()
+{
+    if (OnDestroyed) { return }
+    
+    for (I = Chairs:count(), 1, -1)
+    {
+        local Chair  = Chairs[I, entity]
+        local Exists = Chair["Exists", number]
+        
+        if (!Exists) { Chairs:remove(I) }
+    }
+    
+    if (!Chairs:count() & !IsFrozen)
+    {
+        NoCrew = 1
+        destroyVehicle()
+    }
+}
+
+#Finally we will check if our entity is underwater.
+#If it wasn't defined to be amphibious or previously destroyed then it'll destroy itself
+function checkDrowned()
+{
+    if (IsAmphibious | OnDestroyed | IsFrozen) { return }
+    if (!Gun:isUnderWater()) { DrownTime = 0 return }
+
+    DrownTime += 1
+
+    if (DrownTime > 40)
+    {
+        OnDrowned = 1
+        
+        destroyVehicle() 
+    }
+}
+
+#Self-explainatory. This removes the contraption for you.
+function cleanProps()
+{
+    if (!AutoCleanProps) { return }
+
+    PhysEnts:propDelete()
+    
+    soundPurge()
+}
+
+function timerAction()
+{
+    switch (clkName())
+    {
+        case "Spawning", waitForSpawn() break
+        case "GetContraption", getContraption() break
+        case "SortEntities", sortProps() break
+        case "EndMessage", showMessage("SpawnFinish") break
+        case "First", killChairs() break
+        case "Second", explodeVehicle() break
+        case "Delete", cleanProps() break
+        case "interval",
+            protectProps()
+            checkAmmo()
+            checkFuel()
+            checkChairs()
+            checkDrowned()
+        break
+        case "PanelFire",
+            OnPanels = 0
+            
+            for (I = 1, PanelSounds:count())
+            {
+                soundStop("Panel" + I)
+            }
+        break
+    }
+}

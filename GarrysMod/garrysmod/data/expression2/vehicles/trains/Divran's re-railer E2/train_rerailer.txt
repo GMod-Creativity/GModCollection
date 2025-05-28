@@ -1,0 +1,946 @@
+@name Divran's train re-railer v1
+
+#contraption scanner stuff
+@persist Scanned:table
+@persist ScanQueueWagons:array ScanQueueBogeys:array
+@persist AlreadyScannedWagons:array AlreadyScannedBogeys:array
+@persist ScanIdx ShiftAmount:vector
+
+#track scanner stuff
+@persist Active FunctionsDefined DefaultTrackWidth
+@persist SmallSize:vector TrackWidth RailWidth TrackHeight
+@persist MaxScanHeight ScanStep PreviousBogey:table
+
+#bogey aligner stuff
+@persist ScanIdxSub [CurrentData StartData PreviousData]:table ReadyForTeleport
+
+#right click tool stuff
+@persist [StartPos StartForward StartUp EndPos EndForward EndUp]:vector
+
+#other
+@persist Target:entity NumEntitiesInContraption AreYouSure EnableCrowbar HideChat FilterPropPhysics
+
+#[
+    Divran's re-railer E2
+    Source: https://gist.github.com/Divran/8c23f82857196559b9fbb0e37c374e36
+    
+    Crowbar commands:
+        Left click: Scan train (left click the front main body of the train, the locomotive)
+        Right click: Hold this and drag from one side of the rails to the other to start scanning the track
+        Reload: After scanning the track, press reload to teleport the train
+    
+    Chat commands:
+        .trackwidth <number>
+        or
+        .trackwidth <name>
+            Set the width of the track (default: 75 source units)
+            Available names: 
+                "russian" (79.9375 units - will use 75)
+                "2ft" (31.9365 units - will use 28)
+                "standard" (unknown, for now)
+        
+        .save
+            Scans and saves the train.
+            If you are sitting in a vehicle, will start the scan from the prop the E2 is welded to
+            If you are not sitting in a vehicle look at your front or rear loco/car
+        
+        .scan
+            Scans the track for a suitable place to rerail.
+            * The chat command scanner isn't as versatile as using the crowbar method. It's only able to find the start of the track
+              if the track has nothing blocking it in between the rails.
+              If you want to start the scan in an area with something blocking the center of the rails, you should
+              use the crowbar method instead.
+            * The chat command scanner also can't start in an area where the two rails are "hovering" above the ground (a common issue on sunsetgulch)
+        
+        .teleport
+        or
+        .tp
+            Teleports the train to the scanned position
+            
+        .crowbar
+            Toggles the use of the crowbar
+
+    Notes:
+    * This rerailer has a few requirements:
+        1. The train has at least 2 units, (Loco + cab, Loco + loco, cab+cab etc.) to be scanned. 
+            (This limitation is due to model makers not having a standard forward direction for their props.)
+            (It can still work for single-unit trains, if the model happens to have a proper forward direction specified by its creator.)
+        2. You must select the first (or last) wagon/loco in your train. Selecing any other wagon will not work, and selecting a bogey will break it in strange ways, so don't do that.
+        3. Each unit should have bogeys constrained to one base prop.
+        4. The train must be positioned in a straight line while scanning and saving the train.
+    * If the number of constrained entities changes by more than a few since your scan the rerailer will not allow the teleport to occur (for your safety).
+    * The saved train data will be stored in a gTable, so if you accidentally remove your E2, you can simply respawn it and it'll reload the data.
+]#
+
+if (first()|dupefinished()) {
+    #--------------------------------------------------------
+    #OPTIONS BEGIN HERE
+    
+    #Set this if you want to disable crowbar controls (can be toggled later with chat commands)
+    EnableCrowbar = 0
+    
+    #Set this if you want to hide your chat commands
+    HideChat = 1
+    
+    #Set this if you want the track scanner to ignore all prop physics on the map
+    #Enabling this will mean you can't scan tracks spawned by players,
+    #but it means you can scan through other people's trains (teleporting there is not recommended, though)
+    FilterPropPhysics = 0
+    
+    #comment this out if you want to disable chat commands
+    runOnChat(1)
+    
+    local G = gTable("rerailer",0)
+    if (G["Scanned",table]:ncount() > 0) {
+        print("Existing saved train discovered, scan loaded! Ready to scan track.")
+        Scanned = G["Scanned",table]
+        AlreadyScannedWagons = G["AlreadyScannedWagons",array]
+        AlreadyScannedBogeys = G["AlreadyScannedBogeys",array]
+        ScanQueueWagons = array()
+        ScanQueueBogeys = array()
+    }
+    
+    #[
+    #Uncomment this if you would like it to auto-save the entity it's welded to immediately
+    Target = entity():isWeldedTo()
+    if (Target:isValid() & !Target:isWorld()) {
+        timer("init",0)
+    }
+    ]#
+    
+    #--------------------------------------------------------
+    #CODE BEGINS HERE
+    if (EnableCrowbar) {runOnKeys(owner(),1,array("attack","attack2","reload"))}
+    
+    #track scanner stuff
+    SmallSize = vec(16,16,2)
+    TrackWidth = 75
+    RailWidth = 8
+    TrackHeight = 8
+    MaxScanHeight = 128
+    ScanStep = 16
+    
+    FunctionsDefined = 0
+    
+    rangerFilter(players())
+    if (FilterPropPhysics) {
+        findByClass("prop_physics")
+        rangerFilter(findToArray())
+    }
+    rangerPersist(1)
+    
+    function checkNumEntities() {
+        if (AreYouSure == 0) {
+            local CurrentNumEntitiesInContraption = Scanned[1,table]["wagon",entity]:getConnectedEntities("constraint"):count()
+            if (abs(CurrentNumEntitiesInContraption-NumEntitiesInContraption) >= min(20,NumEntitiesInContraption*0.5)) {
+                print(">WARNING< A large change in the number of constrained entities has been detected. Are you sure you want to teleport the train? Try again to confirm.")
+                AreYouSure = -1
+                exit()
+            }
+        } elseif (AreYouSure == 1) {
+            AreYouSure = 0
+        }
+    }
+} elseif (clk("init")) {
+    if (!Target:isValid() | Target:isWorld()) {
+        print("Invalid entity selected")
+        exit()
+    }
+    
+    print("Train scanning started...")
+    ReadyForTeleport = 0
+    timer("scan wagon",0)
+    
+    #Debug holograms
+    #[
+    holoCreate(1)
+    holoCreate(2)
+    holoCreate(3)
+    holoColor(1,vec4(255,0,0,100))
+    holoColor(2,vec4(0,255,0,100))
+    holoColor(3,vec4(0,0,255,100))
+    holoScale(1,vec(1))
+    holoScale(2,vec(0.8))
+    holoScale(3,vec(0.6))
+    #]#
+    
+    #contraption scanner stuff
+    Scanned = table()
+    ScanQueueWagons = array()
+    ScanQueueBogeys = array()
+    AlreadyScannedWagons = array()
+    AlreadyScannedBogeys = array()
+    
+    local Start = Target
+    ScanQueueWagons:pushEntity(Start)
+    AlreadyScannedWagons[Start:id(),number] = 1
+    
+    NumEntitiesInContraption = Start:getConnectedEntities("constraint"):count()
+    AreYouSure = 0
+} elseif (chatClk(owner())) {
+    local S = lastSaid():explode(" ")
+    if (S[1,string] == ".trackwidth") {
+        hideChat(1)
+        local Names = table(
+            "russian" = 75,
+            "2ft" = 28,
+            "twoft" = 28
+            #"standard" = 0
+        )
+        
+        local N = S[2,string]
+        if (Names:exists(N)) {
+            TrackWidth = Names[N,number]
+        } else {
+            if (N:toNumber() == 0) {
+                print("Invalid width ('"+S[2,string]+"') entered")
+                exit()
+            }
+            TrackWidth = N:toNumber()
+        }
+        print("TrackWidth set to "+TrackWidth+" units")
+    } elseif (S[1,string] == ".save") {
+        hideChat(1)
+        if (owner():inVehicle()) {
+            Target = entity():isWeldedTo()
+            timer("init",0)
+        } else {
+            Target = owner():aimEntity()
+            timer("init",0)
+        }   
+    } elseif (S[1,string] == ".scan") {
+        hideChat(1)
+        #do stuff
+        StartPos = owner():aimPos()+owner():aimNormal()*TrackHeight/2
+        StartForward = owner():eyeAngles():setPitch(0):forward()
+        StartUp = owner():aimNormal()
+        EndPos = vec() EndForward = vec() EndUp = vec()
+        Active = 1
+        ScanIdx = 1
+        holoDeleteAll()
+        print("Creating holograms...")
+        timer("create hologram",0)
+    } elseif (S[1,string] == ".teleport" | S[1,string] == ".tp") {
+        hideChat(1)
+        if (ReadyForTeleport) {
+            if (AreYouSure == -1) {AreYouSure = 1}
+            checkNumEntities()
+            print("Teleporting...")
+            timer("freeze",100)
+        } else {
+            print("Not yet ready for teleport")
+        }
+    } elseif (S[1,string] == ".crowbar") {
+        hideChat(1)
+        EnableCrowbar = !EnableCrowbar
+        
+        runOnKeys(owner(),EnableCrowbar,array("attack","attack2","reload"))
+        print(EnableCrowbar ? "Crowbar enabled" : "Crowbar disabled")
+    }
+} elseif (keyClk()) {
+    local Player = keyClk()
+    local Pressed = keyClk(Player)
+    local Key = keyClkPressedBind()
+    
+    if (Player == owner() & owner():weapon():type() == "weapon_crowbar") {
+        if (Key == "attack" & Pressed == 1) {
+            Target = owner():aimEntity()
+            timer("init",0)
+        } elseif (Key == "attack2") {
+            ReadyForTeleport = 0
+            if (Pressed == 1) {
+                StartPos = owner():aimPos() + owner():aimNormal() * TrackHeight/2
+                StartForward = owner():eyeAngles():setPitch(0):forward()
+                StartUp = owner():aimNormal()
+            } elseif (Pressed == -1) {
+                EndPos = owner():aimPos() + owner():aimNormal() * TrackHeight/2
+                EndForward = owner():eyeAngles():setPitch(0):forward()
+                EndUp = owner():aimNormal()
+                Active = 1
+                ScanIdx = 1
+                holoDeleteAll()
+                timer("create hologram",0)
+                print("Creating holograms...")
+            }
+        } elseif (Key == "reload" & Pressed == 1) {
+            if (ReadyForTeleport) {
+                if (AreYouSure == -1) {AreYouSure = 1}
+                checkNumEntities()
+                print("Teleporting...")
+                timer("freeze",100)
+            } else {
+                print("Not yet ready for teleport")
+            }
+        }
+    }
+} elseif (clk("create hologram")) {
+    if (holoRemainingSpawns() > Scanned[ScanIdx,table]["bogeys",table]:ncount()+1) {
+        local Scan = Scanned[ScanIdx,table]
+        local FirstEntity = Scanned[1,table]["wagon",entity]
+        local FirstHoloID = FirstEntity:id()
+        local FirstHolo = holoEntity(FirstHoloID)
+        
+        local Pos = (
+            (ScanIdx == 1) ? 
+            entity():pos() : #owner():aimPos() : 
+            FirstHolo:toWorld(Scan["pos",vector])
+        )
+        
+        local Ang = (
+            (ScanIdx == 1) ? 
+            -owner():eyeAngles():setPitch(0) : 
+            FirstHolo:toWorld(Scan["ang",angle])
+        )
+        
+        holoCreate(
+            Scan["wagon",entity]:id(),
+            Pos,
+            vec(1),
+            Ang,
+            vec4(255,255,255,100),
+            Scan["wagon",entity]:model()
+        )
+        if (ScanIdx > 1) {
+            #holoParent(Scan["wagon",entity]:id(),FirstHoloID)
+        }
+        
+        for(I=1,Scan["bogeys",table]:ncount()) {
+            local Bogey = Scan["bogeys",table][I,table]
+            holoCreate(
+                Bogey["bogey",entity]:id(),
+                FirstHolo:toWorld(Bogey["pos",vector]),
+                vec(1),
+                FirstHolo:toWorld(Bogey["ang",angle]),
+                vec4(255,255,255,100),
+                Bogey["bogey",entity]:model()
+            )
+            #holoParent(Bogey["bogey",entity]:id(),FirstHoloID)
+        }
+        
+        ScanIdx++
+        if (ScanIdx > Scanned:ncount()) {
+            timer("scan start",0)
+            print("Holograms created! Scanning for train track...")
+        } else {
+            timer("create hologram",50)
+        }
+    } else {
+        timer("create hologram",500)
+    }
+} elseif (clk("scan start")) {
+    if (!FunctionsDefined) {
+        FunctionsDefined = 1        
+        function table standardTrace(Pos:vector, Forward:vector, Left:vector, Up:vector, CurrentTrackWidth) {
+            # upper left
+            local SurfaceLeft = rangerOffsetHull(
+                Pos + vec(0,0,MaxScanHeight),
+                Pos - vec(0,0,MaxScanHeight),
+                -SmallSize/2,SmallSize/2
+            )
+            if (!SurfaceLeft:hit()) {return table()}
+            
+            #move position to this height
+            Pos = Pos:setZ(SurfaceLeft:pos():z() - TrackHeight/2)
+            
+            local InnerLeft = rangerOffset(
+                Pos - Left * RailWidth/2,
+                Pos + Left * RailWidth
+            )
+            
+            if (!InnerLeft:hit()) {return table()}
+            #if (InnerLeft:startSolid()) {print("InnerLeft started solid") return table()}
+            
+            #shift position to right side
+            Pos = Pos - Left * CurrentTrackWidth
+            
+            #upper right
+            local SurfaceRight = rangerOffsetHull(
+                Pos + vec(0,0,MaxScanHeight),
+                Pos - vec(0,0,MaxScanHeight),
+                -SmallSize/2,SmallSize/2
+            )
+            
+            if (!SurfaceRight:hit()) {return table()}
+            
+            return table(
+                "SurfaceLeft" = SurfaceLeft,
+                "InnerLeft" = InnerLeft,
+                "SurfaceRight" = SurfaceRight
+            )
+        }
+
+        function table standardInfo(SurfaceLeft:ranger, InnerLeft:ranger, SurfaceRight:ranger) {
+            local Center = (SurfaceLeft:pos()+SurfaceRight:pos())/2
+            local New_up = ((SurfaceLeft:hitNormal()+SurfaceRight:hitNormal())/2):normalized()
+            local New_forward = (-InnerLeft:hitNormal()):cross(New_up)
+            local Temp_up = (SurfaceRight:pos()-SurfaceLeft:pos()):normalized():cross(New_forward)
+            if (Temp_up == Temp_up) {New_up = Temp_up}
+            #if temp_up == temp_up then new_up = temp_up end
+            
+            return table(
+                "forward" = New_forward,
+                "up" = New_up
+            )
+        }
+
+        # finds the start of the track and returns info about it
+        # expects starting position inside left hand side rail
+        function table findTrackStart(Pos:vector,Forward:vector,Up:vector,CurrentTrackWidth) {
+            local Left = -Forward:cross(Up)
+            
+            local Data = standardTrace(Pos,Forward,Left,Up,CurrentTrackWidth)
+            if (Data:count() == 0) {return table()}
+            
+            local SurfaceLeft = Data["SurfaceLeft",ranger]
+            local InnerLeft = Data["InnerLeft",ranger]
+            local SurfaceRight = Data["SurfaceRight",ranger]
+            
+            # move position to right side
+            Pos = (Pos - Left * CurrentTrackWidth):setZ(SurfaceRight:pos():z() - TrackHeight/2)
+            
+            # inner right
+            local InnerRight = rangerOffset(
+                Pos + Left * RailWidth/2,
+                Pos - Left * RailWidth
+            )
+            if (!InnerRight:hit()) {return table()}
+            #if (InnerRight:startSolid()) {print("InnerRight started solid") return table()}
+            
+            local Ret = standardInfo(SurfaceLeft,InnerLeft,SurfaceRight)
+            Ret["trackWidth",number] = (InnerLeft:pos()-InnerRight:pos()):length()
+            Ret["pos",vector] = (SurfaceLeft:pos()+SurfaceRight:pos())/2-vec(0,0,1)
+            
+            return Ret
+        }
+        
+        #finds and returns track or empty table on failure
+        #expects starting position at center of track
+        function table findTrack(Pos:vector,Forward:vector,Up:vector) {
+            local Left = -Forward:cross(Up)
+            
+            Pos = Pos + Left * (TrackWidth/2) #convert position to left hand rail
+            
+            local Data = standardTrace(Pos, Forward, Left, Up, TrackWidth)
+            if (Data:count() == 0) {return table()}
+            local SurfaceLeft = Data["SurfaceLeft",ranger]
+            local InnerLeft = Data["InnerLeft",ranger]
+            local SurfaceRight = Data["SurfaceRight",ranger]
+            
+            local Ret = standardInfo(SurfaceLeft,InnerLeft,SurfaceRight)
+            Ret["pos",vector] = (InnerLeft:pos() - Left * TrackWidth/2):setZ(
+                (SurfaceLeft:pos():z()+SurfaceRight:pos():z())/2-1
+            )
+            return Ret
+        }
+        
+        function table findTrackStart_Ex() {
+            #we have both start and endpos, this makes it easy
+            local Center = (StartPos+EndPos)/2
+            local Diff = (StartPos-EndPos)
+            local Len = Diff:length()
+            
+            local Forward = ((StartForward+EndForward)/2):normalized()
+            local Up = ((StartUp+EndUp)/2):normalized()
+            local Left = -Forward:cross(Up)
+            
+            local IsInFront = Diff:dot(Left) / Diff:length()
+            local LeftPos = vec()
+            if (IsInFront > 0) {
+                LeftPos = StartPos
+            } else {
+                LeftPos = EndPos
+            }
+        
+            return findTrackStart(LeftPos,Forward,Up,Len)
+        }
+    }
+    
+    if (FilterPropPhysics) {
+        findByClass("prop_physics")
+        rangerFilter(findToArray())
+    }
+    
+    local Data = table()
+    
+    if (EndPos != vec() & EndForward != vec() & EndUp != vec()) {
+        Data = findTrackStart_Ex()
+    } else {
+        # we only have startpos, this is a little bit harder
+        local RightDir = (round(StartForward:cross(StartUp):toAngle()/45)*45):forward()
+        
+        local RLeft = rangerOffset(TrackWidth*2,StartPos,-RightDir)
+        if (RLeft:hit() & RLeft:distance() < TrackWidth * 1.2) {
+            local RRight = rangerOffset(TrackWidth*2,StartPos,RightDir)
+            if (RRight:hit() & RRight:distance() < TrackWidth*1.2) {
+                StartPos = RLeft:pos() + RLeft:hitNormal() * 2
+                EndPos = RRight:pos() + RRight:hitNormal() * 2
+                EndForward = StartForward
+                EndUp = StartUp
+        
+                Data = findTrackStart_Ex()
+            } else {
+                print("Unable to find start of track - Try starting in an area with nothing in between the two rails. Or alternatively use the crowbar method instead.")
+            }
+        } else {
+            print("Unable to find start of track - Try starting in an area with nothing in between the two rails. Or alternatively use the crowbar method instead.")
+        }
+    }
+    
+    if (Data:count() == 0) {
+        print("Unable to find start of track")
+        holoDeleteAll()
+    } else {
+        ScanIdx = 1
+        ScanIdxSub = 1
+        StartData = Data
+        PreviousData = Data
+        CurrentData = Data
+        TrackWidth = Data["trackWidth",number]
+        
+        timer("scan track",500)
+    }
+} elseif (clk("scan track")) {
+    local First = Scanned[1,table]
+    local FirstWagon = First["wagon",entity]
+    local FirstHoloID = FirstWagon:id()
+    
+    if (ScanIdx==1 & ScanIdxSub==1) {
+        PreviousBogey = table(
+            "pos" = vec(),
+            "ang" = ang()
+        )
+    }
+    
+    while(perf()) {
+        local NextBogey = Scanned[ScanIdx,table]["bogeys",table][ScanIdxSub,table]
+        local BogeyEntity = NextBogey["bogey",entity]
+        
+        local DistanceBetweenBogeys = PreviousBogey["pos",vector]:distance(NextBogey["pos",vector])
+        local DistanceBetweenData = PreviousData["pos",vector]:distance(CurrentData["pos",vector])
+        local DistanceToNextBogey = DistanceBetweenBogeys - DistanceBetweenData
+        #local DistanceToNextBogey = abs((CurrentData["pos",vector]-StartData["pos",vector]):length() - NextBogey["pos",vector]:length())
+        
+        #print("ScanIdx",ScanIdx,"ScanIdxSub",ScanIdxSub,"DistanceToNextBogey",DistanceToNextBogey)
+        if (DistanceToNextBogey < 32) {
+            if (DistanceToNextBogey <= 1) {
+                #print("Distance below 4! found for entity",BogeyEntity)
+                # found!
+                holoPos(BogeyEntity:id(),CurrentData["pos",vector]+CurrentData["up",vector]*(ShiftAmount:z()-BogeyEntity:aabbMin():z()))
+                
+                local Ang = quat(CurrentData["forward",vector],CurrentData["up",vector]):toAngle()
+                Ang = Ang:rotateAroundAxis(CurrentData["up",vector],NextBogey["ang",angle]:yaw())
+                holoAng(BogeyEntity:id(),Ang)
+                
+                #holoAng(BogeyEntity:id(),NextBogey["ang",angle]+quat(CurrentData["forward",vector],CurrentData["up",vector]):toAngle())
+    
+                ScanIdxSub++
+                local NrBogeys = Scanned[ScanIdx,table]["bogeys",table]:ncount()
+                if (ScanIdxSub > NrBogeys) {
+                    #print("done scanning for a wagon, getting next")
+                    local Scan = Scanned[ScanIdx,table]
+                    local Wagon = Scan["wagon",entity]
+                    
+                    local Pos = vec()
+                    local Ang = ang()
+                    if (NrBogeys == 1) {
+                        local Bogey1 = Scanned[ScanIdx,table]["bogeys",table][1,table]
+                        local Axis1PosBogey = Bogey1["axis_pos_bogey",vector]
+                        local Axis1PosWagon = Bogey1["axis_pos_wagon",vector]
+                        local Axis1AngOffset = Bogey1["axis_ang",angle]
+                        local BogeyE = holoEntity(BogeyEntity:id())
+                        Pos = BogeyE:toWorld(Axis1PosBogey-Axis1PosWagon)
+                        Ang = BogeyE:toWorld(Axis1AngOffset)
+                    } else {
+                        local Bogey1 = Scanned[ScanIdx,table]["bogeys",table][1,table]
+                        local Bogey2 = Scanned[ScanIdx,table]["bogeys",table][NrBogeys,table]
+                        
+                        local Axis1PosBogey = Bogey1["axis_pos_bogey",vector]
+                        local Axis2PosBogey = Bogey2["axis_pos_bogey",vector]
+                        local Axis1PosWagon = Bogey1["axis_pos_wagon",vector]
+                        local Axis2PosWagon = Bogey2["axis_pos_wagon",vector]
+            
+                        #local Axis1AngOffset = Bogey1["axis_ang",angle]
+                        #local Axis2AngOffset = Bogey2["axis_ang",angle]
+                        
+                        local BogeyE1 = holoEntity(BogeyEntity:id())
+                        local BogeyE2 = holoEntity(PreviousBogey["bogey",entity]:id())
+                        
+                        Ang = quat((BogeyE1:toWorld(Axis1PosBogey)-BogeyE2:toWorld(Axis2PosBogey)):toAngle():forward(),BogeyE1:up()):toAngle()
+                        Ang = Ang:rotateAroundAxis(Ang:up(),Scan["ang",angle]:yaw())
+                        #Ang += (Axis2AngOffset+Axis1AngOffset)
+                        #print("ScanIdx",ScanIdx,"offsets added",(Axis2AngOffset+Axis1AngOffset))
+                        #print(Bogey1:toLocal(Bogey2:toWorld(Axis2AngOffset)))
+                        #Ang = Ang:rotateAroundAxis(Ang:up(),-90)
+                        Pos = (BogeyE1:toWorld(Axis1PosBogey)+BogeyE2:toWorld(Axis2PosBogey))/2+BogeyE1:up()*-Axis1PosWagon:z()
+                    }
+                    
+                    #Ang += Scan["ang",angle]
+                    holoPos(Wagon:id(),Pos)
+                    holoAng(Wagon:id(),Ang)
+                    
+                    #holoPos(Wagon:id(),(PreviousData["pos",vector]+CurrentData["pos",vector])/2+CurrentData["up",vector]*ShiftAmount:z())
+                    #holoAng(Wagon:id(),Scan["ang",angle]+((CurrentData["pos",vector]-PreviousData["pos",vector]):toAngle()))
+                    
+                    ScanIdxSub = 1
+                    ScanIdx++
+                    if (ScanIdx > Scanned:ncount()) {
+                        ScanIdx=0
+                        ReadyForTeleport = 1
+                        print("Track scanning finished, press R to teleport")
+                        exit()
+                    }
+                }
+                
+                PreviousBogey = NextBogey
+                PreviousData = CurrentData
+            } else {
+                ScanStep = max(1,floor(DistanceToNextBogey / 2))
+            }
+        } else {
+            ScanStep = 16
+        }
+    
+        #holoPos(1,CurrentData["pos",vector])
+        #holoPos(2,StartData["pos",vector]-FirstWagon:toWorldAxis(NextBogey["pos",vector]))
+        #holoPos(3,CurrentData["pos",vector]+CurrentData["up",vector]*50)
+        
+        Pos = CurrentData["pos",vector] + CurrentData["forward",vector] * ScanStep
+        CurrentData = findTrack(Pos,CurrentData["forward",vector],CurrentData["up",vector])
+        if (CurrentData:count() == 0) {
+            print("Unable to find track, scan failed")
+            holoDeleteAll()
+            exit()
+        }
+    }
+    
+    timer("scan track",0)
+} elseif (clk("freeze")) {
+    ReadyForTeleport = 0
+    ScanIdx++
+    
+    local Scan = Scanned[ScanIdx,table]
+    local Wagon = Scan["wagon",entity]
+    
+    local Contraption = Scan["wagon",entity]:getConnectedEntities("constraint","parent","-axis","-ballsocket","-advballsocket","-rope")
+    Contraption:remove(1)
+    
+    Wagon:propFreeze(1)
+    local Bogeys = Scan["bogeys",table]
+    for(I=1,Bogeys:ncount()) {
+        local Bogey = Bogeys[I,table]["bogey",entity]
+        Bogey:propFreeze(1)
+        
+        local BogeyContr = Bogey:getConnectedEntities("constraint","parent","-axis","-ballsocket","-advballsocket","-rope")
+        BogeyContr:remove(1)
+        Contraption:add(BogeyContr)
+    }
+    
+    Scan["contraption",array] = Contraption
+    Scan["positions",array] = array()
+    Scan["angles",array] = array()
+    
+    if (ScanIdx == Scanned:ncount()) {
+        ScanIdx = 1
+        ScanIdxSub = 0
+        timer("freeze contraption",100)
+    } else {
+        timer("freeze",100)
+    }
+} elseif (clk("freeze contraption")) {
+    while(perf()) {
+        local Scan = Scanned[ScanIdx,table]
+        local Wagon = Scan["wagon",entity]
+        
+        ScanIdxSub++
+        local Contraption = Scan["contraption",array]
+        if (Contraption:count() > 0) {
+            local Positions = Scan["positions",array]
+            local Angles = Scan["angles",array]
+        
+            local Ent = Contraption[ScanIdxSub,entity]
+            if (AlreadyScannedWagons[Ent:id(),number] == 0 & AlreadyScannedBogeys[Ent:id(),number] == 0) {
+                Positions[Ent:id(),vector] = Wagon:toLocal(Ent:pos())
+                Angles[Ent:id(),angle] = Wagon:toLocal(Ent:angles())
+                Ent:propFreeze(1)
+            }
+        }
+        
+        if (ScanIdxSub >= Contraption:count()) {
+            ScanIdx++
+            ScanIdxSub = 0
+            if (ScanIdx > Scanned:ncount()) {
+                ScanIdx = 0
+                timer("teleport",100)
+                exit()
+            }
+        }
+    }
+    
+    timer("freeze contraption",0)
+} elseif (clk("teleport")) {
+    ScanIdx++
+    local Wagon = Scanned[ScanIdx,table]["wagon",entity]
+    
+    local E = holoEntity(Wagon:id())
+    Wagon:setPos(E:pos())
+    Wagon:setAng(E:angles())
+    
+    local Bogeys = Scanned[ScanIdx,table]["bogeys",table]
+    for(I=1,Bogeys:ncount()) {
+        local Bogey = Bogeys[I,table]["bogey",entity]
+        local E = holoEntity(Bogey:id())
+        Bogey:setPos(E:pos())
+        Bogey:setAng(E:angles())
+    }
+    
+    ScanIdxSub = 0
+    timer("teleport contraption",0)
+} elseif (clk("teleport contraption")) {
+    while(perf()) {
+        local Scan = Scanned[ScanIdx,table]
+        local Wagon = Scan["wagon",entity]
+        
+        ScanIdxSub++
+        local Contraption = Scan["contraption",array]
+        if (Contraption:count() > 0) {
+            local Positions = Scan["positions",array]
+            local Angles = Scan["angles",array]
+            
+            local Ent = Contraption[ScanIdxSub,entity]
+            if (AlreadyScannedWagons[Ent:id(),number] == 0 & AlreadyScannedBogeys[Ent:id(),number] == 0) {
+                Ent:setPos(Wagon:toWorld(Positions[Ent:id(),vector]))
+                Ent:setAng(Wagon:toWorld(Angles[Ent:id(),angle]))
+            }
+        }
+        
+        if (ScanIdxSub >= Contraption:count()) {
+            if (ScanIdx >= Scanned:ncount()) {
+                print("Done!")
+                holoDeleteAll()
+                Active = 0
+            } else {
+                timer("teleport",0)
+            }
+            exit()
+        }
+    }
+    
+    timer("teleport contraption",0)
+} elseif (clk("scan wagon")) {
+    local First = Scanned[1,table]
+    local FirstEntity = First["wagon",entity]
+    local Wagon = ScanQueueWagons:popEntity()
+    if (Scanned:ncount() == 0) {FirstEntity = Wagon}
+    
+    local Bogeys = Wagon:getConnectedEntities("axis","ballsocket","advballsocket")
+    Bogeys:remove(1) #remove self entity
+    #[
+    if (Bogeys:count() == 0) {
+        Bogeys = Wagon:getConnectedEntities("ballsocket")
+        Bogeys:remove(1) #remove self entity
+        Bogeys = Wagon:getConnectedEntities("advballsocket")
+        Bogeys:remove(1) #remove self entity
+    }
+    ]#
+    
+    local BogeyTable = table()
+    
+    for(I=1,Bogeys:count()) {
+        local Bogey = Bogeys[I,entity]
+        if (AlreadyScannedBogeys[Bogey:id(),number] == 0) {
+            AlreadyScannedBogeys[Bogey:id(),number] = 1
+            ScanQueueBogeys:pushEntity(Bogey)
+            Bogey["wagon",entity] = Wagon
+        }
+
+        local AxisPosBogey = Bogey:boxCenter():setZ(Bogey:boxMax():z())
+        BogeyTable:pushTable(table(
+            "bogey" = Bogey,
+            "pos" = FirstEntity:toLocal(Bogey:pos()),
+            "ang" = FirstEntity:toLocal(Bogey:angles()),
+            "axis_pos_bogey" = AxisPosBogey,
+            "axis_pos_wagon" = Wagon:toLocal(Bogey:toWorld(AxisPosBogey))
+            #"axis_ang" = Bogey:toLocal(Wagon:angles())
+        ))
+    }
+    
+    First["backward",vector] = First["backward",vector] + (Wagon:boxCenterW()-FirstEntity:boxCenterW()):normalized()
+    
+    Scanned:pushTable(table(
+        "wagon" = Wagon,
+        "pos" = FirstEntity:toLocal(Wagon:pos()),
+        "ang" = FirstEntity:toLocal(Wagon:angles()),
+        "bogeys" = BogeyTable
+    ))
+    
+    if (ScanQueueWagons:count() > 0) {timer("scan wagon",0)}
+    elseif (ScanQueueBogeys:count() > 0) {timer("scan bogey",0)}
+    else {timer("done",0)}
+} elseif (clk("scan bogey")) {
+    local Bogey = ScanQueueBogeys:popEntity()
+    
+    local Wagon = noentity()
+    if (Bogey["wagon",entity]:isValid()) {
+        Wagon = Bogey["wagon",entity]
+        Bogey["wagon",entity] = noentity() #delete reference now, we no longer need it
+    } else {
+        #fallback checks in case the above fails
+        Wagon = Bogey:isConstrainedTo("axis")
+        if (!Wagon:isValid()) {
+            Wagon = Bogey:isConstrainedTo("ballsocket")
+            if (!Wagon:isValid()) {
+                Wagon = Bogey:isConstrainedTo("advballsocket")
+            }
+        }
+    }
+    
+    if (!Wagon:isValid()) {
+        print("Error: Unable to find wagon of bogey. Scan aborted")
+        exit()
+    }
+    
+    if (AlreadyScannedWagons[Wagon:id(),number] == 0) {
+        AlreadyScannedWagons[Wagon:id(),number] = 1
+        ScanQueueWagons:pushEntity(Wagon)
+    }
+    
+    local OtherBogeys = Bogey:getConnectedEntities("rope")
+    OtherBogeys:remove(1) #remove self entity
+    
+    for(I=1,OtherBogeys:count()) {
+        local OtherBogey = OtherBogeys[I,entity]
+        if (AlreadyScannedBogeys[OtherBogey:id(),number] == 0) {
+            AlreadyScannedBogeys[OtherBogey:id(),number] = 1
+            ScanQueueBogeys:pushEntity(OtherBogey)
+        }
+    }
+    
+    if (ScanQueueWagons:count() > 0) {timer("scan wagon",0)}
+    elseif (ScanQueueBogeys:count() > 0) {timer("scan bogey",0)}
+    else {timer("done",0)}
+} elseif (clk("sort")) {
+    #sort by distance to front of train
+    ScanIdx++
+    local FirstWagon = Scanned[1,table]["wagon",entity]
+    local Front = FirstWagon:toLocal(FirstWagon:boxCenterW()+Scanned[1,table]["forward",vector]*1000)
+    local Scan = Scanned[ScanIdx,table]
+    
+    #Sort wagons
+    local MinDist = Scan["pos",vector]:distance(Front)
+    local MinJ = ScanIdx
+    for(J=ScanIdx,Scanned:ncount()) {
+        local Dist = Scanned[J,table]["pos",vector]:distance(Front)
+        if (Dist < MinDist) {
+            MinDist = Dist
+            MinJ = J
+        }
+    }
+    
+    if (ScanIdx != MinJ) {
+        local Val = Scanned:removeTable(MinJ)
+        Scanned:insertTable(MinJ,Scanned[ScanIdx,table])
+        Scanned:remove(ScanIdx)
+        Scanned:insertTable(ScanIdx,Val)
+    }
+
+    #Sort bogeys
+    local Bogeys = Scan["bogeys",table]
+    local Count = Bogeys:ncount()
+    for(I=1,Count) {
+        local MinDist = Bogeys[I,table]["pos",vector]:distance2(Front)
+        local MinJ = I
+        for(J=I+1,Count) {
+            local Dist = Bogeys[J,table]["pos",vector]:distance2(Front)
+            if (Dist < MinDist) {
+                MinDist = Dist
+                MinJ = J
+            }
+        }
+        
+        if (I!=MinJ) {
+            local Val = Bogeys:removeTable(MinJ)
+            Bogeys:insertTable(MinJ,Bogeys[I,table])
+            Bogeys:remove(I)
+            Bogeys:insertTable(I,Val)
+        }
+    }
+    #Scan[ScanIdx,table]["bogeys",table] = NewBogeys
+    
+    if (ScanIdx == Scanned:ncount()) {
+        ScanIdx=0
+        local FirstBogeys = Scanned[1,table]["bogeys",table]
+        #ShiftAmount = Scanned[1,table]["forward",vector] * FirstBogeys[FirstBogeys:count(),table]["pos",vector]:length()/2 + vec(0,0,Scanned[1,table]["wagon",entity]:boxSize():z()/2+20)
+        
+        local FirstBogey = FirstBogeys[1,table]["bogey",entity]
+        local FirstWagon = Scanned[1,table]["wagon",entity]
+        
+        local ShiftUp = 0 #-min(FirstWagon:boxMin():z(),FirstWagon:toLocal(FirstBogey:toWorld(FirstBogey:boxMin())):z())
+        ShiftAmount = vec(FirstBogeys[FirstBogeys:count(),table]["pos",vector]:length()*1.2,0,ShiftUp)
+        #print("done sorting, shifting all entities back:",ShiftAmount)
+        
+        if (Target != FirstWagon) {
+            print(">WARNING< You didn't select the wagon/loco at the front (or back) of the train. This E2 will not work properly if you do this. Scan aborted.")
+            local G = gTable("rerailer",0)
+            if (G["Scanned",table]:ncount()>0) {
+                Scanned = G["Scanned",table]
+                AlreadyScannedWagons = G["AlreadyScannedWagons",array]
+                AlreadyScannedBogeys = G["AlreadyScannedBogeys",array]
+            }
+            exit()
+        }
+        
+        if (Scanned:ncount() == 1) {
+            print(">WARNING< Only a single wagon/locomotive found. There is a large chance it will not be angled correctly after teleporting!")
+        }
+        
+        timer("shift",0)
+        #printTable(Scanned)
+    } else {
+        timer("sort",0)
+    }
+} elseif (clk("shift")) {
+    local Forward = Scanned[1,table]["forward",vector]
+    local OffsetAng = Scanned[1,table]["offsetang",angle]
+
+    ScanIdx++
+    local Scan = Scanned[ScanIdx,table]
+    Scan["pos",vector] = Scan["pos",vector] + ShiftAmount
+    Scan["ang",angle] = Scan["ang",angle] + OffsetAng
+    for(I=1,Scan["bogeys",table]:ncount()) {
+        local Bogey = Scan["bogeys",table][I,table]
+        Bogey["pos",vector] = Bogey["pos",vector] + ShiftAmount
+        Bogey["ang",angle] = Bogey["ang",angle] + OffsetAng
+    }
+    
+    if (ScanIdx == Scanned:ncount()) {
+        print("Done sorting. Ready to scan track.")
+        local G = gTable("rerailer",0)
+        G["Scanned",table] = Scanned
+        G["AlreadyScannedWagons",array] = AlreadyScannedWagons
+        G["AlreadyScannedBogeys",array] = AlreadyScannedBogeys
+        #[
+        for(I=1,Scanned:ncount()) {
+            print("Scanned["+I+",table] = ")
+            printTable(Scanned[I,table])
+            print("-----")
+        }
+        ]#
+    } else {
+        timer("shift",0)
+    }
+} elseif (clk("done")) {
+    local First = Scanned[1,table]
+    local FirstWagon = First["wagon",entity]
+    
+    local Forward = -(First["backward",vector]/Scanned:ncount()):normalized()
+    First["forward",vector] = Forward
+    First["offsetang",angle] = FirstWagon:toLocal(quat(Forward,FirstWagon:up()):toAngle())
+    if (abs(First["offsetang",angle]:yaw()) > 120) {First["offsetang",angle] = ang()}
+    
+    ScanIdx = 0
+    
+    print("Done scanning contraption ("+Scanned:ncount()+" wagons found), sorting scanned entries and doing some math...")
+    #printTable(Scanned)
+    
+    timer("sort",0)
+}

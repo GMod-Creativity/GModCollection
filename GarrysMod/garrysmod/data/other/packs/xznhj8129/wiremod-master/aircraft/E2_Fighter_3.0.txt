@@ -1,0 +1,186 @@
+@name E2 Fighter 3.0
+@inputs WeaponBus:wirelink Radar:wirelink Target:vector GroundTarget:vector Home:vector Clk Launch Stage
+@outputs Mul Go Ok Vec:vector Dist Speed Altitude Search Lock Fox GPS:vector RollT FiringAngle 
+@outputs Expended RadarBearing RadarElev WeaponsReady
+@persist Targetpos:vector Dist AltDiff ReleaseDist:array Map:string
+@trigger Clk 
+#[
+Ground-Air Radio: Channel 4
+1: Launch
+2: Clk
+3: Reset
+4: Target X
+5: Target Y
+6: Target Z
+7: 
+
+Air-Ground Radio: Channel 5
+1: Go
+2: Lock
+3: Fox (Missiles Launched)
+4: Distance
+5: Speed
+6: Altitude
+7: HomeSet
+8: Stage (Up/Down Counter)
+
+Modes:
+0: Intercept/AGM
+1: Combat Air Patrol
+2: Manual bombing
+3: Precision bombing
+
+Weapon Mode:
+0: Missile
+1: Rocket
+2: Bomb
+3: LGB
+]#
+if (first()) {
+    Map = map()
+    ReleaseDist = array()
+    ReleaseDist[0,number] = 12500 #Missile
+    ReleaseDist[1,number] = 10000 #Rocket 
+    ReleaseDist[2,number] = 13000 #Iron Bomb: for 5000 alt, 17500 for 8000
+    ReleaseDist[3,number] = 9000 #Guided Bomb
+}
+
+Mode = 2
+WeaponMode = 2
+WeaponsReady = WeaponBus["Ready",number]
+Expended = WeaponBus["Expended",number]
+
+if (Launch) {I=10}
+else {I=250}
+interval(I)
+
+E=entity()
+GPS=E:pos()
+Gx=GPS:x()
+Py=GPS:y()
+Sz=GPS:z()
+BeginLanding = 15000
+SetSpeed = 3000
+if (Expended) {LandingOffset = 100}
+else {LandingOffset = 100}
+AltCutoff = 200
+MinAlt= 8000
+Gl = Home:z()
+TgtAlt = Target:z()-Gl
+HomeSet = Home!=vec(0,0,0)
+Targetpos = Target
+Speed = E:vel():length()
+
+if (Launch & HomeSet) {
+    Go = (Stage <= 1) # KILL DRONE AFTER N WPT
+    
+    if (Stage == 0) { # TARGET RUN
+        Mul = (SetSpeed/Speed)*3
+        
+        Tx=Targetpos:x()
+        Ty=Targetpos:y()
+        Tz=Targetpos:z()
+        if (TgtAlt>MinAlt) {Alt = TgtAlt}
+        else {Alt = MinAlt}
+        Altitude = Sz-Gl
+        AltDiff = Altitude-Alt
+        
+        if (Go & !Stage & Dist<25000) {
+            Search=1
+            RadarTarget = Radar["1_Ent",entity]
+            ContactID = RadarTarget:id()
+            Lock = ContactID!=0
+            }
+        else {
+            Search=0
+            RadarTarget = noentity()
+            ContactID = 0
+            Lock = 0
+        }
+
+        RadarBearing = E:bearing(RadarTarget:pos())
+        RadarElev = E:elevation(RadarTarget:pos())
+
+        if (WeaponMode==0 & (Search & Lock & WeaponsReady)) {
+            FiringAngle = (RadarBearing < 10 & RadarBearing > -10) & (RadarElev < 10 & RadarElev > -10)
+            X = Gx-RadarTarget:pos():x()
+            Y = Py-RadarTarget:pos():y()
+            if (Dist<15000) {Z = Sz - Tz - 1000}
+            else {Z=AltDiff*8}
+        }
+        elseif (WeaponMode==1) {
+            FiringAngle = (RadarBearing < 5 & RadarBearing > -5) & (RadarElev < 2.5 & RadarElev > -2.5)
+            X = Gx-RadarTarget:pos():x()
+            Y = Py-RadarTarget:pos():y()
+            if (Dist<15000) {Z = Sz - Tz - 1000}
+            else {Z=AltDiff*8}
+        }
+        else {
+            FiringAngle = (RadarBearing < 5 & RadarBearing > -5) & (RadarElev < 2.5 & RadarElev > -2.5)
+            X=Gx - Tx
+            Y=Py - Ty
+            Z = AltDiff*10
+        }
+        
+        if (WeaponMode==0) {
+            if (Go & Lock & Dist<ReleaseDist[WeaponMode,number] & FiringAngle) {Fox=1} 
+            else {Fox=0}
+        }
+        elseif (WeaponMode==1) {
+            if (Go & Dist<ReleaseDist[WeaponMode,number] & FiringAngle) {Fox=1}
+            else {Fox=0}
+        }
+        else {
+            if (Go & Dist<ReleaseDist[WeaponMode,number]) {Fox=1}
+            else {Fox=0}
+        }
+    }
+    elseif (Stage == 1) { # RETURN TO BASE / WINCHESTER
+        FiringAngle = 0
+        Search = 0
+        Lock = 0
+        Fox = 0
+        
+        Tx=Home:x()
+        Ty=Home:y()
+        Tz=Home:z()
+        
+        CruiseAlt=MinAlt
+        if (Dist<=BeginLanding) {Alt=(Dist/4) + LandingOffset}
+        else {Alt=CruiseAlt}
+        Altitude=Sz-Gl
+        AltDiff=Altitude-Alt
+        
+        X=Gx - Tx
+        Y=Py - Ty
+        Z = AltDiff*5
+    
+        if (Go & Dist<(BeginLanding/2)) {
+            Mul = Dist/BeginLanding
+            A = (Dist/BeginLanding)/3
+            }
+        else {
+            Mul = (SetSpeed/Speed)*3
+        }
+        if (Stage & Altitude<AltCutoff) {Mul=0}
+    }
+    
+    Dist=GPS:distance(vec(Tx,Ty,GPS:z()))
+    if (Go==0 | Stage>1 | (Stage>0 & Altitude<=AltCutoff)) {Mul=0}
+
+    Vec=vec(X,Y,Z)
+    
+    if (Dist<1000 | (!Stage & Expended)) {Ok=1} 
+    else {Ok=0}
+    
+    RollV = E:angVel():roll() 
+    if (Go) {RollT = RollV + (E:angles():roll()*2)}
+    else {RollT = 0}
+}
+else { 
+    Mul = 0
+    Go = 0
+    RollT = 0
+    A = 0
+    Fox = 0
+}

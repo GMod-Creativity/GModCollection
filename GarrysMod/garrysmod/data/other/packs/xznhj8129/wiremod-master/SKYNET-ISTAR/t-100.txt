@@ -1,0 +1,103 @@
+@name t-100
+@inputs On Order:string RadioIn Sensor:wirelink MissionCom
+@outputs RadioOut Aimm Acquire Aimvec:vector Fire Lock Next Data:string Vector:vector TgtID
+@persist Mem:array RadioOut Reg1 Lock Engaging R1 ID Vec:vector
+@trigger RadioIn
+
+
+interval(100)
+#MEM
+#1-tgt id
+#2-tgt pos vec
+#3-order string
+if (Next==1) {Next=0}
+
+#DATA AND AIMING
+    Roger=104
+    Misscomp=1337
+    NewOrder=9292
+    EngagingCode=666
+    KillID=Mem[1,number]
+    Vector=Mem[2,vector]
+    GPS=entity():pos()
+    Gx=GPS:x()
+    Py=GPS:y()
+    Sz=GPS:z()
+    E=entity()
+    Hdg=E:angles():yaw()
+    Bear=E:bearing(Vector)
+    Dist=E:pos():distance(Vector)
+    Speed=E:vel():length()
+    SafeaimvecX=Gx+(cos(Hdg)*1000)
+    SafeaimvecY=Py+(sin(Hdg)*1000)
+    SafeaimvecZ=Sz+300
+    Safeaimvec=vec(SafeaimvecX,SafeaimvecY,SafeaimvecZ)
+    Vx=Vector:x()
+    Vy=Vector:y()
+    DirVec=vec(Vx,Vy,SafeaimvecZ)
+    Null=vec(0,0,0)
+
+#SENSOR
+    Acquire=Sensor["1",number]
+    Tgt=Sensor["1_Ent",entity]
+    TgtID=Tgt:id()
+    T=Tgt:pos()
+    TDist = T:distance(GPS)
+    Tgtdead=Tgt:id()==0 & Engaging==1
+    if (Acquire==1 & TgtID==KillID) {Engaging=1
+        Lock=1
+        Next=0}
+    elseif (Acquire==1) {Next=1
+        Engaging=0
+        Lock=0}
+    else {Engaging=0
+        Lock=0}
+    if (entity(TgtID) == noentity()) {RadioOut=Misscomp}
+
+#AIMING PROGRAM
+	if (On==1) {Aimm=1
+		if (Acquire==1) {
+			if (T==Null) {Aimvec=Safeaimvec
+			Fire=0}
+			else {Aimvec=T
+				Fire=1}
+		}
+		elseif (Acquire==0) {Aimvec=DirVec
+			Fire=0}
+		elseif (Acquire==0) {Aimvec=Safeaimvec
+			Fire=0}
+	}
+	else {Aimm=0
+		Fire=0
+		Aimvec=Safeaimvec}
+
+#RADIO
+	if (Engaging==1) {RadioOut=EngagingCode}
+	elseif (Tgtdead==1) {RadioOut=Misscomp}
+	elseif (MissionCom==1) {RadioOut=Misscomp}
+	if (RadioOut==Roger) {
+		if (Reg1>10) {RadioOut=0
+		Reg1=0}
+		else {Reg1=Reg1+1
+		Mem[1,number]=ID
+		Mem[2,vector]=Vec}
+	}
+	if (RadioOut==Misscomp) {
+		if (Reg1>10) {RadioOut=0
+		Reg1=0
+		Mem[1,number]=0
+		Mem[2,vector]=Null
+		Mem[3,string]=""}
+		else {Reg1=Reg1+1}
+	}
+
+#ORDER DECODING
+	if (RadioIn==NewOrder) {Mem[3,string]=Order
+		Data=Mem[3,string]
+		Ex=Data:explode("|")
+		TL=Ex[1,string]:toNumber()
+		ID=Ex[2,string]:toNumber()
+		Vec=vec(Ex[3,string]:toNumber(),Ex[4,string]:toNumber(),Ex[5,string]:toNumber())
+		Mem[1,number]=ID
+		Mem[2,vector]=Vec
+		RadioOut=Roger}

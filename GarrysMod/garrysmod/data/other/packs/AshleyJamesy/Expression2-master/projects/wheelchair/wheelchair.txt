@@ -1,0 +1,131 @@
+@name Wheelchair
+@persist Driver:entity Entity:entity Keys:table
+@persist TargetPos:vector TargetAng:angle
+@persist SoundTimer:number
+@model models/props_unique/wheelchair01.mdl
+
+if(first() || dupefinished()) {
+    Driver = noentity()
+    Keys = table()
+    Entity = entity()
+    Entity:setMass(5000)
+    TargetPos = entity():pos() + vec(0, 0, 5)
+    TargetAng = ang(0, 0, 0)
+    SoundTimer = 0
+}
+
+event keyPressed(Player:entity, Key:string, Down:number, _:string) {
+    if(Driver:isValid() && Driver:isPlayer()) {
+        if(Player == Driver) {
+            Keys[Key:upper(), number] = Down
+            
+            if(Keys["R", number] == 1) {
+                soundPlay("bell", 1, "ambient/misc/brass_bell_f.wav", 0.5), soundPitch("bell", 400, 0)
+            }
+        }
+    } else {
+        
+    }
+}
+
+if(Driver:isValid() && Driver:isPlayer()) {
+    if(!Driver:inVehicle()) {
+        Driver = noentity()
+        Keys = table()
+    }
+} else {
+    local Players = players()
+    
+    for(I = 1, Players:count()) {
+        local Player = Players[I, entity]
+        if(Player:pos():distance(entity():boxCenterW()) <= 50) {
+            Driver = Player
+        }
+    }
+}
+
+if(clk("squeak")) {
+    local Sounds = array(
+        "ambient/machines/squeak_1.wav",
+        "ambient/machines/squeak_2.wav",
+        "ambient/machines/squeak_3.wav",
+        "ambient/machines/squeak_4.wav",
+        "ambient/machines/squeak_5.wav",
+        "ambient/machines/squeak_6.wav",
+        "ambient/machines/squeak_8.wav"
+    )
+    
+    local I = randint(1, 8)
+    soundPlay(I, 0.5, Sounds[I, string])
+    
+    if(entity():vel():length() > 20) {
+        timer("squeak", SoundTimer)
+    }
+}
+
+event tick() {
+    if(Driver:isValid() && Driver:isPlayer()) {
+        local Speed = 0.8
+        
+        SoundTimer = 1000
+        if(Keys["LSHIFT", number]) {
+            #Speed = Speed * 5
+            #SoundTimer = 400
+        }
+        
+        if(Keys["W", number]) {
+            TargetPos = TargetPos + Entity:forward() * Speed
+        }
+        
+        if(Keys["A", number]) {
+            if(Keys["S", number]) {
+                TargetAng += ang(0, -1, 0) * 1
+            } else {
+                TargetAng += ang(0, 1, 0) * 1
+            }
+        }
+        
+        if(Keys["S", number]) {
+            TargetPos = TargetPos + Entity:forward() * -Speed
+        }
+        
+        if(Keys["D", number]) {
+            if(Keys["S", number]) {
+                TargetAng += ang(0, 1, 0) * 1
+            } else {
+                TargetAng += ang(0, -1, 0) * 1
+            }
+        }
+        
+        if(Keys["SPACE", number]) {
+            TargetPos = TargetPos + vec(0,0, 1) * Speed * 0.25
+        }
+        
+        if(Keys["LALT", number]) {
+            TargetPos = TargetPos - vec(0,0, 1) * Speed * 0.25
+        }
+        
+        if(entity():vel():length() > 20) {
+            timer("squeak", 0)
+        }
+    }
+    
+    rangerPersist(1)
+    rangerIgnoreWorld(0)
+    rangerHitWater(1)
+    rangerHitEntities(1)
+    rangerFilter(Entity)
+    rangerFilter(players())
+    
+    local CenterRanger = rangerOffset(9999, Entity:pos(), -Entity:up())
+    TargetPos = vec(TargetPos:x(), TargetPos:y(), CenterRanger:pos():z() + 2.5)
+    
+    #local RangerF = rangerOffset(9999, Entity:pos() + Entity:forward() * 2.5, -Entity:up())
+    #local RangerB = rangerOffset(9999, Entity:pos() + Entity:forward() * 2.5, -Entity:up())
+    
+    CurQ = quat(Entity)
+    TarQ = quat(TargetAng)
+    V = Entity:toLocal(rotationVector(TarQ/CurQ) + Entity:pos())
+    Entity:applyForce(((TargetPos - Entity:pos())* 10 - Entity:vel()) * Entity:mass())
+    Entity:applyTorque((150 * V - 12 * Entity:angVelVector()) * Entity:inertia())
+}

@@ -1,0 +1,113 @@
+@name TLAM
+@inputs Mode Launch LaserPos:vector Clk Gl RadarTarget:entity RadarID
+@outputs GroundTargetSet Dist Speed Altitude Search Lock RollT PitchT YawT
+@outputs GPS:vector Mul Go Vec:vector TBearing TElev Arm Detonate GroundTarget:vector RadarPos:vector TargetPos:vector Terminal
+@persist Targetpos:vector HDist Dist AltDiff Map:string PatrolAngle Lock
+@persist AltMod MinAlt PatrolDist AltCutoff SetSpeed Gl TerminalDist Terminal
+@trigger Clk
+
+#Mode 0: Inertial Only, Mode 1: Active Seeking
+
+if (first()) { #set variables
+    Map = map()
+    AltMod = 8
+    MinAlt= 2000
+    SetSpeed = 3000
+    TerminalDist = 7200
+    HDist = 99999
+    Dist = 99999
+}
+
+if (Clk & ~Clk) {
+    GroundTarget = LaserPos
+    GroundTargetSet = 1}
+
+if (Launch) {I=10}
+else {I=250}
+interval(I)
+E=entity()
+GPS=E:pos()
+Gx=GPS:x()
+Py=GPS:y()
+Sz=GPS:z()
+Speed = E:vel():length()
+
+
+if (Launch & GroundTargetSet) {
+    Go = Launch
+    Mul = (SetSpeed/Speed)*3
+    
+    if (HDist<TerminalDist) {Terminal=1}
+    
+    if (Go & HDist<15000) {
+        Search=1
+        RadarPos = RadarTarget:pos()
+        if (!Lock) {Lock = RadarTarget!=noentity()}
+        }
+    else {
+        Search=0
+    }
+    
+    if (Mode & Lock) {
+        TargetPos = RadarPos
+        Tx = RadarPos:x()
+        Ty = RadarPos:y()
+        Tz = RadarPos:z()
+    }
+    else {        
+        TargetPos = GroundTarget
+        Tx = GroundTarget:x()
+        Ty = GroundTarget:y()
+        Tz = GroundTarget:z()
+    }
+    Dist=GPS:distance(vec(Tx,Ty,Tz))
+    HDist=GPS:distance(vec(Tx,Ty,GPS:z()))
+    RD = $HDist
+    
+    Altitude = Sz-Gl
+    AltDiff = Altitude-MinAlt
+
+    GroundTargetSet = Lock | (GroundTarget!=vec(0,0,0))
+    TBearing = E:bearing(TargetPos)
+    TElev = E:elevation(TargetPos)
+
+    X = (Gx-Tx)*50
+    Y = (Py-Ty)*50
+    if (Terminal) {Z = Sz-Tz}
+    else {Z=AltDiff*AltMod}
+
+    Vec=vec(X,Y,Z)
+    
+    RollV = E:angVel():roll() 
+    PitchV = E:angVel():pitch() 
+    YawV = E:angVel():yaw() 
+    AltPitch = (AltDiff/15000) * 80
+    if (Go) {
+        RollT = RollV + (E:angles():roll()*4)
+        YawT = YawV*-1 + TBearing
+        if (Terminal) {
+            PitchT = PitchV + (TElev*50)
+            }
+        else {
+            if (AltDiff< -250) {PitchT = PitchV + ((E:angles():pitch()+75)*50)}
+            elseif (AltDiff>250) {PitchT = PitchV + ((E:angles():pitch()-75)*50)}
+            else {PitchT = PitchV + ((E:angles():pitch()-AltPitch)*50)}
+        }
+    }
+    
+    if (HDist<TerminalDist) {
+        Arm=1
+        if (Arm & (Dist<100 | RD > 0 | Altitude<100)) {Detonate = 1}
+        else {Detonate = 0}
+    }
+    else {Arm=0}
+}
+else { 
+    Mul = 0
+    Go = 0
+    RollT = 0
+    YawT = 0
+    PitchT = 0
+    A = 0
+    Ok = 0
+}

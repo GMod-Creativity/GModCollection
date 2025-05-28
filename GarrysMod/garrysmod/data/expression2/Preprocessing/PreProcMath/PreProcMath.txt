@@ -1,0 +1,48 @@
+@name PreProcMath
+ 
+#Replaces hardcoded simple math inside parentheses
+#Allows +,-,*,/ and % only, no internal parentheses
+#Works with negative number, ie -5*-3, or evem 5-3*-2
+#Examples
+# (5*3) => (15)
+# (-5*3+5%2) => (-14)
+ 
+Test = "Var = test(0.1*100+5%3)\nabc(123+5*4)\ndontTouch(13^4*3)\n3*4 #<-no()\n(-4-5*-5) #yes ()"
+function string eval(Expr:string){
+    Expr=format(" %s ",Expr) # padding
+    # * / %
+    while(1){
+        local Match = Expr:match("[^%d]()([%-]?[%d%.]+)([%*/%%])([%-]?[%d%.]+)()[^%d]")
+        if(Match:count()!=5){break}
+        local Res = 0
+        switch(Match[3,string]){
+            case "*", Res = Match[2,string]:toNumber()*Match[4,string]:toNumber(), break
+            case "/", Res = Match[2,string]:toNumber()/Match[4,string]:toNumber(), break
+            case "%", Res = Match[2,string]:toNumber()%Match[4,string]:toNumber(), break
+        }
+        Expr = format("%s%.14g%s", Expr:left(Match[1,number]-1), Res, Expr:sub(Match[5,number]))
+    }
+    # + -
+    while(1){
+        local Match = Expr:match("[^%d]()([%-]?[%d%.]+)([%-%+])([%-]?[%d%.]+)()[^%d]")
+        if(Match:count()!=5){break}
+        local Res = 0
+        switch(Match[3,string]){
+            case "+", Res = Match[2,string]:toNumber()+Match[4,string]:toNumber(), break
+            case "-", Res = Match[2,string]:toNumber()-Match[4,string]:toNumber(), break
+        }
+        Expr = format("%s%.14g%s", Expr:left(Match[1,number]-1), Res, Expr:sub(Match[5,number]))
+    }
+    return Expr:sub(2,-2)
+}
+ 
+local Offset = 1
+while(1){
+    #local Match = Test:match("()%((%-?[%d%.]+[%+%-%*/%%]+%d[%d%.%+%-%*%/%%]*)()%)", Offset)
+    local Match = Test:match("()%(([%-%d%.%+%*/%% ]+)()%)", Offset)
+    if(Match:count()!=3){break}
+    local Repl = eval(Match[2,string])
+    Test = format("%s%s%s", Test:left(Match[1,number]), Repl , Test:sub(Match[3,number]))
+    Offset = Match[1,number]+Repl:length()+2
+}
+print(Test)

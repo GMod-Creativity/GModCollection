@@ -1,0 +1,43 @@
+@name E2 Bomber 3
+@inputs Gl Objective:vector Clk Launch Stage Abort Reboot
+@outputs Mul A Go Ok Vector:vector Speed Dist Altitude Reset Bombsaway
+@persist GPS:vector Home:table Targetpos:table
+@persist Alt 
+@trigger Clk
+GPS=entity():pos()
+if (Clk & ~Clk & Launch==0) {Home[toString(0),vector] = GPS}
+if (Clk & ~Clk) {Targetpos[toString(0),vector] = Objective}
+
+
+interval(50)
+if (Stage==2 | Reboot==1) {Reset=1}
+else {Reset=0}
+
+if (Stage==0 & Launch==1 & Dist<=12000) {Bombsaway=1} #12k carpet, 1.5k 500lb
+else {Bombsaway=0}
+
+if (Go==1 & Launch==1) {Mul=1
+    A=1}
+else {Mul=0
+    A=0}
+
+if (Stage==0) {T=Targetpos[toString(0),vector]}
+else {T=Home[toString(0),vector]}
+
+Go=Stage <= 1 #KILL DRONE AFTER N WPT
+
+if (Altitude<2500 & Altitude<5000 & Stage<=1) {Alt=20000}
+elseif (Altitude>5000) {Alt=500}
+else {Alt=2500}
+
+Sz=GPS:z()
+Z=Sz - Alt
+Vec=GPS-T
+Vector=vec(Vec:x(),Vec:y(),Z)
+TPN=vec(T:x(),T:y(),GPS:z())
+Dist=TPN:distance(GPS)
+Altitude=Sz-Gl
+Speed=entity():vel():length()
+
+if (Dist<=2000 | Abort==1) {Ok=1} 
+else {Ok=0}

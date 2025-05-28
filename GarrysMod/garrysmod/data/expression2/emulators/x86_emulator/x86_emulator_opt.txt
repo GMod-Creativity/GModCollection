@@ -1,0 +1,4831 @@
+@name x86 Emulator Optimized
+@inputs KeyboardKey
+@inputs CS00:wirelink CS10:wirelink CS20:wirelink
+@inputs CS01:wirelink CS11:wirelink CS21:wirelink
+@outputs 
+@persist HexDigits:string Hex8:table Hex16:table Parity:table
+@persist State SubState
+@persist HTTPData:string HTTPBinarySize
+@model models/props_lab/harddrive02.mdl
+
+# Global Cache
+@persist Globals:gtable
+# BIOS:array           - BIOS-bochs-latest
+# BIOSLoaded:number
+# Floppy0:array        - MS DOS 5.0 Install Disk 1
+# Floppy0Loaded:number
+# Floppy1:array        - MS DOS 5.0 Install Disk 2
+# Floppy1Loaded:number
+# Floppy2:array        - MS DOS 5.0 Install Disk 3
+# Floppy2Loaded:number
+# Floppy3:array        - MS DOS 3.3 Boot Disk
+# Floppy3Loaded:number
+# Floppy4:array        - Zork
+# Floppy4Loaded:number
+# Hex8:table           - 8-bit hex lookup table
+# Hex8Computed:number  - Is 8-bit hex lookup table cached?
+# Hex16:table          - 16-bit hex lookup table
+# Hex16Computed:number - Is 16-bit hex lookup table cached?
+
+# Floppy is 1440 KiB
+# 80 cylinders, 2 heads, 18 sectors / cylinder
+# 512 bytes / sector
+
+# HDD is 16 MiB
+# 512 cylinders, 2 heads, 32 sectors / cylinder
+# 512 bytes / sector
+
+@persist R8Names:array R16Names:array R32Names:array
+@persist SRNames:array
+
+# Debugging
+@persist DebugOn
+
+# State 0
+@persist S01StartTime S01EndTime S01Duration
+@persist S03StartTime S03EndTime S03Duration
+@persist Index
+
+# State 1
+@persist S16Array:array S16Name:string S16ReturnState
+@persist S16StartTime S16EndTime S16Duration
+
+# State 2
+@persist S21StartTime S21EndTime S21Duration
+@persist S23StartTime S23EndTime S23Duration
+@persist S25StartTime S25EndTime S25Duration
+
+# State 3
+@persist Halt ExecutionMode InstructionsToRun
+@persist InstructionsPerSecond InstructionCounter LastInstructionCounterReset
+@persist OCS OIP
+@persist EIP
+@persist EAX EBX ECX EDX
+@persist ESP EBP ESI EDI
+@persist ES CS SS DS FS GS
+
+@persist CF PF AF ZF SF TF IF DF OF IOPL NT
+@persist RF VM AC VIF VIP ID
+
+# Flag Watching
+@persist LTF LIF
+
+# Debugging
+@persist Breakpoints:array
+@persist CallStackEIP:array CallStackCS:array
+@persist CallStackOIP:array CallStackOCS:array
+
+@persist ModRMDispRead
+@persist SegmentPrefix
+
+# 1st DMA controller (I/O ports 0x00 to 0x1F)
+@persist DMA1:array
+
+# 2nd DMA controller (I/O ports 0xC0 to 0xDF)
+@persist DMA2:array
+
+# 8259A Interrupt Controller
+@persist IRR IMR ISR
+@persist InterruptQueue:array InterruptQueueOverflowing
+
+# 8042 Keyboard Controller
+# Command Byte
+@persist C8042InterruptEnabled C8042OverrideInhibit C8042KeyboardDisabled C8042MouseDisabled C8042ScancodeTranslation
+# Status Byte
+@persist C8042OutputFull C8042InputFull
+@persist C8042OutputRegister C8042Last60Command C8042ScanCodeSet
+
+@persist KeyboardLastKey KeyboardQueue:array
+
+# 8255 Controller
+@persist C8255Toggle C8255TimerEnabled C8255SpeakerEnabled
+
+# Video Display
+@persist VideoMode VideoCursorTopScanline VideoCursorBottomScanline
+@persist BIOSToCSColor:array CSToBIOSColor:array UnicodeToCP437:array CP437ToUnicode:array
+@persist CSX CSY
+
+# Storage
+@persist RAM:array CheckAddrOn
+@persist BIOS:array
+@persist Floppy0:array Floppy1:array Floppy2:array Floppy3:array Floppy4:array
+
+# CMOS / RTC
+@persist NMI
+@persist CMOS:array CMOSIndex
+@persist BootTime
+@persist TimeScale # virtual seconds per real second
+@persist LastTick TickInterval # int 0x1c interval, in real time
+
+# Diskette Drive 0
+@persist DPT00:array
+@persist D00Status
+@persist Floppy:array
+
+# Hard Disk 0
+@persist HDD:array
+@persist D80Status
+
+# State 0x10 (Video Call)
+@persist S1007X S1007Y S1007Lines S1007TX S1007TY S1007BX S1007BY S1007CSColor
+@persist S1009I S1009Count S1009CSChar S1009CSColor
+
+# State 0x13 (Disk Access)
+@persist S1302Drive S1302ByteIndex S1302BytesToRead S1302DestAddr S1302SrcAddr
+@persist S1303Drive S1303ByteIndex S1303BytesToRead S1303DestAddr S1303SrcAddr
+
+# State 0x15 (BIOS Call)
+@persist S1587Source S1587Dest S1587Words S1587Index
+
+# MS DOS
+@persist NextMemorySegment
+
+# Memory watch
+
+@trigger 
+
+# States
+# 0 - Preparing tables
+#   0:0 - Pre-generate hex table (8-bits)
+#   0:1 - Generate hex table (8-bits)
+#   0:2 - Pre-generate hex table (16-bits)
+#   0:3 - Generate hex table (16-bits)
+#   0:4 - Redirect to state 1:0
+# 1 - Loading code
+#   1:0 - httpRequest BIOS
+#   1:1 - httpRequest Floppy0
+#   1:2 - httpRequest Floppy1
+#   1:3 - httpRequest Floppy2
+#   1:4 - httpRequest Floppy3
+#   1:5 - httpRequest Floppy4
+#   1:6 - httpRequest Floppy5
+#   1:7 - Redirect to state 2:0
+#   1:8 - Waiting for download
+#   1:9 - Decoding
+# 2 - Setting up system
+#   2:0 - Pre-copying BIOS into memory
+#   2:1 - Copying BIOS into memory
+#   2:2 - Pre-copying MBR into memory
+#   2:3 - Copying MBR into memory
+#   2:4 - Pre-generating interrupt table
+#   2:5 - Generating interrupt table
+#   2:6 - Redirect to state 3:0
+# 3 - Executing
+
+# Execution Modes
+# 0 - paused
+# 1 - run all
+# 2 - step
+
+# Notes
+# Due to Garry's retardation 0xFFFFFFFF && <number without 32nd bit set> = 0
+# Hence the 0x7FFFFFFFs everywhere.
+
+if (first() | duped())
+{
+	runOnChat(1)
+	runOnHTTP(1)
+	runOnTick(1)
+
+	Globals = gTable("x86", 1)
+	State = 0
+	SubState = 0
+	Index = 0
+
+	# HDD init
+	# HDD[-0x01FE, number] = 0x55
+	# HDD[-0x01FF, number] = 0xAA
+
+	# Floppy Disk
+	EIP = 0x7C00
+
+	# BIOS
+	# CS = 0xF000
+	# EIP = 0xFFF0
+
+	# MS DOS
+	ESP = 0xFFFE
+
+	IF = 1
+	IOPL = 1
+	NT = 1
+
+	NextMemorySegment = 0x2000
+
+	# RTC
+	TimeScale = 0.03
+	TickInterval = (1 / 18.2) / TimeScale
+	CMOS[0x0F, number] = 0x00 # Shutdown status = normal POST execution
+	CMOS[0x17, number] = 0x00 # Total Extended Memory = 0x3C00 (15 MiB)
+	CMOS[0x18, number] = 0x3C # Total Extended Memory = 0x3C00 (15 MiB)
+
+	# 8042 Keyboard Microcontroller
+	C8042KeyboardDisabled = 0
+	C8042ScanCodeSet = 0x81
+
+	# Debug Output
+	function printDebug (Str:string)
+	{
+		# concmd("echo \"" + Str:replace("\"", "'") + "\"")
+		if (DebugOn) { print(Str) }
+	}
+
+	function printError (Str:string) { print(Str) }
+	function printInfo (Str:string) { print(Str) }
+	function printConsoleError (Str:string) { concmd("echo \"" + Str:replace("\"", "'") + "\"") }
+	function printConsoleInfo (Str:string) { concmd("echo \"" + Str:replace("\"", "'") + "\"") }
+
+	# Conversion
+	HexDigits = "0123456789abcdef"
+	function string toHex8 (Dec) { return "0x" + Hex8[Dec, string] }
+	function string toHex16 (Dec) { return "0x" + Hex16[Dec, string] }
+	function string toHex32 (Dec) { return "0x" + Hex16[Dec >> 16, string] + Hex16[Dec && 0xFFFF, string] }
+	function string toHex1616 (Seg, Addr) { return "0x" + Hex16[Seg, string] + ":" + Hex16[Addr, string] }
+	function number toBCD4 (Dec) { return Dec }
+	function number toBCD8 (Dec) { return floor(Dec / 10) * 0x10 + (Dec % 10) }
+	function number toBCD16 (Dec) { return floor(Dec / 1000) * 0x1000 + (floor(Dec / 100) % 10) * 0x0100 + (floor(Dec / 10) % 10) * 0x0010 + (Dec % 10) }
+	function number toBCD88 (Dec1, Dec2) { return floor(Dec1 / 10) * 0x1000 + (Dec1 % 10) * 0x0100 + floor(Dec2 / 10) * 0x0010 + (Dec2 % 10) }
+	function number unBCD8 (Hex) { return floor(Hex / 16) * 10 + (Hex % 16) }
+
+	# Memory access
+	function void checkAddr (Addr)
+	{
+		if (!CheckAddrOn) { return }
+		if (Addr >= 0x0400 && Addr <= 0x04FF) { printInfo(toHex1616(OCS, OIP) + ": access " + toHex16(Addr)) }
+		if (Addr >= 0x000F0000) { printInfo(toHex1616(OCS, OIP) + ": access " + toHex32(Addr)) }
+		# if (Addr >= 0x0009FC00 && Addr <= 0x0009FFFF) {ExecutionMode = 0, printInfo(toHex1616(OCS, OIP) + ": access " + toHex32(Addr)) }
+	}
+	function number readInt8 (Addr) { checkAddr(Addr), return RAM[-Addr, number] }
+	function number readInt16 (Addr) { checkAddr(Addr), return RAM[-Addr, number] + (RAM[-Addr - 1, number] << 8) }
+	function number readInt32 (Addr) { checkAddr(Addr), return RAM[-Addr, number] + (RAM[-Addr - 1, number] << 8) + (RAM[-Addr - 2, number] << 16) + (RAM[-Addr - 3, number] << 24) }
+	function number writeInt8 (Addr, Value) { checkAddr(Addr), RAM[-Addr, number] = Value }
+	function number writeInt16 (Addr, Value) { checkAddr(Addr), RAM[-Addr, number] = Value && 0xFF, RAM[-Addr - 1, number] = Value >> 8 }
+	function number writeInt32 (Addr, Value) { checkAddr(Addr), RAM[-Addr, number] = Value && 0xFF, RAM[-Addr - 1, number] = (Value >> 8) && 0xFF, RAM[-Addr - 2, number] = Value && 0xFF, RAM[-Addr - 1, number] = (Value >> 8) && 0xFF, RAM[-Addr - 2, number] = (Value >> 16) && 0xFF, RAM[-Addr - 3, number] = Value >> 24 }
+	
+	# Video Display
+	VideoMode = 3
+	CSX = 0
+	CSY = 0
+	BIOSToCSColor = array(6, 60, 66, 600, 606, 630, 666, 333, 339, 393, 399, 933, 939, 993, 999)
+	BIOSToCSColor[0x0, number] = 0
+	
+	for (I = 0, BIOSToCSColor:count()) { CSToBIOSColor[BIOSToCSColor[I, number], number] = I }
+	CSToBIOSColor[111, number] = 0
+	
+	UnicodeToCP437 = array(0x263A, 0x263B, 0x2665, 0x2666, 0x2663, 0x2660, 0x2022,
+				   0x25D8, 0x25CB, 0x25D9, 0x2642, 0x2640, 0x266A, 0x266B, 0x263C,
+				   0x25BA, 0x25C4, 0x2195, 0x203C, 0x00B6, 0x00A7, 0x25AC, 0x21A8,
+				   0x2191, 0x2193, 0x2192, 0x2190, 0x221F, 0x2194, 0x25B2, 0x25BC)
+	UnicodeToCP437High = array()
+	UnicodeToCP437High[0x00, number] = 0x00C7
+	UnicodeToCP437[0xB3, number] = 0x2502
+	UnicodeToCP437[0xBF, number] = 0x2510
+	UnicodeToCP437[0xC0, number] = 0x2514
+	UnicodeToCP437[0xC4, number] = 0x2500
+	UnicodeToCP437[0xCD, number] = 0x2550
+	UnicodeToCP437[0xD9, number] = 0x2518
+	UnicodeToCP437[0xDA, number] = 0x250C
+	for (I = 0, UnicodeToCP437High:count()) { UnicodeToCP437[I + 0x80, number] = UnicodeToCP437High[I, number] }
+	for (I = 0, UnicodeToCP437:count()) { CP437ToUnicode[UnicodeToCP437[I, number], number] = I }
+	
+	function number biosToCSColor (Color)
+	{
+		Color = BIOSToCSColor[Color >> 4, number] * 1000 + BIOSToCSColor[Color && 0x0F, number]
+		if (Color % 1000) { return Color } else { return Color + 111 } # Console screen is buggy with black text.
+	}
+	function number csToBIOSColor (Color) { return (CSToBIOSColor[floor(Color / 1000), number] << 4) + CSToBIOSColor[Color % 1000, number] }
+	function number unicodeToCP437 (C, PreserveControlCharacters) { if (PreserveControlCharacters & C < 32) { return C }, Char = UnicodeToCP437[C, number], if (Char) { return Char } else { return C } }
+	function number cp437ToUnicode (C) { Char = CP437ToUnicode[C, number], if (Char) { return Char } else { return C } }
+	
+	function updateCursorPos (X, Y)
+	{
+		if (Y < 18) {
+			LocalY = Y
+			if (X < 30) { Screen = CS00, LocalX = X }
+			elseif (X < 60) { Screen = CS10, LocalX = X - 30 }
+			else { Screen = CS20, LocalX = X - 60 }
+		} else {
+			LocalY = Y - 18
+			if (X < 30) { Screen = CS01, LocalX = X }
+			elseif (X < 60) { Screen = CS11, LocalX = X - 30 }
+			else { Screen = CS21, LocalX = X - 60 }
+		}
+		
+		writeInt8(0x0450, X)
+		writeInt8(0x0451, Y)
+		
+		CS00[2046] = 0
+		CS10[2046] = 0
+		CS20[2046] = 0
+		CS01[2046] = 0
+		CS11[2046] = 0
+		CS21[2046] = 0
+		
+		Screen[2044] = 0.25
+		Screen[2045] = LocalY * 60 + LocalX * 2
+		Screen[2046] = 1
+	}
+	updateCursorPos(CSX, CSY)
+	
+	function resetScreens ()
+	{
+		# Clear screen
+		CS00[2041] = 1
+		CS10[2041] = 1
+		CS20[2041] = 1
+		CS01[2041] = 1
+		CS11[2041] = 1
+		CS21[2041] = 1
+		
+		# Right edge
+		CS20[2032] = 19
+		CS21[2032] = 19
+		
+		# Bottom edge
+		CS01[2034] = 6
+		CS11[2034] = 6
+		CS21[2034] = 6
+		
+		CSX = 0
+		CSY = 0
+		updateCursorPos(CSX, CSY)
+	}
+	
+	function number readChar (X, Y)
+	{
+		if (Y < 18) {
+			LocalY = Y
+			if (X < 30) { Screen = CS00, LocalX = X }
+			elseif (X < 60) { Screen = CS10, LocalX = X - 30 }
+			else { Screen = CS20, LocalX = X - 60 }
+		} else {
+			LocalY = Y - 18
+			if (X < 30) { Screen = CS01, LocalX = X }
+			elseif (X < 60) { Screen = CS11, LocalX = X - 30 }
+			else { Screen = CS21, LocalX = X - 60 }
+		}
+		
+		return Screen[LocalY * 60 + LocalX * 2]
+	}
+	
+	function number readCharColor (X, Y)
+	{
+		if (Y < 18) {
+			LocalY = Y
+			if (X < 30) { Screen = CS00, LocalX = X }
+			elseif (X < 60) { Screen = CS10, LocalX = X - 30 }
+			else { Screen = CS20, LocalX = X - 60 }
+		} else {
+			LocalY = Y - 18
+			if (X < 30) { Screen = CS01, LocalX = X }
+			elseif (X < 60) { Screen = CS11, LocalX = X - 30 }
+			else { Screen = CS21, LocalX = X - 60 }
+		}
+		
+		return Screen[LocalY * 60 + LocalX * 2 + 1]
+	}
+	
+	function writeChar (X, Y, C, CSColor)
+	{
+		if (Y < 18) {
+			LocalY = Y
+			if (X < 30) { Screen = CS00, LocalX = X }
+			elseif (X < 60) { Screen = CS10, LocalX = X - 30 }
+			else { Screen = CS20, LocalX = X - 60 }
+		} else {
+			LocalY = Y - 18
+			if (X < 30) { Screen = CS01, LocalX = X }
+			elseif (X < 60) { Screen = CS11, LocalX = X - 30 }
+			else { Screen = CS21, LocalX = X - 60 }
+		}
+		
+		if (C == 0x08) { CSX--, if (CSX < 0) {CSX = 79, CSY--}, if (CSY < 0) { CSY = 0 }, updateCursorPos(CSX, CSY), return }
+		elseif (C == 0x0D) { CSX = 0, updateCursorPos(CSX, CSY), return }
+		elseif (C == 0x0A) { CSX = 0, CSY++, updateCursorPos(CSX, CSY), return }
+		
+		Screen[LocalY * 60 + LocalX * 2] = C
+		if (CSColor >= 0) { Screen[LocalY * 60 + LocalX * 2 + 1] = CSColor }
+		elseif (Screen[LocalY * 60 + LocalX * 2 + 1] == 0) { Screen[LocalY * 60 + LocalX * 2 + 1] = 999 }
+		CSX++, if (CSX == 80) { CSX = 0, CSY++ }
+		updateCursorPos(CSX, CSY)
+	}
+	
+	# Keyboard
+	function number getKeyboardScanCode (Key)
+	{
+		return Key && 0xFF
+	}
+	
+	function number getKeyboardAscii (Key)
+	{
+		return Key && 0xFF
+	}
+	
+	function number readImm8 () { EIP++, return readInt8(CS * 16 + EIP - 1) }
+	function number readImm16 () { EIP += 2, return readInt16(CS * 16 + EIP - 2) }
+	
+	function string escapeString (Str:string)
+	{
+		Str = Str:replace("\t", "\\t")
+		Str = Str:replace("\r", "\\r")
+		Str = Str:replace("\n", "\\n")
+		return Str
+	}
+	
+	function string readString (Addr, Maxlen)
+	{
+		Str = ""
+		Maxlen--
+		for (I = 0, Maxlen)
+		{
+			Byte = readInt8(Addr + I)
+			Str += toChar(Byte)
+			if (!Byte) { break }
+		}
+		return escapeString(Str)
+	}
+	
+	function void dbgLogCall (OCS, OIP, CS, EIP)
+	{
+		CallStackCS:pushNumber(CS), CallStackEIP:pushNumber(EIP)
+		CallStackOCS:pushNumber(OCS), CallStackOIP:pushNumber(OIP)
+	}
+	function void dbgLogRet ()
+	{
+		CallStackCS:pop(), CallStackEIP:pop()
+		CallStackOCS:pop(), CallStackOIP:pop()
+	}
+	
+	# int 0x1E: Diskette Initialization Parameter Table
+	DPT00[0x00, number] = 0xDF # head step time = 6 ms, head unload time = 240 ms
+	DPT00[0x01, number] = 0x02 # head load time = 8 ms, DMA = 0 (use DMA)
+	DPT00[0x02, number] = 0x25 # clock ticks until motor off
+	DPT00[0x03, number] = 0x02 # 512 bytes / sector
+	DPT00[0x04, number] = 0x12 # 18 sectors / track
+	DPT00[0x05, number] = 0x1B # gap length = 3.5"
+	DPT00[0x06, number] = 0xFF # not 128 bytes / sector
+	DPT00[0x07, number] = 0x54 # gap length when formatting = 3.5"
+	DPT00[0x08, number] = 0xF6 # data pattern used during formatting
+	DPT00[0x09, number] = 0x0F # head bounce delay = 8 ms
+	DPT00[0x0A, number] = 0x08 # motor start delay = 125 ms
+	DPT00[0x0B, number] = 0xE9 # motor stop delay = 250 ms
+	DPT00[0x0C, number] = 0xB3
+	DPT00[0x0D, number] = 0x04
+	
+	# BIOS Data Area
+	writeInt8(0x0449, 0x03) # Video mode
+	writeInt8(0x0462, 0x00) # Video page
+	writeInt8(0x0484, 0x18) # 25 rows
+	writeInt8(0x0496, 0x10) # 101/102 key keyboard
+	writeInt8(0x0497, 0x10) # Keyboard ACK received
+	
+	# r8 names
+	R8Names = array("cl", "dl", "bl", "ah", "ch", "dh", "bh")
+	R8Names[0b000, string] = "al"
+	
+	# r16 names
+	R16Names = array("cx", "dx", "bx", "sp", "bp", "si", "di")
+	R16Names[0b000, string] = "ax"
+	
+	# r32 names
+	R32Names = array("ecx", "edx", "ebx", "esp", "ebp", "esi", "edi")
+	R32Names[0b000, string] = "eax"
+	
+	# sreg names
+	SRNames = array("cs", "ss", "ds", "fs", "gs", "sreg", "sreg")
+	SRNames[0b000, string] = "es"
+	
+	function number parseInt (Str:string)
+	{
+		Number = 0
+		for (I = 1, Str:length())
+		{
+			Number *= 16
+			Number += Hex8["0" + Str[I], number]
+		}
+		return Number
+	}
+	
+	function checkRegisters ()
+	{
+		if (EAX < 0 | EAX > 0xFFFF) { ExecutionMode = 0, printError(toHex1616(OCS, OIP) + ": AX out of range!") }
+		if (EBX < 0 | EBX > 0xFFFF) { ExecutionMode = 0, printError(toHex1616(OCS, OIP) + ": BX out of range!") }
+		if (ECX < 0 | ECX > 0xFFFF) { ExecutionMode = 0, printError(toHex1616(OCS, OIP) + ": CX out of range!") }
+		if (EDX < 0 | EDX > 0xFFFF) { ExecutionMode = 0, printError(toHex1616(OCS, OIP) + ": DX out of range!") }
+		if (ESP < 0 | ESP > 0xFFFF) { ExecutionMode = 0, printError(toHex1616(OCS, OIP) + ": SP out of range!") }
+		if (EBP < 0 | EBP > 0xFFFF) { ExecutionMode = 0, printError(toHex1616(OCS, OIP) + ": BP out of range!") }
+		if (ESI < 0 | ESI > 0xFFFF) { ExecutionMode = 0, printError(toHex1616(OCS, OIP) + ": SI out of range!") }
+		if (EDI < 0 | EDI > 0xFFFF) { ExecutionMode = 0, printError(toHex1616(OCS, OIP) + ": DI out of range!") }
+		if (CS < 0 | CS > 0xFFFF) { ExecutionMode = 0, printError(toHex1616(OCS, OIP) + ": CS out of range!") }
+		if (DS < 0 | DS > 0xFFFF) { ExecutionMode = 0, printError(toHex1616(OCS, OIP) + ": DS out of range!") }
+		if (ES < 0 | ES > 0xFFFF) { ExecutionMode = 0, printError(toHex1616(OCS, OIP) + ": ES out of range!") }
+		if (SS < 0 | SS > 0xFFFF) { ExecutionMode = 0, printError(toHex1616(OCS, OIP) + ": SS out of range!") }
+		if (CF < 0 | CF > 1) { ExecutionMode = 0, printError(toHex1616(OCS, OIP) + ": CF out of range!") }
+		if (OF < 0 | OF > 1) { ExecutionMode = 0, printError(toHex1616(OCS, OIP) + ": OF out of range!") }
+		if (SF < 0 | SF > 1) { ExecutionMode = 0, printError(toHex1616(OCS, OIP) + ": SF out of range!") }
+		if (ZF < 0 | ZF > 1) { ExecutionMode = 0, printError(toHex1616(OCS, OIP) + ": ZF out of range!") }
+		if (PF < 0 | PF > 1) { ExecutionMode = 0, printError(toHex1616(OCS, OIP) + ": PF out of range!") }
+	}
+	
+	function updateTooltip ()
+	{
+		if (Halt) { Name = "x86 Emulator (Halted)\n" }
+		if (ExecutionMode == 0) { Name = "x86 Emulator (Paused)\n" }
+		else { Name = "x86 Emulator\n" }
+		
+		Name += "IP: " + toHex16(EIP) + "\n"
+		Name += "AX: " + toHex16(EAX) + " BX: " + toHex16(EBX) + " CX: " + toHex16(ECX) + " DX: " + toHex16(EDX) + "\n"
+		Name += "SP: " + toHex16(ESP) + " BP: " + toHex16(EBP) + " SI: " + toHex16(ESI) + " DI: " + toHex16(EDI) + "\n"
+		Name += "CS: " + toHex16(CS) + " DS: " + toHex16(DS) + " ES: " + toHex16(ES) + " SS: " + toHex16(SS) + "\n"
+		Name += floor(InstructionsPerSecond) + " Hz"
+		setName(Name)
+		
+		checkRegisters()
+	}
+	
+	function number readR8 (Reg)
+	{
+		# AL is 0, CL is 1, DL is 2, BL is 3, AH is 4, CH is 5, DH is 6, and BH is 7.
+		if (Reg == 0b000) { return EAX && 0x000000FF }
+		elseif (Reg == 0b001) { return ECX && 0x000000FF }
+		elseif (Reg == 0b010) { return EDX && 0x000000FF }
+		elseif (Reg == 0b011) { return EBX && 0x000000FF }
+		elseif (Reg == 0b100) { return (EAX && 0x0000FF00) >> 8 }
+		elseif (Reg == 0b101) { return (ECX && 0x0000FF00) >> 8 }
+		elseif (Reg == 0b110) { return (EDX && 0x0000FF00) >> 8 }
+		elseif (Reg == 0b111) { return (EBX && 0x0000FF00) >> 8 }
+	}
+	
+	function number readR16 (Reg)
+	{
+		# AX is 0, CX is 1, DX is 2, BX is 3, SP is 4, BP is 5, SI is 6, and DI is 7.
+		if (Reg == 0b000) { return EAX && 0x0000FFFF }
+		elseif (Reg == 0b001) { return ECX && 0x0000FFFF }
+		elseif (Reg == 0b010) { return EDX && 0x0000FFFF }
+		elseif (Reg == 0b011) { return EBX && 0x0000FFFF }
+		elseif (Reg == 0b100) { return ESP && 0x0000FFFF }
+		elseif (Reg == 0b101) { return EBP && 0x0000FFFF }
+		elseif (Reg == 0b110) { return ESI && 0x0000FFFF }
+		elseif (Reg == 0b111) { return EDI && 0x0000FFFF }
+	}
+	
+	function number readR32 (Reg)
+	{
+		# EAX is 0, ECX is 1, EDX is 2, EBX is 3, ESP is 4, EBP is 5, ESI is 6, and EDI is 7.
+		if (Reg == 0b000) { return EAX }
+		elseif (Reg == 0b001) { return ECX }
+		elseif (Reg == 0b010) { return EDX }
+		elseif (Reg == 0b011) { return EBX }
+		elseif (Reg == 0b100) { return ESP }
+		elseif (Reg == 0b101) { return EBP }
+		elseif (Reg == 0b110) { return ESI }
+		elseif (Reg == 0b111) { return EDI }
+	}
+	
+	function number readSegmentRegister (Reg)
+	{   
+		# ES is 0, CS is 1, SS is 2, DS is 3, FS is 4, and GS is 5.
+		if (Reg == 0b000) { return ES }
+		elseif (Reg == 0b001) { return CS }
+		elseif (Reg == 0b010) { return SS }
+		elseif (Reg == 0b011) { return DS }
+		elseif (Reg == 0b100) { return FS }
+		elseif (Reg == 0b101) { return GS }
+		
+		ExecutionMode = 0
+		printInfo(toHex1616(OCS, OIP) + ": readSegmentRegister(" + Reg + ") called with negative number")
+		return 0
+	}
+	
+	function writeR8 (Reg, Value)
+	{
+		# AL is 0, CL is 1, DL is 2, BL is 3, AH is 4, CH is 5, DH is 6, and BH is 7.
+		if (Reg == 0b000) { EAX = (EAX && 0x7FFFFF00) + Value }
+		elseif (Reg == 0b001) { ECX = (ECX && 0x7FFFFF00) + Value }
+		elseif (Reg == 0b010) { EDX = (EDX && 0x7FFFFF00) + Value }
+		elseif (Reg == 0b011) { EBX = (EBX && 0x7FFFFF00) + Value }
+		elseif (Reg == 0b100) { EAX = (EAX && 0x7FFF00FF) + (Value << 8) }
+		elseif (Reg == 0b101) { ECX = (ECX && 0x7FFF00FF) + (Value << 8) }
+		elseif (Reg == 0b110) { EDX = (EDX && 0x7FFF00FF) + (Value << 8) }
+		elseif (Reg == 0b111) { EBX = (EBX && 0x7FFF00FF) + (Value << 8) }
+	}
+	
+	function writeR16 (Reg, Value)
+	{
+		# AX is 0, CX is 1, DX is 2, BX is 3, SP is 4, BP is 5, SI is 6, and DI is 7.
+		if (Reg == 0b000) { EAX = (EAX && 0x7FFF0000) + Value }
+		elseif (Reg == 0b001) { ECX = (ECX && 0x7FFF0000) + Value }
+		elseif (Reg == 0b010) { EDX = (EDX && 0x7FFF0000) + Value }
+		elseif (Reg == 0b011) { EBX = (EBX && 0x7FFF0000) + Value }
+		elseif (Reg == 0b100) { ESP = (ESP && 0x7FFF0000) + Value }
+		elseif (Reg == 0b101) { EBP = (EBP && 0x7FFF0000) + Value }
+		elseif (Reg == 0b110) { ESI = (ESI && 0x7FFF0000) + Value }
+		elseif (Reg == 0b111) { EDI = (EDI && 0x7FFF0000) + Value }
+	}
+	
+	function writeR32 (Reg, Value)
+	{
+		# EAX is 0, ECX is 1, EDX is 2, EBX is 3, ESP is 4, EBP is 5, ESI is 6, and EDI is 7.
+		if (Reg == 0b000) { EAX = Value }
+		elseif (Reg == 0b001) { ECX = Value }
+		elseif (Reg == 0b010) { EDX = Value }
+		elseif (Reg == 0b011) { EBX = Value }
+		elseif (Reg == 0b100) { ESP = Value }
+		elseif (Reg == 0b101) { EBP = Value }
+		elseif (Reg == 0b110) { ESI = Value }
+		elseif (Reg == 0b111) { EDI = Value }
+	}
+	
+	function writeSegmentRegister (Reg, Value)
+	{   
+		# ES is 0, CS is 1, SS is 2, DS is 3, FS is 4, and GS is 5.
+		if (Reg == 0b000) { ES = Value }
+		elseif (Reg == 0b001) { CS = Value }
+		elseif (Reg == 0b010) { SS = Value }
+		elseif (Reg == 0b011) { DS = Value }
+		elseif (Reg == 0b100) { FS = Value }
+		elseif (Reg == 0b101) { GS = Value }
+	}
+	
+	function number mod0Address16 (RM)
+	{
+		if (RM == 0b000) { RMName = "bx + si", return (EBX + ESI) && 0xFFFF }
+		elseif (RM == 0b001) { RMName = "bx + di", return (EBX + EDI) && 0xFFFF }
+		elseif (RM == 0b010) { RMName = "bp + si", if (SegmentPrefix == -3) { SegmentPrefix = -2 }, return (EBP + ESI) && 0xFFFF }
+		elseif (RM == 0b011) { RMName = "bp + di", if (SegmentPrefix == -3) { SegmentPrefix = -2 }, return (EBP + EDI) && 0xFFFF }
+		elseif (RM == 0b100) { RMName = "si", return ESI }
+		elseif (RM == 0b101) { RMName = "di", return EDI }
+		elseif (RM == 0b110)
+		{
+			if (!ModRMDispRead)
+			{
+				Disp16 = readImm16()
+				ModRMDispRead = 1
+			}
+			RMName = toHex16(Disp16)
+			return Disp16
+		}
+		elseif (RM == 0b111) { RMName = "bx", return EBX }
+	}
+	
+	function number mod1Address16 (RM)
+	{
+		if (!ModRMDispRead)
+		{
+			Disp8 = readImm8()
+			if ((Disp8 && 0x80) == 0) { Disp16 = Disp8 } else { Disp16 = 0xFF00 + Disp8 }
+			ModRMDispRead = 1
+		}
+		
+		if (RM == 0b000) { RMName = "bx + si + " + toHex8(Disp8), return (EBX + ESI + Disp16) && 0xFFFF }
+		elseif (RM == 0b001) { RMName = "bx + di + " + toHex8(Disp8), return (EBX + EDI + Disp16) && 0xFFFF }
+		elseif (RM == 0b010) { RMName = "bp + si + " + toHex8(Disp8), if (SegmentPrefix == -3) { SegmentPrefix = -2 }, return (EBP + ESI + Disp16) && 0xFFFF }
+		elseif (RM == 0b011) { RMName = "bp + di + " + toHex8(Disp8), if (SegmentPrefix == -3) { SegmentPrefix = -2 }, return (EBP + EDI + Disp16) && 0xFFFF }
+		elseif (RM == 0b100) { RMName = "si + " + toHex8(Disp8), return (ESI + Disp16) && 0xFFFF }
+		elseif (RM == 0b101) { RMName = "di + " + toHex8(Disp8), return (EDI + Disp16) && 0xFFFF }
+		elseif (RM == 0b110) { RMName = "bp + " + toHex8(Disp8), if (SegmentPrefix == -3) { SegmentPrefix = -2 }, return (EBP + Disp16) && 0xFFFF }
+		elseif (RM == 0b111) { RMName = "bx + " + toHex8(Disp8), return (EBX + Disp16) && 0xFFFF }
+	}
+	
+	function number mod2Address16 (RM)
+	{
+		if (!ModRMDispRead)
+		{
+			Disp16 = readImm16()
+			ModRMDispRead = 1
+		}
+		
+		if (RM == 0b000) { RMName = "bx + si + " + toHex16(Disp16) + "]", return (EBX + ESI + Disp16) && 0xFFFF }
+		elseif (RM == 0b001) { RMName = "bx + di + " + toHex16(Disp16), return (EBX + EDI + Disp16) && 0xFFFF }
+		elseif (RM == 0b010) { RMName = "bp + si + " + toHex16(Disp16), if (SegmentPrefix == -3) { SegmentPrefix = -2 }, return (EBP + ESI + Disp16) && 0xFFFF }
+		elseif (RM == 0b011) { RMName = "bp + di + " + toHex16(Disp16), if (SegmentPrefix == -3) { SegmentPrefix = -2 }, return (EBP + EDI + Disp16) && 0xFFFF }
+		elseif (RM == 0b100) { RMName = "si + " + toHex16(Disp16), return (ESI + Disp16) && 0xFFFF }
+		elseif (RM == 0b101) { RMName = "di + " + toHex16(Disp16), return (EDI + Disp16) && 0xFFFF }
+		elseif (RM == 0b110) { RMName = "bp + " + toHex16(Disp16), if (SegmentPrefix == -3) { SegmentPrefix = -2 }, return (EBP + Disp16) && 0xFFFF }
+		elseif (RM == 0b111) { RMName = "bx + " + toHex16(Disp16), return (EBX + Disp16) && 0xFFFF }
+	}
+	
+	function number modRMAddress16 (Mod, RM, UseSegment)
+	{
+		RetVal = 0
+		if (Mod == 0) { RetVal = mod0Address16(RM) }
+		elseif (Mod == 1) { RetVal = mod1Address16(RM) }
+		elseif (Mod == 2) { RetVal = mod2Address16(RM) }
+		else
+		{
+			Halt = 1
+			printError("modRMAddress16: Invalid mode (3)")
+			return 0
+		}
+		
+		if (UseSegment)
+		{
+			if (SegmentPrefix >= 0) { RMName = SRNames[SegmentPrefix, string] + ":" + RMName }
+			RetVal += readSegmentRegister(abs(SegmentPrefix)) * 16
+		}
+		RMName = "[" + RMName + "]"
+		return RetVal
+	}
+	
+	# Reads a 16-bit value in 8-bit addressing mode
+	function number readModRM168 (Mod, RM)
+	{
+		RetVal = 0
+		if (Mod == 0) { RetVal = mod0Address16(RM) }
+		elseif (Mod == 1) { RetVal = mod1Address16(RM) }
+		elseif (Mod == 2) { RetVal = mod2Address16(RM) }
+		elseif (Mod == 3)
+		{
+			RMName = R8Names[RM, string]
+			RetVal = readR8(RM)
+		}
+		
+		if (Mod != 3)
+		{
+			if (SegmentPrefix >= 0) { RMName = SRNames[SegmentPrefix, string] + ":" + RMName }
+			RMName = "[" + RMName + "]"
+			RetVal += readSegmentRegister(abs(SegmentPrefix)) * 16
+			RetVal = readInt8(RetVal)
+		}
+		
+		return RetVal
+	}
+	
+	# Reads a 16-bit value in 16-bit addressing mode
+	function number readModRM1616 (Mod, RM)
+	{
+		RetVal = 0
+		if (Mod == 0) { RetVal = mod0Address16(RM) }
+		elseif (Mod == 1) { RetVal = mod1Address16(RM) }
+		elseif (Mod == 2) { RetVal = mod2Address16(RM) }
+		elseif (Mod == 3)
+		{
+			RMName = R16Names[RM, string]
+			RetVal = readR16(RM)
+		}
+		
+		if (Mod != 3)
+		{
+			if (SegmentPrefix >= 0) { RMName = SRNames[SegmentPrefix, string] + ":" + RMName }
+			RMName = "[" + RMName + "]"
+			RetVal += readSegmentRegister(abs(SegmentPrefix)) * 16
+			RetVal = readInt16(RetVal)
+		}
+		
+		return RetVal
+	}
+	
+	# Writes an 8-bit value in 16-bit addressing mode
+	function writeModRM168 (Mod, RM, Value)
+	{
+		RetVal = 0
+		if (Mod == 0) { RetVal = mod0Address16(RM) }
+		elseif (Mod == 1) { RetVal = mod1Address16(RM) }
+		elseif (Mod == 2) { RetVal = mod2Address16(RM) }
+		
+		if (Mod == 3)
+		{
+			RMName = R8Names[RM, string]
+			writeR8(RM, Value)
+		}
+		else
+		{
+			if (SegmentPrefix >= 0) { RMName = SRNames[SegmentPrefix, string] + ":" + RMName }
+			RMName = "[" + RMName + "]"
+			RetVal += readSegmentRegister(abs(SegmentPrefix)) * 16
+			writeInt8(RetVal, Value)
+		}
+	}
+	
+	# Writes a 16-bit value in 16-bit addressing mode
+	function writeModRM1616 (Mod, RM, Value)
+	{
+		RetVal = 0
+		if (Mod == 0) { RetVal = mod0Address16(RM) }
+		elseif (Mod == 1) { RetVal = mod1Address16(RM) }
+		elseif (Mod == 2) { RetVal = mod2Address16(RM) }
+		
+		if (Mod == 3)
+		{
+			RMName = R16Names[RM, string]
+			writeR16(RM, Value)
+		}
+		else
+		{
+			if (SegmentPrefix >= 0) { RMName = SRNames[SegmentPrefix, string] + ":" + RMName }
+			RMName = "[" + RMName + "]"
+			RetVal += readSegmentRegister(abs(SegmentPrefix)) * 16
+			writeInt16(RetVal, Value)
+		}
+	}
+	
+	function updateIncDecFlags8 (Op1, Op2, Value)
+	{
+		ZF = Value == 0
+		SF = (Value && 0x80) != 0
+		OF = ((Op1 && 0x80) == (Op2 && 0x80)) & ((Op1 && 0x80) != (Value && 0x80))
+		PF = Parity[Value, number]
+	}
+	
+	function updateIncDecFlags16 (Op1, Op2, Value)
+	{
+		ZF = Value == 0
+		SF = (Value && 0x8000) != 0
+		OF = ((Op1 && 0x8000) == (Op2 && 0x8000)) & ((Op1 && 0x8000) != (Value && 0x8000))
+		PF = Parity[Value && 0xFF, number]
+	}
+	
+	# Warning: Value may be more than 0xFF
+	function updateAddFlags8(Op1, Op2, Value)
+	{
+		CF = (Value && 0x0100) != 0
+		ZF = (Value && 0xFF) == 0
+		SF = (Value && 0x80) != 0
+		OF = ((Op1 && 0x80) == (Op2 && 0x80)) & ((Op1 && 0x80) != (Value && 0x80))
+		PF = Parity[Value && 0xFF, number]
+	}
+	
+	# Warning: Value may be more than 0xFFFF
+	function updateAddFlags16(Op1, Op2, Value)
+	{
+		CF = (Value && 0x00010000) != 0
+		ZF = (Value && 0xFFFF) == 0
+		SF = (Value && 0x8000) != 0
+		OF = ((Op1 && 0x8000) == (Op2 && 0x8000)) & ((Op1 && 0x8000) != (Value && 0x8000))
+		PF = Parity[Value && 0xFF, number]
+	}
+	
+	function updateSubFlags8 (Op1, Op2, Value)
+	{
+		CF = Op2 > Op1
+		ZF = Value == 0
+		SF = (Value && 0x80) != 0
+		OF = ((Op1 && 0x80) != (Op2 && 0x80)) & ((Op1 && 0x80) != (Value && 0x80))
+		PF = Parity[Value, number]
+	}
+	
+	function updateSubFlags16 (Op1, Op2, Value)
+	{
+		CF = Op2 > Op1
+		ZF = Value == 0
+		SF = (Value && 0x8000) != 0
+		OF = ((Op1 && 0x8000) != (Op2 && 0x8000)) & ((Op1 && 0x8000) != (Value && 0x8000))
+		PF = Parity[Value && 0xFF, number]
+	}
+	
+	function updateBinOpFlags8 (PostOp)
+	{
+		CF = 0
+		ZF = PostOp == 0
+		SF = (PostOp && 0x80) != 0
+		OF = 0
+		PF = Parity[PostOp, number]
+	}
+	
+	function updateBinOpFlags16 (PostOp)
+	{
+		CF = 0
+		ZF = PostOp == 0
+		SF = (PostOp && 0x8000) != 0
+		OF = 0
+		PF = Parity[PostOp && 0xFF, number]
+	}
+	
+	function number inc8 (Op1) { if (Op1 == 0xFF) { Value = 0x00 } else { Value = Op1 + 1 }, updateIncDecFlags8(Op1, 0x01, Value), return Value }
+	function number inc16 (Op1) { if (Op1 == 0xFFFF) { Value = 0x0000 } else { Value = Op1 + 1 }, updateIncDecFlags16(Op1, 0x0001, Value), return Value }
+	function number dec8 (Op1) { if (Op1 == 0x00) { Value = 0xFF } else { Value = Op1 - 1 }, updateIncDecFlags8(Op1, 0xFF, Value), return Value }
+	function number dec16 (Op1) { if (Op1 == 0x0000) { Value = 0xFFFF } else { Value = Op1 - 1 }, updateIncDecFlags16(Op1, 0xFFFF, Value), return Value }
+	
+	function number add8 (Op1, Op2) { Value = Op1 + Op2, updateAddFlags8(Op1, Op2, Value), return Value && 0xFF}
+	function number add16 (Op1, Op2) { Value = Op1 + Op2, updateAddFlags16(Op1, Op2, Value), return Value && 0xFFFF}
+	function number adc8 (Op1, Op2) { Value = Op1 + Op2 + CF, updateAddFlags8(Op1, Op2, Value), return Value && 0xFF}
+	function number adc16 (Op1, Op2) { Value = Op1 + Op2 + CF, updateAddFlags16(Op1, Op2, Value), return Value && 0xFFFF}
+	function number sub8 (Op1, Op2) { Value = (Op1 + 0x0100 - Op2) && 0xFF, updateSubFlags8(Op1, Op2, Value), return Value }
+	function number sub16 (Op1, Op2) { Value = (Op1 + 0x00010000 - Op2) && 0xFFFF, updateSubFlags16(Op1, Op2, Value), return Value }
+	# sbb needs to set CF = (Op2 + CF) >= Op1 (since it's actually Op1 - (Op2 + 1))
+	# and store CF in OCF since updateSubFlags() overwrites CF
+	function number sbb8 (Op1, Op2) { Value = (Op1 + 0x0100 - Op2 - CF) && 0xFF, OCF = CF, updateSubFlags8(Op1, Op2, Value), CF = (Op2 + OCF) > Op1, return Value }
+	function number sbb16 (Op1, Op2) { Value = (Op1 + 0x00010000 - Op2 - CF) && 0xFFFF, OCF = CF, updateSubFlags16(Op1, Op2, Value), CF = (Op2 + OCF) > Op1, return Value }
+	function number neg8 (Op1) { return sub8(0, Op1) }
+	function number neg16 (Op1) { return sub16(0, Op1) }
+	
+	function number and8 (Op1, Op2) { Value = Op1 && Op2, updateBinOpFlags8(Value), return Value }
+	function number and16 (Op1, Op2) { Value = Op1 && Op2, updateBinOpFlags16(Value), return Value }
+	function number or8 (Op1, Op2) { Value = Op1 || Op2, updateBinOpFlags8(Value), return Value }
+	function number or16 (Op1, Op2) { Value = Op1 || Op2, updateBinOpFlags16(Value), return Value }
+	function number xor8 (Op1, Op2) { Value = bXor(Op1, Op2), updateBinOpFlags8(Value), return Value }
+	function number xor16 (Op1, Op2) { Value = bXor(Op1, Op2), updateBinOpFlags16(Value), return Value }
+	function number not8 (Op1) { return bXor(Op1, 0xFF) }
+	function number not16 (Op1) { return bXor(Op1, 0xFFFF) }
+	
+	function number shl8 (Op1, Op2)
+	{
+		Op2 = Op2 && 0x1F
+		if (!Op2) { return Op1 }
+		Value = Op1 << Op2
+		if (Value < 0) { Value += 0x80000000, printInfo(toHex1616(OCS, OIP) + ": shl8: Corrected for garrybug.") }
+		CF = (Value && 0x0100) != 0
+		ZF = (Value && 0xFF) == 0
+		SF = (Value && 0x80) != 0
+		OF = (Op1 && 0x80) != (Value && 0x80)
+		PF = Parity[Value && 0xFF, number]
+		return Value && 0xFF
+	}
+	
+	function number shl16 (Op1, Op2)
+	{
+		Op2 = Op2 && 0x1F
+		if (!Op2) { return Op1 }
+		Value = Op1 << Op2
+		if (Value < 0) { Value += 0x80000000, printInfo(toHex1616(OCS, OIP) + ": shl16: Corrected for garrybug.") }
+		CF = (Value && 0x00010000) != 0
+		ZF = (Value && 0xFFFF) == 0
+		SF = (Value && 0x8000) != 0
+		OF = (Op1 && 0x8000) != (Value && 0x8000)
+		PF = Parity[Value && 0xFF, number]
+		return Value && 0xFFFF
+	}
+	
+	function number shr8 (Op1, Op2)
+	{
+		Op2 = Op2 && 0x1F
+		if (!Op2) { return Op1 }
+		Value = Op1 >> Op2
+		CF = (Op1 >> (Op2 - 1)) && 0x01
+		ZF = Value == 0
+		SF = 0
+		OF = (Op1 && 0x80) != 0
+		PF = Parity[Value, number]
+		return Value
+	}
+	
+	function number shr16 (Op1, Op2)
+	{
+		Op2 = Op2 && 0x1F
+		if (!Op2) { return Op1 }
+		Value = Op1 >> Op2
+		CF = (Op1 >> (Op2 - 1)) && 0x0001
+		ZF = Value == 0
+		SF = 0
+		OF = (Op1 && 0x8000) != 0
+		PF = Parity[Value && 0xFF, number]
+		return Value
+	}
+	
+	function number sar8 (Op1, Op2)
+	{
+		Op2 = Op2 && 0x1F
+		if (!Op2) { return Op1 }
+		Value = Op1
+		for (I = 1, Op2) { CF = Value && 0x01, Value = (Value >> 1) + (Op1 && 0x80) }
+		ZF = Value == 0
+		SF = (Value && 0x80) != 0
+		OF = 0
+		PF = Parity[Value, number]
+		return Value
+	}
+	
+	function number sar16 (Op1, Op2)
+	{
+		Op2 = Op2 && 0x1F
+		if (!Op2) { return Op1 }
+		Value = Op1
+		for (I = 1, Op2) { CF = Value && 0x0001, Value = (Value >> 1) + (Op1 && 0x8000) }
+		ZF = Value == 0
+		SF = (Value && 0x8000) != 0
+		OF = 0
+		PF = Parity[Value && 0xFF, number]
+		return Value
+	}
+	
+	function number rol8 (Op1, Op2)
+	{
+		Op2 = Op2 && 0x1F
+		if (!Op2) { return Op1 }
+		Op2 = Op2 % 8
+		Value = ((Op1 << Op2) && 0xFF) + (Op1 >> (8 - Op2))
+		CF = Value && 0x01
+		OF = (Op1 && 0x80) != (Value && 0x80)
+		return Value
+	}
+	
+	function number rol16 (Op1, Op2)
+	{
+		Op2 = Op2 && 0x1F
+		if (!Op2) { return Op1 }
+		Op2 = Op2 % 16
+		Value = ((Op1 << Op2) && 0xFFFF) + (Op1 >> (16 - Op2))
+		CF = Value && 0x0001
+		OF = (Op1 && 0x8000) != (Value && 0x8000)
+		return Value
+	}
+	
+	function number ror8 (Op1, Op2)
+	{
+		Op2 = Op2 && 0x1F
+		if (!Op2) { return Op1 }
+		Op2 = Op2 % 8
+		Value = (Op1 >> Op2) + ((Op1 << (8 - Op2)) && 0xFF)
+		CF = (Value && 0x80) != 0
+		OF = (Op1 && 0x80) != (Value && 0x80)
+		return Value
+	}
+	
+	function number ror16 (Op1, Op2)
+	{
+		Op2 = Op2 && 0x1F
+		if (!Op2) { return Op1 }
+		Op2 = Op2 % 16
+		Value = (Op1 >> Op2) + ((Op1 << (16 - Op2)) && 0xFFFF)
+		CF = (Value && 0x8000) != 0
+		OF = (Op1 && 0x8000) != (Value && 0x8000)
+		return Value
+	}
+	
+	function number rcl8 (Op1, Op2)
+	{
+		Op2 = Op2 && 0x1F
+		if (!Op2) { return Op1 }
+		Op2 = Op2 % 9
+		Value = ((Op1 << Op2) && 0xFF) + (Op1 >> (9 - Op2))
+		if (Op2)
+		{
+			Value += CF << (Op2 - 1)
+			CF = (Op1 >> (8 - Op2)) && 0x01
+		}
+		OF = (Op1 && 0x80) != (Value && 0x80)
+		return Value
+	}
+	
+	function number rcl16 (Op1, Op2)
+	{
+		Op2 = Op2 && 0x1F
+		if (!Op2) { return Op1 }
+		Op2 = Op2 % 17
+		Value = ((Op1 << Op2) && 0xFFFF) + (Op1 >> (17 - Op2))
+		if (Op2)
+		{
+			Value += CF << (Op2 - 1)
+			CF = (Op1 >> (16 - Op2)) && 0x0001
+		}
+		OF = (Op1 && 0x8000) != (Value && 0x8000)
+		return Value
+	}
+	
+	function number rcr8 (Op1, Op2)
+	{
+		Op2 = Op2 && 0x1F
+		if (!Op2) { return Op1 }
+		Op2 = Op2 % 9
+		Value = (Op1 >> Op2) + ((Op1 << 9 - Op2) && 0xFF)
+		if (Op2)
+		{
+			Value += CF << (8 - Op2)
+			CF = (Op1 >> (Op2 - 1)) && 0x01
+		}
+		OF = (Op1 && 0x80) != (Value && 0x80)
+		return Value
+	}
+	
+	function number rcr16 (Op1, Op2)
+	{
+		Op2 = Op2 && 0x1F
+		if (!Op2) { return Op1 }
+		Op2 = Op2 % 17
+		Value = (Op1 >> Op2) + ((Op1 << 17 - Op2) && 0xFFFF)
+		if (Op2)
+		{
+			Value += CF << (16 - Op2)
+			CF = (Op1 >> (Op2 - 1)) && 0x0001
+		}
+		OF = (Op1 && 0x8000) != (Value && 0x8000)
+		return Value
+	}
+	
+	function push8 (Value) { ESP--, writeInt8(SS * 16 + ESP, Value) }
+	function push16 (Value) { ESP -= 2, writeInt16(SS * 16 + ESP, Value) }
+	function push32 (Value) { ESP -= 4, writeInt32(SS * 16 + ESP, Value) }
+	function number pop8 () { ESP++, return readInt8(SS * 16 + ESP - 1) }
+	function number pop16 () { ESP += 2, return readInt16(SS * 16 + ESP - 2) }
+	function number pop32 () { ESP += 4, return readInt32(SS * 16 + ESP - 4) }
+	function number top16 () { return readInt16(SS * 16 + ESP) }
+	function number top16 (Offset) { return readInt16(SS * 16 + ESP + Offset) }
+	
+	function number getFlags8() { return (SF << 7) + (ZF << 6) + (AF << 4) + (PF << 2) + (1 << 1) + CF }
+	function number getFlags16() { return (NT << 14) + (IOPL << 12) + (OF << 11) + (DF << 10) + (IF << 9) + (TF << 8) + (SF << 7) + (ZF << 6) + (AF << 4) + (PF << 2) + (1 << 1) + CF }
+	function setFlags8(FLAGS)
+	{
+		CF = FLAGS && 0b0000000000000001
+		PF = (FLAGS && 0b0000000000000100) >> 2
+		AF = (FLAGS && 0b0000000000010000) >> 4
+		ZF = (FLAGS && 0b0000000001000000) >> 6
+		SF = (FLAGS && 0b0000000010000000) >> 7
+	}
+	function setFlags16(FLAGS)
+	{
+		CF = FLAGS && 0b0000000000000001
+		PF = (FLAGS && 0b0000000000000100) >> 2
+		AF = (FLAGS && 0b0000000000010000) >> 4
+		ZF = (FLAGS && 0b0000000001000000) >> 6
+		SF = (FLAGS && 0b0000000010000000) >> 7
+		TF = (FLAGS && 0b0000000100000000) >> 8
+		IF = (FLAGS && 0b0000001000000000) >> 9
+		DF = (FLAGS && 0b0000010000000000) >> 10
+		OF = (FLAGS && 0b0000100000000000) >> 11
+		IOPL = (FLAGS && 0b0011000000000000) >> 12
+		NT = (FLAGS && 0b0100000000000000) >> 14
+	}
+	
+	function pushf16 () { ESP -= 2, writeInt16(SS * 16 + ESP, getFlags16()) }
+	
+	function number popf16 ()
+	{
+		ESP += 2, FLAGS = readInt16(SS * 16 + ESP - 2)
+		setFlags16(FLAGS)
+		if (TF != LTF) { LTF = TF, ExecutionMode = 0, printInfo(toHex1616(OCS, OIP) + ": TF changed to " + TF) }
+		return FLAGS
+	}
+	
+	function queueInterrupt (Int)
+	{
+		if (InterruptQueue:count() > 10 & !InterruptQueueOverflowing) { InterruptQueueOverflowing++, printInfo("Interrupt queue overflow (" + toHex8(Int) + ")!"), return }
+		if (InterruptQueueOverflowing) { InterruptQueueOverflowing = 0, printInfo("Interrupt queue no longer overflowing.") }
+		if (InterruptQueue:count() & InterruptQueue[InterruptQueue:count(), number] == Int) { return }
+		InterruptQueue:pushNumber(Int)
+		if (Int != 0x1C)
+		{
+			printInfo("Hardware interrupt: " + toHex8(Int))
+		}
+		else
+		{
+			printConsoleInfo("Hardware interrupt: " + toHex8(Int) + " (" + ((systime() - BootTime) * TimeScale) + " s)")
+		}
+	}
+	
+	function enterInterrupt (Int)
+	{
+		pushf16()
+		push16(CS)
+		push16(EIP)
+		
+		IF = 0
+		
+		EIP = readInt16(Int * 4)
+		CS = readInt16(Int * 4 + 2)
+		
+		dbgLogCall(OCS, OIP, CS, EIP)
+		# printDebug("enterInterrupt " + toHex8(Int) + ", " + toHex1616(CS, EIP))
+	}
+}
+
+if (httpClk())
+{
+	HTTPData = httpData():lower()
+	printInfo("Finished downloading " + httpRequestUrl() + " (" + HTTPData:length() + " B)")
+	HTTPBinarySize = HTTPData:length() / 2
+	if (State == 1) { SubState++ }
+	Index = 0
+	S16StartTime = systime()
+}
+
+if (chatClk())
+{
+	LastSpoke = lastSpoke()
+	LastSaid = lastSaid()
+	if (LastSpoke == owner())
+	{
+		if (LastSaid[1] == "!") { hideChat(1) }
+		LastSaid = LastSaid:sub(2)
+		Arguments = LastSaid:explode(" ")
+		Command = Arguments[1, string]
+		Arg2 = Arguments[2, string]:lower()
+		if (Command == "bp")
+		{
+			if (Arg2 == "cs:eip" | Arg2 == "cs:ip") { DumpAddr = CS * 16 + EIP }
+			elseif (Arg2 == "ss:esp" | Arg2 == "ss:sp") { DumpAddr = SS * 16 + ESP }
+			elseif (Arg2 == "ds:esi" | Arg2 == "ds:si") { DumpAddr = DS * 16 + ESI }
+			elseif (Arg2 == "es:edi" | Arg2 == "es:di") { DumpAddr = ES * 16 + EDI }
+			else {
+				Parts = Arguments[2, string]:explode(":")
+				if (Parts:count() == 1) { DumpAddr = parseInt(Arguments[2, string]) }
+				else { DumpAddr = parseInt(Parts[1, string]) * 16 + parseInt(Parts[2, string]) }
+			}
+			BP = Breakpoints[-DumpAddr, number]
+			Breakpoints[-DumpAddr, number] = !BP
+			if (!BP) { printInfo("Breakpoint at " + toHex32(DumpAddr) + " set.") }
+			else { printInfo("Breakpoint at " + toHex32(DumpAddr) + " cleared.") }
+		}
+		elseif (Command == "clr")
+		{
+			resetScreens()
+			printInfo("Cleared screens.")
+		}
+		elseif (Command == "cs" | Command == "callstack")
+		{
+			Size = CallStackCS:count()
+			for (I = Size, 1, -1)
+			{
+				printInfo(("0" + I):right(2) + ": " + toHex1616(CallStackCS[I, number], CallStackEIP[I, number]) + " called from " + toHex1616(CallStackOCS[I, number], CallStackOIP[I, number]))
+			}
+		}
+		elseif (Command == "d" | Command == "dump")
+		{
+			if (Arg2 == "cs:eip" | Arg2 == "cs:ip") { DumpAddr = CS * 16 + EIP }
+			elseif (Arg2 == "ss:esp" | Arg2 == "ss:sp") { DumpAddr = SS * 16 + ESP }
+			elseif (Arg2 == "ds:esi" | Arg2 == "ds:si") { DumpAddr = DS * 16 + ESI }
+			elseif (Arg2 == "es:edi" | Arg2 == "es:di") { DumpAddr = ES * 16 + EDI }
+			else {
+				Parts = Arguments[2, string]:explode(":")
+				if (Parts:count() == 1) { DumpAddr = parseInt(Arguments[2, string]) }
+				else { DumpAddr = parseInt(Parts[1, string]) * 16 + parseInt(Parts[2, string]) }
+			}
+			
+			CheckAddrOn = 0
+			for (I = 1, 8)
+			{
+				Line = toHex32(DumpAddr) + ": "
+				ASCII = ""
+				for (J = 1, 8)
+				{
+					Byte = readInt8(DumpAddr)
+					Line += Hex8[Byte, string] + " "
+					ASCIIChar = toUnicodeChar(Byte)
+					if (Byte < 32) { ASCIIChar = "." }
+					ASCII = ASCII + ASCIIChar
+					DumpAddr++
+				}
+				printInfo(Line + "| " + ASCII)
+			}
+			CheckAddrOn = 1
+		}
+		elseif (Command == "db")
+		{
+			if (Arguments[2, string]:lower() == "eip") { DumpAddr = EIP }
+			else { DumpAddr = parseInt(Arguments[2, string]) }
+			
+			for (I = 1, 8)
+			{
+				Line = toHex32(DumpAddr) + ": "
+				for (J = 1, 8)
+				{
+					Line += Hex8[BIOS[-DumpAddr, number], string] + " "
+					DumpAddr++
+				}
+				printInfo(Line)
+			}
+		}
+		elseif (Command == "dbg")
+		{
+			DebugOn = Arguments[2, string]:toNumber()
+			if (DebugOn) { printInfo("Debug output on") } else { printInfo("Debug output off") }
+		}
+		elseif (Command == "f")
+		{
+			printInfo("FLAGS: " + toHex16(getFlags16()))
+		}
+		elseif (Command == "halt")
+		{
+			ExecutionMode = 0
+			updateTooltip()
+		}
+		elseif (Command == "load")
+		{
+			if (!Globals["SavePresent", number]) { printInfo("No saved state found!") }
+			else
+			{
+				BootTime = Globals["SavedBootTime", number]
+				CallStackCS = Globals["SavedCallStackCS", array]:clone()
+				CallStackEIP = Globals["SavedCallStackEIP", array]:clone()
+				DPT00 = Globals["SavedDPT00", array]:clone()
+				CMOS = Globals["SavedCMOS", array]:clone()
+				RAM = Globals["SavedRAM", array]:clone()
+				HDD = Globals["SavedHDD", array]:clone()
+				EIP = Globals["SavedEIP", number]
+				EAX = Globals["SavedEAX", number]
+				EBX = Globals["SavedEBX", number]
+				ECX = Globals["SavedECX", number]
+				EDX = Globals["SavedEDX", number]
+				ESP = Globals["SavedESP", number]
+				EBP = Globals["SavedEBP", number]
+				ESI = Globals["SavedESI", number]
+				EDI = Globals["SavedEDI", number]
+				CS = Globals["SavedCS", number]
+				DS = Globals["SavedDS", number]
+				ES = Globals["SavedES", number]
+				SS = Globals["SavedSS", number]
+				FS = Globals["SavedFS", number]
+				GS = Globals["SavedGS", number]
+				setFlags16(Globals["SavedFlags", number])
+				
+				CSX = Globals["SavedCSX", number]
+				CSY = Globals["SavedCSY", number]
+				updateCursorPos(CSX, CSY)
+				
+				printInfo("Loaded saved state.")
+				updateTooltip()
+			}
+		}
+		elseif (Command == "r" | Command == "run")
+		{
+			ExecutionMode = 1
+		}
+		elseif (Command == "save")
+		{
+			Globals["SavePresent", number] = 1
+			Globals["SavedBootTime", number] = BootTime
+			Globals["SavedCallStackCS", array] = CallStackCS:clone()
+			Globals["SavedCallStackEIP", array] = CallStackEIP:clone()
+			Globals["SavedDPT00", array] = DPT00:clone()
+			Globals["SavedCMOS", array] = CMOS:clone()
+			Globals["SavedRAM", array] = RAM:clone()
+			Globals["SavedHDD", array] = HDD
+			Globals["SavedEIP", number] = EIP
+			Globals["SavedEAX", number] = EAX
+			Globals["SavedEBX", number] = EBX
+			Globals["SavedECX", number] = ECX
+			Globals["SavedEDX", number] = EDX
+			Globals["SavedESP", number] = ESP
+			Globals["SavedEBP", number] = EBP
+			Globals["SavedESI", number] = ESI
+			Globals["SavedEDI", number] = EDI
+			Globals["SavedCS", number] = CS
+			Globals["SavedDS", number] = DS
+			Globals["SavedES", number] = ES
+			Globals["SavedSS", number] = SS
+			Globals["SavedFS", number] = FS
+			Globals["SavedGS", number] = GS
+			Globals["SavedEFLAGS", number] = getFlags16()
+			
+			Globals["SavedCSX", number] = CSX
+			Globals["SavedCSY", number] = CSY
+			printInfo("Saved state!")
+		}
+		elseif (Command == "state")
+		{
+			printInfo("Currently in state " + toHex1616(State, SubState) + ".")
+		}
+		elseif (Command == "t" | Command == "trace")
+		{
+			ExecutionMode = 2
+			InstructionsToRun = 1
+			if (Arguments[2, string] != "")
+			{
+				InstructionsToRun = Arguments[2, string]:toNumber()
+			}
+		}
+	}
+}
+
+if (tickClk())
+{
+	if (State == 0) # Generating tables
+	{
+		if (SubState == 0)
+		{
+			if (Globals["Hex8Computed", number] & Globals["ParityComputed", number]) { Hex8 = Globals["Hex8", table], Parity = Globals["Parity", table], SubState = 2 }
+			else { SubState++, Index = 0, S01StartTime = systime() }
+		}
+		elseif (SubState == 1)
+		{
+			while (perf() & Index <= 0xFF)
+			{
+				HexString = HexDigits[floor(Index / 16) + 1] + HexDigits[Index % 16 + 1]
+				Hex8[HexString, number] = Index
+				Hex8[Index, string] = HexString
+				
+				BitCount = 0
+				Mask = 1
+				for (I = 1, 8)
+				{
+					if ((Index && Mask) != 0) { BitCount++ }
+					Mask *= 2
+				}
+				Parity[Index, number] = 1 - (BitCount % 2)
+				Index++
+			}
+			Percentage = floor(Index / 0x0100 * 100)
+			setName("x86 Emulator\nGenerating 8-bit hex and parity table: " + Percentage + " %")
+			if (Index > 0xFF)
+			{
+				Globals["Hex8", table] = Hex8
+				Globals["Hex8Computed", number] = 1
+				Globals["Parity", table] = Parity
+				Globals["ParityComputed", number] = 1
+				SubState++
+				S01EndTime = systime()
+				S01Duration = S01EndTime - S01StartTime
+				printInfo("8-bit hex and parity table generation took " + (floor(S01Duration * 100) / 100) + " s.")
+			}
+		}
+		elseif (SubState == 2)
+		{
+			if (Globals["Hex16Computed", number]) { Hex16 = Globals["Hex16", table], SubState = 4 }
+			else { SubState++, Index = 0, S03StartTime = systime() }
+		}
+		elseif (SubState == 3)
+		{
+			while (perf() & Index <= 0xFFFF)
+			{
+				HexString = Hex8[Index >> 8, string] + Hex8[Index && 0xFF, string]
+				Hex16[HexString, number] = Index
+				Hex16[Index, string] = HexString
+				Index++
+			}
+			Percentage = floor(Index / 0x00010000 * 100)
+			setName("x86 Emulator\nGenerating 16-bit hex table: " + Percentage + " %")
+			if (Index > 0xFFFF)
+			{
+				Globals["Hex16", table] = Hex16
+				Globals["Hex16Computed", number] = 1
+				SubState++
+				S03EndTime = systime()
+				S03Duration = S03EndTime - S03StartTime
+				printInfo("16-bit hex table generation took " + (floor(S03Duration * 100) / 100) + " s.")
+			}
+		}
+		elseif (SubState == 4) { State = 1, SubState = 0 }
+	}
+	elseif (State == 1) # Loading code
+	{
+		DropboxID = "7290193"
+	
+		if (SubState == 0)
+		{
+			SubState++
+			# if (Globals["BIOSLoaded", number]) { BIOS = Globals["BIOS", array], SubState++ }
+			# else { URL = "http://dl.dropbox.com/u/" + DropboxID + "/BIOSBochsLegacy.txt", httpRequest(URL), printInfo("Requesting " + URL), S16ReturnState = SubState + 1, SubState = 8, BIOS = array(), S16Array = BIOS, S16Name = "BIOS" }
+		}
+		elseif (SubState == 1)
+		{
+			if (Globals["Floppy0Loaded", number]) { Floppy0 = Globals["Floppy0", array], SubState++ }
+			else { URL = "http://dl.dropbox.com/u/" + DropboxID + "/Dos5Disk1_img.txt", httpRequest(URL), printInfo("Requesting " + URL), S16ReturnState = SubState + 1, SubState = 8, Floppy0 = array(), S16Array = Floppy0, S16Name = "Floppy0" }
+		}
+		elseif (SubState == 2)
+		{
+			SubState++
+			# if (Globals["Floppy1Loaded", number]) { Floppy1 = Globals["Floppy1", array], SubState++ }
+			# else { URL = "http://dl.dropbox.com/u/" + DropboxID + "/Dos5Disk2_img.txt", httpRequest(URL), printInfo("Requesting " + URL), S16ReturnState = SubState + 1, SubState = 8, Floppy1 = array(), S16Array = Floppy1, S16Name = "Floppy1" }
+		}
+		elseif (SubState == 3)
+		{
+			SubState++
+			# if (Globals["Floppy2Loaded", number]) { Floppy2 = Globals["Floppy2", array], SubState++ }
+			# else { URL = "http://dl.dropbox.com/u/" + DropboxID + "/Dos5Disk3_img.txt", httpRequest(URL), printInfo("Requesting " + URL), S16ReturnState = SubState + 1, SubState = 8, Floppy2 = array(), S16Array = Floppy2, S16Name = "Floppy2" }
+		}
+		elseif (SubState == 4)
+		{
+			SubState++
+			# if (Globals["Floppy3Loaded", number]) { Floppy3 = Globals["Floppy3", array], SubState++ }
+			# else { URL = "http://dl.dropbox.com/u/" + DropboxID + "/dos3_3_img.txt", httpRequest(URL), printInfo("Requesting " + URL), S16ReturnState = SubState + 1, SubState = 8, Floppy3 = array(), S16Array = Floppy3, S16Name = "Floppy3" }
+		}
+		elseif (SubState == 5)
+		{
+			SubState++
+			# if (Globals["Floppy4Loaded", number]) { Floppy4 = Globals["Floppy4", array], SubState++ }
+			# else { URL = "http://dl.dropbox.com/u/" + DropboxID + "/Zork_img.txt", httpRequest(URL), printInfo("Requesting " + URL), S16ReturnState = SubState + 1, SubState = 8, Floppy4 = array(), S16Array = Floppy4, S16Name = "Floppy4" }
+		}
+		elseif (SubState == 6) { SubState++ }
+		elseif (SubState == 7)
+		{
+			State = 2
+			SubState = 0
+			Floppy = Floppy0
+		}
+		elseif (SubState == 9)
+		{
+			while(perf() & Index < HTTPBinarySize)
+			{
+				S16Array[-Index, number] = Hex8[HTTPData:sub(Index * 2 + 1, Index * 2 + 2), number]
+				Index++
+			}
+			Percentage = floor(Index / HTTPBinarySize * 100)
+			setName("x86 Emulator\nDecoding " + S16Name + ": " + Percentage + " %")
+			if (Index >= HTTPBinarySize)
+			{
+				Globals[S16Name, array] = S16Array
+				Globals[S16Name + "Loaded", number] = 1
+			
+				SubState = S16ReturnState
+				S16EndTime = systime()
+				S16Duration = S16EndTime - S16StartTime
+				printInfo("Decoding " + S16Name + " took " + (floor(S16Duration * 100) / 100) + " s.")
+			}
+		}
+	}
+	elseif (State == 2) # Copying code into memory
+	{
+		if (SubState == 0) { SubState++, Index = 0, S21StartTime = systime() }
+		elseif (SubState == 1) {
+			while(perf() & Index < 65536)
+			{
+				# writeInt8(0x000F0000 + Index, BIOS[-Index, number])
+				writeInt8(0x000F0000 + Index, 0xCC)
+				Index++
+			}
+			Percentage = floor(Index / 65536 * 100)
+			setName("x86 Emulator\nFilling BIOS area: " + Percentage + " %")
+			if (Index >= 65536)
+			{
+				for (I = 0, 13) { writeInt8(0x000FEFC7 + I, DPT00[I, number]) }
+				
+				# int 0x1D: Video Parameter Table	
+				VPT = array(0x28, 0x2D, 0x0A, 0x1F, 0x06, 0x19, 0x1C, 0x02, 0x07, 0x06, 0x07, 0x00, 0x00, 0x00, 0x00,
+					0x71, 0x50, 0x5A, 0x0A, 0x1F, 0x06, 0x19, 0x1C, 0x02, 0x07, 0x06, 0x07, 0x00, 0x00, 0x00, 0x00,
+					0x38, 0x28, 0x2D, 0x0A, 0x7F, 0x06, 0x64, 0x70, 0x02, 0x01, 0x06, 0x07, 0x00, 0x00, 0x00, 0x00,
+					0x61, 0x50, 0x52, 0x0F, 0x19, 0x06, 0x19, 0x19, 0x02, 0x0D, 0x0B, 0x0C, 0x00, 0x00, 0x00, 0x00,
+					0x00, 0x08, 0x00, 0x10, 0x00, 0x40, 0x00, 0x40,
+					0x28, 0x28, 0x50, 0x50, 0x28, 0x28, 0x50, 0x50,
+					0x2D, 0x28, 0x2D, 0x29, 0x2A, 0x2E, 0x1E, 0x29)
+				VPT[0x00, number] = 0x38
+				for (I = 0, 87) { writeInt8(0x000FF0A4 + I, VPT[I, number]) }
+				
+				# System Configuration Table
+				writeInt16(0x000FE6F5, 0x0008) # 0x0008 byte table
+				writeInt8(0x000FE6F7, 0xFC) # 386 or higher CPU
+				writeInt8(0x000FE6F8, 0x00) # submodel, cba
+				writeInt8(0x000FE6F9, 0x01) # BIOS revision 1
+				writeInt8(0x000FE6FA, 0b01110100) # 0x74
+				writeInt8(0x000FE6FB, 0b01000000) # 0x40
+				writeInt8(0x000FE6FC, 0x00)
+				writeInt8(0x000FE6FD, 0x00)
+				writeInt8(0x000FE6FE, 0x00)
+				
+				SubState++
+				S21EndTime = systime()
+				S21Duration = S21EndTime - S21StartTime
+				
+				printInfo("Filling BIOS area took " + (floor(S21Duration * 100) / 100) + " s.")
+			}
+		}
+		elseif (SubState == 2) { SubState++, Index = 0, S23StartTime = systime() }
+		elseif (SubState == 3)
+		{
+			while(perf() & Index < 512)
+			{
+				writeInt8(0x7C00 + Index, Floppy[-Index, number])
+				Index++
+			}
+			Percentage = floor(Index / 512 * 100)
+			setName("x86 Emulator\nCopying MBR into RAM: " + Percentage + " %")
+			if (Index >= 512)
+			{
+				SubState++
+				S23EndTime = systime()
+				S23Duration = S23EndTime - S23StartTime
+				
+				printInfo("Copying MBR took " + (floor(S23Duration * 100) / 100) + " s.")
+			}
+		}
+		elseif (SubState == 4) { SubState++, Index = 0, S25StartTime = systime() }
+		elseif (SubState == 5)
+		{
+			# Interrupt Vector Table
+			# 0x0F 0x04 [imm8] 0x0F 0x05
+			# int imm8, iret
+			while(perf() & Index < 0x0100)
+			{
+				writeInt16(Index * 4, Index * 8) # address
+				writeInt16(Index * 4 + 2, 0xC000) # segment
+				writeInt8(0x000C0000 + Index * 8, 0x0F)
+				writeInt8(0x000C0000 + Index * 8 + 1, 0x04)
+				writeInt8(0x000C0000 + Index * 8 + 2, Index)
+				writeInt8(0x000C0000 + Index * 8 + 3, 0x0F)
+				writeInt8(0x000C0000 + Index * 8 + 4, 0x05)
+				Index++
+			}
+			Percentage = floor(Index / 0x0100 * 100)
+			setName("x86 Emulator\nGenerating interrupt table: " + Percentage + " %")
+			if (Index >= 0x0100)
+			{			
+				# int 0x1D: Video Parameter Table
+				writeInt16(0x1D * 4, 0xF0A4) # address
+				writeInt16(0x1D * 4 + 2, 0xF000) # segment
+				# int 0x1E: Diskette Initialization Parameter Table
+				writeInt16(0x1E * 4, 0xEFC7) # address
+				writeInt16(0x1E * 4 + 2, 0xF000) # segment
+				
+				BootTime = systime()
+				
+				SubState++
+				S25EndTime = systime()
+				S25Duration = S25EndTime - S25StartTime
+				
+				printInfo("Generating interrupt table took " + (floor(S25Duration * 100) / 100) + " s.")
+				updateTooltip()
+			}
+		}
+		elseif (SubState == 6) { CheckAddrOn = 1, State = 3, SubState = 0 }
+	}
+	elseif (State == 3 & ExecutionMode != 0)
+	{
+		SysTime = systime()
+		if (SysTime - LastInstructionCounterReset > 1)
+		{
+			InstructionsPerSecond = InstructionCounter / (SysTime - LastInstructionCounterReset)
+			InstructionCounter = 0
+			LastInstructionCounterReset = SysTime
+		}
+	
+		InitialHalt = Halt
+		while (perf() & !Halt & ExecutionMode != 0)
+		{
+			if (IF & InterruptQueue:count()) { enterInterrupt(InterruptQueue:removeNumber(1)) }
+			
+			if (ExecutionMode == 2 & InstructionsToRun <= 0)
+			{
+				ExecutionMode = 0
+				break
+			}
+			if (Breakpoints[-CS * 16 - EIP, number])
+			{
+				ExecutionMode = 0
+				printInfo(toHex1616(CS, EIP) + ": Breakpoint hit.")
+			}
+			InstructionsToRun--
+			InstructionCounter++
+			
+			OCS = CS
+			OIP = EIP
+			O = readImm8()
+			
+			# Segment prefixes
+			SegmentPrefix = -3
+			if (O == 0x26) { SegmentPrefix = 0 } # es:
+			elseif (O == 0x2E) { SegmentPrefix = 1 } # cs:
+			elseif (O == 0x36) { SegmentPrefix = 2 } # ss:
+			elseif (O == 0x3E) { SegmentPrefix = 3 } # ds:
+			elseif (O == 0x64) { SegmentPrefix = 4 } # fs:
+			elseif (O == 0x65) { SegmentPrefix = 5 } # gs:
+			
+			if (SegmentPrefix >= 0) { O = readImm8() }
+			
+			# lock
+			if (O == 0xF0)
+			{
+				# printDebug(toHex1616(OCS, OIP) + ": lock")
+				O = readImm8()
+			}
+			
+			# Read the ModR/M byte anyway, but don't increment EIP yet.
+			# Opcode handlers increment EIP if they use the ModR/M byte
+			ModRM = readImm8(), EIP--
+			Mod = (ModRM && 0b11000000) >> 6
+			Reg = (ModRM && 0b00111000) >> 3
+			RM = ModRM && 0b00000111
+			ModRMDispRead = 0
+			
+			# 8-bit general registers: AL is 0, CL is 1, DL is 2, BL is 3, AH is 4, CH is 5, DH is 6, and BH is 7.
+			# 16-bit general registers: AX is 0, CX is 1, DX is 2, BX is 3, SP is 4, BP is 5, SI is 6, and DI is 7.
+			# 32-bit general registers: EAX is 0, ECX is 1, EDX is 2, EBX is 3, ESP is 4, EBP is 5, ESI is 6, and EDI is 7.
+			# Segment registers: ES is 0, CS is 1, SS is 2, DS is 3, FS is 4, and GS is 5.
+			# {Floating-point registers}: ST0 is 0, ST1 is 1, ST2 is 2, ST3 is 3, ST4 is 4, ST5 is 5, ST6 is 6, and ST7 is 7.
+			# 64-bit MMX registers: MM0 is 0, MM1 is 1, MM2 is 2, MM3 is 3, MM4 is 4, MM5 is 5, MM6 is 6, and MM7 is 7.
+			# Control registers: CR0 is 0, CR2 is 2, CR3 is 3, and CR4 is 4.
+			# Debug registers: DR0 is 0, DR1 is 1, DR2 is 2, DR3 is 3, DR6 is 6, and DR7 is 7.
+			# Test registers: TR3 is 3, TR4 is 4, TR5 is 5, TR6 is 6, and TR7 is 7. 
+
+			if (O == 0x00) # add r8 / m8, r8
+			{
+				EIP++
+				
+				RegName = R8Names[Reg, string]
+				Op1 = readModRM168(Mod, RM)
+				Op2 = readR8(Reg)
+				writeModRM168(Mod, RM, add8(Op1, Op2))
+				printInfo(toHex1616(OCS, OIP) + ": add " + RMName + ", " + RegName)
+			}
+			elseif (O == 0x01) # add r16/32 / m16/32, r16/32
+			{
+				EIP++
+				
+				RegName = R16Names[Reg, string]
+				Op1 = readModRM1616(Mod, RM)
+				Op2 = readR16(Reg)
+				writeModRM1616(Mod, RM, add16(Op1, Op2))
+				# printDebug(toHex1616(OCS, OIP) + ": add " + RMName + ", " + RegName)
+			}
+			elseif (O == 0x02) # add r8, r8 / m8
+			{
+				EIP++
+				
+				RegName = R8Names[Reg, string]
+				Op1 = readR8(Reg)
+				Op2 = readModRM168(Mod, RM)
+				writeR8(Reg, add8(Op1, Op2))
+				# printDebug(toHex1616(OCS, OIP) + ": add " + RegName + ", " + RMName)
+			}
+			elseif (O == 0x03) # add r16/32, r16/32 / m16/32
+			{
+				EIP++
+				
+				RegName = R16Names[Reg, string]
+				Op1 = readR16(Reg)
+				Op2 = readModRM1616(Mod, RM)
+				writeR16(Reg, add16(Op1, Op2))
+				# printDebug(toHex1616(OCS, OIP) + ": add " + RegName + ", " + RMName)
+			}
+			elseif (O == 0x04) # add al, imm8
+			{
+				Op1 = EAX && 0xFF
+				Op2 = readImm8()
+				EAX = (EAX && 0x7FFFFF00) + add8(Op1, Op2)
+				# printDebug(toHex1616(OCS, OIP) + ": add al, " + toHex8(Op2))
+			}
+			elseif (O == 0x05) # add (e)ax, imm16/32
+			{
+				Op1 = EAX && 0xFFFF
+				Op2 = readImm16()
+				EAX = (EAX && 0x7FFF0000) + add16(Op1, Op2)
+				# printDebug(toHex1616(OCS, OIP) + ": add ax, " + toHex16(Op2))
+			}
+			elseif (O == 0x06) { push16(ES) } # push es
+			elseif (O == 0x07) { ES = pop16() } # pop es
+			elseif (O == 0x08) # or r8 / m8, r8
+			{
+				EIP++
+				
+				RegName = R8Names[Reg, string]
+				Op1 = readModRM168(Mod, RM)
+				Op2 = readR8(Reg)
+				writeModRM168(Mod, RM, or8(Op1, Op2))
+				# printDebug(toHex1616(OCS, OIP) + ": or " + RMName + ", " + RegName)
+			}
+			elseif (O == 0x09) # or r16/32 / m16/32, r16/32
+			{
+				EIP++
+				
+				RegName = R16Names[Reg, string]
+				Op1 = readModRM1616(Mod, RM)
+				Op2 = readR16(Reg)
+				writeModRM1616(Mod, RM, or16(Op1, Op2))
+				# printDebug(toHex1616(OCS, OIP) + ": or " + RMName + ", " + RegName)
+			}
+			elseif (O == 0x0A) # or r8, r8 / m8
+			{
+				EIP++
+				
+				RegName = R8Names[Reg, string]
+				Op1 = readR8(Reg)
+				Op2 = readModRM168(Mod, RM)
+				writeR8(Reg, or8(Op1, Op2))
+				# printDebug(toHex1616(OCS, OIP) + ": or " + RegName + ", " + RMName)
+			}
+			elseif (O == 0x0B) # or r16/32, r16/32 / m16/32
+			{
+				EIP++
+				
+				RegName = R16Names[Reg, string]
+				Op1 = readR16(Reg)
+				Op2 = readModRM1616(Mod, RM)
+				writeR16(Reg, or16(Op1, Op2))
+				# printDebug(toHex1616(OCS, OIP) + ": or " + RegName + ", " + RMName)
+			}
+			elseif (O == 0x0C) # or al, imm8
+			{
+				Op1 = EAX && 0xFF
+				Op2 = readImm8()
+				EAX = (EAX && 0x7FFFFF00) + or8(Op1, Op2)
+				# printDebug(toHex1616(OCS, OIP) + ": or al, " + toHex8(Op2))
+			}
+			elseif (O == 0x0D) # or (e)ax, imm16/32
+			{
+				Op1 = EAX && 0xFFFF
+				Op2 = readImm16()
+				EAX = (EAX && 0x7FFF0000) + or16(Op1, Op2)
+				# printDebug(toHex1616(OCS, OIP) + ": or ax, " + toHex16(Op2))
+			}
+			elseif (O == 0x0E) # push cs
+			{
+				push16(CS)
+				# printDebug(toHex1616(OCS, OIP) + ": push cs")
+			}
+			elseif (O == 0x0F) # 2 byte instructions
+			{
+				O = readImm8()
+				if (O == 0x04) # int
+				{
+					RIP = top16() - 2
+					RCS = top16(2)
+					
+					Op1 = readImm8()
+					AH = (EAX >> 8) && 0xFF
+					AL = EAX && 0xFF
+					BH = (EBX >> 8) && 0xFF
+					BL = EBX && 0xFF
+					CX = ECX && 0xFFFF
+					CH = (ECX >> 8) && 0xFF
+					CL = ECX && 0xFF
+					DH = (EDX >> 8) && 0xFF
+					DL = EDX && 0xFF
+					if (Op1 == 0x10) # Video call
+					{
+						if (AH == 0x00) # Set Video Mode
+						{
+							VideoMode = AL
+							writeInt8(0x0449, VideoMode)
+							printInfo(toHex1616(RCS, RIP) + ": int 0x10, 0x00: Set video mode (" + toHex8(AL) + ")")
+						}
+						elseif (AH == 0x01) # Set cursor parameters
+						{
+							Blink = CH >> 4
+							TopScan = CH && 0x0F
+							BottomScan = CL && 0x0F
+							printInfo(toHex1616(RCS, RIP) + ": int 0x10, 0x01: Set cursor parameters (Blink=" + toHex8(Blink) + ", " + toHex8(TopScan) + " to " + toHex8(BottomScan) + ")")
+						}
+						elseif (AH == 0x02) # Set cursor position
+						{
+							CSX = DL
+							CSY = DH
+							printConsoleInfo(toHex1616(RCS, RIP) + ": int 0x10, 0x02: Set cursor position (Page " + toHex8(BH) + ", (" + DL + ", " + DH + "))")
+						}
+						elseif (AH == 0x03) # Get cursor position and size
+						{
+							ECX = (ECX && 0x7FFF0000) + (VideoCursorTopScanline << 8) + VideoCursorBottomScanline
+							EDX = (EDX && 0x7FFF0000) + (CSY << 8) + CSX
+							printInfo(toHex1616(RCS, RIP) + ": int 0x10, 0x03: Get cursor position and size")
+						}
+						elseif (AH == 0x05) # Set video page
+						{
+							writeInt8(0x0462, AL)
+							printInfo(toHex1616(RCS, RIP) + ": int 0x10, 0x05: Set video page (AL=" + toHex8(AL) + ")")
+						}
+						elseif (AH == 0x07) # Scroll down
+						{
+							State = 0x10
+							SubState = 0x07
+							if (AL) { S1007Lines = AL } else { S1007Lines = 25 }
+							S1007TX = CL, S1007TY = CH
+							S1007BX = DL, S1007BY = DH
+							S1007X = S1007TX
+							S1007Y = S1007TY
+							S1007CSColor = biosToCSColor(BH)
+							printInfo(toHex1616(RCS, RIP) + ": int 0x10, 0x07: Video: Scroll down (" + toHex8(AL) + " lines, fill " + toHex8(BH) + ", (" + CL + ", " + CH + ") to (" + DL + ", " + DH + "))")
+							break
+						}
+						elseif (AH == 0x08) # Read character and color at cursor
+						{
+							Character = cp437ToUnicode(readChar(CSX, CSY))
+							BIOSColor = csToBIOSColor(readCharColor(CSX, CSY))
+							EAX = (EAX && 0x7FFF0000) + (BIOSColor << 8) + (Character && 0xFF)
+							printConsoleInfo(toHex1616(RCS, RIP) + ": int 0x10, 0x08: Video: Read char and color at cursor (char " + toHex8(Character) + ", color " + toHex8(BIOSColor) + ")")
+						}
+						elseif (AH == 0x09) # Write char
+						{
+							State = 0x10
+							SubState = 0x09
+							S1009I = 0
+							S1009Count = CX
+							S1009CSChar = unicodeToCP437(AL, 0)
+							S1009CSColor = biosToCSColor(BL)
+							printConsoleInfo(toHex1616(RCS, RIP) + ": int 0x10, 0x09: putchar (" + toHex8(AL) + "=" + escapeString(toChar(AL)) + ", " + toHex8(BL) + ", " + CX + " times)")
+							break
+						}
+						elseif (AH == 0x0A) # Write char
+						{
+							writeChar(CSX, CSY, unicodeToCP437(AL, 0), -1)
+							printConsoleInfo(toHex1616(RCS, RIP) + ": int 0x10, 0x09: putchar (" + toHex8(AL) + "=" + escapeString(toChar(AL)) + ")")
+						}
+						elseif (AH == 0x0E) # Write char
+						{
+							writeChar(CSX, CSY, unicodeToCP437(AL, 1), -1)
+							printConsoleInfo(toHex1616(RCS, RIP) + ": int 0x10, 0x0e: putchar (" + toHex8(AL) + "=" + escapeString(toChar(AL)) + ")")
+						}
+						elseif (AH == 0x0F) # Get current video mode
+						{
+							EAX = (EAX && 0x7FFF0000) + (80 << 8) + 0x03 # 80 columns, color
+							EBX = (EBX && 0x7FFF00FF) # BH (active page) = 0x00
+							printInfo(toHex1616(RCS, RIP) + ": int 0x10, 0x0F: Get current video mode")
+						}
+						elseif (AH == 0x12)
+						{
+							if (BL == 0x10) # Get EGA info
+							{
+								EBX = (EBX && 0x7FFF0000) + (0x00 << 8) + 0x00 # BH (video state) = 0x00 (color), BL (installed memory) = 0x03 (256 KiB)
+								ECX = (ECX && 0x7FFF0000) + (0x00 << 8) + 0x08 # CH (feature connectors) = 0x00, CL (switch settings) = 0x07 (80x25 color)
+								printInfo(toHex1616(RCS, RIP) + ": int 0x10, 0x1a, 0x10: Video: Get EGA info")
+							}
+							else
+							{
+								Halt = 1
+								printInfo(toHex1616(RCS, RIP) + ": int 0x10, 0x12, " + toHex8(BL) + ": Video: Unknown call")
+							}
+						}
+						elseif (AH == 0x1A) # Get/Set display combination code
+						{
+							if (AL == 0x00) # Get display combination code
+							{
+								EBX = (EBX && 0x7FFF0000) + 0x0008 # VGA color
+								ExecutionMode = 0
+								printInfo(toHex1616(RCS, RIP) + ": int 0x10, 0x1a, 0x00: Video: Get display combination code")
+							}
+							else
+							{
+								Halt = 1
+								printInfo(toHex1616(RCS, RIP) + ": int 0x10, 0x1a, " + toHex8(AL) + ": Video: Unknown call")
+							}
+						}
+						else
+						{
+							Halt = 1
+							printError(toHex1616(RCS, RIP) + ": int 0x10, " + toHex8(AH) + ": Video: Unknown call")
+						}
+					}
+					elseif (Op1 == 0x11) # Equipment Check
+					{
+						EAX = EAX && 0x7FFF0000
+						EAX = EAX || 0b0000000000000001 # diskette drive present
+						EAX = EAX || 0b0000000000000010 # numeric coprocessor present
+						EAX = EAX || 0b0000000000100000 # 80 x 25 color
+						EAX = EAX || 0b0000000000000000 # 1 detected diskette drive
+														# 00 = 1, 01 = 2, 10 = 3, 11 = 4 drives
+						EAX = EAX || 0b0000000100000000 # DMA hardware present
+						# 3 bits - 0 rs-232 ports
+						# 1 bit  - no joystick
+						# 1 bit  - no serial printer
+						# 2 bits - 0 parallel printers
+						
+						printInfo(toHex1616(RCS, RIP) + ": int 0x11: Equipment Check")
+					}
+					elseif (Op1 == 0x12) # Report Memory Size
+					{
+						EAX = (EAX && 0x7FFF0000) + 0x027F # 640 KiB of RAM should be enough for everybody
+						printInfo(toHex1616(OCS, OIP) + ": int 0x12: Report Memory Size")
+					}
+					elseif (Op1 == 0x13) # BIOS call
+					{
+						if (AH == 0x00) # Reset Disk Drives
+						{
+							DPT0Addr = readInt16(0x1E * 4 + 2) * 16 + readInt16(0x1E * 4)
+							for (I = 0, 13) { DPT00[I, number] = readInt8(DPT0Addr + I) }
+							printInfo(toHex1616(RCS, RIP) + ": int 0x13, 0x00: BIOS: Reset Disk Drives (DPT00 Sectors / Cylinder = " + toHex8(DPT00[0x04, number]) + ")")
+						}
+						elseif (AH == 0x01) # Get Status of Last Operation
+						{
+							# DL = drive
+							if (DL == 0x00) { CF = 0, EAX = (EAX && 0x7FFF00FF) + (D00Status << 8) }
+							elseif (DL == 0x80) { CF = 0, EAX = (EAX && 0x7FFF00FF) + (D80Status << 8) }
+							else { CF = 1, EAX = (EAX && 0x7FFF00FF) + (0x01 << 8) }
+							printInfo(toHex1616(RCS, RIP) + ": int 0x13, 0x01: BIOS: Get Status of Last Disk Operation (Drive " + toHex8(DL) + ")")
+						}
+						elseif (AH == 0x02) # Read Sectors From Drive
+						{
+							# AL = sectors to read
+							CH = ((ECX && 0xFF00) >> 8) + ((ECX && 0xC0) << 2) # cylinder
+							CL = ECX && 0x3F # sector
+							# DH = head
+							# DL = drive
+							
+							CF = 0
+							DPTAddrSegment = readInt16(0x1E * 4 + 2)
+							DPTAddr = readInt16(0x1E * 4)
+							SectorsPerCylinder = readInt8(DPTAddrSegment * 16 + DPTAddr + 0x04)
+						
+							if (DL == 0x00) { Sector = (CH * 2 + DH) * SectorsPerCylinder + CL - 1 } # floppy
+							elseif (DL == 0x80) { Sector = (CH * 2 + DH) * 32 + CL - 1 } # hdd
+							else { CF = 1 }
+
+							BX = EBX && 0xFFFF
+							
+							S1302Drive = DL
+							S1302ByteIndex = 0
+							S1302BytesToRead = AL * 512
+							S1302DestAddr = ES * 16 + BX
+							S1302SrcAddr = Sector * 512
+							
+							# SETUP.EXE
+							if (Sector == 618) { ExecutionMode = 0 }
+							# printDebug(toHex1616(RCS, RIP) + ": int 0x13, 0x02: BIOS: Read Drive Sectors (Drive " + toHex8(DL) + ", S/C " + toHex1616(DPTAddrSegment, DPTAddr) + "=" + toHex8(SectorsPerCylinder) + " (DPT " + toHex8(DPT00[0x04, number]) + "), CHS " + toHex16(CH) + ":" + toHex8(DH) + ":" + toHex8(CL) + ", LSN " + Sector + ", " + AL + " to " + toHex1616(ES, BX) + ")")
+							
+							if (CF) { EAX = (EAX && 0x7FFF0000) + (0x01 << 8) } # AH (return code) = 0x01 (invalid parameter)
+							else
+							{
+								EAX = (EAX && 0x7FFF0000) + (0x00 << 8) + AL # AH (return code) = 0x00, AL (sectors read) = sectors read
+								
+								State = 0x13
+								SubState = 0x02
+								break
+							}
+						}
+						elseif (AH == 0x03) # Write Sectors To Drive
+						{
+							# AL = sectors to write
+							CH = ((ECX && 0xFF00) >> 8) + ((ECX && 0xC0) << 2) # cylinder
+							CL = ECX && 0x3F # sector
+							# DH = head
+							# DL = drive
+							
+							CF = 0
+							DPTAddrSegment = readInt16(0x1E * 4 + 2)
+							DPTAddr = readInt16(0x1E * 4)
+							SectorsPerCylinder = readInt8(DPTAddrSegment * 16 + DPTAddr + 0x04)
+						
+							if (DL == 0x00) { Sector = (CH * 2 + DH) * SectorsPerCylinder + CL - 1 } # floppy
+							elseif (DL == 0x80) { Sector = (CH * 2 + DH) * 32 + CL - 1 } # hdd
+							else { CF = 1 }
+							
+							S1303Drive = DL
+							S1303ByteIndex = 0
+							S1303BytesToRead = AL * 512
+							S1303DestAddr = ES * 16 + BX
+							S1303SrcAddr = Sector * 512
+							printInfo(toHex1616(RCS, RIP) + ": int 0x13, 0x03: BIOS: Write Drive Sectors (Drive " + toHex8(DL) + ", S/C " + toHex1616(DPTAddrSegment, DPTAddr) + "=" + toHex8(SectorsPerCylinder) + " (DPT " + toHex8(DPT00[0x04, number]) + "), CHS " + toHex16(CH) + ":" + toHex8(DH) + ":" + toHex8(CL) + ", LSN " + Sector + ", " + AL + " sectors from " + toHex1616(ES, BX) + ")")
+							
+							if (CF) { EAX = (EAX && 0x7FFF0000) + (0x01 << 8) } # AH (return code) = 0x01 (invalid parameter)
+							else
+							{
+								EAX = (EAX && 0x7FFF0000) + (0x00 << 8) + AL # AH (return code) = 0x00, AL (sectors written) = sectors written
+								
+								State = 0x13
+								SubState = 0x03
+								break
+							}
+						}
+						elseif (AH == 0x04) # Verify Drive Sectors
+						{
+							# AL = sectors to read
+							CH = ((ECX && 0xFF00) >> 8) + ((ECX && 0xC0) << 2) # cylinder
+							CL = ECX && 0x3F # sector
+							# DH = head
+							# DL = drive
+							
+							CF = 0
+							DPTAddrSegment = readInt16(0x1E * 4 + 2)
+							DPTAddr = readInt16(0x1E * 4)
+							SectorsPerCylinder = readInt8(DPTAddrSegment * 16 + DPTAddr + 0x04)
+						
+							if (DL == 0x00) { Sector = (CH * 2 + DH) * SectorsPerCylinder + CL - 1 } # floppy
+							elseif (DL == 0x80) { Sector = (CH * 2 + DH) * 32 + CL - 1 } # hdd
+							else { CF = 1 }
+							
+							if (CF) { EAX = (EAX && 0x7FFF0000) + (0x01 << 8) } # AH (return code) = 0x01 (invalid parameter)
+							printInfo(toHex1616(RCS, RIP) + ": int 0x13, 0x04: Verify Drive Sectors (Drive " + toHex8(DL) + ", S/C " + toHex1616(DPTAddrSegment, DPTAddr) + "=" + toHex8(SectorsPerCylinder) + " (DPT " + toHex8(DPT00[0x04, number]) + "), CHS " + toHex16(CH) + ":" + toHex8(DH) + ":" + toHex8(CL) + ", LSN " + Sector + ", " + AL + " sectors)")
+						}
+						elseif (AH == 0x08) # Get Drive Parameters
+						{
+							DL = EDX && 0xFF
+							if (DL == 0x00) # Floppy
+							{
+								SectorsPerCylinder = DPT00[0x04, number]
+							
+								CF = 0
+								EAX = EAX && 0x7FFF00FF # AH (status) = 0x00
+								EBX = (EBX && 0x7FFFFF00) + 0x04 # BL (CMOS drive type) = 1.44 MB
+								ECX = (ECX && 0x7FFF0000) + (0x4F << 8) + SectorsPerCylinder # 80 cylinders, 18 sectors / cylinder
+								EDX = (EDX && 0x7FFF0000) + 0x0101 # 2 heads, 1 floppy drive
+								
+								ES = readInt16(0x1E * 4 + 2)
+								EDI = readInt16(0x1E * 4) # ES:DI = Diskette Initialization Parameter Table
+								printInfo(toHex1616(RCS, RIP) + ": int 0x13, 0x08: Get Drive Parameters (Drive " + toHex8(DL) + ")")
+							}
+							elseif (DL == 0x80) # HDD 1
+							{
+								CF = 0
+								EAX = EAX && 0x7FFF00FF # AH (status) = 0x00
+								EBX = EBX && 0x7FFFFF00 # BL (CMOS drive type) = 0x00
+								ECX = (ECX && 0x7FFF0000) + 0xFF20 # 512 cylinders, 32 sectors / cylinder
+								EDX = (EDX && 0x7FFF0000) + 0x0101 # 2 heads, 1 hdd
+								
+								# Don't touch ES:EDI
+								printInfo(toHex1616(RCS, RIP) + ": int 0x13, 0x08: Get Drive Parameters (Drive " + toHex8(DL) + ")")
+							}
+							else
+							{
+								CF = 1
+								EAX = EAX && 0x7FFF00FF + (0x01 << 8) # AH (status) = 0x01 (invalid parameter)
+								EBX = EBX && 0x7FFFFF00 # BL (CMOS drive type) = 0x00
+								ECX = ECX && 0x7FFF0000 # 0 cylinders, 0 sectors / cylinder
+								EDX = EDX && 0x7FFF0000 + 0x01 # 0 heads, 1 hdd
+								
+								# Don't touch ES:EDI
+								printInfo(toHex1616(RCS, RIP) + ": int 0x13, 0x08: Get Drive Parameters (Drive " + toHex8(DL) + "): Unknown drive")
+							}
+						}
+						elseif (AH == 0x15) # Read DASD type
+						{
+							DL = EDX && 0xFF
+							if (DL == 0x00)
+							{
+								CF = 0
+								EAX = EAX && 0x7FFF00FF + (0x02 << 8) # AH = 0x02 (diskette, with change detection)
+							}
+							elseif (DL == 0x80)
+							{
+								CF = 0
+								EAX = EAX && 0x7FFF00FF + (0x03 << 8) # AH = 0x03 (fixed disk)
+								ECX = ECX && 0x7FFF0000
+								EDX = (EDX && 0x7FFF0000) + 0x8000 # 32768 sectors.
+							}
+							else
+							{
+								CF = 1
+								EAX = EAX && 0x7FFF00FF + (0x01 << 8) # invalid parameter
+							}
+							printInfo(toHex1616(RCS, RIP) + ": int 0x13, 0x15: Read DASD type (Drive " + toHex8(DL) + ")")
+						}
+						else
+						{
+							Halt = 1
+							printError(toHex1616(RCS, RIP) + ": int 0x13, " + toHex8(AH) + ": Unknown BIOS call")
+						}
+					}
+					elseif (Op1 == 0x14) # Serial port call
+					{
+						if (AH == 0x00)
+						{
+							EAX = (EAX && 0x7FFF0000) + 0x8000 # timeout.
+							printInfo(toHex1616(RCS, RIP) + ": int 0x14, 0x00: Initialize serial port (" + toHex16(EDX) + ")")
+						}
+						else
+						{
+							Halt = 1
+							printError(toHex1616(RCS, RIP) + ": int 0x14, " + toHex8(AH) + ": Unknown serial port call")
+						}
+					}
+					elseif (Op1 == 0x15)
+					{
+						if (AH == 0x41) # Wait for External Event
+						{
+							Condition = AL && 0x07
+							UsePortAddress = (AL && 0x10) != 0
+							BH = (EBX >> 8) && 0xFF
+							BL = EBX && 0xFF
+							if (UsePortAddress)
+							{
+								# printDebug(toHex1616(RCS, RIP) + ": int 0x15, 0x41: Wait for External Event (Port " + toHex16(EDX) + ", AL=" + toHex8(AL) + ", BX=" + toHex16(EBX))
+							}
+							else
+							{
+								UserByte = readInt8(ES * 16 + EDI)
+								# printDebug(toHex1616(RCS, RIP) + ": int 0x15, 0x41: Wait for External Event (User Byte " + toHex8(UserByte) + ", AL=" + toHex8(AL) + ", BX=" + toHex16(EBX))
+							}
+							break
+						}
+						elseif (AH == 0x87) # Move memory block
+						{
+							CF = 0 # no error
+							ZF = 1 # no error
+							EAX = (EAX && 0x7FFF00FF) + (0x00 << 8) # AH = 0 (success)
+							
+							ESSI = ES * 16 + ESI
+							S1587Words = ECX && 0xFFFF
+							S1587Index = 0
+							S1587Source = (readInt8(ESSI + 20) << 16) + readInt16(ESSI + 18)
+							S1587Dest = (readInt8(ESSI + 28) << 16) + readInt16(ESSI + 26)
+							
+							State = 0x15
+							SubState = 0x87
+							printInfo(toHex1616(RCS, RIP) + ": int 0x15, 0x87: Move memory block (" + toHex32(S1587Words * 2) + " bytes from " + toHex32(S1587Source) + " to " + toHex32(S1587Dest) + ")")
+							break
+						}
+						elseif (AH == 0x88) # Get extended memory size
+						{
+							CF = 0 # no error
+							EAX = EAX && 0x7FFF0000 + 0x3C00 # AX = 3C00 (15 MiB above 1 MiB)
+							printInfo(toHex1616(RCS, RIP) + ": int 0x15, 0x88: Get extended memory size")
+						}
+						elseif (AH == 0xC0) # Get System Configuration
+						{
+							EAX = EAX && 0x7FFF00FF # AH = 0 (call supported)
+							CF = 0
+							ES = 0xF000
+							EBX = 0xE6F5
+							printInfo(toHex1616(RCS, RIP) + ": int 0x15, 0xc0: Get System Configuration")
+						}
+						elseif (AH == 0xC1) # Get EBDA Segment Address
+						{
+							CF = 1
+							printInfo(toHex1616(RCS, RIP) + ": int 0x15, 0xc1: Get EBDA Segment Address")
+						}
+						else
+						{
+							Halt = 1
+							printError(toHex1616(RCS, RIP) + ": int 0x15, " + toHex8(AH) + ": BIOS: Unknown call")
+						}
+					}
+					elseif (Op1 == 0x16) # BIOS keyboard call
+					{
+						if (AH == 0x00) # read char
+						{
+							State = 0x16
+							SubState = 0x00
+							printInfo(toHex1616(RCS, RIP) + ": int 0x16, 0x00: BIOS: read keyboard char")
+							break
+						}
+						elseif (AH == 0x01) # check for keystroke
+						{
+							Key = KeyboardQueue[1, number]
+							if (Key > 0)
+							{
+								ZF = 0
+								EAX = (EAX && 0x7FFF0000) + (getKeyboardScanCode(Key) << 8) + getKeyboardAscii(Key)
+							}
+							else { ZF = 1 } # no char available
+							if (Key < 0) { KeyboardQueue:remove(1) } # Remove key up event
+							printConsoleInfo(toHex1616(RCS, RIP) + ": int 0x16, 0x01: BIOS: check for keystroke")
+							break
+						}
+						elseif (AH == 0x02) # get shift flags
+						{
+							EAX = (EAX && 0x7FFFFF00) + 0b00100000 # num lock active
+							EAX = (EAX && 0x7FFFFF00) + 0b00000000
+							printConsoleInfo(toHex1616(RCS, RIP) + ": int 0x16, 0x02: BIOS: get keyboard shift flags")
+						}
+						elseif (AH == 0x10) # read char
+						{
+							State = 0x16
+							SubState = 0x10
+							printInfo(toHex1616(RCS, RIP) + ": int 0x16, 0x10: BIOS: read keyboard char")
+							break
+						}
+						elseif (AH == 0x11) # check for keystroke
+						{
+							Key = KeyboardQueue[1, number]
+							if (Key > 0)
+							{
+								ZF = 0
+								EAX = (EAX && 0x7FFF0000) + (getKeyboardScanCode(Key) << 8) + getKeyboardAscii(Key)
+							}
+							else { ZF = 1 } # no char available
+							if (Key < 0) { KeyboardQueue:remove(1) } # Remove key up event
+							printConsoleInfo(toHex1616(RCS, RIP) + ": int 0x16, 0x11: BIOS: check for keystroke")
+							break
+						}
+						elseif (AH == 0x92) # Keyboard capabilities check
+						{
+							EAX = (EAX && 0x7FFF00FF) + (0x80 << 8) # AH = 0x80 (enhanced keyboard functions supported)
+							printInfo(toHex1616(RCS, RIP) + ": int 0x16, 0x92: BIOS: Keyboard capabilities check")
+						}
+						elseif (AH == 0xA2) # Keyboard capabilities check (122-key)
+						{
+							# Don't touch AH. int 16h, 20-22h are not supported.
+							printInfo(toHex1616(RCS, RIP) + ": int 0x16, 0xA2: BIOS: Keyboard capabilities check (122-key)")
+						}
+						else
+						{
+							Halt = 1
+							printError(toHex1616(RCS, RIP) + ": int 0x16, " + toHex8(AH) + ": BIOS: Unknown keyboard call")
+						}
+					}
+					elseif (Op1 == 0x17) # Printer call
+					{
+						if (AH == 0x01) # Initialize Printer
+						{
+							EAX = (EAX && 0x7FFF00FF) + (0x08 << 8) # I/O error
+							printInfo(toHex1616(RCS, RIP) + ": int 0x17, 0x01: Initialize Printer (" + toHex16(EDX) + ")")
+						}
+						else
+						{
+							Halt = 1
+							printError(toHex1616(RCS, RIP) + ": int 0x17, " + toHex8(AH) + ": Unknown printer call")
+						}
+					}
+					elseif (Op1 == 0x19) # BIOS OS bootstrap
+					{
+						CS = 0x0000
+						EIP = 0x7C00
+						
+						S1302ByteIndex = 0
+						S1302BytesToRead = 512
+						S1302DestAddr = 0x7C00
+						S1302SrcAddr = 0x0000
+						
+						State = 0x13
+						SubState = 0x02
+						printInfo(toHex1616(RCS, RIP) + ": int 0x19: BIOS: Load and Run MBR")
+						break
+					}
+					elseif (Op1 == 0x1A) # RTC call
+					{
+						if (AH == 0x00) # Read RTC counter
+						{
+							Ticks = floor((time("hour") * 3600 + time("min") * 60 + time("sec")) * 18.21)
+							EAX = (EAX && 0x7FFFFF00) # AL = 0 (24 hours has not passed)
+							ECX = (ECX && 0x7FFF0000) + ((Ticks >> 16) && 0xFFFF)
+							EDX = (EDX && 0x7FFF0000) + (Ticks && 0xFFFF)
+							printInfo(toHex1616(RCS, RIP) + ": int 0x1a, 0x00: Read RTC counter (" + toHex16(ECX) + ", " + toHex16(EDX) + ")")
+						}
+						elseif (AH == 0x01) # Set RTC counter
+						{
+							printInfo(toHex1616(RCS, RIP) + ": int 0x1a, 0x00: Set RTC counter (" + toHex16(ECX) + ", " + toHex16(EDX) + ")")
+						}
+						elseif (AH == 0x02) # Read RTC time
+						{
+							CF = 0 # clock is running
+							ECX = (ECX && 0x7FFF0000) + toBCD88(time("hour"), time("min"))
+							EDX = (EDX && 0x7FFF0000) + (toBCD8(time("sec")) << 8) + time("isdst")
+							printInfo(toHex1616(RCS, RIP) + ": int 0x1a, 0x02: Read RTC time (" + toHex16(ECX) + ", " + toHex16(EDX) + ")")
+						}
+						elseif (AH == 0x03) # Set RTC time
+						{
+							CF = 0 # clock is running
+							EAX = (EAX && 0x7FFF0000) + 0x02 # 24 hour mode
+							printInfo(toHex1616(RCS, RIP) + ": int 0x1a, 0x03: Set RTC time (" + format("%.2d:%.2d:%.2d, dst=%d", unBCD8(CH), unBCD8(CL), unBCD8(DH), DL) + ")")
+						}
+						elseif (AH == 0x04) # Read RTC date
+						{
+							CF = 0 # clock is running
+							ECX = (ECX && 0x7FFF0000) + toBCD16(time("year"))
+							EDX = (EDX && 0x7FFF0000) + toBCD88(time("month"), time("day"))
+							printInfo(toHex1616(RCS, RIP) + ": int 0x1a, 0x04: Read RTC date (" + toHex16(ECX) + ", " + toHex16(EDX) + ")")
+						}
+						elseif (AH == 0x05) # Set RTC date
+						{
+							CF = 0 # clock is running
+							EAX = (EAX && 0x7FFF0000) + 0x02 # 24 hour mode
+							printInfo(toHex1616(RCS, RIP) + ": int 0x1a, 0x05: Set RTC date (" + format("%.2d/%.2d/%.2d%.2d", unBCD8(DL), unBCD8(DH), unBCD8(CH), unBCD8(CL)) + ")")
+						}
+						else
+						{
+							Halt = 1
+							printError(toHex1616(RCS, RIP) + ": int 0x1a, " + toHex8(AH) + ": Unknown RTC call")
+						}
+					}
+					elseif (Op1 == 0x1C) {} # RTC clock tick (18.2 Hz)
+					elseif (Op1 == 0x21)
+					{
+						if (AH == 0x02) # Write Character To Standard Output
+						{
+							writeChar(CSX, CSY, DL, biosToCSColor(0x0F))
+							printInfo(toHex1616(RCS, RIP) + ": int 0x21 (0x02): Write Character to Stdout (" + toHex8(DL) + ", \"" + escapeString(toChar(DL)) + "\")")
+						}
+						elseif (AH == 0x19) # Get Current Default Drive
+						{
+							EAX = (EAX && 0x7FFFFF00) + 0x02 # Drive C
+							printInfo(toHex1616(RCS, RIP) + ": int 0x21 (0x19): Get Current Default Drive")
+						}
+						elseif (AH == 0x25) # Set Interrupt Vector
+						{
+							printInfo(toHex1616(RCS, RIP) + ": int 0x21 (0x25): Set Interrupt Vector (" + toHex8(AL) + "=" + toHex16(DS) + ":" + toHex16(EDX))
+						}
+						elseif (AH == 0x30) # Get DOS Version
+						{
+							EAX = (EAX && 0x7FFF0000) + 0x0005 # Major 5, minor .00
+							EBX = (EBX && 0x7FFF00FF) + (0xFF << 8) # BH = 0xFF (MS-DOS)
+							printInfo(toHex1616(RCS, RIP) + ": int 0x21 (0x30): Get DOS Version")
+						}
+						elseif (AH == 0x33) # Get/Set System Value
+						{
+							if (AL == 0x06)
+							{
+								EBX = 0x0008 # BL = major, BH = minor
+								EDX = 0x0000 # DL = revision, DH = flags
+								printInfo(toHex1616(RCS, RIP) + ": int 0x21 (0x33, 0x06): Get True DOS Version Number")
+							}
+							else
+							{
+								Halt = 1
+								printError(toHex1616(RCS, RIP) + ": int 0x21 (0x33, " + toHex8(AL) + "): Get/Set System Value: Unhandled type")
+							}
+						}
+						elseif (AH == 0x3E) # Close File Handle
+						{
+							CF = 0 # no error
+							printInfo(toHex1616(RCS, RIP) + ": int 0x21 (0x30): Close File Handle (" + toHex16(EBX) + ")")
+						}
+						elseif (AH == 0x48) # Allocate Memory
+						{
+							CF = 0 # no error
+							EAX = (EAX && 0x7FFF0000) + NextMemorySegment
+							NextMemorySegment += EBX
+							printInfo(toHex1616(RCS, RIP) + ": int 0x21 (0x48): Allocate Memory (" + toHex16(EAX) + " * 0x10 = new byte [" + toHex16(EBX) + " * 0x10])")
+						}
+						elseif (AH == 0x49) # Deallocate Memory
+						{
+							CF = 0 # no error
+							printInfo(toHex1616(RCS, RIP) + ": int 0x21 (0x48): Deallocate Memory (delete [] " + toHex16(ES) + " * 0x10)")
+						}
+						elseif (AH == 0x4A) # Adjust Memory Block Size
+						{
+							BlockSize = EBX
+							EBX = 0x1000 # maximum block size
+							CF = 0 # no error
+							printInfo(toHex1616(RCS, RIP) + ": int 0x21 (0x4a): Adjust Memory Block Size to " + toHex16(BlockSize) + " * 0x10")
+						}
+						elseif (AH == 0x50) # Set Current PID
+						{
+							printInfo(toHex1616(RCS, RIP) + ": int 0x21 (0x50): Set Current PID to " + toHex16(EBX))
+						}
+						elseif (AH == 0x53) # Generate Drive Parameter Table
+						{
+							writeInt8(EBP, 2)		# Drive C (2)
+							writeInt8(EBP + 1, 2)	# Same as Drive
+							writeInt16(EBP + 2, 4096)   # Bytes per sector
+							
+							EAX = EAX && 0x7FFFFF00 # AL = 0x00
+							
+							printInfo(toHex1616(RCS, RIP) + ": int 0x21 (0x53): Generate Drive Parameter Table")
+						}
+						elseif (AH == 0x59) # Get Extended Error Information
+						{
+							EAX = 0x0000 # 0 = no error
+							EBX = 0x0000 # BH (error class) = 0, BL (suggested action) = 0
+							ECX = ECX && 0x7FFF00FF # CH = 0
+							
+							ECX = 0
+							EDX = 0
+							EDI = 0
+							ESI = 0
+							EBP = 0
+							DS = 0
+							ES = 0
+							
+							printInfo(toHex1616(RCS, RIP) + ": int 0x21 (0x59): Get Extended Error Information")
+						}
+						elseif (AH == 0x63) # Get Lead Byte Table
+						{
+							CF = 0 # no error
+							if (AL == 0)
+							{
+								# DS:SI = 0x00010000
+								DS = 0x1000
+								ESI = 0x0000
+								printInfo(toHex1616(RCS, RIP) + ": int 0x21 (0x63, " + toHex8(AL) + "): Get Lead Byte Table Address")
+							}
+							else
+							{
+								Halt = 1
+								printError(toHex1616(RCS, RIP) + ": int 0x21 (0x63, " + toHex8(AL) + "): Unknown subtype")
+							}
+						}
+						elseif (AH == 0x65) # Get Extended Country Information
+						{
+							if (AL == 0x04)
+							{
+								Address = ES * 16 + EDI
+								ECX = (ECX && 0x7FFF0000) + 0x0005 # CX (bytes written) = 0x0005
+								writeInt8(Address, 0x04)
+								printInfo(toHex1616(RCS, RIP) + ": int 0x21 (0x65, 0x04): Get Filename Character Translation Table")
+							}
+							else
+							{
+								Halt = 1
+								printError(toHex1616(RCS, RIP) + ": int 0x21 (0x65, " + toHex8(AL) + "): Unhandled Get Extended Country Information subtype")
+							}
+						}
+						else
+						{
+							Halt = 1
+							printError(toHex1616(RCS, RIP) + ": int 0x21 (" + toHex8(AH) + "): Unhandled syscall")
+						}
+					}
+					elseif (Op1 == 0x2F)
+					{
+						AX = EAX && 0x0000FFFF
+						if (AX == 0x4300) # Multiplex - XMS - Installation Check
+						{
+							EAX = EAX && 0x7FFFFF00 # AL (installed) = 0x00 (not installed)
+							printInfo(toHex1616(RCS, RIP) + ": int 0x2f (0x43, 0x00): Multiplex - XMS - Installation Check")
+						}
+						elseif (AX == 0x5501) # Is First Instance of command.com
+						{
+							EAX = (EAX && 0x7FFF0000) + 0x0001 # AX = 0x0001
+							ZF = 1
+							printInfo(toHex1616(RCS, RIP) + ": int 0x2f (0x55, 0x01): Is First Instance of Command.com")
+						}
+						elseif (AX == 0xB700) # Multiplex - Append - Installation Check
+						{
+							EAX = (EAX && 0x7FFFFF00) # AL (installed) = 0x00 (not installed)
+							printInfo(toHex1616(RCS, RIP) + ": int 0x2f (0xb7, 0x00): Multiplex - Append - Installation Check")
+						}
+						elseif (AX == 0xB702) # Multiplex - Append - Version Check
+						{
+							EAX = EAX || 0xFFFF # AL (major) = 0xFF, AH (minor) = 0xFF
+							printInfo(toHex1616(RCS, RIP) + ": int 0x2f (0xb7, 0x02): Multiplex - Append - Version Check")
+						}
+						elseif (AX == 0xB706) # Multiplex - Append - Get Function State
+						{
+							EBX = EBX && 0x7FFF0000 # BX (state bitfield) = 0x0000
+							printInfo(toHex1616(RCS, RIP) + ": int 0x2f (0xb7, 0x06): Multiplex - Append - Get Function State")
+						}
+						elseif (AX == 0xB707) # Multiplex - Append - Set Function State
+						{
+							BX = EBX && 0xFFFF # BX (state bitfield)
+							printInfo(toHex1616(RCS, RIP) + ": int 0x2f (0xb7, 0x07): Multiplex - Append - Set Function State (" + toHex16(BX) + ")")
+						}
+						else
+						{
+							Halt = 1
+							printError(toHex1616(RCS, RIP) + ": int 0x21: Unknown syscall " + toHex8(Op1) + ", " + toHex16(AX))
+						}
+					}
+					else
+					{
+						Halt = 1
+						printError(toHex1616(RCS, RIP) + ": int " + toHex8(Op1) + ": Unknown interrupt")
+					}
+				}
+				elseif (O == 0x05) # iret, ignores flags
+				{
+					EIP = pop16()
+					CS = pop16()
+					FLAGS = pop16()
+					IF = (FLAGS && 0b0000001000000000) >> 9
+					dbgLogRet()
+					# printDebug(toHex1616(OCS, OIP) + ": iret (" + toHex1616(CS, EIP) + ", flags discarded)")
+				}
+				elseif (O == 0x84) # jz/je rel16/32
+				{
+					Op1 = readImm16()
+					if (ZF == 1) { EIP = (EIP + Op1) && 0xFFFF }
+					# printDebug(toHex1616(OCS, OIP) + ": jz/je +" + toHex16(Op1) + ": ZF=" + ZF)
+				}
+				elseif (O == 0x85) # jnz/jne rel16/32
+				{
+					Op1 = readImm16()
+					if (ZF == 0) { EIP = (EIP + Op1) && 0xFFFF }
+					# printDebug(toHex1616(OCS, OIP) + ": jnz/jne +" + toHex16(Op1) + ": ZF=" + ZF)
+				}
+				else
+				{
+					Halt = 1
+					printError(toHex1616(OCS, OIP) + ": 0x0F " + toHex8(O) + ": Unknown opcode")
+				}
+			}
+			elseif (O == 0x10) # adc r8 / m8, r8
+			{
+				EIP++
+				
+				RegName = R8Names[Reg, string]
+				Op1 = readModRM168(Mod, RM)
+				Op2 = readR8(Reg)
+				writeModRM168(Mod, RM, adc8(Op1, Op2))
+				# printDebug(toHex1616(OCS, OIP) + ": adc " + RMName + ", " + RegName)
+			}
+			elseif (O == 0x11) # adc r16/32 / m16/32, r16/32
+			{
+				EIP++
+				
+				RegName = R16Names[Reg, string]
+				Op1 = readModRM1616(Mod, RM)
+				Op2 = readR16(Reg)
+				writeModRM1616(Mod, RM, adc16(Op1, Op2))
+				# printDebug(toHex1616(OCS, OIP) + ": adc " + RMName + ", " + RegName)
+			}
+			elseif (O == 0x12) # adc r8, r8 / m8
+			{
+				EIP++
+				
+				RegName = R8Names[Reg, string]
+				Op1 = readR8(Reg)
+				Op2 = readModRM168(Mod, RM)
+				writeR8(Reg, adc8(Op1, Op2))
+				# printDebug(toHex1616(OCS, OIP) + ": adc " + RegName + ", " + RMName)
+			}
+			elseif (O == 0x13) # adc r16/32, r16/32 / m16/32
+			{
+				EIP++
+				
+				RegName = R16Names[Reg, string]
+				Op1 = readR16(Reg)
+				Op2 = readModRM1616(Mod, RM)
+				writeR16(Reg, adc16(Op1, Op2))
+				# printDebug(toHex1616(OCS, OIP) + ": adc " + RegName + ", " + RMName)
+			}
+			elseif (O == 0x14) # adc al, imm8
+			{
+				Op1 = EAX && 0xFF
+				Op2 = readImm8()
+				EAX = (EAX && 0x7FFFFF00) + adc8(Op1, Op2)
+				# printDebug(toHex1616(OCS, OIP) + ": adc al, " + toHex8(Op2))
+			}
+			elseif (O == 0x15) # adc (e)ax, imm16/32
+			{
+				Op1 = EAX && 0xFFFF
+				Op2 = readImm16()
+				EAX = (EAX && 0x7FFF0000) + adc16(Op1, Op2)
+				# printDebug(toHex1616(OCS, OIP) + ": adc ax, " + toHex16(Op2))
+			}
+			elseif (O == 0x16) { push16(SS) } # push ss
+			elseif (O == 0x17) { SS = pop16() } # pop ss
+			elseif (O == 0x18) # sbb r8 / m8, r8
+			{
+				EIP++
+				
+				RegName = R8Names[Reg, string]
+				Op1 = readModRM168(Mod, RM)
+				Op2 = readR8(Reg)
+				writeModRM168(Mod, RM, sbb8(Op1, Op2))
+				# printDebug(toHex1616(OCS, OIP) + ": sbb " + RMName + ", " + RegName)
+			}
+			elseif (O == 0x19) # sbb r16/32 / m16/32, r16/32
+			{
+				EIP++
+				
+				RegName = R16Names[Reg, string]
+				Op1 = readModRM1616(Mod, RM)
+				Op2 = readR16(Reg)
+				writeModRM1616(Mod, RM, sbb16(Op1, Op2))
+				# printDebug(toHex1616(OCS, OIP) + ": sbb " + RMName + ", " + RegName)
+			}
+			elseif (O == 0x1A) # sbb r8, r8 / m8
+			{
+				EIP++
+				
+				RegName = R8Names[Reg, string]
+				Op1 = readR8(Reg)
+				Op2 = readModRM168(Mod, RM)
+				writeR16(Reg, sbb8(Op1, Op2))
+				# printDebug(toHex1616(OCS, OIP) + ": sbb " + RegName + ", " + RMName)
+			}
+			elseif (O == 0x1B) # sbb r16/32, r16/32 / m16/32
+			{
+				EIP++
+				
+				RegName = R16Names[Reg, string]
+				Op1 = readR16(Reg)
+				Op2 = readModRM1616(Mod, RM)
+				writeR16(Reg, sbb16(Op1, Op2))
+				# printDebug(toHex1616(OCS, OIP) + ": sbb " + RegName + ", " + RMName)
+			}
+			elseif (O == 0x1C) # sbb al, imm8
+			{
+				Op1 = EAX && 0xFF
+				Op2 = readImm8()
+				EAX = (EAX && 0x7FFFFF00) + sbb8(Op1, Op2)
+				# printDebug(toHex1616(OCS, OIP) + ": sbb al, " + toHex8(Op2))
+			}
+			elseif (O == 0x1D) # sbb (e)ax, imm16
+			{
+				Op1 = EAX && 0xFFFF
+				Op2 = readImm16()
+				EAX = (EAX && 0x7FFF0000) + sbb16(Op1, Op2)
+				# printDebug(toHex1616(OCS, OIP) + ": sbb ax, " + toHex16(Op2))
+			}
+			elseif (O == 0x1E) { push16(DS) } # push ds
+			elseif (O == 0x1F) { DS = pop16() } # pop ds
+			elseif (O == 0x20) # and r8 / m8, r8
+			{
+				EIP++
+				
+				RegName = R8Names[Reg, string]
+				Op1 = readModRM168(Mod, RM)
+				Op2 = readR8(Reg)
+				writeModRM168(Mod, RM, and8(Op1, Op2))
+				# printDebug(toHex1616(OCS, OIP) + ": and " + RMName + ", " + RegName)
+			}
+			elseif (O == 0x21) # and r16/32 / m16/32, r16/32
+			{
+				EIP++
+				
+				RegName = R16Names[Reg, string]
+				Op1 = readModRM1616(Mod, RM)
+				Op2 = readR16(Reg)
+				writeModRM1616(Mod, RM, and16(Op1, Op2))
+				# printDebug(toHex1616(OCS, OIP) + ": and " + RMName + ", " + RegName)
+			}
+			elseif (O == 0x22) # and r8, r8 / m8
+			{
+				EIP++
+				
+				RegName = R8Names[Reg, string]
+				Op1 = readR8(Reg)
+				Op2 = readModRM168(Mod, RM)
+				writeR8(Reg, and8(Op1, Op2))
+				# printDebug(toHex1616(OCS, OIP) + ": and " + RegName + ", " + RMName)
+			}
+			elseif (O == 0x23) # and r16/32, r16/32 / m16/32
+			{
+				EIP++
+				
+				RegName = R16Names[Reg, string]
+				Op1 = readR16(Reg)
+				Op2 = readModRM1616(Mod, RM)
+				writeR16(Reg, and16(Op1, Op2))
+				# printDebug(toHex1616(OCS, OIP) + ": and " + RegName + ", " + RMName)
+			}
+			elseif (O == 0x24) # and al, imm8
+			{
+				Op1 = EAX && 0xFF
+				Op2 = readImm8()
+				EAX = (EAX && 0x7FFFFF00) + and8(Op1, Op2)
+				# printDebug(toHex1616(OCS, OIP) + ": and al, " + toHex8(Op2))
+			}
+			elseif (O == 0x25) # and (e)ax, imm16/32
+			{
+				Op1 = EAX && 0xFFFF
+				Op2 = readImm16()
+				EAX = (EAX && 0x7FFF0000) + and16(Op1, Op2)
+				# printDebug(toHex1616(OCS, OIP) + ": and ax, " + toHex16(Op2))
+			}
+			elseif (O == 0x28) # sub r8 / m8, r8
+			{
+				EIP++
+				
+				RegName = R8Names[Reg, string]
+				Op1 = readModRM168(Mod, RM)
+				Op2 = readR8(Reg)
+				writeModRM168(Mod, RM, sub8(Op1, Op2))
+				# printDebug(toHex1616(OCS, OIP) + ": sub " + RMName + ", " + RegName)
+			}
+			elseif (O == 0x29) # sub r16/32 / m16/32, r16/32
+			{
+				EIP++
+				
+				RegName = R16Names[Reg, string]
+				Op1 = readModRM1616(Mod, RM)
+				Op2 = readR16(Reg)
+				writeModRM1616(Mod, RM, sub16(Op1, Op2))
+				# printDebug(toHex1616(OCS, OIP) + ": sub " + RMName + ", " + RegName)
+			}
+			elseif (O == 0x2A) # sub r8, r8 / m8
+			{
+				EIP++
+				
+				RegName = R8Names[Reg, string]
+				Op1 = readR8(Reg)
+				Op2 = readModRM168(Mod, RM)
+				writeR8(Reg, sub8(Op1, Op2))
+				# printDebug(toHex1616(OCS, OIP) + ": sub " + RegName + ", " + RMName)
+			}
+			elseif (O == 0x2B) # sub r16/32, r16/32 / m16/32
+			{
+				EIP++
+				
+				RegName = R16Names[Reg, string]
+				Op1 = readR16(Reg)
+				Op2 = readModRM1616(Mod, RM)
+				writeR16(Reg, sub16(Op1, Op2))
+				# printDebug(toHex1616(OCS, OIP) + ": sub " + RegName + ", " + RMName)
+			}
+			elseif (O == 0x2C) # sub al, imm8
+			{
+				Op1 = EAX && 0xFF
+				Op2 = readImm8()
+				EAX = (EAX && 0x7FFFFF00) + sub8(Op1, Op2)
+				# printDebug(toHex1616(OCS, OIP) + ": sub al, " + toHex8(Op2))
+			}
+			elseif (O == 0x2D) # sub (e)ax, imm16/32
+			{
+				Op1 = EAX && 0xFFFF
+				Op2 = readImm16()
+				EAX = (EAX && 0x7FFF0000) + sub16(Op1, Op2)
+				# printDebug(toHex1616(OCS, OIP) + ": sub ax, " + toHex16(Op2))
+			}
+			elseif (O == 0x30) # xor r8 / m8, r8
+			{
+				EIP++
+				
+				RegName = R8Names[Reg, string]
+				Op1 = readModRM168(Mod, RM)
+				Op2 = readR8(Reg)
+				writeModRM168(Mod, RM, xor8(Op1, Op2))
+				# printDebug(toHex1616(OCS, OIP) + ": xor " + RMName + ", " + RegName)
+			}
+			elseif (O == 0x31) # xor r16/32 / m16/32, r16/32
+			{
+				EIP++
+				
+				RegName = R16Names[Reg, string]
+				Op1 = readModRM1616(Mod, RM)
+				Op2 = readR16(Reg)
+				writeModRM1616(Mod, RM, xor16(Op1, Op2))
+				# printDebug(toHex1616(OCS, OIP) + ": xor " + RMName + ", " + RegName)
+			}
+			elseif (O == 0x32) # xor r8, r8 / m8
+			{
+				EIP++
+				
+				RegName = R8Names[Reg, string]
+				Op1 = readR8(Reg)
+				Op2 = readModRM168(Mod, RM)
+				writeR8(Reg, xor8(Op1, Op2))
+				# printDebug(toHex1616(OCS, OIP) + ": xor " + RegName + ", " + RMName)
+			}
+			elseif (O == 0x33) # xor r16/32, r16/32 / m16/32
+			{
+				EIP++
+				
+				RegName = R16Names[Reg, string]
+				Op1 = readR16(Reg)
+				Op2 = readModRM1616(Mod, RM)
+				writeR16(Reg, xor16(Op1, Op2))
+				# printDebug(toHex1616(OCS, OIP) + ": xor " + RegName + ", " + RMName)
+			}
+			elseif (O == 0x34) # xor al, imm8
+			{
+				Op1 = EAX && 0xFF
+				Op2 = readImm8()
+				EAX = (EAX && 0x7FFFFF00) + xor8(Op1, Op2)
+				# printDebug(toHex1616(OCS, OIP) + ": xor al, " + toHex8(Op2))
+			}
+			elseif (O == 0x35) # xor (e)ax, imm16/32
+			{
+				Op1 = EAX && 0xFFFF
+				Op2 = readImm16()
+				EAX = (EAX && 0x7FFF0000) + xor16(Op1, Op2)
+				# printDebug(toHex1616(OCS, OIP) + ": xor ax, " + toHex16(Op2))
+			}
+			elseif (O == 0x38) # cmp r8 / m8, r8
+			{
+				EIP++
+				
+				RegName = R8Names[Reg, string]
+				Op1 = readModRM168(Mod, RM)
+				Op2 = readR8(Reg)
+				sub8(Op1, Op2)
+				# printDebug(toHex1616(OCS, OIP) + ": cmp " + RMName + ", " + RegName + ": [LHS]=" + toHex8(Op1) + " " + RegName:upper() + "=" + toHex8(Op2) + " CF=" + CF + " ZF=" + ZF + " SF=" + SF + " OF=" + OF)
+			}
+			elseif (O == 0x39) # cmp r16/32 / m16/32, r16/32
+			{
+				EIP++
+				
+				RegName = R16Names[Reg, string]
+				Op1 = readModRM1616(Mod, RM)
+				Op2 = readR16(Reg)
+				sub16(Op1, Op2)
+				# printDebug(toHex1616(OCS, OIP) + ": cmp " + RMName + ", " + RegName + ": [LHS]=" + toHex16(Op1) + " " + RegName:upper() + "=" + toHex16(Op2) + " CF=" + CF + " ZF=" + ZF + " SF=" + SF + " OF=" + OF)
+			}
+			elseif (O == 0x3A) # cmp r8, r8 / m8
+			{
+				EIP++
+				
+				RegName = R8Names[Reg, string]
+				Op1 = readR8(Reg)
+				Op2 = readModRM168(Mod, RM)
+				sub8(Op1, Op2)
+				# printDebug(toHex1616(OCS, OIP) + ": cmp " + RegName + ", " + RMName + ": " + RegName:upper() + "=" + toHex8(Op1) + " [RHS]=" + toHex8(Op2) + " CF=" + CF + " ZF=" + ZF + " SF=" + SF + " OF=" + OF)
+			}
+			elseif (O == 0x3B) # cmp r16/32, r16/32 / m16/32
+			{
+				EIP++
+				
+				RegName = R16Names[Reg, string]
+				Op1 = readR16(Reg)
+				Op2 = readModRM1616(Mod, RM)
+				sub16(Op1, Op2)
+				# printDebug(toHex1616(OCS, OIP) + ": cmp " + RegName + ", " + RMName + ": " + RegName:upper() + "=" + toHex16(Op1) + " [RHS]=" + toHex16(Op2) + " CF=" + CF + " ZF=" + ZF + " SF=" + SF + " OF=" + OF)
+			}
+			elseif (O == 0x3C) # cmp al, imm8
+			{
+				Op1 = EAX && 0xFF
+				Op2 = readImm8()
+				sub8(Op1, Op2)
+				# printDebug(toHex1616(OCS, OIP) + ": cmp al, " + toHex8(Op2) + ": AL=" + toHex8(Op1) + " CF=" + CF + " ZF=" + ZF + " SF=" + SF + " OF=" + OF)
+			}
+			elseif (O == 0x3D) # cmp ax, imm16
+			{
+				Op1 = EAX && 0xFFFF
+				Op2 = readImm16()
+				sub16(Op1, Op2)
+				# printDebug(toHex1616(OCS, OIP) + ": cmp ax, " + toHex16(Op2) + ": AX=" + toHex16(Op1) + " CF=" + CF + " ZF=" + ZF + " SF=" + SF + " OF=" + OF)
+			}
+			elseif (O >= 0x40 & O <= 0x47) # inc r16/32
+			{
+				Reg = O - 0x40
+				RegName = R16Names[Reg, string]
+				writeR16(Reg, inc16(readR16(Reg)))
+				# printDebug(toHex1616(OCS, OIP) + ": inc " + RegName)
+			}
+			elseif (O >= 0x48 & O <= 0x4F) # dec r16/32
+			{
+				Reg = O - 0x48
+				RegName = R16Names[Reg, string]
+				writeR16(Reg, dec16(readR16(Reg)))
+				# printDebug(toHex1616(OCS, OIP) + ": dec " + RegName)
+			}
+			elseif (O >= 0x50 & O <= 0x57) # push r16/32
+			{
+				Reg = O - 0x50
+				RegName = R16Names[Reg, string]
+				Op1 = readR16(Reg)
+				push16(Op1)
+				# printDebug(toHex1616(OCS, OIP) + ": push " + RegName + " (" + toHex16(Op1) + ")")
+			}
+			elseif (O >= 0x58 & O <= 0x5F) # pop r16/32
+			{
+				Reg = O - 0x58
+				RegName = R16Names[Reg, string]
+				Op1 = pop16()
+				writeR16(Reg, Op1)
+				# printDebug(toHex1616(OCS, OIP) + ": pop " + RegName + " (" + toHex16(Op1) + ")")
+			}
+			elseif (O == 0x60) # pusha(d)
+			{
+				Value = ESP && 0xFFFF
+				push16(EAX && 0xFFFF)
+				push16(ECX && 0xFFFF)
+				push16(EDX && 0xFFFF)
+				push16(EBX && 0xFFFF)
+				push16(Value && 0xFFFF)
+				push16(EBP && 0xFFFF)
+				push16(ESI && 0xFFFF)
+				push16(EDI && 0xFFFF)
+				# printDebug(toHex1616(OCS, OIP) + ": pusha")
+			}
+			elseif (O == 0x61) # popa(d)
+			{
+				EDI = (EDI && 0x7FFF0000) + pop16()
+				ESI = (ESI && 0x7FFF0000) + pop16()
+				EBP = (EBP && 0x7FFF0000) + pop16()
+				pop16()
+				EBX = (EBX && 0x7FFF0000) + pop16()
+				EDX = (EDX && 0x7FFF0000) + pop16()
+				ECX = (ECX && 0x7FFF0000) + pop16()
+				EAX = (EAX && 0x7FFF0000) + pop16()
+				# printDebug(toHex1616(OCS, OIP) + ": popa")
+			}
+			elseif (O == 0x70) # jo rel8
+			{
+				Op1 = readImm8()
+				if ((Op1 && 0x80) == 0) { Value = Op1 } else { Value = 0xFF00 + Op1 }
+				if (OF == 1) { EIP = (EIP + Value) && 0xFFFF }
+				# printDebug(toHex1616(OCS, OIP) + ": jo +" + toHex8(Op1) + ": OF=" + OF)
+			}
+			elseif (O == 0x71) # jno rel8
+			{
+				Op1 = readImm8()
+				if ((Op1 && 0x80) == 0) { Value = Op1 } else { Value = 0xFF00 + Op1 }
+				if (OF == 0) { EIP = (EIP + Value) && 0xFFFF }
+				# printDebug(toHex1616(OCS, OIP) + ": jno +" + toHex8(Op1) + ": OF=" + OF)
+			}
+			elseif (O == 0x72) # jb / jc rel8
+			{
+				Op1 = readImm8()
+				if ((Op1 && 0x80) == 0) { Value = Op1 } else { Value = 0xFF00 + Op1 }
+				if (CF == 1) { EIP = (EIP + Value) && 0xFFFF }
+				# printDebug(toHex1616(OCS, OIP) + ": jb/jc +" + toHex8(Op1) + ": CF=" + CF)
+			}
+			elseif (O == 0x73) # jnb / jnc rel8
+			{
+				Op1 = readImm8()
+				if ((Op1 && 0x80) == 0) { Value = Op1 } else { Value = 0xFF00 + Op1 }
+				if (CF == 0) { EIP = (EIP + Value) && 0xFFFF }
+				# printDebug(toHex1616(OCS, OIP) + ": jnb/jnc +" + toHex8(Op1) + ": CF=" + CF)
+			}
+			elseif (O == 0x74) # jz / je rel8
+			{
+				Op1 = readImm8()
+				if ((Op1 && 0x80) == 0) { Value = Op1 } else { Value = 0xFF00 + Op1 }
+				if (ZF == 1) { EIP = (EIP + Value) && 0xFFFF }
+				# printDebug(toHex1616(OCS, OIP) + ": jz/je +" + toHex8(Op1) + ": ZF=" + ZF)
+			}
+			elseif (O == 0x75) # jnz / jne rel8
+			{
+				Op1 = readImm8()
+				if ((Op1 && 0x80) == 0) { Value = Op1 } else { Value = 0xFF00 + Op1 }
+				if (ZF == 0) { EIP = (EIP + Value) && 0xFFFF }
+				# printDebug(toHex1616(OCS, OIP) + ": jnz/jne +" + toHex8(Op1) + ": ZF=" + ZF)
+			}
+			elseif (O == 0x76) # jbe rel8
+			{
+				Op1 = readImm8()
+				if ((Op1 && 0x80) == 0) { Value = Op1 } else { Value = 0xFF00 + Op1 }
+				if ((CF == 1) | (ZF == 1)) { EIP = (EIP + Value) && 0xFFFF }
+				# printDebug(toHex1616(OCS, OIP) + ": jbe +" + toHex8(Op1) + ": CF=" + CF + " ZF=" + ZF)
+			}
+			elseif (O == 0x77) # jnbe rel8
+			{
+				Op1 = readImm8()
+				if ((Op1 && 0x80) == 0) { Value = Op1 } else { Value = 0xFF00 + Op1 }
+				if ((CF == 0) & (ZF == 0)) { EIP = (EIP + Value) && 0xFFFF }
+				# printDebug(toHex1616(OCS, OIP) + ": jnbe +" + toHex8(Op1) + ": CF=" + CF + " ZF=" + ZF)
+			}
+			elseif (O == 0x78) # js rel8
+			{
+				Op1 = readImm8()
+				if ((Op1 && 0x80) == 0) { Value = Op1 } else { Value = 0xFF00 + Op1 }
+				if (SF == 1) { EIP = (EIP + Value) && 0xFFFF }
+				# printDebug(toHex1616(OCS, OIP) + ": js +" + toHex8(Op1) + ": SF=" + SF)
+			}
+			elseif (O == 0x79) # jns rel8
+			{
+				Op1 = readImm8()
+				if ((Op1 && 0x80) == 0) { Value = Op1 } else { Value = 0xFF00 + Op1 }
+				if (SF == 0) { EIP = (EIP + Value) && 0xFFFF }
+				# printDebug(toHex1616(OCS, OIP) + ": jns +" + toHex8(Op1) + ": SF=" + SF)
+			}
+			elseif (O == 0x7A) # jpe rel8
+			{
+				Op1 = readImm8()
+				if ((Op1 && 0x80) == 0) { Value = Op1 } else { Value = 0xFF00 + Op1 }
+				if (PF == 1) { EIP = (EIP + Value) && 0xFFFF }
+				# printDebug(toHex1616(OCS, OIP) + ": jpe +" + toHex8(Op1) + ": PF=" + PF)
+			}
+			elseif (O == 0x7B) # jpo rel8
+			{
+				Op1 = readImm8()
+				if ((Op1 && 0x80) == 0) { Value = Op1 } else { Value = 0xFF00 + Op1 }
+				if (PF == 0) { EIP = (EIP + Value) && 0xFFFF }
+				# printDebug(toHex1616(OCS, OIP) + ": jpo +" + toHex8(Op1) + ": PF=" + PF)
+			}
+			elseif (O == 0x7C) # jl rel8
+			{
+				Op1 = readImm8()
+				if ((Op1 && 0x80) == 0) { Value = Op1 } else { Value = 0xFF00 + Op1 }
+				if (SF != OF) { EIP = (EIP + Value) && 0xFFFF }
+				# printDebug(toHex1616(OCS, OIP) + ": jl +" + toHex8(Op1) + ": SF=" + SF + " OF=" + OF)
+			}
+			elseif (O == 0x7D) # jnl rel8
+			{
+				Op1 = readImm8()
+				if ((Op1 && 0x80) == 0) { Value = Op1 } else { Value = 0xFF00 + Op1 }
+				if (SF == OF) { EIP = (EIP + Value) && 0xFFFF }
+				# printDebug(toHex1616(OCS, OIP) + ": jnl +" + toHex8(Op1) + ": SF=" + SF + " OF=" + OF)
+			}
+			elseif (O == 0x7E) # jle rel8
+			{
+				Op1 = readImm8()
+				if ((Op1 && 0x80) == 0) { Value = Op1 } else { Value = 0xFF00 + Op1 }
+				if ((ZF == 1) | (SF != OF)) { EIP = (EIP + Value) && 0xFFFF }
+				# printDebug(toHex1616(OCS, OIP) + ": jle +" + toHex8(Op1) + ": ZF=" + ZF + " SF=" + SF + " OF=" + OF)
+			}
+			elseif (O == 0x7F) # jnle rel8
+			{
+				Op1 = readImm8()
+				if ((Op1 && 0x80) == 0) { Value = Op1 } else { Value = 0xFF00 + Op1 }
+				if ((ZF == 0) & (SF == OF)) { EIP = (EIP + Value) && 0xFFFF }
+				# printDebug(toHex1616(OCS, OIP) + ": jnle +" + toHex8(Op1) + ": ZF=" + ZF + " SF=" + SF + " OF=" + OF)
+			}
+			elseif (O == 0x80 |
+					O == 0x82) # <op> r8 / m8, imm8
+			{
+				EIP++
+				Op1 = readModRM168(Mod, RM)
+				Op2 = readImm8()
+				
+				if (Reg == 0) # add r8 / m8, imm8
+				{
+					writeModRM168(Mod, RM, add8(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": add " + RMName + ", " + toHex8(Op2))
+				}
+				elseif (Reg == 1) # or r8 / m8, imm8
+				{
+					writeModRM168(Mod, RM, or8(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": or " + RMName + ", " + toHex8(Op2))
+				}
+				elseif (Reg == 2) # adc r8 / m8, imm8
+				{
+					writeModRM168(Mod, RM, adc8(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": adc " + RMName + ", " + toHex8(Op2))
+				}
+				elseif (Reg == 3) # sbb r8 / m8, imm8
+				{
+					writeModRM168(Mod, RM, sbb8(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": sbb " + RMName + ", " + toHex8(Op2))
+				}
+				elseif (Reg == 4) # and r8 / m8, imm8
+				{
+					writeModRM168(Mod, RM, and8(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": and " + RMName + ", " + toHex8(Op2))
+				}
+				elseif (Reg == 5) # sub r8 / m8, imm8
+				{
+					writeModRM168(Mod, RM, sub8(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": sub " + RMName + ", " + toHex8(Op2))
+				}
+				elseif (Reg == 6) # xor r8 / m8, imm8
+				{
+					writeModRM168(Mod, RM, xor8(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": xor " + RMName + ", " + toHex8(Op2))
+				}
+				elseif (Reg == 7) # cmp r8 / m8, imm8
+				{
+					sub8(Op1, Op2)
+					# printDebug(toHex1616(OCS, OIP) + ": cmp " + RMName + ", " + toHex8(Op2) + ": [LHS]=" + toHex8(Op1) + " CF=" + CF + " ZF=" + ZF + " SF=" + SF + " OF=" + OF)
+				}
+				else
+				{
+					Halt = 1
+					printError(toHex1616(OCS, OIP) + ": 0x80:" + Reg + " r8 / m8, imm8: Unhandled opcode")
+				}
+			}
+			elseif (O == 0x81) # <op> r16/32 / m16/32, imm16/32
+			{
+				EIP++
+				Op1 = readModRM1616(Mod, RM)
+				Op2 = readImm16()
+				
+				if (Reg == 0) # add r16/32 / m16/32, imm16/32
+				{
+					writeModRM1616(Mod, RM, add16(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": add " + RMName + ", " + toHex16(Op2))
+				}
+				elseif (Reg == 1) # or r16/32 / m16/32, imm16/32
+				{
+					writeModRM1616(Mod, RM, or16(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": or " + RMName + ", " + toHex16(Op2))
+				}
+				elseif (Reg == 2) # adc r16/32 / m16/32, imm16/32
+				{
+					writeModRM1616(Mod, RM, adc16(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": adc " + RMName + ", " + toHex16(Op2))
+				}
+				elseif (Reg == 3) # sbb r16/32 / m16/32, imm16/32
+				{
+					writeModRM1616(Mod, RM, sbb16(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": sbb " + RMName + ", " + toHex16(Op2))
+				}
+				elseif (Reg == 4) # and r16/32 / m16/32, imm16/32
+				{
+					writeModRM1616(Mod, RM, and16(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": and " + RMName + ", " + toHex16(Op2))
+				}
+				elseif (Reg == 5) # sub r16/32 / m16/32, imm16/32
+				{
+					writeModRM1616(Mod, RM, sub16(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": sub " + RMName + ", " + toHex16(Op2))
+				}
+				elseif (Reg == 6) # xor r16/32 / m16/32, imm16/32
+				{
+					writeModRM1616(Mod, RM, xor16(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": xor " + RMName + ", " + toHex16(Op2))
+				}
+				elseif (Reg == 7) # cmp r16/32 / m16/32, imm16/32
+				{
+					sub16(Op1, Op2)
+					# printDebug(toHex1616(OCS, OIP) + ": cmp " + RMName + ", " + toHex16(Op2) + ": [LHS]=" + toHex16(Op1) + " CF=" + CF + " ZF=" + ZF + " SF=" + SF + " OF=" + OF)
+				}
+				else
+				{
+					Halt = 1
+					printError(toHex1616(OCS, OIP) + ": 0x81:" + Reg + " r16/32 / m16/32, imm16/32: Unhandled opcode")
+				}
+			}
+			elseif (O == 0x83) # <op> r16/32 / m16/32, imm8
+			{
+				EIP++
+				Op1 = readModRM1616(Mod, RM)
+				Op2 = readImm8()
+				if ((Op2 && 0x80) != 0) { Op2 = Op2 || 0xFF00 }
+				
+				if (Reg == 0) # add r16/32 / m16/32, imm8
+				{
+					writeModRM1616(Mod, RM, add16(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": add " + RMName + ", " + toHex8(Op2 && 0xFF))
+				}
+				elseif (Reg == 1) # or r16/32 / m16/32, imm8
+				{
+					writeModRM1616(Mod, RM, or16(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": or " + RMName + ", " + toHex8(Op2 && 0xFF))
+				}
+				elseif (Reg == 2) # adc r16/32 / m16/32, imm8
+				{
+					writeModRM1616(Mod, RM, adc16(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": adc " + RMName + ", " + toHex8(Op2 && 0xFF))
+				}
+				elseif (Reg == 3) # sbb r16/32 / m16/32, imm8
+				{
+					writeModRM1616(Mod, RM, sbb16(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": sbb " + RMName + ", " + toHex8(Op2 && 0xFF))
+				}
+				elseif (Reg == 4) # and r16/32 / m16/32, imm8
+				{
+					writeModRM1616(Mod, RM, and16(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": and " + RMName + ", " + toHex8(Op2 && 0xFF))
+				}
+				elseif (Reg == 5) # sub r16/32 / m16/32, imm8
+				{
+					writeModRM1616(Mod, RM, sub16(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": sub " + RMName + ", " + toHex8(Op2 && 0xFF))
+				}
+				elseif (Reg == 6) # xor r16/32 / m16/32, imm8
+				{
+					writeModRM1616(Mod, RM, xor16(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": xor " + RMName + ", " + toHex8(Op2 && 0xFF))
+				}
+				elseif (Reg == 7) # cmp r16/32 / m16/32, imm8
+				{
+					sub16(Op1, Op2)
+					# printDebug(toHex1616(OCS, OIP) + ": cmp " + RMName + ", " + toHex8(Op2 && 0xFF) + ": [LHS]=" + toHex16(Op1) + " CF=" + CF + " ZF=" + ZF + " SF=" + SF + " OF=" + OF)
+				}
+				else
+				{
+					Halt = 1
+					printError(toHex1616(OCS, OIP) + ": 0x83:" + Reg + " r16/32 / m16/32, imm8: Unhandled opcode")
+				}
+			}
+			elseif (O == 0x84) # test r8 / m8, r8
+			{
+				EIP++
+				
+				RegName = R8Names[Reg, string]
+				Op1 = readModRM168(Mod, RM)
+				Op2 = readR8(Reg)
+				and8(Op1, Op2)
+				# printDebug(toHex1616(OCS, OIP) + ": test " + RMName + ", " + RegName + ": [LHS]=" + toHex8(Op1) + " " + RegName:upper() + "=" + toHex8(Op2) + " ZF=" + ZF)
+			}
+			elseif (O == 0x85) # test r16/32 / m16/32, r16/32
+			{
+				EIP++
+				
+				RegName = R16Names[Reg, string]
+				Op1 = readModRM1616(Mod, RM)
+				Op2 = readR16(Reg)
+				and16(Op1, Op2)
+				# printDebug(toHex1616(OCS, OIP) + ": test " + RMName + ", " + RegName + ": [LHS]=" + toHex16(Op1) + " " + RegName:upper() + "=" + toHex16(Op2) + " ZF=" + ZF)
+			}
+			elseif (O == 0x86) # xchg r8, r8 / m8
+			{
+				EIP++
+				
+				RegName = R8Names[Reg, string]
+				Op1 = readModRM168(Mod, RM)
+				Op2 = readR8(Reg)
+				writeModRM168(Mod, RM, Op2)
+				writeR8(Reg, Op1)
+				# printDebug(toHex1616(OCS, OIP) + ": xchg " + RegName + ", " + RMName)
+			}
+			elseif (O == 0x87) # xchg r16/32, r16/32 / m16/32
+			{
+				EIP++
+				
+				RegName = R16Names[Reg, string]
+				Op1 = readModRM1616(Mod, RM)
+				Op2 = readR16(Reg)
+				writeModRM1616(Mod, RM, Op2)
+				writeR16(Reg, Op1)
+				# printDebug(toHex1616(OCS, OIP) + ": xchg " + RegName + ", " + RMName)
+			}
+			elseif (O == 0x88) # mov r8 / m8, r8
+			{
+				EIP++
+				
+				RegName = R8Names[Reg, string]
+				Op1 = readR8(Reg)
+				writeModRM168(Mod, RM, Op1)
+				# printDebug(toHex1616(OCS, OIP) + ": mov " + RMName + ", " + RegName + " (" + toHex8(Op1) + ")")
+			}
+			elseif (O == 0x89) # mov r16/32 / m16/32, r16/32
+			{
+				EIP++
+				
+				RegName = R16Names[Reg, string]
+				Op1 = readR16(Reg)
+				writeModRM1616(Mod, RM, Op1)
+				# printDebug(toHex1616(OCS, OIP) + ": mov " + RMName + ", " + RegName + " (" + toHex16(Op1) + ")")
+			}
+			elseif (O == 0x8A) # mov r8, r8 / m8
+			{
+				EIP++
+				
+				RegName = R8Names[Reg, string]
+				Op1 = readModRM168(Mod, RM)
+				writeR8(Reg, Op1)
+				# printDebug(toHex1616(OCS, OIP) + ": mov " + RegName + ", " + RMName + " (" + toHex8(Op1) + ")")
+			}
+			elseif (O == 0x8B) # mov r16/32, r16/32 / m16/32
+			{
+				EIP++
+				
+				RegName = R16Names[Reg, string]
+				Op1 = readModRM1616(Mod, RM)
+				writeR16(Reg, Op1)
+				# printDebug(toHex1616(OCS, OIP) + ": mov " + RegName + ", " + RMName + " (" + toHex16(Op1) + ")")
+			}
+			elseif (O == 0x8C) # mov r16/32 / m16/32, sreg
+			{
+				EIP++
+				
+				RegName = SRNames[Reg, string]
+				Op1 = readSegmentRegister(Reg)
+				writeModRM1616(Mod, RM, Op1)
+				# printDebug(toHex1616(OCS, OIP) + ": mov " + RMName + ", " + RegName + " (" + toHex16(Op1) + ")")
+			}
+			elseif (O == 0x8D) # lea
+			{
+				EIP++
+				
+				RegName = R16Names[Reg, string]
+				writeR16(Reg, modRMAddress16(Mod, RM, 0))
+				# printDebug(toHex1616(OCS, OIP) + ": lea " + RegName + ", " + RMName)
+			}
+			elseif (O == 0x8E) # mov sreg, r16/32 / m16/32
+			{
+				EIP++
+				
+				RegName = SRNames[Reg, string]
+				Op1 = readModRM1616(Mod, RM)
+				writeSegmentRegister(Reg, Op1)
+				# printDebug(toHex1616(OCS, OIP) + ": mov " + RegName + ", " + RMName + " (" + toHex16(Op1) + ")")
+			}
+			elseif (O == 0x8F) # pop r16/32 / m16/32
+			{
+				EIP++
+				
+				Op1 = pop16()
+				writeModRM1616(Mod, RM, Op1)
+				# printDebug(toHex1616(OCS, OIP) + ": pop " + RMName + " (" + toHex16(Op1) + ")")
+			}
+			elseif (O == 0x90) { }
+			elseif (O > 0x90 & O <= 0x97) # xchg r16/32, (e)ax
+			{
+				Reg = O - 0x90
+				RegName = R16Names[Reg, string]
+				Op1 = EAX && 0xFFFF
+				EAX = (EAX && 0x7FFF0000) + readR16(Reg)
+				writeR16(Reg, Op1)
+				# printDebug(toHex1616(OCS, OIP) + ": xchg " + RegName + ", ax")
+			}
+			elseif (O == 0x98) # cbw/cwde
+			{
+				if ((EAX && 0x80) == 0) { EAX = EAX && 0x7FFF00FF } else { EAX = EAX || 0xFF00 }
+				# printDebug(toHex1616(OCS, OIP) + ": cbw")
+			}
+			elseif (O == 0x99) # cwd/cdq
+			{
+				if ((EAX && 0x8000) == 0) { EDX = EDX && 0x7FFF0000 } else { EDX = EDX || 0xFFFF }
+				# printDebug(toHex1616(OCS, OIP) + ": cwd")
+			}
+			elseif (O == 0x9A) # callf ptr16:16/32
+			{
+				Op1 = readImm16() # readImm16() uses CS:EIP
+				Op2 = readImm16()
+				# Push CS, EIP onto stack
+				push16(CS)
+				push16(EIP && 0xFFFF)
+				EIP = Op1
+				CS = Op2
+				dbgLogCall(OCS, OIP, CS, EIP)
+				# printDebug(toHex1616(OCS, OIP) + ": callf " + toHex1616(CS, EIP))
+			}
+			elseif (O == 0x9C) { pushf16() } # pushf
+			elseif (O == 0x9D) { popf16() } # popf
+			elseif (O == 0x9E) # sahf
+			{
+				setFlags8((EAX >> 8) && 0xFF)
+				# printDebug(toHex1616(OCS, OIP) + ": sahf")
+			}
+			elseif (O == 0x9F) # lahf
+			{
+				EAX = (EAX && 0x7FFF00FF) + (getFlags8() << 8)
+				# printDebug(toHex1616(OCS, OIP) + ": lahf")
+			}
+			elseif (O == 0xA0) # mov al, moffs8
+			{
+				Op1 = readImm16()
+				EAX = (EAX && 0x7FFFFF00) + readInt8(readSegmentRegister(abs(SegmentPrefix)) * 16 + Op1)
+				if (SegmentPrefix >= 0) { RegName = SRNames[abs(SegmentPrefix), string] + ":" } else { RegName = "" }
+				# printDebug(toHex1616(OCS, OIP) + ": mov al, [" + RegName + toHex16(Op1) + "] (" + toHex8(EAX && 0xFF) + ")")
+			}
+			elseif (O == 0xA1) # mov (e)ax, moffs16/32
+			{
+				Op1 = readImm16()
+				EAX = (EAX && 0x7FFF0000) + readInt16(readSegmentRegister(abs(SegmentPrefix)) * 16 + Op1)
+				if (SegmentPrefix >= 0) { RegName = SRNames[abs(SegmentPrefix), string] + ":" } else { RegName = "" }
+				# printDebug(toHex1616(OCS, OIP) + ": mov ax, [" + RegName + toHex16(Op1) + "] (" + toHex16(EAX && 0xFFFF) + ")")
+			}
+			elseif (O == 0xA2) # mov moffs8, al
+			{
+				Op1 = readImm16()
+				writeInt8(readSegmentRegister(abs(SegmentPrefix)) * 16 + Op1, EAX && 0xFF)
+				if (SegmentPrefix >= 0) { RegName = SRNames[abs(SegmentPrefix), string] + ":" } else { RegName = "" }
+				# printDebug(toHex1616(OCS, OIP) + ": mov [" + RegName + toHex16(Op1) + "], al (" + toHex8(EAX && 0xFF) + ")")
+			}
+			elseif (O == 0xA3) # mov moffs16, (e)ax
+			{
+				Op1 = readImm16()
+				writeInt16(readSegmentRegister(abs(SegmentPrefix)) * 16 + Op1, EAX && 0xFFFF)
+				if (SegmentPrefix >= 0) { RegName = SRNames[abs(SegmentPrefix), string] + ":" } else { RegName = "" }
+				# printDebug(toHex1616(OCS, OIP) + ": mov [" + RegName + toHex16(Op1) + "], ax (" + toHex16(EAX && 0xFFFF) + ")")
+			}
+			elseif (O == 0xA4) # movsb (ds:si to es:di)
+			{
+				writeInt8(ES * 16 + EDI, readInt8(readSegmentRegister(abs(SegmentPrefix)) * 16 + ESI))
+				printInfo(toHex1616(OCS, OIP) + ": movsb (" + SRNames[abs(SegmentPrefix), string] + ":si (" + toHex1616(readSegmentRegister(abs(SegmentPrefix)), ESI) + ") to es:di (" + toHex1616(ES, EDI) + "))")
+				if (DF == 0) { ESI = (ESI + 1) && 0xFFFF, EDI = (EDI + 1) && 0xFFFF } else { ESI = (ESI + 0x00010000 - 1) && 0xFFFF, EDI = (EDI + 0x00010000 - 1) && 0xFFFF }
+			}
+			elseif (O == 0xA5) # movsw (ds:si to es:di)
+			{
+				writeInt16(ES * 16 + EDI, readInt16(readSegmentRegister(abs(SegmentPrefix)) * 16 + ESI))
+				printInfo(toHex1616(OCS, OIP) + ": movsw (" + SRNames[abs(SegmentPrefix), string] + ":si (" + toHex1616(readSegmentRegister(abs(SegmentPrefix)), ESI) + ") to es:di (" + toHex1616(ES, EDI) + "))")
+				if (DF == 0) { ESI = (ESI + 2) && 0xFFFF, EDI = (EDI + 2) && 0xFFFF } else { ESI = (ESI + 0x00010000 - 2) && 0xFFFF, EDI = (EDI + 0x00010000 - 2) && 0xFFFF }
+			}
+			elseif (O == 0xA6) # cmpsb (ds:si with es:di)
+			{
+				Op1 = readInt8(readSegmentRegister(abs(SegmentPrefix)) * 16 + ESI)
+				Op2 = readInt8(ES * 16 + EDI)
+				sub8(Op1, Op2)
+				printInfo(toHex1616(OCS, OIP) + ": cmpsw (" + SRNames[abs(SegmentPrefix), string] + ":si (" + toHex1616(readSegmentRegister(abs(SegmentPrefix)), ESI) + "=" + toHex8(Op1) + ") with es:di (" + toHex1616(ES, EDI) + "=" + toHex8(Op2) + "))")
+				if (DF == 0) { ESI = (ESI + 1) && 0xFFFF, EDI = (EDI + 1) && 0xFFFF } else { ESI = (ESI + 0x00010000 - 1) && 0xFFFF, EDI = (EDI + 0x00010000 - 1) && 0xFFFF }
+			}
+			elseif (O == 0xA7) # cmpsw (ds:si with es:di)
+			{
+				Op1 = readInt16(readSegmentRegister(abs(SegmentPrefix)) * 16 + ESI)
+				Op2 = readInt16(ES * 16 + EDI)
+				sub16(Op1, Op2)
+				printInfo(toHex1616(OCS, OIP) + ": cmpsw (" + SRNames[abs(SegmentPrefix), string] + ":si (" + toHex1616(readSegmentRegister(abs(SegmentPrefix)), ESI) + "=" + toHex16(Op1) + ") with es:di (" + toHex1616(ES, EDI) + "=" + toHex16(Op2) + "))")
+				if (DF == 0) { ESI = (ESI + 2) && 0xFFFF, EDI = (EDI + 2) && 0xFFFF } else { ESI = (ESI + 0x00010000 - 2) && 0xFFFF, EDI = (EDI + 0x00010000 - 2) && 0xFFFF }
+			}
+			elseif (O == 0xA8) # test al, imm8
+			{
+				Op1 = EAX && 0xFF
+				Op2 = readImm8()
+				and8(Op1, Op2)
+				# printDebug(toHex1616(OCS, OIP) + ": test al, " + toHex8(Op2) + ": [LHS]=" + toHex8(Op1) + " ZF=" + ZF)
+			}
+			elseif (O == 0xA9) # test (e)ax, imm16/32
+			{
+				Op1 = EAX && 0xFFFF
+				Op2 = readImm16()
+				and16(Op1, Op2)
+				# printDebug(toHex1616(OCS, OIP) + ": test ax, " + toHex16(Op2) + ": [LHS]=" + toHex16(Op1) + " ZF=" + ZF)
+			}
+			elseif (O == 0xAA) # stosb
+			{
+				writeInt8(ES * 16 + EDI, EAX && 0xFF)
+				# printDebug(toHex1616(OCS, OIP) + ": stosb (es:di (" + toHex1616(ES, EDI) + ")=" + toHex8(EAX && 0xFF) + ")")
+				if (DF == 0) { EDI = (EDI + 1) && 0xFFFF } else { EDI = (EDI + 0x00010000 - 1) && 0xFFFF }
+			}
+			elseif (O == 0xAB) # stosw/stosd
+			{
+				writeInt16(ES * 16 + EDI, EAX && 0xFFFF)
+				# printDebug(toHex1616(OCS, OIP) + ": stosw (es:di (" + toHex1616(ES, EDI) + ")=" + toHex16(EAX && 0xFFFF) + ")")
+				if (DF == 0) { EDI = (EDI + 2) && 0xFFFF } else { EDI = (EDI + 0x00010000 - 2) && 0xFFFF }
+			}
+			elseif (O == 0xAC) # lodsb
+			{
+				EAX = (EAX && 0x7FFFFF00) + readInt8(readSegmentRegister(abs(SegmentPrefix)) * 16 + ESI)
+				# printDebug(toHex1616(OCS, OIP) + ": lodsb (" + SRNames[abs(SegmentPrefix), string] + ":si (" + toHex1616(readSegmentRegister(abs(SegmentPrefix)), ESI) + ")=" + toHex8(EAX && 0xFF) + ")")
+				if (DF == 0) { ESI = (ESI + 1) && 0xFFFF } else { ESI = (ESI + 0x00010000 - 1) && 0xFFFF }
+			}
+			elseif (O == 0xAD) # lodsw/lodsd
+			{
+				# Check for COMMAND.COM checksum loop
+				# Addresses are negative (due to +1 MiB array limit)
+				if (SegmentPrefix < 0 &
+					RAM[-CS * 16 - EIP, number] == 0x03 &
+					RAM[-CS * 16 - EIP - 1, number] == 0xD0 &
+					RAM[-CS * 16 - EIP - 2, number] == 0x83 &
+					RAM[-CS * 16 - EIP - 3, number] == 0xD2 &
+					RAM[-CS * 16 - EIP - 4, number] == 0x00 &
+					RAM[-CS * 16 - EIP - 5, number] == 0xE2 &
+					RAM[-CS * 16 - EIP - 6, number] == 0xF8)
+				{
+					State = 0xF3
+					SubState = 0x00
+					EIP += 7
+					printInfo(toHex1616(OCS, OIP) + ": lodsw; add dx, ax; adc dx, 0x00; loop +0xf8: Optimized loop")
+					break
+				}
+				else
+				{
+					EAX = (EAX && 0x7FFF0000) + readInt16(readSegmentRegister(abs(SegmentPrefix)) * 16 + ESI)
+					# printDebug(toHex1616(OCS, OIP) + ": lodsw (" + SRNames[abs(SegmentPrefix), string] + ":si (" + toHex1616(readSegmentRegister(abs(SegmentPrefix)), ESI) + ")=" + toHex16(EAX && 0xFFFF) + ")")
+					if (DF == 0) { ESI = (ESI + 2) && 0xFFFF } else { ESI = (ESI + 0x00010000 - 2) && 0xFFFF }
+				}
+			}
+			elseif (O == 0xAE) # scasb (al, es:di)
+			{
+				Op1 = EAX && 0xFF
+				Op2 = readInt8(ES * 16 + EDI)
+				sub8(Op1, Op2)
+				# printDebug(toHex1616(OCS, OIP) + ": scasb (al=" + toHex8(Op1) + ", es:di=" + toHex1616(ES, EDI) + ")")
+				if (DF == 0) { EDI = (EDI + 1) && 0xFFFF } else { EDI = (EDI + 0x00010000 - 1) && 0xFFFF }
+			}
+			elseif (O == 0xAF) # scasw (al, es:di)
+			{
+				Op1 = EAX && 0xFFFF
+				Op2 = readInt16(ES * 16 + EDI)
+				sub16(Op1, Op2)
+				# printDebug(toHex1616(OCS, OIP) + ": scasb (ax=" + toHex16(Op1) + ", es:di=" + toHex1616(ES, EDI) + ")")
+				if (DF == 0) { EDI = (EDI + 2) && 0xFFFF } else { EDI = (EDI + 0x00010000 - 2) && 0xFFFF }
+			}
+			elseif (O >= 0xB0 & O <= 0xB7) # mov r8, imm8
+			{
+				Reg = O - 0xB0
+				RegName = R8Names[Reg, string]
+				Op1 = readImm8()
+				writeR8(Reg, Op1)
+				# printDebug(toHex1616(OCS, OIP) + ": mov " + RegName + ", " + toHex8(Op1))
+			}
+			elseif (O >= 0xB8 & O <= 0xBF) # mov r16/32, imm16/32
+			{
+				Reg = O - 0xB8
+				RegName = R16Names[Reg, string]
+				Op1 = readImm16()
+				writeR16(Reg, Op1)
+				# printDebug(toHex1616(OCS, OIP) + ": mov " + RegName + ", " + toHex16(Op1))
+			}
+			elseif (O == 0xC0) # shift/rotate r8 / m8, imm8
+			{
+				EIP++
+				Op1 = readModRM168(Mod, RM)
+				Op2 = readImm8()
+				if (Reg == 0) # rol r8 / m8, imm8
+				{
+					writeModRM168(Mod, RM, rol8(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": rol " + RMName + ", " + toHex8(Op2))
+				}
+				elseif (Reg == 1) # ror r8 / m8, imm8
+				{
+					writeModRM168(Mod, RM, ror8(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": ror " + RMName + ", " + toHex8(Op2))
+				}
+				elseif (Reg == 2) # rcl r8 / m8, imm8
+				{
+					writeModRM168(Mod, RM, rcl8(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": rcl " + RMName + ", " + toHex8(Op2))
+				}
+				elseif (Reg == 3) # rcr r8 / m8, imm8
+				{
+					writeModRM168(Mod, RM, rcr8(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": rcr " + RMName + ", " + toHex8(Op2))
+				}
+				elseif (Reg == 4) # shl r8 / m8, imm8
+				{
+					writeModRM168(Mod, RM, shl8(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": shl " + RMName + ", " + toHex8(Op2))
+				}
+				elseif (Reg == 5) # shr r8 / m8, imm8
+				{
+					writeModRM168(Mod, RM, shr8(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": shr " + RMName + ", " + toHex8(Op2))
+				}
+				elseif (Reg == 6) # sal r8 / m8, imm8
+				{
+					writeModRM168(Mod, RM, shl8(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": sal " + RMName + ", " + toHex8(Op2))
+				}
+				elseif (Reg == 7) # sar r8 / m8, imm8
+				{
+					writeModRM168(Mod, RM, sar8(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": sar " + RMName + ", " + toHex8(Op2))
+				}
+				else
+				{
+					Halt = 1
+					printError(toHex1616(OCS, OIP) + ": 0xC0 r8 / m8, " + toHex8(Op2) + ": Unknown type " + Reg)
+				}
+			}
+			elseif (O == 0xC1) # shift/rotate r16/32 / m16/32, imm8
+			{
+				EIP++
+				Op1 = readModRM1616(Mod, RM)
+				Op2 = readImm8()
+				if (Reg == 0) # rol r16/32 / m16/32, imm8
+				{
+					writeModRM1616(Mod, RM, rol16(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": rol " + RMName + ", " + toHex8(Op2))
+				}
+				elseif (Reg == 1) # ror r16/32 / m16/32, imm8
+				{
+					writeModRM1616(Mod, RM, ror16(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": ror " + RMName + ", " + toHex8(Op2))
+				}
+				elseif (Reg == 2) # rcl r16/32 / m16/32, imm8
+				{
+					writeModRM1616(Mod, RM, rcl16(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": rcl " + RMName + ", " + toHex8(Op2))
+				}
+				elseif (Reg == 3) # rcr r16/32 / m16/32, imm8
+				{
+					writeModRM1616(Mod, RM, rcr16(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": rcr " + RMName + ", " + toHex8(Op2))
+				}
+				elseif (Reg == 4) # shl r16/32 / m16/32, imm8
+				{
+					writeModRM1616(Mod, RM, shl16(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": shl " + RMName + ", " + toHex8(Op2))
+				}
+				elseif (Reg == 5) # shr r16/32 / m16/32, imm8
+				{
+					writeModRM1616(Mod, RM, shr16(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": shr " + RMName + ", " + toHex8(Op2))
+				}
+				elseif (Reg == 6) # sal r16/32 / m16/32, imm8
+				{
+					writeModRM1616(Mod, RM, shl16(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": sal " + RMName + ", " + toHex8(Op2))
+				}
+				elseif (Reg == 7) # sar r16/32 / m16/32, imm8
+				{
+					writeModRM1616(Mod, RM, sar16(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": sar " + RMName + ", " + toHex8(Op2))
+				}
+				else
+				{
+					Halt = 1
+					printError(toHex1616(OCS, OIP) + ": 0xC1 r16/32 / m16/32, " + toHex8(Op2) + ": Unknown type " + Reg)
+				}
+			}
+			elseif (O == 0xC2) # retn imm16
+			{
+				Op1 = readImm16()
+				EIP = pop16()
+				ESP = (ESP + Op1) && 0xFFFF
+				dbgLogRet()
+				# printDebug(toHex1616(OCS, OIP) + ": retn " + toHex16(Op1))
+			}
+			elseif (O == 0xC3) # retn
+			{
+				EIP = pop16()
+				dbgLogRet()
+				# printDebug(toHex1616(OCS, OIP) + ": retn")
+			}
+			elseif (O == 0xC4) # les
+			{
+				EIP++
+				
+				RegName = R16Names[Reg, string]
+				Address = modRMAddress16(Mod, RM, 1)
+				writeR16(Reg, readInt16(Address))
+				ES = readInt16(Address + 2)
+				# printDebug(toHex1616(OCS, OIP) + ": les es:" + RegName + ", " + RMName + " (es:" + RegName + "=" + toHex1616(ES, readInt16(Address)) + ")")
+			}
+			elseif (O == 0xC5) # lds
+			{
+				EIP++
+				
+				RegName = R16Names[Reg, string]
+				Address = modRMAddress16(Mod, RM, 1)
+				writeR16(Reg, readInt16(Address))
+				DS = readInt16(Address + 2)
+				# printDebug(toHex1616(OCS, OIP) + ": lds ds:" + RegName + ", " + RMName + " (ds:" + RegName + "=" + toHex1616(DS, readInt16(Address)) + ")")
+			}
+			elseif (O == 0xC6) # mov r8 / m8, imm8
+			{
+				EIP++
+				readModRM168(Mod, RM) # consume the displacement bytes
+				
+				Op1 = readImm8()
+				
+				writeModRM168(Mod, RM, Op1)
+				# printDebug(toHex1616(OCS, OIP) + ": mov " + RMName + ", " + toHex8(Op1))
+			}
+			elseif (O == 0xC7) # mov r16/32 / m16/32, imm16/32
+			{
+				EIP++
+				readModRM1616(Mod, RM) # consume the displacement bytes
+				
+				Op1 = readImm16()
+				
+				writeModRM1616(Mod, RM, Op1)
+				# printDebug(toHex1616(OCS, OIP) + ": mov " + RMName + ", " + toHex16(Op1))
+			}
+			elseif (O == 0xCA) # retf imm16
+			{
+				Op1 = readImm16()
+				EIP = pop16()
+				CS = pop16()
+				ESP = (ESP + Op1) && 0xFFFF
+				dbgLogRet()
+				# printDebug(toHex1616(OCS, OIP) + ": retf " + toHex16(Op1))
+			}
+			elseif (O == 0xCB) # retf
+			{
+				EIP = pop16()
+				CS = pop16()
+				dbgLogRet()
+				# printDebug(toHex1616(OCS, OIP) + ": retf")
+			}
+			elseif (O == 0xCC) # int 0x03
+			{
+				enterInterrupt(0x03)
+				
+				# Don't call dbgLogCall here, it's called in enterInterrupt because of hardware interrupts.
+				if (CS == 0xC000 && EIP == 0x03 * 8) { }
+				else {  }
+			}
+			elseif (O == 0xCD) # int imm8
+			{
+				Op1 = readImm8()
+				AH = (EAX >> 8) && 0xFF
+				SupressIntMessage = 0
+				if (Op1 == 0x21)
+				{
+					if (AH == 0x3D) # DOS: Open file
+					{
+						DSDX = DS * 16 + EDX
+						SuppressIntMessage = 1
+						printInfo(toHex1616(OCS, OIP) + ": int 0x21, 0x3d: DOS: Open file: " + readString(DSDX, 16))
+					}
+				}
+				elseif (Op1 == 0x28) # DOS: Idle loop
+				{
+					SuppressIntMessage = 1
+					# printDebug(toHex1616(OCS, OIP) + ": int 0x28: DOS: Idle loop")
+				}
+				elseif (Op1 == 0x2A)
+				{
+					if (AH == 0x84) # DOS: Keyboard wait loop
+					{
+						SuppressIntMessage = 1
+						# printDebug(toHex1616(OCS, OIP) + ": int 0x2a, 0x84: DOS: Keyboard wait loop")
+					}
+				}
+				
+				enterInterrupt(Op1)
+				
+				# Don't call dbgLogCall here, it's called in enterInterrupt because of hardware interrupts.
+				if (!SuppressIntMessage)
+				{
+					if (CS == 0xC000 && EIP == Op1 * 8) { }
+					else { }
+				}
+			}
+			elseif (O == 0xCF) # iret
+			{
+				EIP = pop16()
+				CS = pop16()
+				popf16()
+				dbgLogRet()
+				# printDebug(toHex1616(OCS, OIP) + ": iret (" + toHex1616(CS, EIP) + ")")
+			}
+			elseif (O == 0xD0) # shift/rotate r8 / m8, 1
+			{
+				EIP++
+				Op1 = readModRM168(Mod, RM)
+				if (Reg == 0) # rol r8 / m8, 1
+				{
+					writeModRM168(Mod, RM, rol8(Op1, 1))
+					# printDebug(toHex1616(OCS, OIP) + ": rol " + RMName + ", 1")
+				}
+				elseif (Reg == 1) # ror r8 / m8, 1
+				{
+					writeModRM168(Mod, RM, ror8(Op1, 1))
+					# printDebug(toHex1616(OCS, OIP) + ": ror " + RMName + ", 1")
+				}
+				elseif (Reg == 2) # rcl r8 / m8, 1
+				{
+					writeModRM168(Mod, RM, rcl8(Op1, 1))
+					# printDebug(toHex1616(OCS, OIP) + ": rcl " + RMName + ", 1")
+				}
+				elseif (Reg == 3) # rcr r8 / m8, 1
+				{
+					writeModRM168(Mod, RM, rcr8(Op1, 1))
+					# printDebug(toHex1616(OCS, OIP) + ": rcr " + RMName + ", 1")
+				}
+				elseif (Reg == 4) # shl r8 / m8, 1
+				{
+					writeModRM168(Mod, RM, shl8(Op1, 1))
+					# printDebug(toHex1616(OCS, OIP) + ": shl " + RMName + ", 1")
+				}
+				elseif (Reg == 5) # shr r8 / m8, 1
+				{
+					writeModRM168(Mod, RM, shr8(Op1, 1))
+					# printDebug(toHex1616(OCS, OIP) + ": shr " + RMName + ", 1")
+				}
+				elseif (Reg == 6) # sal r8 / m8, 1
+				{
+					writeModRM168(Mod, RM, shl8(Op1, 1))
+					# printDebug(toHex1616(OCS, OIP) + ": sal " + RMName + ", 1")
+				}
+				elseif (Reg == 7) # sar r8 / m8, 1
+				{
+					writeModRM168(Mod, RM, sar8(Op1, 1))
+					# printDebug(toHex1616(OCS, OIP) + ": sar " + RMName + ", 1")
+				}
+				else
+				{
+					Halt = 1
+					printError(toHex1616(OCS, OIP) + ": 0xD0 r8 / m8, 1: Unknown type " + Reg)
+				}
+			}
+			elseif (O == 0xD1) # shift/rotate r16/32 / m16/32, 1
+			{
+				EIP++
+				Op1 = readModRM1616(Mod, RM)
+				if (Reg == 0) # rol r16/32 / m16/32, 1
+				{
+					writeModRM1616(Mod, RM, rol16(Op1, 1))
+					# printDebug(toHex1616(OCS, OIP) + ": rol " + RMName + ", 1")
+				}
+				elseif (Reg == 1) # ror r16/32 / m16/32, 1
+				{
+					writeModRM1616(Mod, RM, ror16(Op1, 1))
+					# printDebug(toHex1616(OCS, OIP) + ": ror " + RMName + ", 1")
+				}
+				elseif (Reg == 2) # rcl r16/32 / m16/32, 1
+				{
+					writeModRM1616(Mod, RM, rcl16(Op1, 1))
+					# printDebug(toHex1616(OCS, OIP) + ": rcl " + RMName + ", 1")
+				}
+				elseif (Reg == 3) # rcr r16/32 / m16/32, 1
+				{
+					writeModRM1616(Mod, RM, rcr16(Op1, 1))
+					# printDebug(toHex1616(OCS, OIP) + ": rcr " + RMName + ", 1")
+				}
+				elseif (Reg == 4) # shl r16/32 / m16/32, 1
+				{
+					writeModRM1616(Mod, RM, shl16(Op1, 1))
+					# printDebug(toHex1616(OCS, OIP) + ": shl " + RMName + ", 1")
+				}
+				elseif (Reg == 5) # shr r16/32 / m16/32, 1
+				{
+					writeModRM1616(Mod, RM, shr16(Op1, 1))
+					# printDebug(toHex1616(OCS, OIP) + ": shr " + RMName + ", 1")
+				}
+				elseif (Reg == 6) # sal r16/32 / m16/32, 1
+				{
+					writeModRM1616(Mod, RM, shl16(Op1, 1))
+					# printDebug(toHex1616(OCS, OIP) + ": sal " + RMName + ", 1")
+				}
+				elseif (Reg == 7) # sar r16/32 / m16/32, 1
+				{
+					writeModRM1616(Mod, RM, sar16(Op1, 1))
+					# printDebug(toHex1616(OCS, OIP) + ": sar " + RMName + ", 1")
+				}
+				else
+				{
+					Halt = 1
+					printError(toHex1616(OCS, OIP) + ": 0xD1 r16/32 / m16/32, 1: Unknown type " + Reg)
+				}
+			}
+			elseif (O == 0xD2) # shift/rotate r8 / m8, cl
+			{
+				EIP++
+				Op1 = readModRM168(Mod, RM)
+				Op2 = ECX && 0xFF
+				if (Reg == 0) # rol r8 / m8, cl
+				{
+					writeModRM168(Mod, RM, rol8(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": rol " + RMName + ", cl")
+				}
+				elseif (Reg == 1) # ror r8 / m8, cl
+				{
+					writeModRM168(Mod, RM, ror8(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": ror " + RMName + ", cl")
+				}
+				elseif (Reg == 2) # rcl r8 / m8, cl
+				{
+					writeModRM168(Mod, RM, rcl8(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": rcl " + RMName + ", cl")
+				}
+				elseif (Reg == 3) # rcr r8 / m8, cl
+				{
+					writeModRM168(Mod, RM, rcr8(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": rcr " + RMName + ", cl")
+				}
+				elseif (Reg == 4) # shl r8 / m8, cl
+				{
+					writeModRM168(Mod, RM, shl8(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": shl " + RMName + ", cl")
+				}
+				elseif (Reg == 5) # shr r8 / m8, cl
+				{
+					writeModRM168(Mod, RM, shr8(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": shr " + RMName + ", cl")
+				}
+				elseif (Reg == 6) # sal r8 / m8, cl
+				{
+					writeModRM168(Mod, RM, shl8(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": sal " + RMName + ", cl")
+				}
+				elseif (Reg == 7) # sar r8 / m8, cl
+				{
+					writeModRM168(Mod, RM, sar8(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": sar " + RMName + ", cl")
+				}
+				else
+				{
+					Halt = 1
+					printError(toHex1616(OCS, OIP) + ": 0xD2 r8 / m8, cl: Unknown type " + Reg)
+				}
+			}
+			elseif (O == 0xD3) # shift/rotate r16/32 / m16/32, cl
+			{
+				EIP++
+				Op1 = readModRM1616(Mod, RM)
+				Op2 = ECX && 0xFF
+				if (Reg == 0) # rol r16/32 / m16/32, cl
+				{
+					writeModRM1616(Mod, RM, rol16(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": rol " + RMName + ", cl")
+				}
+				elseif (Reg == 1) # ror r16/32 / m16/32, cl
+				{
+					writeModRM1616(Mod, RM, ror16(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": ror " + RMName + ", cl")
+				}
+				elseif (Reg == 2) # rcl r16/32 / m16/32, cl
+				{
+					writeModRM1616(Mod, RM, rcl16(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": rcl " + RMName + ", cl")
+				}
+				elseif (Reg == 3) # rcr r16/32 / m16/32, cl
+				{
+					writeModRM1616(Mod, RM, rcr16(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": rcr " + RMName + ", cl")
+				}
+				elseif (Reg == 4) # shl r16/32 / m16/32, cl
+				{
+					writeModRM1616(Mod, RM, shl16(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": shl " + RMName + ", cl")
+				}
+				elseif (Reg == 5) # shr r16/32 / m16/32, cl
+				{
+					writeModRM1616(Mod, RM, shr16(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": shr " + RMName + ", cl")
+				}
+				elseif (Reg == 6) # sal r16/32 / m16/32, cl
+				{
+					writeModRM1616(Mod, RM, shl16(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": sal " + RMName + ", cl")
+				}
+				elseif (Reg == 7) # sar r16/32 / m16/32, cl
+				{
+					writeModRM1616(Mod, RM, sar16(Op1, Op2))
+					# printDebug(toHex1616(OCS, OIP) + ": sar " + RMName + ", cl")
+				}
+				else
+				{
+					Halt = 1
+					printError(toHex1616(OCS, OIP) + ": 0xD3 r16/32 / m16/32, cl: Unknown type " + Reg)
+				}
+			}
+			elseif (O == 0xD4) # aam/amx imm8
+			{
+				Op1 = readImm8()
+				AL = EAX && 0xFF
+				AH = floor(AL / Op1)
+				AL = AL % Op1
+				EAX = (EAX && 0x7FFF0000) + (AH << 8) + AL
+				ZF = AL == 0
+				SF = (AL && 0x80) != 0
+				PF = Parity[AL, number]
+				# printDebug(toHex1616(OCS, OIP) + ": aam/amx " + toHex8(Op1))
+			}
+			elseif (O == 0xD5) # aad/adx imm8
+			{
+				Op1 = readImm8()
+				AL = EAX && 0xFF
+				AH = (EAX >> 8) && 0xFF
+				Value = (AH * Op1 + AL) && 0xFF
+				EAX = (EAX && 0x7FFF0000) + Value
+				ZF = Value == 0
+				SF = (Value && 0x80) != 0
+				PF = Parity[Value, number]
+				# printDebug(toHex1616(OCS, OIP) + ": aad/adx " + toHex8(Op1))
+			}
+			elseif (O == 0xD7) # xlat
+			{
+				SR = readSegmentRegister(abs(SegmentPrefix))
+				BX = EBX && 0xFFFF
+				RegName = SRNames[abs(SegmentPrefix), string]
+				AL = EAX && 0xFF
+				
+				EAX = (EAX && 0x7FFFFF00) + readInt8(SR * 16 + BX + AL)
+				# printDebug(toHex1616(OCS, OIP) + ": xlat (" + RegName + ":bx + al = " + toHex1616(SR, BX) + " + " + toHex8(AL) + ") (" + toHex8(EAX && 0xFF) + ")")
+			}
+			elseif (O == 0xE0) # loopnz/loopne rel8
+			{
+				Op1 = readImm8()
+				
+				Value = ECX && 0xFFFF
+				if (Value == 0) { Value = 0xFFFF } else { Value-- }
+				ECX = (ECX && 0x7FFF0000) + Value
+				if ((Op1 && 0x80) == 0) { Value = Op1 } else { Value = 0xFF00 + Op1 }
+				if ((ECX && 0xFFFF) != 0 & ZF == 0) { EIP = (EIP + Value) && 0xFFFF }
+				# printDebug(toHex1616(OCS, OIP) + ": loopnz/loopne +" + toHex8(Op1) + " CX=" + toHex16(ECX && 0xFFFF) + " ZF=" + ZF)
+			}
+			elseif (O == 0xE1) # loopz/loope rel8
+			{
+				Op1 = readImm8()
+				
+				Value = ECX && 0xFFFF
+				if (Value == 0) { Value = 0xFFFF } else { Value-- }
+				ECX = (ECX && 0x7FFF0000) + Value
+				if ((Op1 && 0x80) == 0) { Value = Op1 } else { Value = 0xFF00 + Op1 }
+				if ((ECX && 0xFFFF) != 0 & ZF == 1) { EIP = (EIP + Value) && 0xFFFF }
+				# printDebug(toHex1616(OCS, OIP) + ": loopz/loope +" + toHex8(Op1) + " CX=" + toHex16(ECX && 0xFFFF) + " ZF=" + ZF)
+			}
+			elseif (O == 0xE2) # loop rel8
+			{
+				Op1 = readImm8()
+				
+				Value = ECX && 0xFFFF
+				if (Value == 0) { Value = 0xFFFF } else { Value-- }
+				ECX = (ECX && 0x7FFF0000) + Value
+				if ((Op1 && 0x80) == 0) { Value = Op1 } else { Value = 0xFF00 + Op1 }
+				if ((ECX && 0xFFFF) != 0) { EIP = (EIP + Value) && 0xFFFF }
+				# printDebug(toHex1616(OCS, OIP) + ": loop +" + toHex8(Op1) + " CX=" + toHex16(ECX && 0xFFFF))
+			}
+			elseif (O == 0xE3) # j(e)cxz rel8
+			{
+				Op1 = readImm8()
+				
+				if ((Op1 && 0x80) == 0) { Value = Op1 } else { Value = 0xFF00 + Op1 }
+				if ((ECX && 0xFFFF) == 0) { EIP = (EIP + Value) && 0xFFFF }
+				# printDebug(toHex1616(OCS, OIP) + ": jcxz +" + toHex8(Op1) + " CX=" + toHex16(ECX && 0xFFFF))
+			}
+			elseif (O == 0xE4) # in al, imm8
+			{
+				DestOperandSize = 8
+				RegName = "al"
+				Op1 = readImm8()
+				Value = 0
+				if (Op1 == 0x60) # 8042 Keyboard Output Register
+				{
+					Value = C8042OutputRegister
+					C8042OutputFull = 0
+					printInfo(toHex1616(OCS, OIP) + ": in " + RegName + ", 0x60: 8042 Keyboard Output Register")
+				}
+				elseif (Op1 == 0x61) # 8255 Controller
+				{
+					Value = (C8255Toggle << 4) + (C8255SpeakerEnabled << 1) + C8255TimerEnabled
+					C8255Toggle = !C8255Toggle
+					printInfo(toHex1616(OCS, OIP) + ": in " + RegName + ", 0x61: 8255 Controller")
+				}
+				elseif (Op1 == 0x64) # 8042 Keyboard Microcontroller Status
+				{
+					# TODO: Update for keyboard input queue
+					Value = 0x10 + (C8042InputFull << 1) + C8042OutputFull # Keyboard enabled.
+					printInfo(toHex1616(OCS, OIP) + ": in " + RegName + ", 0x64: 8042 Keyboard Controller Status")
+				}
+				elseif (Op1 == 0x71) # CMOS / RTC read
+				{
+					if (CMOSIndex == 0x0B) # Status Register B
+					{
+						Value = 0x00 # normal update, all interrupts disabled, 24 hour mode, daylight savings disabled
+						printInfo(toHex1616(OCS, OIP) + ": in " + RegName + ", 0x71: 0x0b: CMOS / RTC: Read Status Register B")
+					}
+					elseif (CMOSIndex == 0x0F) # Shutdown status
+					{
+						Value = CMOS[0x0F, number]
+						printInfo(toHex1616(OCS, OIP) + ": in " + RegName + ", 0x71: 0x0f: CMOS / RTC: Read Shutdown Status")
+					}
+					elseif (CMOSIndex == 0x17) # LSB of total extended memory in KiB >> 10
+					{
+						Value = CMOS[0x17, number]
+						printInfo(toHex1616(OCS, OIP) + ": in " + RegName + ", 0x71: 0x17: CMOS / RTC: Extended Memory Size LSB")
+					}
+					elseif (CMOSIndex == 0x18) # MSB of total extended memory in KiB >> 10
+					{
+						Value = CMOS[0x18, number]
+						printInfo(toHex1616(OCS, OIP) + ": in " + RegName + ", 0x71: 0x17: CMOS / RTC: Extended Memory Size MSB")
+					}
+					else
+					{
+						Halt = 1
+						printError(toHex1616(OCS, OIP) + ": in " + RegName + ", 0x71: " + toHex8(CMOSIndex) + ": CMOS / RTC: Read unknown register")
+					}
+					CMOSIndex = 0x0D
+				}
+				else
+				{
+					Halt = 1
+					printError(toHex1616(OCS, OIP) + ": in " + RegName + ", " + toHex8(Op1) + ": Unknown port")
+				}
+				if (DestOperandSize == 8) { EAX = (EAX && 0x7FFFFF00) + (Value && 0xFF) }
+				elseif (DestOperandSize == 16) { EAX = (EAX && 0x7FFF0000) + (Value && 0xFFFF) }
+				else { Halt = 1, printError(toHex1616(OCS, OIP) + ": in " + RegName + ", " + toHex8(Op1) + ": Invalid destination operand size (" + DestOperandSize + ")") }
+			}
+			elseif (O == 0xE6 | # out imm8, al
+					O == 0xEE)  # out dx, al
+			{
+				if (O == 0xE6) { Op1 = readImm8() }
+				elseif (O == 0xEE) { Op1 = EDX && 0xFFFF }
+				AL = EAX && 0xFF
+				if (Op1 == 0x0D) # DMA1 master reset
+				{
+					printInfo(toHex1616(OCS, OIP) + ": out 0x0d, al: DMA1 master reset")
+				}
+				elseif (Op1 == 0x20) # 8259A
+				{
+					if (AL == 0x20)
+					{
+						IMR = 0
+						printInfo(toHex1616(OCS, OIP) + ": out 0x20, al: End of Interrupt")
+					}
+					else
+					{
+						Halt = 1
+						printError(toHex1616(OCS, OIP) + ": out 0x20, al: 8259: Unknown command (AL=" + toHex8(AL) + ")")
+					}
+				}
+				elseif (Op1 == 0x60) # 8042 Keyboard Command
+				{
+					if (C8042Last60Command == 0xF0)
+					{
+						C8042Last60Command = 0x00
+						C8042ScanCodeSet = AL
+						writeInt8(0x0497, readInt8(0x0497) || 0x10) # ACK
+						printInfo(toHex1616(OCS, OIP) + ": out 0x60, al (" + toHex8(AL) + "): Scan code set set")
+					}
+					else
+					{
+						if (AL == 0xF0) # Select Scan Code Set
+						{
+							writeInt8(0x0497, readInt8(0x0497) || 0x10) # ACK
+							printInfo(toHex1616(OCS, OIP) + ": out 0x60, al (0xf0): Select Scan Code Set")
+						}
+						elseif (AL == 0xF2) # Read Keyboard ID
+						{
+							C8042OutputRegister = 0x83AB
+							C8042OutputFull = 1
+							writeInt8(0x0496, 0x10) # No longer reading keyboard ID, 101/102-key keyboard
+							writeInt8(0x0497, readInt8(0x0497) || 0x10) # ACK
+							printInfo(toHex1616(OCS, OIP) + ": out 0x60, al (0xf2): Read Keyboard ID")
+						}
+						else
+						{
+							Halt = 1
+							printError(toHex1616(OCS, OIP) + ": out 0x60, al (" + toHex8(AL) + "): Unknown command")
+						}
+						C8042Last60Command = AL
+					}
+				}
+				elseif (Op1 == 0x64) # 8042 Keyboard Command
+				{
+					if (AL == 0x20) # Read Command Byte
+					{
+						C8042OutputRegister = (C8042ScancodeTranslation << 6) + (C8042MouseDisabled << 5) + (C8042KeyboardDisabled << 4) + (C8042OverrideInhibit << 3) + C8042InterruptEnabled
+						C8042OutputFull = 1
+						printInfo(toHex1616(OCS, OIP) + ": out 0x64, al (0x20): 8042: Read Command Byte")
+					}
+					elseif (AL == 0xAD) # Disable Keyboard Interface
+					{
+						C8042KeyboardDisabled = 1
+						printInfo(toHex1616(OCS, OIP) + ": out 0x64, al (0xAD): 8042: Disable keyboard interface")
+					}
+					elseif (AL == 0xAE) # Enable Keyboard Interface
+					{
+						C8042KeyboardDisabled = 0
+						printInfo(toHex1616(OCS, OIP) + ": out 0x64, al (0xAE): 8042: Enable keyboard interface")
+					}
+					else
+					{
+						Halt = 1
+						printError(toHex1616(OCS, OIP) + ": out 0x64, al (" + toHex8(AL) + "): Unknown command")
+					}
+				}
+				elseif (Op1 == 0x70) # CMOS / RTC state
+				{
+					NMI = (AL && 0x80) != 0
+					CMOSIndex = AL && 0x7F
+					printInfo(toHex1616(OCS, OIP) + ": out 0x70, al: CMOS / RTC (NMI: " + NMI + ", Register: " + toHex8(CMOSIndex) + ")")
+				}
+				elseif (Op1 == 0x71) # CMOS / RTC write
+				{
+					if (CMOSIndex == 0x0A) # Status Register A
+					{
+						printInfo(toHex1616(OCS, OIP) + ": out 0x71, al: Write CMOS Status Register A (" + toHex8(AL) + ")")
+					}
+					elseif (CMOSIndex == 0x0B) # Status Register B
+					{
+						printInfo(toHex1616(OCS, OIP) + ": out 0x71, al: Write CMOS Status Register B (" + toHex8(AL) + ")")
+					}
+					elseif (CMOSIndex == 0x0F) # shutdown status
+					{
+						CMOS[0x0F, number] = AL
+						printInfo(toHex1616(OCS, OIP) + ": out 0x71, al: Write CMOS Shutdown Status (" + toHex8(AL) + ")")
+					}
+					elseif (CMOSIndex == 0x17) # LSB extended memory in KiB
+					{
+						CMOS[0x17, number] = AL
+						printInfo(toHex1616(OCS, OIP) + ": out 0x71, al: Write CMOS Extended Memory Size LSB (" + toHex8(AL) + ")")
+					}
+					elseif (CMOSIndex == 0x18) # MSB extended memory in KiB
+					{
+						CMOS[0x18, number] = AL
+						printInfo(toHex1616(OCS, OIP) + ": out 0x71, al: Write CMOS Extended Memory Size MSB (" + toHex8(AL) + ")")
+					}
+					else
+					{
+						Halt = 1
+						printError(toHex1616(OCS, OIP) + ": out 0x71, al: CMOS / RTC: Unhandled register")
+					}
+					CMOSIndex = 0x0B
+				}
+				elseif (Op1 == 0xD4) # DMA2 single channel mask register
+				{
+					DMA2[0x0A, number] = AL
+					printInfo(toHex1616(OCS, OIP) + ": out 0xd6, al: DMA2 set single channel mask register (" + toHex8(AL) + ")")
+				}
+				elseif (Op1 == 0xD6) # DMA2 mode register
+				{
+					DMA2[0x0B, number] = AL
+					printInfo(toHex1616(OCS, OIP) + ": out 0xd6, al: DMA2 set mode (" + toHex8(AL) + ")")
+				}
+				elseif (Op1 == 0xDA) # DMA2 master reset
+				{
+					printInfo(toHex1616(OCS, OIP) + ": out 0xda, al: DMA2 master reset")
+				}
+				elseif (Op1 >= 0x02F2 & Op1 <= 0x02F7)
+				{
+					printInfo(toHex1616(OCS, OIP) + ": out " + toHex16(Op1) + ", al: Unhandled I/O port")
+					# out 02f2h,xx  ; interrupt level 2
+					# out 02f3h,xx  ; interrupt level 3
+					# out 02f4h,xx  ; interrupt level 4
+					# out 02f5h,xx  ; interrupt level 5
+					# out 02f6h,xx  ; interrupt level 6
+					# out 02f7h,xx  ; interrupt level 7
+					# out 06f2h,xx  ; interrupt level 10
+					# out 06f3h,xx  ; interrupt level 11
+					# out 06f4h,xx  ; interrupt level 12
+					# out 06f6h,xx  ; interrupt level 14
+					# out 06f7h,xx  ; interrupt level 15
+				}
+				elseif (Op1 == 0x03F2) # FD Digital Control Port
+				{
+					Device = AL && 0x03
+					Reset = (AL && 0x04) == 0
+					EnableInterruptAndDMA = (AL && 0x08) != 0
+					Motors = (AL && 0xF0) >> 4
+					printInfo(toHex1616(OCS, OIP) + ": out dx (0x03F2), al: FD DCP (dev" + Device + ", rst " + Reset + ", int+dma " + EnableInterruptAndDMA + ", motors " + toHex8(Motors) + ")")
+				}
+				elseif (Op1 == 0x0402) # DMA channel 0 word count byte
+				{
+					printInfo(toHex1616(OCS, OIP) + ": out dx (0x0402), al: DMA channel 0 word count (" + toHex8(AL) + ")")
+				}
+				elseif (Op1 >= 0x06F2 & Op1 <= 0x06F7)
+				{
+					printInfo(toHex1616(OCS, OIP) + ": out " + toHex16(Op1) + ", al: Unhandled I/O port")
+				}
+				else
+				{
+					ExecutionMode = 0
+					printError(toHex1616(OCS, OIP) + ": out " + toHex16(Op1) + ", al: Unknown port (AL=" + toHex8(AL) + ")")
+				}
+			}
+			elseif (O == 0xE8) # call rel16/32
+			{
+				Op1 = readImm16()
+				
+				push16(EIP)				
+				EIP = (EIP + Op1) && 0xFFFF
+				dbgLogCall(OCS, OIP, CS, EIP)
+				# printDebug(toHex1616(OCS, OIP) + ": call +" + toHex16(Op1) + " (" + toHex1616(CS, EIP) + ")")
+			}
+			elseif (O == 0xE9) # jmp rel16/32
+			{
+				Op1 = readImm16()
+				EIP = (EIP + Op1) && 0xFFFF
+				# printDebug(toHex1616(OCS, OIP) + ": jmp +" + toHex16(Op1) + " (" + toHex1616(CS, EIP) + ")")
+			}
+			elseif (O == 0xEA) # jmpf ptr16:16/32
+			{
+				Op1 = readImm16() # readImm16() uses CS:EIP
+				Op2 = readImm16()
+				EIP = Op1
+				CS = Op2
+				# printDebug(toHex1616(OCS, OIP) + ": jmpf " + toHex1616(CS, EIP))
+			}
+			elseif (O == 0xEB) # jmp rel8
+			{
+				Op1 = readImm8()
+				if ((Op1 && 0x80) == 0) { Value = Op1 } else { Value = 0xFF00 + Op1 }
+				EIP = (EIP + Value) && 0xFFFF
+				# printDebug(toHex1616(OCS, OIP) + ": jmp +" + toHex8(Op1) + " (" + toHex1616(CS, EIP) + ")")
+			}
+			elseif (O == 0xF2) # rep/repnz/repne
+			{
+				O = readImm8()
+				AX = EAX && 0xFFFF
+				AL = EAX && 0xFF
+				CX = ECX && 0xFFFF
+				if (O == 0xAE)
+				{
+					Str1 = readString(ES * 16 + EDI, 16)
+					printInfo(toHex1616(OCS, OIP) + ": repne scasb (" + toHex16(CX) + ", es:di (" + toHex1616(ES, EDI) + "=" + Str1 + "), al (" + toHex8(AL) + "=" + escapeString(toChar(AL)) + "))")
+				}
+				else
+				{
+					Halt = 1
+					printError(toHex1616(OCS, OIP) + ": 0xf2 rep/repnz/repne " + toHex8(O) + ": Unknown opcode")
+				}
+				if (!Halt) { State = 0xF2, SubState = O, break }
+			}
+			elseif (O == 0xF3) # rep/repz/repe
+			{
+				O = readImm8()
+				AX = EAX && 0xFFFF
+				AL = EAX && 0xFF
+				CX = ECX && 0xFFFF
+				if (O == 0xA4)
+				{
+					SR = readSegmentRegister(abs(SegmentPrefix))
+					Str1 = readString(SR * 16 + ESI, 16)
+					printInfo(toHex1616(OCS, OIP) + ": rep movsb (" + toHex16(CX) + ", " + SRNames[abs(SegmentPrefix), string] + ":si (" + toHex1616(SR, ESI) + "=" + Str1 + ") to es:di (" + toHex1616(ES, EDI) + "))")
+				}
+				elseif (O == 0xA5)
+				{
+					SR = readSegmentRegister(abs(SegmentPrefix))
+					Str1 = readString(SR * 16 + ESI, 16)
+					printInfo(toHex1616(OCS, OIP) + ": rep movsw (" + toHex16(CX) + ", " + SRNames[abs(SegmentPrefix), string] + ":si (" + toHex1616(SR, ESI) + "=" + Str1 + ") to es:di (" + toHex1616(ES, EDI) + "))")
+				}
+				elseif (O == 0xA6)
+				{
+					SR = readSegmentRegister(abs(SegmentPrefix))
+					Str1 = readString(SR * 16 + ESI, 16)
+					Str2 = readString(ES * 16 + EDI, 16)
+					printInfo(toHex1616(OCS, OIP) + ": repe cmpsb (" + toHex16(CX) + ", " + SRNames[abs(SegmentPrefix), string] + ":si (" + toHex1616(SR, ESI) + "=" + Str1 + "), es:di (" + toHex1616(ES, EDI) + "=" + Str2 + "))")
+				}
+				elseif (O == 0xA7)
+				{
+					SR = readSegmentRegister(abs(SegmentPrefix))
+					Str1 = readString(SR * 16 + ESI, 16)
+					Str2 = readString(ES * 16 + EDI, 16)
+					printInfo(toHex1616(OCS, OIP) + ": repe cmpsw (" + toHex16(CX) + ", " + SRNames[abs(SegmentPrefix), string] + ":si (" + toHex1616(SR, ESI) + "=" + Str1 + "), es:di (" + toHex1616(ES, EDI) + "=" + Str2 + "))")
+				}
+				elseif (O == 0xAA)
+				{
+					# printDebug(toHex1616(OCS, OIP) + ": rep stosb (" + toHex16(CX) + ", es:di (" + toHex1616(ES, EDI) + "), al (" + toHex8(AL) + "=" + escapeString(toChar(AL)) + "))")
+				}
+				elseif (O == 0xAB)
+				{
+					# printDebug(toHex1616(OCS, OIP) + ": rep stosw (" + toHex16(CX) + ", es:di (" + toHex1616(ES, EDI) + "), ax (" + toHex16(AX) + "=" + escapeString(toChar(AX)) + "))")
+				}
+				elseif (O == 0xAE)
+				{
+					Str1 = readString(ES * 16 + EDI, 16)
+					printInfo(toHex1616(OCS, OIP) + ": repe scasb (" + toHex16(CX) + ", es:di (" + toHex1616(ES, EDI) + "=" + Str1 + "), al (" + toHex8(AL) + "=" + escapeString(toChar(AL)) + "))")
+				}
+				else
+				{
+					Halt = 1
+					printError(toHex1616(OCS, OIP) + ": 0xF3 rep/repz/repe " + toHex8(O) + ": Unknown opcode")
+				}
+				if (!Halt) { State = 0xF3, SubState = O, break }
+			}
+			elseif (O == 0xF4) # hlt
+			{
+				Halt = 1
+				printInfo(toHex1616(OCS, OIP) + ": hlt")
+			}
+			elseif (O == 0xF5) # cmc
+			{
+				CF = !CF
+				# printDebug(toHex1616(OCS, OIP) + ": cmc")
+			}
+			elseif (O == 0xF6)
+			{
+				EIP++
+				
+				if (Reg == 0 |
+					Reg == 1) # test r8 / m8, imm8
+				{
+					Op1 = readModRM168(Mod, RM)
+					Op2 = readImm8()
+					and8(Op1, Op2)
+					# printDebug(toHex1616(OCS, OIP) + ": test " + RMName + ", " + toHex8(Op2) + ": [LHS]=" + toHex8(Op1) + " ZF=" + ZF)
+				}
+				elseif (Reg == 2) # not r8 / m8
+				{
+					Op1 = readModRM168(Mod, RM)
+					writeModRM168(Mod, RM, not8(Op1))
+					# printDebug(toHex1616(OCS, OIP) + ": not " + RMName)
+				}
+				elseif (Reg == 3) # neg r8 / m8
+				{
+					Op1 = readModRM168(Mod, RM)
+					writeModRM168(Mod, RM, neg8(Op1))
+					# printDebug(toHex1616(OCS, OIP) + ": neg " + RMName)
+				}
+				elseif (Reg == 4) # mul al, r8 / m8
+				{
+					Op1 = EAX && 0xFF
+					Op2 = readModRM168(Mod, RM)
+					Value = Op1 * Op2
+					EAX = (EAX && 0x7FFF0000) + Value
+					CF = (Value >> 8) != 0
+					OF = CF
+					# printDebug(toHex1616(OCS, OIP) + ": mul al, " + RMName)
+				}
+				elseif (Reg == 5) # imul al, r8 / m8
+				{
+					Op1 = EAX && 0xFF
+					Op2 = readModRM168(Mod, RM)
+					OOp1 = Op1, OOp2 = Op2
+					if (Op1 && 0x80) { Op1 -= 0x0100 }
+					if (Op2 && 0x80) { Op2 -= 0x0100 }
+					Value = Op1 * Op2
+					if (Value < 0) { Value += 0x00010000 }
+					EAX = (EAX && 0x7FFF0000) + (Value && 0xFFFF)
+					if (EAX && 0x80) { CF = ((EAX >> 8) && 0xFF) != 0xFF }
+					else { CF = ((EAX >> 8) && 0xFF) != 0x00 }
+					OF = CF
+					printInfo(toHex1616(OCS, OIP) + ": imul al, " + RMName + " (al (" + toHex8(OOp1) + ") * " + RMName + " (" + toHex8(OOp2) + ") = " + toHex16(Value && 0xFFFF) + ")")
+				}
+				elseif (Reg == 6) # div ax, r8 / m8
+				{
+					Op1 = EAX && 0xFFFF
+					Op2 = readModRM168(Mod, RM)
+					Value = floor(Op1 / Op2)
+					if (Op2 == 0) { Halt = 1, printError(toHex1616(OCS, OIP) + ": div ax, " + RMName + ": Divide by zero") }
+					elseif (Value > 0xFF) { Halt = 1, printError(toHex1616(OCS, OIP) + ": div ax, " + RMName + ": Divide overflow") }
+					Remainder = Op1 % Op2
+					EAX = (EAX && 0x7FFF0000) + (Remainder << 8) + (Value && 0xFF)
+					# printDebug(toHex1616(OCS, OIP) + ": div ax, " + RMName)
+				}
+				else
+				{
+					Halt = 1
+					printError(toHex1616(OCS, OIP) + ": 0xF6:" + Reg + ": Unhandled type")
+				}
+			}
+			elseif (O == 0xF7)
+			{
+				EIP++
+				
+				if (Reg == 0 |
+					Reg == 1) # test r16/32 / m16/32, imm16/32
+				{
+					Op1 = readModRM1616(Mod, RM)
+					Op2 = readImm16()
+					and16(Op1, Op2)
+					# printDebug(toHex1616(OCS, OIP) + ": test " + RMName + ", " + toHex16(Op2) + ": [LHS]=" + toHex16(Op1) + " ZF=" + ZF)
+				}
+				elseif (Reg == 2) # not r16/32 / m16/32
+				{
+					Op1 = readModRM1616(Mod, RM)
+					writeModRM1616(Mod, RM, not16(Op1))
+					# printDebug(toHex1616(OCS, OIP) + ": not " + RMName)
+				}
+				elseif (Reg == 3) # neg r16/32 / m16/32
+				{
+					Op1 = readModRM1616(Mod, RM)
+					writeModRM1616(Mod, RM, neg16(Op1))
+					# printDebug(toHex1616(OCS, OIP) + ": neg " + RMName)
+				}
+				elseif (Reg == 4) # mul ax, r16/32 / m16/32
+				{
+					Op1 = EAX && 0xFFFF
+					Op2 = readModRM1616(Mod, RM)
+					Value = Op1 * Op2
+					if (Value >= 0x80000000) { Halt = 1, printError(toHex1616(OCS, OIP) + ": mul ax, " + RMName + ": result has 31st bit set!!!!") }
+					EAX = (EAX && 0x7FFF0000) + (Value && 0xFFFF)
+					EDX = (EDX && 0x7FFF0000) + (Value >> 16)
+					CF = (Value >> 16) != 0
+					OF = CF
+					# printDebug(toHex1616(OCS, OIP) + ": mul ax, " + RMName)
+				}
+				elseif (Reg == 5) # imul ax, r16/32 / m16/32
+				{
+					Op1 = EAX && 0xFFFF
+					Op2 = readModRM1616(Mod, RM)
+					OOp1 = Op1, OOp2 = Op2
+					if (Op1 && 0x8000) { Op1 -= 0x00010000 }
+					if (Op2 && 0x8000) { Op2 -= 0x00010000 }
+					Value = Op1 * Op2
+					# Value cannot exceed +/- 0x40000000
+					if (Value < 0) { Value += 0x80000000 }
+					EAX = (EAX && 0x7FFF0000) + (Value && 0xFFFF)
+					EDX = (EDX && 0x7FFF0000) + ((Value >> 16) && 0xFFFF)
+					if (EAX && 0x8000) { CF = (EDX && 0xFFFF) != 0xFFFF }
+					else { CF = (EDX && 0xFFFF) != 0x0000 }
+					OF = CF
+					printInfo(toHex1616(OCS, OIP) + ": imul ax, " + RMName + " (ax (" + toHex16(OOp1) + ") * " + RMName + " (" + toHex16(OOp2) + ") = " + toHex32(Value) + ")")
+				}
+				elseif (Reg == 6) # div dx:ax, r16/32 / m16/32
+				{
+					Op1 = ((EDX && 0xFFFF) << 16) + (EAX && 0xFFFF)
+					if (Op1 < 0) { Op1 += 4294967296 } # Garrybug.
+					Op2 = readModRM1616(Mod, RM)
+					Value = floor(Op1 / Op2)
+					if (Op2 == 0) { Halt = 1, printError(toHex1616(OCS, OIP) + ": div dx:ax, " + RMName + ": Divide by zero") }
+					elseif (Value > 0xFFFF) { Halt = 1, printError(toHex1616(OCS, OIP) + ": div dx:ax, " + RMName + ": Divide overflow") }
+					Remainder = Op1 % Op2
+					EAX = (EAX && 0x7FFF0000) + (Value && 0xFFFF)
+					EDX = (EDX && 0x7FFF0000) + Remainder
+					# printDebug(toHex1616(OCS, OIP) + ": div dx:ax, " + RMName)
+				}
+				else
+				{
+					Halt = 1
+					printError(toHex1616(OCS, OIP) + ": 0xF7:" + Reg + ": Unhandled type")
+				}
+			}
+			elseif (O == 0xF8) { CF = 0 }
+			elseif (O == 0xF9) { CF = 1 }
+			elseif (O == 0xFA) { IF = 0 }
+			elseif (O == 0xFB) { IF = 1 }
+			elseif (O == 0xFC) { DF = 0 }
+			elseif (O == 0xFD) { DF = 1 }
+			elseif (O == 0xFE) # inc/dec r8 / m8
+			{
+				EIP++
+				
+				if (Reg == 0) { writeModRM168(Mod, RM, inc8(readModRM168(Mod, RM))) } # inc r8 / m8
+				elseif (Reg == 1) { writeModRM168(Mod, RM, dec8(readModRM168(Mod, RM))) } # dec r8 / m8
+				else
+				{
+					Halt = 1
+					printError(toHex1616(OCS, OIP) + ": 0xFE:" + Reg + ": Unhandled type")
+				}
+			}
+			elseif (O == 0xFF)
+			{
+				EIP++
+				
+				if (Reg == 0) { writeModRM1616(Mod, RM, inc16(readModRM1616(Mod, RM))) } # inc r16/32 / m16/32
+				elseif (Reg == 1) { writeModRM1616(Mod, RM, dec16(readModRM1616(Mod, RM))) } # dec r16/32 / m16/32
+				elseif (Reg == 2) # call r16/32 / m16/32
+				{
+					Op1 = readModRM1616(Mod, RM)
+					
+					push16(EIP && 0xFFFF)
+					EIP = Op1
+					dbgLogCall(OCS, OIP, CS, EIP)
+					# printDebug(toHex1616(OCS, OIP) + ": call " + RMName + " (" + toHex1616(CS, EIP) + ")")
+				}
+				elseif (Reg == 3) # callf m16:16/32
+				{
+					Address = modRMAddress16(Mod, RM, 1)
+					
+					# Push CS, EIP onto stack
+					push16(CS)
+					push16(EIP && 0xFFFF)
+					# Address points to (EIP, CS) in that order
+					EIP = readInt16(Address)
+					CS = readInt16(Address + 2)
+					dbgLogCall(OCS, OIP, CS, EIP)
+					# printDebug(toHex1616(OCS, OIP) + ": callf " + RMName + " (" + toHex1616(CS, EIP) + ")")
+				}
+				elseif (Reg == 4) # jmp r16/32 / m16/32
+				{
+					Op1 = readModRM1616(Mod, RM)
+					
+					EIP = Op1
+					# printDebug(toHex1616(OCS, OIP) + ": jmp " + RMName)
+				}
+				elseif (Reg == 5) # jmpf m16:16/32
+				{
+					Address = modRMAddress16(Mod, RM, 1)
+					
+					# Address points to (EIP, CS) in that order
+					EIP = readInt16(Address)
+					CS = readInt16(Address + 2)
+					# printDebug(toHex1616(OCS, OIP) + ": jmpf " + RMName + " (" + toHex1616(CS, EIP) + ")")
+				}
+				elseif (Reg == 6) # push r16/32 / m16/32
+				{
+					Op1 = readModRM1616(Mod, RM)
+					push16(Op1)
+					# printDebug(toHex1616(OCS, OIP) + ": push " + RMName + " (" + toHex16(Op1) + ")")
+				}
+				else
+				{
+					Halt = 1
+					printError(toHex1616(OCS, OIP) + ": 0xFF r16/32 / m16/32: Unknown type " + Reg)
+				}
+			}
+			else
+			{
+				Halt = 1
+				printError(toHex1616(OCS, OIP) + ": Unknown opcode " + toHex8(O))
+			}
+		}
+		if (InitialHalt != Halt & Halt)
+		{
+			CS = OCS
+			EIP = OIP
+			printInfo("Halted at " + toHex1616(OCS, OIP) + ".")
+		}
+
+		if (!InitialHalt)
+		{
+			updateTooltip()
+		}
+	}
+	elseif (State == 0x10) # int 10h
+	{
+		if (SubState == 0x07) # Scroll down
+		{
+			while (perf())
+			{
+				writeChar(S1007X, S1007Y, 0x00, S1007CSColor)
+				S1007X++
+				if (S1007X > S1007BX) { S1007X = S1007TX, S1007Y++ }
+				if (S1007Y > S1007BY) { State = 3, SubState = 0, break }
+			}
+		}
+		elseif (SubState == 0x09) # Write char
+		{
+			while (perf())
+			{
+				if (S1009I >= S1009Count) { State = 3, SubState = 0, break }
+				writeChar(CSX, CSY, S1009CSChar, S1009CSColor)
+				S1009I++
+			}
+		}
+	}
+	elseif (State == 0x13) # int 13h
+	{
+		if (SubState == 0x02) # Read Drive Sectors
+		{
+			if (S1302Drive == 0x00) { Drive = Floppy }
+			elseif (S1302Drive == 0x80) { Drive = HDD }
+			while (perf())
+			{
+				if (S1302ByteIndex >= S1302BytesToRead) { State = 3, SubState = 0, break }
+				writeInt8(S1302DestAddr + S1302ByteIndex, Drive[-(S1302SrcAddr + S1302ByteIndex), number])
+				S1302ByteIndex++
+			}
+		}
+		elseif (SubState == 0x03) # Write Drive Sectors
+		{
+			if (S1303Drive == 0x00) { Drive = Floppy }
+			elseif (S1303Drive == 0x80) { Drive = HDD }
+			while (perf())
+			{
+				if (S1303ByteIndex >= S1303BytesToRead) { State = 3, SubState = 0, break }
+				Drive[-(S1303SrcAddr + S1303ByteIndex), number] = readInt8(S1303DestAddr + S1303ByteIndex)
+				S1303ByteIndex++
+			}
+		}
+	}
+	elseif (State == 0x15)
+	{
+		if (SubState == 0x87)
+		{
+			while (perf())
+			{
+				if (S1587Index >= S1587Words) { State = 3, SubState = 0, break }
+				writeInt16(S1587Dest + S1587Index * 2, readInt16(S1587Source + S1587Index * 2))
+				S1587Index++
+			}
+		}
+	}
+	elseif (State == 0x16) # BIOS Keyboard Call
+	{
+		if (SubState == 0x00) # Read char
+		{
+			if (KeyboardQueue:count())
+			{
+				Key = KeyboardQueue:removeNumber(1)
+				if (Key > 0)
+				{
+					EAX = (EAX && 0x7FFF0000) + (getKeyboardScanCode(Key) << 8) + getKeyboardAscii(Key)
+					State = 3, SubState = 0
+				}
+			}
+		}
+		elseif (SubState == 0x10) # Read char
+		{
+			if (KeyboardQueue:count())
+			{
+				Key = KeyboardQueue:removeNumber(1)
+				if (Key > 0)
+				{
+					EAX = (EAX && 0x7FFF0000) + (getKeyboardScanCode(Key) << 8) + getKeyboardAscii(Key)
+					State = 3, SubState = 0
+				}
+			}
+		}
+	}
+	elseif (State == 0xF2)
+	{
+		if (SubState == 0xAE)
+		{
+			# repne scasb (es:di)
+			Op1 = EAX && 0xFF
+			while (perf())
+			{
+				if (ECX == 0) { State = 3, SubState = 0, break }
+			
+				Op2 = readInt8(ES * 16 + EDI)
+				
+				ZF = Op1 == Op2
+				if (DF == 0) { EDI = (EDI + 1) && 0xFFFF } else { EDI = (EDI + 0x00010000 - 1) && 0xFFFF }
+				ECX--
+				if (ECX == 0 | ZF) { sub8(Op1, Op2), State = 3, SubState = 0, break }
+			}
+		}
+	}
+	elseif (State == 0xF3)
+	{
+		if (SubState == 0x00)
+		{
+			# lodsw
+			# add dx, ax
+			# adc dx, 0
+			# loop 0xF8
+			while (perf())
+			{
+				# lodsw
+				EAX = (EAX && 0x7FFF0000) + readInt16(DS * 16 + ESI)
+				if (DF == 0) { ESI = (ESI + 2) && 0xFFFF } else { ESI = (ESI + 0x00010000 - 2) && 0xFFFF }
+				
+				# add dx, ax
+				Op1 = EDX && 0xFFFF
+				Op2 = EAX && 0xFFFF
+				Value = Op1 + Op2
+				EDX = (EDX && 0x7FFF0000) + (Value && 0xFFFF)
+				
+				CF = (Value && 0x00010000) != 0
+				
+				# adc dx, 0
+				Op1 = EDX && 0xFFFF
+				Value = Op1 + CF
+				EDX = (EDX && 0x7FFF0000) + (Value && 0xFFFF)
+				
+				CF = (Value && 0x00010000) != 0
+				ZF = (Value && 0xFFFF) == 0
+				SF = (Value && 0x8000) != 0
+				OF = (Op1 && 0x8000) == 0 & (Op1 && 0x8000) != (Value && 0x8000)
+				
+				# loop 0xF8				
+				Value = ECX && 0xFFFF
+				if (Value == 0) { Value = 0xFFFF } else { Value-- }
+				ECX = (ECX && 0x7FFF0000) + Value
+				if (ECX == 0) { State = 3, SubState = 0, break }
+			}
+		}
+		elseif (SubState == 0xA4)
+		{
+			# rep movsb (ds:si to es:di)
+			while (perf())
+			{
+				if (ECX == 0) { State = 3, SubState = 0, break }
+				writeInt8(ES * 16 + EDI, readInt8(readSegmentRegister(abs(SegmentPrefix)) * 16 + ESI))
+				if (DF == 0) { ESI = (ESI + 1) && 0xFFFF, EDI = (EDI + 1) && 0xFFFF } else { ESI = (ESI + 0x00010000 - 1) && 0xFFFF, EDI = (EDI + 0x00010000 - 1) && 0xFFFF }
+				ECX--
+			}
+		}
+		elseif (SubState == 0xA5)
+		{
+			# rep movsw (ds:si to es:di)
+			while (perf())
+			{
+				if (ECX == 0) { State = 3, SubState = 0, break}
+				writeInt16(ES * 16 + EDI, readInt16(readSegmentRegister(abs(SegmentPrefix)) * 16 + ESI))
+				if (DF == 0) { ESI = (ESI + 2) && 0xFFFF, EDI = (EDI + 2) && 0xFFFF } else { ESI = (ESI + 0x00010000 - 2) && 0xFFFF, EDI = (EDI + 0x00010000 - 2) && 0xFFFF }
+				ECX--
+			}
+		}
+		elseif (SubState == 0xA6)
+		{
+			# repe cmpsb (ds:si, es:di)
+			while (perf())
+			{
+				if (ECX == 0) { State = 3, SubState = 0, break }
+			
+				Op1 = readInt8(readSegmentRegister(abs(SegmentPrefix)) * 16 + ESI)
+				Op2 = readInt8(ES * 16 + EDI)
+				
+				ZF = Op1 == Op2
+				if (DF == 0) { ESI = (ESI + 1) && 0xFFFF, EDI = (EDI + 1) && 0xFFFF } else { ESI = (ESI + 0x00010000 - 1) && 0xFFFF, EDI = (EDI + 0x00010000 - 1) && 0xFFFF }
+				ECX--
+				if (ECX == 0 | !ZF) { sub8(Op1, Op2), State = 3, SubState = 0, break }
+			}
+		}
+		elseif (SubState == 0xA7)
+		{
+			# repe cmpsw (ds:si, es:di)
+			while (perf())
+			{
+				if (ECX == 0) { State = 3, SubState = 0, break }
+			
+				Op1 = readInt16(readSegmentRegister(abs(SegmentPrefix)) * 16 + ESI)
+				Op2 = readInt16(ES * 16 + EDI)
+				
+				ZF = Op1 == Op2
+				if (DF == 0) { ESI = (ESI + 2) && 0xFFFF, EDI = (EDI + 2) && 0xFFFF } else { ESI = (ESI + 0x00010000 - 2) && 0xFFFF, EDI = (EDI + 0x00010000 - 2) && 0xFFFF }
+				ECX--
+				if (ECX == 0 | !ZF) { sub16(Op1, Op2), State = 3, SubState = 0, break }
+			}
+		}
+		elseif (SubState == 0xAA)
+		{
+			# rep stosb (es:di)
+			while (perf())
+			{
+				if (ECX == 0) { State = 3, SubState = 0, break }
+				writeInt8(ES * 16 + EDI, EAX && 0xFF)
+				if (DF == 0) { EDI = (EDI + 1) && 0xFFFF } else { EDI = (EDI + 0x00010000 - 1) && 0xFFFF }
+				ECX--
+			}
+		}
+		elseif (SubState == 0xAB)
+		{
+			# rep stosw (es:di)
+			while (perf())
+			{
+				if (ECX == 0) { State = 3, SubState = 0, break }
+				writeInt16(ES * 16 + EDI, EAX && 0xFFFF)
+				if (DF == 0) { EDI = (EDI + 2) && 0xFFFF } else { EDI = (EDI + 0x00010000 - 2) && 0xFFFF }
+				ECX--
+			}
+		}
+		elseif (SubState == 0xAE)
+		{
+			# repe scasb (es:di)
+			Op1 = EAX && 0xFF
+			while (perf())
+			{
+				if (ECX == 0) { State = 3, SubState = 0, break }
+				Op2 = readInt8(ES * 16 + EDI)
+				
+				ZF = Op1 == Op2
+				if (DF == 0) { EDI = (EDI + 1) && 0xFFFF } else { EDI = (EDI + 0x00010000 - 1) && 0xFFFF }
+				ECX--
+				if (ECX == 0 | !ZF) { sub8(Op1, Op2), State = 3, SubState = 0, break }
+			}
+		}
+		updateTooltip()
+	}
+	
+	# RTC
+	if (systime() - LastTick > TickInterval)
+	{
+		LastTick = systime()
+		if (!Halt & ExecutionMode != 0) { queueInterrupt(0x1C) }
+	}
+} # end tickClk()
+
+# Keyboard
+if (KeyboardLastKey != KeyboardKey)
+{
+	if (KeyboardLastKey)
+	{
+		KeyboardQueue:pushNumber(-KeyboardLastKey)
+		printInfo("[KBD] Queued key -" + KeyboardLastKey)
+	}
+	if (KeyboardKey)
+	{
+		KeyboardQueue:pushNumber(KeyboardKey)
+		printInfo("[KBD] Queued key " + KeyboardKey)
+	}
+	KeyboardLastKey = KeyboardKey
+}

@@ -1,0 +1,180 @@
+@name bootstrap_builder
+@inputs 
+@outputs 
+@persist 
+@trigger 
+
+
+if (first()){
+    
+    #include "github/lib/strings"
+    #include "github/lib/blocks"
+    
+    function table table:bsInitChip(ChipName:string){
+        local Chip = This:block(ChipName)
+        if (Chip:blockFirst()){
+            Chip["lines", array] = array("", "")
+            Chip["name", string] = ChipName
+            Chip["inputs", array] = array()
+            Chip["outputs", array] = array()
+            Chip["persist", array] = array()
+            Chip["includes", table] = table()
+        }
+        return Chip
+    }
+    function table bsInitChip(ChipName:string){
+        return blockRoot():bsInitChip(ChipName)
+    }
+    
+    #the bootstrapping chip must include any files which are going to be included
+    function table:bsAddInclude(S:string){
+        This["includes", table][S, string] = ""
+    }
+    
+    function table:bsAddInput(V:string, T:string){
+        This["inputs", array]:pushString(V + ":" + T)
+    }
+    
+    function table:bsAddOutput(V:string, T:string){
+        This["outputs", array]:pushString(V + ":" + T)
+    }
+    
+    function table:bsAddPersist(V:string, T:string){
+        This["persist", array]:pushString(V + ":" + T)
+    }
+    
+    function table:bsAddLine(S:string){
+        This["lines", array]:pushString(S)
+    }
+    function table:bsAddLineFirst(S:string){
+        This["lines", array]:pushString("if (first()){")
+        This["lines", array]:pushString(tab() + S)
+        This["lines", array]:pushString("}")
+    }
+    
+    function table:bsAddLines(Ls:array){
+        This["lines", array] = This["lines", array]:add(Ls)
+    }
+    function table:bsAddLinesFirst(Ls:array){   
+        This["lines", array]:pushString("if (first()){")
+        This["lines", array] = This["lines", array]:add(Ls:indent())
+        This["lines", array]:pushString("}")
+    }
+    
+    function table:bsAddComment(S:string){
+        This["lines", array]:pushString("# " + S)
+    }
+    
+    function table:bsAddBreak(){
+        This["lines", array]:pushString("")
+    }
+    
+    function table:bsAddBreak(N){
+        for(I = 0, N){
+            This["lines", array]:pushString("")
+        }
+    }
+    
+    
+    function array table:bsGetLines(){
+        return This["lines", array]
+    }
+
+    
+    function table table:bsDefSection(S:string, HeaderW:number, First:number){
+        Section = This:bsInitChip(S)
+        if (Section:blockNotDone()){
+            if (Section:blockFirst()){
+                Section:blockOnNotify("bs_AddSectionToParent")
+                
+                Section["lines", array]:pushString("")
+                Section["lines", array]:pushString("")
+                
+                if (HeaderW){
+                    local HashLength = (HeaderW/2) - (S:length()/2)
+                    Section["lines", array]:pushString("#":repeat(floor(HashLength)) + S + "#":repeat(ceil(HashLength)))
+                }
+                if (First){
+                    Section["lines", array]:pushString("if (first()){")
+                    Section:blockOnNotify("bs_AddCloseCurly")
+                }
+            }
+            
+            if (Section:blockLast()){
+                if (First){
+                    #Section["lines", array]:pushString("}")
+                }
+            }
+        }
+        return Section
+    }
+    function table table:bsDefSection(S:string){
+        return This:bsDefSection(S, 100, 0)
+    }
+    function table table:bsDefSectionFirst(S:string){
+        return This:bsDefSection(S, 100, 1)
+    }
+
+
+
+    
+    function string table:bootstrap_build_code(){
+        local Headers = array(
+            "@name " + This["name", string],
+            "@inputs " + This["inputs", array]:concat(" "),
+            "@outputs " + This["outputs", array]:concat(" "),
+            "@persist " + This["persist", array]:concat(" "),
+            ""
+        )
+        
+        Headers:pushString("if (first()){")
+        foreach(I, Inc:string = This["includes", table]:keys()){
+            Headers:pushString(tab() + "#include \"" + Inc + "\"")
+        }
+        Headers:pushString("}")
+        
+        return Headers:add(This["lines", array]):concat("\n")
+    }
+    
+    function table:bootstrap_now(Chip:entity){
+        Chip:remoteSetCode(This:bootstrap_build_code(), getCodeIncludes():intersect(This["includes", table]))
+    }
+    
+    function table:bootstrap_to_file(FileName:string, FilePath:string){
+        if (This:blockNotDone()){
+            return
+        }
+        
+        local FileString = FilePath + "/" + FileName
+        fileWrite(FileString, This:bootstrap_build_code())
+    }
+    function table:bootstrap_to_file(FileName:string){
+        This:bootstrap_to_file(FileName, ">e2shared/generated")
+    }
+    function table:bootstrap_to_file(){
+        This:bootstrap_to_file(This["name", string] + ".txt")
+    }
+    
+    function table:bootstrap(Chip:entity){
+        This:bootstrap_now(Chip)
+    }
+    
+    function table:bootstrap(){
+        if (This:blockNotDone()){
+            return
+        }
+        
+        This:bootstrap(entity())
+    }
+}
+
+if (first()){
+    function table:bs_AddSectionToParent(Parent:table){
+        Parent:bsAddLines(This:bsGetLines())
+    }
+    
+    function table:bs_AddCloseCurly(Parent:table){
+        Parent:bsAddLine("}")
+    }
+}
+

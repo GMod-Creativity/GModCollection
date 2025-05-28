@@ -1,0 +1,94 @@
+@name Flak's Holo Maker v1.1
+@persist HoloArray:array
+@trigger
+
+###################################
+#     FlakAttack's Holo Maker     #
+#  Re-write using File functions  #
+#           Version 1             #
+###################################
+
+### SHARE THIS FREELY WITH ANYONE WHO ASKS BUT GIVE PROPER CREDIT ###
+
+# When this chip is used, it will save to a complete program to a file.
+# This program will replicate existing entities as holos in the same position/angle relative to this chip.
+# Primary function of this code is to allow for quick decoration of functional vehicles-
+# but I'm sure you can find other uses for it.
+
+#####  INSTRUCTIONS #####
+### Attach this chip to the base prop.
+### Parent everything you want copied to this chip.
+### Type "/print FILENAME" in chat (no quotes, change "FILENAME" to whatever you want).
+### Example: "/print Avenger" will make a file called Avenger.txt in expression2/e2shared
+### You can access this from the E2 editor, don't forget to push "Update" if you can't see it.
+### Attach the new chip to the base prop.
+
+if(first()|dupefinished()) {
+    runOnChat(1)
+    
+    # This function fills "HoloArray" with only entities joined to this E2-
+    # via a "parent" type constraint.
+    function fillHoloArray() {
+        TempArray = entity():getConstraints()
+        Counter = 1
+        foreach(K,V:entity=TempArray){
+            if(V:parent() == entity()) {
+                HoloArray[Counter,entity]=V
+                Counter++
+            }
+        }
+    }
+    
+    # This function is what saves the program to a file.
+    # Notice the parts before and after the foreach loop:
+    # they make sure the E2 accepts the output as a complete program.
+    # Otherwise best way to understand this is to see its output.
+    
+    function saveHolos(ProgramName:string) {
+        
+        FileString = "@name " + ProgramName + "\n\n" +
+            "## Pre-rendered holos, do not change anything\n\n" +
+            "if(first()|duped()) {\n" +
+            "E=entity():isWeldedTo()\n"
+        
+        E = entity():isWeldedTo()
+        
+        foreach(K,V:entity=HoloArray){
+            Hcreate = "holoCreate("+K+")"
+            EntPos = round(E:toLocal(V:pos()),4):toString()
+            Hpos = "holoPos("+K+",E:toWorld(vec("+EntPos:sub(2,EntPos:length()-1)+")))"
+            EntAng = round(E:toLocal(V:angles()),4):toString()
+            Hang = "holoAng("+K+",E:toWorld(ang("+EntAng:sub(2,EntAng:length()-1)+")))"
+            Hparent = "holoParent("+K+",E)"
+            Hmodel = "holoModel("+K+",\""+V:model()+"\")"
+            Hmaterial = "holoMaterial("+K+",\""+V:getMaterial()+"\")"
+            EntColor = V:getColor():toString()
+            Hcolor = "holoColor("+K+",vec("
+                +EntColor:sub(2,EntColor:length()-1)+"))"
+            FileString += Hcreate + "\n"
+            FileString += Hpos + "\n"
+            FileString += Hang + "\n"
+            FileString += Hparent + "\n"
+            FileString += Hmodel + "\n"
+            if (V:getMaterial()){
+                FileString += Hmaterial + "\n"
+            }
+            FileString += Hcolor + "\n"
+        }
+    FileString += "}"
+    
+    fileWrite(">e2shared/"+ProgramName+".txt", FileString)
+    }
+}
+     
+# Remember runOnChat(1) at the top?
+# This chip will only execute when someone (anyone) chats.
+# It will evaluate the following once that happens:
+# If the last person who spoke was the owner (you),
+# and the owner said "/print holos",
+# this chip will run the two functions above, otherwise it waits for next chat.
+LastSaid = owner():lastSaid()
+if(chatClk() && LastSaid:find("/print")) {
+    fillHoloArray()    
+    saveHolos(LastSaid:sub(8))
+}

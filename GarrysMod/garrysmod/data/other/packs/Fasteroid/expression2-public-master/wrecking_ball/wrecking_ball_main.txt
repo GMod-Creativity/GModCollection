@@ -1,0 +1,953 @@
+@name Wrecking Ball 1.11.4
+
+#[
+    Note for Fasteroid/expression2-public Github browsers: 
+    
+    This chip won't work without its #includes.
+    Check the README in the repo for more details!
+]#
+
+# constants
+@persist SEAT_HEIGHT SEAT:entity BALL:entity TRANSFORM_RATE
+@persist GRAPPLE_SPEED RADIUS FIREBALL_VEL GRAPPLE_MIN_DIST GRAPPLE_STEP_SIZE GRAPPLE_MAX_DIST GRAPPLE_PHYSOBJ:entity FIREBALL_TIMEOUT GRAPPLE_ORIGIN:entity
+@persist PILE_SPOOL_RATE PILE_SPOOL_STEP PILE_DROP_STEP PILE_MIN_HEIGHT PILE_FORCE PILE_FORCE_TIME
+@persist MECH_HEIGHT GRAPPLE_MAX_DOT SLOPE_MAX_DOT
+
+# holos
+@persist ROOT_HOLO ROOT_HOLO_ENT:entity SEAT_ROOT_HOLO SEAT_ROOT_HOLO_ENT:entity GRAPPLE_ROOT_HOLO GRAPPLE_ROOT_HOLO_ENT:entity GRAPPLE_HOLO GRAPPLE_HOLO_ENT:entity GRAPPLE_OTHER_HOLO_ENT:entity
+@persist FIREBALL_ROOT FIREBALL_ROOT_ENT:entity CROSSHAIR
+
+# enums
+@persist Action_NONE
+@persist Grapple_FIRE Grapple_LOCK
+@persist Pile_SPOOL Pile_DROP
+
+# sometimes updated
+@persist Is_Hampter Ball_Action Transform_Progress Can_Jump
+@persist Grapple_Vel:vector Rope_Len Grapple_Hit_Entity:entity Grapple_Out
+@persist Pile_Active Pile_Dir:vector Pile_Axis:vector Pile_Initial_Ang:angle Pile_Progress Pile_Target_Pos:vector Pile_Prop:entity Pile_Desired
+@persist Leg_Deploy_Desired
+@persist Is_Fireball Fireball_Current_Opacity Fireball_Sound_CD Fireball_Cache Fireball_Wind_Vol Fireball_Wind_Dir Fireball_Wind_Pitch Fireball_Wind_Pitch_Target
+
+# updated every tick
+@persist GroundTrace_:ranger OnGround_ Driver_:entity Keys_:table Speed_ AimPos_:vector Tilt_:angle
+
+#include "wrecking_ball/modules/seatcontrol_module"
+#include "wrecking_ball/modules/turrets_module"
+#include "wrecking_ball/modules/legs_module"
+#include "wrecking_ball/modules/sentspawning_module"
+#include "wrecking_ball/modules/tracefilter_module"
+#include "wrecking_ball/modules/tickrate_module"
+
+#include "wrecking_ball/models/fireball_cheap"
+
+
+# sombra is in my walls (help)
+
+
+if( first() ){
+    
+    ##### pre-initialization #####
+    
+      propSpawnUndo(0)
+      enableConstraintUndo(0)
+    
+      # configurables
+        TRANSFORM_RATE = 0.1
+        GRAPPLE_SPEED  = 100
+        FIREBALL_VEL   = 610
+        
+        GRAPPLE_MIN_DIST  = 200
+        GRAPPLE_STEP_SIZE = 2
+        GRAPPLE_MAX_DIST  = 1150
+        FIREBALL_TIMEOUT  = 2000
+        
+        PILE_SPOOL_RATE = 0.02
+        PILE_SPOOL_STEP = 3.5
+        PILE_DROP_STEP  = 100
+        PILE_MIN_HEIGHT = 140
+        PILE_FORCE      = 600
+        PILE_FORCE_TIME = 125
+        
+        MECH_HEIGHT     = 20
+        
+        SLOPE_MAX_DOT   = cos(45)
+        GRAPPLE_MAX_DOT = 0.9
+        
+      # enums
+        Action_NONE = 0
+        Grapple_FIRE = 1  Grapple_LOCK = 2
+        Pile_SPOOL = 3    Pile_DROP = 4
+        
+      # global constants
+        local Origin = entity():pos() + entity():up()*100 + entity():forward() * 100
+    
+        SEAT = seatSpawn("models/nova/airboat_seat.mdl", Origin, ang(0,-90,0), 1)
+        if(!SEAT:isValid()){ error("Failed to create seat!") }
+    
+        BALL = propSpawn("models/hunter/misc/sphere175x175.mdl", Origin, ang(), 0)
+        if(!BALL:isValid()){ error("Failed to create ball!") }
+        
+        BALL:propPhysicalMaterial("Metal_barrel")
+        local Size = BALL:boxSize()
+        
+        RADIUS = max(Size[1], Size[2], Size[3]) / 2.02
+        #ifdef e:makeSpherical(n)
+            BALL:makeSpherical( RADIUS )
+        #endif
+        
+        BALL:setMass(320)
+        
+        BALL:soundPlay("gyroscopic-harness",0,"ambient/machines/combine_shield_loop3.wav")
+        BALL:setMaterial("metal6")
+        
+        SEAT_HEIGHT = RADIUS - 20
+    
+    ##### holo initialization #####
+    
+        ROOT_HOLO = holoAlloc(Origin)
+        ROOT_HOLO_ENT = holoEntity(ROOT_HOLO)
+        holoParent(ROOT_HOLO, BALL)
+        
+        CROSSHAIR = holoAlloc(Origin)
+        holoModel(CROSSHAIR,"hq_sphere")
+        holoScale(CROSSHAIR,vec(0.1))
+        holoMaterial(CROSSHAIR,"lights/white")
+        
+        FIREBALL_ROOT = holoStructCreate("fireball",Origin)
+        holoParent(FIREBALL_ROOT, ROOT_HOLO)
+        FIREBALL_ROOT_ENT = holoEntity(FIREBALL_ROOT)
+        FIREBALL_ROOT_ENT:soundPlay("fireball",0,"ambient/ambience/wind_light02_loop.wav")
+        soundPitch("fireball",220)
+        soundVolume("fireball",0)
+        
+        SEAT_ROOT_HOLO = holoAlloc(Origin)
+        SEAT_ROOT_HOLO_ENT = holoEntity(SEAT_ROOT_HOLO)
+        holoParent(CROSSHAIR, SEAT_ROOT_HOLO)
+        holoParent(SEAT_ROOT_HOLO, ROOT_HOLO)
+        seatrotation_setup(SEAT, SEAT_ROOT_HOLO, RADIUS, CROSSHAIR)
+        SEAT_ROOT_HOLO_ENT:soundPlay("rolling",0,"physics/metal/metal_box_scrape_rough_loop1.wav")
+        soundPitch("rolling",80)
+        
+        GRAPPLE_ROOT_HOLO = holoAlloc(Origin)
+        holoColor(GRAPPLE_ROOT_HOLO,vec(255,0,0))
+        holoParent(GRAPPLE_ROOT_HOLO, ROOT_HOLO)
+        GRAPPLE_ROOT_HOLO_ENT = holoEntity(GRAPPLE_ROOT_HOLO)
+            
+        # the grappling hook can be despawned by the engine if attached to an entity that gets deleted.
+        # the "at-risk" entities are spawned within this function so we can respawn them if that happens.
+        function spawnGrapple(){
+            local Origin = BALL:pos()
+            
+            GRAPPLE_HOLO = holoAlloc(Origin+vec(RADIUS,0,0),ang())
+            GRAPPLE_HOLO_ENT = holoEntity(GRAPPLE_HOLO)
+            
+            holoMaterial(GRAPPLE_HOLO,"metal4")
+            holoScale(GRAPPLE_HOLO,vec(1.25))
+            holoModel(GRAPPLE_HOLO,"torus2")
+            holoClip(GRAPPLE_HOLO,1,vec(3,0,0),vec(-1,0,0),0)
+            holoClipEnabled(GRAPPLE_HOLO,1,1)
+            
+            local GrappleOtherHolo = holoAlloc(Origin+vec(RADIUS,0,0),ang(0,0,90))
+            holoMaterial(GrappleOtherHolo,"metal4")
+            holoScale(GrappleOtherHolo,vec(1.25))
+            holoParent(GrappleOtherHolo,GRAPPLE_HOLO)
+            holoModel(GrappleOtherHolo,"torus2")
+            holoClip(GrappleOtherHolo,1,vec(3,0,0),vec(-1,0,0),0)
+            holoClipEnabled(GrappleOtherHolo,1,1)
+            GRAPPLE_OTHER_HOLO_ENT = holoEntity(GrappleOtherHolo)
+        
+            GRAPPLE_PHYSOBJ = propSpawn("models/hunter/plates/plate.mdl",GRAPPLE_HOLO_ENT:pos(),1)
+            GRAPPLE_PHYSOBJ:setAlpha(0)
+            # GRAPPLE_PHYSOBJ:parentTo(GRAPPLE_HOLO_ENT) # what???
+            GRAPPLE_PHYSOBJ:propNotSolid(1)
+            
+            TRACEFILTER_IGNORABLES:pushEntity(GRAPPLE_PHYSOBJ)
+        }
+        spawnGrapple()
+        
+        GRAPPLE_ORIGIN = propSpawn("models/hunter/plates/plate.mdl",BALL:pos(),1)
+        GRAPPLE_ORIGIN:setAlpha(0)
+        GRAPPLE_ORIGIN:propNotSolid(1)
+        GRAPPLE_ORIGIN:parentTo(BALL)
+        
+        GRAPPLE_ORIGIN:soundPlay("fireball-metal",0,"ambient/machines/train_freight_loop1.wav")
+        soundVolume("fireball-metal",0)
+
+        for(I=0,3){
+            local Deg = I*90 + 45
+            local Dir = vec(cos(Deg),sin(Deg),0)
+            local Root = holoAlloc(BALL:toWorld(Dir*30-vec(0,0,22)), BALL:toWorld(ang(0,Deg,0)))
+            holoColor(Root,vec(255,0,0),0)
+            holoParent(Root,BALL)
+            legs_createFoot(holoEntity(Root))
+        }
+    
+    ##### post-initialization #####
+    
+        turrets_createTurretMount( BALL, vec(0,45,20), "l" )
+        turrets_createTurretMount( BALL, vec(0,-45,20), "r" )
+    
+        SEAT:parentTo(SEAT_ROOT_HOLO_ENT)
+        holoParent(GRAPPLE_HOLO,GRAPPLE_ROOT_HOLO)
+
+        rangerPersist(1)
+        
+        TRACEFILTER_IGNORABLES = TRACEFILTER_IGNORABLES:add(array(
+            BALL, 
+            SEAT, 
+            GRAPPLE_ORIGIN
+        ))
+        
+        Can_Jump = 1
+        Fireball_Wind_Pitch = 100
+        
+        sents_startSpawning()
+        
+      # uninitialized warnings
+      function uninitialized(){
+        Transform_Progress = Is_Hampter = Pile_Progress = Grapple_Out = OnGround_ = 
+        Speed_ = Pile_Active = Is_Fireball = Fireball_Current_Opacity = Pile_Desired = 
+        Fireball_Cache = Fireball_Wind_Dir = Fireball_Wind_Vol = 0
+        
+        Driver_ = noentity()
+        GroundTrace_ = noranger()
+        Keys_ = table()
+        AimPos_ = vec()
+        Tilt_ = ang()
+        Ball_Action = Action_NONE
+        Pile_Prop = noentity()
+      }
+        
+    ##### function stubs #####
+    
+        function changeMechForm(){}
+        
+    ##### misc #####
+    
+        function checkLandingConditions(){
+            #if(Ball_Action != Grapple_LOCK){
+                
+                local OldVel = BALL["oldvel",vector]
+                local NewVel = BALL:vel()
+                
+                local Accel = NewVel - OldVel
+                
+                local IsReallyOnGround = OnGround_ & (1-abs(NewVel:dot(GroundTrace_:hitNormal())) > -50) & (GroundTrace_:hitNormal():dot(vec(0,0,1)) > 0.5)
+                
+                if( IsReallyOnGround ){
+                    Can_Jump = 1
+                }
+                
+                local ImpactLen = Accel:length()
+                local Impact = (
+                    OnGround_ &
+                    (Accel:dot(vec(0,0,1)/ImpactLen) > 0.8) &
+                    (OldVel:dot(vec(0,0,-1)) > 10)
+                ) ? ImpactLen : 0
+                
+                if( Impact > 500 ){
+                    BALL:soundPlay("land-thud",2,"vehicles/airboat/pontoon_impact_hard2.wav")
+                    soundPitch("land-thud",randint(100,120))
+                    soundVolume("land-thud", Impact*0.1/300 + 0.5)
+                    ROOT_HOLO_ENT:soundPlay("land-crash",2,"vehicles/v8/vehicle_impact_medium"+(randint(1,2)*2)+".wav")
+                    soundPitch("land-crash",randint(100,120))
+                    soundVolume("land-crash", Impact*0.1/300 + 0.5)
+                }
+                
+                BALL["oldvel",vector] = NewVel
+                
+            #}
+        }
+        
+        function vector vector:projectOnPlane(Norm:vector){
+            return This - ( This * Norm / Norm:length2() ) * Norm
+        }
+    
+        function entity:perfectAngForce(Ang:angle){
+            local Torque = This:toLocalAxis(rotationVector(quat(Ang)/quat(This)))
+            This:applyTorque((Torque*200-This:angVelVector()*10)*This:inertia())
+        }
+        
+        function ranger doGroundTrace(UseOffset:number){
+            tracefilter_load()
+            local StartPos = BALL:pos() + vec(0,0,RADIUS * UseOffset)
+            local EndPos   = BALL:pos() - vec(0,0,4096)
+            local Test = rangerOffsetHull(BALL,StartPos,EndPos)
+            local Victim = Test:entity()
+            while( 
+                Victim:isAlive() | 
+                Victim:isValid() & (
+                    (!Victim:isFrozen() & (Victim:surfaceArea() < 20000)) | 
+                    (Victim:health() & (Victim:health() < 1000))
+                )
+            ){
+                rangerFilter(Victim)
+                Test = rangerOffsetHull(BALL,StartPos,EndPos)
+                Victim = Test:entity()
+            }
+            return Test
+        }
+        
+      # fireball funcs
+        function setFireballOpacity(Alpha:number){
+            Alpha = round(Alpha/5)*5
+            Alpha = Alpha / 255
+            local Children = FIREBALL_ROOT:getChildren()
+            local Colors   = HOLOSTRUCTURE_DATA["fireball",table]["colors",array]
+            local CurCache = Children:count() * (1+Alpha)
+            if( Fireball_Cache != CurCache ){
+                foreach(Child:number, HoloID:number = Children){
+                    holoColor(HoloID, Colors[Child,vector] * Alpha)
+                }
+                Fireball_Cache = CurCache
+            }
+        }
+        
+        function animateFireballOpacity(){
+            local Diff = clamp((Is_Fireball)*290 - Fireball_Current_Opacity,-20,20) * TICKRATE_TimeScalar_
+            Fireball_Current_Opacity = Fireball_Current_Opacity + Diff
+            setFireballOpacity(Fireball_Current_Opacity)
+        }
+        
+        function clearFireball(){
+            if(!Is_Fireball){ return }
+            Fireball_Sound_CD = 0
+            Fireball_Wind_Dir = -0.2
+            Is_Fireball = 0
+            soundVolume("fireball-metal",0)
+        }
+        
+        function playFireball(){
+            if(!Fireball_Sound_CD){
+                timer("fireballsound2",100)
+                timer("fireballturbulence",10)
+                Fireball_Sound_CD = 1
+                Fireball_Wind_Dir = 0.05
+            }
+        }
+        
+      # grapple funcs
+        function detachGrapple(){
+            if( !Grapple_Out ){ return }
+            Ball_Action = Action_NONE
+            GRAPPLE_PHYSOBJ:constraintBreak("rope",BALL)
+            GRAPPLE_PHYSOBJ:soundPlay("grapple-reel",0,"weapons/tripwire/ropeshoot.wav")
+            soundPitch("grapple-reel",200)
+            GRAPPLE_PHYSOBJ:deparent()
+        }
+        
+        function resetGrapple(Ang:angle){
+            if( !Grapple_Out ){ return }
+            Ball_Action = Action_NONE     
+            
+            holoAng(GRAPPLE_ROOT_HOLO, Ang)
+            holoPos(GRAPPLE_HOLO, GRAPPLE_ROOT_HOLO_ENT:pos() + Ang:forward() * RADIUS)
+            holoAng(GRAPPLE_HOLO, Ang)
+            holoParent(GRAPPLE_HOLO, GRAPPLE_ROOT_HOLO)
+
+            GRAPPLE_PHYSOBJ:constraintBreak("rope")  
+            
+            soundStop("grapple-fire")
+            soundStop("grapple-reel")
+            Grapple_Out = 0
+        }
+        
+        function fireGrapple(Ang:angle){
+            if( Ball_Action != Action_NONE ){ return }
+            
+            rope(2,GRAPPLE_ORIGIN,vec(),GRAPPLE_PHYSOBJ,vec(),0,5,"cable/cable2",1)
+            
+            Ball_Action = Grapple_FIRE
+            Grapple_Out = 1
+            
+            local TraceDir = Ang:forward()
+            
+            GRAPPLE_HOLO_ENT:soundPlay("grapple-fire",0,"weapons/tripwire/ropeshoot.wav")
+            GRAPPLE_OTHER_HOLO_ENT:soundPlay("grapple-launch",1,"weapons/airboat/airboat_gun_lastshot"+randint(1,2)+".wav")
+            soundPitch("grapple-launch",160)
+            holoAng(GRAPPLE_ROOT_HOLO,Ang)
+            holoUnparent(GRAPPLE_HOLO)
+            holoPos(GRAPPLE_HOLO, GRAPPLE_ROOT_HOLO_ENT:toWorld(vec(RADIUS,0,0)))
+            GRAPPLE_PHYSOBJ:setPos(GRAPPLE_HOLO_ENT:pos())
+            
+            # print(GRAPPLE_PHYSOBJ:pos(), GRAPPLE_HOLO_ENT:pos())
+            
+            Grapple_Vel = TraceDir * GRAPPLE_SPEED * TICKRATE_TimeScalar_
+        }
+
+        function anchorGrapple(){
+            timer("attachrope",0)
+            Rope_Len = BALL:pos():distance(GRAPPLE_PHYSOBJ:pos())
+            Ball_Action = Grapple_LOCK    
+            soundStop("grapple-fire")
+            GRAPPLE_HOLO_ENT:soundPlay("grapple-lock",1,"npc/roller/blade_cut.wav")
+        }
+        
+        function reelGrapple(){
+            if( Grapple_Out ){
+                local TargetPos = (AimPos_-BALL:pos()):normalized() * RADIUS + GRAPPLE_ROOT_HOLO_ENT:pos()
+                
+                local Step = (TargetPos - GRAPPLE_HOLO_ENT:pos())
+                Step = min(Step:length(),GRAPPLE_SPEED) * Step:normalized()
+                local NewPos = GRAPPLE_HOLO_ENT:pos() + Step
+                holoPos(GRAPPLE_HOLO, NewPos)
+                GRAPPLE_PHYSOBJ:setPos(GRAPPLE_HOLO_ENT:pos())
+                if( NewPos:distance(TargetPos) < 100 ){
+                    resetGrapple((AimPos_-BALL:pos()):toAngle())
+                }
+            }
+        }
+    
+    
+      # piledrive funcs
+        function tryPiledrive(){
+            if( Pile_Prop:isValid() ){ return }
+            if( Ball_Action != Action_NONE ){ return }
+            if( GroundTrace_:distance() < PILE_MIN_HEIGHT ){ return }
+            
+            if(Is_Hampter){ changeMechForm() }
+            
+            clearFireball()
+            
+            Pile_Active = 1
+            Pile_Progress = 0
+            
+            local Ang = Driver_:eyeAnglesVehicle():setPitch(0)
+            Pile_Dir         = Ang:forward()
+            Pile_Axis        = Ang:right()
+            Ball_Action      = Pile_SPOOL
+            Pile_Initial_Ang = BALL:angles()
+            
+            holoUnparent(ROOT_HOLO)
+            
+            BALL:soundPlay("pile-spoolup",1.5,"weapons/physcannon/physcannon_claws_close.wav")
+            BALL:propFreeze(1)
+            return
+        }
+
+    ##### mode functions #####
+    
+      # ball: 0
+        function end_mode_ball(){
+            BALL:soundPlay("ball-open",0.15,"doors/door_chainlink_move1.wav")
+            ROOT_HOLO_ENT:soundPlay("ball-open-2",1,"doors/latchunlocked1.wav")
+            soundPitch("ball-open-2", 90)
+            soundVolume("rolling",0)
+            soundVolume("gyroscopic-harness",0)
+            
+            resetGrapple(ang())
+            clearFireball()
+            
+            seatrotation_setThirdPerson(0)
+            
+            Is_Fireball = 0
+        }
+        function begin_mode_ball(){
+            # probably unused forever
+        }
+        function mode_ball(){
+            
+            holoAng( ROOT_HOLO, ang() )
+            
+            OnGround_ = (GroundTrace_:distance() < 20+RADIUS)
+
+            Transform_Progress = max(0, Transform_Progress - TRANSFORM_RATE * TICKRATE_TimeScalar_)
+            if( $Transform_Progress < 0 & Transform_Progress == 0 ){
+                begin_mode_ball()
+            }
+            
+            soundVolume("gyroscopic-harness",Speed_/1000)
+            soundPitch("gyroscopic-harness",clamp(Speed_/6,0,80))
+            soundVolume("rolling",OnGround_*Speed_/1000)
+            
+            local RotationDir = -BALL:toLocalAxis( BALL:vel():setZ(0):toAngle():right() )
+            local RotationSpeed_ = Speed_ * 170 / (RADIUS * _PI)
+
+            BALL:applyTorque( ( -BALL:angVelVector() + RotationDir * RotationSpeed_ ) * 175 * BALL:inertia() * 0.25 * min(1,Speed_/70) )    
+
+            
+            if( !Driver_:isValid() ){ return }
+
+            if( !Pile_Active ){
+                local ForceVec = (vec( Keys_["ws",number], Keys_["ad",number], 0 ):rotate( Driver_:eyeAnglesVehicle() ):setZ(0))
+                ForceVec = ForceVec:rotate(ang(Tilt_[1], 0, -Tilt_[2])):normalized() * vec(1,1,0.5)
+                ## print(ForceVec,OldForceVec)
+                    
+                local AccelTime = 12
+                local TopSpeed  = 450
+                
+                if( Ball_Action == Grapple_LOCK ){
+                    AccelTime += !OnGround_*45
+                    AccelTime = AccelTime * 2
+                    TopSpeed = TopSpeed * 2.5
+                    if( Speed_ > FIREBALL_VEL ){
+                        if( Is_Fireball == 0 ){ playFireball() }
+                        Is_Fireball = min(Is_Fireball+0.05,1)
+                        stoptimer("fireballoff")
+                        timer("fireballoff",FIREBALL_TIMEOUT)
+                    }
+                    elseif( Speed_ < FIREBALL_VEL*0.8 ){
+                        clearFireball()
+                    }
+                }
+                else{
+                    AccelTime+=!OnGround_*40
+                    if( Is_Fireball ){
+                        if( Speed_ < FIREBALL_VEL*0.8 ){
+                            clearFireball()
+                        }
+                        if( Is_Fireball == 1 ){
+                            TopSpeed = TopSpeed * 2.2
+                            AccelTime = AccelTime * 2
+                        }
+                    }
+                }
+                
+                # stupid conversion factor, I have no idea where this comes from
+                TopSpeed = (TopSpeed + 115) / 0.962857
+                
+                #local StopDrag = 
+                
+                BALL:tickrate_applyForce( (ForceVec*TopSpeed*vec(1,1,OnGround_*0.5) - BALL:vel()*vec(1,1,0)*1.0) * BALL:mass() / AccelTime )
+            }
+                
+            if( !Grapple_Out ){
+                holoAng(GRAPPLE_ROOT_HOLO,(AimPos_-BALL:pos()):toAngle())
+            }
+            
+            switch( Ball_Action ){
+                case Action_NONE,
+                    Pile_Active = 0
+                    reelGrapple()
+                break
+                case Grapple_FIRE,
+                    tracefilter_load()
+                    local Trace = rangerOffset( GRAPPLE_HOLO_ENT:pos(), GRAPPLE_HOLO_ENT:pos() + Grapple_Vel )
+                    if(Trace:pos():distance(BALL:pos()) > GRAPPLE_MAX_DIST){
+                        detachGrapple()
+                    }
+                    else{
+                        holoPos(GRAPPLE_HOLO, Trace:pos())
+                        GRAPPLE_PHYSOBJ:setPos(GRAPPLE_HOLO_ENT:pos())
+                        if( Trace:hit() ){
+                            if( Trace:hitNormal():dot(vec(0,0,1)) > GRAPPLE_MAX_DOT ){ 
+                                detachGrapple()
+                                GRAPPLE_PHYSOBJ:soundPlay("grapple-bounce",1,"physics/metal/metal_computer_impact_hard"+randint(1,3)+".wav")
+                            }
+                            else{
+                                Grapple_Hit_Entity = Trace:entity()
+                                anchorGrapple()
+                            }
+                        }
+                    }
+                break
+                case Grapple_LOCK,
+                    local CurrentLen = (BALL:pos() - GRAPPLE_PHYSOBJ:pos()):length()
+                    Rope_Len = max(CurrentLen, GRAPPLE_MIN_DIST)
+                    if( $Rope_Len < -GRAPPLE_STEP_SIZE & Rope_Len > GRAPPLE_MIN_DIST ){
+                        
+                        local Vel = BALL:vel()
+                        local MinusDist = Vel:dot( (BALL:pos() - GRAPPLE_PHYSOBJ:pos()):normalized() ) * tickInterval()
+                        
+                        rope(1,BALL,vec(0),GRAPPLE_PHYSOBJ,vec(),-MinusDist,0,"cable/cable2",0)
+                        BALL:propSetVelocity(Vel)
+                    }
+                    else{
+                        #rope(1,BALL,vec(),GRAPPLE_PHYSOBJ,vec(),max(GRAPPLE_MIN_DIST-CurrentLen,0)+0.01,0,"cable/cable2",0)
+                    }
+                break
+                case Pile_SPOOL,
+                    reelGrapple()
+            
+                    Is_Fireball = 1
+                    Pile_Progress = min(1, Pile_Progress + PILE_SPOOL_RATE * TICKRATE_TimeScalar_)
+                    
+                    tracefilter_load()
+                    
+                    local TraceDir   = Pile_Dir:setZ(1):normalized()
+                    local DistLeft   = PILE_SPOOL_STEP
+                    local TraceStart = BALL:pos()
+                    local StepTrace  = rangerOffsetHull(BALL, TraceStart, TraceStart + TraceDir * PILE_SPOOL_STEP * TICKRATE_TimeScalar_)
+                    
+                    for(_=1, 3){
+                        local HitNorm = StepTrace:hitNormal()
+                        if( HitNorm != vec() ){
+                            DistLeft = DistLeft - StepTrace:distance()
+                            TraceDir = TraceDir:projectOnPlane(HitNorm)
+                            StepTrace  = rangerOffsetHull(BALL, TraceStart, TraceStart + TraceDir * PILE_SPOOL_STEP * TICKRATE_TimeScalar_)
+                        }
+                    }
+
+                    BALL:setPos( StepTrace:pos() )
+                    BALL:setAng( Pile_Initial_Ang:rotateAroundAxis(Pile_Axis,360*4*Pile_Progress) )
+                    holoPos(ROOT_HOLO, (StepTrace:pos() - TraceStart) * 8 + TraceStart)
+ 
+                    soundPitch("pile-spoolup",30+70*Pile_Progress)
+                    if( Pile_Progress == 1 ){
+                        holoPos( ROOT_HOLO, BALL:pos() )
+                        holoAng( ROOT_HOLO, BALL:angles() )
+                        holoParent( ROOT_HOLO, BALL )
+                        Ball_Action = Pile_DROP
+                        Pile_Target_Pos = BALL:pos()
+                        BALL:soundPlay("pile-drop",1,"npc/scanner/scanner_nearmiss2.wav")
+                        BALL:propFreeze(0)
+                    }
+                break
+                case Pile_DROP,
+                
+                    local Dist = max(min(PILE_DROP_STEP, GroundTrace_:distance()),0)
+                    
+                    if(Dist < PILE_DROP_STEP){
+                        Ball_Action = Action_NONE
+                        Pile_Active = 0
+                        
+                        BALL:soundPlay("pile-sfx1",1.5,"weapons/physcannon/superphys_launch"+(1+3*randint(1,0))+".wav")
+                        soundPitch("pile-sfx1",random(240,255))
+                        ROOT_HOLO_ENT:soundPlay("pile-sfx2",1.5,"Airboat_impact_hard")
+                        SEAT:soundPlay("pile-sfx3",1.5,"EpicMetal.ImpactSoft")
+                        
+                        # I have no idea why I need to do this to get soundLevel to work consistently.
+                        GRAPPLE_ROOT_HOLO_ENT:soundPlay("pile-sfx4",1.5,"")
+                        soundLevel("pile-sfx4",85)
+                        GRAPPLE_ROOT_HOLO_ENT:soundPlay("pile-sfx4",1.5,"weapons/mortar/mortar_explode"+randint(1,3)+".wav")
+                        soundPitch("pile-sfx4",random(160,170))
+                        
+                        # do the impact shockwave thing
+                        Pile_Prop = propSpawn("models/hunter/plates/plate8x8.mdl",GroundTrace_:position()-vec(0,0,RADIUS+1.55),0)
+                        foreach(_:number, K:entity = TRACEFILTER_IGNORABLES){
+                            K:noCollide(Pile_Prop)
+                        }
+                        Pile_Prop:setAlpha(0)
+                        Pile_Prop:tickrate_applyForce( vec(0,0,200)*Pile_Prop:mass() )
+
+                        timer("pilepurge",PILE_FORCE_TIME)
+                        
+                        Pile_Target_Pos = GroundTrace_:position()
+                        
+                        # little explosion effect with weakest explosion prop
+                        local RandRot = random(0,360)
+                        for(T=0, 2){
+                            Boom = propSpawn(
+                                "models/props_junk/propane_tank001a.mdl",
+                                Pile_Target_Pos + vec(
+                                    sin(T*120 + RandRot)*0.5,
+                                    cos(T*120 + RandRot)*0.5,
+                                    -1.2)
+                                *RADIUS, 
+                            1)
+                            Boom:propBreak()
+                        }
+                        
+                        timer("pileend",0)
+                        Is_Fireball = 0
+                    }
+                    else {
+                        Is_Fireball = 1
+                        Pile_Target_Pos = Pile_Target_Pos + vec(0,0,-1) * Dist
+                        BALL:tickrate_applyForce( ((Pile_Target_Pos - BALL:pos())*10 - BALL:vel()) * BALL:mass() )
+                    }
+                break
+                
+                
+            }
+            
+            if( Fireball_Current_Opacity ){
+                local Ang = ang()
+                if(Ball_Action == Pile_DROP){
+                    Ang = ang(90,curtime()*500,0)
+                }
+                elseif(Ball_Action == Pile_SPOOL){
+                    Ang = ang(-90,curtime()*500,0)
+                    # next line needed to cancel out rotation from being parented to the ball while it spins
+                    # Ang = Ang:rotateAroundAxis(Pile_Axis,-360*4*(PILE_SPOOL_RATE * TICKRATE_TimeScalar_))
+                }
+                else{
+                    local Axis = BALL:vel()
+                    Ang = Axis:toAngle():rotateAroundAxis(Axis,curtime()*500)
+                    local AngVelVec = BALL:toWorldAxis(BALL:angVelVector())
+                    Ang = Ang:rotateAroundAxis(AngVelVec,-AngVelVec:length()*tickInterval())
+                }
+                holoAng(FIREBALL_ROOT,Ang)
+                
+                local FireballWindShift = clamp(Fireball_Wind_Pitch_Target - Fireball_Wind_Pitch, -5, 5)
+                Fireball_Wind_Pitch = Fireball_Wind_Pitch + FireballWindShift
+                soundPitch("fireball",Fireball_Wind_Pitch * 1.5)
+            }
+                
+            
+        }
+    
+      # hampter: 1
+        function end_mode_hampter(){
+            BALL:soundPlay("ball-close",1,"doors/door_metal_thin_close2.wav")
+            soundPitch("ball-close",random(100,120))
+            ROOT_HOLO_ENT:soundPlay("ball-close-2",1,"doors/vent_open"+(1+randint(0,1)*2)+".wav")
+            soundVolume("ball-close-2",0.6)
+            soundPitch("ball-close-2", random(120,140))
+            SEAT:soundPlay("ball-close-3",1,"physics/metal/metal_canister_impact_soft"+randint(1,2)+".wav")
+            soundPitch("ball-close-3",90)
+            legs_disableSoundMakers()
+            legs_disableFeet()
+            seatrotation_setThirdPerson(1)
+            TURRETS_TransformState = -1
+        }
+        function begin_mode_hampter(){
+            holoAng(ROOT_HOLO, Tilt_ + ang(0,SEATROTATION_Angle+90,0))
+            Leg_Deploy_Desired = 1
+            TURRETS_TransformState = 1
+        }
+        function mode_hampter(){
+            
+            Transform_Progress = min(1, Transform_Progress + TRANSFORM_RATE * TICKRATE_TimeScalar_)
+            if( $Transform_Progress > 0 & Transform_Progress == 1 ){
+                begin_mode_hampter()
+            }
+            
+            if(Grapple_Out){ # duct-tape fix; idk why this can happen
+                resetGrapple(ang())
+            }
+            
+            local TiltAng = ang(Tilt_[1], 0, -Tilt_[2])
+            
+            if(Driver_:isValid()){
+                tracefilter_load()
+
+                local HullSizes = array(24,16,8,4)
+                local Pos = vec()
+                foreach(_:number, Size:number = HullSizes){
+                    local EyeTrace = rangerOffsetHull(16384,Driver_:shootPos(),Driver_:eyeAnglesVehicle():forward(),-vec(Size),vec(Size))
+                    Pos = EyeTrace:pos()
+                    if( EyeTrace:entity():isValid() ){
+                        local Tar = EyeTrace:entity()
+                        Pos = (Pos*0.4 + (Tar:boxCenterW()+ Tar:vel()*tickInterval())*0.6)
+                        break
+                    }
+                }
+                turrets_aimAll( Pos )
+            }
+            
+            if( Leg_Deploy_Desired & (BALL:up():dot(vec(0,0,1))>0.9) ){
+                legs_enableSoundMakers()
+                legs_enableFeet()
+                legs_forceFootUpdate()
+                Leg_Deploy_Desired = 0
+            }
+            
+            OnGround_ = (GroundTrace_:distance() < 20+MECH_HEIGHT+RADIUS)
+            
+            local FacingAng = Tilt_ + ang(0,SEATROTATION_Angle,0)
+            local NewAng = slerp(quat(ROOT_HOLO_ENT),quat(FacingAng),0.4):toAngle()
+            holoAng(ROOT_HOLO,NewAng)
+            
+            local ForceVec = (vec( Keys_["ws",number], Keys_["ad",number], 0 ):rotate( Driver_:eyeAnglesVehicle() ):setZ(0))
+            ForceVec = ForceVec:rotate(TiltAng):normalized()
+                
+            local AccelTime = 5 / TICKRATE_TimeScalar_
+            local TopSpeed  = 150
+            
+            AccelTime+=!OnGround_*15
+            TopSpeed+=!OnGround_*25
+            
+            # stupid conversion factor, I have no idea where this comes from
+            TopSpeed = (TopSpeed + 115) / 0.962857
+            
+            local Vel           = BALL:vel()
+            local Mass          = BALL:mass()
+            local MovementForce = (ForceVec*TopSpeed*vec(1,1,OnGround_*0.5) - Vel:setZ(0)) * BALL:mass() / AccelTime
+            local HoverForce    = vec()
+            if(Tilt_!=ang() & OnGround_ & Can_Jump){
+                HoverTarget = GroundTrace_:pos() + GroundTrace_:hitNormal()*MECH_HEIGHT
+                HoverForce  = (HoverTarget-BALL:pos())*(Mass*10)*TICKRATE_TimeScalar_-Vel*Mass*0.9
+                HoverForce  = HoverForce:rotate(TiltAng)*0.5
+            }
+            
+            BALL:tickrate_applyForce( MovementForce + HoverForce*vec(0,0,1) )
+            BALL:perfectAngForce( FacingAng )
+            
+        }
+        
+    ##### misc part 2 #####
+    
+    function changeMechForm(){
+        if( (
+                (Transform_Progress == 0) | 
+                (Transform_Progress == 1) 
+            )
+            & 
+            !(
+                (Grapple_Out) |
+                (Pile_Active)
+            )
+        ){
+            Is_Hampter = !Is_Hampter
+            if( Is_Hampter ){ # HAMPTER
+                end_mode_ball()
+            }
+            else { # BALL
+                end_mode_hampter()
+            }
+        }
+    }
+        
+}
+
+event tick(){
+    
+    if( opcounter() > softQuota() ){ # don't quota
+        tickrate_dropTick()
+        exit() 
+    }
+    
+    if(!GRAPPLE_PHYSOBJ:isValid() & propCanCreate()){ # oh no
+        BALL:soundPlay("grapple_deleted",1,"weapons/fx/rics/ric"+randint(1,5)+".wav")
+        spawnGrapple()
+        resetGrapple(ang())
+    }
+    
+    Driver_ = SEAT:driver()
+    holoPos( SEAT_ROOT_HOLO, ROOT_HOLO_ENT:toWorld(vec(0,0,SEAT_HEIGHT * Transform_Progress )))
+    Speed_ = BALL:vel():setZ(0):length()
+    
+    tracefilter_load()
+    GroundTrace_ = doGroundTrace(!Pile_Active)
+
+    checkLandingConditions()
+    
+    Tilt_ = GroundTrace_:hitNormal():rotate(ang(90,0,0)):toAngle()
+    Tilt_ = angnorm(Tilt_)
+    if(GroundTrace_:hitNormal():dot(vec(0,0,1)) < SLOPE_MAX_DOT){
+        Tilt_ = ang()    
+    }
+    
+    if( !Driver_:isValid() & Is_Hampter == 0 ){
+        resetGrapple(ang())
+        changeMechForm()
+    }
+    
+    # for some reason, Driver_:eye() is unstable here
+    tracefilter_load()
+    AimPos_ = rangerOffset(9999,SEAT:toWorld(SEATROTATION_CamPos),Driver_:eyeAnglesVehicle():forward()):position()
+
+    Keys_ = table(
+        "ws" = Driver_:keyForward() - Driver_:keyBack(),
+        "ad" = Driver_:keyLeft() - Driver_:keyRight()
+    )
+    
+    # seatrotation_setThirdPerson(!Is_Hampter)
+    turrets_setFiring( Driver_:keyAttack1() )
+    
+    if( Is_Hampter ){ # HAMPTER
+        mode_hampter()
+    }
+    else { # BALL
+        mode_ball()
+    }
+    
+    Fireball_Wind_Vol = clamp(Fireball_Wind_Vol + Fireball_Wind_Dir, 0, 1)
+    soundVolume("fireball",Fireball_Wind_Vol)
+    
+    if( Pile_Prop:isValid() ){
+        Pile_Prop:perfectAngForce(ang(0,0,0))
+        #Pile_Prop:setPos(Pile_Prop:pos() + Pile_Prop:vel() * tickInterval())
+        Pile_Prop:propSetVelocity(vec(0,0,PILE_FORCE))
+    }
+    
+    if( Pile_Desired ){
+        tryPiledrive()
+    }
+    
+    animateFireballOpacity()
+    
+}
+
+event keyPressed(Player:entity, Key:string, Down:number, KeyBind:string) {
+    
+    if( (Player == Driver_) ){
+        
+        switch( Key ){
+            case "mouse_5",
+                if(Down){ changeMechForm() }
+            break
+        }
+        
+        switch( KeyBind ){
+            case "attack2",
+                if(Down){
+                    if(Is_Hampter){ changeMechForm() } # grapple in any form
+                    fireGrapple( (AimPos_-BALL:pos()):toAngle() )
+                }
+                else{
+                    detachGrapple()
+                }
+            break
+            case "attack",
+                if(Down){
+                    if(!Is_Hampter){ changeMechForm() } # exit mech to fire
+                }            
+            break
+            case "jump",
+                if(Down & OnGround_ & Can_Jump){
+                    BALL:applyForce(vec(0,0,235 - MECH_HEIGHT*4 + GroundTrace_:distance()*Is_Hampter + !Is_Hampter*MECH_HEIGHT*4)*BALL:mass())
+                    Can_Jump = 0
+                }
+            break
+            case "duck",
+                Pile_Desired = Down
+                #if(Down){ seatrotation_setThirdPerson(Is_Hampter) }
+            break
+            case "speed",
+                if(Down){ changeMechForm() }
+            break
+        }
+    
+    }
+    
+}
+
+if(clk("attachrope")){
+    local V = BALL:vel()
+    local MinusDist = V:dot( (BALL:pos() - GRAPPLE_PHYSOBJ:pos()):normalized() ) * tickInterval()
+    rope(1,BALL,vec(),GRAPPLE_PHYSOBJ,vec(),-MinusDist,0,"cable/cable2",0)
+    if(Grapple_Hit_Entity:isValid()){
+        holoParent(GRAPPLE_HOLO, Grapple_Hit_Entity)
+        GRAPPLE_PHYSOBJ:parentTo(GRAPPLE_HOLO_ENT)
+    }
+}
+
+if(clk("pilepurge")){
+    Pile_Prop:propDelete()
+}
+
+if(clk("pileend")){
+    BALL:setPos(Pile_Target_Pos)
+    BALL:propSetVelocity(vec())
+    BALL:propSetAngVelocity(vec())
+}
+
+if(clk("fireballoff")){
+    clearFireball()
+    ## print("timerdead")
+}
+
+if(clk("fireballsound2") & Fireball_Sound_CD){
+    SEAT:soundPlay("fireball-strain",2,"ambient/machines/floodgate_stop1.wav")
+    soundPitch("fireball-strain",random(200,250))
+    timer("fireballsound3",100)
+}
+
+if(clk("fireballsound3") & Fireball_Sound_CD){
+    soundVolume("fireball-metal",1)
+    soundPitch("fireball-metal",random(200,250))
+    timer("fireballsound4",400)
+}
+
+if(clk("fireballsound4") & Fireball_Sound_CD){
+    soundVolume("fireball-metal",0)
+}
+
+if(clk("fireballturbulence") & Is_Fireball){
+    Fireball_Wind_Pitch_Target = randint(80,120)
+    timer("fireballturbulence",random(300,600))
+}
+

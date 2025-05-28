@@ -1,0 +1,43 @@
+@name E2 Bomber 3
+@inputs Gl GPS:vector Objective:vector Clk Launch Stage Abort Reboot
+@outputs Mul A Go Ok Vector:vector Speed Dist Altitude Alt Reset Home:table TargetPos:table Roll
+@persist GPS:vector Home:table Targetpos:table 
+@persist Alt 
+@trigger Clk
+E=entity()
+CruiseAlt=3500
+BeginLanding=15000
+if (Clk & Launch==0) {Home[toString(0),vector] = GPS}
+if (Clk & ~Clk) {Targetpos[toString(0),vector] = Objective}
+
+interval(50)
+Reset= (Stage==2 | Reboot==1)
+
+Go=Stage <= 1 #KILL DRONE AFTER N WPT
+if (Go==1 & Launch==1 & (Stage==0 | ( Stage==1 & Dist>BeginLanding))) {Mul=1
+    A=1}
+elseif (Go==1 & Launch==1 & Stage==1 & Dist<=BeginLanding) {Mul=0.75
+    A=0.25}
+else {Mul=0
+    A=0}
+
+if (Stage==0) {T=Targetpos[toString(0),vector]}
+else {T=Home[toString(0),vector]}
+
+if (Stage==1 & Dist<=BeginLanding) {Alt=200}
+else {
+if (Altitude<(CruiseAlt-1000)) {Alt=10000}
+elseif (Altitude>(CruiseAlt+1000)) {Alt=500}
+else {Alt=CruiseAlt}
+}
+Sz=GPS:z()
+Z=Sz - (Gl+Alt)
+Vec=GPS-T
+Vector=vec(Vec:x(),Vec:y(),Z)
+TPN=vec(T:x(),T:y(),GPS:z())
+Dist=TPN:distance(GPS)
+Altitude=Sz-Gl
+Speed=entity():vel():length()
+RollV = E:angVel():roll() 
+Roll = RollV + E:angles():roll() * -1
+Ok=(Dist<=4000 | Abort==1)

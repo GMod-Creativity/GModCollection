@@ -1,0 +1,179 @@
+@name Brainfuck
+@persist TestScript:string Interpreted
+
+@persist Buffer Running
+@persist Script:string
+@persist Result:string
+
+@persist Cells:table Loops:table
+@persist Pointer AwaitInput
+
+#[
+    This code was written by Sixmax (STEAM_0:0:104139026).
+    
+    You may use this in your projects but not claim it as yours (Check License: https://github.com/Sixmax/gmod/blob/master/license.txt)
+    Abuse may cause an inconvenience on your and my side. So please respect my work and follow the licensing.
+]#
+
+#[
+    Simple Brainfuck Interpreter lol
+]#
+
+if( first() )
+{
+    runOnChat(1)
+    runOnTick(1)
+
+    #[
+        Hello World = >++++++++[<+++++++++>-]<.>++++[<+++++++>-]<+.+++++++..+++.>>++++++[<+++++++>-]<++.------------.>++++++[<+++++++++>-]<+.<.+++.------.--------.>>>++++[<++++++++>-]<+.
+        Print Input = ,[.,]
+        Infinite Loop = +[]
+        Binary Counter = -[>[->]++[-<+]-]
+        Reverse Input = ,[>,]<[.<]
+    ]#  
+    
+    TestScript = ",[.,]"  
+     
+    function string readNext()
+    {
+        Buffer++
+        return Script:index(Buffer)
+    }
+    
+    function number string:bfRun(Memorysize, MaxReLoops, DebugMode, ThrowErrors, Sender:entity)
+    {
+        if(!Running)
+        {
+            Cells = table()
+            Loops = table()
+            Pointer = 0
+            Buffer = 0
+            AwaitInput = 0
+            Result = ""
+            Script = This
+            Running = 1    
+        }
+        else
+        {            
+            if(AwaitInput & chatClk(Sender))
+            {
+                Cells[Pointer, number] = toByte(lastSaid())
+                AwaitInput = 0
+            }
+            
+            while(perf())
+            {
+                if(AwaitInput)
+                {
+                    continue
+                }
+                
+                local C = readNext()
+
+                if(Buffer > Script:length())
+                {
+                    Running = 0
+                    return 1
+                }
+                
+                switch(C)
+                {
+                    case ">", 
+                    Pointer++ 
+                    
+                    if(Pointer > Memorysize)
+                    {
+                        error("Pointer went past memorylimit!")   
+                    }
+                    break           
+                            
+                    case "<", 
+                    Pointer--
+                    
+                    if(Pointer < 0 & ThrowErrors)
+                    {
+                        error("Pointer went below cell 0!")   
+                    }
+                    break    
+                                                        
+                    case "+", 
+                    Cells[Pointer, number] = Cells[Pointer, number] + 1
+                    break               
+                         
+                    case "-", 
+                    Cells[Pointer, number] = Cells[Pointer, number] - 1 
+                    break   
+                                                          
+                    case ".",
+                    #ifdef chatPrint(entity, string)
+                    chatPrint(owner(), toChar(Cells[Pointer, number]))
+                    #else
+                    print(toChar(Cells[Pointer, number])) 
+                    #endif                     
+                    break  
+                                    
+                    case ",", 
+                    if(DebugMode)
+                    {
+                        print("Awaiting Input.") 
+                    }
+                    AwaitInput = 1
+                    break
+              
+                    case "[",   
+                    Loops:pushTable(table("pos"=Buffer, "reloops"=0))
+                    break
+                    
+                    case "]",
+                    if(Cells[Pointer, number] != 0)
+                    {                     
+                        local LC = Loops:count()
+                        Loops[LC, table]["reloops", number] = Loops[Loops:count(), table]["reloops", number] + 1
+                        if(Loops[LC, table]["reloops", number] <= MaxReLoops)
+                        {                            
+                            Buffer = Loops[LC, table]["pos", number]
+                        }
+                        else
+                        {
+                            if(ThrowErrors)
+                            {
+                                error("Loop at position " + Buffer + " reached max re-looping amount.")                                   
+                            }
+                            
+                            Loops:removeNumber(Loops:count()) 
+                        }
+                    }
+                    else
+                    {
+                        Loops:removeNumber(Loops:count())
+                    }
+                    break            
+                }              
+            }
+        }
+        
+        return 0     
+    }
+    
+    function void bfReset()
+    {
+        Cells   = table()
+        Loops   = table()
+        Pointer = 0
+        Buffer  = 0
+        Result  = ""
+        Script  = ""
+        Running = 0               
+    }
+    
+    Interpreted = 0
+}
+
+if(!Interpreted)
+{
+    if(TestScript:bfRun(1000, 1000, 1, 1, owner()))
+    {
+        print("Done")
+        Interpreted = 1   
+    }
+}

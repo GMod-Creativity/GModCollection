@@ -1,0 +1,266 @@
+@name negcomp 
+@inputs Start Reset Mem:array
+@outputs Done ProgramDone Pcount OutA OutB Mem:array
+#@outputs Command Arg Arg2 PrevOp Argument Argument2 Out X Y AddrRead AddrWrite
+@persist Command Arg Arg2 Pcount PrevOp SubC LPP InstC InstL Sub
+@persist ProgramDone Output:array #Mem:array
+@trigger Start Reset
+#computer on a chip
+#version: nonstored program, onboard mem
+Done=0
+if (Reset==1) {Pcount=0
+    ProgramDone=0}
+Code=742617000027
+Prog=array(
+    1,1,27.5,
+    1,2,100,
+    17,(Code+1),0,
+    1,3,(Code),
+    18,(Code+1),0,
+    1,4,(Code),
+    12,(Code+2),(Code+3),
+    1,5,(Code),
+    12,(Code+2),(Code+4),
+    1,6,Code,
+    2,(Code+7),(Code+5),
+    1,7,Code,
+    2,(Code+8),(Code+6),
+    1,8,Code,
+    22,1,(Code+7),
+    22,2,(Code+8),
+    2,(Code+9),1,
+    27,(Code+9),100,
+    10,742617000027,7,
+    11,0,0
+    )
+
+if (Sub==1) {Command=Mem[SubC,number]
+    Arg=Mem[SubC+1,number]
+    Arg2=Mem[SubC+2,number]}
+else {Command=Prog[Pcount,number]
+    Arg=Prog[Pcount+1,number]
+    Arg2=Prog[Pcount+2,number]
+}
+if (Start==1 & Pcount==0) {Pcount=Pcount+1}
+elseif (Start==1 & Pcount>=1 & ProgramDone==0) {Pcount=Pcount+3}
+
+if (Command!=0 & Command!=1 & Command!=11 & Command!=20 & Command!=21 & Command!=22 & Command!=23 & Command!=25) {
+    if (Command!=10) {CPUOn=1}
+    #arg1
+    if (Arg>Code) { #Memory Call
+    AddrRead=Arg-Code
+    Argument=Mem[AddrRead,number]}
+    elseif (Arg==Code) {Argument=PrevOp} #Last Op Call
+    else {Argument=Arg #Normal Argument
+        }
+    
+    #arg2
+    if (Arg2>Code) {    #Memory Call
+    AddrRead2=Arg2-Code
+    Argument2=Mem[AddrRead2,number]}
+    elseif (Arg2==Code) {Argument2=PrevOp}   #Last Op Call
+    else {Argument2=Arg2    #Normal Argument
+        }
+    
+    if (Command==16) {Sub=1
+    SubC=Argument*3
+    Command=Mem[SubC,number]
+    Arg=Mem[SubC+1,number]
+    Arg2=Mem[SubC+2,number]
+    }
+
+}
+elseif (Pcount!=0) {CPUOn=0
+    if (Command==1) {   #Set Command
+        if (Arg2==Code) {Argument2=PrevOp}
+        elseif (Arg2>Code) {    #Memory Call
+        AddrRead=Arg2-Code
+        Argument2=Mem[AddrRead,number]}
+        else {Argument2=Arg2}
+        Argument=Arg
+        Mem[Argument,number]=Argument2
+        PrevOp=Argument2
+        }
+    elseif (Command==23) { #Setlop
+        WrAddr=Arg-Code
+        Mem[WrAddr,number]=PrevOp
+        }
+    elseif (Command==25) { #Clear
+        WrAddr=Arg-Code
+        Mem[WrAddr,number]=0}
+    elseif (Command==22) {
+        if (Arg2==Code) {Argument2=PrevOp}
+        elseif (Arg2>Code) {    #Memory Call
+        AddrRead=Arg2-Code
+        Argument2=Mem[AddrRead,number]}
+        else {Argument2=Arg2}
+        Output[Arg,number]=Argument2}
+    elseif (Command==11 & Sub==0) {ProgramDone=1}
+    elseif (Command==11 & Sub==1) {Sub=0
+        Pcount=LPP}
+    elseif (Command==10) {
+        if (Arg2==Code) {Argument2=PrevOp}
+        elseif (Arg2>Code) {    #Memory Call
+        AddrRead=Arg2-Code
+        Argument2=Mem[AddrRead,number]}
+        else {Argument2=Arg2}
+        }
+    Done=1
+}
+
+if ((Command==10 & Arg>=1) | (Command==20)) {CPUOn=0
+    if (Command==10) {Pcount=Argument2}
+    else {Pcount=Argument2}
+    Done=1
+    exit()
+    }
+elseif (Command==10 & Argument<=0) {CPUOn=0
+Done=1}
+    
+if (CPUOn==1) {
+    X=Argument
+    Y=Argument2
+
+    if (Command==2) {Out=X+Y
+       PrevOp=Out
+        Done=1}
+        
+    elseif (Command==3) {Out=X-Y
+       PrevOp=Out
+        Done=1}
+        
+    elseif (Command==4) {
+    if (X==Y) {Out=1
+       PrevOp=1
+            Done=1}
+    else {Out=0
+       PrevOp=0
+            Done=1}
+            }
+            
+    elseif (Command==5) {
+    if (X>=Y) {Out=1
+       PrevOp=1
+        Done=1}
+    else {Out=0
+       PrevOp=0
+        Done=1}
+    }
+    
+    elseif (Command==6) {
+    if (X<=Y) {Out=1
+       PrevOp=1
+        Done=1}
+    else {Out=0
+       PrevOp=0
+        Done=1}
+    }
+    
+    elseif (Command==7) {
+    if (X==1 & Y==1) {Out=1
+       PrevOp=1
+        Done=1}
+    else {Out=0
+       PrevOp=0
+        Done=1}
+    }
+    
+    elseif (Command==8) {
+    if (X==1 | Y==1) {Out=1
+       PrevOp=1
+        Done=1}
+    else {Out=0 
+       PrevOp=0   
+        Done=1}
+    }
+    
+    elseif (Command==9) {
+    if (X==0 & Y==0) {Out=1
+       PrevOp=1
+        Done=1}
+    else {Out=0  
+       PrevOp=0  
+        Done=1}
+    }
+    
+#elseif (Command==10) {
+    #if (X==1) {ProgAddr=Y
+      #  Out=1
+     #  PrevOp=Out
+    #    Done=1}
+   # else {ProgAddr=0
+  #      Out=0
+ #      PrevOp=Out
+#       Done=1}
+#    }
+
+    elseif (Command==12) {
+       Out=X*Y
+       PrevOp=Out
+        Done=1
+    }
+
+    elseif (Command==13) {
+       Out=X/Y
+       PrevOp=Out
+        Done=1
+    }
+
+    elseif (Command==14) {
+       Out=(X^Y)
+       PrevOp=Out
+        Done=1
+    }
+
+    elseif (Command==15) {
+       Out=sqrt(X)
+       PrevOp=Out
+        Done=1
+    }
+#elseif (Command==16) {
+#       Out=X^2
+#       PrevOp=Out
+#        Done=1
+#    }
+    elseif (Command==17) {
+       Out=cos(X)
+       PrevOp=Out
+        Done=1
+    }
+    elseif (Command==18) {
+       Out=sin(X)
+       PrevOp=Out
+        Done=1
+    }
+    elseif (Command==19) {
+    if (X!=Y) {Out=1
+       PrevOp=1
+        Done=1}
+    else {Out=0  
+       PrevOp=0  
+        Done=1}
+    }
+    elseif (Command==24) {
+    Done=1
+    exit()
+    }
+    elseif (Command==26) {
+    if (X>Y) {Out=1
+       PrevOp=1
+        Done=1}
+    else {Out=0
+       PrevOp=0
+        Done=1}
+    }
+    
+    elseif (Command==27) {
+    if (X<Y) {Out=1
+       PrevOp=1
+        Done=1}
+    else {Out=0
+       PrevOp=0
+        Done=1}
+    }
+}
+OutA=Output[1,number]
+OutB=Output[2,number]

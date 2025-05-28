@@ -1,0 +1,59 @@
+@name Camera V2.0
+@inputs DS:wirelink
+@persist ThePositionOrSomething X Y Resolution Timeb Timea Est Message:string Traced TPS Ranger:ranger R PosX PosY Length Ops CpuUsage
+@trigger none
+@model models/dav0r/camera.mdl
+
+##############################
+
+Resolution = 512
+Length = 20000
+if(first() | duped()){
+    holoCreate(1)#debug holo, can get rid of this
+    DS[1048569]= 3
+    DS[1048572]= Resolution
+    DS[1048573]= Resolution
+    DS[1048574]= 1
+    ThePositionOrSomething = 0
+    Est = round(((Resolution*Resolution)/2642),1)
+    print("Rendering...")
+    print(Est+" second(s) estimated render time")
+    Timeb = systime()
+}else{}
+PosX = (X/(Resolution/2))-1
+PosY = (Y/(Resolution/2))-1
+interval(15)
+
+##############################
+
+while(opcounter()<10000 && cpuUsage()*1000000<30000){
+#Ranger = ranger(Length,PosX,(PosY+Resolution)) #30 = FOV/2
+Dir = vec(1,1-(X/Resolution)-0.5,1-(Y/Resolution)-0.5):rotate(entity():angles())
+Ranger = rangerOffset(Length,entity():toWorld(vec(10,0,0)),Dir)
+R = Ranger:distance()
+holoPos(1,Ranger:pos()) #debug holo, can get rid of this
+
+if(ThePositionOrSomething < 262145 & X < Resolution & Y < Resolution){
+    DS[ThePositionOrSomething]=rgb2digi(vec(255)*R/1000,3)
+    ThePositionOrSomething++
+    X++
+    Traced++
+    Ops = Ops+(ops())
+    CpuUsage = CpuUsage+(cpuUsage())
+}elseif(ThePositionOrSomething < 262145 & X == Resolution & Y < Resolution){
+    X=0
+    Y++
+}elseif(ThePositionOrSomething==Resolution*Resolution){
+    stoptimer("interval")
+    Timea = round((systime()-Timeb),1)
+    print("Done!")
+    print(Resolution+"x image rendered in")
+    print(Timea+" seconds!")
+    TPS = Traced/Timea
+    print("Traces Per Second = "+round(TPS))
+    print("Average Ops "+round(Ops/Traced))
+    print("Average CPU Time "+round((((CpuUsage*1000000)/Traced)/1000),1)+"ms")
+    holoDelete(1)
+    exit()
+}
+}

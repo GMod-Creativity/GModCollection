@@ -1,0 +1,280 @@
+@name cookie functions
+@inputs 
+@outputs 
+@persist Cooldown Cookies Resources:table Cps LastPly:entity
+@trigger 
+
+function number getPrice(Id){
+    Cost=Resources[Id,table]["base_cost",number]
+    Cost=Cost*1.15^Resources[Id,table]["quantity",number]
+    return Cost
+}
+
+function number getCps(Id){
+    return Resources[Id,table]["base_cps",number]
+}
+
+function number getAmount(Id){
+    return Resources[Id,table]["quantity",number]
+}
+
+function void recalculateCps(){
+    Cps=0
+    for(I=1,Resources:count()){
+        Res=Resources[I,table]
+        Cps+=getCps(I)*getAmount(I)
+    }
+}
+
+function number wirelink:egpButton(Idx:number,Ply:entity){
+    TL=This:egpPos(Idx)-This:egpSize(Idx)/2
+    BR=This:egpPos(Idx)+This:egpSize(Idx)/2
+    Cur=This:egpCursor(Ply)
+    return inrange(Cur,TL,BR)
+}
+
+function void initResources(){
+    Cookies=0
+    
+    Resources=table()
+    Res=table()
+    Res["id",number]=1
+    Res["name",string]="Cursor"
+    Res["quantity",number]=0
+    Res["base_cost",number]=15
+    Res["base_cps",number]=0.1
+    Resources:pushTable(Res)
+    Res=table()
+    Res["id",number]=2
+    Res["name",string]="Grandma"
+    Res["quantity",number]=0
+    Res["base_cost",number]=100
+    Res["base_cps",number]=0.5
+    Resources:pushTable(Res)
+    Res=table()
+    Res["id",number]=3
+    Res["name",string]="Farm"
+    Res["quantity",number]=0
+    Res["base_cost",number]=500
+    Res["base_cps",number]=4
+    Resources:pushTable(Res)
+    Res=table()
+    Res["id",number]=4
+    Res["name",string]="Factory"
+    Res["quantity",number]=0
+    Res["base_cost",number]=3000
+    Res["base_cps",number]=10
+    Resources:pushTable(Res)
+    Res=table()
+    Res["id",number]=5
+    Res["name",string]="Mine"
+    Res["quantity",number]=0
+    Res["base_cost",number]=10000
+    Res["base_cps",number]=40
+    Resources:pushTable(Res)
+    Res=table()
+    Res["id",number]=6
+    Res["name",string]="Shipment"
+    Res["quantity",number]=0
+    Res["base_cost",number]=40000
+    Res["base_cps",number]=100
+    Resources:pushTable(Res)
+    Res=table()
+    Res["id",number]=7
+    Res["name",string]="Alchemy Lab"
+    Res["quantity",number]=0
+    Res["base_cost",number]=200000
+    Res["base_cps",number]=400
+    Resources:pushTable(Res)
+    Res=table()
+    Res["id",number]=8
+    Res["name",string]="Portal"
+    Res["quantity",number]=0
+    Res["base_cost",number]=1666666
+    Res["base_cps",number]=6666
+    Resources:pushTable(Res)
+    Res=table()
+    Res["id",number]=9
+    Res["name",string]="Time Machine"
+    Res["quantity",number]=0
+    Res["base_cost",number]=123456789
+    Res["base_cps",number]=98765
+    Resources:pushTable(Res)
+    Res=table()
+    Res["id",number]=10
+    Res["name",string]="Antimatter Condenser"
+    Res["quantity",number]=0
+    Res["base_cost",number]=3999999999
+    Res["base_cps",number]=999999
+    Resources:pushTable(Res)
+    Res=table()
+    Res["id",number]=11
+    Res["name",string]="Prism"
+    Res["quantity",number]=0
+    Res["base_cost",number]=75000000000
+    Res["base_cps",number]=10000000
+    Resources:pushTable(Res)
+    
+    recalculateCps()
+}
+
+function void tryBuy(Id:number){
+    Cost=getPrice(Id)
+    if(Cookies>=Cost){
+        Cookies-=Cost
+        Resources[Id,table]["quantity",number]=
+            Resources[Id,table]["quantity",number]+1
+        recalculateCps()
+    }
+}
+
+function string pretty(N,D){
+    if(N<10000){
+        return round(N,D):toString()
+    }
+    if(N<10000000){
+        return (round(N)/1000):toString()+"K"
+    }
+    if(N<10000000000){
+        return (round(N/1000)/1000):toString()+"M"
+    }
+    return (round(N/1000000)/1000):toString()+"B"
+}
+
+function string pretty(N){
+    return pretty(N,0)
+}
+
+function void wirelink:updateScreen(){
+    This:egpSetText(2,pretty(Cookies)+"")
+    This:egpSetText(5,pretty(Cps,1)+" per second")
+    
+    Width=39
+    for(I=1,Resources:count()){
+        Off=10+20*I
+        This:egpSetText(Off+3,""+pretty(getPrice(I)))
+        This:egpSetText(Off+4,""+pretty(getCps(I),1))
+        This:egpSetText(Off+5,""+pretty(getAmount(I)))
+    }
+}
+
+function void wirelink:drawInit(){
+    This:egpClear()
+    ###General
+    #Left Frame
+    This:egpBox(1,vec2(256,256),vec2(512,512))
+    This:egpColor(1,vec(24,63,87))
+    This:egpText(2,"Cookies",vec2(85,70))
+    This:egpFont(2,"WireGPU_ConsoleFont",30)
+    This:egpAlign(2,1)
+    This:egpCircle(4,vec2(85,256),vec2(75,75))
+    This:egpColor(4,vec(160,115,12))
+    This:egpText(5,"per second",vec2(85,130))
+    This:egpFont(5,"WireGPU_ConsoleFont",18)
+    This:egpAlign(5,1)
+    This:egpText(6,"Cookie Clicker",vec2(85,20))
+    This:egpFont(6,"WireGPU_ConsoleFont",28)
+    This:egpColor(6,vec(160,115,12))
+    This:egpAlign(6,1)
+    #Other general
+    This:egpBox(7,vec2(172,256),vec2(4,512))
+    This:egpColor(7,vec(100,80,3))
+    This:egpText(8,"Store",vec2(342,5))
+    This:egpFont(8,"WireGPU_ConsoleFont",30)
+    This:egpColor(8,vec(160,115,12))
+    This:egpAlign(8,1)
+    This:egpBox(9,vec2(342,40),vec2(340,4))
+    This:egpColor(9,vec(100,80,3))
+    This:egpText(10,"Item",vec2(250,45))
+    This:egpFont(10,"WireGPU_ConsoleFont",30)
+    This:egpColor(10,vec(160,115,12))
+    This:egpAlign(10,1)
+    This:egpText(11,"Price",vec2(352,45))
+    This:egpFont(11,"WireGPU_ConsoleFont",18)
+    This:egpColor(11,vec(160,115,12))
+    This:egpAlign(11,1)
+    This:egpText(12,"Cookies/s",vec2(410,59))
+    This:egpFont(12,"WireGPU_ConsoleFont",18)
+    This:egpColor(12,vec(160,115,12))
+    This:egpAlign(12,1)
+    This:egpText(13,"Owned",vec2(445,45))
+    This:egpFont(13,"WireGPU_ConsoleFont",18)
+    This:egpColor(13,vec(160,115,12))
+    This:egpAlign(13,1)
+    This:egpText(14,"Upgrade",vec2(489,67))
+    This:egpFont(14,"WireGPU_ConsoleFont",12)
+    This:egpColor(14,vec(160,115,12))
+    This:egpAlign(14,1)
+    #Cookie pieces
+    This:egpCircle(15,vec2(75,230),vec2(20,20))
+    This:egpColor(15,vec(68,49,3))
+    This:egpCircle(16,vec2(90,270),vec2(7,7))
+    This:egpColor(16,vec(68,49,3))
+    This:egpCircle(17,vec2(135,260),vec2(9,9))
+    This:egpColor(17,vec(68,49,3))
+    This:egpCircle(18,vec2(70,300),vec2(11,11))
+    This:egpColor(18,vec(68,49,3))
+    #Word "cookie"
+    This:egpText(19,"cookies",vec2(85,95))
+    This:egpFont(19,"WireGPU_ConsoleFont",30)
+    This:egpAlign(19,1)
+    #Copyright info
+    This:egpText(20,"Created by Salaputro,",vec2(85,445))
+    This:egpFont(20,"WireGPU_ConsoleFont",12)
+    This:egpAlign(20,1)
+    This:egpText(21,"a.k.a. akrasuski1.",vec2(85,460))
+    This:egpFont(21,"WireGPU_ConsoleFont",12)
+    This:egpAlign(21,1)
+    This:egpText(22,"Original game by Orteil",vec2(85,485))
+    This:egpFont(22,"WireGPU_ConsoleFont",12)
+    This:egpAlign(22,1)
+    This:egpText(23,"http://orteil.dashnet.org/cookieclicker/",vec2(85,500  This:egpFont(23,"WireGPU_ConsoleFont",10)
+    This:egpAlign(23,1)
+    
+    Width=39
+    for(I=1,Resources:count()){
+        Off=10+20*I
+        This:egpBoxOutline(Off+1,vec2(322,60+Width*I),vec2(296,Width-2))
+        This:egpColor(Off+1,vec(127,127,127))
+        This:egpSize(Off+1,2)
+        This:egpText(Off+2,Resources[I,table]["name",string],vec2(250,50+Width*I))
+        This:egpFont(Off+2,"WireGPU_ConsoleFont",20)
+        Length=Resources[I,table]["name",string]:length()
+        if(Length>16){
+            This:egpSize(Off+2,20*16/Length)
+        }
+        This:egpAlign(Off+2,1)
+        This:egpText(Off+3,"574.369M",vec2(352,53+Width*I))
+        This:egpFont(Off+3,"WireGPU_ConsoleFont",12)
+        This:egpColor(Off+3,vec(255,255,200))
+        This:egpAlign(Off+3,1)
+        This:egpText(Off+4,"111.123K",vec2(410,53+Width*I))
+        This:egpFont(Off+4,"WireGPU_ConsoleFont",12)
+        This:egpColor(Off+4,vec(200,255,200))
+        This:egpAlign(Off+4,1)
+        This:egpText(Off+5,"999",vec2(453,50+Width*I))
+        This:egpFont(Off+5,"WireGPU_ConsoleFont",18)
+        This:egpAlign(Off+5,1)
+    }
+    
+    This:updateScreen()
+}
+
+function void processButtons(EGP:wirelink,P:entity){
+    Pressed=0
+    if(EGP:egpButton(4,P)){
+        Pressed=1
+        Cookies++
+    }
+    for(I=1,Resources:count()){
+        if(EGP:egpButton(10+20*I+1,P)){
+            Pressed=1
+            tryBuy(I)
+        }
+    }
+    
+    if(Pressed){
+        Cooldown=1
+        LastPly=P
+    }
+}

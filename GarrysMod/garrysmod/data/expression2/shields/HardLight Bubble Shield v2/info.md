@@ -1,14 +1,13 @@
-Author: SinkableSea
-Date: 01-25-2016
-Title: HardLight Bubble Shield v2 [PUBLIC RELEASE:ADV DUPE 2]
+- Author: SinkableSea
+- Date: 01-25-2016
+- Title: HardLight Bubble Shield v2 [PUBLIC RELEASE:ADV DUPE 2]
 
-*HardLight Bubble Shield v2 [PUBLIC RELEASE:ADV DUPE 2]*
+## HardLight Bubble Shield v2 [PUBLIC RELEASE:ADV DUPE 2]
 
 I made a post a little while back of an experimental E2 of sort of a personal bubble shield that protects the player. After I dropped gmod for a bit and recently came back and saw how messy the original code was and how kinda buggy it was, I decided to remake it from the ground up, and even make it a public version!
 
-
 OLD VIDEO OF v1 SO YOU MOSTLY UNDERSTAND WHAT THIS DOES AND LOOKS LIKE:
-https://www.youtube.com/watch?v=JSQ7N1btUAc
+[https://www.youtube.com/watch?v=JSQ7N1btUAc](https://www.youtube.com/watch?v=JSQ7N1btUAc)
 
 TO USE: Just stand still, press your walk key, AND your use key AT THE SAME TIME, and it will deploy. DO NOT MOVE, JUMP, OR DUCK INSIDE THE SHIELD, OR ATTEMPT TO INFLICT DAMAGE INSIDE THE SHIELD OR IT WILL POP. Due to how the player interacts w/ the shield w/ motion, I decided it would be better for if you move, to disable the shield, rather than you duck and your head pops out the top of the shield while you float in the middle. :/
 

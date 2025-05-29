@@ -1,0 +1,740 @@
+@name Build Bucket
+@inputs [Console]:wirelink
+@persist Commands:array 
+@persist [EGP]:wirelink
+@outputs Left:array Right:array Frame:array Turret:array Mantlet:array TempColors:array TempArray:array CDR:array Springs:array Points:array Keep Index WeldX WeldY Weldit Wheelaxisvector:vector
+@persist UserKey User:entity Target:entity Selectionmode Arraytouse Susp M1 M2 T Donemodemax ScX ScY [ScXY]:vector2 Foreback Zoff MCent [Fronttankspring Reartankspring]:entity Ranger:ranger Width
+@model models/props_junk/MetalBucket01a.mdl
+interval(100)
+#Latest model!
+#To use this chip, simply spawn an egp hud, link to it, then load the cip into e2 and aim at the hud and click.  It'll spawn the e2 welded and wire itself.
+
+runOnChat(1)
+if(dupefinished()) {reset()}
+if(first()) {
+    #COMMAND ARRAY - You can alter the commands in the quotes to fit your personal preferences.
+    #These are core components to the functioning of the chip.  These are used to select groups of parts.
+    Commands:setString(1,"sel":lower()) #Select a group of props
+    Commands:setString(2,"clr":lower()) #Clear your selection
+    #These are the groups of parts desired.  They're what gets manipulated.
+    Commands:setString(3,"l":lower()) #Left wheels - select awlays front to back
+    Commands:setString(4,"r":lower()) #Right wheels - select always front to back
+    Commands:setString(9,"b":lower()) #Base framework - select always the base plate and then any other bits
+    Commands:setString(5,"s":lower()) #Springs - select always front to back
+    Commands:setString(16,"t":lower()) #Turret - select always the turret ring/base/basket (it will rotate around this), then the main armament.  if you have multiple guns, select the biggest.  If they're all the same size, any one of them will work.
+    Commands:setString(17,"m":lower()) #Mantlet - these props simply get moved to the new mass center of the turret module.  Useful since guns don't have to rotate around their mass center if counterbalanced.
+    #These are commands you can use to manipulate these parts.  Note the up/down/left/right arrows on your keyboard will nudge your wheels up/down or in/out.
+    Commands:setString(6,"align":lower()) #Aligns your wheels into a line based off the first one's offset
+    Commands:setString(10,"weld":lower()) #Welds the entire hull framework to itself, like smartweld.
+    Commands:setString(11,"cdr":lower()) #Constant/damping/relative for elastics.  Also applies elastics.  so "cdr 50000 1500 100" would apply stretch-only elastics to each wheel with a constant of 50k, a damping of 1500, and a relative damping of 100
+    Commands:setString(12,"stype":lower()) #Suspension type as a number.
+    Commands:setString(13,"sview":lower()) #Creates offsets for constraining a suspension.  So "sview 10 5 0" would make points 10 units forward and 5 units up from the axle.  Currently the last variable is ignored, the lateral offset.
+    Commands:setString(14,"sapply":lower()) #Applies the constraints of the suspension, roping and ballsocketing and axising.  Will weld springplate springs and axis wheels to them for tanks.
+    Commands:setString(15,"mount":lower()) #Mounts a turret in place.  It applies rope mantlet, axises guns to the ring, axises the ring to the framework, welds the guns together, and moves the mantlet to the mass center of the gun setup.  Basically all turret construction is done instantly.
+    Commands:setString(19,"unpar":lower()) #Unparents parented gearboxes adn engines that are constrained, since ACF's parent setup is tricky to unparent from.
+    Commands:setString(20,"bump":lower()) #Creates limiters similar to bump stops.  Force of these is auto-detected based off wheel mass, helps prevent suspension collapse.
+    Commands:setString(21,"tlink":lower()) #Links with adv bs a side to each sprocket for its side - doesn't work right yet
+    Commands:setString(22,"nocol":lower()) #Applies ACF-legal nocollides so that nothing but wheels have nocollide, and those don't collide with each other
+    Commands:setString(23,"pp":lower()) #Sets the physprop material to whatever comes after it to all left and right wheels
+    Commands:setString(24,"clean":lower()) #Cleans up props left on the ground
+    #These are just for the chip to use, little things to help you along.
+    Commands:setString(7,"name":lower()) #Name your project, to remember it - this has no constructive purpose, but is useful nonetheless.
+    Commands:setString(8,"reset":lower()) #Resets the chip if it somehow malfunctions or you wish to start a new project.
+    Commands:setString(18,"help":lower()) #prints out a nice bit of help information, soas to help
+        #[Console:writeString("Red's Building Assistant      ",0,0,900,100,0)
+    Console:writeString("Unnamed",0,1,90,10,1)
+    Console:writeString("         CHAT COMMANDS           ",0,2,90,10,0)
+    Console:writeString("Name ["+Commands:string(7):upper()+"]",0,3,90,0)
+    Console:writeString("Selection ["+Commands:string(1):upper()+"][GROUP]",0,4,90,1)
+    Console:writeString("Clearing ["+Commands:string(2):upper()+"][GROUP]",0,5,90,1)
+    Console:writeString("Storing |RMB|",0,6,90,1)
+    Console:writeString("Right Select ["+Commands:string(4):upper()+"]",0,7,70,0)
+    Console:writeString("Frame Select ["+Commands:string(9):upper()+"]",0,9,70,0)
+    Console:writeString("Left Select ["+Commands:string(3):upper()+"]",0,8,70,0)
+    Console:writeString("Springplate Select ["+Commands:string(5):upper()+"]",0,10,70,0)
+    Console:writeString("Weld ["+Commands:string(10):upper()+"]",0,11,90,0)
+    Console:writeString("Elastics ["+Commands:string(11):upper()+"] [Con/Dam/Rel]",0,12,90,0)
+    Console:writeString("Susp Type ["+Commands:string(12):upper()+"]",0,13,90,0)
+    Console:writeString("Susp View ["+Commands:string(13):upper()+"] [FB|UD|LR]",0,14,90,0)
+    Console:writeString("Susp Apply ["+Commands:string(14):upper()+"]",0,15,90,0)
+    Console:writeString("Turret Mount ["+Commands:string(15):upper()+"]",0,16,90,0)]#
+    #I have no idea what else to add
+    
+    rangerFilter(players())
+    rangerPersist(1)
+    Constraints = entity():getConstraints()
+        foreach(K,Ent:entity=Constraints){
+            if(Ent:type()=="gmod_wire_egp_hud"){
+                EGP = Ent:wirelink()
+            }
+        }
+    X = 0
+    while(X<32) {Console:writeString("                                 ",0,X,0,0,0)
+    X = X+1}
+    Weldit = 0
+    User = entity():owner() #Default
+    EGP:egpClear()
+    ScX = egpScrW(entity():owner())
+    ScY = egpScrH(entity():owner())
+    ScXY = vec2(ScX,ScY)
+    #EGP:egp3DTracker(1,entity():owner():aimPos())
+    #EGP:egpCircleOutline(2,vec2(0,0),vec2(ScX,ScX)*0.005)
+    #EGP:egpParent(2,1)
+    #EGP:egpColor(2,vec4(32,32,255,255))
+    #EGP:egpText(3,"Frame Mass Center",vec2(0,ScY*0.02))
+    #EGP:egpParent(3,1)
+    #EGP:egpFont(3,"WireGPU_ConsoleFont",ScX*0.015)
+    #EGP:egpColor(3,vec4(32,32,255,192))
+    EGP:egpText(4,"Name ["+Commands:string(7):upper()+"]",ScXY*0.01)
+    #EGP:egpText(5,"Selection ["+Commands:string(1):upper()+"][GROUP]",ScXY*vec2(0.01,0.035))
+    #EGP:egpText(6,"Clearing ["+Commands:string(2):upper()+"][GROUP]",ScXY*vec2(0.01,0.06))
+    #EGP:egpText(7,"Storing |RMB|",ScXY*vec2(0.01,0.085))
+    #EGP:egpText(8,"Weld ["+Commands:string(10):upper()+"]",ScXY*vec2(0.01,0.16))
+    #EGP:egpText(24,"Susp Apply ["+Commands:string(14):upper()+"]",ScXY*vec2(0.01,0.185))
+    #EGP:egpText(13,"Susp Type ["+Commands:string(12):upper()+"]",ScXY*vec2(0.01,0.11))
+    #EGP:egpText(20,"Susp View ["+Commands:string(13):upper()+"] [FB|UD|LR]",ScXY*vec2(0.01,0.135))
+    EGP:egpText(9,"Elastics ["+Commands:string(11):upper()+"]",ScXY*vec2(0.875,0.01))
+    EGP:egpText(10,"C"+CDR:number(1),ScXY*vec2(0.875,0.035))
+    EGP:egpText(11,"D"+CDR:number(2),ScXY*vec2(0.875,0.06))
+    EGP:egpText(12,"R"+CDR:number(3),ScXY*vec2(0.875,0.085))
+    EGP:egpSetText(10,"C["+CDR:number(1)+"]")
+    EGP:egpSetText(11,"D["+CDR:number(2)+"]")
+    EGP:egpSetText(12,"R["+CDR:number(3)+"]")
+    EGP:egpColor(9,vec4(255,255,0,224))
+    EGP:egpFont(9,"WireGPU_ConsoleFont",ScX*0.015)
+    X = 10
+    while(X<13) {EGP:egpColor(X,vec4(255,255,0,128))
+        EGP:egpFont(X,"ChatFont",ScX*0.015)
+        X=X+1}
+    X = 5
+    #EGP:egpFont(4,"WireGPU_ConsoleFont",ScX*0.015)
+    #EGP:egpColor(4,vec4(64,64,255,224))
+    #while(X<8) {EGP:egpFont(X,"WireGPU_ConsoleFont",ScX*0.015)
+    #    EGP:egpColor(X,vec4(32,32,255,192))
+    #X = X+1}
+    X = 13
+    EGP:egpFont(X,"WireGPU_ConsoleFont",ScX*0.015)
+    EGP:egpColor(X,vec4(32,32,255,192))
+    X = 20
+    EGP:egpFont(X,"WireGPU_ConsoleFont",ScX*0.015)
+    EGP:egpColor(X,vec4(32,32,255,192))
+    EGP:egpFont(8,"WireGPU_ConsoleFont",ScX*0.015)
+    EGP:egpColor(8,vec4(32,32,255,192))
+    EGP:egpFont(24,"WireGPU_ConsoleFont",ScX*0.015)
+    EGP:egpColor(24,vec4(96,192,255,192))
+    Susp = 0
+    #Setting suspension type toolbar
+    #[if(Susp ==0) {Sustext = "Wish Bone"}
+    elseif(Susp ==1) {Sustext = "Trail Arm"}
+    elseif(Susp ==2) {Sustext = "Solid Axle"}
+    elseif(Susp ==3) {Sustext = "Twin Plate"}
+    elseif(Susp ==4) {Sustext = "Swing Axle"}
+    elseif(Susp ==5) {Sustext = "Leaf Bogie"}
+    elseif(Susp ==6) {Sustext = "Red Bogie"}
+    elseif(Susp ==7) {Sustext = "Twin Plate"}]#
+    EGP:egpText(14,"Wishbone",ScXY*vec2(0.9,0.8)) #Susp 0
+    EGP:egpText(25,"Trail Arm",ScXY*vec2(0.9,0.825)) #Susp 1
+    EGP:egpText(15,"Dead Axle",ScXY*vec2(0.9,0.85)) #Susp 2
+    EGP:egpText(16,"Twinplate",ScXY*vec2(0.9,0.875)) #Susp 3
+    EGP:egpText(17,"Swing Axle",ScXY*vec2(0.9,0.9)) #Susp 4
+    EGP:egpText(18,"Bogie",ScXY*vec2(0.9,0.925)) #Susp 5
+    #EGP:egpText(19,"Leaf Bogie",ScXY*vec2(0.9,0.925))
+    X = 14
+    while(X<20) {EGP:egpColor(X,vec4(64,64,64,64))
+    X = X+1}
+    X = 14
+    Donemodemax = 18 #Change as we add code
+    while(X<(Donemodemax+1)) {EGP:egpColor(X,vec4(255,255,255,192))
+    X = X+1}
+    X = 4
+    while(X<20) {EGP:egpFont(X,"WireGPU_ConsoleFont",ScX*0.015)
+    X=X+1}
+    EGP:egpFont(25,"WireGPU_ConsoleFont",ScX*0.015)
+    EGP:egpColor(25,vec4(255,255,255,192))
+    EGP:egpRoundedBox(21,ScXY*(vec2(0.935,0.815)),ScXY*vec2(0.08,0.03))
+    EGP:egpRoundedBoxOutline(22,vec2(0,0),ScXY*vec2(0.08,0.03))
+    EGP:egpParent(22,21)
+    EGP:egpPos(21,ScXY*vec2(0.935,0.815 + (Susp*0.025)))
+    EGP:egpColor(21,vec4(32,32,255,96))
+    EGP:egpColor(22,vec4(128,128,255,192))
+    Foreback = 0
+    Zoff = 0
+    Width = 0
+    Fontcolor = vec4(255,0,0,255)
+    Fontsize = ScX*0.025
+    EGP:egpText(23,"FB0 UD0 LR0",ScXY*vec2(0.9,0.765))
+    EGP:egpFont(23,"WireGPU_ConsoleFont",ScX*0.0175)
+    EGP:egpColor(23,vec4(255,128,0,192))
+    Wheelaxisvector = vec(0,1,0)
+    EGP:egpColor(8,vec4(96,96,255,224))
+    #Heading
+    EGP:egpCircleOutline(26,vec2(ScX,ScY) * (vec2(0.075,0.825)),vec2(ScX,ScX) * (vec2(0.05,0.05)))
+    EGP:egpColor(26,Fontcolor)
+    EGP:egpText(27,"N",(vec2(ScX,ScY) * vec2(0.075,0.8)) - vec2(Fontsize*0.15,ScX*0.05))
+    EGP:egpColor(27,Fontcolor)
+    EGP:egpBox(28,vec2(0,ScY*-0.04),vec2(ScX*0.001,ScX*0.045))
+    EGP:egpColor(28,Fontcolor)
+    EGP:egpParent(28,26)
+    holoCreate(99,entity():pos(),vec(0.5,0.5,0.5))
+    holoModel(99,"hq_icosphere")
+    holoColor(99,vec4(255,0,0,128))
+    holoCreate(98,entity():pos(),vec(0.5,0.5,0.5))
+    holoModel(98,"hq_icosphere")
+    holoColor(98,vec4(0,0,255,128))
+}
+
+##########################################################################################################################
+#BASIC USER INTERFACE KEY USAGE
+M1 = entity():owner():keyAttack1()
+M2 = entity():owner():keyAttack2()
+UserKey = User:keyUse()
+
+##########################################################################################################################
+#START BASIC USER COMMAND DEFINITION
+if((lastSpoke() == User)&chatClk(User)) {
+Chat = lastSaid():lower()
+Split  = Chat:sub(1,Chat:length()):explode(" ")
+Chat1 = Split:string(1):lower() #Mode identifier
+Chat2 = Split:string(2):lower()
+Chat3 = Split:string(3):lower()
+Chat4 = Split:string(4):lower()
+Chat5 = Split:string(5):lower()
+Chat6 = Split:string(6):lower()
+if(Chat1 == Commands:string(1)) {#Start prop selection
+    hideChat(1)
+    hint("Selecting "+Chat2,3)
+    Index = 0
+    Selectionmode = 1
+    if(Chat2 == Commands:string(3)) {TempArray = Left
+        Arraytouse = 1}
+    elseif(Chat2 == Commands:string(4)) {TempArray = Right
+        Arraytouse = 2}
+    elseif(Chat2 == Commands:string(9)) {TempArray = Frame
+        Arraytouse = 3}
+    elseif(Chat2 == Commands:string(5)) {TempArray = Springs
+        Arraytouse = 4}
+    elseif(Chat2 == Commands:string(16)) {TempArray = Turret
+        Arraytouse = 5}
+    elseif(Chat2 == Commands:string(17)) {TempArray = Mantlet
+        Arraytouse = 6}
+    
+} else {Selectionmode = 0}
+
+##########################################################################################################################
+#PROJECT NAMING
+if(Chat1 == Commands:string(7)) {
+    hideChat(1)
+    Projname = ""+Chat2:upper()+" "+Chat3:upper()+" "+Chat4:upper()+" "+Chat5:upper()+" "+Chat6:upper()+" "
+    Console:writeString("                              ",0,1,90,20,0)
+    Console:writeString("Project: "+Projname,0,1,90,20,0)
+    EGP:egpSetText(4,"Project: "+Projname)
+    EGP:egpColor(4,vec4(0,255,0,255))}
+
+##########################################################################################################################
+#CLEARING SELECTIONS
+if(Chat1 == Commands:string(2)) {#Clear arrays
+    hideChat(1)
+    if(Chat2 == Commands:string(3)) {array(Left)
+        X = 0
+        while(X<99) {Left:remove(X)
+        X = X+1}}
+    elseif(Chat2 == Commands:string(4)) {array(Right)
+        X = 0
+        while(X<99) {Right:remove(X)
+        X = X+1}}
+    elseif(Chat2 == Commands:string(9)) {array(Frame)
+        X = 0
+        while(X<99) {Frame:remove(X)
+        X = X+1}}
+    elseif(Chat2 == Commands:string(5)) {array(Springs)
+        X = 0
+        while(X<99) {Springs:remove(X)
+        X = X+1}}
+    elseif(Chat2 == Commands:string(16)) {array(Turret)
+        X = 0
+        while(X<99) {Turret:remove(X)
+        X = X+1}}
+    elseif(Chat2 == Commands:string(17)) {array(Mantlet)
+        X = 0
+        while(X<99) {Mantlet:remove(X)
+        X = X+1}}
+        
+        hint("Cleared "+Chat2:upper(),3)}#end array claer
+
+##########################################################################################################################
+#SETTING SUSPENSION TYPE TO APPLY
+elseif(Chat1 == Commands:string(12)) {hideChat(1)
+    Susp = clamp((Chat2:toNumber()),0,5) #CHANGE LAST NUMBER HERE AS NEW MODES ARE ADDED
+    EGP:egpPos(21,ScXY*vec2(0.935,0.815 + ((Susp)*0.025)))}
+
+##########################################################################################################################
+#ROADWHEEL ALIGNING
+elseif(Chat1 == Commands:string(6)) {hideChat(1)
+    VecX = Left:entity(1):pos():x()
+    foreach(K,V:entity = Left) {V:propFreeze(1)
+        V:setPos(V:pos():setX(VecX))}
+    VecX = Right:entity(1):pos():x()
+    foreach(K,V:entity = Right) {V:propFreeze(1)
+        V:setPos(V:pos():setX(VecX))}
+print(_HUD_PRINTCENTER,"Wheels Aligned")}
+
+##########################################################################################################################
+#NOCOLLIDES WHEELS
+elseif(Chat1 == Commands:string(22)) {hideChat(1)
+    Self = Frame:entity(1):getConstraints()
+    foreach(K,V:entity = Self) {noCollideAll(V,1)}
+    foreach(K,V:entity = Left) {noCollideAll(V,0)}
+    foreach(K,V:entity = Right) {noCollideAll(V,0)}
+    X = 1#Loop to nocollide left to each entity after it
+    while(X<99) {#I don't remember the command to check max array entires, and i don't care.
+    if(Left:entity(X+1):isValid() & Left:entity(X):isValid()) {Left:entity(X):noCollide(Left:entity(X+1))
+    X = X+1} else {X = 999}}
+    X = 1#Loop to nocollide right to each entity after it
+    while(X<99) {#I don't remember the command to check max array entires, and i don't care.
+    if(Right:entity(X+1):isValid() & Right:entity(X):isValid()) {Right:entity(X):noCollide(Right:entity(X+1))
+    X = X+1} else {X = 999}}            
+print(_HUD_PRINTCENTER,"Nocollides Applied")}
+
+##########################################################################################################################
+#SETS WHEEL PHYSPROP_MATERIAL
+elseif(Chat1 == Commands:string(23)) {hideChat(1)
+    Mat = Chat2:lower()
+    foreach(K,V:entity = Left) {V:setPhysProp(Mat,1)}
+    foreach(K,V:entity = Right) {V:setPhysProp(Mat,1)}
+print(_HUD_PRINTCENTER,"Mat: "+Mat)}
+
+##########################################################################################################################
+#SUSPENSION DISPLAY
+elseif(Chat1 == Commands:string(13)) {hideChat(1)
+    Foreback = round(Chat2:toNumber())
+    Zoff = round(Chat3:toNumber())
+    Width = round(Chat4:toNumber())
+    EGP:egpSetText(23,"FB"+round(Foreback)+" UD"+round(Zoff)+" LR"+round(Width))
+    X = 1
+    MCent = Frame:entity(1):massCenter():x()
+    while(X<50) {#Creates array of points and markers
+    holoDelete(X)
+    if(Left:entity(X):isValid()) {
+    Points:setVector(X,(((Left:entity(X):massCenter() + Right:entity(X):massCenter())/2) + vec(0,Foreback,Zoff)):setX(MCent))
+    holoDelete(X) #redundant adding of holodeletion, due to wiremod sometimes failing to delete it
+    holoCreate(X,Points:vector(X),vec(0.5,0.5,0.5))
+    holoColor(X,vec4(255,192,64,192))
+    holoModel(X,"hq_icosphere")
+    holoScale(X,vec(0.5,0.5,0.5))
+    holoParent(X,entity())
+    X = X+1}
+    else {X = 50}}
+    if(Susp==5) {X = 1
+    while(X<99) {if(Springs:entity(X):isValid() & Left:entity(X*2):isValid() & Right:entity((X*2)-1):isValid())
+        {Springs:entity(X):setPos(((Left:entity(X*2):pos() + Right:entity((X*2)-1):pos())/2)+vec(0,0,Zoff))
+            X = X+1}
+    else {X = 100}}}#End bogie positioning
+}
+    
+##########################################################################################################################
+#SPROCKET LINKER
+elseif(Chat1 == Commands:string(21)) {hideChat(1)
+    SprocketLF = Left:entity(1)
+    SprocketRF = Right:entity(1)
+    X = 1
+    while(X<49) {if(!Left:entity(X+1):isValid()) {SprocketLB = Left:entity(X)
+    X = 50} else {X = X+1}}
+    X = 1
+    while(X<49) {if(!Right:entity(X+1):isValid()) {SprocketRB = Right:entity(X)
+        X = 50
+break} else {X = X+1}}
+    #We now have the sprockets for left front and left back
+    foreach(K,V:entity = Left) {
+        weldAng(V,vec(0,0,0),SprocketLF)
+        weldAng(V,vec(0,0,0),SprocketLB)
+        #ballsocket(V,vec(0,0,0),SprocketLF,vec(-0.1,-0.1,-0.1),vec(0.1,0.1,0.1),vec(0,0,0))
+        #ballsocket(V,vec(0,0,0),SprocketLB,vec(-0.1,-0.1,-0.1),vec(0.1,0.1,0.1),vec(0,0,0))
+        #V:advballsocketTo(SprocketLF,vec(0,0,0),SprocketLF:toLocal(V:massCenter():setX(SprocketLF:massCenter():x())),vec(-0.1,-180,180),vec(0.1,-180,180),vec(0,0,0),0,0,1,1)
+        #V:advballsocketTo(SprocketLB,vec(0,0,0),SprocketLB:toLocal(V:massCenter():setX(SprocketLB:massCenter():x())),vec(-0.1,-180,180),vec(0.1,-180,180),vec(0,0,0),0,0,1,1)
+        }
+    foreach(K,V:entity = Right) {
+        weldAng(V,vec(0,0,0),SprocketRF)
+        weldAng(V,vec(0,0,0),SprocketRB)
+        #ballsocket(V,vec(0,0,0),SprocketRF,vec(-0.1,-0.1,-0.1),vec(0.1,0.1,0.1),vec(0,0,0))
+        #ballsocket(V,vec(0,0,0),SprocketRB,vec(-0.1,-0.1,-0.1),vec(0.1,0.1,0.1),vec(0,0,0))
+        #V:advballsocketTo(SprocketRF,vec(0,0,0),SprocketRF:toLocal(V:massCenter():setX(SprocketRF:massCenter():x())),vec(-0.1,-180,180),vec(0.1,-180,180),vec(0,0,0),0,0,1,1)
+        #V:advballsocketTo(SprocketRB,vec(0,0,0),SprocketRB:toLocal(V:massCenter():setX(SprocketRB:massCenter():x())),vec(-0.1,-180,180),vec(0.1,-180,180),vec(0,0,0),0,0,1,1)
+        }
+        print(_HUD_PRINTCENTER,"Roadwheels Linked") }    
+    
+##########################################################################################################################
+#ACF POWERTRAIN DEPARENTER
+elseif(Chat1 == Commands:string(19)) {hideChat(1)
+   I = Frame:entity(1):getConstraints()
+foreach(K,V:entity = I)
+{
+    if(V:parent():isValid()) {
+if((V:type() == "acf_engine")|(V:type() == "acf_gearbox")|(V:type() == "acf_fueltank")) {V:deparent()
+    V:propFreeze(1)
+    print("Unparented "+V:acfType())}}
+}
+    print(_HUD_PRINTCENTER,"Powertrain Unparented")}    
+
+##########################################################################################################################
+#PROP CLEANER
+elseif(Chat1 == Commands:string(24)) {hideChat(1)
+findResult(1)
+   
+Found = findToArray()
+I = Found
+N = 0
+foreach(K,V:entity = I)
+{
+    if(V:isOnGround() & !V:isFrozen()) {V:propDelete()
+        N = N+1}
+}
+    print(_HUD_PRINTCENTER,N+" Props Cleaned")}    
+
+##########################################################################################################################
+#BUMP STOPS
+elseif(Chat1 == Commands:string(20)) {hideChat(1)
+    Bump = Chat2:toNumber()
+    X = 0
+    if(Frame:entity(2):isValid() & Frame:entity(3):isValid()) {
+        if((Frame:entity(2):pos()-Left:entity(1):pos()):length() < (Frame:entity(3):pos()-Left:entity(1):pos()):length()) {Lapplyto = Frame:entity(2)} else {Lapplyto = Frame:entity(3)}
+        if((Frame:entity(2):pos()-Right:entity(1):pos()):length() < (Frame:entity(3):pos()-Right:entity(1):pos()):length()) {Rapplyto = Frame:entity(2)} else {Rapplyto = Frame:entity(3)}}
+        else{Lapplyto = Frame:entity(1)
+        Rapplyto = Frame:entity(1)}
+        
+    foreach(K,V:entity = Left)
+    {V:elasticTo(Lapplyto,vec(0,0,0),Lapplyto:toLocal(V:massCenter()+vec(0,0,(Bump/2))),clamp(V:mass()*500,0,50000),clamp(V:mass()*20,0,5000),clamp(V:mass(),0,100),"",0,1)}
+    foreach(K,V:entity = Right)
+    {V:elasticTo(Rapplyto,vec(0,0,0),Rapplyto:toLocal(V:massCenter()+vec(0,0,(Bump/2))),clamp(V:mass()*500,0,50000),clamp(V:mass()*20,0,5000),clamp(V:mass(),0,100),"",0,1)}
+    
+    print(_HUD_PRINTCENTER,"Bump Stops Applied. Travel: "+round(Bump))}
+        
+##########################################################################################################################
+#ELASTICS
+elseif(Chat1 == Commands:string(11)) {hideChat(1)
+    CDR:setNumber(1,clamp(Chat2:toNumber(),0,50000))
+    CDR:setNumber(2,clamp(Chat3:toNumber(),0,10000))
+    CDR:setNumber(3,clamp(Chat4:toNumber(),0,100))
+    EGP:egpSetText(10,"C["+CDR:number(1)+"]")
+    EGP:egpSetText(11,"D["+CDR:number(2)+"]")
+    EGP:egpSetText(12,"R["+CDR:number(3)+"]")
+    X = 0
+    Bapplyto = Frame:entity(1)
+    while(X<99)
+    {   L = Left:entity(X)
+        R = Right:entity(X)
+        if(L:isValid()) {L:elasticTo(Bapplyto,vec(0,0,0),Bapplyto:toLocal(L:massCenter()),CDR:number(1),CDR:number(2),CDR:number(3),"",0,1)}
+        if(R:isValid()) {R:elasticTo(Bapplyto,vec(0,0,0),Bapplyto:toLocal(R:massCenter()),CDR:number(1),CDR:number(2),CDR:number(3),"",0,1)}
+        X = X+1}
+        print(_HUD_PRINTCENTER,"Elastics Applied: "+round(CDR:number(1)/1000)+"k/"+round(CDR:number(2)/1000)+"k/"+round(CDR:number(3)/1000)+"k")
+        }
+
+##########################################################################################################################
+#RESETTING
+elseif(Chat1 == Commands:string(8)) {
+    hideChat(1)
+X = 0
+while(X < 32) {Console:writeString("",0,X,0,0,0)
+X = X+1}
+Console["Reset",number] = 1    
+EGP:egpClear()
+X = 0
+while(X<499) {holoDelete(X)
+    holoDelete(X+1)
+X = X+2}
+reset()}
+
+##########################################################################################################################
+#MULTIWELD TOGGLE
+elseif(Chat1 == Commands:string(10)) {hideChat(1)
+    Weldit = 1}
+    
+##########################################################################################################################
+#HELP
+
+elseif(Chat1 == Commands:string(18)) {hideChat(1)
+print("SELECTING")
+print("You can select a prop group by typing [SEL (letter code of its type)], then holding E as you look at them.")
+print("Right mouse button will save the groups.  You can also use [CLR (letter code of its type)] to clear the saved group.")
+print("The groups are [T]urret, [B]aseframe, [L]eft wheels, [R]ight wheels, [M]antlet, [S]prings.")
+print("Select the main floorpan of your base frame first, springs and wheels from front to back, and the turret ring then the guns")
+print("MAIN FUNCTIONS")
+print("You can weld all the baseframe together with [WELD]")
+print("You can select a suspension type with [STYPE (number)], and adjust its points with [SVIEW (X,Y,Z)].")
+print("You can apply it with [SAPPLY].  You can also add elastics with [CDR (constant/damping/relative)].")
+print("Turrets mount and add rope mantlets with ''mount'', constraining around all the gun mass centers.  Mantlet props move to that point.")
+print("You can add bump stops with [BUMP (travel length in units)]")
+print("Wheel physprop materials are set with [PP (name of the material)]")
+print("Nocollideallmulti everything but wheels, and nocollide those to each other, use [NOCOL]")
+print("MISC")
+print("You can [align] the wheels on one side off the first, or nudge them with your arrow keys.")
+print("Holding shift will make you nudge them more, leftright moves them in and out, updown nudges them up or down.")
+print("You can also use [NAME] to display a name of your project for future reference, this is just for you to remember.")
+print("[UNPAR] will unparent any acf engines, gearboxes, or fuel tanks.")
+print("CREDITS")
+print("This chip was made by redreaper, and is NOT to be redistributed!")
+}
+
+##########################################################################################################################
+#TURRET MOUNTING
+elseif(Chat1 == Commands:string(15)) {hideChat(1)
+    #Mount turret
+    Turretbase = Turret:entity(1)
+    X = 1
+    while(X<5) {if(Frame:entity(X):isValid()) {axis(Turretbase,Turretbase:toLocal(Turretbase:massCenter() + vec(0,0,100)),Frame:entity(X),Frame:entity(X):toLocal(Turretbase:massCenter() + vec(0,0,-100)))}
+    X = X+1}
+    #Add the mounting of th guns
+    
+    X = 2
+                Gp =  vec(0,0,0) #Gunsmass 
+                Gunsmass = 0
+                while(X<19) {Gunsmass = Gunsmass + (Turret:entity(X):mass())
+                Gp = Gp + ((Turret:entity(X):massCenter())*Turret:entity(X):mass())
+                X = X+1}
+                Gcent = (Gp)/Gunsmass
+                holoPos(99,Gcent)
+                X = 0
+                while(X<9) {if(Mantlet:entity(X):isValid()) {Mantlet:entity(X):setPos(Gcent)}
+                X = X+1}
+    X = 2
+    while(X<10) {Y = 0
+        Tex = Turret:entity(X)
+        while(Y<5) {if(Frame:entity(Y):isValid()) {Fey = Frame:entity(Y)#Creates a 4 point rigid rope turret mount
+            if(Tex:isValid()) {Tex:ropeTo(Fey,Tex:toLocal(Gcent+(Turret:entity(2):right() * 25)),Fey:toLocal(Turretbase:massCenter()),0,0,0,"",1)#rope(X*Y,Tex,Tex:toLocal(Gcent+(Turret:entity(2):right() * 25)),Fey,Fey:toLocal(Turretbase:massCenter()),0,0,"")
+            Tex:ropeTo(Fey,Tex:toLocal(Gcent+(Turret:entity(2):right() * -25)),Fey:toLocal(Turretbase:massCenter()),0,0,0,"",1)#rope(X*Y+1,Tex,Tex:toLocal(Gcent+(Turret:entity(2):right() * -25)),Fey,Fey:toLocal(Turretbase:massCenter()),0,0,"")#
+        Tex:ropeTo(Fey,Tex:toLocal(Gcent+(Turret:entity(2):right() * -25)),Fey:toLocal(Turretbase:massCenter() + vec(0,0,50)),0,0,0,"",1)#rope(X*Y+2,Tex,Tex:toLocal(Gcent+(Turret:entity(2):right() * 25)),Fey,Fey:toLocal(Turretbase:massCenter())+vec(0,0,50),0,0,"")#
+        Tex:ropeTo(Fey,Tex:toLocal(Gcent+(Turret:entity(2):right() * 25)),Fey:toLocal(Turretbase:massCenter() + vec(0,0,50)),0,0,0,"",1)#rope(X*Y+2,Tex,Tex:toLocal(Gcent+(Turret:entity(2):right() * -25)),Fey,Fey:toLocal(Turretbase:massCenter())+vec(0,0,50),0,0,"")#
+        }}
+        Y = Y+1}
+        axis(Tex,Tex:toLocal(Gcent),Turretbase,Turretbase:toLocal(Gcent + (Turret:entity(2):right() * 100)))
+        X = X+1}  
+        
+    X = 2
+    while(X<10) {
+    if(Turret:entity(X):isValid()) {
+        Y = 2
+        while(Y<10) {#Loops welding
+            if(Turret:entity(Y):isValid()) {Turret:entity(X):weldTo(Turret:entity(Y),1)}
+        Y = Y+1}}
+        X = X+1
+         }
+        print(_HUD_PRINTCENTER,"Turret Mounted")
+}
+
+##########################################################################################################################
+#SUSPENSION CONSTRAINING
+elseif(Chat1 == Commands:string(14)) {hideChat(1)  
+    Numwheels = 0
+    X = 1
+    while(X<99) {if(((Left:entity(X):isValid()) & (Right:entity(X):isValid()))) {Numwheels = Numwheels + 1
+    X = X+1} else {X = 100}}#Finds how many wheels on each side
+    X = 1
+    Base = Frame:entity(1)
+    Fronttankspring = Springs:entity(1)
+    Reartankspring = Springs:entity(2)
+    Width = 0
+    while(X<(Numwheels+1)) {
+        L1 = Left:entity(X)
+        R1 = Right:entity(X)
+        if(L1:isValid() & R1:isValid() & Base:isValid()) {
+        Point1 = (((L1:massCenter() + R1:massCenter())/2) + vec(0,Foreback,Zoff)):setX(Base:massCenter():x())
+        #Adv ballsocket
+            if((Susp != 4)&(Susp != 2)) {R1:advballsocketTo(Base,vec(0,0,0),Base:toLocal(R1:massCenter():setX(Base:massCenter():x())),vec(-180,-0.1,0.1),vec(180,0.1,0.1),vec(0,0,0),0,0,1,1)
+            L1:advballsocketTo(Base,vec(0,0,0),Base:toLocal(L1:massCenter():setX(Base:massCenter():x())),vec(-180,-0.1,0.1),vec(180,0.1,0.1),vec(0,0,0),0,0,1,1)}
+        if(Susp ==3) {#Spring connection for springplate
+        if(Frame:entity(X):isValid() & (X<4)) {#Welds springs
+        weld(Fronttankspring,Frame:entity(X))
+        weld(Reartankspring,Frame:entity(X))}
+        R1:axisTo(Fronttankspring,vec(0,0,0),Fronttankspring:toLocal(R1:pos()),0,0,0,1,vec(0,1,0))
+        R1:axisTo(Reartankspring,vec(0,0,0),Reartankspring:toLocal(R1:pos()),0,0,0,1,vec(0,1,0))
+        L1:axisTo(Fronttankspring,vec(0,0,0),Fronttankspring:toLocal(L1:pos()),0,0,0,1,vec(0,1,0))
+        L1:axisTo(Reartankspring,vec(0,0,0),Reartankspring:toLocal(L1:pos()),0,0,0,1,vec(0,1,0))
+        #[axis(L1,vec(0,0,0),Fronttankspring,Fronttankspring:toLocal(L1:massCenter()))
+        axis(L1,vec(0,0,0),Reartankspring,Reartankspring:toLocal(L1:massCenter()))
+        axis(R1,vec(0,0,0),Reartankspring,Reartankspring:toLocal(R1:massCenter()))
+        axis(R1,vec(0,0,0),Reartankspring,Reartankspring:toLocal(R1:massCenter()))]##Fails to work 
+        
+        }
+        #Wishbones and swing axles - Modes 0 and 4
+        if((Susp ==0)+(Susp ==4)) {
+                if(L1:isValid() & R1:isValid()) {
+                Point1f = Point1 - vec(0,Foreback*2,0)
+                L1:ropeTo(Base,vec(0,0,0),Base:toLocal(Point1),0,0,Width,"",1)
+                R1:ropeTo(Base,vec(0,0,0),Base:toLocal(Point1),0,0,Width,"",1)
+                L1:ropeTo(Base,vec(0,0,0),Base:toLocal(Point1f),0,0,Width,"",1)
+                R1:ropeTo(Base,vec(0,0,0),Base:toLocal(Point1f),0,0,Width,"",1)
+                if(Susp ==4) {L1:ballsocketTo(Base,Base:toLocal(Point1-vec(0,Foreback,0)),0,0,1)
+                R1:ballsocketTo(Base,Base:toLocal(Point1-vec(0,Foreback,0)),0,0,1)}} } #Creates wishbones and ballsockets for swing axles
+        #Trailing arms, Live axles, no steering.  Includes springplate. 
+            elseif(inrange(Susp,1,3)) { if(L1:isValid() & R1:isValid()) {
+                Point1l = Point1:setX(L1:pos():x())
+                Point1r = Point1:setX(R1:pos():x())
+                L1:ropeTo(Base,vec(0,0,0),Base:toLocal(Point1l),0,0,Width,"",1)
+                R1:ropeTo(Base,vec(0,0,0),Base:toLocal(Point1r),0,0,Width,"",1)
+                if(inrange(Susp,2,3)) {L1:ropeTo(Base,L1:toLocal(R1:pos())/2,Base:toLocal(Point1l),0,0,0,"",1)
+                    R1:ropeTo(Base,R1:toLocal(L1:pos())/2,Base:toLocal(Point1r),0,0,0,"",1)
+                R1:axisTo(L1,R1:toLocal(L1:pos()),L1:toLocal(R1:pos())/10,0,0,0,1,vec(0,0,0))
+                L1:axisTo(R1,L1:toLocal(R1:pos()),R1:toLocal(L1:pos())/10,0,0,0,1,vec(0,0,0))} else{
+                L1:ropeTo(Base,vec(0,0,0),Base:toLocal(Point1r),0,0,0,"",1)
+                R1:ropeTo(Base,vec(0,0,0),Base:toLocal(Point1l),0,0,0,"",1)}
+    }} #Red's bogies, comparable in design and function to something like horstmann or HVSS.
+            elseif(Susp ==5) {L2 = Left:entity(X+1)
+                R2 = Right:entity(X+1)
+                Springtomount = Springs:entity((X+1)/2)
+                if(L1:isValid() & R1:isValid() & L2:isValid() & R2:isValid() & Springtomount:isValid()) {
+                    weld(Springtomount,Frame:entity(1))
+                    if(Frame:entity(2):isValid()) {weld(Springtomount,Frame:entity(2))}
+                    if(Frame:entity(3):isValid()) {weld(Springtomount,Frame:entity(3))}
+                    PointL = ((L1:massCenter() + L2:massCenter())/2):setZ(Springtomount:massCenter():z())
+                    PointR = ((R1:massCenter() + R2:massCenter())/2):setZ(Springtomount:massCenter():z())
+                    PointM = (PointL+PointR)/2
+                    R1:axisTo(Springtomount,vec(0,0,0),Springtomount:toLocal(R1:pos()),0,0,0,1,vec(0,1,0))
+                    L1:axisTo(Springtomount,vec(0,0,0),Springtomount:toLocal(L1:pos()),0,0,0,1,vec(0,1,0))
+                    R2:axisTo(Springtomount,vec(0,0,0),Springtomount:toLocal(R2:pos()),0,0,0,1,vec(0,1,0))
+                    L2:axisTo(Springtomount,vec(0,0,0),Springtomount:toLocal(L2:pos()),0,0,0,1,vec(0,1,0))
+                    L1:ropeTo(Base,vec(0,0,0),Base:toLocal(PointL),0,0,Width,"",1)
+                    L1:ropeTo(Base,vec(0,0,0),Base:toLocal(PointM),0,0,0,"",1)
+                    L2:ropeTo(Base,vec(0,0,0),Base:toLocal(PointL),0,0,Width,"",1)
+                    L2:ropeTo(Base,vec(0,0,0),Base:toLocal(PointM),0,0,0,"",1)
+                    R1:ropeTo(Base,vec(0,0,0),Base:toLocal(PointR),0,0,Width,"",1)
+                    R1:ropeTo(Base,vec(0,0,0),Base:toLocal(PointM),0,0,0,"",1)
+                    R2:ropeTo(Base,vec(0,0,0),Base:toLocal(PointR),0,0,Width,"",1)
+                    R2:ropeTo(Base,vec(0,0,0),Base:toLocal(PointM),0,0,0,"",1)
+                    L2:advballsocketTo(Base,vec(0,0,0),Base:toLocal(L2:massCenter()):setX(Base:massCenter():x()),vec(-180,-0.1,0.1),vec(180,0.1,0.1),vec(0,0,0),0,0,1,1)
+                    R2:advballsocketTo(Base,vec(0,0,0),Base:toLocal(R2:massCenter()):setX(Base:massCenter():x()),vec(-180,-0.1,0.1),vec(180,0.1,0.1),vec(0,0,0),0,0,1,1)
+                    }
+                X = X+1 #We increase our X tick, because this fucker does entire bogies, not an axle at a time
+            }
+               }  
+            X = X+1}#End cycle
+        print(_HUD_PRINTCENTER,"Suspension Constrained")}#End suspension constrait
+        
+}#END BASIC USER CHAT TOGGLED COMMAND DEFINITION
+
+##########################################################################################################################
+#SELECTING AND ADDING TO ARRAYS
+if(Selectionmode) {
+    Target = User:aimEntity()
+    if(UserKey & (Target != TempArray:entity(Index)) & (Target:isWorld() ==0) & (Target:model() != "")) {
+        Index = Index +1
+        TempArray:setEntity(Index,Target)
+        TempColors:setVector(Index,Target:getColor())
+        Target:setColor(vec(0,255,0))
+        hint("Saved to Index "+(Index),3)
+    }#END USE KEY
+}
+
+##########################################################################################################################
+#Storing arrays to use!
+Keep = (M2 * Selectionmode)
+    if(Keep) {
+        hideChat(1)
+            X = 0
+            while(X<TempArray:maxIndex()) {TempArray:entity(X):setColor(TempColors:vector(X))
+                X = X+1}
+            if(Arraytouse == 1) {Left = TempArray
+                print(_HUD_PRINTCENTER,"Left Stored")}
+            elseif(Arraytouse ==2) {Right = TempArray
+                print(_HUD_PRINTCENTER,"Right Stored")}
+            elseif(Arraytouse ==4) {Springs = TempArray
+                print(_HUD_PRINTCENTER,"Springs Stored")}
+            elseif(Arraytouse ==5) {Turret = TempArray
+                print(_HUD_PRINTCENTER,"Turret Stored")}
+            elseif(Arraytouse ==6) {Mantlet = TempArray
+                print(_HUD_PRINTCENTER,"Mantlet Stored")}
+            elseif(Arraytouse ==3) {Frame = TempArray
+                print(_HUD_PRINTCENTER,"Baseframe Stored")
+                #Creating mass center through an array
+                X = 0
+                Fp =  vec(0,0,0)
+                Framemass = 0
+                while(X<99) {Framemass = Framemass + (Frame:entity(X):mass())
+                Fp = Fp + ((Frame:entity(X):massCenter())*Frame:entity(X):mass())
+                X = X+1}
+                FCent = (Fp)/Framemass
+                EGP:egpPos(1,FCent)}
+                else{hint("Error!  Data storage failure!",3)}
+            X = 0
+            while(X<(Index+1)) {TempArray:entity(X):setColor(TempColors:vector(X))
+            X = X+1}
+            X = 0
+            while(X<(Index+1)) {TempArray:remove(0)
+            X = X+1}
+            array(TempArray)
+            array(TempColors)
+            Index = 0
+            Keep = 0
+            Selectionmode = 0
+}#END SAVE
+
+##########################################################################################################################
+#MULTIWELD CYCLE
+if(changed(Weldit)) {
+    WeldX = 0
+WeldY = 0}
+#Welding actually done
+if(Weldit) {
+    if(Frame:entity(WeldX):isValid()) {
+        WeldY = 0
+        while(WeldY < 9) {#Loops welding
+            if(Frame:entity(WeldY):isValid()) {Frame:entity(WeldX):weldTo(Frame:entity(WeldY),1)}
+            WeldY = WeldY+1}
+    }
+    WeldX = WeldX +1
+if(WeldX >9) {print(_HUD_PRINTCENTER,"Welds applied")
+    Weldit = 0}
+}
+
+
+##########################################################################################################################
+#REFRESHING POINTS ON EGP
+T = (T+1) * (T<10)
+if(T==10) {#Creating mass center through an array
+                X = 0
+                Fp =  vec(0,0,0)
+                Framemass = 0
+                while(X<19) {Framemass = Framemass + (Frame:entity(X):mass())
+                Fp = Fp + ((Frame:entity(X):massCenter())*Frame:entity(X):mass())
+                X = X+1}
+                FCent = (Fp)/Framemass
+                holoPos(98,FCent)
+                #Creates holo points
+                X = 1
+    MCent = Frame:entity(1):massCenter():x()
+    while(X<50) {#Creates array of points and egp markers
+    if(Left:entity(X):isValid()) {
+    Points:setVector(X,(((Left:entity(X):massCenter() + Right:entity(X):massCenter())/2) + vec(0,Foreback,Zoff)):setX(MCent))
+    holoPos(X,Points:vector(X))
+    holoScale(X,vec(0.5,0.5,0.5))
+    X = X+1}    else {X = 50}}
+    Fronttankspring = Springs:entity(1)
+    Reartankspring = Springs:entity(2)
+    Fronttankspring:setColor(vec(64,64,64))
+    Reartankspring:setColor(vec(64,64,64))
+    X = 2
+                Gp =  vec(0,0,0) #Gunsmass 
+                Gunsmass = 0
+                while(X<19) {Gunsmass = Gunsmass + (Turret:entity(X):mass())
+                Gp = Gp + ((Turret:entity(X):massCenter())*Turret:entity(X):mass())
+                X = X+1}
+                Gcent = (Gp)/Gunsmass
+                holoPos(99,Gcent)
+                }
+EGP:egpAngle(26,angnorm(owner():eyeAngles():yaw()-90))
+
+##########################################################################################################################
+#NUDGES WHEELS
+Wheelsupdown = (User:keyPressed("UP")-User:keyPressed("DOWN")) * (1+(User:keyPressed("LSHIFT")*4))
+if(changed(Wheelsupdown) & abs(Wheelsupdown)) {
+    foreach(K,V:entity = Left) {V:propFreeze(1)
+        V:setPos(V:pos() + vec(0,0,Wheelsupdown))}
+    foreach(K,V:entity = Right) {V:propFreeze(1)
+        V:setPos(V:pos() + vec(0,0,Wheelsupdown))}
+        }
+        
+Wheelsleftright = (User:keyPressed("LEFT")-User:keyPressed("RIGHT")) * (1+(User:keyPressed("LSHIFT")*4))
+if(changed(Wheelsleftright) & abs(Wheelsleftright)) {
+    X = 1
+    foreach(K,V:entity = Left) {V:propFreeze(1)
+        V:setPos(V:pos() + vec(Wheelsleftright,0,0))}
+    foreach(K,V:entity = Right) {V:propFreeze(1)
+        V:setPos(V:pos() + vec(-Wheelsleftright,0,0))}}

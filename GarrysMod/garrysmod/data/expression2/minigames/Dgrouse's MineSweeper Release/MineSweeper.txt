@@ -1,0 +1,439 @@
+@name MineSweeper
+@inputs EGP:wirelink User:entity
+@persist Index Width Height SpaceX SpaceY Power Odds Clicks Ready UserTXT LeaderTXT
+@persist MaxPower MinPower Grace Wifi
+@persist [ColorSet Mines Selected Surround Arrow Flagged]:array
+@persist [LastUser Leader]:entity
+@persist [Players Buttons]:table
+@persist [WifiName]:string
+
+#------------------------------#
+#      DGROUSE - 7/10/14       #
+#------------------------------#
+
+if( first() ){
+    
+    Width = 512
+    Height = 512
+    Power = 7 # Grid Spaces to the power of 2 ( 8x8=64 squares )
+    Odds = -0.7 # -1 Being no mines and 1 being every square is a mine.
+    
+    MaxPower = 13
+    MinPower = 6
+    
+    Wifi = 0
+    WifiName = "DG-MineSweeper"
+    
+    ColorSet = array(
+        vec(0,0,0),       #1 Black
+        vec(255,255,255), #2 White
+        vec(0,0,50),      #3 Gradient
+        vec(255,50,50),   #4 Mine
+        vec(200,200,200), #5 Selected
+        # Number Colors
+        vec(100,100,255), #6 - 1 Blue
+        vec(100,255,100), #7 - 2 Green
+        vec(255,100,100), #8 - 3 Red
+        vec(50,50,150),   #9 - 4 Blue2
+        vec(150,50,50),   #10 - 5 Red2
+        vec(50,100,255),  #11 - 6 Aqua
+        vec(255,50,200),  #12 - 7 Purple
+        vec(0,0,0)        #13 - 8 Black
+        #-----------------
+    )
+    
+    Surround = array(
+        vec2(-1,-1),
+        vec2(-1,0),
+        vec2(-1,1),
+        vec2(0,-1),
+        vec2(0,1),
+        vec2(1,-1),
+        vec2(1,0),
+        vec2(1,1)
+    )
+    
+    Arrow = array(
+        vec2(0,1),
+        vec2(1,0),
+        vec2(0,-1)
+    )
+    
+    Buttons = table(
+        array( Width-20,Height/2,20,20,"Larger" ), #Right Arrow
+        array( 20,Height/2,20,20,"Smaller" ) #Left Arrow
+    )
+    
+    function number array:counter(){ # :count function isn't working...
+        local Count = 0
+        foreach(K,V:number = This){
+            Count++
+        }
+        return Count
+    }
+    
+    function clear(){
+        EGP:egpClear()
+    }
+    
+    function color( I,X ){
+        if( X > 0 ){
+            EGP:egpColor(I,ColorSet[X,vector])
+        }else{
+            EGP:egpAlpha(I,0)
+        }
+    }
+    
+    function line(X,Y,X2,Y2,Color){
+        Index++
+        EGP:egpLine(Index,vec2(X,Y),vec2(X2,Y2))
+        color( Index,Color )
+    }
+    
+    function number box(X,Y,W,H,Color){
+        Index++
+        EGP:egpBox(Index,vec2(X,Y),vec2(W,H))
+        color( Index,Color )
+        return Index
+    }
+    
+    function number text(Text:string,X,Y,Size,Color){
+        Index++
+        EGP:egpText(Index,Text,vec2(X,Y))
+        EGP:egpSize(Index,Size)
+        color( Index,Color )
+        return Index
+    }
+    
+    function number text(Text:string,X,Y,Size,Color,Ind){
+        EGP:egpText(Ind,Text,vec2(X,Y))
+        EGP:egpSize(Ind,Size)
+        color( Ind,Color )
+    }
+    
+    function number textshadow(Text:string,X,Y,Size,Color){
+        text(Text,X+1,Y+1,Size,1)
+        return text(Text,X,Y,Size,Color)
+    }
+    
+    function vector2 polygon(Shape:array,Scale,X,Y,Color){
+        Index++
+        local Controller = box(0,0,Scale,Scale,-1)
+        
+        local S = array()
+        foreach(K,V:vector2=Shape){
+            S[K,vector2] = V*Scale
+        }
+        
+        Index++
+        EGP:egpPoly(Index,S)
+        EGP:egpParent(Index,Controller) 
+        
+        EGP:egpPos(Controller,vec2(X,Y))
+
+        
+        color( Index,Color )
+        return vec2(Index,Controller)
+    }
+    
+    function init(){
+        local Grad = box(Width/2,Height/2,Width*2,Height*2,3)
+        EGP:egpMaterial( Grad, "gui/gradient" )
+        EGP:egpAngle( Grad, 90 )
+        
+        local ST = text( "DGrouse's MineSweeper",Width/2,5,150/Power,2)
+        EGP:egpAlign(ST,1)
+        
+        UserTXT = text( "Current user: "+User:name()+" | Points: "+Players[User:steamID(),number],10,Height-5,150/Power,2)
+        EGP:egpAlign(UserTXT,0,2)
+        
+        LeaderTXT = text( "Score Leader: "+Leader:name()+" | Points: "+Players[Leader:steamID(),number],10,Height-200/Power,150/Power,2 )
+        EGP:egpAlign(LeaderTXT,0,2)
+        
+        
+        
+        polygon(Arrow,20,Width-20,Height/2,2)
+        local AR = polygon(Arrow,20,20,Height/2,2)
+        EGP:egpAngle(AR:y(),180)
+    }
+    
+    function grid(){
+        local P = Power+2
+        SpaceX = Width/P
+        SpaceY = Height/P
+        for(I=1,P){
+            line(SpaceX*I,SpaceY,SpaceX*I,Height-SpaceY,2)
+            line(SpaceX,SpaceY*I,Width-SpaceX,SpaceY*I,2)
+        }
+    }
+    
+    function vector2 numtopos(K){
+        local Y = ceil(K/Power)
+        local X = K-Y*Power+Power
+        return vec2(X,Y)
+    }
+    
+    function drawbox( I,Color,Scale ){
+        local P = numtopos(I)
+        local X = P:x()
+        local Y = P:y()
+        box(X*SpaceX+SpaceX/2,Y*SpaceY+SpaceY/2,(SpaceX-4)*Scale,(SpaceY-4)*Scale,Color)
+    }
+    
+    function drawmines(){
+        foreach(K,V:number = Mines){
+            drawbox( K,4,1 )
+        }
+    }
+    
+    function mines(X){
+        for(I=1,Power^2){
+            if( I != X ){
+                local B = random(0,1)+Odds/2
+                if( B > 0.5 ){
+                    Mines[I,number] = B
+                }
+            }
+        }
+    }
+    
+    function firstClick(X){
+        mines(X)
+        #drawmines()
+    }
+    
+    function setup(P,Od){
+        Clicks = 0
+        Power = P
+        Odds = Od
+        grid()
+    }
+    
+    function number between(V,X,Y){
+        if( V > X && V < Y ){
+            return 1
+        }
+        return 0
+    }
+    
+    function checkbuttons(){
+        local C = EGP:egpCursor(User)
+        for( I=1,Buttons:count() ){
+            local V = Buttons[I,array]
+            local X = V[1,number]
+            local Y = V[2,number]
+            local W = V[3,number]/2
+            local H = V[4,number]/2
+            if( between(C:x(),X-W,X+W) && between(C:y(),Y-H,Y+H) ){
+                timer(V[5,string],0)
+            }
+        }
+    }
+    
+    function number clickpos(Pos:vector2){
+        if( between( Pos:x(),SpaceX,Width-SpaceX ) && between( Pos:y(),SpaceY,Height-SpaceY ) ){
+           return floor(Pos:x()/SpaceX)+floor(Pos:y()/SpaceY)*Power-Power
+        }else{ return -1 }
+    }
+    
+    function number surrounding(){
+        local P = EGP:egpCursor(User)
+        local Count = 0
+        foreach(K,V:vector2 = Surround){
+            X = clickpos( P+V*vec2(SpaceX,SpaceY) )
+            if( X>0 ){
+                if( Mines[X,number] ){
+                    Count++
+                }
+            }
+        }
+        return Count
+    }
+    
+    function minecount( P ){
+        local T = surrounding()
+        local Vec = numtopos(P)
+        local X = Vec:x()*SpaceX+SpaceX/2.75
+        local Y = Vec:y()*SpaceY+SpaceY/4
+        textshadow(T:toString(),X,Y,250/Power,5+T)
+    }
+    
+    function updateLeader(){
+        text( "Score Leader: "+Leader:name()+" | Points: "+Players[Leader:steamID(),number],10,Height-200/Power,150/Power,2,LeaderTXT )
+    }
+    
+    function updateUserTxt(){
+        text( "Current user: "+User:name()+" | Points: "+Players[User:steamID(),number],10,Height-5,150/Power,2,UserTXT)
+    }
+    
+    if( Wifi ){
+        dsSetScope(2)
+        dsJoinGroup(WifiName)
+        
+        function addScore(){
+            local S = Players[User:steamID(),number]+Mines:counter()
+            dsSend("UpdateScore",WifiName,array( User,S ))
+        }
+        
+        function checkleader(){
+        }
+
+        dsSend("InitScores",WifiName,entity():id())
+        
+        
+    }else{
+    
+        function addScore(){
+            Players[User:steamID(),number] = Players[User:steamID(),number]+Mines:counter()
+        }
+        
+        function checkleader(){
+            if( Players[User:steamID(),number] > Players[Leader:steamID(),number] ){
+                Leader = User
+                updateLeader()
+            }
+        }
+        
+    }
+    
+    function win(){
+        drawmines()
+        textshadow( "YOU WIN!!!",Width/2-140,Height/2-30,60,2)
+        addScore()
+        updateUserTxt()
+        checkleader()
+        timer( "Restart",5000 )
+        soundPlay(2,10, "garrysmod/save_load"+randint(1,4)+".wav" )
+    }
+    
+    function loose(){
+        drawmines()
+        textshadow( "YOU LOSE",Width/2-140,Height/2-30,60,2)
+        timer( "Restart",3000 )
+        soundPlay(0,10, "common/bass.wav" )
+        soundPlay(1,10, "common/bugreporter_failed.wav" )
+    }
+    
+    function number check(P){
+        if( Mines[P,number] ){
+            loose()
+            return 0
+        }
+        if( Selected[P,number] ){
+            return 1 
+        }
+        Selected[P,number] = 1
+        drawbox( P,5,1 )
+        minecount( P )
+        
+        if( Selected:counter() >= Power^2-Mines:counter() ){
+            win()
+            return 0
+        }
+    }
+    
+    function boot(){
+        clear()
+        Mines:clear()
+        Selected:clear()
+        Flagged:clear()
+        Index = 0
+        init()
+        setup( Power, Odds )
+        Ready = 1
+    }
+    
+    boot()
+    
+    function startGrace(){
+        Grace = 1
+        timer("Grace",1500)
+    }
+}
+
+runOnKeys(User,1)
+
+if( keyClk() ){
+    if( User:keyUse() ){
+        checkbuttons()
+        if( Ready ){
+            local Pos = clickpos(EGP:egpCursor(User))
+            if( Pos > 0 ){
+                if(Clicks==0){
+                    firstClick(Pos)
+                }
+                Ready = check( Pos )
+                Clicks++
+            }
+        }
+    }
+    if( User:keyReload() ){
+        if( Ready ){
+            local Pos = clickpos(EGP:egpCursor(User))
+            if( Pos > 0 && !Selected[Pos,number] ){
+                if( Flagged[Pos,number] ){
+                    EGP:egpRemove(Flagged[Pos,number])
+                    Flagged[Pos,number] = 0
+                }else{
+                    drawbox( Pos,4,0.5 )
+                    Flagged[Pos,number] = Index
+                }
+            }
+        }
+    }
+}
+
+if( User ){
+    runOnKeys(LastUser,0)
+    LastUser = User
+    runOnKeys(User,1)
+    updateUserTxt()
+}
+
+if( clk("Restart") ){
+    boot()
+}
+
+if( clk("Larger") ){
+    if( !Grace ){
+        if( Power < MaxPower ){
+            Power = Power+1
+            boot()
+        }
+        startGrace()
+    }
+}
+
+if( clk("Smaller") ){
+    if( !Grace ){
+        if( Power > MinPower ){
+            Power = Power-1
+            boot()
+        }
+        startGrace()
+    }
+}
+
+if( clk("Grace" ) ){
+    Grace = 0
+}
+
+if( Wifi ){
+
+    if( dsClk("NewScore") ){
+        local A = dsGetArray()
+        local S = A[1,entity]
+        local N = A[2,number]
+        Players[S:steamID(),number] = N
+    }
+    
+    if( dsClk("GetScores") ){
+        Players = dsGetTable()
+    }
+    
+    if( dsClk("NewLeader") ){
+        Leader = dsGetEntity()
+        updateLeader()
+    }
+    
+}

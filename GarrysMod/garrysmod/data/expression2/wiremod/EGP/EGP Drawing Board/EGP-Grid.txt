@@ -1,0 +1,159 @@
+@name EGP Grid
+@inputs EGP:wirelink
+@persist O:entity Use MidMouse Mouse2
+@persist LS:array
+@persist Index X Y Size Color:vector
+@persist I Pos1:vector2 Pos2:vector2 Pos3:vector2
+@persist LineStart:vector2 LineEnd:vector2
+@persist VecLib:table PixLib:table PixI LineLib:table LineI TriLib:table TriI
+@persist LoopI
+
+if (first())
+{
+    runOnTick(1)
+    runOnChat(1)
+    runOnKeys(owner(),1)
+    
+    O = owner()
+    Index = 2
+    Size = 32
+    I = 1
+    PixI = 1
+    LineI = 1
+    TriI = 1
+    
+    EGP:egpClear()
+    #EGP:egpDrawTopLeft(1)
+    EGP:egpBox(1,vec2(0,0),vec2(Size,Size))
+    EGP:egpColor(1,vec(255,255,255))
+}
+
+Use = O:keyUse()
+MidMouse = O:keyPressed("MOUSE_MIDDLE")
+Mouse2 = O:keyAttack2()
+X = round(EGP:egpCursor(O):x()/Size)*Size
+Y = round(EGP:egpCursor(O):y()/Size)*Size
+EGP:egpPos(1,vec2(X,Y))
+
+if (chatClk(O))
+{
+    LS = O:lastSaid():explode(".")
+    
+    if (LS[1,string] == "!clear")
+    {
+        if (LS[2,string] == "all")
+        {
+            Index = 2
+            I = 1
+            EGP:egpClear()
+            VecLib:clear()
+            EGP:egpBox(1,vec2(0,0),vec2(Size,Size))
+            EGP:egpColor(1,vec(255,255,255))
+            print("Screen & Pixel Library cleared.")
+            print("You now have " + (egpMaxObjects()-EGP:egpNumObjects()) + " available objects.")
+        }
+        if (LS[2,string] == "pixels")
+        {
+            for (LoopI = 1,PixLib:count())
+            {
+                EGP:egpRemove(PixLib["pixel." + LoopI,number])
+            }
+            VecLib:clear()
+            EGP:egpBox(1,vec2(0,0),vec2(Size,Size))
+            EGP:egpColor(1,vec(255,255,255))
+            print("Pixel Library cleared.")
+            print("You now have " + (egpMaxObjects()-EGP:egpNumObjects()) + " available objects.")
+        }
+        if (LS[2,string] == "lines")
+        {
+            for (LoopI = 1,LineLib:count())
+            {
+                EGP:egpRemove(LineLib["line." + LoopI,number])
+            }
+            print("Line Library cleared.")
+            print("You now have " + (egpMaxObjects()-EGP:egpNumObjects()) + " available objects.")
+        }
+        if (LS[2,string] == "triangles")
+        {
+            for (LoopI = 1,TriLib:count())
+            {
+                EGP:egpRemove(TriLib["triangle." + LoopI,number])
+            }
+            print("Triangle Library cleared.")
+            print("You now have " + (egpMaxObjects()-EGP:egpNumObjects()) + " available objects.")
+        }
+    }
+    if (LS[1,string] == "!size")
+    {
+        Size = LS[2,string]:toNumber()
+        EGP:egpBox(1,vec2(0,0),vec2(Size,Size))
+    }
+    if (LS[1,string] == "!col")
+    {
+        Color = vec(LS[2,string]:toNumber(),LS[3,string]:toNumber(),LS[4,string]:toNumber())
+        EGP:egpColor(1,Color)
+    }
+}
+
+if ($Use & Use)
+{
+    if (VecLib:exists(X + "," + Y) == 0)
+    {
+        EGP:egpBox(Index,EGP:egpPos(1),vec2(Size,Size))
+        EGP:egpColor(Index,EGP:egpColor(1))
+        VecLib[X + "," + Y,number] = Index
+        PixLib["pixel." + PixI,number] = Index
+        Index = Index + 1
+        PixI = PixI + 1
+        print((EGP:egpNumObjects()-1) + " out of " + (egpMaxObjects()-1) + " objects created.")
+    }
+    else
+    {
+        print("Pixel '" + VecLib[X + "," + Y,number] + "' already exists at vec2(" + X + "," + Y + ").")
+    }
+}
+
+if ($MidMouse & MidMouse)
+{
+    if (I == 1)
+    {
+        Pos1 = vec2(X,Y)
+        print("Point " + I + "/3 created at vec2(" + X + "," + Y + ").")
+        I = 2
+    }
+    elseif (I == 2)
+    {
+        Pos2 = vec2(X,Y)
+        print("Point " + I + "/3 created at vec2(" + X + "," + Y + ").")
+        I = 3
+    }
+    elseif (I == 3)
+    {
+        Pos3 = vec2(X,Y)
+        EGP:egpTriangle(Index,Pos1,Pos2,Pos3)
+        EGP:egpColor(Index,Color)
+        TriLib["triangle." + TriI,number] = Index
+        Index = Index + 1
+        TriI = TriI + 1
+        print("Point " + I + "/3 created at vec2(" + X + "," + Y + ").")
+        print((EGP:egpNumObjects()-1) + " out of " + (egpMaxObjects()-1) + " objects created.")
+        I = 1
+    }
+}
+
+if ($Mouse2 & Mouse2)
+{
+    LineStart = vec2(X,Y)
+}
+
+if ($Mouse2 & !Mouse2)
+{
+    LineEnd = vec2(X,Y)
+    EGP:egpLine(Index,LineStart,LineEnd)
+    EGP:egpColor(Index,Color)
+    LineLib["line." + LineI,number] = Index
+    Index = Index + 1
+    LineI = LineI + 1
+    print("Line '" + LineI + "' created from vec2(" + toString(LineStart) + "," + toString(LineEnd) + "x")
+    print((EGP:egpNumObjects()-1) + " out of " + (egpMaxObjects()-1) + " objects created.")
+}

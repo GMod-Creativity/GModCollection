@@ -1,0 +1,165 @@
+@name AbesMine
+@persist MineCode:string
+@persist Speed:number E:entity
+@persist Index
+@persist [Button Model]:entity E2_STATUS:string
+@trigger all
+@model models/props_lab/jar01a.mdl
+ 
+## By FailCake :D - Video Here : http://youtu.be/b1C6sfQS5FA
+ 
+###################
+#### FUNCTIONS ####
+###################
+ 
+if(first() || duped()){  
+   
+   
+    function number getBombCode(Indx:number){
+      return MineCode[Indx]:toNumber()  
+    }
+   
+    # 1 = Green
+    # 0 = Red
+    function string generateCode(){
+       
+     local Tmp = ""
+     local TotalCode = randint(3,5)
+     
+     local I = 0
+   
+     for(I = 0, TotalCode){
+       
+        if(randint(1,2) == 1){
+            Tmp += "1"
+        }else{
+            Tmp += "0"
+        }
+       
+     }
+   
+     return Tmp  
+    }
+ 
+    function void explodeBomb(){
+       
+     local Bomb = propSpawn("models/props_c17/oildrum001_explosive.mdl",E:pos(),E:angles(),1)
+     Bomb:propBreak()
+     Bomb:setAlpha(0)
+       
+     selfDestructAll()
+   
+    }
+ 
+    function void thinkBomb(){
+       
+        local Plys = players()
+        local I = 0
+       
+        for(I = 0,Plys:count()){
+           
+            local Ply = Plys[I,entity]
+           
+            if(Ply:pos():distance(Button:pos()) < 50){
+               
+                if(changed(Ply:keyUse()) && Ply:keyUse() && Ply:aimEntity() == Button){
+                   
+                    local Code = getBombCode(Index)
+                   
+                    if(E2_STATUS == "ARMED"){
+                        if(Code == 0){
+                            explodeBomb()
+                        }else{
+                            E2_STATUS = "DISARMED"
+                            holoColor(1,vec(90,90,90))
+                            E:soundPlay(1,3,"buttons/bell1.wav")
+                        }
+                    }elseif(E2_STATUS == "DISARMED"){
+                   
+                        E2_STATUS = "ARMED"
+                        timer("bombTick",1)
+                       
+                        MineCode = generateCode()
+                        Speed = randint(2,4)
+                       
+                       
+                    }
+                   
+                }
+               
+            }
+           
+            if(Ply:pos():distance(E:pos()) < 30 && E2_STATUS == "ARMED"){
+                explodeBomb()
+            }
+ 
+        }
+     
+    }
+ 
+}
+ 
+###################
+#### MAIN CODE ####
+###################
+ 
+if(first() || duped()){
+   
+    runOnTick(1)
+    runOnLast(1)
+   
+    propSpawnEffect(0)
+   
+    E = entity()
+    MineCode = generateCode()
+    Speed = randint(2,4)
+   
+    holoCreate(1)
+    holoModel(1,"hqcylinder")
+    holoParent(1,E)
+    holoPos(1,E:toWorld(vec(0,0,7.6)))
+    holoScaleUnits(1,vec(6,6,0.1))
+   
+    timer("bombTick",1)
+ 
+    Button = propSpawn("models/squad/sf_plates/sf_plate1x1.mdl",holoEntity(1):toWorld(vec(-6,-6,0)),holoEntity(1):angles(),1)
+    Button:parentTo(E)
+    Button:setAlpha(0)
+   
+    Model = propSpawn("models/props_combine/combine_mine01.mdl",E:toWorld(vec(0,0,-6)),E:angles(),0)
+    Model:parentTo(E)
+    Model:propNotSolid(1)
+   
+    E2_STATUS = "ARMED"
+   
+}
+ 
+thinkBomb()
+ 
+if(clk("bombTick") && E2_STATUS == "ARMED"){
+   
+    if(Index >= MineCode:length()){
+     Index = 0  
+    }else{
+     Index += 1
+    }
+   
+    local Cod = getBombCode(Index)
+   
+    if(Cod == 0){
+        holoColor(1,vec(255,0,0))  
+        E:soundPlay(1,2,"buttons/button17.wav")
+    }else{
+        holoColor(1,vec(0,255,0))
+        E:soundPlay(1,2,"buttons/blip1.wav")
+    }
+   
+   
+    timer("bombTick",Speed*200)
+}
+ 
+ 
+if(last()){
+    Button:propDelete()
+    Model:propDelete()
+}

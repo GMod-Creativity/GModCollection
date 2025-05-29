@@ -1,0 +1,217 @@
+@name The Red Duck
+@inputs Pod:wirelink
+@persist Mouse1 Step Jumping Swimming Stay Interpolation BasePos:vector [Base Head Owner Follow]:entity
+
+
+
+if (duped()) {
+    timer("reinit", 1000)
+} elseif (first()|clk("reinit")) {
+    Owner = owner()
+    This = entity()
+    Base = This:isWeldedTo()
+    Follow = Owner
+
+    This:setAlpha(0)
+    Base:setAlpha(0)
+    Pod:entity():setAlpha(0)
+    Base:setMass(500)
+
+    White = vec(0,255,0)
+    Brown = vec(0,255,0)
+    Dark  = vec(0,255,0)
+    holoCreate(1, vec(), vec(2.5, 4, 3), ang(), Brown, "hqicosphere2")
+
+    holoCreate(2, vec(0, -10, 5), vec(2, 4, 2), ang(0, 0, -30), Brown, "hqicosphere2")
+    holoParent(2, 1)
+
+    holoCreate(3, vec(0, -20, 12), vec(2, 4, 1), ang(0, 0, -30), Dark, "hqicosphere2")
+    holoParent(3, 1)
+
+    holoCreate(4, vec(0, 15, 5), vec(2.5, 2.5, 2.5), ang(0, 0, 0), Dark, "hqicosphere2")
+    holoParent(4, 1)
+
+    holoCreate(5, vec(0, 18, 16), vec(1, 1, 1), ang(0, 0, -45), Dark, "hqcylinder2")
+    holoParent(5, 1)
+
+    Head = holoCreate(6, vec(0, 25, 23), vec(1.5, 1.35, 1.3), ang(0, 90, 0), Dark, "hqicosphere2")
+    holoParent(6, 1)
+
+    holoCreate(7, vec(0, 38, 23), vec(0.5, 0.7, 1.5), ang(90, 0, -90), vec(255, 128, 0), "prism")
+    holoParent(7, 6)
+
+    holoCreate(8, vec(2.2, 28, 26), vec(0.7, 0.7, 0.7), ang(0, 0, -90), vec(255, 224, 224), "hqicosphere2")
+    holoParent(8, 6)
+    holoCreate(9, vec(-2.2, 28, 26), vec(0.7, 0.7, 0.7), ang(0, 0, -90), vec(255, 224, 224), "hqicosphere2")
+    holoParent(9, 6)
+
+    holoCreate(10, vec(3.6, 30, 28.2), vec(0.3, 0.3, 0.3), ang(0, 0, -90), vec(), "hqicosphere2")
+    holoParent(10, 6)
+    holoCreate(11, vec(-3.6, 30, 28.2), vec(0.3, 0.3, 0.3), ang(0, 0, -90), vec(), "hqicosphere2")
+    holoParent(11, 6)
+
+    holoCreate(12, vec(20, 8, 15), vec(4, 2, 0.5), ang(-10, 0, 10), Dark, "dome")
+    holoParent(12, 1)
+
+    holoCreate(13, vec(-20, 8, 15), vec(4, 2, 0.5), ang(10, 0, 10), Dark, "dome")
+    holoParent(13, 1)
+
+    for (I = 1, 2) {
+        holoCreate(20*I+0, vec(-2, 0, 20), vec(), ang(0, -90, 0), vec())
+        holoParent(20*I+0, Base)
+        holoCreate(20*I+1, vec(0, 0, 5), vec(0.2, 0.2, 2), ang(), vec(255, 128, 0), "hqcylinder2")
+        holoParent(20*I+1, 20*I+0)
+        holoCreate(20*I+2, vec(5, 0, -8), vec(1, 0.2, 1.5), ang(0, -90, 90), vec(255, 128, 0), "prism")
+        holoParent(20*I+2, 20*I+0)
+    }
+
+    for (I = 20, 24)  { holoMaterial(I, "models/debug/debugwhite") }
+    for (I = 40, 44)  { holoMaterial(I, "models/debug/debugwhite") }
+    for (I = 1, 7)  { holoMaterial(I, "models/debug/debugwhite") }
+    for (I = 8, 11) { holoMaterial(I, "lights/white") }
+    for (I = 12, 15)  { holoMaterial(I, "models/debug/debugwhite") }
+
+    holoPos(1, Base:toWorld(vec(0, 7, -15)))
+    holoAng(1, Base:angles())
+    holoParent(1, Base)
+
+    holoPos(20, Base:toWorld(vec(10, 0, -16)))
+    holoAng(20, Base:angles())
+
+    holoPos(40, Base:toWorld(vec(-10, 0, -16)))
+    holoAng(40, Base:angles())
+
+    holoAlpha(12, 0)
+    holoAlpha(13, 0)
+
+    runOnChat(1)
+    runOnTick(1)
+    exit()
+}
+
+Active  = Pod:number("Active")
+Move    = Pod:number("W") - Pod:number("S")
+Turn    = Pod:number("A") - Pod:number("D")
+Turbo   = Pod:number("Shift") * Move
+
+Mouse1  = Pod:number("Mouse1")
+if (Mouse1 & $Mouse1) {
+    Base:soundPlay(0, 0.25, "npc/crow/pain2.wav")
+    soundPitch(0, 120)
+}
+if (chatClk(Owner)) {
+    Args = lastSaid():explode(" ")
+
+    hideChat(Args:string(1):left(1) == ".")
+
+    if(Args:string(1) == ".followme") {
+        Stay = 0
+        Follow = Owner
+        hint("Following you", 10)
+    }
+    elseif (Args:string(1) == ".stay") {
+        Stay = 1
+        hint("Standing still", 10)
+    }
+    elseif (Args:string(1) == ".follow") {
+        Stay = 0
+        Follow = findPlayerByName(Args:string(2))
+        if (Follow) {
+            hint("Now serving " + Follow:name(), 10)
+        } else {
+            Follow = Owner
+            hint("Following you", 10)
+        }
+    }
+}
+
+if (!Stay) {
+    Delta = Follow:pos() - Base:pos()
+    Ang = angnorm(Base:toLocal(Delta:toAngle()) + ang(0, -90, 0))
+    Yaw  = Ang:yaw()
+    Dist = Delta:distance(vec())
+    if (Dist > 200) {
+        Move = 1 * (abs(Yaw) < 20)
+        Turn = sign(Yaw) * (abs(Yaw) > 5)
+        Turbo = Dist > 500
+    }
+}
+
+NewBasePos = Base:toWorld(vec(0, 0, 5))
+Interpolation = Interpolation + BasePos:distance(NewBasePos) * (Move < 0 ? -1 : 1)
+BasePos = NewBasePos
+
+Hover   = 50
+rangerFilter(Base)
+Ranger  = rangerOffset(BasePos, BasePos - vec(0, 0, Hover+20))
+Jumping = (Ranger:distance() == Hover+30)
+
+rangerFilter(Base)
+rangerHitWater(1)
+Ranger = rangerOffset(BasePos, BasePos - vec(0, 0, Hover))
+
+Swimming = (Ranger:hit() & Jumping)
+
+if (Swimming) { Jumping = 0 }
+if ($Swimming) {
+    if (Swimming) {
+        Jumping = 0
+        holoEntity(22):setTrails(12, 3, 1, "trails/smoke", vec(255, 255, 255), 64)
+        holoEntity(42):setTrails(12, 3, 1, "trails/smoke", vec(255, 255, 255), 64)
+    } else {
+        holoEntity(22):removeTrails()
+        holoEntity(42):removeTrails()
+    }
+}
+
+Jump  = Pod:number("Space") & !Jumping
+Speed = Base:vel():distance(vec())
+
+Gravity = (Base:vel():z() > 0) ? Jumping ? 0.2 : 1 : 0
+Hover = Swimming ? 18 : Hover
+Hover = Hover - min(Hover, Ranger:distance())
+
+Base:applyForce((vec(0, Turbo * 1000 + Move * 180, Jump * 2000):rotate(ang(0, Base:angles():yaw(), 0)) + vec(0, 0, min(5, Hover)) * 100 - Base:vel() * vec(1, 1, Gravity)) * Base:mass())
+TargetAng = quat(ang(0, Base:angles():yaw() + Turn * 1.5, 0)) / quat(Base)
+AdjustAng = Base:toLocal(rotationVector(TargetAng) + Base:pos())
+Base:applyTorque((100 * AdjustAng - Base:angVelVector()) * Base:inertia() * 20)
+
+if ($Jumping) {
+    if (Jumping) {
+        holoAlpha(12, 255)
+        holoAlpha(13, 255)
+    } else {
+        holoAlpha(12, 0)
+        holoAlpha(13, 0)
+    }
+}
+if (Speed < 0.2) { Interpolation = 10000*180 + 45 }
+LegMode = mod(Interpolation, 180)
+ActiveLeg = LegMode > 90
+if (ActiveLeg) { LegMode = 180 - LegMode }
+LegMode = 1.2 * (LegMode - 45)
+
+if (Speed > 0.2) {
+    Step = round(LegMode / 10) == 0
+    if (Step & $Step & !Jumping & !Swimming) {
+        Base:soundPlay(1 + ActiveLeg, 0.06, "npc/crow/flap2.wav")
+        soundPitch(1 + ActiveLeg, 150 + randint(0,20))
+    }
+    holoPos(20, Base:toWorld(vec(8, 0, -16 + 10 * ActiveLeg)))
+    holoPos(40, Base:toWorld(vec(-8, 0, -16 + 10 * !ActiveLeg)))
+} else {
+    holoPos(20, Base:toWorld(vec(8, 0, -16)))
+    holoPos(40, Base:toWorld(vec(-8, 0, -16)))
+}
+holoAng(20, Base:angles():rotateAroundAxis(vec(1, 0, 0):rotate(Base:angles()), -LegMode))
+holoAng(40, Base:angles():rotateAroundAxis(vec(1, 0, 0):rotate(Base:angles()),  LegMode))
+
+if (Active) {
+    Angle = Base:driver():eyeAngles()
+} else {
+    Angle = (Follow:toWorld(Follow:boxCenter()) - Head:pos()):toAngle()
+}
+LAngle = Base:toLocal(Angle)
+if ((LAngle:yaw() < -25) | (LAngle:yaw() > 205)) { Angle = Base:toWorld(ang(0, 90, 0)) }
+holoAng(6, Angle)
+

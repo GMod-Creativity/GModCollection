@@ -1,0 +1,80 @@
+@name Holo Sprops Text by Tolyzor
+@inputs E:entity Pos:vector RangerData:ranger Active
+@outputs [SavedPos SavedHitNorm]:vector
+@persist AngleOffset:angle [PosOffset KerningOffset Scale Colour]:vector 
+@persist [PrintString Material]:string Alpha Skin Group
+@trigger Active E
+################ Issue: loses parent after dupe!
+if (first() | duped()) {
+    ########################### Set your text attributes here ###########################
+    # supports upper & lowercase letters, numbers & spaces
+    PrintString = "Tolyzor is AWESOME" 
+    Scale = vec(2, 0.2, 1.5) # text size
+    Colour = vec(155, 0, 0)
+    Alpha = 255
+    Group = 1 # bodygroup (font)
+    Shadow = 0
+    Skin = 2    
+    Material = "models/debug/debugwhite"
+    AngleOffset = ang(0, -90, 0)  # local to the text
+    PosOffset = Scale:x() * vec(-5, 0, 0) # local to the text
+    KerningOffset = Scale:x() * vec(-9, 0, 0) # local to the text
+    #####################################################################################
+    holoDeleteAll()
+}
+
+if (Active) {interval(50)} # 20 fps
+StartPos = Pos
+HitNorm = RangerData:hitNormal()
+# This is the hitnormal angle plus the angle offset
+TextMatrix = matrix(HitNorm:toAngle()) * matrix(AngleOffset) 
+if (->Active) {
+    # save position and hitnorm
+    SavedPos = E:toLocal(Pos)
+    SavedHitNorm = E:toLocalAxis(HitNorm)
+} else {  # override laser pointer pos if not wired
+    TextMatrix = matrix(E:toWorldAxis(SavedHitNorm):toAngle()) * matrix(AngleOffset)
+	   StartPos = E:toWorld(SavedPos)
+}
+
+function drawChar(Index, Char:string) {
+    # requires global variables to be preset
+    if (!holoEntity(Index) & Char != " ") { # if it hasnt been created yet...
+        if (holoCanCreate()) {
+            local Model = ""
+            if (Char == Char:upper()) { # Char is uppercase
+                Model = "models/sprops/misc/alphanum/alphanum_" + Char + ".mdl"
+            } else { # Char is lowercase
+                Model = "models/sprops/misc/alphanum/alphanum_l_" + Char + ".mdl"
+            }
+            holoCreate(Index)
+            holoModel(Index, Model)
+            holoScale(Index, Scale)
+            holoParent(Index, E) 
+            holoBodygroup(Index, 0, Group)
+            holoShadow(Index, Shadow)
+            holoColor(Index, Colour)
+            holoAlpha(Index, Alpha)
+            holoSkin(Index, Skin)
+            holoMaterial(Index, Material)
+        }
+        local StringPos = (Index - 1) * KerningOffset # position in the string of letters
+        local HoloPos = StartPos + TextMatrix * (PosOffset + StringPos)
+        holoPos(Index, HoloPos)
+        holoAng(Index, TextMatrix:toAngle())
+    } else { # just update pos and ang
+        local StringPos = (Index - 1) * KerningOffset # position in the string of letters
+        local HoloPos = StartPos + TextMatrix * (PosOffset + StringPos)
+        holoPos(Index, HoloPos)
+        holoAng(Index, TextMatrix:toAngle())
+    }
+}
+
+if (->E) { # if the entity to parent to is wired, gogogo
+    for (K = 1, PrintString:length()) { # draw all chars in the print string
+        drawChar(K, PrintString[K])
+    }
+}
+
+# Copy, edit and distribute as you please, but please keep my name in the title!
+# Contact for support on wiremod.com

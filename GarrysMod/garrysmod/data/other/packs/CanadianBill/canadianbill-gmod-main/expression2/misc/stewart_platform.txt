@@ -1,0 +1,218 @@
+# GMod Wiremod Expression 2 Stewart Platform (v202503072000)
+# by CanadianBill [https://steamcommunity.com/id/canadianbill/]
+
+@name Stewart Platform by CanadianBill
+@inputs TargetAngle:angle TargetPosition:vector [H1, H2, H3, H4, H5, H6]:wirelink
+@outputs L1 L2 L3 L4 L5 L6
+@persist [Bottom, Top, Target]:entity [Joints, DIM]:table
+
+if (first()) {
+    interval(100)
+    runOnLast(1)
+    
+    propSpawnEffect(0)
+    propSpawnUndo(0)
+    enableConstraintUndo(0)
+    
+    # Units
+    function number u() {
+        return 47.45
+    }
+    
+    function vector u(Vec:vector) {
+        return u()*Vec
+    }
+    
+    function vector u(X,Y,Z) {
+        return u(vec(X,Y,Z))
+    }
+    
+    function number u(Mod) {
+        return u()*Mod
+    }
+    
+    function number calculateLength(Position:vector, Rotation:angle, I) {
+        
+        # https://memememememememe.me/post/stewart-platform-math/
+        # https://github.com/thiagohersan/memememe/blob/master/Processing/StewartSimulator/Platform.pde
+
+        local Joint = Joints[I, table]
+        local TopJoint = Joint["top", vector]
+        local BaseJoint = Joint["base", vector]
+        
+        local X =
+            cos(Rotation:yaw())*cos(Rotation:roll()) * TopJoint:x() +
+            (-sin(Rotation:yaw())*cos(Rotation:pitch())+cos(Rotation:yaw())*sin(Rotation:roll())*sin(Rotation:pitch())) * TopJoint:y() +
+            (sin(Rotation:yaw())*sin(Rotation:pitch())+cos(Rotation:yaw())*sin(Rotation:roll())*cos(Rotation:pitch())) * TopJoint:z()
+        
+        local Y =
+            sin(Rotation:yaw())*cos(Rotation:roll()) * TopJoint:x() +
+            (cos(Rotation:yaw())*cos(Rotation:pitch())+sin(Rotation:yaw())*sin(Rotation:roll())*sin(Rotation:pitch())) * TopJoint:y() +
+            (-cos(Rotation:yaw())*sin(Rotation:pitch())+sin(Rotation:yaw())*sin(Rotation:roll())*cos(Rotation:pitch())) * TopJoint:z()
+        
+        local Z =
+            -sin(Rotation:roll()) * TopJoint:x() +
+            cos(Rotation:roll())*sin(Rotation:pitch()) * TopJoint:y() +
+            cos(Rotation:roll())*cos(Rotation:pitch()) * TopJoint:z()
+        
+        local V = vec(X, Y, Z)
+        local Q = V + (Position + vec(0, 0, DIM["START_HEIGHT", number]))
+        local Length = Q - BaseJoint
+        
+        return Length:length()
+    }
+    
+    function setLengths(Position:vector, Rotation:angle) {
+        
+        for (I = 0, 5) {
+            local Length = calculateLength(Position, Rotation, I)
+            Joints[I, table]["length", number] = Length
+
+            ioSetOutput("L" + (I + 1), Length) # Output for using lengths directly instead of wirelink
+
+            #ifdef e:setLength(nn)
+                # constraintcore
+                Bottom:setLength(I, Length)
+            #else
+                # manual hydraulics
+                Joints[I, table]["wirelink", wirelink]["Length", number] = Length
+            #endif
+        }
+    }
+    
+    function table:initializeHydraulicWirelink(I, W:wirelink) {
+        This[I, table]["wirelink", wirelink] = W
+        
+        if (!W:hasInput("Constant") || !W:hasInput("Damping")) {
+            error("Invalid wirelink")
+        }
+        
+        W["Constant", number] = DIM["HYDRAULIC_CONSTANT", number]
+        W["Damping", number] = DIM["HYDRAULIC_DAMPING", number]
+        
+        if (This[I, table]:exists("holos")) {
+            holoDelete(This[I, table]["holos", array][1, number])
+            holoDelete(This[I, table]["holos", array][2, number])
+            This[I, table]:remove("holos")
+        }
+    }
+    
+    DIM["START_HEIGHT", number] = u(1)
+    DIM["BASE_RADIUS", number] = u(1)
+    DIM["TOP_RADIUS", number] = u(1)
+    DIM["HYDRAULIC_CONSTANT", number] = 2^17
+    DIM["HYDRAULIC_DAMPING", number] = 2^11
+        
+    Bottom = propSpawn("models/hunter/geometric/hex1x1.mdl", entity():toWorld(u(2, 0, 0)), entity():toWorld(ang()), 1)
+    Bottom:setMaterial("models/debug/debugwhite")
+    Bottom:setColor(vec4(200, 200, 200, 255))
+    Bottom:setMass(2^12)
+
+    Top = propSpawn("models/hunter/geometric/hex1x1.mdl", Bottom:toWorld(vec(0, 0, DIM["START_HEIGHT", number])), Bottom:toWorld(ang()), 0)
+    Top:setMaterial("models/debug/debugwhite")
+    Top:setColor(vec4(75, 0, 0, 200))
+    Top:setMass(2^8)
+    Top:propGravity(0)
+    
+    Target = propSpawn("models/Combine_Helicopter/helicopter_bomb01.mdl", Bottom:toWorld(vec(0, 0, DIM["START_HEIGHT", number] * 2)), Bottom:toWorld(ang()), 1)
+
+    local HoloIndex = 1
+    local ManualFlag = 0
+    for (I = 0, 5) {
+        ## Spawning the hydraulics
+        local BAng = (floor((I + 1) / 2) * 120)
+        local TAng = (floor(I / 2) * 120) + 60
+        local BLocalPoint = vec(sin(BAng) * DIM["BASE_RADIUS", number], cos(BAng) * DIM["BASE_RADIUS", number], u(1/16))
+        local TLocalPoint = vec(sin(TAng) * DIM["TOP_RADIUS", number], cos(TAng) * DIM["TOP_RADIUS", number], 0)
+
+        Joints[I, table] = table(
+            "id" = I,
+            "base" = vec(cos(BAng), sin(BAng), 0) * DIM["BASE_RADIUS", number],
+            "top" = vec(cos(TAng), sin(TAng), 0) * DIM["TOP_RADIUS", number],
+            "length" = -1
+        )
+        
+        #ifdef hydraulic(nevevnnsnn)
+            # constraintcore
+            hydraulic(I, Bottom, BLocalPoint, Top, TLocalPoint, DIM["HYDRAULIC_CONSTANT", number], DIM["HYDRAULIC_DAMPING", number], "cable/cable2", 2, 0) # cable/cable2 or cable/rope
+        #else
+            # manual hydraulics
+            ManualFlag = 1
+            Top:propFreeze(1)
+            Joints[I, table]["holos", array] = array(HoloIndex, HoloIndex + 1)
+            
+            local Offset = I % 2 ? -2.5 : 2.5
+            holoCreate(HoloIndex, Bottom:toWorld(vec(sin(BAng + Offset) * DIM["BASE_RADIUS", number], cos(BAng + Offset) * DIM["BASE_RADIUS", number], u(1/32))), vec(1), Bottom:toWorld(ang(90, 90 + (floor((I + 1) / 2) * -120), 0)), vec(255), "models/cheeze/buttons/button_" + (I + 1) + ".mdl")
+            holoParent(HoloIndex, Bottom)
+            HoloIndex++
+            Offset = I % 2 ? 2.5 : -2.5
+            holoCreate(HoloIndex, Top:toWorld(vec(sin(TAng + Offset) * DIM["TOP_RADIUS", number], cos(TAng + Offset) * DIM["TOP_RADIUS", number], u(1/32))), vec(1), Top:toWorld(ang(90, 30 + (floor(I / 2) * -120), 0)), vec(255), "models/cheeze/buttons/button_" + (I + 1) + ".mdl")
+            holoParent(HoloIndex, Top)
+            HoloIndex++
+        #endif
+    }
+    
+    if (ManualFlag) {
+        print("Manually create wire hydraulics (non-fixed) at the denoted corners (starting at the top of the bottom plate, ending at the bottom of the top plate)")
+        print("Then Expression 2's respective wirelink input to the respective wire hydraulic controller")
+    }
+    
+    setLengths(vec(), ang())
+}
+elseif (clk()) {
+    
+    interval(25)
+
+    local Translation = vec()
+    local Ang = ang()
+    
+    local X = u(0.5) * sin(realtime() * 60) * 1 # <--- Set to "1" to have circular translation, "0" to be not translate
+    local Y = u(0.5) * cos(realtime() * 60) * 1 # <-/
+    local Z = u(1) * (cos(realtime() * 120) + 1) / 2
+    Translation = vec(X, Y, Z)
+
+    if (->TargetAngle) {
+        local Pitch = TargetAngle:pitch()
+        local Yaw = TargetAngle:yaw()
+        local Roll = TargetAngle:roll()
+        
+        Ang = ang(Pitch, Yaw, Roll)
+    }
+    elseif (Target:isValid()) {
+        
+        local TargetPos = Bottom:toWorld(vec(0, 0, 0 + DIM["START_HEIGHT", number]))
+        local TargetAng = Bottom:toLocal((TargetPos - Target:boxCenterW()):toAngle())
+        local TargetAngNormal = TargetAng:forward() * vec(-1, 1, -1)
+        
+        local TargetPitch = atan(TargetAngNormal[1], TargetAngNormal[3])
+        local TargetRoll = atan(TargetAngNormal[2], TargetAngNormal[3])
+        
+        Ang = Ang:setPitch(clamp(-TargetPitch, -30, 30))
+        Ang = Ang:setRoll(clamp(-TargetRoll, -30, 30))
+    }
+    
+    if (->H1 && !Joints[0, table]:exists("wirelink")) {
+        Joints:initializeHydraulicWirelink(0, H1)
+    }
+    elseif (->H2 && !Joints[1, table]:exists("wirelink")) {
+        Joints:initializeHydraulicWirelink(1, H2)
+    }
+    elseif (->H3 && !Joints[2, table]:exists("wirelink")) {
+        Joints:initializeHydraulicWirelink(2, H3)
+    }
+    elseif (->H4 && !Joints[3, table]:exists("wirelink")) {
+        Joints:initializeHydraulicWirelink(3, H4)
+    }
+    elseif (->H5 && !Joints[4, table]:exists("wirelink")) {
+        Joints:initializeHydraulicWirelink(4, H5)
+    }
+    elseif (->H6 && !Joints[5, table]:exists("wirelink")) {
+        Joints:initializeHydraulicWirelink(5, H6)
+    }
+
+    setLengths(Translation, Ang)
+}
+elseif (last()) {
+    holoDeleteAll()
+    propDeleteAll()
+}

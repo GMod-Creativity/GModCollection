@@ -1,0 +1,246 @@
+@name Instant Base
+@inputs C:number 
+@outputs C:number
+@persist Prop:entity Prop2:entity Excluding CC A Sure I Exclude:array PropList:array PropLoad:array Num Player:entity Loading
+@persist PPOS:vector Tmp:array PropPos:vector PropAng:angle Prop3:entity Props:array Stop_Kill Name:string
+@persist I2 Props2:array PropsModel:array PropsAngle:array PropsPos:array Off Started Stop_Kill2 Stop_Regen Radius P:entity
+interval(100) 
+runOnChat(1)
+E = entity()
+LS = P:lastSaid()
+LSS = LS:explode(":")
+LSS2 = LS:explode(" ")
+if(first()){
+    P = owner()
+    Name = "bunker" #file to use as base
+    C = 0
+    CC = 1
+    A = 0
+    Exclude[1,entity] = P
+    Num = 1
+    Radius = 750
+    function hide(){
+            hideChat(1)
+            printColor(vec(0,255,0),"[Hidden]",vec(random(0,255),random(0,255),random(0,255)),+P:name(),vec(255,255,255),": "+LS)
+    }
+}
+timer("regen",150)
+if(chatClk(owner())&owner():lastSaid():explode(" "):string(1) == "/owner"){
+    hide()
+    P = findPlayerByName(LSS2:string(2))
+    hint("Gave ownership to "+P:name()+"!",10)
+}
+if(chatClk(P)&LSS2:string(1) == "/filename" | chatClk(owner())&chatClk(owner())&owner():lastSaid():explode(" "):string(1) == "/filename"){
+    hide()
+    Name = LSS2:string(2)
+    hint("Using file "+Name+" as the bunker!",10)
+}
+if(chatClk(P)&LSS2:string(1) == "/radius" | chatClk(owner())&chatClk(owner())&owner():lastSaid():explode(" "):string(1) == "/radius"){
+    hide()
+    Radius = LSS2:string(2):toNumber()
+    hint("Now Killing in a radius of "+Radius+"!",10)
+}
+if(chatClk(P)&LS == "/stopregen"&!Stop_Regen | chatClk(owner())&chatClk(owner())&owner():lastSaid()== "/stopregen"&!Stop_Regen){
+    hide()
+    timer("stopregen",100)
+    hint("Type /stopregen again to turn on regen.",10)
+}
+if(chatClk(P)&LS == "/stopregen"&Stop_Regen | chatClk(owner())&chatClk(owner())&owner():lastSaid()== "/stopregen"&!Stop_Regen){
+    hide()
+    Stop_Regen = 0
+     hint("Type /stopregen again to turn off regen.",10)
+}
+if(clk("stopregen")){
+    Stop_Regen = 1
+}
+if(chatClk(P)&LS == "/stopkill"&!Stop_Kill2 | chatClk(owner())&chatClk(owner())&owner():lastSaid()== "/stopkill"&!Stop_Kill2){
+    hide()
+    timer("stopkill",100)
+     hint("Type /stopkill again to turn on killing.",10)
+}
+if(clk("stopkill")){
+    Stop_Kill2 = 1
+}
+if(chatClk(P)&LS == "/stopkill"&Stop_Kill2 | chatClk(owner())&chatClk(owner())&owner():lastSaid()== "/stopkill"&Stop_Kill2){
+    hide()
+    Stop_Kill2 = 0
+     hint("Type /stopkill again to turn off kill.",10)
+}
+if(clk("regen")&!Stop_Kill &Started &!Stop_Regen){
+    timer("regen",150)
+    I2++
+    if(I2>Props:count()){
+        I2 = 0
+    }
+    if(Props[I2,entity]:pos()!=PropsPos[I2,vector]&!Off |!Props[I2,entity]:isFrozen()&!Off){
+        Props[I2,entity]:propDelete()
+    }
+}
+    if(!Props[I2,entity]&!Stop_Kill&!Off){
+        Props[I2,entity] = propSpawn(PropsModel[I2,string],PropsPos[I2,vector],PropsAngle[I2,angle],1)
+}
+if(chatClk(P)&LSS:string(1) == "/exclude" | chatClk(owner())&chatClk(owner())&owner():lastSaid():explode(" "):string(1) == "/exclude"){
+    hide()
+    hideChat(1)
+    Num++
+    Player = findPlayerByName(LSS:string(2))
+    Exclude[Num,entity] = Player
+    hint("Excluded: "+Exclude[Num,entity]:name()+" "+Num,10)
+    timer("exclude",10)
+}
+if(!Prop3&!Off&Started){
+    Prop3 = propSpawn("models/hunter/blocks/cube025x025x025.mdl", PPOS,ang(0), 1)
+    Prop3:setAlpha(0)
+    Prop3:propNotSolid(1)
+}
+if(Prop3){
+    findByClass("player")
+    findSortByDistance(Prop3:pos())
+    findExcludeEntities(Exclude)
+}
+if(changed(P:keyUse())&P:keyUse()&P:keyAttack2()&!Prop3){
+    fileLoad(">e2shared/"+Name+".txt")
+    hint("Loading Bunker.",10)
+    PPOS = P:pos()
+    Prop3 = propSpawn("models/hunter/blocks/cube025x025x025.mdl", PPOS,ang(0), 1)
+    Prop3:setAlpha(0)
+    Prop3:propNotSolid(1)
+    Loading = 1
+    Stop_Kill = 1
+    CC = 1
+    A = 1
+    timer("start",100)
+    Started = 1
+}
+if(chatClk(P)&LS == "/clear" & !Sure | chatClk(owner())&LS == "/clear" & !Sure){
+    hide()
+    hint("Are you sure? You have 10 seconds.",10)
+    timer("sure",100)
+    timer("no",11000)
+}
+if(clk("sure")){
+    Sure = 1
+}
+if(clk("no")){
+    Sure = 0
+    hint("Too late.",10)
+}
+if(Sure & chatClk(P)&LS == "/clear" | Sure & chatClk(owner())&LS == "/clear"){
+    hide()
+    hideChat(1)
+    hint("Removed Everyone on list!",10)
+    Exclude:clear()
+    Exclude[1,entity] = P
+    Sure = 0
+    Num = 0
+    stoptimer("no")
+}
+if(Loading&fileLoaded()){
+    if(changed(Loading)){
+        hint("Bunker Spawning!",10)
+        timer("a",100)
+    }
+    PropLoad = fileRead():explode("|")
+    if(clk("a")){
+        timer("a",100)
+        I++
+        Tmp = PropLoad[I+1,string]:explode(",")
+        PropPos = vec(Tmp[1,string]:toNumber(),Tmp[2,string]:toNumber(),Tmp[3,string]:toNumber())
+        Tmp = PropLoad[I+2,string]:explode(",")
+        PropAng = ang(Tmp[1,string]:toNumber(),Tmp[2,string]:toNumber(),Tmp[3,string]:toNumber())
+        PropList[I,string] = PropLoad[I,string]
+        Prop2 = propSpawn(PropList[I,string], Prop3:pos()+PropPos+vec(0,0,5), PropAng, 1)
+        Props:pushEntity(Prop2)
+    }
+    if(changed(I>=PropLoad:count())&I>=PropLoad:count()){
+        stoptimer("a")
+        hint("Base Finished Spawining",10)
+        Stop_Kill = 0
+        for(I3 = 0,Props:count()){
+            PropsModel[I3,string] = Props[I3,entity]:model()
+            PropsPos[I3,vector] = Props[I3,entity]:pos()
+            PropsAngle[I3,angle] = Props[I3,entity]:angles()
+        }
+    }
+}
+if(CC&!Stop_Kill){
+    if (find():pos():distance(Prop3:pos())<Radius & find():isAlive()){A=1}else{
+        A = 0
+    }
+    if (find():pos():distance(Prop3:pos())>Radius){A=0}
+}
+if(A&!Stop_Kill&!Stop_Kill2){
+    A=1
+        holoCreate(1)
+        holoPos(1, find():pos() + vec(20,20,20))
+        holoScale(1, vec(-20,20,20))
+        holoColor(1, vec(0,0,0))
+        holoParent(1,find())
+        holoModel(1,"icosphere3")
+        timer("kill",1000)
+        if(clk("kill")){
+            timer("kill",1000)
+            Prop = propSpawn("models/props_phx/ww2bomb.mdl", find():pos()+(vec(0,0,20)), entity():angles(), 1)   
+            Prop:setAlpha(0) 
+            Prop:propBreak()
+        }
+}else{
+holoDelete(1)
+stoptimer("kill")
+}
+
+if(clk("b")){
+    timer("a",100)
+    timer("b",1)
+}
+if(chatClk(P)| chatClk(owner())){
+if(P:lastSaid()=="/off" | owner():lastSaid()=="/off"){
+    hide()
+    hideChat(1)
+    CC = 0
+    A = 0
+    timer("stop",1)
+    Prop3:propDelete()
+    Stop_Kill = 1
+    Off = 1
+}
+}
+if(chatClk(P) | chatClk(owner())){
+if(P:lastSaid()=="/on" | owner():lastSaid()=="/on"){
+    Off = 0
+    hide()
+    hideChat(1)
+    CC = 1
+    A = 1
+    timer("start",1)
+    Prop3 = propSpawn("models/hunter/blocks/cube025x025x025.mdl", PPOS,ang(0), 1)
+    Prop3:setAlpha(0)
+    Prop3:propNotSolid(1)
+    Stop_Kill = 0
+}
+}
+if(chatClk(P) | chatClk(owner())){
+if(P:lastSaid()=="/remove" | owner():lastSaid()=="/remove"){
+    hide()
+    hideChat(1)
+    Props:propDelete()
+    Props:clear()
+    Prop3:propDelete()
+    PropLoad:clear()
+    Stop_Kill = 0
+    PropsModel:clear()
+    PropsAngle:clear()
+    PropsPos:clear()
+    stopAllTimers()
+    reset()
+}
+}
+if(clk("start")){
+    CC = 1
+}
+if(clk("stop")){
+    CC = 0
+    A = 0
+    stopAllTimers()
+    holoDelete(1)
+} 

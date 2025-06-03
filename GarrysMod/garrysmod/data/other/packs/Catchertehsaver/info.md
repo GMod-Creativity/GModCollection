@@ -1,0 +1,3 @@
+- Author: Catchertehsaver
+- Date: May 27th, 2010
+- Title: My Adv Dupes

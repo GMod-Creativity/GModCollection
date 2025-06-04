@@ -1,0 +1,120 @@
+@name Hob-Co Resource Station
+@inputs 
+@outputs HEH:entity
+@persist E:entity WL:wirelink Version DEBUG:string User:entity Selected Ary:array
+@autoupdate
+@model models/tiberium/dispenser.mdl
+if(first())
+{
+    Version = 0.22
+    setName("Hob-Co Resource Station | Version: " + Version)
+    E = entity()
+    WL = E:isWeldedTo():wirelink()
+    A = 0.5
+    runOnTick(1)
+    runOnUse(1)
+    
+    holoCreate(1)
+    holoModel(1,"hqrcylinder")
+    holoPos(1,E:toWorld(vec(5,14,13)))
+    holoAng(1,E:toWorld(ang()))
+    holoScaleUnits(1,vec(10,10,35))
+    holoAlpha(1,100)
+    #holoRenderFX(1,15)
+    holoMaterial(1,"models/props_combine/health_charger_glass")
+    
+    holoCreate(2)
+    holoModel(2,"hqrcylinder")
+    holoPos(2,E:toWorld(vec(5,14,13)))
+    holoAng(2,E:toWorld(ang()))
+    holoScaleUnits(2,vec(9,9,34))
+    holoAlpha(2,200)
+    holoMaterial(2,"models/alyx/emptool_glow")
+    #holoRenderFX(2,15)
+    holoParent(2,1)
+    holoClipEnabled(2,1)
+    holoClip(2,vec(0,0,-17+34*A),vec(0,0,-1),0)
+    function redraw()
+    {    
+        WL:egpClear()
+        WL:egpText(1,"Hob-Co Resource Screen",vec2(120,2))
+        WL:egpFont(1,"helvetica",24)
+        
+        WL:egpBox(2,vec2(256,225),vec2(506,250))
+        WL:egpBox(3,vec2(256,225),vec2(500,244))
+        WL:egpColor(3,vec(100,100,100))
+        
+        WL:egpBox(4,vec2(40,10),vec2(80,20))
+        WL:egpColor(4,vec(150,150,150))
+        WL:egpText(5,"V: " + Version,vec2(5,0))
+        WL:egpColor(5,vec(230,230,0))
+        
+        WL:egpBox(6,vec2(472,10),vec2(80,20))
+        WL:egpColor(6,vec(150,150,150))
+        WL:egpText(7,DEBUG,vec2(432,0))
+        WL:egpColor(7,vec(230,230,0))
+        
+        findByClass("sc_resource_pump")
+        findSortByDistance(E:pos())
+        Ary = findToArray()
+        for(I=1,(Ary:count()>8 ? 8 : Ary:count()))
+        {
+            local Pmp = Ary[I,entity]
+            local Owner = Pmp:owner():name():sub(0,12)
+            local Clr = teamColor(Pmp:owner():team())
+            local Mdl = Pmp:model():sub(Pmp:model():length() - 16,Pmp:model():length()-4)
+            local Dist = round(E:pos():distance(Pmp:pos()))
+            local Str = I + ": Pump: " + Mdl + " | Owner: " + Owner + " | Dist: " + Dist + "u."
+            if(!Pmp:owner()){
+                Str = I + ": **GLOBAL PUMP**"
+            }
+            local Idex = 100+I*2
+            WL:egpBox(Idex,vec2(256,86+30*I),vec2(500,24))
+            if(I==Selected){
+                WL:egpColor(Idex,vec(100,100,100))
+            }else{
+                WL:egpColor(Idex,vec(150,150,150))
+            }
+            WL:egpText(Idex+1,Str,vec2(20,76+30*I))
+            WL:egpColor(Idex+1,Clr)
+        }
+        
+        WL:egpBox(8,vec2(256,425),vec2(456,120))
+        WL:egpBox(9,vec2(256,425),vec2(450,114))
+        WL:egpColor(9,vec(100,100,100))
+        
+        WL:egpBox(10,vec2(256,382),vec2(440,20))
+        WL:egpColor(10,vec(200,200,200))
+        if(Selected>0){
+            WL:egpText(11,"Target Ship: "+ Ary[Selected,entity]:owner():name():sub(0,12) + "'s "+ Ary[Selected,entity]:getCoreEnt():getCoreClass(),vec2(37,375))
+            WL:egpColor(11,teamColor(Ary[Selected,entity]:owner():team()))
+            HEH = Ary[Selected,entity]
+        }
+        
+    }
+    timer(1000,0,"redraw","redraw()")
+}
+
+if(useClk())
+{
+    local X = round(WL:egpCursor(usedBy()))
+    DEBUG = toString(X)
+    if(X:x()>5 & X:x()<507)
+    {
+        #86+30*I
+        Selected = min(9,max(0,1 + round((X:y() - 116)/(30))))
+        DEBUG = "A: "+ Selected
+        if(Selected>Ary:count())
+        {
+            Selected = 0
+        }
+    }
+}
+
+
+holoPos(1,E:toWorld(vec(5,14,13)+vec(0,0,sin(curtime()*35))))
+holoAng(1,E:toWorld(ang(0,curtime()*35,0)))
+A = sin(curtime()*5)^2
+holoClip(2,vec(0,0,-17+34*A),vec(0,0,-1),0)
+holoColor(2,vec(255*(1/A),255*A,0))
+

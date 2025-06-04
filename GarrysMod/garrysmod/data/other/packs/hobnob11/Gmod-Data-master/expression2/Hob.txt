@@ -1,0 +1,96 @@
+@name Hob
+@persist
+
+#Hob-Co Library for ease of use.
+print("hob-os loaded")
+#gets the closest planet
+function entity closestPlanet(Vec:vector)
+{
+    local Ret = noentity()
+    local Dist = 1e9
+    foreach(K,V:entity=getPlanets())
+    {
+        if(V:pos():distance(Vec)<Dist)
+        {
+            Dist = V:pos():distance(Vec)
+            Ret = V
+        }
+    }
+    return Ret
+}
+
+#returns an array of vectors representing the verticies of a sphere.
+function void array:sphere(R,Devisions,OnFinish:string,Theta)
+{
+    if(!This:count()) {
+        This:pushVector(vec(0,0,-R))
+        Theta = pi() - pi() / Devisions
+    }
+    while( Theta > 0 && perf(70) ) # Elevation pi - 0
+    {
+        local Phi = 0 
+        while( Phi < 2*pi() ) # Azimuth 0 - 2pi
+        {
+            local X = R * cosr(Phi) * sinr(Theta)
+            local Y = R * sinr(Phi) * sinr(Theta)
+            local Z = R             * cosr(Theta)
+            This:pushVector(vec(X,Y,Z))
+            Phi = Phi + pi()/Devisions 
+        }
+        Theta = Theta - pi()/Devisions
+    }
+    if(Theta > 0) {
+        timer(10,1,"SphereContinue","sphere(r:nnsn)",This,R,Devisions,OnFinish,Theta)
+    }
+    else{
+        This:pushVector(vec(0,0,R))
+        timer(100,1,"SphereFinish",OnFinish + "(r)", This)
+    }
+}
+
+#a sphere so retarded it may work
+function array icosphere(R,Devisions)
+{
+    local Ret = array()
+    for(I=1,Devisions)
+    {
+        local A = (360/Devisions)*I
+        local X = 0
+        local Y = cos(A) * R
+        local Z = sin(A) * R
+        Ret:pushVector(vec(X,Y,Z))
+    }
+    return Ret
+}
+
+#because fuck holo index's
+function void entity:holoAng( Angle:angle )
+{
+    holoAng(holoEntity(This), Angle)
+}
+
+######DIV TECH ANGLE MATH#####
+    function angle smoothness(CurrentAngle:angle,WantedAngle:angle,Speed) {
+        local WantedQuat = quat(WantedAngle)
+        local CurrentQuat = quat(CurrentAngle)
+        
+        local LengthQ = abs(rotationAngle(WantedQuat/CurrentQuat))
+        local Tick = clamp(Speed/LengthQ,0,1)
+        local Quat = slerp(CurrentQuat,WantedQuat,Tick)
+        
+        return Quat:toAngle()
+    }
+    function number ang(V1:vector,V2:vector) {
+        local Ret = acos(V1:dot(V2))
+        if (Ret == Ret) {
+            return Ret
+        } else {
+            return 0
+        }
+    }
+    function angle smoothness2(Current:vector,Wanted:vector,Speed) {
+        local CurAng = ang(Current,Wanted)
+        local CurSpeed = clamp(Speed / CurAng,0,1)
+        return mix(Wanted,Current,CurSpeed):toAngle()
+    }
+    

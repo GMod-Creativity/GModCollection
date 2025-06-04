@@ -1,0 +1,65 @@
+@name Donut Solar Panel
+
+@persist E:entity Ang:angle State:string I
+@inputs
+@model models/ce_ls3additional/screens/large_screen.mdl
+@autoupdate
+
+interval(I)
+
+if( first() )
+{
+    E = entity():isWeldedTo()
+    entity():freeze()
+    entity():unWeld(E)
+    entity():setPos(E:pos())
+    entity():setAng(E:angles())
+
+    holoCreate(1)
+    holoPos(1,E:pos())
+    holoAng(1,E:angles())
+    holoParent(1,entity())
+    E:parentTo(holoEntity(1))
+    function go(){entity():parentTo(E:isWeldedTo()) holoAng(1,entity():angles()) holoPos(1,entity():pos()) State = "Down"}
+    timer(100,1,"go","go()")
+    I = 1000
+    runOnLast(1)
+}
+switch(State)
+{
+    case "Down",
+        if(1)# E:getCoreEnt():getCapPercent() <= 0.2 )
+        {
+            State = "Rising"
+            I=100
+        }
+        break
+    case "Rising",
+        if( entity():toLocal(holoEntity(1):pos()):z() < 50 )
+        {
+            holoPos(1, entity():toWorld(entity():toLocal(holoEntity(1):pos()) + vec(0, 0, 5)))
+        } else {
+            State = "Up"
+        }
+        break
+    case "Up",
+        if( 0 )#E:getCoreEnt():getCapPercent() >= 0.2 )
+        {
+            State = "Lowering"
+        } else {
+            local SunPos = entity():pos() + lsGetSunDirection() * 10000
+            local Bearing = entity():bearing( SunPos )
+            local Elevation1 = elevation( entity():pos(), entity():forward():toAngle(), SunPos )
+            local Elevation2 = elevation( entity():pos(), entity():right():toAngle(), SunPos )
+            local Pitch = Elevation1 - 90
+            local Yaw = 90
+            local Roll = Elevation2
+            
+            holoAng(1,entity():toWorld(ang(Pitch,Yaw,Roll)))
+        }
+}
+        
+if(last())
+{
+    E:deparent()
+}

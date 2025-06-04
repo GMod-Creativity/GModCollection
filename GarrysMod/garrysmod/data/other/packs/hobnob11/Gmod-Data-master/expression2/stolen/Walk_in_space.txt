@@ -1,0 +1,71 @@
+@name Walk in space
+@persist OldVel:vector Force:vector SoundPlaying Diff
+
+if (clk("a")) {
+    SoundPlaying = 0
+    exit()
+}
+
+interval(50)
+local O = owner()
+
+if (O:lsName() == "Space" & !O:inNoclip()) {
+
+    local W = O:keyForward()
+    local A = O:keyLeft()
+    local S = O:keyBack()
+    local D = O:keyRight()
+    
+    local Sprint = O:keySprint()
+    local Walk = O:keyWalk()
+    local Jump = O:keyJump()
+
+    rangerFilter(O)
+    local Trace = rangerOffset(O:pos(),O:pos()+vec(0,0,-300))
+    if (Trace:hit()) {
+        local Crouch = O:keyDuck()
+        
+        local Ang = O:eyeAngles():setPitch(0)    
+        Force = OldVel * 0.6 + 0.5 * ((Ang:forward() * (W-S) + Ang:right() * (D-A)) * (250 + Sprint * 250 - Walk * 75 - Crouch * 75) - vec(0,0,50))
+        
+        OldVel = Force
+        
+        if (Trace:distance() > 5) {
+            Force += O:vel()
+        }
+        
+        O:setVel(Force)
+        
+        soundStop(1,0.6)
+    } else {
+        
+        local Crouch = O:keyDuck()
+        
+        local Ang = O:eyeAngles()
+        Force = OldVel * 0.8 + 0.6 * (Ang:forward() * (W-S) + Ang:right() * (D-A) + Ang:up() * (Jump-Crouch)) * (200 + Sprint * 400)
+        
+        OldVel = Force
+        
+        if (changed(Force)) {
+            O:setVel(Force)
+        }
+        
+        local Diff = ($Force):length() > 20
+        
+        if (changed(Diff)) {
+            if (Diff == 1) {
+                if (!SoundPlaying) {
+                    O:soundPlay(1,0,"thrusters/hover00.wav")
+                    SoundPlaying = 1
+                }
+            } else {
+                soundStop(1,0.6)
+                timer("a",600)
+            }
+        }
+    }
+} elseif ((O:lsName() != "Space" | O:inNoclip()) & SoundPlaying) {
+    soundStop(1,0.6)
+    SoundPlaying = 0
+    OldVel = vec()
+}

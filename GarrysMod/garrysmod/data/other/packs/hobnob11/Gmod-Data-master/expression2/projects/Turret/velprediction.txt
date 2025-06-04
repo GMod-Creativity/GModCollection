@@ -1,0 +1,75 @@
+@name Velocity Prediction
+@inputs RM A D
+@outputs Ent:entity A1 A2 D1 D2 AimVec:vector Mult Defelction TARGET_VEL:vector Offset:vector
+@persist Str:string TPos:vector OldPos:vector Time OldTime LastVels:array LastVel:vector E:entity FailedCount
+@trigger 
+@autoupdate 
+if(first())
+{
+    #include "lib/hob"
+    LastVel = vec(0,0,0)
+    runOnChat(1)
+    runOnTick(1)
+    E = entity():isWeldedTo()
+}
+if(dupefinished())
+{
+    reset()
+}
+if(chatClk(owner()))
+{
+    Str = owner():lastSaid()
+    if(Str:sub(1,1) == "!")
+    {
+        Ent = findPlayerByName(Str:sub(2))
+        hideChat(1)
+    }elseif(Str:sub(1,1) == ".")
+    {
+        Ent = entity(Str:sub(2):toNumber())
+        hideChat(1)
+    }
+}
+
+
+V = 2666.666   #2000 #<friget ones  |   fighter ones>#2666.666 #speed of torpedo
+
+if( TPos != Ent:pos() | FailedCount>10 )
+{
+    FailedCount = 0
+    OldPos = TPos
+    TPos = Ent:pos()
+    OldTime = Time
+    Time = curtime()
+}else{
+    FailedCount++
+}
+
+local DeltaTime = Time - OldTime #time in seconds since last exec
+
+local DeltaPos = TPos - OldPos #distance target moved since last exec
+
+TARGET_VEL = DeltaPos * (1/DeltaTime) #vel of target, in units / second
+
+Defelction = entity():isWeldedTo():bearing(Ent:pos())
+
+Offset = E:toWorld(vec(0,0,E:boxSize():z()/2 - 40)) - E:pos() # to account for the aim vec not being where the guns are pointing at
+
+AimVec = direct_solution(Ent:pos(), TARGET_VEL, V) + Offset
+
+
+
+if(RM)
+{
+    Mult = clamp(TARGET_VEL:length()/1600 * 10, 1, 10)
+    A1 = 0
+    D1 = 0
+    A2 = A
+    D2 = D
+} else
+{
+    Mult = 1
+    A2 = 0
+    D2 = 0
+    A1 = A
+    D1 = D
+}

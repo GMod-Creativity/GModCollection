@@ -1,0 +1,59 @@
+--@name RenderBreaker
+--@shared 
+
+
+if SERVER then
+    
+    wire.adjustInputs({"A"},{"normal"})
+    
+    hook.Add("Think","asdf",function()
+        if net.CanSend() and wire.ports.A then
+            net.Start("hob")
+            net.WriteDouble(wire.ports.A)
+            net.Send()
+        end
+    end)
+    
+elseif CLIENT then
+    
+    hook.Add("net","heh",function()
+        A = net.ReadDouble()
+    end)
+    
+    Sound = sounds.Create(entities.self(),"thrusters/jet01.wav")
+    
+    E = ParticleEmitter(entities.self():GetPos()+Vector(0,0,0),false)
+    hook.Add("Think","Lol",function()
+        E:SetPos(entities.self():LocalToWorld(Vector(0,0,0)))
+        if A then
+            if not Sound:IsPlaying() and A > 0 then
+                Sound:Play()
+            elseif Sound:IsPlaying() and A == 0 then
+                Sound:Stop()
+            end
+            Sound:ChangePitch(75+(A/20)*100, 0 ) 
+            
+            if A > 0 then
+                local Max = 10
+                for I = 0, Max do
+                    local Ang = I*(360/Max)
+                    local FX ="effects/shipsplosion/fire_001"
+                    p = E:Add(FX, entities.self():LocalToWorld(Vector(math.sin(Ang)*50,0,math.cos(Ang)*50)))
+                	p:SetDieTime(1)
+                	local V = Vector(math.sin(Ang+90)*20,0,math.cos(Ang+90)*20)*(A/2)
+                	p:SetVelocity(V)
+                	p:SetAirResistance(30)
+                	p:SetNextThink(CurTime()+0.1)
+                	p:SetThinkFunction( function(pa)
+                	    pa:SetGravity((entities.self():GetPos() - pa:GetPos())*20)
+                	    pa:SetNextThink(CurTime()+0.1)
+                	end)
+                	p:SetStartAlpha(255)
+                	p:SetEndAlpha(255)
+                	p:SetStartSize(math.random(10,A+10))
+                	p:SetEndSize(0)
+            	end
+            end
+        end
+	end)
+end

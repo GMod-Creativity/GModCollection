@@ -1,0 +1,134 @@
+@name Donut Command Chair
+@outputs State Chair:entity Active
+@persist ChairModel:string ChairOffset:vector HoloOffset:vector Axis:entity 
+@persist ChairHolo:entity ChairEnt:entity HoloScale:vector Driver:entity
+@persist Vel Acc MaxVel Height MaxHeight AngVel AngAcc MaxAngVel Angle MaxAngle
+@model models/sprops/misc/fittings/cubinder_1_5_to_1_5.mdl
+@autoupdate
+if ( dupefinished() | (first() & !duped()) )
+{
+    #include "lib/hob"
+    runOnUse(1)
+    runOnLast(1)
+    propSpawnUndo(0)
+    ChairModel = "models/madman07/f302/seat1.mdl"
+    ChairOffset = vec( 15.3 - 0.2, 0, 1.7 + 2.8 )
+    HoloOffset = vec( -15.3, 0, -2.7 + 6 )
+    HoloScale = vec( 0.16, 0.16, 0.16 )
+    
+    Acc = 0.01
+    MaxVel = 0.05
+    MaxHeight = 5
+    
+    AngAcc = 0.18
+    MaxAngVel = 1.8
+    MaxAngle = 180
+        
+    function parent()
+    {
+        ChairEnt:parentTo( ChairHolo )
+        runOnTick(1)
+    }
+}
+
+switch( State )
+{
+    case 0, #setup
+        
+        Axis = holoCreate( 1 )
+            holoModel( 1, "hqcylinder" )
+            holoScale( 1, vec( 0.034, 0.034, 1.1 ) )
+            holoPos( 1, entity():toWorld( vec( 0, 0, -6 ) ) )
+            holoAng( 1, entity():toWorld( ang( 0, 0, 0 ) ) )
+            holoMaterial( 1, "spacebuild/body5" )
+            holoParent( 1, entity() )
+        ChairHolo = holoCreate( 2 )
+            holoModel( 2, ChairModel )
+            holoPos( 2, Axis:toWorld( HoloOffset ) )
+            holoScale( 2, HoloScale )
+            holoParent( 2, 1 )
+            
+        Axis:hSetAng( entity():toWorld( ang( 0, 90, 0 ) ) ) # this fucking chair model
+        Angle = 0
+        Height = 0
+        State = 1
+        break
+        
+    case 1, #idle 
+        if( useClk() )
+        {
+            ChairEnt = seatSpawn( "models/sprops/rectangles_thin/size_1/rect_3x3x1_5.mdl", ChairHolo:toWorld( ChairOffset ), ChairHolo:toWorld( ang( 0, 0, 0 ) ), 1 )
+            Chair = ChairEnt
+            ChairEnt:setAlpha( 0 )
+            ChairEnt:vehicleSetExitPoint( vec( 5, 0, 0 ) )
+            timer( 100, 1, "parentEnt", "parent()" )
+            State = 2
+        }
+        break
+        
+    case 2, #waiting for user
+        if( ChairEnt:driver() )
+        {
+            Driver = ChairEnt:driver()
+            ChairEnt:lock( 1 ) # so we can listen for keyUse() to do the animation before letting them exit
+            if( Driver == owner() ){ owner():disableSpawnMenu( 1 ) }
+            State = 3
+        }
+        break
+    
+    case 3, #going up
+        if( !( Height >= MaxHeight & Angle >= MaxAngle ) )
+        {
+            Vel = clamp( Vel+Acc, 0, MaxVel )
+            Height = clamp( Height+Vel, 0, MaxHeight )
+            
+            AngVel = clamp( AngVel+AngAcc, 0, MaxAngVel )
+            Angle = clamp( Angle+AngVel, 0, MaxAngle )
+            
+            Axis:hSetAng( entity():toWorld( ang( 0, 90 + Angle, 0 ) ) )
+            Axis:hSetPos( entity():toWorld( vec( 0, 0, Height -6 ) ) )
+        }else{
+            Vel = 0
+            AngVel = 0
+            State = 4       
+            Active = 1     
+        }
+        break
+    
+    case 4, #up
+        if( Driver:keyPressed("LSHIFT") & Driver:keyPressed("F") )
+        {
+            Active = 0
+            State = 5
+            if( Driver == owner() ){ owner():disableSpawnMenu( 0 ) }
+        }
+        break
+    
+    case 5, # going down
+        if( !( Height <= 0 & Angle <= 0 ) )
+        {
+            Vel = clamp( Vel+Acc, 0, MaxVel )
+            Height = clamp( Height-Vel, 0, MaxHeight )
+            
+            AngVel = clamp( AngVel+AngAcc, 0, MaxAngVel )
+            Angle = clamp( Angle-AngVel, 0, MaxAngle )
+            
+            Axis:hSetAng( entity():toWorld( ang( 0, 90 + Angle, 0 ) ) )
+            Axis:hSetPos( entity():toWorld( vec( 0, 0, Height -6 ) ) )
+        }else{
+            ChairEnt:lock( 0 )
+            ChairEnt:ejectPod()
+            ChairEnt:propDelete()
+            Driver = noentity()
+            State = 1
+        }
+        break
+}
+
+
+
+if( last() )
+{
+    ChairEnt:propDelete()
+}
+

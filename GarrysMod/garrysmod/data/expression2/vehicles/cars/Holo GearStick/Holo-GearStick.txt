@@ -1,0 +1,95 @@
+@name Monskillers GearStick
+@inputs Gear
+@persist E:entity [Table GearT]:table VecY
+
+    ##########
+    #
+    # Holo GearStick
+    # Made by Monskiller (// Dak)
+    # SteamID: STEAM_0:1:36968257
+    # Created on: January 22, 2015
+    # Requires Sprops for models and ACF for gear sound
+    # Needs convar wire_holograms_modelany set to 1 or 2
+    #
+    ##########
+
+# If your engine has 3 gears + Reverse, set this to 1
+FourGears = 0
+
+# Desired size here, 1 is default
+Size = 1
+
+# Materials
+BaseM = "sprops/textures/sprops_metal5"
+DiskM = "phoenix_storm/fender_chrome"
+StickM = "phoenix_storm/plastic"
+KnobM = "sprops/textures/sprops_rubber2"
+
+# Models - Don't need to change
+Base = "models/sprops/misc/fittings/cubinder_12_to_12.mdl"
+Disk = "models/sprops/trans/misc/shiftplate_r.mdl"
+
+if (first()|duped()){
+    E = entity()
+    # Holo proprieties table
+    Table = table(
+        array( 1, vec(0,0,0), vec(8.3,8.3,8)*Size, vec(0,0,0), Base, vec(50,50,50), BaseM, E ),
+        array( 2, vec(0,0,4)*Size, vec(8,8,8)*Size, vec(0,180,0), Disk, vec(255,255,255), DiskM, 1 ),
+        array( 5, vec(0,0,4.3)*Size, vec(8.5,8.5,8.5)*Size, vec(0,180,0), "hq_torus", vec(50,50,50), BaseM, 1 ),
+        array( 3, vec(0,0,0), vec(0.6,0.6,9)*Size, vec(0,0,0), "hq_cylinder", vec(200,200,200), StickM, 2 ),
+        array( 4, vec(0,0,4)*Size, vec(2,2,1.5)*Size, vec(0,0,0), "hq_rcylinder", vec(200,200,200), KnobM, 3 )
+    )
+
+    # Function setup for holos
+    function hCreate(Index, Pos:vector, Scale:vector, Angle:angle, Model:string, Color:vector, Material:string, Parent:number) {
+        holoCreate(Index)
+        holoParent(Index, (Parent < 1) ? E : holoEntity(Parent))
+        holoPos(Index, holoEntity(Index):parent():toWorld(Pos))
+        holoScaleUnits(Index, Scale)
+        holoAng(Index, holoEntity(Index):parent():toWorld(Angle))
+        holoModel(Index, Model)
+        holoMaterial(Index, Material)
+        holoColor(Index, Color)
+        holoBodygroup(2,0,(FourGears)? 0 : 2)
+    }
+
+    # Calling function to spawn the holos
+    for (I = 1, Table:count())    {
+        local T = Table[I, array]
+        hCreate(T[1, number], T[2, vector], T[3, vector], T[4, angle], T[5, string], T[6, vector], T[7, string], T[8, number])
+    }
+    
+    # Gearstick animation function
+    function change(Gear){
+        if(changed(Gear)){
+            timer("1", 80)
+            timer("2", 150)
+            VecY = holoEntity(3):toLocal(holoEntity(3):parent():pos()):y()/Size
+            holoPos(3, holoEntity(3):parent():toWorld(vec(0, -VecY, 0)*Size))
+            
+        }
+        if(FourGears){
+            if(clk("1")){
+                stoptimer("1")
+                holoPos(3, holoEntity(3):parent():toWorld(vec(0, (Gear==1|Gear==2)? 0.9 : (Gear==3|Gear==4)? -0.9 : 0, 0)*Size))
+            }
+            if(clk("2")){
+                stoptimer("2")
+                soundPlay(0, 10, "acf_extra/vehiclefx/trans/default_shift.wav")
+                holoPos(3, holoEntity(3):parent():toWorld(vec((Gear==1|Gear==3)? 1.8 : (Gear==2|Gear==4)? -1.8 : 0, (Gear==1|Gear==2)? 0.9 : (Gear==3|Gear==4)? -0.9 : 0, 0)*Size))   
+            }
+        }else{
+            if(clk("1")){
+                stoptimer("1")
+                holoPos(3, holoEntity(3):parent():toWorld(vec(0, (Gear==1|Gear==2)? 2 : (Gear==3|Gear==4)? 0.7 : (Gear==5)? -0.7 : (Gear==6)? -2 : 0.7, 0)*Size))
+            }
+            if(clk("2")){
+                stoptimer("2")
+                soundPlay(0, 10, "acf_extra/vehiclefx/trans/default_shift.wav")
+                holoPos(3, holoEntity(3):parent():toWorld(vec((Gear==1|Gear==3|Gear==5)? 1.8 : (Gear==2|Gear==4|Gear==6)? -1.8 : 0, (Gear==1|Gear==2)? 2 : (Gear==3|Gear==4)? 0.7 : (Gear==5)? -0.7 : (Gear==6)? -2 : 0.7, 0)*Size))   
+            }
+        }
+    }
+}
+runOnTick(1)
+change(Gear)

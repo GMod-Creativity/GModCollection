@@ -1,0 +1,193 @@
+@name Diminishing returns tester
+@inputs E:wirelink HA HB
+@persist [XAxis YAxis]:vector2
+@persist X XStep YStep
+@persist EGPN
+@persist NumMods
+@outputs Output
+@trigger HA
+
+if(~HA){
+    reset()
+}
+if (first()) {
+    E:egpClear()
+    
+    XAxis = vec2(0,60*HA)
+    YAxis = vec2(HB,100)
+    
+    XStep = 4
+    YStep = 4
+    
+    NumMods = 9
+    
+    #################### Y1
+    function number my_diminishing_returns(N,Approach) {
+        return (1 - e() ^ (-0.01 * N)) * Approach
+    }
+    
+    function string y1_desc(N) {
+        return "dim(" + YAxis[1] + " + " + N + ")"
+    }
+    
+    function number y1(N) {
+        return clamp(my_diminishing_returns(YAxis[1] + N,90),YAxis[1],90)
+    }
+    
+    #################### Y2
+    function number brandons_diminishing_returns(K,I) {
+        return (K * (0.5/I^1.2))
+    }
+    
+    function string y2_desc(N) {
+        local K = floor(N/NumMods)
+        local Str = ""+YAxis[1]
+        for(I=1,NumMods) {
+            Str += "+d(" + K + ")"
+        }
+        return Str
+    }
+    
+    function number y2(N) {
+        local K = floor(N/NumMods)
+        local Dim = YAxis[1]
+        for(I=1,NumMods) {
+            Dim += brandons_diminishing_returns(K,I)
+        }
+        return clamp(Dim,-90,90)
+    }
+    
+    #################### Y3
+    function string y3_desc(N) {
+        local Str = "" + YAxis[1]
+        
+        for(I=1,NumMods) {
+            local K = 0
+            local Remainder = N - 60
+            if (Remainder > 0) {
+                K = 60
+            } else {
+                K = N
+            }
+            N = N - 60
+            
+            Str += "+d(" + K + ")"
+            if (Remainder <= 0) {break}
+        }
+        
+        return Str
+    }
+    
+    function number y3(N) {
+        local Dim = YAxis[1]
+        
+        for(I=1,NumMods) {
+            local K = 0
+            local Remainder = N - 60
+            if (Remainder > 0) {
+                K = 60
+            } else {
+                K = N
+            }
+            N = N - 60
+            
+            Dim += brandons_diminishing_returns(K,I)
+            if (Remainder <= 0) {break}
+        }
+        
+        return clamp(Dim,-90,90)
+    }
+    Output = y3(XAxis[2])
+
+    #################### Y1
+        
+    
+    EGPN = 0
+    EGPN++ E:egpLine(EGPN,vec2(12,500),vec2(500,500))
+    EGPN++ E:egpLine(EGPN,vec2(12,500),vec2(12,0))
+    
+    function number from_to(X,Min_From,Max_From,Min_To,Max_To) {
+        local Percent = ((X - Min_From) / (Max_From-Min_From))
+        local New = (Max_To - Min_To) * Percent + Min_To
+        return New
+    }
+    
+    for(I=XAxis[1],XAxis[2],XStep) {
+        local X = from_to(I,XAxis[1],XAxis[2],12,500)
+        EGPN++ E:egpText(EGPN,""+I,vec2(X,500+6))
+        E:egpAlign(EGPN,1,1)
+        E:egpSize(EGPN,10)
+    }
+    
+    for(I=YAxis[1],YAxis[2],YStep) {
+        local Y = from_to(I,YAxis[1],YAxis[2],500,12)
+        EGPN++ E:egpText(EGPN,""+I,vec2(6,Y))
+        E:egpAlign(EGPN,1,1)
+        E:egpSize(EGPN,10)
+    }
+    
+    EGPN++ E:egpText(EGPN,y1_desc(XAxis[2]),vec2(20,10)) E:egpColor(EGPN,vec(255,0,0)) E:egpSize(EGPN,14)
+    EGPN++ E:egpText(EGPN,y2_desc(XAxis[2]),vec2(20,25)) E:egpColor(EGPN,vec(0,255,0)) E:egpSize(EGPN,14)
+    EGPN++ E:egpText(EGPN,y3_desc(XAxis[2]),vec2(20,40)) E:egpColor(EGPN,vec(0,0,255)) E:egpSize(EGPN,14)
+    
+    X = 0
+    timer("calc",1)
+} elseif (clk("calc")) {
+    local Y1Vertices = array()
+    local Y2Vertices = array()
+    local Y3Vertices = array()
+    while(perf() & X <= XAxis[2]) {
+        local Y = y1(X)
+        Y1Vertices:pushVector2(vec2(
+            from_to(X,XAxis[1],XAxis[2],12,500),
+            from_to(Y,YAxis[1],YAxis[2],500,12)))
+        
+        if (X > 0) {
+            EGPN++ E:egpText(EGPN,""+floor(Y),Y1Vertices[Y1Vertices:count(),vector2] - vec2(4))
+            E:egpAlign(EGPN,2,2)
+            E:egpSize(EGPN,10)
+            E:egpColor(EGPN,vec(255,0,0))
+        }
+        
+        local Y = y2(X)
+        Y2Vertices:pushVector2(vec2(
+            from_to(X,XAxis[1],XAxis[2],12,500),
+            from_to(Y,YAxis[1],YAxis[2],500,12)))
+        
+        if (X > 0) {
+            EGPN++ E:egpText(EGPN,""+floor(Y),Y2Vertices[Y2Vertices:count(),vector2] - vec2(4))
+            E:egpAlign(EGPN,2,2)
+            E:egpSize(EGPN,10)
+            E:egpColor(EGPN,vec(0,255,0))
+        }
+        
+        local Y = y3(X)
+        Y3Vertices:pushVector2(vec2(
+            from_to(X,XAxis[1],XAxis[2],12,500),
+            from_to(Y,YAxis[1],YAxis[2],500,12)))
+        
+        if (X > 0) {
+            EGPN++ E:egpText(EGPN,""+floor(Y),Y3Vertices[Y3Vertices:count(),vector2] - vec2(4))
+            E:egpAlign(EGPN,2,2)
+            E:egpSize(EGPN,10)
+            E:egpColor(EGPN,vec(0,0,255))
+        }
+            
+        X += XStep
+        
+    }
+    
+    EGPN++ E:egpLineStrip(EGPN,Y1Vertices)
+    E:egpColor(EGPN,vec(255,0,0))
+    E:egpSize(EGPN,2)
+    EGPN++ E:egpLineStrip(EGPN,Y2Vertices)
+    E:egpColor(EGPN,vec(0,255,0))
+    E:egpSize(EGPN,2)
+    EGPN++ E:egpLineStrip(EGPN,Y3Vertices)
+    E:egpColor(EGPN,vec(0,0,255))
+    E:egpSize(EGPN,2)
+    
+    if (X <= XAxis[2]) {
+        timer("calc",1)
+    }
+}

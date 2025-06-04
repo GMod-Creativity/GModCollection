@@ -1,0 +1,111 @@
+@name Particle accelerator positioner
+@inputs Multiplier WantedEnergy WantedHydrogen WantedNitrogen WantedOxygen
+@persist Lasers:array WantedMul CurrentMul WantedEnergyConsumption BaseMul
+@persist EnergyMul HydrogenMul NitrogenMul OxygenMul
+if (first()) {
+    EnergyMul = 250000
+    HydrogenMul = 11
+    NitrogenMul = 2
+    OxygenMul = 1
+    
+    findIncludePlayerProps(owner())
+    findByClass("infinity_laser_node")
+    findClipToSphere(entity():pos(),512)
+    Lasers = findToArray()
+    
+    findByClass("infinity_particle_accelerator")
+    findClipToSphere(entity():pos(),512)
+    Lasers:unshiftEntity(find())
+    
+    function number getTotalDistance() {
+        local Distance = 0
+        for(I=1,Lasers:count()) {
+            local E = Lasers[I,entity]
+            rangerFilter(E)
+            local R = rangerOffset(1000,E:pos(),E:forward())
+            Distance += R:distance()
+        }
+        return Distance
+    }
+    
+    BaseMul = Lasers[1,entity]:volume() / 1000
+
+    setName("Base multiplier: " + BaseMul + "\nNr of lasers: " + Lasers:count())
+    
+    function setWanted(Wanted,Mul) {
+        WantedMul = Wanted / Mul / BaseMul
+        CurrentMul = Lasers:count()*0.7
+        WantedEnergyConsumption = WantedMul * EnergyMul * BaseMul
+        
+        stoptimer("guess again")
+        stoptimer("move")
+        stoptimer("check")
+        timer("move",100)
+    }
+    
+    runOnLast(1)
+} elseif (~Multiplier & Multiplier > 0) {
+    if (~Multiplier) {
+        WantedMul = Multiplier
+        CurrentMul = Lasers:count()*0.7
+        WantedEnergyConsumption = WantedMul * EnergyMul * BaseMul
+        stoptimer("guess again")
+        stoptimer("move")
+        stoptimer("check")
+    }
+        
+    timer("move",100)
+} elseif (~WantedEnergy & WantedEnergy) {
+    setWanted(WantedEnergy,EnergyMul)
+} elseif (~WantedHydrogen & WantedHydrogen) {
+    setWanted(WantedHydrogen,HydrogenMul)
+} elseif (~WantedNitrogen & WantedNitrogen) {
+    setWanted(WantedNitrogen,NitrogenMul)
+} elseif (~WantedOxygen & WantedOxygen) {
+    setWanted(WantedOxygen,OxygenMul)
+} elseif (clk("move")) {
+    local Count = Lasers:count()
+    if (Count == 1) {Count = 0.2}
+    
+    local Distance = ((CurrentMul - Count/2) * 500) * BaseMul
+    
+    local Radius = (Distance/2) / _PI
+    if (Radius < 0) {
+        print("Wanted resource too small, unable to produce with the current setup. Get less lasers")
+        exit()
+    }
+    local Ang = 360 / Lasers:count()
+    
+    local Pos = entity():toWorld(vec(0,0,50))
+    for(I=1,Lasers:count()) {
+        local E = Lasers[I,entity]
+        local Pos = entity():toWorld(vec(0,0,Radius/2+50) + vec(0,0,Radius/2):rotate(ang(I/Lasers:count()*360,0,0)))
+        local NextPos = entity():toWorld(vec(0,0,Radius/2+50) + vec(0,0,Radius/2):rotate(ang((I+1)/Lasers:count()*360,0,0)))
+        local Ang = (NextPos-Pos):toAngle()
+        E:setPos(Pos)
+        E:setAng(Ang)
+    }
+    
+    timer("check",1200)
+} elseif (clk("check")|clk("check2")) {
+    local EnergyConsumption = Lasers[1,entity]:wirelink()["Required Energy",number]
+    if (clk("check2")) {
+        print("Wanted resource too large, unable to produce with the current setup. Get more lasers")
+        timer("moveback",100)
+    } elseif (EnergyConsumption == 0) {
+        timer("check2",1200)
+    } else {
+        local Diff = WantedEnergyConsumption - EnergyConsumption
+        if (abs(Diff) < 100) {
+            print("SUCCESS")
+        } else {
+            local DiffMul = (Diff / EnergyMul / BaseMul)
+            CurrentMul += DiffMul * (0.5/Lasers:count()) #0.25
+            timer("move",100)
+        }
+    }
+} elseif (last()|clk("moveback")) {
+    for(I=1,Lasers:count()) {
+        Lasers[I,entity]:setPos(entity():toWorld(vec(0,0,30+I*20)))
+    }
+}

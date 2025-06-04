@@ -1,0 +1,331 @@
+# Author: Steeveeo
+# Updated: February 20, 2015 @ 6:23 PM PST (-8 GMT)
+
+# Use and Purpose:
+# This library includes tools to generate an Octree data
+# structure for use in anything that needs to know where
+# all the empty spaces on the map are. By default, this
+# ignores all entities and builds based on the map alone;
+# set CheckEnts to 1 to change that.
+# 
+# Please note that this data is useless for anything
+# outside the ScanVolume.
+# 
+# Building the Octree is done asynchronously, check
+# Octree_Status periodically to wait for completion.
+#   -1  = READY   (No Octree, waiting for buildOctree())
+#    0  = IDLE    (Operations complete/not running, all commands available)
+#    1  = BUSY    (An operation is currently running, intensive commands blocked)
+
+# Fair Use and Legality:
+# This chip is provided as is and is designed to work only
+# as instructed. This is provided under Creative Commons and
+# may be modified and/or shared with anyone as long as proper
+# credit is given to the original author (Steeveeo). Failure to
+# give credit by plagiarising or removing this header is subject
+# to administrative punishment.
+
+@name Octree Builder
+#Octree Variables
+@persist Octree_Status Octree:table Octree_NumOctants
+#Octree Settings
+@persist ScanVolume ScanOrigin:vector MaxDepth CheckEnts FilterEnts:array
+#Builder Variables
+@persist Temp_CurParent:table Temp_CurOctant:table Temp_OctantIndex:array Temp_CurDepth
+#Debug Variables
+@persist DebugMode Debug_ReclaimedHolos:array Debug_HoloIndex
+@trigger 
+
+#[      Octree Data Structure
+
+    Octree["Children",table] = 8 Octrees
+    Octree["Parent",table] = Parent Octant
+    Octree["Position",vector] = Center of Octant
+    Octree["Size",number] = Size of Octant (always a cube, so we only need a number)
+    Octree["isBlocked",number] = If this leaf is invalid in some way*
+    Octree["DebugIndex",number] = HoloIndex related to this octant (Only valid on lowest-depth octants)
+    
+    
+*   This usually only applies to octants at the maximum depth
+    that have found something inside it (i.e. inside the world)
+                                ]#
+
+if(first()) {
+    
+#-----------------------------
+# EDITABLE VARIABLES
+#-----------------------------
+
+#DebugVars
+DebugMode = 1
+
+#Octree Settings
+ScanVolume = 5000
+ScanOrigin = entity():pos()#vec(0, 0, 0)
+MaxDepth = 4
+Ranger_Flags = ""
+
+#--End Editable Variables-----
+
+Octree_Status = -1
+
+
+#-----------------------------------
+# OCTREE BUILDER FUNCTIONS
+#-----------------------------------
+
+#Is this node a Leaf? (Empty with nothing in it or max depth)
+function number isOctantLeaf(Octant:table)
+{
+    return (Octant["Children",table]:count() > 0)
+}
+
+#Check if point is within octant
+function number isPointInOctant(Point:vector, Octant:table)
+{
+    local Center = Octant["Position",vector]
+    local Size = Octant["Size",number]
+    local Min = Center - vec(Size * 0.5, Size * 0.5, Size * 0.5)
+    local Max = Center + vec(Size * 0.5, Size * 0.5, Size * 0.5)
+    
+    return inrange(Point, Min, Max)
+}
+
+#Return which octant the given point is in
+function table getOctantPoint(Point:vector, Octant:table)
+{
+    #If this octant is a leaf and the point is here, we have the right octant
+    if(isOctantLeaf(Octant) & isPointInOctant(Point, Octant))
+    {
+        return Octant
+    }
+    else
+    {
+        local Octants = Octant["Children",table]
+        for(Index = 1, 8)
+        {
+            local SubOctant = Octants[Index,table]
+            if(isPointInOctant(Point, SubOctant))
+            {
+                return getOctantPoint(Point, SubOctant)
+            }
+        }
+    }
+}
+#Passes the top-level to the above
+function table getOctantPoint(Point:vector) { return getOctantPoint(Point, Octree) }
+
+#Scan an octant for collisions
+function number checkOctant(Octant:table)
+{
+    local Size = Octant["Size",number]
+    rangerFlags()
+    local Trace = rangerOffsetHull(Octant["Position",vector], Octant["Position",vector], vec(Size, Size, Size))
+    
+    if(Trace:hit())
+    {
+        if(DebugMode) 
+        { 
+            holoColor(Octant["DebugIndex",number], vec(255, 0, 0)) 
+        }
+        
+        return 1
+    }
+    return 0
+}
+
+#Create octant (don't call this!)
+function table createOctant(Origin:vector, Size, Parent:table)
+{
+    local Octant = table()
+    Octant["Parent",table] = Parent
+    Octant["Children",table] = table()
+    Octant["Position",vector] = Origin
+    Octant["Size",number] = Size
+    Octant["isBlocked",number] = 0
+    
+    if(DebugMode)
+    {
+        local HoloIndex = Debug_HoloIndex
+        
+        #See if we have any open indecies to use
+        if(Debug_ReclaimedHolos:count() > 0)
+        {
+            HoloIndex = Debug_ReclaimedHolos:popNumber()
+        }
+        #Increment HoloIndex cursor and use
+        else
+        {
+            HoloIndex = Debug_HoloIndex
+            Debug_HoloIndex++
+        }
+        
+        Octant["DebugIndex",number] = HoloIndex
+        
+        holoCreate(HoloIndex)
+        holoPos(HoloIndex, Origin)
+        holoAng(HoloIndex, ang())
+        holoScaleUnits(HoloIndex, vec(Size, Size, Size) * 0.9)
+        holoColor(HoloIndex, vec(255, 255, 255))
+        holoMaterial(HoloIndex, "models/wireframe")
+    }
+    
+    Octree_NumOctants++
+    
+    return Octant
+}
+
+#Subdivide octant into 8 child octants
+function void subdivide(Octant:table)
+{
+    #Reclaim Parent Holo
+    if(DebugMode)
+    {
+        Debug_ReclaimedHolos:pushNumber(Octant["DebugIndex",number])
+        Octant["DebugIndex",number] = -1
+    }
+        
+    #Create 8 new Octants
+    local Origin = Octant["Position",vector]
+    local NewScanVolume = Octant["Size",number] * 0.5
+    local Dist = NewScanVolume * 0.5
+    
+    local Children = table()
+    Children[1,table] = createOctant(Origin + vec(Dist, Dist, Dist), NewScanVolume, Octant)
+    Children[2,table] = createOctant(Origin + vec(Dist, -Dist, Dist), NewScanVolume, Octant)
+    Children[3,table] = createOctant(Origin + vec(-Dist, Dist, Dist), NewScanVolume, Octant)
+    Children[4,table] = createOctant(Origin + vec(-Dist, -Dist, Dist), NewScanVolume, Octant)
+    Children[5,table] = createOctant(Origin + vec(Dist, Dist, -Dist), NewScanVolume, Octant)
+    Children[6,table] = createOctant(Origin + vec(Dist, -Dist, -Dist), NewScanVolume, Octant)
+    Children[7,table] = createOctant(Origin + vec(-Dist, Dist, -Dist), NewScanVolume, Octant)
+    Children[8,table] = createOctant(Origin + vec(-Dist, -Dist, -Dist), NewScanVolume, Octant)
+    
+    #Apply
+    Octant["Children",table] = Children
+}
+
+#Helper function to actually build the Octree (don't call this!)
+function void builder()
+{
+    local Finished = 0
+    
+    while(perf() & !Finished & holoCanCreate())
+    {
+        #Check if this octant should be a leaf
+        if(!checkOctant(Temp_CurOctant))
+        {
+            if(DebugMode)
+            {
+                holoColor(Temp_CurOctant["DebugIndex",number], vec(0, 255, 0))
+            }
+            
+            #Iterate back up the Octree
+            while(Temp_OctantIndex[Temp_CurDepth,number] >= 8)
+            {
+                Temp_CurDepth--
+                
+                #Top of tree, break
+                if(Temp_CurDepth < 1)
+                {
+                    Finished = 1
+                    break
+                }
+                else
+                {
+                    Temp_CurOctant = Temp_CurParent
+                    Temp_CurParent = Temp_CurOctant["Parent",table]
+                }
+            }
+        }
+        #We found something, so subdivide
+        else
+        {
+            #We are at max depth, pop back up a level
+            if(Temp_CurDepth >= MaxDepth)
+            {
+                #Mark Invalid
+                Temp_CurOctant["isBlocked",number] = 1
+                
+                while(Temp_OctantIndex[Temp_CurDepth,number] >= 8)
+                {
+                    Temp_CurDepth--
+                    
+                    #Top of tree, break
+                    if(Temp_CurDepth < 1)
+                    {
+                        Finished = 1
+                        break
+                    }
+                    else
+                    {
+                        Temp_CurOctant = Temp_CurParent
+                        Temp_CurParent = Temp_CurOctant["Parent",table]
+                    }
+                }
+            }
+            #Else subdivide and iterate downwards
+            else
+            {
+                subdivide(Temp_CurOctant)
+                Temp_CurDepth++
+                
+                Temp_OctantIndex[Temp_CurDepth,number] = 0
+                Temp_CurParent = Temp_CurOctant
+            }
+        }
+                
+        #Next Octant
+        if(!Finished)
+        {
+            Temp_OctantIndex[Temp_CurDepth,number] = Temp_OctantIndex[Temp_CurDepth,number] + 1
+            Temp_CurOctant = Temp_CurParent["Children",table][Temp_OctantIndex[Temp_CurDepth,number],table]
+        }
+    }
+    
+    if(!Finished)
+    {
+        timer(20, 1, "Build Octree", "builder()")
+    }
+    else
+    {
+        print("[OCTREE] - Finished Building.")
+        
+        Octree_Status = 0
+        #TODO - Call Path Builder
+    }
+}
+
+#External function to start the building process
+function void buildOctree()
+{
+    if(Octree_Status != 1)
+    {
+        Octree_Status = 1
+        
+        #Setup Hull Tracer
+        rangerPersist(1)
+        rangerFlags(Ranger_Flags)
+        rangerFilter(players())
+        
+        #Create a new Octree
+        Octree = createOctant(ScanOrigin, ScanVolume, table())
+        subdivide(Octree)
+        
+        #Setup Builder
+        Temp_CurDepth = 1
+        Temp_CurParent = Octree
+        Temp_CurOctant = Octree["Children",table][1,table]
+        
+        Temp_OctantIndex = array()
+        Temp_OctantIndex[1,number] = 1
+        
+        timer(5, 1, "Build Octree", "builder()")
+    }
+    else
+    {
+        print("[OCTREE] - WARN: Called buildOctree() while busy!")
+    }
+}
+
+#--End of Octree Builder Functions--
+}

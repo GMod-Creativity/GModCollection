@@ -1,0 +1,67 @@
+@name Potato Gyro
+
+@persist Chair:entity E:entity O:entity Cam:wirelink Keys:table Speed TurnSpeed CurTime
+
+if(first())
+{
+    #include "lib/hob/math"
+    #include "lib/hob/spacecombat"
+    
+    E = entity():isWeldedTo()
+    O = owner()
+    Speed = E:getMovementSpeed()
+    TurnSpeed = E:getTurningSpeed()
+    print("Class: " + E:getCoreEnt():getCoreClass() + " MSL: " + Speed + " TSL: " + TurnSpeed)
+    local Ary = E:getConstraints()
+    Ary:pushEntity(E)
+    foreach(K,V:entity=Ary){if(V:type()=="prop_vehicle_prisoner_pod"){Chair = V}elseif(V:type()=="gmod_wire_cameracontroller"){Cam = V:wirelink()}}
+    holoCreate(1)
+    holoPos(1,E:boxCenterW())
+    holoParent(1,E)
+    holoAng(1,ang(0))
+    Cam["Parent",entity] = holoEntity(1)
+    Cam:entity():linkCamController(Chair)
+    runOnTick(1)
+    function updateKeys()
+    {
+        Driver = Chair:driver()
+        if( !Driver:isValid() ){ return }
+        
+        Keys[ "Forward",     number ] = Driver:keyPressed( "W" )
+        Keys[ "Backward",    number ] = Driver:keyPressed( "S" )
+        Keys[ "StrafeLeft",  number ] = Driver:keyPressed( "A" )
+        Keys[ "StrafeRight", number ] = Driver:keyPressed( "D" )
+        #Keys[ "TurnLeft",    number ] = Driver:keyPressed( "A" )
+        #Keys[ "TurnRight",   number ] = Driver:keyPressed( "D" )
+        Keys[ "Up",          number ] = Driver:keyPressed( "SPACE" )
+        Keys[ "Down",        number ] = Driver:keyPressed( "LCONTROL" )
+        Keys[ "Handbrake",   number ] = Driver:keyPressed( "R" )
+        Keys[ "Boost",   number ] = Driver:keyPressed( "LSHIFT" )
+    }
+}
+
+holoAng(1,ang(0))
+CurTime = curtime()
+
+if(Chair:driver():isValid())
+{
+    ### cam stuff
+    Cam["Activated",number] = 1
+    
+    ### angles
+    local CurAng = E:angles()
+    local TargetAng = Cam["CamAng",angle] + ang(-20,0,0) 
+    E:setAng(smoothness(CurAng,TargetAng,$CurTime*TurnSpeed))
+    
+    ## movement
+    updateKeys()
+    local InputDirection = vec(  Keys[ "Forward", number ] -    Keys[ "Backward", number ], 
+                                 Keys[ "StrafeLeft", number ] - Keys[ "StrafeRight", number ],
+                                 Keys[ "Up", number ] -         Keys[ "Down", number ] ):normalized():rotate( E:angles())#Cam["CamAng",angle] )
+    local Spd = ( Keys["Boost",number]==0 ? Speed/2 : Speed )
+    E:setPosition(E:pos()+(InputDirection)*$CurTime*Spd)
+}
+else
+{
+    Cam["Activated",number] = 0
+}

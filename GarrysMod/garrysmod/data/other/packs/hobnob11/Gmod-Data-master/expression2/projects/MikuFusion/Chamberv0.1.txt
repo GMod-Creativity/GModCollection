@@ -1,0 +1,78 @@
+@name Chamberv0.1
+@inputs On
+@outputs Y X Angle Speed 
+@persist Base:entity Interval Mul Acc Dec MinSpeed MaxSpeed On
+@trigger 
+@model models/twinbladetm/cryotubemkii.mdl
+@autoupdate
+
+#[interval(1)
+
+if(first()){
+    holoCreate(1,entity():pos()+vec(0,0,10),vec(1,1,1))
+    holoModel(1,owner():model(),1)
+    holoAnim(1,4)
+    for(I=0,5){
+        holoBodygroup(1,I,4)
+        print(I+" : "+owner():getBodygroups(I))
+    }
+#]#
+
+if(first()){
+    Interval = 128
+    Mul = Interval/tickInterval()/1000 #this ensures it'll spin at the same rate as when you were using runOnTick
+    
+    Acc = 0.02 #default: 0.01
+    Dec = 0.02 #default: 0.02
+    MinSpeed = 0.5 #default: 0.5
+    MaxSpeed = 15 #default: 15
+    Base=entity()
+    holoCreate(1,Base:pos(),vec(1,1,1))
+    holoModel(1,owner():model())
+    holoAnim(1,4)
+    holoParent(1,Base)
+} elseif (~On & On) {
+    timer("spin",0)
+    Speed = 0
+    Base:soundPlay(1,0,"thrusters/jet01.wav")
+    Base:soundPlay(2,0,"thrusters/jet03.wav")
+    Base:soundPlay(3,0,"ambient/machines/beam_platform_loop1.wav")
+    for(I=1,3) {
+        soundPitch(I,0)     
+    }
+} elseif (clk("spin")) {
+    Angle = abs(round(Base:toLocal(holoEntity(4):angles()):yaw(),2))
+    
+    if (On) {
+        Speed = clamp(Speed+Acc * Mul,0,MaxSpeed)
+        X = X + Speed * Mul
+    } elseif (!On & Speed > 0.5) {
+        Speed = clamp(Speed-Dec * Mul,MinSpeed,MaxSpeed)
+        X = X + Speed * Mul
+    } elseif (!On & Speed <= MinSpeed) {
+        local Dir = -sign(angnorm(X))
+        if (Speed != MinSpeed * Dir) {
+            Speed = clamp(Speed + Dec * Mul * Dir,-MinSpeed,MinSpeed)
+        }
+        
+        X = X + Speed * Mul
+    
+        if (inrange(Angle,-2,2)) {
+            X = 0
+            Speed = 0
+            soundPurge()
+            Base:soundPlay(5,2,"ambient/machines/spinup.wav")
+            Base:soundPlay(6,5,"ambient/machines/steam_release_2.wav")
+            stoptimer("spin")
+            exit()
+        }
+    }
+    
+    holoAng(1,Base:toWorld(ang(0,X,0)))
+    
+    for(I=1,3) {
+        soundPitch(I,20*(Speed/3))     
+    }
+    
+    timer("spin",Interval)
+}

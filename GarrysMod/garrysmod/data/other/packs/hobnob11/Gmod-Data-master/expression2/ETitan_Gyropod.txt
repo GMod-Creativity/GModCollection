@@ -1,0 +1,128 @@
+@name ETitan Gyropod
+@inputs Chair:entity
+@outputs DebugAng:angle DebugVec:vector DebugNum State:string Frozen
+@persist Parent:entity Ary:array Driver:entity Yaw CurTime Force:vector Mass HandbrakePressed
+@persist Keys:table
+@autoupdate
+if ( dupefinished() | (first() & !duped()) )
+{
+    function updateKeys()
+    {
+        Driver = Chair:driver()
+        if( !Driver:isValid() ){ return }
+        
+        Keys[ "Forward",     number ] = Driver:keyPressed( "W" )
+        Keys[ "Backward",    number ] = Driver:keyPressed( "S" )
+        Keys[ "StrafeLeft",  number ] = Driver:keyPressed( "Q" )
+        Keys[ "StrafeRight", number ] = Driver:keyPressed( "E" )
+        Keys[ "TurnLeft",    number ] = Driver:keyPressed( "A" )
+        Keys[ "TurnRight",   number ] = Driver:keyPressed( "D" )
+        Keys[ "Up",          number ] = Driver:keyPressed( "SPACE" )
+        Keys[ "Down",        number ] = Driver:keyPressed( "LCONTROL" )
+        Keys[ "Handbrake",   number ] = Driver:keyPressed( "R" )
+    }
+                
+    #include "lib/hob"
+    Parent = entity():isWeldedTo()
+    Parent:setMass(50000)
+    Yaw = Parent:angles():yaw()
+    Ary = Parent:getConstraints()
+    Ary:pushEntity( Parent )
+    for( I=1, Ary:count() )
+    {
+        Mass = Mass + Ary[I,entity]:mass()
+    }
+    runOnTick( 1 )
+    runOnLast( 1 )
+    State = "Flying"
+}
+if( last() )
+{
+    #owner():disableSpawnMenu( 0 )
+}
+switch( State )
+{
+    case "Landed",
+    
+        break
+    
+    case "Flying",
+        updateKeys()
+        if( Keys[ "Handbrake", number] )
+        {
+            if( !HandbrakePressed ) 
+            {
+                State = "Frozen"
+                HandbrakePressed = 1
+            }
+        }else{
+            HandbrakePressed = 0
+        }
+        
+        local InputDirection = vec(  Keys[ "Forward", number ] -    Keys[ "Backward", number ], 
+                                     Keys[ "StrafeLeft", number ] - Keys[ "StrafeRight", number ],
+                                     Keys[ "Up", number ] -         Keys[ "Down", number ] ):normalized():rotate( Parent:angles() )
+
+        local Force = InputDirection * Mass * 4
+        
+        local InertialDampingForce = Parent:velL()
+
+        if( Keys[ "Forward",     number] ) { if( InertialDampingForce:x() > 0 ) { InertialDampingForce = InertialDampingForce:setX( 0 ) } }
+        if( Keys[ "Backward",    number] ) { if( InertialDampingForce:x() < 0 ) { InertialDampingForce = InertialDampingForce:setX( 0 ) } }
+        
+        if( Keys[ "StrafeRight", number] ) { if( InertialDampingForce:y() < 0 ) { InertialDampingForce = InertialDampingForce:setY( 0 ) } }
+        if( Keys[ "StrafeLeft",  number] ) { if( InertialDampingForce:y() > 0 ) { InertialDampingForce = InertialDampingForce:setY( 0 ) } }
+
+        if( Keys[ "Up",          number] ) { if( InertialDampingForce:z() > 0 ) { InertialDampingForce = InertialDampingForce:setZ( 0 ) } }
+        if( Keys[ "Down",        number] ) { if( InertialDampingForce:z() < 0 ) { InertialDampingForce = InertialDampingForce:setZ( 0 ) } }
+        
+        DebugVec = InertialDampingForce
+        
+        InertialDampingForce = InertialDampingForce:rotate( Parent:angles() )
+                
+        InertialDampingForce *= Mass * 0.05
+        
+        Parent:applyForce( Force - InertialDampingForce )
+        local Vel = Parent:velL()
+        local Limit = 4000
+        if( Vel:x() > Limit ) { Vel = Vel:setX( Limit ) } elseif (Vel:x() <= -Limit) { Vel = Vel:setX(-Limit) } 
+        if( Vel:y() > Limit ) { Vel = Vel:setY( Limit ) } elseif (Vel:y() <= -Limit) { Vel = Vel:setY(-Limit) } 
+        if( Vel:z() > Limit ) { Vel = Vel:setZ( Limit ) } elseif (Vel:z() <= -Limit) { Vel = Vel:setZ(-Limit) } 
+        Parent:setVel(Parent:toWorld(Vel) - Parent:pos())
+        
+        CurTime = curtime()
+        
+        local Pitch = -Parent:vel():z() / 100
+        Yaw = Yaw + (Keys["TurnLeft",number] - Keys["TurnRight",number])*$CurTime*50
+        local WantedAng = ang( Pitch, Yaw ,0 )
+        DebugAng = WantedAng
+        Parent:applyQTorque( WantedAng, 8, 8 )
+        
+        break
+        
+    case "Frozen",
+        updateKeys()
+        if( Keys[ "Handbrake", number] )
+        {
+            if( !HandbrakePressed ) 
+            {
+                foreach( K, V:entity=Ary )
+                {
+                    V:propFreeze( 0 ) 
+                }
+                Frozen = 0
+                State = "Flying"
+                HandbrakePressed = 1
+            }
+        }else{
+            HandbrakePressed = 0
+        }
+
+        foreach( K, V:entity=Ary )
+        {
+            V:propFreeze( 1 ) 
+        }        
+        break
+}
+        
+

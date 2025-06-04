@@ -1,0 +1,54 @@
+--@name cpuTime Example
+--@author INP - Radon
+
+if SERVER then return end
+
+-- This function helps us check if we can run.
+-- Use a mixture of quotaUsed() and quotaAverage()
+-- quotaUsed() returns the value of the current buffer.
+-- quotaAverage() gives the cpuTime average across the whole buffer.
+-- You chip will quota if quotaAverage() > quotaMax()
+-- n is a parameter between 0 and 1 that represents the percent. 0.8 = 80%.
+local function quotaCheck ( n )
+    return ( QuotaUsed() < QuotaMax() * n ) and ( QuotaAverage() < QuotaMax() )
+end
+
+-- Round function to certain dp.
+local function round ( num, idp )
+  local mult = 10 ^ ( idp or 0 )
+  return math.floor( num * mult + 0.5 ) / mult
+end
+
+-- Standard render hook, see hooks.
+hook.Add( "render", "", function ()
+    -- Clear the screen first.
+    -- But we'll use setColor & drawRect so we can get some blur
+    -- This draws what looks to be a black background, but is just a low alpha rect the size of the screen.
+    render.SetColor( Color( 0, 0, 0, 50 ) )
+    render.DrawRect( 0, 0, 512, 512 )
+
+    -- While our quota is less than 2 percent.
+    -- This will result in higher FPS, thus more render calls.
+    -- You'd think this would affect the rendering of the cube, it doesn't.
+    -- If you increase this check to 99%, FPS will significantly drop, and the movement would be slower.
+    -- Play with this value and see the effects on percentage and your FPS.
+    while( quotaCheck( 0.01 ) ) do
+
+        -- We'll block out the top 100 px, so we can see our text.
+        render.SetColor( Color( 0, 0, 0, 255 ) )
+        render.DrawRect( 0, 0, 512, 512 / 4  )
+    
+        render.SetColor( Color( 255, 255, 255 ) )    
+        -- Then print some stats to the screen
+        -- We should have enough cpuTime left to do this after using 80%
+        render.DrawText( 10, 10, "Quota Used: " .. round( QuotaUsed(), 6 ) .. "s" )
+        render.DrawText( 10, 30, "Quota Avg: " .. round( QuotaAverage(), 6 ) .. "s" )
+        render.DrawText( 10, 50, "Quota Max: " .. round( QuotaMax(), 6 ) .. "s" )
+        render.DrawText( 10, 70, "Percent: " .. round( QuotaAverage() / QuotaMax() * 100, 2 ) .. "%" )
+        
+        -- Now we can draw a funky box that oscillates back and forth in the middle of the screen.
+        render.SetColor( Color( math.random( 200, 255 ), math.random( 200, 255 ), math.random( 200, 255 ) ) )
+        render.DrawRect( math.abs( math.sin( CurTime() ) * ( 512 - 100 ) ), 512 / 2, 100, 200 )
+        
+    end
+end )

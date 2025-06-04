@@ -1,0 +1,89 @@
+--@name Hob Screen 2
+--@author 
+--@shared
+
+if SERVER then
+    hook.Add("Think","Think",function()
+        if not net.CanSend() then return end
+        
+        local Tbl = {}
+        for k,v in pairs(find.ByClass("ship_core")) do
+            Tbl[v] = {
+                shield = v:GetShieldAmount(),
+                shieldmax = v:GetShieldMax(),
+                armour = v:GetArmorAmount(),
+                armourmax = v:GetArmorMax(),
+                hull = v:GetHullAmount(),
+                hullmax = v:GetHullMax(),
+                name = v:GetShipName(),
+                class = v:GetShipClass()
+            }
+        end
+        net.Start("Update Core Table")
+        net.WriteTable(Tbl)
+        net.Send()
+    end)
+else
+    if entities.player() == entities.owner() or true then
+        ShipCores = {}
+        hook.Add("net","HobNetMessage",function(name,len)
+            if not name == "Update Core Table" then return end
+            ShipCores = {}
+            ShipCores = net.ReadTable()
+        end)
+        
+        function DrawWedge(px,py,w,h,angle,size,col)
+        	local vertices = {}
+        	local fidelity = 180
+        
+        	vertices[1] = { x = px, y = py, u = px, v = py }
+        	local ang = -math.rad(angle)
+        	local c = math.cos(ang)
+        	local s = math.sin(ang)
+        	for ii=0,fidelity do
+        		local i = ii*(size)/fidelity
+        		local radd = math.rad(i)
+        		local x = math.cos(radd)
+        		local u = (x+1)/2
+        		local y = math.sin(radd)
+        		local v = (y+1)/2
+        
+        		--radd = -rad(angle)
+        		local tempx = x * w * c - y * h * s + x
+        		y = x * w * s + y * h * c + y
+        		x = tempx
+        
+        		vertices[ii+2] = { x = x+px, y = y+py, u = u + px, v = v + py }
+        	end
+            surface.SetDrawColor( col )
+    	    if (vertices and #vertices>0) then
+    		    surface.DrawPoly( vertices )
+    	    end
+        end
+        
+        
+        hook.Add("HUDPaint","HobHud",function()
+            for c,t in pairs( ShipCores ) do
+                if not c:IsValid() then continue end
+                local vec = c:LocalToWorld(c:OBBCenter())
+                local toScrn = vec:ToScreen()
+                local pos = {x=math.Clamp(toScrn.x,100,surface.ScreenW()-100),y=math.Clamp(toScrn.y,100,surface.ScreenH()-100)}
+                local HPMax = t.shieldmax + t.armourmax + t.hullmax
+                local HuAng = (t.hull / HPMax)*360
+                local ArAng = (t.armour / HPMax)*360
+                local ShAng = (t.shield / HPMax)*360
+                
+                DrawWedge(pos.x,pos.y,40,40,90,-HuAng,Color(255,0,0,255))
+                DrawWedge(pos.x,pos.y,40,40,90+HuAng,-ArAng,Color(155,155,155,255))
+                DrawWedge(pos.x,pos.y,40,40,90+HuAng+ArAng,-ShAng,Color(0,0,255,255))
+                surface.DrawCircle(pos.x,pos.y,40,Color(55,55,55,255))
+                surface.SetDrawColor(Color(55,55,55,255))
+                surface.SetTextColor(Color(255,255,255,255))
+                surface.SetTextPos(pos.x, pos.y + 60 )
+                surface.DrawText(t.name)
+                surface.SetTextPos(pos.x, pos.y + 80 )
+                surface.DrawText(t.class)
+            end
+        end)
+    end
+end

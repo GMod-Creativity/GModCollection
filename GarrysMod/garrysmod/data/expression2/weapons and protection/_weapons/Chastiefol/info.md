@@ -1,6 +1,6 @@
-Author: CrishNate
-Date: 04-04-2015
-Title: Chastiefol [E2]
+- Author: CrishNate
+- Date: 04-04-2015
+- Title: Chastiefol [E2]
 
 *Chastiefol [E2]*
 

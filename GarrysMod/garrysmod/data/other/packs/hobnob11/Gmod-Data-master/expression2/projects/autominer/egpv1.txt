@@ -1,0 +1,224 @@
+@name Auto Miner EGP v1
+@inputs Core:entity
+
+@persist E:wirelink Sorted ResourceList:array Done IDex B1 B2 B3 B1i B2i B3i Use Cursor
+
+if(first())
+{
+    runOnTick(1)
+    dsJoinGroup("HobMiner")
+    dsSetScope(0)
+    ##background
+    Ent = holoCreate(1)
+    holoPos(1,entity():isWeldedTo():pos()+vec(0,0,71))
+    holoAng(1,entity():isWeldedTo():angles())
+    holoScaleUnits(1,-vec(130,1,130))
+    holoColor(1,vec(0))
+    holoParent(1,entity():isWeldedTo())
+    E = entity():isWeldedTo():wirelink()
+    E:egpClear()
+    E:egpDrawTopLeft(1)
+    
+    ##header
+    IDex++
+    E:egpBox(IDex,vec2(0),vec2(512,32))
+    E:egpColor(IDex,vec(150,150,150))
+    IDex++
+    E:egpBox(IDex,vec2(2),vec2(508,28))
+    IDex++
+    E:egpTextLayout(IDex,"Hob-Co Auto-Miner V1",vec2(2),vec2(508,28))
+    E:egpAlign(IDex,1,1)
+    E:egpColor(IDex,vec(100,100,255))
+    
+    ##Center
+    IDex++
+    E:egpLine(IDex,vec2(256,32),vec2(256,512))
+    IDex++
+    E:egpLine(IDex,vec2(0,256),vec2(512,256))
+    holoCreate(2)
+    holoModel(2,"hqcylinder")
+    holoAng(2,Ent:angles()+ang(90,-90,0))
+    holoPos(2,Ent:toWorld(vec(0,0,1.2)))
+    holoParent(2,1)
+    holoScaleUnits(2,vec(70,70,1))
+    holoMaterial(2,"models/rendertarget")
+    lightCreate(1,Ent:toWorld(vec(0,-50,0)))
+    lightParent(1,Ent)
+    lightColor(1,vec(255))
+    IDex++
+    E:egpCircle(IDex,vec2(256),vec2(128))
+    
+    ##Control Panel
+    IDex++
+    E:egpText(IDex,"BUTTENS:",vec2(512-60,258))
+    E:egpAlign(IDex,1)
+    
+    IDex++
+    E:egpText(IDex,"Go Home",vec2(277,412))
+    
+    IDex++
+    E:egpBox(IDex,vec2(512-75-5,512-75-5),vec2(75,75))
+    E:egpColor(IDex,vec(150,0,0))
+    IDex++
+    B1i = IDex
+    E:egpBox(IDex,vec2(512-75-5+1,512-75-5+1),vec2(73,73))
+    E:egpColor(IDex,vec(255,60,60))
+    
+    IDex++
+    E:egpText(IDex,"NextRoid",vec2(355,412))
+    
+    IDex++
+    E:egpBox(IDex,vec2(512-75-5-75-5,512-75-5),vec2(75,75))
+    E:egpColor(IDex,vec(0,150,0))
+    IDex++
+    B2i = IDex
+    E:egpBox(IDex,vec2(512-75-5-75-5+1,512-75-5+1),vec2(73,73))
+    E:egpColor(IDex,vec(60,2556,0))
+    
+    IDex++
+    E:egpText(IDex,"idklol",vec2(445,412))
+    
+    IDex++
+    E:egpBox(IDex,vec2(512-75-5-75-5-75-5,512-75-5),vec2(75,75))
+    E:egpColor(IDex,vec(0,0,150))
+    IDex++
+    B3i = IDex
+    E:egpBox(IDex,vec2(512-75-5-75-5-75-5+1,512-75-5+1),vec2(73,73))
+    E:egpColor(IDex,vec(60,60,255))
+    
+    IDex++
+    Cursor = IDex
+    E:egpBox(IDex,vec2(0,0),vec2(4,4))
+    E:egpParentToCursor(IDex)
+    
+    ResourceList = Core:lsResourceList()
+    
+    function number string:compareTo(That:string) {
+        local L1 = This:length()
+        local L2 = That:length()
+        local Lim = min(L1,L2)
+
+        local I = 0
+        while(I <= Lim) {
+            local C1 = toByte(This[I])
+            local C2 = toByte(That[I])
+            if (C1 != C2) {
+                return sign(C2 - C1)
+            }
+            I++
+        }
+        return sign(L1-L2)
+    }
+    function sort()
+    {
+        while(!Sorted & perf(0.8)){
+            Sorted = 1
+            for(I=1,ResourceList:count()){
+                if( I>1 ){
+                    local Str = ResourceList[I,string]
+                    local Str2= ResourceList[I-1,string]
+                    
+                    if( (Str:compareTo( Str2 )==1) )
+                    {
+                        ResourceList:removeString(I)
+                        ResourceList:insertString(I-1,Str)
+                        Sorted = 0
+                    }
+                }
+            }
+        }
+    }
+    function done()
+    {
+        for( I=1,ResourceList:count() )
+        {
+            local P = round((Core:lsAmount(ResourceList[I,string])/Core:lsCapacity(ResourceList[I,string]))*100)
+            local Pt = ( P==100 ? P+"" : (P>9 ? " "+P : "  "+P ) ) + "%"
+            local Txt = ResourceList[I,string]+": "+Pt
+            local A = asin((I * 10 )/140)-90#I * (90/ResourceList:count()) -90
+            local Pos = vec2(250 + clamp(((I*10)>(138)) ? 0 : sin(A)*140,-250,0), 256+I*10)
+            IDex++
+            E:egpText(IDex,Txt,Pos)
+            E:egpFont(IDex,"Lucida Console",10)
+            E:egpAlign(IDex,2)
+        }
+        Done = 1
+    }
+    function string getFullestResource()
+    {
+        local BL = table("Oxygen"=1,"Hydrogen"=1,"Water"=1,"Antimatter"=1)
+        local Ary = Core:lsResourceList()
+        local X = 0
+        local Ret = ""
+        for( I = 1, Ary:count() )
+        {
+            local Y = Core:lsResPercent(Ary[I,string])
+            if( Y > X & !BL:exists(Ary[I,string]) ){ Ret = Ary[I,string] X = Y } #kanz said probably, so its good.
+        }
+        return Ret
+    }
+}
+if(Sorted & !Done){done()}
+
+local Ply = owner()
+if(Ply:pos():distance2(entity():pos()) < 10000)
+{
+    if(Ply:keyUse())
+    {
+        Use = 1
+    }
+    else
+    {
+        Use = 0
+    }
+    
+    if($Use)
+    {
+        if(Use)
+        {
+            soundPlay("click",0.137,"ui/buttonclick.wav")
+            local Pos = E:egpCursor(Ply)
+            if(inrange(Pos, E:egpPos(B1i), E:egpPos(B1i)+E:egpSize(B1i)))
+            {
+                B1 = 1
+                E:egpPos( B1i, vec2(432) )
+                E:egpSize( B1i, vec2(72) )
+            }
+            if(inrange(Pos, E:egpPos(B2i), E:egpPos(B2i)+E:egpSize(B2i)))
+            {
+                B2 = 1
+                E:egpPos( B2i, vec2(352,432) )
+                E:egpSize( B2i, vec2(72) )
+            }
+            if(inrange(Pos, E:egpPos(B3i), E:egpPos(B3i)+E:egpSize(B3i)))
+            {
+                B3 = 1
+                E:egpPos( B3i, vec2(272,432) )
+                E:egpSize( B3i, vec2(72) )
+                dsSend("HobMiner","HobMiner","GoHome")
+            }
+        }else{
+            soundPlay("click",0.146,"ui/buttonclickrelease.wav")
+            local Pos = E:egpCursor(Ply)
+            if(inrange(Pos, E:egpPos(B1i), E:egpPos(B1i)+E:egpSize(B1i)))
+            {
+                B1 = 0
+                E:egpPos( B1i, vec2(433) )
+                E:egpSize( B1i, vec2(73) )
+            }
+            if(inrange(Pos, E:egpPos(B2i), E:egpPos(B2i)+E:egpSize(B2i)))
+            {
+                B2 = 0
+                E:egpPos( B2i, vec2(353,433) )
+                E:egpSize( B2i, vec2(73) )
+            }
+            if(inrange(Pos, E:egpPos(B3i), E:egpPos(B3i)+E:egpSize(B3i)))
+            {
+                B3 = 0
+                E:egpPos( B3i, vec2(273,433) )
+                E:egpSize( B3i, vec2(73) )
+            }
+        }
+    }
+}
+

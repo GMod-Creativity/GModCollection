@@ -1,0 +1,179 @@
+@name Bezier Tube
+@inputs Pump:entity Go TargetPump:entity Core:entity
+@outputs 
+@persist [P0 P1 P2 P3]:vector SphereScale CylScale Wait
+@persist MaxHolos MyHolos E:entity CurStep Sign Inc [E1 E2]:entity Refuel SubInc SubStep FullyExtended
+@trigger 
+
+if(first())
+{
+    runOnLast(1)
+    MaxHolos = 31
+    MyHolos = 0
+    Sign = 1
+    E=entity()
+    Inc = 0.025
+    SubInc = 0.15
+    SphereScale = 2.0
+    CylScale = 20
+
+    Pump:propNotSolid(1)
+    Pump:freeze()
+    Pump:setPos(entity():pos())
+    Pump:setAng(entity():angles())
+
+    E1 = entity()
+
+    
+    local Offset = 0#-E1:boxSize():z()/2.1
+    
+    ##
+    function vector bezier4(P0:vector, P1:vector, P2:vector, P3:vector, Step)
+    {
+        return P0*(1-Step)^3+3*P1*Step*(1-Step)^2+3*P2*Step^2*(1-Step)+Step^3*P3
+    }
+}
+interval(100)
+
+    E2 = TargetPump
+    
+Sign=(Go==1 ? 1 : -1 )
+
+P0 = E1:toWorld(vec(0,0,0))
+P3 = E2:toWorld(E2:massCenterL()+vec(20,0,0))
+        
+local L = P0:distance(P3)
+P1 = E1:toWorld(vec(0,0,L*0.75))
+P2 = E2:toWorld(vec(L*0.75,0,0))
+
+
+CurStep = max(min(CurStep + Inc*Sign,1),0)
+
+if(CurStep >= 1)
+{
+    
+    #Sign = 0
+    timer("retract",2000)
+    Refuel=1
+}
+if(clk("retract")) 
+{
+    #Sign = -1
+    SubStep=0
+    Refuel = 0
+}
+if(CurStep <= 0) 
+{
+    #Sign = 0
+    timer("extend",2000)
+    Wait=1
+}
+if(clk("extend"))
+{
+    #Sign=1
+    Wait=0
+}
+
+if(($CurStep!=0 | changed(P0) | changed(P3)) & MyHolos==MaxHolos)
+{
+    for(I=1,MaxHolos)
+    {
+        if(I==1)
+        {
+            B = bezier4(P0,P1,P2,P3,max(CurStep - (I-1)*1.35*Inc,0))
+            BNext = bezier4(P0,P1,P2,P3,max(CurStep +Inc,0))
+            holoPos(I,B)
+            holoAng(I,(BNext - B):toAngle())
+        }
+        elseif(I%2)
+        {
+            B = bezier4(P0,P1,P2,P3,max(CurStep - (I-1)*1.35*Inc,0))
+            holoPos(I,B)
+        }
+        else
+        {
+            PP1 = bezier4(P0,P1,P2,P3,max(CurStep - (I-2)*1.35*Inc,0))
+            PP2 = bezier4(P0,P1,P2,P3,max(CurStep - (I)*1.35*Inc,0))
+            
+            
+            #PP1 = holoEntity(I-1):pos()
+            #PP2 = holoEntity(I+1):pos()
+            
+            
+                        
+            holoPos(I,(PP1+PP2)/2)
+            holoAng(I,(PP1-PP2):toAngle()+ang(90,0,0))
+            holoScaleUnits(I,vec(CylScale,CylScale,PP1:distance(PP2)*1))
+        }
+        #holoAng(I,(BNext - B):toAngle()+ang(90,0,0))
+    }
+}
+
+
+if(MyHolos<MaxHolos & perf())
+{
+    MyHolos++
+    holoCreate(MyHolos,E:pos(),vec(1,1,1)*SphereScale,entity():angles(),vec(255,255,255))
+    if(MyHolos%2)
+    {
+        holoModel(MyHolos,"hqsphere")
+        holoColor(MyHolos,vec(255,0,191))
+        holoAlpha(MyHolos,150)
+    }
+    else
+    {
+        holoModel(MyHolos,"hqcylinder")
+        holoParent(MyHolos,MyHolos-1)
+        holoColor(MyHolos,vec(255,0,97))
+        holoAlpha(MyHolos,200)
+    }
+    if(MyHolos == MaxHolos)
+    {
+        local EndS = holoEntity(1)
+        Pump:parentTo(EndS)
+    }
+}
+
+if(CurStep==1)
+{
+    if(!FullyExtended)
+    {
+        if(!Pump:getCoreEnt())
+        {
+            Pump:weld(Core)
+            Pump:lsLink(Core)
+        }
+        Pump:lsPumpConnect(TargetPump)
+        Pump:lsPumpQueueTask("Energy",999999999,1)
+        FullyExtended = 1
+    }
+    SubStep += SubInc
+    B=bezier4(P0,P1,P2,P3,SubStep)
+    holoPos(MyHolos+1,B)
+    if(SubStep>=1)
+    {
+        holoDelete(MyHolos+1)
+        SubStep=0
+        holoCreate(MyHolos+1,E:pos(),vec(1,1,1)*1,ang(),vec(255,255,255))
+        holoModel(MyHolos+1, "models/Combine_Helicopter/helicopter_bomb01.mdl")
+        holoMaterial(MyHolos+1,"models/alyx/emptool_glow")
+    }
+    
+    
+    
+}
+else
+{
+    if(FullyExtended)
+    {
+        FullyExtended = 0
+        Pump:lsPumpDisconnect()
+    }
+    if(holoEntity(MyHolos+1))
+    {
+        holoDelete(MyHolos+1)
+    }
+}
+if(last()){
+    Pump:deparent()
+}

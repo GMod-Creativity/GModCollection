@@ -1,0 +1,231 @@
+@name G400 Strip-Miner Pod
+@persist Active X Pos Range ICE
+@persist [E B S H H1 H2 T Laser Node]:entity [LaserRanges]:array [On]:wirelink [GT]:gtable
+@model models/SmallBridge/SEnts/sbadoorsirisa.mdl
+# Made By Ghost400 #
+
+if(tickClk()){
+    if(Active == 1){
+        if(!GT["Laser",number] & !ICE){
+            Ang = H:toLocal(T:boxCenterW()):toAngle() + ang(0,0,180)
+            holoAng(1, B:toWorld(ang(0,Ang:yaw(),0)))
+            holoAng(2 ,B:toWorld(Ang))
+        }
+        else{
+            Ang = H:toLocal(GT["Aim",vector]):toAngle() + ang(0,0,180)
+            holoAng(1, B:toWorld(ang(0,Ang:yaw(),0)))
+            holoAng(2 ,B:toWorld(Ang))
+        }
+    }
+    elseif(Active == 2){
+        if(Pos > -61){
+            Pos -= 0.25
+            holoPos(1, B:toWorld(vec(-37,0,Pos)))
+        }
+        else{
+            soundPurge()
+            S:soundPlay(1, 1, "ambient/levels/outland/forklift_stop.wav")
+            Active = 1
+            interval(1000)
+        }
+    }
+    elseif(Active == 3){
+        if(Pos < 27){
+            Pos += 0.25
+            holoPos(1, B:toWorld(vec(-37,0,Pos)))
+        }
+        else{
+            soundPurge()
+            E:soundPlay(1, 1, "ambient/machines/thumper_top.wav")
+            E:setPos(E:pos()), E:setAng(E:angles())
+            S:setPos(S:pos()), S:setAng(S:angles())
+            E:sequenceReset(1)
+            E:propNotSolid(0)
+            Active = 0
+            On["On",number] = 1
+            runOnTick(0)
+        }
+    }
+}
+elseif(clk() & Active == 1){
+    interval(1000)
+    if(!GT["Laser",number] & !ICE){
+        Find = 1
+        if(T){
+            Hit = rangerOffset(Range, H2:pos(), H2:forward()):entity()
+            if(Hit == T){
+                Find = 0
+                On["On",number] = 1
+            }
+        }
+        
+        if(Find == 1){
+            On["On",number] = 0
+            T = noentity()
+            findByClass("tk_roid")
+            findClipToSphere(H:pos(), Range+500)
+            Targets=findToArray()
+        
+            foreach(K,V:entity=Targets){
+                Hit = rangerOffset(Range,H:pos(), V:boxCenterW() - H:pos()):entity()
+                if(Hit==V){
+                    interval(100)
+                    T = V
+                    break
+                }
+            }
+        }
+    }
+    else{
+        On["On",number] = 1
+        On["Activate",number] = 1
+    }
+}
+elseif(signalClk("G400 Strip Miner Pod", "Link", 0)){
+    if(!Laser){
+        findClearWhiteList()
+        findClearBlackList()
+        findAllowPlayerProps(owner())
+        findIncludeClass("tk_ore_laser*")
+        findInSphere(S:pos(), 200)
+        Laser = find()
+        if(Laser){
+            Laser:lsLink(Node)
+            rangerFilter(Laser)
+            On = Laser:getWirelink()
+            On["On",number] = 0
+            On["Activate",number] = 0
+            H2 = holoCreate(2, Laser:boxCenterW(), vec(0,0,0), Laser:toWorld(ang(270,0,0)))
+            holoParent(2, 1)
+            Laser:parentTo(holoEntity(2))
+            holoPos(2, S:toWorld(vec(0,0,35)))
+            holoAng(2, S:toWorld(ang(0,0,0)))
+            interval(1000)
+            if(Laser:type():left(2) == "tk"){
+                ICE = 0
+                CalcRange = array()
+                String = Laser:type():lower():explode("_")[4,string]
+                if(!String)          {Range = LaserRanges[1,number]}
+                elseif(String == "ii") {Range = LaserRanges[2,number]}
+                elseif(String == "iii"){Range = LaserRanges[3,number]}
+                elseif(String == "iv") {Range = LaserRanges[4,number]}
+                elseif(String == "v")  {Range = LaserRanges[5,number]}
+                elseif(String == "vi") {Range = LaserRanges[6,number]}
+            }
+            else{
+                ICE = 1
+                Range = 1000
+            }
+        }
+        findClearWhiteList()
+        findClearBlackList()
+    }
+}
+elseif(signalClk("G400 Strip Miner Pod", "Active", 0)){
+    runOnTick(1)
+    Active = 2
+    B:soundPlay(0, 0, "ambient/levels/citadel/advisor_enter_loop.wav")
+    E:soundPlay(1, 1, "ambient/machines/thumper_top.wav")
+    E:sequenceReset(0)
+    E:propNotSolid(1)
+}
+elseif(signalClk("G400 Strip Miner Pod", "NotActive", 0)){
+    runOnTick(1)
+    Active = 3
+    B:soundPlay(0, 0, "ambient/levels/citadel/advisor_enter_loop.wav")
+    S:soundPlay(1, 1, "ambient/levels/outland/forklift_stop.wav")
+    holoAng(1, B:angles())
+    holoAng(2, B:angles())
+    On["On",number] = 0
+    On["Activate",number] = 0
+}
+elseif(first()){
+    E = entity()
+    E:sequenceReset(1)
+    propSpawnEffect(0)
+    GT = gTable("G400 Miners", 0)
+    signalSetGroup("G400 Strip Miner Pod")
+    runOnSignal("Link", 0, 1)
+    runOnSignal("Active", 0, 1)
+    runOnSignal("NotActive", 0, 1)
+    runOnLast(1)
+    LaserRanges = array(2000, 2275, 2525, 2780, 3030, 4000)
+    
+    B = E:isWeldedTo()
+    if(B:model() == "models/smallbridge/station parts/sbbaydps.mdl" | B:model() == "models/smallbridge/station parts/sbbayaps.mdl"){
+        foreach(K,V:entity=E:getConstraints()){
+            if(V:type() == "rd_node"){
+                Node = V
+                break
+            }
+        }
+        holoCreate(0, E:toWorld(vec(0,0,0)), vec(0,0,0), E:toWorld(ang(90,0,0)))
+        E:parentTo(holoEntity(0))
+        holoPos(0,B:toWorld(vec(-37,0,-61)))
+        holoAng(0,B:toWorld(ang(0,0,0)))
+        E:deparent()
+        E:parentTo(B)
+        holoDelete(0)
+        
+        H = holoCreate(0, B:toWorld(vec(-37,0,-96)), vec(0,0,0), B:toWorld(ang(0,0,0)))
+        holoParent(0, B)
+        
+        H1 = holoCreate(1, B:toWorld(vec(-37,0,27)), vec(0,0,0), B:toWorld(ang(0,0,0)))
+        holoParent(1, B)
+        S = propSpawn("models/Stat_Turrets/st_turretswivel.mdl", B:toWorld(vec(-37,0,27)), B:toWorld(ang(180,0,0)),1)
+        S:parentTo(holoEntity(1))
+        S:propNotSolid(1)
+        S:setMass(1)
+    
+        Pos = 27
+        Active = 0
+        rangerPersist(1)
+        rangerFilter(E)
+        rangerFilter(S)
+        
+        findAllowPlayerProps(owner())
+        findIncludeClass("tk_ore_laser*")
+        findInSphere(S:pos(), 200)
+        Laser = find()
+        if(Laser){
+            Laser:lsLink(Node)
+            rangerFilter(Laser)
+            On = Laser:getWirelink()
+            On["On",number] = 0
+            On["Activate",number] = 0
+            H2 = holoCreate(2, Laser:boxCenterW(), vec(0,0,0), Laser:toWorld(ang(270,0,0)))
+            holoParent(2, 1)
+            Laser:parentTo(holoEntity(2))
+            holoPos(2, S:toWorld(vec(0,0,35)))
+            holoAng(2, S:toWorld(ang(0,0,0)))
+            interval(1000)
+            if(Laser:type():left(2) == "tk"){
+                ICE = 0
+                CalcRange = array()
+                String = Laser:type():lower():explode("_")[4,string]
+                if(!String)          {Range = LaserRanges[1,number]}
+                elseif(String == "ii") {Range = LaserRanges[2,number]}
+                elseif(String == "iii"){Range = LaserRanges[3,number]}
+                elseif(String == "iv") {Range = LaserRanges[4,number]}
+                elseif(String == "v")  {Range = LaserRanges[5,number]}
+                elseif(String == "vi") {Range = LaserRanges[6,number]}
+            }
+            else{
+                ICE = 1
+                Range = 1000
+            }
+        }
+        findClearWhiteList()
+        findClearBlackList()
+    }
+    else{
+        hint("error",10)
+    }
+}
+elseif(dupefinished()){
+    reset()
+}
+elseif(last()){
+    Laser:deparent()
+    S:propDelete()
+}

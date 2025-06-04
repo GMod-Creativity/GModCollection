@@ -1,0 +1,400 @@
+@name E2 Gyropod v3
+@persist [AngVel AngMult]:angle SpeedLimit Massmem Acceleration Speed Strafeud Strafelr Deadzone RollYaw
+@persist [Engines Enabled PodControler]:table [Base Chair]:entity Constraints:array Active InChair WaitingForActivate ActivateKey:string
+@outputs Lvec:vector Ops
+runOnChat(1)
+
+if(dupefinished()){reset() print("shit")}
+elseif(first()){
+    #Set Your Multipliers Or You Are Dumb.
+    #This is in FIGHTER FLIGHT mode right now, if you try to fly a capital
+    #you will spaz out and explode.
+    #AngMult(Pitch, Yaw, Roll)
+    AngMult = ang(6,4,6)
+    #This is your maximum speed, don't set it any higher than 3500 unless you know what you're doing.
+    SpeedLimit = 2500
+    #This controls how fast you accelerate and decelerate, only set it to numbers between 1 and 0.
+    Acceleration = 0.1
+    #This controls the minimum amount of aiming you need to do to turn. Defaults to 2.5.
+    Deadzone = 2.5
+    #Should we use roll instead of yaw by default?
+    RollYaw = 0
+    #Should we automatically parent the ship? Defaults to on!
+    AutoParent = 0
+    #Should we try to detect a chair? Defaults to on, use !setchair to change the chair.
+    AutoChair = 1
+    #What key makes the vehicle turn on? Defaults to spacebar
+    ActivateKey = "Space"
+    
+    entity():combatImmune(1)
+    
+    ###############
+    #END OF CONFIG#
+    ###############
+    function void parentShip(){
+        if(Base:isValid()){
+            print("Begining parenting!")
+            Constraints = Base:getConstraints()
+            local CurEnt = noentity()
+    
+            for(I=1, Constraints:count()){
+                CurEnt = Constraints[I, entity]
+                
+                if(CurEnt:isValid()&CurEnt != Base&!CurEnt:parent():isValid()){
+                    #freeze
+                    CurEnt:freeze()
+                    
+                    #unconstrain
+                    CurEnt:unConstrain()
+                    
+                    #auto weight
+                    if(CurEnt == Base){
+                        CurEnt:setMass(50000)
+                    }elseif(CurEnt:isVehicle()){
+                        CurEnt:setMass(5000)
+                    }else{
+                        CurEnt:setMass(1)
+                    }
+                    
+                    CurEnt:sbSetDragOverride(1)
+                    CurEnt:sbSetGravityOverride(1)
+                    CurEnt:propEnableDrag(0)
+                    CurEnt:propGravity(0)
+                    
+                    #auto parent
+                    if(!CurEnt:isVehicle()){CurEnt:parentTo(Base)}
+                }
+            }
+            
+            Massmem=50000
+    
+            foreach(I, K:entity=Constraints){
+                Massmem += K:mass()
+            }
+            
+            #auto weld
+            timer("doweld", 100)
+            
+            print("Parenting completed!")
+        }else{
+            print("Unable to find base!")
+        }
+    }
+    
+    function void dokeys(){
+        if(Chair:isValid()){
+            Driver = Chair:driver()
+            
+            if(Driver:isValid()){
+                PodControler["W", number] = Driver:keyForward()
+                PodControler["A", number] = Driver:keyLeft()
+                PodControler["S", number] = Driver:keyBack()
+                PodControler["D", number] = Driver:keyRight()
+                PodControler["R", number] = Driver:keyReload()
+                PodControler["M1", number] = Driver:keyAttack1()
+                PodControler["M2", number] = Driver:keyAttack2()
+                PodControler["Space", number] = Driver:keyJump()
+                PodControler["Shift", number] = Driver:keySprint()
+                PodControler["Alt", number] = Driver:keyWalk()
+                PodControler["Ctrl", number] = Driver:keyDuck()
+                PodControler["Next Weapon", number] = Driver:keyWeapon1()
+                PodControler["Previous Weapon", number] = Driver:keyWeapon2()
+                PodControler["Active", number] = 1
+                PodControler["Chair", entity] = Chair
+            }
+        }else{
+            PodControler["W", number] = 0
+            PodControler["A", number] = 0
+            PodControler["S", number] = 0
+            PodControler["D", number] = 0
+            PodControler["R", number] = 0
+            PodControler["M1", number] = 0
+            PodControler["M2", number] = 0
+            PodControler["Space", number] = 0
+            PodControler["Shift", number] = 0
+            PodControler["Alt", number] = 0
+            PodControler["Ctrl", number] = 0
+            PodControler["Next Weapon", number] = 0
+            PodControler["Previous Weapon", number] = 0
+            PodControler["Active", number] = 0
+            PodControler["Chair", entity] = Chair
+        }
+    }
+    
+    function void enableEngines(){
+        local Constraints = entity():getConstraints()
+        local CurLight = table()
+        local CurTable = table()
+        local ID = 0
+        
+        foreach(I, Ent:entity=Constraints){
+            foreach(K, CurEngine:table=Engines){
+                if(Ent:model():find(CurEngine["model", string]) != 0){
+                    CurTable = CurEngine["lights", table]
+                    for(C=1, CurEngine["lights", table]:count()){
+                        CurLight = CurTable[C, table]
+                        ID = Enabled:count()+1
+                        
+                        Enabled[ID, number] = 1
+                        
+                        lightCreate(ID)
+                        lightPos(ID,Ent:toWorld(CurLight["pos", vector]))
+                        lightBrightness(ID, CurLight["brightness", number])
+                        lightDistance(ID, CurLight["distance", number])
+                        lightColor(ID,CurLight["color", vector])
+                        lightParent(ID,Ent)
+                        
+                        holoCreate(ID, Ent:toWorld(CurLight["pos", vector]), vec(1,1,1)*0.01)
+                        holoParent(ID, Ent)
+                        holoMaterial(ID, "sprites/muzzleflash4")
+                        holoEntity(ID):setTrails(CurLight["distance", number]/10,0,CurLight["distance", number]/500,"trails/laser",CurLight["color", vector],255)
+                        
+                        drawSprite(1000+ID,"sprites/muzzleflash4",Ent:toWorld(CurLight["pos", vector]),CurLight["distance", number]/12,CurLight["distance", number]/12,CurLight["color", vector],255,Ent)
+                        
+                    }
+                }
+            }
+        }
+    }
+    
+    function void disableEngines(){
+        for(I=1, Enabled:count()){
+            lightRemove(I)
+            removeSprite(1000+I)
+        }
+        
+        Enabled = table()
+    }
+    
+    function void movement(){
+        if(Base:isValid()){
+            Forward = PodControler["W", number]
+            Backwards = PodControler["S", number]
+            Left = PodControler["A", number]
+            Right = PodControler["D", number]
+            Up = PodControler["Space", number]
+            Down = PodControler["Alt", number]
+            Roll = PodControler["Shift", number]
+            Level = PodControler["R", number]
+            
+            if(Forward == 0&Backwards == 0){
+                Speed = Speed*(1-Acceleration)
+            }elseif(Backwards >= 1){
+                Speed = Speed - (SpeedLimit*Acceleration)
+            }elseif(Forward >= 1){
+                Speed = Speed + (SpeedLimit*Acceleration)
+            }
+            
+            if(Up == 0&Down == 0){
+                Strafeud = Strafeud*(1-Acceleration)
+            }elseif(Down >= 1){
+                Strafeud = Strafeud - (SpeedLimit*Acceleration)
+            }elseif(Up >= 1){  
+                Strafeud = Strafeud + (SpeedLimit*Acceleration)
+            }
+            
+            if(Right == 0&Left == 0){
+                Strafelr = Strafelr*(1-Acceleration)
+            }elseif(Left >= 1){
+                Strafelr = Strafelr + (SpeedLimit*Acceleration)
+            }elseif(Right >= 1){  
+                Strafelr = Strafelr - (SpeedLimit*Acceleration)
+            }
+            
+            Speed = clamp(Speed, -SpeedLimit, SpeedLimit)
+            Strafelr = clamp(Strafelr, -SpeedLimit, SpeedLimit)
+            Strafeud = clamp(Strafeud, -SpeedLimit, SpeedLimit)
+            
+            Vvec = vec(Speed, Strafelr/5, Strafeud/5):rotate(Base:angles())
+            Vel = Base:vel()
+            
+            if(Vvec != vec(0,0,0)){
+                Base:setVel(clamp(Vvec, vec(-5000), vec(5000)))
+            }else{
+                Base:setVel(clamp(Vel * 0.95, vec(-5000), vec(5000)))
+            }
+            if(Level == 0){
+                if((RollYaw ? !Roll : Roll) == 1){
+                    Angles = ang(-clamp((abs(Base:elevation(Lvec)) > Deadzone ? Base:elevation(Lvec) : 0), -90, 90), 0, clamp((abs(Base:bearing(Lvec)) > Deadzone ? Base:bearing(Lvec) : 0), -45, 45))
+                }else{
+                    Angles = ang(-clamp((abs(Base:elevation(Lvec)) > Deadzone ? Base:elevation(Lvec) : 0), -90, 90), -clamp((abs(Base:bearing(Lvec)) > Deadzone ? Base:bearing(Lvec) : 0), -90, 90), -angnorm(Base:angles()):roll())
+                }
+            } elseif (Level >= 1) {
+                Angles = ang(-Base:angles():pitch(), -clamp((abs(Base:bearing(Lvec)) > Deadzone ? Base:bearing(Lvec) : 0), -90, 90), -angnorm(Base:angles():roll()))
+            }
+        
+            Base:setAngVel(shiftR((Angles*AngMult) - Base:angVel()))
+            Chair:driver():setPos(Chair:pos())
+        }
+        
+        if(Active){timer(20, 1, "MOVEMENT", "movement()")}
+    }
+    
+    function void view(){
+        rangerHitEntities(0)
+        Ranger = rangerOffset(216384, Base:boxCenterW(), Chair:driver():eye())
+        Lvec=Ranger:pos()
+        
+        dokeys()
+        
+        soundPitch(1,Base:vel():length() / 4)
+        
+        if(Active){timer(150, 1, "VIEW", "view()")}
+    }
+    
+    function void activeCheck(){
+        Base:propGravity(0)
+        Chair:propGravity(0)
+        Ops = ops()
+        
+        InChair = Chair:driver():isValid()
+        
+        if(changed(InChair)&InChair){
+            WaitingForActivate = 1
+            Chair:printDriver("Please press '" + ActivateKey + "' to engage the gyropod!")
+        }elseif(InChair&WaitingForActivate){
+            dokeys()
+            
+            if(PodControler[ActivateKey, number]){
+                WaitingForActivate = 0
+                Active = 1
+            }
+        }elseif(!InChair){
+            WaitingForActivate = 0
+            Active = 0
+        }
+        
+        if(changed(Active)&Active&entity():parent():isValid()){
+            enableEngines() 
+            Base:unFreeze() 
+            Chair:unFreeze() 
+            Base:soundPlay(1, 0, "ambient/atmosphere/underground_hall_loop1.wav")
+            
+            timer(25, 1, "MOVEMENT", "movement()" )
+            timer(50, 1, "VIEW", "view()")
+        }elseif(changed(Active)&!Active){
+            disableEngines()
+            soundStop(1)
+            Base:freeze()
+            Chair:freeze()
+            
+            Speed = 0
+            Strafeud = 0
+            Strafelr = 0
+        }
+    }
+    
+    timer(100, 0, "ACTIVE", "activeCheck()")
+    
+    Base = entity():isWeldedTo()
+    Hvec=Base:pos()
+    Lvec=Base:toWorld(Base:forward())
+    
+    if(AutoParent&Base){
+        parentShip()
+    }
+    
+    if(AutoChair&Base){
+        local Const = Base:getConstraints()
+        
+        for(I=1,Const:count()){
+            if(Const[I, entity]:isVehicle()){
+                Chair = Const[I, entity]
+                print("Found chair, setting driver position!")
+                break
+            }
+        }
+    }
+    
+    Massmem=50000
+    
+    foreach(I, K:entity=Base:getConstraints()){
+        Massmem += K:mass()
+    }
+    
+    Base:setMass(50000)
+    Base:sbSetDragOverride(1)
+    Base:sbSetGravityOverride(1)
+    Base:propEnableDrag(0)
+    Base:propGravity(0)
+ 
+    PodControler["W", number] = 0
+    PodControler["A", number] = 0
+    PodControler["S", number] = 0
+    PodControler["D", number] = 0
+    PodControler["R", number] = 0
+    PodControler["M1", number] = 0
+    PodControler["M2", number] = 0
+    PodControler["Space", number] = 0
+    PodControler["Shift", number] = 0
+    PodControler["Alt", number] = 0
+    PodControler["Ctrl", number] = 0
+    PodControler["Next Weapon", number] = 0
+    PodControler["Previous Weapon", number] = 0
+    PodControler["Active", number] = 0
+    PodControler["Chair", entity] = noentity()
+    
+    Engines["Engine1", table] = table()
+    Engines["Engine1", table]["lights", table] = table()
+    Engines["Engine1", table]["lights", table][1, table] = table()
+    Engines["Engine1", table]["lights", table][2, table] = table()
+    Engines["Engine1", table]["model", string] = "models/spacebuild/emount2_milcock4.mdl"
+    Engines["Engine1", table]["lights", table][1, table]["pos", vector] = vec(-196, 0, -23)
+    Engines["Engine1", table]["lights", table][1, table]["color", vector] = vec(255,100,0)
+    Engines["Engine1", table]["lights", table][1, table]["brightness", number] = 100
+    Engines["Engine1", table]["lights", table][1, table]["distance", number] = 1000
+    Engines["Engine1", table]["lights", table][2, table]["pos", vector] = vec(-258, 0, 36)
+    Engines["Engine1", table]["lights", table][2, table]["color", vector] = vec(255,100,0)
+    Engines["Engine1", table]["lights", table][2, table]["brightness", number] = 100
+    Engines["Engine1", table]["lights", table][2, table]["distance", number] = 1000
+    
+    Engines["WingLeft", table] = table()
+    Engines["WingLeft", table]["lights", table] = table()
+    Engines["WingLeft", table]["lights", table][1, table] = table()
+    Engines["WingLeft", table]["lights", table][2, table] = table()
+    Engines["WingLeft", table]["model", string] = "models/slyfo/wingsml_jetleft.mdl"
+    Engines["WingLeft", table]["lights", table][1, table]["pos", vector] = vec(8.5, -14.5, -9.3)
+    Engines["WingLeft", table]["lights", table][1, table]["color", vector] = vec(0,100,255)
+    Engines["WingLeft", table]["lights", table][1, table]["brightness", number] = 0.5
+    Engines["WingLeft", table]["lights", table][1, table]["distance", number] = 500
+    Engines["WingLeft", table]["lights", table][2, table]["pos", vector] = vec(5.96, 15.3, -9.3)
+    Engines["WingLeft", table]["lights", table][2, table]["color", vector] = vec(0,100,255)
+    Engines["WingLeft", table]["lights", table][2, table]["brightness", number] = 0.5
+    Engines["WingLeft", table]["lights", table][2, table]["distance", number] = 500
+    
+    Engines["WingRight", table] = table()
+    Engines["WingRight", table]["lights", table] = table()
+    Engines["WingRight", table]["lights", table][1, table] = table()
+    Engines["WingRight", table]["lights", table][2, table] = table()
+    Engines["WingRight", table]["model", string] = "models/slyfo/wingsml_jetright.mdl"
+    Engines["WingRight", table]["lights", table][1, table]["pos", vector] = vec(8.5, 14.5, -10)
+    Engines["WingRight", table]["lights", table][1, table]["color", vector] = vec(0,100,255)
+    Engines["WingRight", table]["lights", table][1, table]["brightness", number] = 0.5
+    Engines["WingRight", table]["lights", table][1, table]["distance", number] = 500
+    Engines["WingRight", table]["lights", table][2, table]["pos", vector] = vec(5.96, -15.3, -10)
+    Engines["WingRight", table]["lights", table][2, table]["color", vector] = vec(0,100,255)
+    Engines["WingRight", table]["lights", table][2, table]["brightness", number] = 0.5
+    Engines["WingRight", table]["lights", table][2, table]["distance", number] = 500
+    
+    Enabled = table()
+}elseif(chatClk(owner())){
+    if (owner():lastSaid():lower() == "!setchair")
+    {
+        hideChat(1)
+        Trace = owner():eyeTrace()
+        
+        if(Trace:entity()){
+            Chair = Trace:entity()
+            print("Set chair to "+toString(Trace:entity()))
+        }
+    }elseif(owner():lastSaid():lower() == "!testengines")
+    {
+        hideChat(1)
+        enableEngines()
+        timer(5000, 1, "testDisable", "disableEngines()")
+    }
+}elseif(clk("doweld")){
+    for(I=1, Constraints:count()){
+        Constraints[I, entity]:weld(Base)
+    }
+}

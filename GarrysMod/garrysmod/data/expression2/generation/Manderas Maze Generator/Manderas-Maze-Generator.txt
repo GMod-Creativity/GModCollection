@@ -1,0 +1,905 @@
+# Made by Mandera
+# Video: http://www.youtube.com/watch?v=4bi4jD0Ec9A
+
+
+
+@name Mandera's Maze Generator
+@inputs 
+@outputs Size:vector2 EmptySquares:array PathPos:vector2 PathCount Generate HoloIndex Pos:vector NewSquareTries Dir:vector2 DirsToChoose:array Lines:array 
+@outputs MisleadingCheckIndex PropSpawn MisleadingGenerateCount StartPos:vector2 EndPos:vector2 MisleadingEmptiedSquares TriedToSpawn Players:array 
+@outputs Racing CountDown SayCD StartTime PlayersFinished:array Props:array RecycleIndex RemoveLeftovers NewProps:array MainPathCount TotalPropCount 
+
+
+
+if(first()) {
+    
+    Size = vec2(4,4)
+    MainPathCount = 5
+    
+    
+    
+    HoloIndex = 1
+    
+    Pos = entity():pos() - vec(Size) * 95 / 2 - vec(95,95,0) / 2
+    
+    
+    function doneSpawning(MissingCount:number) {
+        
+        PropSpawn = 0
+        
+        if(MissingCount) {
+            
+            print("Finished spawning " + Size:x() + " * " + Size:y() + " maze. " + MissingCount + " props missing.")
+        }
+        else {
+            
+            print("Finished spawning " + Size:x() + " * " + Size:y() + " maze.")
+        }
+        
+        foreach(TIndex,TProp:entity = NewProps) {
+            
+            Props[Props:count() + 1,entity] = TProp
+            
+        }
+        
+        NewProps = array()
+        
+        if(!NewProps:count()) {
+            
+            RemoveLeftovers = 1
+            
+        }
+    }
+    
+    
+    function number squareNumber(Vec2Pos:vector2) {
+        
+        
+        return Vec2Pos:x() + (Vec2Pos:y() - 1) * Size:x()
+        
+    }
+    
+    function vector2 squareVector2(SquareNumb:number) {
+        
+        
+        return vec2(SquareNumb - (ceil(SquareNumb / Size:x()) - 1) * Size:x(),ceil(SquareNumb / Size:x()))
+        
+    }
+    
+    
+    function restart() {
+        
+        TotalPropCount = Size:x() * Size:y()
+        
+        EmptySquares = array()
+        
+        
+        if(randint(2) == 1) {
+            
+            PathPos = vec2(randint(Size:x() - 2) + 1,(randint(2) == 1 ? 1 : Size:y()))
+            
+        }
+        else {
+            
+            PathPos = vec2((randint(2) == 1 ? 1 : Size:x()),randint(Size:y() - 2) + 1)
+            
+        }
+        
+        StartPos = PathPos
+        
+        
+        if(PathPos:x() == 1) {
+            Dir = vec2(1,0)
+        }
+        
+        elseif(PathPos:x() == Size:x()) {
+            Dir = vec2(-1,0)
+        }
+        
+        elseif(PathPos:y() == 1) {
+            Dir = vec2(0,1)
+        }
+        
+        elseif(PathPos:y() == Size:y()) {
+            Dir = vec2(0,-1)
+        }
+        
+        
+        EmptySquares[squareNumber(PathPos),number] = 1
+        
+        
+        PathCount = 1
+        
+        Generate = 1
+        
+        MainRoadDone = 0
+        
+        Racing = 0
+        
+        CountDown = 0
+        
+        PropSpawn = 0
+        
+        foreach(TIndex,TProp:entity = NewProps) {
+            
+            Props[Props:count() + 1,entity] = TProp
+            
+        }
+        
+        NewProps = array()
+        
+    }
+    
+    
+    restart()
+    
+    runOnTick(1)
+    runOnChat(1)
+    
+    
+}
+
+
+if(chatClk(owner())) {
+    
+    SayCD = realtime()
+    
+    TChat = owner():lastSaid():lower()
+    TChatExp = TChat:explode(" ")
+    
+    
+    if(TChatExp[1,string] == "add") {
+        
+        
+        if(!Racing) {
+            TPlayer = findPlayerByName(TChatExp[2,string])
+            
+            TIsAdded = 0
+            
+            foreach(TIndex,TPly:entity = Players) {
+                
+                if(TPly == TPlayer) {
+                    
+                    TIsAdded = 1
+                    break
+                    
+                }
+            }
+            
+            
+            if(TIsAdded) {
+                
+                print(TPlayer:name() + " is already added.")
+            }
+            
+            else {
+                
+                if(TPlayer) {
+                    
+                    Players[Players:count() + 1,entity] = TPlayer
+                    print("Added " + TPlayer:name() + ".")
+                }
+                else{
+                    
+                    print("No player found.")
+                }
+            }
+        }
+        
+        else {
+            
+            print("A race is active...")
+        }
+        
+        
+    }
+    
+    elseif(TChatExp[1,string] == "remove") {
+        
+        if(!Racing) {
+            if(TChatExp[2,string] == "all") {
+                
+                print("Removed " + Players:count() + " players.")
+                Players = array()
+            }
+            
+            else {
+                
+                TPlayer = findPlayerByName(TChatExp[2,string])
+                
+                if(TPlayer) {
+                    
+                    foreach(TIndex,TCheckPlayer:entity = Players) {
+                        
+                        if(TPlayer == TCheckPlayer) {
+                            
+                            Players:remove(TIndex)
+                            print("Removed " + TPlayer:name() + ".")
+                            break
+                        }
+                    }
+                }
+                
+                else{
+                    
+                    print("No player found.")
+                }
+            }
+        }
+        
+        else {
+            
+            print("A race is active...")
+        }
+    }
+    
+    
+    elseif(TChat == "start") {
+        
+        hideChat(1)
+        
+        
+        if(!Generate & !PropSpawn & !Racing) {
+            
+            PlayersFinished = array()
+            
+            StartTime = realtime()
+            
+            CountDown = realtime() + 4.4
+            
+            Racing = 0
+            
+            Lines = array("Starting in 3..","2...","1...","Go!")
+            
+        }
+        
+        else {
+            
+            print("Can't start yet.")
+        }
+    }
+    
+    elseif(TChatExp[1,string] == "respawn") {
+        
+        
+        
+        if(TChatExp[2,string]:toNumber()) {
+            
+            if(TChatExp[2,string]:toNumber() < 3) {
+                
+                Size = Size:setX(3)
+                
+            }
+            
+            else{
+                
+                Size = Size:setX(TChatExp[2,string]:toNumber())
+            }
+            
+        }
+        
+        if(TChatExp[3,string]:toNumber()) {
+            
+            if(TChatExp[3,string]:toNumber() < 3) {
+                
+                Size = Size:setY(3)
+                
+            }
+            
+            else {
+                
+                Size = Size:setY(TChatExp[3,string]:toNumber())
+            }
+            
+        }
+        
+        if(TChatExp[4,string]:toNumber()) {
+            
+            MainPathCount = TChatExp[4,string]:toNumber()
+            
+        }
+        
+        restart()
+        
+        
+        Pos = owner():aimPos() - vec(Size) * 95 / 2 - vec(95,95,0) / 2
+        
+        
+    }
+    
+    
+    elseif(TChat == "delete") {
+        
+        if(!Generate & !PropSpawn & !Racing & !RemoveLeftovers & !CountDown) {
+            print("Removing all props.")
+            TotalPropCount = 0
+            RemoveLeftovers = 1
+            holoDeleteAll()
+        }
+        else {
+            
+            print("Can't delete the maze now.")
+        }
+    }
+}
+
+if(Lines:count()) {
+    
+    if(SayCD + 1 < realtime()) {
+        
+        TLine = Lines[1,string]
+        
+        concmd("say " + TLine)
+        
+        Lines:remove(1)
+        
+        SayCD = realtime()
+        
+    }
+}
+
+if(CountDown) {
+    
+    if(CountDown < realtime()) {
+        
+        Racing = 1
+        
+        CountDown = 0
+    }
+    
+    foreach(TIndex,TPlayer:entity = Players) {
+        
+        if(TPlayer:pos():distance(holoEntity(1):pos()) > 100) {
+            
+            CountDown = 0
+            
+            Racing = 0
+            
+            Lines = array(TPlayer:name() + " is not in position.")
+            
+        }
+    }
+}
+
+elseif(Racing) {
+    
+    foreach(TIndex,TPlayer:entity = Players) {
+        
+        if(!PlayersFinished[TIndex,number]) {
+            
+            if(TPlayer:inNoclip()) {
+                
+                Lines[Lines:count() + 1,string] = TPlayer:name() + " has been disqualified for entering noclip."
+                
+                PlayersFinished[TIndex,number] = 1
+                
+                if(PlayersFinished:sum() == Players:count()) {
+                    
+                    Racing = 0
+                    
+                    Lines[Lines:count() + 1,string] = "Everyone finished - Race is over."
+                }
+            }
+            
+            if(TPlayer:pos():distance(holoEntity(2):pos()) < 100) {
+                
+                PlayersFinished[TIndex,number] = 1
+                
+                Lines[Lines:count() + 1,string] = TPlayer:name() + " finished after " + round(realtime() - StartTime,1) + " seconds."
+                
+                if(PlayersFinished:sum() == Players:count()) {
+                    
+                    Racing = 0
+                    
+                    Lines[Lines:count() + 1,string] = "Everyone finished - Race is over."
+                }
+            }
+            
+            
+            if(!inrange(TPlayer:pos(),Pos + vec(0,0,-50) + vec(0.5,0.5,0) * 95,Pos + vec(0,0,100) + vec(Size + vec2(0.5,0.5)) * 95)) {
+                
+                Lines[Lines:count() + 1,string] = TPlayer:name() + " has been disqualified for leaving the map."
+                
+                PlayersFinished[TIndex,number] = 1
+                
+                if(PlayersFinished:sum() == Players:count()) {
+                    
+                    Racing = 0
+                    
+                    Lines[Lines:count() + 1,string] = "Everyone finished - Race is over."
+                }
+            }
+        }
+    }
+}
+
+elseif(Generate == 1) {
+    
+    while(perf() & Generate) {
+        
+        if(PathCount > 1) {
+            
+            
+            if(!DirsToChoose:count()) {
+                
+                restart()
+                break
+            }
+            
+            else {
+                
+                TRandInt = randint(DirsToChoose:count())
+            }
+            
+            
+            TRandDir = DirsToChoose[TRandInt,number]
+            
+            DirsToChoose:remove(TRandInt)
+            
+            
+            if(TRandDir == 1) {
+                
+                Dir = vec2(vec(Dir):toAngle():forward())
+                
+            }
+            
+            elseif(TRandDir == 2) {
+                
+                Dir = vec2(vec(Dir):toAngle():right())
+                
+            }
+            
+            elseif(TRandDir == 3) {
+                
+                Dir = -vec2(vec(Dir):toAngle():right())
+                
+            }
+            
+            Dir = round(Dir)
+            
+        }
+        
+        TNewPathPos = PathPos + Dir
+        
+        TAllowedMove = 1
+        
+        
+        if(!inrange(TNewPathPos,vec2(1,1),Size)) {
+            
+            TAllowedMove = 0
+            
+        }
+        
+        
+        elseif(EmptySquares[squareNumber(TNewPathPos + vec2(1,0)),number] & Dir != vec2(-1,0)) {
+            
+            TAllowedMove = 0
+            
+        }
+        
+        elseif(EmptySquares[squareNumber(TNewPathPos + vec2(-1,0)),number] & Dir != vec2(1,0)) {
+            
+            TAllowedMove = 0
+            
+        }
+        
+        elseif(EmptySquares[squareNumber(TNewPathPos + vec2(0,1)),number] & Dir != vec2(0,-1)) {
+            
+            TAllowedMove = 0
+            
+        }
+        
+        elseif(EmptySquares[squareNumber(TNewPathPos + vec2(0,-1)),number] & Dir != vec2(0,1)) {
+            
+            TAllowedMove = 0
+            
+        }
+        
+        
+        elseif(!inrange(TNewPathPos,vec2(2,2),Size - vec2(1,1)) & PathCount + 1 < MainPathCount) {
+            
+            TAllowedMove = 0
+            
+        }
+        
+        
+        
+        if(TAllowedMove) {
+            
+            DirsToChoose = array(1,2,3)
+            
+            PathPos = TNewPathPos
+            
+            
+            EmptySquares[squareNumber(PathPos),number] = 1
+            
+            PathCount++
+            
+            
+            if(!inrange(PathPos + Dir,vec2(1,1),Size)) {
+                
+                if(PathCount < MainPathCount) {
+                    
+                    restart()
+                }
+                
+                else {
+                    
+                    print("Main Path is " + PathCount + " squares.")
+                    
+                    TotalPropCount -= PathCount
+                    
+                    EndPos = PathPos
+                    
+                    Generate = 2
+                    
+                    MisleadingEmptiedSquares = 0
+                    
+                    MisleadingGenerateCount = 0
+                    
+                    MisleadingCheckIndex = 1
+                    
+                    DirsToChoose = array(1,2,3,4)
+                    
+                    PathCount = 1
+                    
+                }
+            }
+        }
+    }
+}
+
+elseif(Generate == 2) {
+    
+    
+    while(MisleadingCheckIndex <= Size:x() * Size:y() & perf()) {
+        
+        TIsEmpty = EmptySquares[MisleadingCheckIndex,number]
+        
+        
+        if(TIsEmpty) {
+            
+            
+            PathPos = squareVector2(MisleadingCheckIndex)
+            
+            
+            while(perf()) {
+                
+                
+                if(!DirsToChoose:count()) {
+                    
+                    #print("Stopped misleading trail at " + PathCount + ".")
+                    
+                    PathCount = 1
+                    
+                    DirsToChoose = array(1,2,3,4)
+                    
+                    
+                    break
+                }
+                
+                else {
+                    
+                    TRandInt = randint(DirsToChoose:count())
+                }
+                
+                
+                TRandDir = DirsToChoose[TRandInt,number]
+                
+                DirsToChoose:remove(TRandInt)
+                
+                
+                # If this is the start of the missleading path
+                
+                if(PathCount == 1) {
+                    
+                    if(TRandDir == 1) {
+                        
+                        Dir = vec2(1,0)
+                        
+                    }
+                    
+                    elseif(TRandDir == 2) {
+                        
+                        Dir = vec2(-1,0)
+                        
+                    }
+                    
+                    elseif(TRandDir == 3) {
+                        
+                        Dir = vec2(0,1)
+                        
+                    }
+                    
+                    elseif(TRandDir == 4) {
+                        
+                        Dir = vec2(0,-1)
+                        
+                    }
+                }
+                
+                else {
+                    
+                    if(TRandDir == 1) {
+                        
+                        Dir = vec2(vec(Dir):toAngle():forward())
+                        
+                    }
+                    
+                    elseif(TRandDir == 2) {
+                        
+                        Dir = vec2(vec(Dir):toAngle():right())
+                        
+                    }
+                    
+                    elseif(TRandDir == 3) {
+                        
+                        Dir = -vec2(vec(Dir):toAngle():right())
+                        
+                    }
+                    
+                    Dir = round(Dir)
+                    
+                }
+                
+                TNewPathPos = PathPos + Dir
+                
+                TAllowedMove = 1
+                
+                
+                if(EmptySquares[squareNumber(TNewPathPos),number]) {
+                    
+                    TAllowedMove = 0
+                    
+                }
+                
+                elseif(!inrange(TNewPathPos,vec2(2,2),Size - vec2(1,1))) {
+                    
+                    TAllowedMove = 0
+                    
+                }
+                
+                
+                elseif(EmptySquares[squareNumber(TNewPathPos + vec2(1,0)),number] & Dir != vec2(-1,0)) {
+                    
+                    TAllowedMove = 0
+                    
+                }
+                
+                elseif(EmptySquares[squareNumber(TNewPathPos + vec2(-1,0)),number] & Dir != vec2(1,0)) {
+                    
+                    TAllowedMove = 0
+                    
+                }
+                
+                elseif(EmptySquares[squareNumber(TNewPathPos + vec2(0,1)),number] & Dir != vec2(0,-1)) {
+                    
+                    TAllowedMove = 0
+                    
+                }
+                
+                elseif(EmptySquares[squareNumber(TNewPathPos + vec2(0,-1)),number] & Dir != vec2(0,1)) {
+                    
+                    TAllowedMove = 0
+                    
+                }
+                
+                
+                if(TAllowedMove) {
+                    
+                    DirsToChoose = array(1,2,3)
+                    
+                    PathPos = TNewPathPos
+                    
+                    
+                    EmptySquares[squareNumber(PathPos),number] = 1
+                    
+                    MisleadingEmptiedSquares++
+                    
+                    PathCount++
+                    
+                    
+                }
+            }
+        }
+        
+        MisleadingCheckIndex++
+        
+    }
+    
+    
+    if(MisleadingCheckIndex > Size:x() * Size:y()) {
+        
+        
+        if(MisleadingEmptiedSquares) {
+            
+            print("Removed " + MisleadingEmptiedSquares + " squares for misleading paths.")
+            
+            TotalPropCount -= MisleadingEmptiedSquares
+            
+            MisleadingEmptiedSquares = 0
+            
+            Generate = 2
+            
+            MisleadingCheckIndex = 1
+            
+            DirsToChoose = array(1,2,3,4)
+            
+            PathCount = 1
+            
+            MisleadingGenerateCount++
+            
+        }
+        
+        else {
+            
+            Generate = 0
+            
+            PropSpawn = 1
+            
+            RecycleIndex = 1
+            
+            NewProps = array()
+            
+            TriedToSpawn = 0
+            
+            print("Total props: " + TotalPropCount)
+            
+            
+            holoCreate(1,Pos + vec(0,0,1) + vec(StartPos) * 95)
+            holoAng(1,ang())
+            holoScaleUnits(1,vec(95,95,4))
+            holoColor(1,vec(0,255,0))
+            
+            holoCreate(2,Pos + vec(0,0,1) + vec(EndPos) * 95)
+            holoAng(2,ang())
+            holoScaleUnits(2,vec(95,95,4))
+            holoColor(2,vec(255,0,0))
+            
+            
+            interval(250)
+            
+        }
+    }
+}
+
+
+elseif(PropSpawn) {
+    
+    if(clk()) {
+        
+        interval(250)
+        
+        
+        if(RecycleIndex > Props:count()) {
+            
+            if(!EmptySquares[PropSpawn,number]) {
+                
+                
+                TPropSquare = propSpawn("models/hunter/blocks/cube2x2x2.mdl",Pos + vec(0,0,47.5) + vec(squareVector2(PropSpawn)) * 95,ang(),1)
+                TPropSquare:setMaterial("models/props/de_inferno/infflra")
+            }
+            
+            
+            if(TPropSquare) {
+                
+                
+                NewProps[NewProps:count() + 1,entity] = TPropSquare
+                
+                
+                
+                TriedToSpawn = 0
+                
+                TSquareCount = Size:x() * Size:y()
+                
+                
+                PropSpawn++
+                
+                if(PropSpawn > TSquareCount) {
+                    
+                    doneSpawning(0)
+                    
+                }
+                
+                else {
+                    while(EmptySquares[PropSpawn,number]) {
+                        
+                        PropSpawn++
+                        
+                        if(PropSpawn > TSquareCount) {
+                            
+                            doneSpawning(0)
+                            break
+                        }
+                    }
+                }
+            }
+            
+            else {
+                
+                TriedToSpawn++
+            }
+        }
+        
+        else {
+            
+            TSquareCount = Size:x() * Size:y()
+            
+            while(RecycleIndex <= Props:count() & perf()) {
+                
+                if(!EmptySquares[PropSpawn,number]) {
+                    
+                    TPropSquare = Props[RecycleIndex,entity]
+                    
+                    if(TPropSquare) {
+                        
+                        TPropSquare:setPos(Pos + vec(0,0,47.5) + vec(squareVector2(PropSpawn)) * 95)
+                        RecycleIndex++
+                        
+                        PropSpawn++
+                        
+                    }
+                    
+                    else {
+                        
+                        Props:remove(RecycleIndex)
+                    }
+                }
+                
+                else {
+                    
+                    PropSpawn++
+                }
+                
+                
+                if(PropSpawn > TSquareCount) {
+                    
+                    doneSpawning(0)
+                    break
+                }
+                
+                else{
+                    
+                    while(EmptySquares[PropSpawn,number]) {
+                        
+                        PropSpawn++
+                        
+                        if(PropSpawn > TSquareCount) {
+                            
+                            doneSpawning(0)
+                            break
+                            
+                        }
+                    }
+                }
+            }
+        }
+        
+        
+        if(TriedToSpawn > 2) {
+            
+            doneSpawning(Size:x() * Size:y() - PropSpawn + 1)
+            
+        }
+    }
+}
+
+
+elseif(RemoveLeftovers) {
+    
+    
+    while(TotalPropCount < Props:count() & perf()) {
+        
+        Props[TotalPropCount + 1,entity]:propDelete()
+        Props:remove(TotalPropCount + 1)
+        
+        
+    }
+    
+    
+    if(TotalPropCount >= Props:count()) {
+        
+        RemoveLeftovers = 0
+        
+    }
+}

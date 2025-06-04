@@ -1,0 +1,181 @@
+@name ShieldV6
+@inputs 
+@outputs PlanetPos:vector R OverrideR OverriddenR OverridePos OverriddenPos:vector PlateCount PlanetR
+@persist Sphere:array Planet:entity I PlanetName:string Built Props:array
+@persist ASDF 
+@outputs State
+@trigger none
+interval(80)
+if(first())
+{
+    OverrideR = 1
+    OverriddenR = 5192
+    
+    OverridePos = 0
+    OverriddenPos = vec(0,0,0)
+    
+    PlateCount = 11
+    
+    #include "lib/hob"
+    entity():isWeldedTo():setShipName("Kappa Project: Dark Star")
+
+    function build() {
+        if(I<Sphere:count())
+        {
+            if(propCanCreate())
+            {
+                interval(100)
+                I++
+                local V = PlanetPos+Sphere[I,vector]
+                if(!V:isInWorld()) {interval(10) exit()}
+                holoClip(1,PlanetPos+vec(0,0,-R + ((R*2)/Sphere:count())*I),vec(0,0,-1),1)
+                holoClip(2,PlanetPos+vec(0,0,-R + ((R*2)/Sphere:count())*I),vec(0,0,-1),1)
+                local A = Sphere[I,vector]:toAngle():up():toAngle()
+                local E = propSpawn("models/hunter/plates/plate32x32.mdl",V,A,1)
+                if(E:isValid()){
+                    E:weld(entity():isWeldedTo())
+                    E:setRenderMode(10)
+                    E:propShadow(0)
+                    Props[I,entity] = E
+                }else{
+                    interval(10) 
+                    exit()
+                }
+            }
+        }else{
+            print("Finished Building")
+
+            
+            Built = 1
+            State = 1
+        }
+    }
+    function sphereFinish(S:array) {
+        Sphere = S
+        build()
+    }
+
+    propSpawnUndo(0)
+    runOnChat(1)
+    
+    #Planet Pos
+    if( OverridePos )
+    {
+        PlanetPos = OverriddenPos
+    }else{
+    
+        #Planet Radius
+        PlanetR = ( max(Planet:boxSize():x(),Planet:boxSize():y(),Planet:boxSize():z())/2 ) *0.95
+        if( OverrideR )
+        {
+            R = OverriddenR
+        }else{
+            R = PlanetR
+        }
+    
+        #Current Planet
+        Planet = closestPlanet(entity():pos())
+        PlanetName = Planet:lsName()
+        print(PlanetName)
+        
+        switch(map())
+        {
+            case "gm_interplaneteryfunk",
+                PlanetPos = vec(-10000,-10000,-6000)
+                R = 3700
+                break
+            case "sb_gooniverse_v4",
+                if(PlanetName == "Kobol")
+                {
+                    PlanetPos = Planet:pos()+vec(0,0,250)
+                }else{
+                    PlanetPos = Planet:pos()
+                }
+                break
+            default,
+                PlanetPos = Planet:pos()
+                break
+        }
+    }
+    holoCreate(1)
+    holoModel(1,"models/holograms/hq_hdome_thin.mdl")
+    #holoMaterial(1,"cmats/glow_blue_ani")
+    holoColor(1,vec(0,0,255))
+    holoAlpha(1,150)
+    holoAng(1,ang(0))
+    holoPos(1,PlanetPos)
+    holoScaleUnits(1,vec(R*2.2))
+    holoClipEnabled(1,1)
+    holoClip(1,PlanetPos+vec(0,0,0),vec(0,0,-1),1)
+    holoCreate(2)
+    holoModel(2,"models/holograms/hq_hdome_thin.mdl")
+    #holoMaterial(2,"cmats/glow_blue_ani")
+    holoColor(2,vec(0,0,255))
+    holoAlpha(2,150)
+    holoAng(2,ang(180,0,0))
+    holoPos(2,PlanetPos)
+    holoScaleUnits(2,vec(R*2.2))
+    holoClipEnabled(2,1)
+    holoClip(2,PlanetPos+vec(0,0,0),vec(0,0,-1),1)
+    #sphere! :D
+    array():sphere(R,PlateCount,"sphereFinish",0)
+    
+}
+if(Built==0 & Sphere:count())
+{
+    build()
+}else{
+
+    if(chatClk(owner()) & owner():lastSaid():sub(1,1) == "!")
+    {
+        hideChat(1)
+        local S = owner():lastSaid():sub(2):lower()
+        switch(S)
+        {
+            case "shield",
+                if(State==1){State=2 I=Props:count()+1}
+                if(State==4){State=3 I=0}
+                break
+        }
+    }   
+
+    switch(State) #1:Closed 2:Opening 3:Closing 4:Open
+    {
+        case 1,
+            break
+        case 2,
+            if(I>0){
+                while(perf() & I>0){
+                    I--
+                    local E = Props[I,entity]
+                    E:setSolid(0)
+                }
+            }else{
+                State=4
+            }
+            break
+        case 3,# Closing
+            if(I==0){I++
+            }elseif(I<Props:count()){
+                while(perf() & I<Props:count()){
+                    interval(80)
+                    I++
+                    local E = Props[I,entity]
+                    E:setSolid(1)
+                }
+            }else{
+                function s1()
+                {
+                    State = 1
+                    ASDF = 0
+                }
+                if(!ASDF){
+                    ASDF = 1
+                    timer(300,1,"heh","s1()")
+                }
+            }
+            break
+        case 4,
+            break
+    }
+}

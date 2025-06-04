@@ -1,0 +1,134 @@
+@name ShieldV2
+@persist Sphere:array R Planet:entity I PlanetName:string PlanetPos:vector Built Props:array
+@outputs State
+interval(100)
+if(first())
+{
+    #include "lib/hob"
+    
+    function build() {
+        if(I<Sphere:count())
+        {
+            if(propCanCreate())
+            {
+                I++
+                local V = PlanetPos+Sphere[I,vector]
+                if(!V:isInWorld()) {interval(10) exit()}
+                local A = Sphere[I,vector]:toAngle():up():toAngle()
+                local E = propSpawn("models/hunter/plates/plate32x32.mdl",V,A,1)
+                if(E:isValid()){
+                    E:weld(entity():isWeldedTo())
+                    Props[I,entity] = E
+                }else{
+                    interval(10) 
+                    exit()
+                }
+            }
+        }else{
+            Built = 1
+            State = 1
+        }
+    }
+    
+    function sphereFinish(S:array) {
+        Sphere = S
+        build()
+    }
+    
+    #runOnTick(1)
+    propSpawnUndo(0)
+    runOnChat(1)
+    #Current Planet
+    Planet = closestPlanet(entity():pos())
+    PlanetName = Planet:lsName()
+    print(PlanetName)
+    
+    #Planet Radius
+    R = ( Planet:boxSize():x()/2 ) *0.95
+    
+    #Planet pos
+    PlanetPos = (PlanetName=="Kobol" ? Planet:pos()+vec(0,0,250) : Planet:pos())
+    
+    #sphere! :D
+    array():sphere(R,25,"sphereFinish",0)
+}
+if(Built==0 & Sphere:count())
+{
+    build()
+}else{
+    switch(State)
+    {
+        case 1,# Closed
+            if(chatClk(owner()))
+            {
+                if(owner():lastSaid()=="!Shield")
+                {
+                    State = 2
+                    I = Props:count() + 1
+                    hideChat(1)
+                }elseif(owner():lastSaid()=="!RepairShield")
+                {
+                    State = 5
+                    I = 0
+                    hideChat(1)
+                }
+                
+            }
+            break
+            
+        case 2,# Opening
+            if(I>0)
+            {
+                I--
+                local E = Props[I,entity]
+                E:setAlpha(0)
+                E:setSolid(0)
+            }else{
+                State = 4
+            }
+            break
+            
+        case 3,# Closing
+            if(I<Props:count())
+            {
+                I++
+                local E = Props[I,entity]
+                E:setAlpha(255)
+                E:setSolid(1)
+            }else{
+                State = 1
+            }
+            break
+            
+        case 4,# Open
+            if(chatClk(owner()))
+            {
+                if(owner():lastSaid()=="!Shield")
+                {
+                    State = 3
+                    I = 0
+                    hideChat(1)
+                }elseif(owner():lastSaid()=="!RepairShield")
+                {
+                    State = 5
+                    I = 0
+                    hideChat(1)
+                }
+                
+            }
+            break
+            
+        case 5,#Repairing
+            if(I<Props:count())
+            {
+                I++
+                local E = Props[I,entity]
+                E:propDelete()
+            }else{
+                Props = array()
+                Built = 0
+                I = 0
+            }
+            break
+    }
+}

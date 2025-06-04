@@ -1,0 +1,61 @@
+@name Mining
+@inputs
+@outputs
+@persist TBLS:table MaxBearing MinBearing MaxElevation MinElevation I
+@trigger 
+
+interval(1000)
+
+if(first()){
+    findByClass("sc_turret")
+    findClipToPlayerProps(owner())
+    findClipToSphere(entity():pos(),2000)
+    foreach(K,V:entity=findToArray())
+    {
+        TBLS[K,table] = table("Ent" = V)
+    }
+    MaxElevation = 45
+    MinElevation = -25
+    
+    MaxBearing = 181
+    MinBearing = -181
+}
+I++
+if(TBLS:count() < I){
+    I = 1 
+}
+local TBL = TBLS[I,table]
+
+local E = TBL["Ent",entity]
+if( !TBL:exists("WL") ){ TBL["WL",wirelink] = E:wirelink() }
+local WL = TBL["WL",wirelink]
+
+if( !TBL["Roid",entity]:isValid() )
+{
+    findByClass("mining_asteroid")
+    findClipToSphere(E:pos(),5000)
+    findSortByDistance(E:pos())
+    foreach(K2,Roid:entity=findToArray())
+    {
+        local Be = E:bearing(Roid:pos())
+        local El = E:elevation(Roid:pos())
+        
+        if(Be >= MinBearing & Be <= MaxBearing)
+        {
+            if(El >= MinElevation & El <= MaxElevation)
+            {
+                local TR = 
+                TBL["Roid",entity] = Roid
+                break
+            }
+        }
+    }
+    WL["Active",number] = 0
+    WL["Fire", number] = 0
+}else{
+    WL["Active",number] = 1
+    WL["Fire", number] = 1
+    WL["Target",entity] = TBL["Roid",entity]
+}
+
+

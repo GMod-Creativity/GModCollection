@@ -1,1 +1,2 @@
-Author: MagnumMacKivler
+- Author: MagnumMacKivler
+- GMODCOLLECTION_INFO: dragon script: grayscale -> add   return 0   in function were it gives error.

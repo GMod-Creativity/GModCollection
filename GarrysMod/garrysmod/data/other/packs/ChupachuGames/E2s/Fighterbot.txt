@@ -1,0 +1,71 @@
+@name Fighterbot
+@inputs 
+@outputs 
+@persist E:entity T:entity P:entity Speed Allowed Target H:entity Punching
+@trigger 
+
+interval(100)
+
+findByClass("player")
+T=findClosest(E:pos())
+if(Target){E:setAng(ang(0,(T:pos() - E:pos()):toAngle():yaw(),0))}
+if(first()){
+ E=entity()
+    H:propDelete()
+    Punching=0
+   H=propSpawn("models/props_borealis/bluebarrel001.mdl",E:toWorld(vec(0,0,40)),1)
+holoCreate(1)
+holoPos(1,entity():pos())
+holoAng(1,entity():angles())
+holoParent(1,E)
+holoModel(1,"models/Humans/Group01/male_0"+round(random(2,8))+".mdl")
+holoAnim(1,"ACT_IDLE_ANGRY_MELEE")
+
+    
+    P:propBreak()
+Allowed=1
+}
+if(H:model()!=""){
+P:propBreak()
+
+if((T:pos() - E:pos()):length() < 50&T:isAlive()){Punch=1,Run=0,Punching=1}
+else{Punch=0,Run=1}
+
+if((T:pos() - E:pos()):length()>1000){Target=0}
+else{Target=1}
+}
+if(changed(Punch)&Punch){holoAng(1,entity():angles()),holoAnim(1,"ACT_MELEE_ATTACK_SWING"),timer("hit",360)}
+if(clk("hit")&Punch){H:propDelete(),P=propSpawn("models/props_phx/oildrum001_explosive.mdl",T:toWorld(vec(-100,0,50)),1),P:propBreak(),timer("reset",400)}
+if(clk("hit")&!Punch){H:propDelete(),P:propBreak(),timer("reset",400)}
+if(!Target){E:setAng(ang(0,(holoEntity(2):pos() - E:pos()):toAngle():yaw(),0))}
+if(clk("reset")){holoAnim(1,"ACT_IDLE_ANGRY_MELEE"),Punch=0,reset()}
+if(H:model()!=""){
+if((T:pos() - E:pos()):length() > 50&T:isAlive()&!Punch){E:setPos(E:toWorld(vec(10*Speed,0,0))),Run=1}
+if(changed(Run)&Run&Allowed==1){holoAnim(1,"ACT_RUN")}
+
+if((T:pos() - E:pos()):length() > 300){Speed=3*Allowed}
+if((T:pos() - E:pos()):length() > 150){Speed=2*Allowed}
+if((T:pos() - E:pos()):length() > 100&(T:pos() - E:pos()):length() < 150){Speed=1&Allowed}
+
+Ranger=rangerOffset(1000,entity():pos(),entity():forward())
+if((Ranger:position() - E:pos()):length() < 120&(Ranger:position() - E:pos()):length() > 70){Allowed=0.3}
+if((Ranger:position() - E:pos()):length() > 120){Allowed=1}
+if((Ranger:position() - E:pos()):length() < 70){Allowed=0}
+
+if(changed(Allowed)&!Allowed){holoAnim(1,"ACT_IDLE_ANGRY_MELEE")}
+if(changed(Allowed>0)&Allowed>0&!Punch){holoAnim(1,"ACT_RUN")}
+
+if(changed(!Target)&!Target){holoCreate(2),holoPos(2,E:pos()+vec(round(random(-500,500)),round(random(-1000,500)),0))}
+if((holoEntity(2):pos() - E:pos()):length() < 30){holoPos(2,E:pos()+vec(round(random(-500,500)),round(random(-500,500)),0))}
+if(Target){holoDelete(2)}
+
+if(!Target&!Allowed){holoPos(2,E:pos()+vec(round(random(-500,500)),round(random(-500,500)),0))}
+
+holoAlpha(2,0)
+}
+if(changed(H:model())&H:model()==""&!Punching){holoModel(1,"models/player/group01/male_0"+round(random(2,8))+".mdl"),holoAnim(1,"ACT_GMOD_DEATH"),timer("delete",1000)}
+if(clk("delete")){selfDestruct()}
+
+H:setPos(E:toWorld(vec(0,0,40)))
+H:setAlpha(0)
+H:propFreeze(1)

@@ -1,0 +1,177 @@
+@name Bones Female V Male
+@inputs Body:entity Target:entity
+@outputs 
+@persist OffsetList:array TargetList:array OffsetOld:array Delta:vector
+@persist N Time Stepl:vector Stepr:vector Force:vector Hipoff:vector
+@persist Forward Backward Tome Htm Vel Off Acc Srand
+#tweakables
+@persist HipHeight HeadHeight StepSize BInd:array Target:entity Thresh
+@persist Screams:array Angry:array
+#TEMP
+@persist Ku
+@trigger 
+
+interval(10)
+
+#OffsetList deals with the following "bad boyz"
+#1 - Hip 0
+#2 - Head 10
+#3 - Footl 13
+#4 - Footr 14
+#5 - Left hand 5
+#6 - Right hand 7
+if(duped()){hint("Don't dupe Chupachu's chips. Be original.",5)}
+if(duped()){selfDestructAll()
+}
+
+if(first())
+{
+    #Hip height
+    HipHeight = 40
+    HeadHeight = 40
+    StepSize = 20
+    BInd[1, number] = 0
+    BInd[2, number] = 10
+    BInd[3, number] = 13
+    BInd[4, number] = 14
+    BInd[5, number] = 5
+    BInd[6, number] = 7
+
+    Screams[1, string] = "vo/npc/female01/hitingut01.wav"
+    Screams[2, string] = "vo/npc/female01/hitingut02.wav"
+    Screams[6, string] = "vo/npc/female01/myarm01.wav"
+    Screams[7, string] = "vo/npc/female01/myarm02.wav"
+    Screams[8, string] = "vo/npc/female01/mygut02.wav"
+    Screams[9, string] = "vo/npc/female01/myleg01.wav"
+    Screams[10, string] = "vo/npc/female01/myleg02.wav"
+    Screams[11, string] = "vo/npc/female01/ow01.wav"
+    Screams[12, string] = "vo/npc/female01/ow02.wav"
+    Screams[13, string] = "vo/npc/female01/pain01.wav"
+    Screams[14, string] = "vo/npc/female01/pain02.wav"
+    Screams[15, string] = "vo/npc/female01/pain03.wav"
+    Screams[16, string] = "vo/npc/female01/pain04.wav"
+    Screams[17, string] = "vo/npc/female01/pain05.wav"
+    Screams[18, string] = "vo/npc/female01/pain06.wav"
+    Screams[5, string] = "vo/npc/female01/pain07.wav"
+    Screams[4, string] = "vo/npc/female01/pain08.wav"
+    Screams[3, string] = "vo/npc/female01/pain09.wav"
+    
+#    Angry[1, string] = "vo/npc/female01/doingsomething.wav"
+    Angry[2, string] = "vo/npc/female01/evenodds.wav"
+    Angry[3, string] = "vo/npc/female01/fantastic01.wav"
+    Angry[4, string] = "vo/npc/female01/fantastic02.wav"
+    Angry[5, string] = "vo/npc/female01/finally.wav"
+    Angry[6, string] = "vo/npc/female01/getdown02.wav"
+#    Angry[7, string] = "vo/npc/female01/getgoingsoon.wav"
+    Angry[8, string] = "vo/npc/female01/gethellout.wav"
+    Angry[9, string] = "vo/npc/female01/goodgod.wav"
+    Angry[10, string] = "vo/npc/female01/heretheycome01.wav"
+    Angry[11, string] = "vo/npc/female01/incoming02.wav"
+    Angry[12, string] = "vo/npc/female01/likethat.wav"
+    Angry[13, string] = "vo/npc/female01/notthemanithought01.wav"
+    Angry[14, string] = "vo/npc/female01/notthemanithought02.wav"
+    Angry[15, string] = "vo/npc/female01/startle01.wav"
+    Angry[16, string] = "vo/npc/female01/startle02.wav"
+    Angry[7, string] = "vo/npc/female01/wetrustedyou01.wav"
+    Angry[1, string] = "vo/npc/female01/wetrustedyou02.wav"
+
+    timer("angryvoice", 4000 + random(2000))
+        
+    Thresh = 200
+    Off = 1
+    
+    Target = owner()
+    #Target = findPlayerByName("Reimu-Killjoy-Hakurei")
+}
+
+if(clk())
+{
+    Tome = (Body:massCenter() - Target:pos()):setZ(0):length()
+    Forward = (Tome > 40)
+    Backward = (Tome < 20)
+    Time = Time + (Forward - Backward) * 5
+    Htm = (Htm + 0.5) % 30
+    
+    Vel = Body:vel():length()
+    Acc = $Vel
+    
+    if((Acc > Thresh) & (Off))
+    {
+        #add death sound here
+        Srand = floor(random(0, Screams:count())) + 1
+        Body:soundPlay(Body:id()+"ow", 3, Screams[Srand, string])
+
+        Off = 0
+        timer("reset", 3000)
+        stoptimer("angryvoice")
+    }
+    
+    if(Off)
+    {
+        Off = clamp(Off + 0.005, 0, 1)
+    }
+    
+    Stepl = (Forward | Backward) * StepSize * (Body:bone(BInd[1, number]):toWorld(vec(0, -sin(Time), cos(Time))) - Body:bone(BInd[1, number]):pos())
+    Stepr = (Forward | Backward) * StepSize * (Body:bone(BInd[1, number]):toWorld(vec(0, -sin(Time + 180), cos(Time + 180))) - Body:bone(BInd[1, number]):pos())
+    
+    TargetList[1, vector] = (Body:bone(BInd[3, number]):massCenter() + Body:bone(BInd[4, number]):massCenter()) / 2 + vec(0, 0, HipHeight)
+    TargetList[2, vector] = (Body:bone(BInd[1, number]):massCenter()) + vec(0, 0, HeadHeight)
+    TargetList[3, vector] = (Body:bone(BInd[1, number]):massCenter() + Body:bone(BInd[1, number]):forward() * 5 - vec(0, 0, HipHeight)) + Stepl
+    TargetList[4, vector] = (Body:bone(BInd[1, number]):massCenter() - Body:bone(BInd[1, number]):forward() * 5 - vec(0, 0, HipHeight)) + Stepr
+    if(Tome < 50 & Htm < 15)
+    {
+        TargetList[5, vector] = Target:pos() + vec(0, 0, 15)
+        Body:bone(BInd[5, number]):setMass(50)
+    }
+    else
+    {
+        TargetList[5, vector] = (Body:bone(BInd[1, number]):toWorld(vec(2.5, 20, 15)))
+        Body:bone(BInd[5, number]):setMass(1)
+    }
+    if(Tome < 50 & Htm > 14)
+    {
+        TargetList[6, vector] = Target:pos() + vec(0, 0, 15)
+        Body:bone(BInd[6, number]):setMass(50)
+    }
+    else
+    {
+        TargetList[6, vector] = (Body:bone(BInd[1, number]):toWorld(vec(-2.5, 20, 15)))
+        Body:bone(BInd[6, number]):setMass(1)
+    }
+    #start loop
+    N = 1
+    while(N <= TargetList:count())
+    {
+        OffsetOld[N, vector] = OffsetList[N, vector]
+        OffsetList[N, vector] = TargetList[N, vector] - Body:bone(BInd[N, number]):massCenter()
+        Delta = OffsetList[N, vector] - OffsetOld[N, vector]
+        
+        Force = (OffsetList[N, vector] + Delta * 5) * 4 * Body:bone(BInd[N, number]):mass()
+        Body:bone(BInd[N, number]):applyForce(Force * Off)
+        N++
+    }
+    #FACING STUFF
+    Hipoff = ((Target:pos() - Body:massCenter()):normalized() - Body:bone(BInd[1, number]):up()):setZ(0):normalized()
+    Body:bone(BInd[1, number]):applyOffsetForce(Off * (Hipoff + $Hipoff * 5) * 1 * Body:bone(BInd[1, number]):mass(), Body:bone(BInd[1, number]):massCenter() + Body:bone(BInd[1, number]):up() * 100)
+    Body:bone(BInd[1, number]):applyOffsetForce(Off * (Hipoff + $Hipoff * 5) * -1 * Body:bone(BInd[1, number]):mass(), Body:bone(BInd[1, number]):massCenter() + Body:bone(BInd[1, number]):up() * -100)
+}
+if(clk("angryvoice"))
+{
+    Srand = floor(random(0, Angry:count())) + 1
+    Body:soundPlay(Body:id()+"ow", 4, Angry[Srand, string])
+    timer("angryvoice", 4000 + random(2000))
+}
+
+if(clk("reset"))
+{
+    Off = 0.001
+    timer("angryvoice", 4000 + random(2000))
+}
+
+#TESTING STUFF
+
+#Ku = owner():keyUse()
+#if(Ku & ($Ku > 0))
+#{
+#    hint(owner():aimBone():index():toString(), 3)
+#}

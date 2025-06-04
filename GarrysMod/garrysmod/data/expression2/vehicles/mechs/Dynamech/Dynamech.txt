@@ -1,0 +1,288 @@
+@name Mech v9
+@inputs [Pod Cam Eye]:wirelink [Body Left Right Torso]:entity
+@outputs Ops
+@persist [MechMode StandMode WalkMode LRunMode RRunMode]:string Dir Tilt Bear Elev #Mech General
+@persist Height StrideL StrideH Strafe Width #stand, walk & run constants
+@persist [Start Mid End]:vector T Flip #stand, walk & run variables
+@persist [LStart LMid LEnd RStart RMid REnd]:vector RT LT #RunVariables
+@persist FMod
+@trigger none
+
+#MechModes = stand, walk, run, jump, hover, fly
+#WalkModes = start_calc, left_calc, left_force, right_calc, right_force
+#RunModes = idle, calc, force
+
+
+runOnTick(1)
+
+Ops = ops()
+
+if (first()|dupefinished()) {
+
+MechMode  = "stand"
+WalkMode  = "start_calc"
+StandMode = "start_calc"
+LRunMode  = "idle"
+RRunMode  = "idle"
+
+FMod = 100
+
+Height  = 100
+Strafe  = 100
+StrideL = 350
+StrideH = 30
+Acc     = 0.01
+Dec     = 0.01
+Width = 36
+
+rangerPersist(1)
+findInSphere(Body:pos(),200)
+rangerFilter(findToArray())
+rangerFilter(Left)
+rangerFilter(Right)
+rangerFilter(Body)
+rangerFilter(Torso)
+
+Left:setMass(10000)
+Right:setMass(10000)
+Body:setMass(10000)
+Torso:setMass(10000)
+
+}
+
+W = Pod["W",number]
+A = Pod["A",number]
+S = Pod["S",number]
+D = Pod["D",number]
+Sh = Pod["Shift",number]
+Sp = Pod["Space",number]
+R = Pod["R",number]
+
+EyeV = Pod["XY",vector2]
+
+
+# Left                      #Right                       #Body                       #Torso
+LVel = Left:vel(),          RVel = Right:vel(),          BVel = Body:vel(),          TVel = Torso:vel()
+LMas = Left:mass(),         RMas = Right:mass(),         BMas = Body:mass(),         TMas = Torso:mass()
+LMsc = Left:massCenter(),   RMsc = Right:massCenter(),   BMsc = Body:massCenter(),   TMsc = Torso:massCenter()
+LPos = Left:pos(),          RPos = Right:pos(),          BPos = Body:pos(),          TPos = Torso:pos()
+LQat = quat(Left),          RQat = quat(Right),          BQat = quat(Body),          TQat = quat(Torso)
+LIne = Left:inertia(),      RIne = Right:inertia(),      BIne = Body:inertia(),      TIne = Torso:inertia()
+LAve = Left:angVelVector(), RAve = Right:angVelVector(), BAve = Body:angVelVector(), TAve = Torso:angVelVector()
+LRgt = Left:right(),        RRgt = Right:right(),        BRgt = Body:right(),        TRgt = Torso:right()
+LFwd = Left:forward(),      RFwd = Right:forward(),      BFwd = Body:forward(),      TFwd = Torso:forward()
+LUpd = Left:up(),           RUpd = Right:up(),           BUpd = Body:up(),           TUpd = Torso:up()
+
+
+if (Sp) {
+    MechMode = "run"
+    StandMode = "start_calc"
+    WalkMode = "start_calc"
+}elseif (W|S|A|D) {
+    MechMode = "walk"
+    StandMode = "start_calc"
+    WalkMode = WalkMode
+    LRunMode = "idle"
+    RRunMode = "idle"
+}else{
+    MechMode = "stand"
+    StandMode = StandMode
+    WalkMode = "start_calc"
+    LRunMode = "idle"
+    RRunMode = "idle"
+}
+
+
+Dir+=(Sh-R)*(Sp ? 0.3 : 0.8)
+
+if (MechMode == "walk"|MechMode == "stand"|MechMode == "run") {
+    BForce = (LMsc+RMsc)/2 + vec(0,0,Height) - BMsc
+    BDesQuat = qRotation(vec(0,0,1),Dir)
+    BTorque = Body:toLocal(rotationVector(BDesQuat/BQat) + BPos)
+    
+    Body:applyForce(BForce*BMas*FMod - BVel*BMas)
+    Body:applyTorque(BTorque*BIne*1000 - BAve*BIne*20)
+    
+    LTorque = Left:toLocal(rotationVector(qRotation(vec(0,0,1),Dir)/LQat) + LPos)
+    RTorque = Right:toLocal(rotationVector(qRotation(vec(0,0,1),Dir)/RQat) + RPos)
+        
+    Left:applyTorque(LTorque*LIne*1000 - LAve*LIne*20)
+    Right:applyTorque(RTorque*RIne*1000 - RAve*RIne*20)
+}
+
+if (MechMode == "walk") {
+    if (WalkMode == "start_calc") {
+        WalkMode = (randint(2) == 2 ? "right_calc" : "left_calc")
+    }
+    
+    if (WalkMode == "left_calc") {
+        Start = LMsc
+        End = BMsc + vec(0,0,-Height) + BFwd * (StrideL/2)*(W-S) + BRgt*( (Strafe/2)*(D-A) - Width )
+        Mid = (Start+End)/2 + vec(0,0,StrideH*2)
+        
+        T = 0
+        WalkMode = "left_force"
+    }
+    
+    if (WalkMode == "right_calc") {
+        Start = RMsc
+        End = BMsc + vec(0,0,-Height) + BFwd * (StrideL/2)*(W-S) + BRgt*( (Strafe/2)*(D-A) + Width )
+        Mid = (Start+End)/2 + vec(0,0,StrideH*2)
+        
+        T = 0
+        WalkMode = "right_force"
+    }
+
+    if (WalkMode == "left_force") {
+        LDesPos = mix(mix(End,Mid,T),mix(Mid,Start,T),T)
+        
+        RD = rangerOffsetHull(99999,LDesPos+vec(0,0,StrideH),vec(0,0,-1),vec(24,24,2))
+        LForce = LDesPos:setZ( RD:position():z() + (LDesPos:z()-End:z()) ) - LMsc
+        
+        Snap = (RD:distance() < StrideH*3.5 ? 0.5 : 0)
+        Left:applyForce((LForce:setZ(LForce:z() <0 ? LForce:z()*Snap : LForce:z()))*LMas*FMod - LVel:setZ(LVel:z() <0 ? LVel:z()*Snap : LVel:z())*LMas)
+        Right:applyForce( -RVel:setZ(RVel:z() <0 ? 0 : RVel:z())*RMas)
+        
+        if ((T >= 0.5 & rangerOffsetHull(LMsc,LMsc,vec(24,24,6)):hit()) ) {WalkMode = "right_calc"}
+        if (T > 1) {WalkMode = "right_calc"}
+        
+        T+= 0.04
+    }
+    
+    if (WalkMode == "right_force") {
+        RDesPos = mix(mix(End,Mid,T),mix(Mid,Start,T),T)
+        
+        RD = rangerOffsetHull(99999,RDesPos+vec(0,0,StrideH),vec(0,0,-1),vec(24,24,2))
+        RForce = RDesPos:setZ(RD:position():z()+ (RDesPos:z()-End:z())) - RMsc
+        
+        Snap = (RD:distance() < StrideH*3.5 ? 0.5 : 0)
+        Right:applyForce((RForce:setZ(RForce:z() <0 ? RForce:z()*Snap : RForce:z()))*RMas*FMod - RVel:setZ(RVel:z() <0 ? RVel:z()*Snap : RVel:z())*RMas)
+        Left:applyForce(  -LVel:setZ( LVel:z() <0 ? 0 : LVel:z() )*LMas)
+        
+        if ((T >= 0.5 & rangerOffsetHull(RMsc,RMsc,vec(24,24,6)):hit()) ) {WalkMode = "left_calc"}
+        if (T > 1) {WalkMode = "left_calc"}
+        
+        T+= 0.04
+    }
+}
+
+if (MechMode == "stand") {
+    if (StandMode == "start_calc") {
+        if (RMsc:distance(BMsc - vec(0,0,Height) + BRgt*Width) > 30 & Flip) {
+            Flip = 0
+            Start = RMsc
+            End = BMsc - vec(0,0,Height) + BRgt*Width
+            Mid = (Start+End)/2 + vec(0,0,StrideH*2)
+            
+            StandMode = "right_force"
+            T = 0
+        }elseif (LMsc:distance(BMsc - vec(0,0,Height) - BRgt*Width) > 30) {
+            Flip = 1
+            Start = LMsc
+            End = BMsc - vec(0,0,Height) - BRgt*Width
+            Mid = (Start+End)/2 + vec(0,0,StrideH*2)
+            
+            StandMode = "left_force"
+            T = 0
+        }else{
+            Left:applyForce(  -LVel:setZ(LVel:z() < 0 ? 0 : LVel:z()) * LMas)
+            Right:applyForce( -RVel:setZ(RVel:z() < 0 ? 0 : RVel:z()) * RMas)
+        }
+    }
+        
+    if (StandMode == "left_force") {
+        LDesPos = mix(mix(End,Mid,T),mix(Mid,Start,T),T)
+        
+        RD = rangerOffsetHull(99999,LDesPos+vec(0,0,StrideH),vec(0,0,-1),vec(24,24,2))
+        LForce = LDesPos:setZ( RD:position():z() + (LDesPos:z()-End:z()) ) - LMsc
+        
+        Snap = (RD:distance() < StrideH*3.5 ? 0.5 : 0)
+        Left:applyForce((LForce:setZ(LForce:z() <0 ? LForce:z()*Snap : LForce:z()))*LMas*FMod - LVel:setZ(LVel:z() <0 ? LVel:z()*Snap : LVel:z())*LMas)
+        Right:applyForce( -RVel:setZ(RVel:z() <0 ? 0 : RVel:z())*RMas)
+        
+        if ((T >= 0.5 & rangerOffsetHull(LMsc,LMsc,vec(24,24,6)):hit()) ) {StandMode = "start_calc"}
+        if (T > 1) {StandMode = "start_calc"}
+        
+        T+= 0.04
+    }
+    
+    if (StandMode == "right_force") {
+        RDesPos = mix(mix(End,Mid,T),mix(Mid,Start,T),T)
+        
+        RD = rangerOffsetHull(99999,RDesPos+vec(0,0,StrideH),vec(0,0,-1),vec(24,24,2))
+        RForce = RDesPos:setZ(RD:position():z()+ (RDesPos:z()-End:z())) - RMsc
+        
+        Snap = (RD:distance() < StrideH*3.5 ? 0.5 : 0)
+        Right:applyForce((RForce:setZ(RForce:z() <0 ? RForce:z()*Snap : RForce:z()))*RMas*FMod - RVel:setZ(RVel:z() <0 ? RVel:z()*Snap : RVel:z())*RMas)
+        Left:applyForce(  -LVel:setZ( LVel:z() <0 ? 0 : LVel:z() )*LMas)
+        
+        if ((T >= 0.5 & rangerOffsetHull(RMsc,RMsc,vec(24,24,6)):hit()) ) {StandMode = "start_calc"}
+        if (T > 1) {StandMode = "start_calc"}
+        
+        T+= 0.04
+    }
+}
+
+if (MechMode == "run") {
+    if (LRunMode == "idle" & RRunMode == "idle") {
+        if (1) {RRunMode = "calc"}else{LRunMode == "calc"}
+    }
+    if (LRunMode == "calc") {
+        LStart = LMsc
+        LEnd = BMsc + vec(0,0,-Height) + BFwd * (StrideL/1.1)*(W-S) + BRgt*( (Strafe/1.1)*(D-A) - Width )
+        LMid = (LStart+LEnd)/2 + vec(0,0,StrideH*2)
+        
+        LT = 0
+        LRunMode = "force"
+    }
+    
+    if (RRunMode == "calc") {
+        RStart = RMsc
+        REnd = BMsc + vec(0,0,-Height) + BFwd * (StrideL/1.1)*(W-S) + BRgt*( (Strafe/1.1)*(D-A) + Width )
+        RMid = (RStart+REnd)/2 + vec(0,0,StrideH*2)
+        
+        RT = 0
+        RRunMode = "force"
+    }
+    
+    if (LRunMode == "idle") {
+        Left:applyForce(  -LVel:setZ( LVel:z() <0 ? 0 : LVel:z() )*LMas)
+    }
+    if (RRunMode == "idle") {
+        Right:applyForce( -RVel:setZ(RVel:z() <0 ? 0 : RVel:z())*RMas)
+    }
+    
+    if (LRunMode == "force") {
+    
+        LDesPos = mix(mix(LEnd,LMid,LT),mix(LMid,LStart,LT),LT)
+        
+        RD = rangerOffsetHull(99999,LDesPos+vec(0,0,StrideH),vec(0,0,-1),vec(24,24,2))
+        LForce = LDesPos:setZ( RD:position():z() + (LDesPos:z()-LEnd:z()) ) - LMsc
+        
+        Snap = (RD:distance() < StrideH*3.5 ? 0.5 : 0)
+        Left:applyForce((LForce:setZ(LForce:z() <0 ? LForce:z()*Snap : LForce:z()))*LMas*FMod - LVel:setZ(LVel:z() <0 ? LVel:z()*Snap : LVel:z())*LMas)
+        
+        if ((LT > 0.5 & rangerOffsetHull(LMsc,LMsc,vec(24,24,6)):hit()) ) {LRunMode = "idle"}
+        if (LT > 1) {LRunMode = "idle"}
+        if (LT > 0.75 & RRunMode == "idle") {RRunMode = "calc"}
+        
+        LT+= 0.05
+    }
+    
+    if (RRunMode == "force") {
+        RDesPos = mix(mix(REnd,RMid,RT),mix(RMid,RStart,RT),RT)
+        
+        RD = rangerOffsetHull(99999,RDesPos+vec(0,0,StrideH),vec(0,0,-1),vec(24,24,2))
+        RForce = RDesPos:setZ(RD:position():z()+ (RDesPos:z()-REnd:z())) - RMsc
+        
+        Snap = (RD:distance() < StrideH*3.5 ? 0.5 : 0)
+        Right:applyForce((RForce:setZ(RForce:z() <0 ? RForce:z()*Snap : RForce:z()))*RMas*FMod - RVel:setZ(RVel:z() <0 ? RVel:z()*Snap : RVel:z())*RMas)
+        
+        if ((RT > 0.5 & rangerOffsetHull(RMsc,RMsc,vec(24,24,6)):hit()) ) {RRunMode = "idle"}
+        if (RT > 1) {RRunMode = "idle"}
+        if (RT > 0.75 & LRunMode == "idle") {LRunMode = "calc"}
+        
+        RT+= 0.05
+    }
+    
+}

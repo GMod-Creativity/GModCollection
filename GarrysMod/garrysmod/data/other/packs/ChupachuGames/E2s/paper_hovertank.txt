@@ -1,0 +1,228 @@
+@name Paper Hovertank
+@inputs TurretLink:wirelink TankLink:wirelink PodController:wirelink W A S D Space Pad1:wirelink Pad2:wirelink Pad3:wirelink Alt
+@inputs Target:entity
+@outputs Cam_En Cam_Dir:vector Cam_Pos:vector Cam_Parent:entity
+@persist Prop:entity Tank:entity Seat:entity Init Driver:entity Count Tilt LEye:vector
+@persist Size1 Size2 Size3
+@trigger 
+if( first() | duped() )
+{
+    timer("init",3000)
+    exit()
+}elseif( clk("init") )
+{
+    holoCreate(1,vec(0,0,0),vec(5,0.1,0.1))
+    holoMaterial(1,"models/wireframe")
+    holoModel(1,"sphere")
+    #holoColor(1,vec(255,0,0))
+    
+    Prop = TurretLink:entity()
+    Tank = TankLink:entity()
+    Seat = PodController["Entity",entity]
+    
+    Tank:setMass(50000)
+    Prop:setMass(50000)
+
+    Size1 = 100
+    Size2 = 100
+    Size3 = 100
+    
+    rangerPersist(1)
+    rangerHitEntities(1)
+    rangerHitWater(1)
+
+    Driver = noentity()
+    Init = 1
+    soundPurge()
+    Tank:soundPlay(1,0,"vehicles/APC/apc_firstgear_loop1.wav")
+    soundPitch(1,30)
+    Tank:soundPlay(2,0,"weapons/flaregun/burn.wav")
+    soundPitch(2,0)
+    Prop:soundPlay(3,0,"vehicles/tank_turret_loop1.wav")
+    soundPitch(3,0)
+    
+    # Set the filter entities
+    
+    # Ranger 1
+    Ranger = rangerOffset(Size1,Pad1:entity():massCenter(),-Pad1:entity():up())
+    while( Ranger:hit() & Ranger:entity() )
+    {
+        rangerFilter( Ranger:entity() )
+        Ranger = rangerOffset(Size1,Pad1:entity():massCenter(),-Pad1:entity():up())
+    }
+    
+    # Ranger 2
+    Ranger = rangerOffset(Size2,Pad2:entity():massCenter(),-Pad2:entity():up())
+    while( Ranger:hit() & Ranger:entity() )
+    {
+        rangerFilter( Ranger:entity() )
+        Ranger = rangerOffset(Size2,Pad2:entity():massCenter(),-Pad2:entity():up())
+    }
+    
+    # Ranger 3
+    Ranger = rangerOffset(Size3,Pad3:entity():massCenter(),-Pad3:entity():up())
+    while( Ranger:hit() & Ranger:entity() )
+    {
+        rangerFilter( Ranger:entity() )
+        Ranger = rangerOffset(Size3,Pad3:entity():massCenter(),-Pad3:entity():up())
+    }
+    Init = 1
+}
+
+interval(50)
+Count++
+
+if( PodController["Active",number] == 1 )
+{   
+    # Engine sound 
+    Pitch = Tank:vel():dot(-Tank:up())/50+30
+    soundPitch(1,Pitch)
+    
+    if( !Driver )
+    {
+        Driver = Seat:driver()
+        Tank:setMass(50000)
+        Tank:soundPlay(1,0,"vehicles/APC/apc_firstgear_loop1.wav")
+        Tank:soundPlay(2,0,"weapons/flaregun/burn.wav")
+        Prop:soundPlay(3,0,"vehicles/tank_turret_loop1.wav")
+    }
+    
+    
+    if( ~Alt & Alt )
+    {
+        Tilt = mod(Tilt+1,3)
+        if( Tilt == 0 )
+        {
+            Size1 = 100
+            Size2 = 100
+            Size3 = 100
+        }elseif( Tilt == 1 )
+        {
+            Size1 = 50
+            Size2 = 100
+            Size3 = 100
+        }elseif( Tilt == 2 )
+        {
+            Size1 = 200
+            Size2 = 250
+            Size3 = 250
+        }
+    }
+    
+    #################################
+    ##### CONTROL THE TANK ##########
+    #################################
+    Tank:applyForce(-Tank:up()*10000000*(W-S) - 4000*Tank:vel())
+    Tank:applyAngForce(ang(0,0,1000000000*(D-A)) - 1000000*Tank:angVel())
+    
+    # Add more positional friction in directions
+    # against movement
+    VelMinusDir = Tank:vel() + Tank:vel():dot(-Tank:up()) * Tank:up()
+    Tank:applyForce(-VelMinusDir*20000)
+    
+    #### Control the hovering
+    if( Space )
+    {
+        MiddleHeight = (Pad1:entity():pos():z()+Pad2:entity():pos():z()+Pad3:entity():pos():z())/3
+        VelMinusDir1 = Pad1:entity():vel() + Pad1:entity():vel():dot(-Pad1:entity():right()) * Pad1:entity():right()
+        VelMinusDir2 = Pad1:entity():vel() + Pad1:entity():vel():dot(-Pad1:entity():right()) * Pad1:entity():right()
+        VelMinusDir3 = Pad1:entity():vel() + Pad1:entity():vel():dot(-Pad1:entity():right()) * Pad1:entity():right()
+        Pad1:entity():applyForce( vec(0,0, (300-Pad1:entity():vel():z())*30000 + (MiddleHeight-Pad1:entity():pos():z())*80000 ) - VelMinusDir1*30000 )
+        Pad2:entity():applyForce( vec(0,0, (300-Pad2:entity():vel():z())*30000 + (MiddleHeight-Pad2:entity():pos():z())*80000 ) - VelMinusDir2*30000 )
+        Pad3:entity():applyForce( vec(0,0, (300-Pad3:entity():vel():z())*30000 + (MiddleHeight-Pad3:entity():pos():z())*80000 ) - VelMinusDir3*30000 )
+        soundPitch(2,20)
+    }else{
+        Ranger = rangerOffset(Size1,Pad1:entity():massCenter(),-Pad1:entity():up())
+        if( Ranger:hit() )
+        {
+            Pad1:entity():applyForce( vec(0,0, (Size1-Ranger:distance())*50000 - 30000*Pad1:entity():vel():z() ) )
+        }
+        Ranger = rangerOffset(Size2,Pad2:entity():massCenter(),-Pad2:entity():up())
+        if( Ranger:hit() )
+        {
+            Pad2:entity():applyForce( vec(0,0, (Size2-Ranger:distance())*100000 - 30000*Pad2:entity():vel():z() ) )
+        }
+        Ranger = rangerOffset(Size3,Pad3:entity():massCenter(),-Pad3:entity():up())
+        if( Ranger:hit() )
+        {
+            Pad3:entity():applyForce( vec(0,0, (Size3-Ranger:distance())*100000 - 30000*Pad3:entity():vel():z() ) )
+        }
+        soundPitch(2,0)
+    }
+        
+    
+    #################################
+    ##### CONTROL THE TURRET ########
+    #################################
+    ###CONTROL ANGLE
+    # Perform the accurate angle calculation
+    Eye = vec( Driver:eye():dot(Seat:forward()), Driver:eye():dot(Seat:right()), Driver:eye():dot(Seat:up()) )
+    Eye = Eye:setY(-Eye:y())
+    # Control the sound
+    DifEye = (Eye-LEye)
+    soundPitch(3,(abs(DifEye:x())+abs(DifEye:y())+abs(DifEye:z()))*300)
+    LEye = Eye
+    
+    LEye = Eye
+    
+    
+    DesiredDirection = Eye
+    DesiredDirectionRight = Eye:cross(vec(0,0,1))
+    LocalDifference1 = vec(Prop:forward():dot(DesiredDirection),Prop:right():dot(DesiredDirection),Prop:up():dot(DesiredDirection))
+    LocalDifference2 = vec(Prop:forward():dot(DesiredDirectionRight),Prop:right():dot(DesiredDirectionRight),Prop:up():dot(DesiredDirectionRight))
+    DifAngle = angnorm(ang( LocalDifference1:toAngle():pitch(), LocalDifference1:toAngle():yaw(), LocalDifference2:toAngle():pitch() ))
+     
+    # Apply force
+    Prop:applyAngForce(-ang(-1612370.2102081*DifAngle:pitch() + 98307.881967728*Prop:angVel():pitch(),1592057.9995303*DifAngle:yaw() + 97765.815350901*Prop:angVel():yaw(),-1544055.6598631*DifAngle:roll() + 97617.640020015*Prop:angVel():roll()))
+     
+    ###CONTROL POSITION
+    DesPos = entity():pos()-30*entity():forward()+70*entity():up() # Change this to the desired psotion of the prop
+    #DesPos = owner():aimPos()+vec(0,0,500) # Uncomment this line to position the prop where you are aiming.
+    DifPos = Prop:pos()-DesPos
+    Prop:applyForce( -1391043.79683143*DifPos-49582.996909782*Prop:vel() )
+    
+    # Control the position of the camera
+    Cam_En = 1
+    Cam_Dir = Eye
+    Cam_Pos = Prop:massCenter()
+    Cam_Parent = Prop
+    
+    # Hud rendering
+    if( Target )
+    {
+        # Render the target
+        DifPos = (Target:pos()-Cam_Pos)
+        holoPos(1,Cam_Pos+40*DifPos:normalized())
+        holoAng(1,DifPos:toAngle())
+        holoParent(1,Prop)
+    }else{
+        holoPos(1,vec(0,0,0))
+    }
+}else{
+    soundPurge()
+    Cam_En = 0
+    Driver = noentity()
+    #################################
+    ##### CONTROL THE TURRET ########
+    #################################
+    ###CONTROL ANGLE
+    # Perform the accurate angle calculation
+    Tank:setMass(10000)
+    DesiredDirection = 1*entity():up()
+    DesiredDirectionRight = DesiredDirection:cross(vec(0,0,1))
+    LocalDifference1 = vec(Prop:forward():dot(DesiredDirection),Prop:right():dot(DesiredDirection),Prop:up():dot(DesiredDirection))
+    LocalDifference2 = vec(Prop:forward():dot(DesiredDirectionRight),Prop:right():dot(DesiredDirectionRight),Prop:up():dot(DesiredDirectionRight))
+    DifAngle = angnorm(ang( LocalDifference1:toAngle():pitch(), LocalDifference1:toAngle():yaw(), LocalDifference2:toAngle():pitch() ))
+     
+    # Apply force
+  #  Prop:applyAngForce(-ang(-1612370.2102081*DifAngle:pitch() + 98307.881967728*Prop:angVel():pitch(),1592057.9995303*DifAngle:yaw() + 97765.815350901
+
+}
+
+
+
+
+
+
+
+

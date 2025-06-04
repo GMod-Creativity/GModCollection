@@ -1,0 +1,980 @@
+@name SecuritronBody
+@inputs Pistol:entity Laser:entity
+@outputs PistolFiring LaserFiring
+@persist BodyOffset:vector TireAng LaserAmmo LaserCooldown PistolAmmo PistolCooldown CurrentWeapon P Plys:array ValidTargets:array Dist MeasureDst Closest:entity
+@persist Target:entity LaserLerp PistolLerp CanShootPistol CanShootLaser WhitelsitedWeapons:array Item FirstTimeRun H:entity
+@trigger 
+
+#Aims in a cone, if is unable to shoot at player, turns body to meet the user.
+
+#"models/atp/fonv/securitron_clean.mdl"
+
+#ALLOWED WEAPONS
+if(first()|dupefinished()){
+
+    WhitelsitedWeapons = array("gmod_tool","","gmod_hands","weapon_physgun","gmod_camera","hands","keys","empty","","pocket")
+    
+    timer("checkForTarg",5000)
+}
+interval(50)
+function vector getOffset(Vec:vector){
+    
+    Newvec=vec(BodyOffset:x()+Vec:x(),BodyOffset:y()+Vec:y(),BodyOffset:z()+Vec:z())
+    
+    return entity():toWorld(Newvec)
+}
+
+function createHeart(){
+    
+    H=propSpawn("models/props_phx/oildrum001_explosive.mdl",entity():toWorld(vec(0,0,50)),holoEntity(11):toWorld(ang(0)),1)
+    H:parentTo(entity())
+    H:setAlpha(0)
+}
+
+function adjustLaserSleeve(){
+    GunDist=50
+    Mid = holoEntity(33):toWorld(vec((holoEntity(35):pos()-Laser:toWorld(vec(-GunDist,0,0))):length()*-0.5,0,0))
+    #Center = Mid
+    Center =vec(Mid:x(),Mid:y(),Laser:toWorld(vec(-GunDist,0,0)):z())
+    Scale = 12
+    Width=0.5
+
+    holoScale(35,vec(Width,Width,holoEntity(35):pos():distance(holoEntity(36):pos())/Scale))
+    holoPos(35,bezier(holoEntity(33):pos(),Center,Laser:pos(),0.15))
+    holoAng(35,(holoEntity(35):pos()-holoEntity(36):pos()):toAngle()+ang(90,0,0))
+    holoMaterial(35,"phoenix_storms/pack2/interior_sides")
+    holoColor(35,vec(80,40,80))
+    
+    holoScale(36,vec(Width,Width,holoEntity(36):pos():distance(holoEntity(37):pos())/Scale))
+    holoPos(36,bezier(holoEntity(33):pos(),Center,Laser:pos(),0.30))
+    holoAng(36,(holoEntity(36):pos()-holoEntity(37):pos()):toAngle()+ang(90,0,0))
+    holoMaterial(36,"phoenix_storms/pack2/interior_sides")
+    holoColor(36,vec(80,40,80))
+
+    holoScale(37,vec(Width,Width,holoEntity(37):pos():distance(holoEntity(38):pos())/Scale))
+    holoPos(37,bezier(holoEntity(33):pos(),Center,Laser:pos(),0.45))
+    holoAng(37,(holoEntity(37):pos()-holoEntity(38):pos()):toAngle()+ang(90,0,0))
+    holoMaterial(37,"phoenix_storms/pack2/interior_sides")
+    holoColor(37,vec(80,40,80))
+
+    holoScale(38,vec(Width,Width,holoEntity(38):pos():distance(holoEntity(39):pos())/Scale))
+    holoPos(38,bezier(holoEntity(33):pos(),Center,Laser:pos(),0.6))
+    holoAng(38,(holoEntity(38):pos()-holoEntity(39):pos()):toAngle()+ang(90,0,0))
+    holoMaterial(38,"phoenix_storms/pack2/interior_sides")
+    holoColor(38,vec(80,40,80))
+    
+    holoScale(39,vec(Width,Width,holoEntity(39):pos():distance(holoEntity(40):pos())/Scale))
+    holoPos(39,bezier(holoEntity(33):pos(),Center,Laser:pos(),0.75))
+    holoAng(39,(holoEntity(39):pos()-holoEntity(40):pos()):toAngle()+ang(90,0,0))
+    holoMaterial(39,"phoenix_storms/pack2/interior_sides")
+    holoColor(39,vec(80,40,80))
+    
+    holoScale(40,vec(Width,Width,holoEntity(40):pos():distance(Laser:pos())/Scale))
+    holoPos(40,bezier(holoEntity(33):pos(),Center,Laser:pos(),0.9))
+    holoAng(40,(holoEntity(40):pos()-Laser:pos()):toAngle()+ang(90,0,0))
+    holoMaterial(40,"phoenix_storms/pack2/interior_sides")
+    holoColor(40,vec(80,40,80))
+    
+}
+function adjustPistolSleeve(){
+    GunDist=50
+    Mid2 = holoEntity(34):toWorld(vec((holoEntity(41):pos()-Pistol:toWorld(vec(-GunDist,0,0))):length()*-0.5,0,0))
+    Center2 = vec(Mid2:x(),Mid2:y(),Pistol:toWorld(vec(-GunDist,0,0)):z())
+    Scale2 = 12
+    Width=0.5
+    
+    holoScale(41,vec(Width,Width,holoEntity(41):pos():distance(holoEntity(42):pos())/Scale2))
+    holoPos(41,bezier(holoEntity(34):pos(),Center2,Pistol:pos(),0.15))
+    holoAng(41,(holoEntity(41):pos()-holoEntity(42):pos()):toAngle()+ang(90,0,0))
+    holoMaterial(41,"phoenix_storms/pack2/interior_sides")
+    holoColor(41,vec(80,40,80))
+    
+    holoScale(42,vec(Width,Width,holoEntity(42):pos():distance(holoEntity(43):pos())/Scale2))
+    holoPos(42,bezier(holoEntity(34):pos(),Center2,Pistol:pos(),0.30))
+    holoAng(42,(holoEntity(42):pos()-holoEntity(43):pos()):toAngle()+ang(90,0,0))
+    holoMaterial(42,"phoenix_storms/pack2/interior_sides")
+    holoColor(42,vec(80,40,80))
+    
+    holoScale(43,vec(Width,Width,holoEntity(43):pos():distance(holoEntity(44):pos())/Scale2))
+    holoPos(43,bezier(holoEntity(34):pos(),Center2,Pistol:pos(),0.45))
+    holoAng(43,(holoEntity(43):pos()-holoEntity(44):pos()):toAngle()+ang(90,0,0))
+    holoMaterial(43,"phoenix_storms/pack2/interior_sides")
+    holoColor(43,vec(80,40,80))
+    
+    holoScale(44,vec(Width,Width,holoEntity(44):pos():distance(holoEntity(45):pos())/Scale2))
+    holoPos(44,bezier(holoEntity(34):pos(),Center2,Pistol:pos(),0.6))
+    holoAng(44,(holoEntity(44):pos()-holoEntity(45):pos()):toAngle()+ang(90,0,0))
+    holoMaterial(44,"phoenix_storms/pack2/interior_sides")
+    holoColor(44,vec(80,40,80))
+    
+    holoScale(45,vec(Width,Width,holoEntity(45):pos():distance(holoEntity(46):pos())/Scale2))
+    holoPos(45,bezier(holoEntity(34):pos(),Center2,Pistol:pos(),0.75))
+    holoAng(45,(holoEntity(45):pos()-holoEntity(46):pos()):toAngle()+ang(90,0,0))
+    holoMaterial(45,"phoenix_storms/pack2/interior_sides")
+    holoColor(45,vec(80,40,80))
+    
+    holoScale(46,vec(Width,Width,holoEntity(46):pos():distance(Pistol:pos())/Scale2))
+    holoPos(46,bezier(holoEntity(34):pos(),Center2,Pistol:pos(),0.9))
+    holoAng(46,(holoEntity(46):pos()-Pistol:pos()):toAngle()+ang(90,0,0))
+    holoMaterial(46,"phoenix_storms/pack2/interior_sides")
+    holoColor(46,vec(80,40,80))
+    
+}
+
+function rolltire(Vel){
+    TireAng+=Vel
+    holoAng(1,entity():toWorld(ang(0,0,0)+ang(TireAng,0,0)))
+   
+}
+function entity findClosestTarget(Arr:array){
+    Dist=999999
+    for(P=0,Arr:count()){
+        MeasureDst=Arr[P,entity]:pos():distance(entity():pos())
+        if(MeasureDst<Dist){
+            Closest=Arr[P,entity]
+            Dist=MeasureDst
+        }
+    }
+    Target = Closest
+    return Target
+    #print(""+Arr:count()+" : "+Closest:name()+" : "+Dist)
+    
+}
+function number checkLOS(T:entity){
+    
+    if(T:pos():z()-entity():pos():z()>100){
+        return 0
+    }
+    
+    AngToUse = (T:shootPos()-holoEntity(1000):pos()):toAngle()
+    holoAng(1000,(ang(AngToUse:pitch(),AngToUse:yaw(),AngToUse:roll())))
+    rangerFilter(H)
+    R2=rangerOffset(holoEntity(1000):pos(),holoEntity(1000):toWorld(vec(10000,0,0)))
+    holoPos(200,(R2:position()))
+    if((T:shootPos()-holoEntity(200):pos()):length()<30){
+        return 1
+    }
+    return 0
+    
+}
+function findTargets(){
+    findByClass("player")
+    adjustLaserSleeve()
+    adjustPistolSleeve()
+    #findIncludePlayer(owner())
+    Plys = findToArray() 
+    ValidTargets = array()
+    for(P=0,Plys:count()){
+        PlyWeaponFlag=1
+        Targ = Plys[P,entity]
+        for(Item=0,WhitelsitedWeapons:count()){
+            if(Plys[P,entity]:weapon():type()==WhitelsitedWeapons[Item,string]){
+                PlyWeaponFlag=0
+            }
+            
+        }
+        if(!Plys[P,entity]:isAlive()|!PlyWeaponFlag){
+            continue
+        }
+        
+        if(checkLOS(Targ)==1){
+            ValidTargets:pushEntity(Plys[P,entity])
+            #print(Plys)
+        }
+        else{
+            continue
+        }
+    }
+    findClosestTarget(ValidTargets)
+    
+}
+
+
+function entity findTarget(){
+    findTargets()
+    
+}
+
+function firepistol(){
+    #3
+    if(PistolFiring){
+        PistolFiring=0
+    }
+    if(Pistol:model()==""){
+        CurrentWeapon=1
+        return
+    }
+    if(CurrentWeapon==1){
+        return
+    }
+    if(PistolAmmo<=0){
+        if(CurrentWeapon==0){
+            CurrentWeapon=1
+            LaserCooldown=20
+            LaserAmmo = 30
+        }
+    }
+    else{
+        if(PistolCooldown>0){
+            PistolCooldown-=1
+        }
+        else{
+            PistolAmmo-=1
+            PistolCooldown=2
+            #Fire the pistol
+            PistolFiring=1
+            #print("pistol firing ("+PistolAmmo+" bullets remain)")
+        }
+    }
+}
+
+function drawlaser(){
+    
+    rangerFilter(Laser)
+    R=rangerOffset(Laser:pos(),Laser:toWorld(vec(1000,0,0)))
+    holoCreate(100)
+    holoPos(100,R:position())
+    holoAlpha(100,0)
+    holoCreate(101)
+    holoPos(101,Laser:toWorld(vec(0)))
+    holoAlpha(101,0)
+    Diff = holoEntity(101):pos()-holoEntity(100):pos()
+    Dist=(holoEntity(101):pos()-holoEntity(100):pos()):length()
+    
+    holoCreate(102)
+    holoModel(102,"hqcylinder")
+    holoPos(102,holoEntity(101):pos()-(Diff/2))
+    holoAng(102,Laser:toWorld(ang(90,0,0)))
+    holoScale(102,vec(0.2,0.2,Dist/12))
+    holoColor(102,vec(255,0,0))
+    holoMaterial(102,"models/debug/debugwhite")
+    holoShadow(102,0)
+    holoAlpha(102,250)
+    
+}
+
+function firelaser(){
+    #cooldown 5
+    if(LaserFiring){
+        LaserFiring=0
+    }
+    if(Laser:model()==""){
+        CurrentWeapon=0
+        return
+    }
+    if(CurrentWeapon==0){
+        return
+    }
+    if(LaserAmmo<=0){
+        if(CurrentWeapon==1){
+            CurrentWeapon=0
+            PistolAmmo = 15
+            PistolCooldown=20
+            holoAlpha(102,0)
+        }
+    }
+    else{
+        if(LaserCooldown>0){
+            LaserCooldown-=1
+        }
+        else{
+            LaserAmmo-=1
+            LaserCooldown=1
+            #Fire the laser
+            LaserFiring=1
+            #print("laser firing ("+LaserAmmo+" bullets remain)")
+            drawlaser()
+            
+        }
+    }
+}
+if(first()|dupefinished()){
+    createHeart()
+    #Creates offset
+    LaserLerp=0
+    FirstTimeRun=1
+    PistolLerp=0
+    LaserAmmo = 30
+    PistolAmmo = 15
+    CurrentWeapon = 1
+    BodyOffset=(vec(0,0,15))
+    
+    holoCreate(1000)
+    holoPos(1000,entity():toWorld(vec(0,0,64)))
+    holoParent(1000,entity())
+    
+    holoCreate(200)
+    holoAlpha(200,0)
+    
+    holoCreate(1)#Tire
+    holoModel(1,"models/xeon133/racewheel/race-wheel-35.mdl")
+    holoPos(1,(getOffset(vec(0))))
+    holoScale(1,vec(0.9,0.9,0.9))
+    
+    #LEG BONES (MAIN PARENT)
+    holoCreate(2)
+    holoPos(2,getOffset(vec(0,0,18)))
+    holoScale(2,vec(0.8,1.6,0.1))
+    holoMaterial(2,"phoenix_storms/metalset_1-2")
+    
+    #Roller Protector
+    holoCreate(3)
+    holoPos(3,getOffset(vec(0,9,9)))
+    holoScale(3,vec(0.8,0.1,1.6))
+    holoMaterial(3,"phoenix_storms/metalset_1-2")
+    
+    #Roller Protector (R)
+    holoCreate(4)
+    holoPos(4,getOffset(vec(0,-9,9)))
+    holoScale(4,vec(0.8,0.1,1.6))
+    holoMaterial(4,"phoenix_storms/metalset_1-2")
+    
+    #Wheel Bar
+    holoCreate(5)
+    holoModel(5,"hqcylinder")
+    holoAng(5,ang(0,0,90))
+    holoPos(5,getOffset(vec(0,0,0)))
+    holoScale(5,vec(0.3,0.3,1.6))
+    holoMaterial(5,"phoenix_storms/metalset_1-2")
+    
+    #Roller Rotator
+    holoCreate(6)
+    holoModel(6,"hqcylinder")
+    holoPos(6,getOffset(vec(0,0,25)))
+    holoScale(6,vec(0.8,0.8,1))
+    holoMaterial(6,"phoenix_storms/metalset_1-2")
+
+    holoParent(1,2)
+    holoParent(3,2)
+    holoParent(4,2)
+    holoParent(5,2)
+    holoParent(6,2)
+    holoParent(2,entity()) #To be replaced (maybe)
+    
+    #SPINE
+    holoCreate(7)
+    holoModel(7,"hqcylinder")
+    holoPos(7,getOffset(vec(0,0,35)))
+    holoScale(7,vec(2,2,1))
+    holoColor(7,vec(50,75,105))
+    #Larger Spine Component
+    holoCreate(8)
+    holoModel(8,"hqcylinder")
+    holoPos(8,getOffset(vec(0,0,43)))
+    holoScale(8,vec(2.45,2.45,1))
+    holoMaterial(8,"phoenix_storms/pack2/interior_sides")
+    holoColor(8,vec(80,40,80))
+    #Spine Side Piece
+    holoCreate(9)
+    holoPos(9,getOffset(vec(0,14,32)))
+    holoScale(9,vec(1,0.2,0.5))
+    holoColor(9,vec(50,75,105))
+    #Spine Side Piece (R)
+    holoCreate(10)
+    holoPos(10,getOffset(vec(0,-14,32)))
+    holoScale(10,vec(1,0.2,0.5))
+    holoColor(10,vec(50,75,105))
+    
+    
+    holoParent(8,7)
+    holoParent(9,7)
+    holoParent(10,7)
+    #BODY
+    
+    #Head Main
+    holoCreate(11)
+    holoPos(11,getOffset(vec(0,0,60)))
+    holoScale(11,vec(2.5,2.5,2.2))
+    holoColor(11,vec(50,75,105))
+    
+    #Head Backpiece
+    holoCreate(12)
+    holoPos(12,getOffset(vec(-20,0,65)))
+    holoScale(12,vec(1,2.5,1.4))
+    holoColor(12,vec(50,75,105))
+    
+    #Head Details (45* Slope)
+    holoCreate(13)
+    holoPos(13,getOffset(vec(-16,0,55)))
+    holoAng(13,entity():toWorld(ang(-45,0,0)))
+    holoScale(13,vec(1,2.5,1.4))
+    holoColor(13,vec(50,75,105))
+    
+    #Head Details (Steep Slope)
+    holoCreate(14)
+    holoPos(14,getOffset(vec(-17,0,45)))
+    holoAng(14,entity():toWorld(ang(80,0,0)))
+    holoScale(14,vec(1.5,2.5,0.4))
+    holoColor(14,vec(50,75,105))
+    
+    #Head Details (Slope to Flat)
+    holoCreate(15)
+    holoPos(15,getOffset(vec(-13.6,0,42.5)))
+    holoScale(15,vec(0.2,2.5,1))
+    holoColor(15,vec(50,75,105))
+    
+    #Head Details (Horizontal HeadRail
+    holoCreate(20)
+    holoPos(20,getOffset(vec(-6,0,45)))
+    holoScale(20,vec(1.1,2.5,0.4))
+    holoColor(20,vec(50,75,105))
+    
+    #Head Details (45* Headrail to Main Connector)
+    holoCreate(21)
+    holoPos(21,getOffset(vec(1.5,0,46.7)))
+    holoAng(21,entity():toWorld(ang(-45,0,0)))
+    holoScale(21,vec(0.6,2.5,0.4))
+    holoColor(21,vec(50,75,105))
+    
+    #Shoulder Square
+    holoCreate(16)
+    holoPos(16,getOffset(vec(0,24.6,67)))
+    holoScale(16,vec(2,1.6,1.7))
+    holoColor(16,vec(50,75,105))
+    
+    #Shoulder Slope
+    holoCreate(17)
+    holoPos(17,getOffset(vec(0,35,67)))
+    holoAng(17,entity():toWorld(ang(0,0,10)))
+    holoScale(17,vec(2,0.4,1.7))
+    holoColor(17,vec(50,75,105))
+    
+    #Shoulder Square (R)
+    holoCreate(18)
+    holoPos(18,getOffset(vec(0,-24.6,67)))
+    holoScale(18,vec(2,1.6,1.7))
+    holoColor(18,vec(50,75,105))
+    
+    #Shoulder Slope (R)
+    holoCreate(19)
+    holoPos(19,getOffset(vec(0,-35,67)))
+    holoAng(19,entity():toWorld(ang(0,0,-10)))
+    holoScale(19,vec(2,0.4,1.7))
+    holoColor(19,vec(50,75,105))
+    
+    #Head Face
+    holoCreate(22)
+    holoPos(22,getOffset(vec(12,0,60)))
+    holoAng(22,entity():toWorld(ang(20,0,0)))
+    holoScale(22,vec(0.8,2,1.5))
+    holoColor(22,vec(50,75,105))
+    
+    
+    holoParent(7,11)
+    holoParent(12,11)
+    holoParent(13,11)
+    holoParent(14,11)
+    holoParent(15,11)
+    holoParent(16,11)
+    holoParent(17,11)
+    holoParent(18,11)
+    holoParent(19,11)
+    holoParent(20,11)
+    holoParent(21,11)
+    holoParent(22,11)
+    holoParent(11,entity()) #To be replaced
+    
+    #Armhole
+    holoCreate(33)
+    holoModel(33,"hqsphere")
+    holoPos(33,entity():toWorld(vec(0,20,70)))
+    #holoAng(33,entity():toWorld(ang(-90,0,45)))
+    holoMaterial(33,"phoenix_storms/pack2/interior_sides")
+    holoColor(33,vec(80,40,80))
+    
+    
+    
+    #Armhole (R)
+    
+    holoCreate(34)
+    holoModel(34,"hqsphere")
+    holoPos(34,entity():toWorld(vec(0,-20,70)))
+    #holoAng(34,entity():toWorld(ang(-90,0,-45)))
+    holoMaterial(34,"phoenix_storms/pack2/interior_sides")
+    holoColor(34,vec(80,40,80))
+    
+    #Sleeve math
+    Center = holoEntity(33):toWorld(vec((holoEntity(35):pos()-Laser:pos()):length()*-0.5,0,0))
+    Mid = vec(holoEntity(33):pos():x(),Center:y(),Center:z())
+    Scale = holoEntity(33):pos():distance(Laser:pos())/1
+    
+    Center2 = holoEntity(34):toWorld(vec((holoEntity(41):pos()-Pistol:pos()):length()*-0.5,0,0))
+    Mid2 = vec(holoEntity(34):pos():x(),Center2:y(),Center2:z())
+    Scale2 = holoEntity(34):pos():distance(Laser:pos())/1
+    
+    holoParent(33,11)
+    holoParent(34,11)
+    
+    Width=0.5
+    
+    #Sleeves
+    holoCreate(35)
+    holoScale(35,vec(1))
+    holoModel(35,"hqcylinder")
+    holoPos(35,bezier(holoEntity(33):pos(),Center,Laser:pos(),0.15))
+    holoAng(35,(holoEntity(35):pos()-Laser:pos()):toAngle()+ang(90,0,0))
+    
+    holoCreate(36)
+    holoScale(36,vec(1))
+    holoModel(36,"hqcylinder")
+    holoPos(36,bezier(holoEntity(33):pos(),Center,Laser:pos(),0.30))
+    holoAng(36,(holoEntity(37):pos()-Laser:pos()):toAngle()+ang(90,0,0))
+    
+    
+    holoCreate(37)
+    holoScale(37,vec(1))
+    holoModel(37,"hqcylinder")
+    holoPos(37,bezier(holoEntity(33):pos(),Center,Laser:pos(),0.45))
+    holoAng(37,(holoEntity(38):pos()-Laser:pos()):toAngle()+ang(90,0,0))
+    
+    holoCreate(38)
+    holoScale(38,vec(1))
+    holoModel(38,"hqcylinder")
+    holoPos(38,bezier(holoEntity(33):pos(),Center,Laser:pos(),0.6))
+    holoAng(38,(holoEntity(39):pos()-Laser:pos()):toAngle()+ang(90,0,0))
+    
+    holoCreate(39)
+    holoScale(39,vec(1))
+    holoModel(39,"hqcylinder")
+    holoPos(39,bezier(holoEntity(33):pos(),Center,Laser:pos(),0.75))
+    holoAng(39,(holoEntity(40):pos()-Laser:pos()):toAngle()+ang(90,0,0))
+    
+    holoCreate(40)
+    holoScale(40,vec(1))
+    holoModel(40,"hqcylinder")
+    holoPos(40,bezier(holoEntity(33):pos(),Center,Laser:pos(),0.9))
+    holoAng(40,(holoEntity(40):pos()-Laser:pos()):toAngle()+ang(90,0,0))
+    
+    #Sleeves (R)
+    holoCreate(41)
+    holoScale(41,vec(1))
+    holoModel(41,"hqcylinder")
+    holoPos(41,bezier(holoEntity(34):pos(),Center,Pistol:pos(),0.15))
+    holoAng(41,(holoEntity(41):pos()-Pistol:pos()):toAngle()+ang(90,0,0))
+    
+    holoCreate(42)
+    holoScale(42,vec(1))
+    holoModel(42,"hqcylinder")
+    holoPos(42,bezier(holoEntity(34):pos(),Center,Pistol:pos(),0.30))
+    holoAng(42,(holoEntity(42):pos()-Pistol:pos()):toAngle()+ang(90,0,0))
+    
+    
+    holoCreate(43)
+    holoScale(43,vec(1))
+    holoModel(43,"hqcylinder")
+    holoPos(43,bezier(holoEntity(34):pos(),Center,Pistol:pos(),0.45))
+    holoAng(43,(holoEntity(43):pos()-Pistol:pos()):toAngle()+ang(90,0,0))
+    
+    holoCreate(44)
+    holoScale(44,vec(1))
+    holoModel(44,"hqcylinder")
+    holoPos(44,bezier(holoEntity(34):pos(),Center,Pistol:pos(),0.6))
+    holoAng(44,(holoEntity(45):pos()-Pistol:pos()):toAngle()+ang(90,0,0))
+    
+    holoCreate(45)
+    holoScale(45,vec(1))
+    holoModel(45,"hqcylinder")
+    holoPos(45,bezier(holoEntity(34):pos(),Center,Pistol:pos(),0.75))
+    holoAng(45,(holoEntity(46):pos()-Pistol:pos()):toAngle()+ang(90,0,0))
+    
+    holoCreate(46)
+    holoScale(46,vec(1))
+    holoModel(46,"hqcylinder")
+    holoPos(46,bezier(holoEntity(34):pos(),Center,Pistol:pos(),0.9))
+    holoAng(46,(holoEntity(46):pos()-Pistol:pos()):toAngle()+ang(90,0,0))
+
+}#END OF INITIAL LOAD
+
+#LASER SETUP
+if(changed(Laser)&&Laser:model()!=""){
+    Obj = Laser
+    Obj:setAlpha(0)
+    Obj:setAng(entity():toWorld(ang(90,0,0)))
+    Obj:setPos(entity():toWorld(vec(0,20,24)))
+    #Body
+    holoCreate(25)
+    holoModel(25,"hqcylinder")
+    holoPos(25,Obj:toWorld(vec(0)))
+    holoAng(25,Obj:toWorld(ang(90,0,0)))
+    holoScale(25,vec(1.1,1.1,1.1))
+    holoParent(25,Obj)
+    holoColor(25,vec(50,75,105))
+    #Lip
+    holoCreate(26)
+    holoModel(26,"hqcylinder")
+    holoPos(26,Obj:toWorld(vec(7,0,0)))
+    holoAng(26,Obj:toWorld(ang(90,0,0)))
+    holoScale(26,vec(0.8,0.8,0.1))
+    holoParent(26,Obj)
+    holoColor(26,vec(50,75,105))
+    #Hole
+    holoCreate(27)
+    holoModel(27,"hqcylinder")
+    holoPos(27,Obj:toWorld(vec(7.1,0,0)))
+    holoAng(27,Obj:toWorld(ang(90,0,0)))
+    holoScale(27,vec(0.5,0.5,0.1))
+    holoParent(27,Obj)
+    holoColor(27,vec(10,10,10))
+    adjustLaserSleeve()
+}
+#PISTOL SETUP
+if(changed(Pistol)&&Pistol:model()!=""){
+    Obj = Pistol
+    Obj:setAlpha(0)
+    Obj:setAng(entity():toWorld(ang(90,0,0)))
+    Obj:setPos(entity():toWorld(vec(0,-20,24)))
+    #Body
+    holoCreate(28)
+    holoPos(28,Obj:toWorld(vec(0)))
+    holoAng(28,Obj:toWorld(ang(90,0,0)))
+    holoScale(28,vec(0.6,0.6,1))
+    holoParent(28,Obj)
+    holoColor(28,vec(50,75,105))
+    #Hole
+    holoCreate(29)
+    holoModel(29,"hqcylinder")
+    holoPos(29,Obj:toWorld(vec(5.6,0,0)))
+    holoAng(29,Obj:toWorld(ang(90,0,0)))
+    holoScale(29,vec(0.5,0.5,0.1))
+    holoParent(29,Obj)
+    holoColor(29,vec(10,10,10))
+    
+    holoCreate(30)
+    holoModel(30,"hqcylinder")
+    holoPos(30,Obj:toWorld(vec(-10,0,0)))
+    holoAng(30,Obj:toWorld(ang(90,0,0)))
+    holoScale(30,vec(1,1,0.2))
+    holoParent(30,Obj)
+    holoMaterial(30,"phoenix_storms/pack2/interior_sides")
+    holoColor(30,vec(80,40,80))
+    
+    holoCreate(31)
+    holoModel(31,"hqcylinder")
+    holoPos(31,Obj:toWorld(vec(-10,0,0)))
+    holoAng(31,Obj:toWorld(ang(90,0,0)))
+    holoScale(31,vec(0.8,0.8,0.4))
+    holoParent(31,Obj)
+    holoMaterial(31,"phoenix_storms/pack2/interior_sides")
+    holoColor(31,vec(80,40,80))
+    
+    holoCreate(32)
+    holoModel(32,"hqcylinder")
+    holoPos(32,Obj:toWorld(vec(-5,0,0)))
+    holoAng(32,Obj:toWorld(ang(90,0,0)))
+    holoScale(32,vec(0.4,0.4,0.8))
+    holoParent(32,Obj)
+    holoMaterial(32,"phoenix_storms/pack2/interior_sides")
+    holoColor(32,vec(80,40,80))
+    adjustPistolSleeve()
+}
+
+#[if(owner():keyForward()){
+    rolltire(50)
+}]#
+#phoenix_storms/bluemetal
+
+function raiseLaser(){
+    if(PistolLerp>0){
+        return
+    }
+    LaserLerp=clamp(LaserLerp+0.1,0,1)
+    StartPos=holoEntity(33):toWorld(vec(0,0,-40))
+    EndPos=holoEntity(33):toWorld(vec(20,5,-20))
+    MidPos=StartPos+(StartPos-EndPos)
+    Laser:setPos(bezier(StartPos,MidPos,EndPos,LaserLerp))
+    
+    Laser:setAng(holoEntity(33):toWorld(ang(clamp((90-90*LaserLerp)*2,0,90),0,0)))
+    
+}
+
+function lowerLaser(){
+
+    LaserLerp=clamp(LaserLerp-0.1,0,1)
+    StartPos=holoEntity(33):toWorld(vec(0,0,-40))
+    EndPos=holoEntity(33):toWorld(vec(20,0,-20))
+    MidPos=StartPos+(StartPos-EndPos)
+    Laser:setPos(bezier(StartPos,MidPos,EndPos,LaserLerp))
+    
+    Laser:setAng(holoEntity(33):toWorld(ang(clamp((90-90*LaserLerp)*2,0,90),0,0)))
+    
+}
+
+function raisePistol(){
+    if(LaserLerp>0){
+        return
+    }
+    PistolLerp=clamp(PistolLerp+0.1,0,1)
+    StartPos=holoEntity(34):toWorld(vec(0,0,-40))
+    EndPos=holoEntity(34):toWorld(vec(20,0,-20))
+    MidPos=StartPos+(StartPos-EndPos)
+    Pistol:setPos(bezier(StartPos,MidPos,EndPos,PistolLerp))
+    
+    Pistol:setAng(holoEntity(34):toWorld(ang(clamp((90-90*PistolLerp)*2,0,90),0,0)))
+    
+}
+
+function lowerPistol(){
+
+    PistolLerp=clamp(PistolLerp-0.1,0,1)
+    StartPos=holoEntity(34):toWorld(vec(0,0,-40))
+    EndPos=holoEntity(34):toWorld(vec(20,0,-20))
+    MidPos=StartPos+(StartPos-EndPos)
+    Pistol:setPos(bezier(StartPos,MidPos,EndPos,PistolLerp))
+    
+    Pistol:setAng(holoEntity(34):toWorld(ang(clamp((90-90*PistolLerp)*2,0,90),0,0)))
+    
+}
+
+function stopfiring(){
+    PistolFiring=0
+    LaserFiring=0
+    
+    if(FirstTimeRun!=0){
+        return
+    }
+    
+    lowerLaser()
+    lowerPistol()
+    
+    if(LaserLerp==0){
+        Laser:setAng(holoEntity(33):toWorld(ang(90,0,0)))
+        Laser:setPos(holoEntity(33):toWorld(vec(0,0,-40)))
+    }
+    if(PistolLerp==0){
+        Pistol:setAng(holoEntity(34):toWorld(ang(90,0,0)))
+        Pistol:setPos(holoEntity(34):toWorld(vec(0,0,-40)))
+    }
+}
+
+function attack(){
+    
+    if(!Target:isAlive()||!Target:isValid()||Target:model()==""||!H:isValid()){
+        stopfiring()
+    }
+    if(FirstTimeRun!=0){
+        return
+    }
+    if(!H:isValid()){
+        return
+    }
+    if(!Laser:isValid()&&!Pistol:isValid()){
+        return
+        
+    }
+    
+    holoCreate(95)
+    holoAlpha(95,0)
+
+    holoCreate(96)
+    holoAlpha(96,0)
+
+    
+    #if this is too big
+    #go left
+    
+    if(!Pistol:isValid()){
+        CurrentWeapon=1
+        LaserAmmo=30
+    }
+    if(!Laser:isValid()){
+        CurrentWeapon=0
+        PistolAmmo=20
+    }
+    
+    if(LaserLerp>=1){
+    holoPos(95,Laser:pos())
+    holoAng(95,(Target:shootPos()-Laser:pos()):toAngle())
+    holoPos(96,holoEntity(33):pos())
+    holoAng(96,holoEntity(33):toWorld(ang(0,holoEntity(95):angles():yaw()-holoEntity(33):angles():yaw(),0)))
+    holoAng(33,holoEntity(96):angles())
+        Laser:setAng(holoEntity(33):toWorld(ang(0,0,0)))
+        Laser:setPos(holoEntity(33):toWorld(vec(20,5,-20)))
+        rangerFilter(Laser)
+        R = rangerOffset(1000,holoEntity(95):pos(),holoEntity(95):forward())
+        Dst = (R:position() - Target:shootPos()):length()
+        #print(Dst)
+        if(Dst<50){
+            firelaser()
+        }
+    }
+    else{
+        Laser:setAng(holoEntity(33):toWorld(ang(90,0,0)))
+        Laser:setPos(holoEntity(33):toWorld(vec(0,0,-40)))
+    }
+    if(PistolLerp>=1){
+    holoPos(95,Pistol:pos())
+    holoAng(95,(Target:shootPos()-Pistol:pos()):toAngle())
+    holoPos(96,holoEntity(34):pos())
+    holoAng(96,holoEntity(34):toWorld(ang(0,holoEntity(95):angles():yaw()-holoEntity(34):angles():yaw(),0)))
+    #print(((Pistol:pos()-Target:shootPos()):toAngle()-Pistol:angles()):roll())
+    holoAng(34,holoEntity(96):angles())
+    
+        Pistol:setAng(holoEntity(34):toWorld(ang(0,0,0)))
+        Pistol:setPos(holoEntity(34):toWorld(vec(20,0,-20)))
+        rangerFilter(Pistol)
+        R = rangerOffset(1000,holoEntity(95):pos(),holoEntity(95):forward())
+        Dst = (R:position() - Target:shootPos()):length()
+        #print(Dst)
+        if(Dst<50){
+            firepistol()
+        }
+    }
+    elseif(!FirstTimeRun){
+        Pistol:setAng(holoEntity(34):toWorld(ang(90,0,0)))
+        Pistol:setPos(holoEntity(34):toWorld(vec(0,0,-40)))
+    }
+}
+function rotateBody(){
+    AngDiff=(Target:pos()-entity():pos()):toAngle()-entity():angles()
+    YawDiff=AngDiff:yaw()
+    #print(YawDiff)
+    YawDiff=YawDiff%360
+    #<328
+    #>7
+    if(YawDiff>5&&YawDiff<180){
+        entity():setAng(entity():toWorld(ang(0,10,0)))
+    }
+    if(YawDiff<355&&YawDiff>180){
+        entity():setAng(entity():toWorld(ang(0,-10,0)))
+    }
+}
+
+function move(Vel){
+    rangerFilter(entity())
+    R = rangerOffset(500,entity():pos(),entity():forward()*Vel*100)
+    #print(R:position():distance(entity():pos()))
+    if(R:position():distance(entity():pos())>abs(Vel*4)){
+    entity():setPos(entity():toWorld(vec(Vel,0,0)))
+    rolltire(Vel)
+    }
+    elseif(R:position():distance(entity():pos())<1){
+        entity():setPos(entity():toWorld(vec(0,0,5)))
+    }
+}
+
+function update(){
+    R = rangerOffset(500,entity():pos(),-entity():up()*100)
+    if(R:position():distance(entity():pos())>30){
+        entity():setPos(entity():toWorld(vec(0,0,-30)))
+    }
+    if(H:model()==""){
+        stopfiring()
+        if(changed(H:model())){
+            print("Head has been destroyed, repairing...")
+            timer("repair",8000)
+        }
+        if(clk("repair")){
+            createHeart()
+            FirstTimeRun=1
+        }
+    }
+    if(!H:isValid()){
+        stopfiring()
+        return
+    }
+    adjustPistolSleeve()
+    adjustLaserSleeve()
+    if(FirstTimeRun==1){
+    raisePistol()
+    if(PistolLerp==1)
+    {
+        FirstTimeRun=0.8
+    }
+    }
+    if(FirstTimeRun==0.8){
+    lowerPistol()
+    if(PistolLerp==0)
+    {
+        FirstTimeRun=0.7
+    }
+    }
+    
+    if(FirstTimeRun==0.7){
+    raiseLaser()
+    if(LaserLerp==1)
+    {
+        FirstTimeRun=0.6
+    }
+    }
+    
+    if(FirstTimeRun==0.6){
+    lowerLaser()
+    if(LaserLerp==0)
+    {
+        FirstTimeRun=0
+        print("Initialized")
+    }
+    }
+    
+    
+    
+    holoAlpha(102,0)
+
+    
+    
+    if(changed(Laser:pos())||changed(entity():pos())){
+    adjustLaserSleeve()
+}
+    if(changed(Pistol:pos())||changed(entity():pos())){
+    adjustPistolSleeve()
+}
+    #if(FirstTimeRun!=0){
+    #    return
+    #}
+    
+    if(FirstTimeRun==1)
+    {
+        return
+    }
+    if(!Target:isAlive()||!Target:isValid()||Target:model()==""){
+        stopfiring()
+        
+    }
+    if(clk("checkForTarg")&&FirstTimeRun==0){
+        stoptimer("checkForTarg")
+        #print("Scanning for targets...")
+        findTargets()
+    }
+    if(Target:model()==""|!Target:isAlive()){
+        timer("checkForTarg",250)
+        return
+    }
+    
+    if(Target:isAlive()){
+        timer("checkForTarg",1000)
+        
+    }
+    
+    if(Target:isAlive()){
+    if(CurrentWeapon==1&&LaserLerp<1){
+        raiseLaser()
+    }
+    elseif(CurrentWeapon==0&&LaserLerp>0){
+        lowerLaser()
+    }
+    if(CurrentWeapon==0&&PistolLerp<1){
+        raisePistol()
+    }
+    elseif(CurrentWeapon==1&&PistolLerp>0){
+        lowerPistol()
+    }
+    attack()
+    rotateBody()
+    if(Target:pos():distance(entity():pos())<150){
+        move(-20)
+    }
+    if(Target:pos():distance(entity():pos())>500){
+        move(10)
+    }
+}
+#[if(!Target:isAlive()|!Target:isValid()|Target:model()==""){
+    stopfiring()
+}]#
+}
+update()
+
+#print(holoEntity(33):pos():y()-Laser:pos():y())
+#_,0,_
+#Forward
+
+

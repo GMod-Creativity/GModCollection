@@ -1,0 +1,160 @@
+@name Raveos Soccer
+@inputs 
+@outputs Blue:array Red:array Ball:entity 
+@persist Team R:array GoalSpawn K
+@persist BGC RGC P:array
+interval(200)
+if(first())
+{
+    holoCreate(100,entity():toWorld(vec(0,1425,0)))
+    holoScale(100,vec(40,20,40))
+    holoColor(100,vec(255,0,0))
+    holoAlpha(100,60)
+    holoCreate(200,entity():toWorld(vec(0,-1425,0)))
+    holoScale(200,vec(40,20,40))
+    holoColor(200,vec(0,0,255))
+    holoAlpha(200,60)
+    Ball=propSpawn("models/props_phx/misc/soccerball.mdl",entity():toWorld(vec(0,0,20)),ang(),1)
+    GoalSpawn=1
+    P=players()
+    concmd("say Soccer has been spawned on Raveo. Type !join to play. First team to 10 goals wins! Match starts in 1 minute.")
+    timer("game_timer_1",10000)
+    timer("game_timer_2",15000)
+}
+Ball:setMass(10)
+while(perf(100)&GoalSpawn&propCanCreate())
+{
+    K=K+1
+    if(K==1){Goal=propSpawn("models/props_c17/fence03a.mdl",entity():toWorld(vec(0,1500,60)),entity():toWorld(ang(0,90,0)),1)}
+    if(K==2){Goal=propSpawn("models/props_c17/fence03a.mdl",entity():toWorld(vec(0,1450,110)),entity():toWorld(ang(90,90,0)),1)}
+    if(K==3){Goal=propSpawn("models/props_c17/fence02a.mdl",entity():toWorld(vec(125,1440,60)),entity():toWorld(ang(0,0,0)),1)}
+    if(K==4){Goal=propSpawn("models/props_c17/fence02a.mdl",entity():toWorld(vec(-125,1440,60)),entity():toWorld(ang(0,0,0)),1)}
+    if(K==5){Goal=propSpawn("models/props_c17/fence03a.mdl",entity():toWorld(vec(0,-1500,60)),entity():toWorld(ang(0,90,0)),1)}
+    if(K==6){Goal=propSpawn("models/props_c17/fence03a.mdl",entity():toWorld(vec(0,-1450,110)),entity():toWorld(ang(90,90,0)),1)}
+    if(K==7){Goal=propSpawn("models/props_c17/fence02a.mdl",entity():toWorld(vec(125,-1440,60)),entity():toWorld(ang(0,0,0)),1)}
+    if(K==8){Goal=propSpawn("models/props_c17/fence02a.mdl",entity():toWorld(vec(-125,-1440,60)),entity():toWorld(ang(0,0,0)),1)}
+    if(K>=8){GoalSpawn=0}
+}
+if(changed(lastSaid())&lastSaid()=="!join")
+{
+    Team=Team+1
+    if(Team/2==round(Team/2))
+    {
+        Blue:insertEntity(1,lastSpoke())
+        R:insertEntity(1,lastSpoke())
+        timer("blue_join",500)
+        holoCreate(Team,lastSpoke():pos())
+        holoScale(Team,vec(2,2,0.5))
+        holoModel(Team,"hq_cylinder")
+        holoColor(Team,vec(0,0,255))
+        holoParent(Team,lastSpoke())
+    }
+    else
+    {
+        Red:insertEntity(1,lastSpoke())
+        R:insertEntity(1,lastSpoke())
+        timer("red_join",500)
+        holoCreate(Team,lastSpoke():pos())
+        holoScale(Team,vec(3,3,0.2))
+        holoModel(Team,"hq_cylinder")
+        holoColor(Team,vec(255,0,0))
+        holoParent(Team,lastSpoke())        
+    }
+}
+for(I=1,R:count())
+{
+    if(R[I,entity]:pos():distance(Ball:pos())<50&!R[I,entity]:keySprint())
+    {
+        Ball:applyForce(-(Ball:pos()-R[I,entity]:aimPos())*Ball:mass())
+    }
+    if(R[I,entity]:pos():distance(Ball:pos())<50&R[I,entity]:keySprint())
+    {
+        Ball:applyForce(-(Ball:pos()-R[I,entity]:aimPos())*(Ball:mass()*2))
+    }
+}
+if(changed(inrange(Ball:pos(),entity():toWorld(vec(-125,1340,-50)),entity():toWorld(vec(125,1500,110))))&inrange(Ball:pos(),entity():toWorld(vec(-125,1340,-50)),entity():toWorld(vec(125,1500,110))))
+{
+    BGC=BGC+1
+    concmd("say Blue has scored a goal! "+BGC:toString()+" points.")
+    for(S=1,Team)
+    {
+        holoEntity(S):soundPlay(S,0,"misc/achievement_earned.wav")
+    }
+    Ball:propManipulate(entity():toWorld(vec(0,0,20)),ang(),0,1,0)
+}
+if(changed(inrange(Ball:pos(),entity():toWorld(vec(-125,-1500,-50)),entity():toWorld(vec(125,-1340,110))))&inrange(Ball:pos(),entity():toWorld(vec(-125,-1500,-50)),entity():toWorld(vec(125,-1340,110))))
+{
+    RGC=RGC+1
+    concmd("say Red has scored a goal! "+RGC:toString()+" points.")
+    for(S=1,Team)
+    {
+        holoEntity(S):soundPlay(S,0,"misc/achievement_earned.wav")
+    }
+    Ball:propManipulate(entity():toWorld(vec(0,0,20)),ang(),0,1,0)
+}
+for(Trail1=1,Red:count())
+{
+    if(changed(Red[Trail1,entity]:pos():distance(Ball:pos())<50))
+    {
+        Ball:setTrails(20,20,15,"trails/laser",vec(255,0,0), 255)
+    }
+    if(changed(Red[Trail1,entity]:inNoclip())&Red[Trail1,entity]:inNoclip())
+    {
+        RGC=RGC-1
+        concmd("say "+Red[Trail1,entity]:name()+" has entered no clip -1 point from Red team."+RGC:toString()+" points.")
+    }
+}
+for(Trail2=1,Blue:count())
+{
+    if(changed(Blue[Trail2,entity]:pos():distance(Ball:pos())<50))
+    {
+        Ball:setTrails(20,20,15,"trails/laser",vec(0,0,255), 255)
+    }
+    if(changed(Blue[Trail2,entity]:inNoclip())&Blue[Trail2,entity]:inNoclip())
+    {
+        BGC=BGC-1
+        concmd("say "+Blue[Trail2,entity]:name()+" has entered no clip -1 point from Red team."+BGC:toString()+" points.")
+    }
+}
+
+if(changed(RGC)&RGC==10)
+{
+    timer("red_win_announce",1000)
+}
+if(changed(BGC)&BGC==10)
+{
+    timer("blue_win_announce",1000)
+}
+if(clk("game_timer_1"))
+{
+    concmd("say Game is about to start! Get ready!")
+}
+if(clk("game_timer_2"))
+{
+    concmd("say Game has started!")
+    Ball:propFreeze(0)
+}
+if(clk("blue_join"))
+{
+    concmd("say "+lastSpoke():name()+" has been added to blue team.")
+}
+if(clk("red_join"))
+{
+    concmd("say "+lastSpoke():name()+" has been added to red team.")
+}
+if(clk("red_win_announce"))
+{
+    concmd("say Red has won the game!")
+    for(S=1,Team)
+    {
+        holoEntity(S):soundPlay(S,0,"misc/tf_domination.wav")
+    }
+}
+if(clk("blue_win_announce"))
+{
+    concmd("say Blue has won the game!")
+    for(S=1,Team)
+    {
+        holoEntity(S):soundPlay(S,0,"misc/tf_domination.wav")
+    }
+}

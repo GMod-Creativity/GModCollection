@@ -1,0 +1,66 @@
+@name Entity(N) Discovery
+@inputs ID
+@persist NewN MaxN MinN HDif LDif IDs:array
+@outputs [Chips Players Props NPCs Targets]:array
+
+if(first()){
+runOnTick(1)
+
+MaxN=MinN=NewN=entity():id()
+}
+#IDs array ensures viable IDs aren't missed due to
+#loops already in sequence
+if(ID!=IDs[IDs:count(),number]){
+if(ID>MaxN|ID<MinN){
+IDs:pushNumber(ID)
+}
+}
+
+#NewN alteration
+if((HDif+LDif)==0){
+#Wait until the previous ID has been run before changing
+#In most cases this will only take a fraction of a second
+if(IDs:count()>1){IDs:remove(1)}
+NewN=IDs[1,number]
+}
+
+#Separations from the known finds
+HDif=NewN-MaxN #IDs above the Maximum found
+HDif=clamp(HDif,0,abs(HDif))
+LDif=MinN-NewN #IDs below the Minimum found
+LDif=clamp(LDif,0,abs(LDif))
+Clamp=clamp(max(HDif,LDif),0,10) #Immediate search magnitude
+
+N=0
+while(N<=Clamp & (HDif+LDif)>0){
+if(HDif){
+MaxN++
+Ent=entity(MaxN)
+}
+elseif(LDif){
+MinN--
+Ent=entity(MinN)
+}
+
+Typ=Ent:type() #Entity type
+#Expression 2 chips
+if(Typ:find("expression2")){
+Chips:pushEntity(Ent)
+}
+#NPCs
+elseif(Typ:find("npc_")){ 
+NPCs:pushEntity(Ent)
+Targets:pushEntity(Ent)
+}
+#Players
+elseif(Typ:lower()=="player"){
+Players:pushEntity(Ent)
+Targets:pushEntity(Ent)
+}
+#Props
+elseif(Typ:find("prop_physics")){
+Targets:pushEntity(Ent)
+}
+
+N++
+}

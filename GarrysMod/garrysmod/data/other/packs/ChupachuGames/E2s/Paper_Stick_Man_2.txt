@@ -1,0 +1,178 @@
+@name Paper Stick Man 2
+@inputs Pos:vector FaceDir:vector BodyDir:vector Scale
+@outputs 
+@persist StillCount Arm_AnimSeq Arm_AnimActions:array Arm_AnimActionIndex Arm_AnimTickCount Leg_AnimSeq Leg_AnimActions:array Leg_AnimActionIndex Leg_AnimTickCount AnimLeftLeg:angle AnimRightLeg:angle AnimLeftArm:angle AnimRightArm:angle Seq_Legs_Run:array Seq_Arms_Run:array Seq_Arms_LClick:array Seq_Arms_RClick:array IHead IBody ILeftArm IRightArm ILeftLeg IRightLeg ArmAng:angle LastPos:vector LeftArmEndPos:vector RightArmEndPos:vector ICylinder1 IBullet1 Bullet1State Bullet1Pos:vector Bullet1Target:vector Bullet1Tick
+@trigger all
+Offset = 0
+Scale = 0.7 # This means draw him at normal size.
+          # If this is set to 3, it will draw him
+          # triple the size, 0.1 will draw him at
+          # 1/10 th the size.
+          # This scale function seems to work perfectly.
+
+if( first() | duped() )
+{
+    entity():owner():setColor(0,0,0)
+    entity():owner():setMaterial("Models/effects/vol_light001")
+
+    # Initialize
+    runOnTick(1)
+    print("Stick Man!")
+    print("Made By Paper Clip")
+    
+    # Initialize the animation sequence data
+    AnimSeqIndex = 0
+    AnimSeq = 0
+    
+    # Intialize the tranformation angles for the animations
+    AnimLeftLeg = ang(0,0,0)
+    AnimRightLeg = ang(0,0,0)
+}
+    if( Pos == vec() | FaceDir == vec() | BodyDir == vec() )
+    {
+        # Use the player's position if no position or no angle
+        # was specified.
+        Pos = entity():owner():pos() + entity():owner():forward()*100
+        FaceDir = entity():owner():eye()
+        BodyDir = entity():owner():forward()
+    }
+    if( Scale == 0 ) { Scale = 1 }
+    
+    # Make the owner invisible
+    
+    
+    # Create the holograms
+    BaseIndex=round(random(1,100000)) # Thanks to Halkion for this idea!
+    #head
+    IHead = BaseIndex
+    holoCreate(IHead,Pos,vec(2*Scale,2*Scale,2*Scale),FaceDir:toAngle(),vec(1,255,0))
+    holoModel(IHead,"sphere")
+    #body
+    IBody = BaseIndex+1
+    holoCreate(IBody,Pos,vec(1*Scale,1*Scale,3*Scale),BodyDir:toAngle(),vec(1,255,0))
+    holoModel(IBody,"cylinder")
+    #arms
+    ILeftArm = BaseIndex+2
+    holoCreate(ILeftArm,Pos,vec(1*Scale,1*Scale,2.5*Scale),BodyDir:toAngle(),vec(1,255,0))
+    holoModel(ILeftArm,"cylinder")
+    IRightArm = BaseIndex+3
+    holoCreate(IRightArm,Pos,vec(1*Scale,1*Scale,2.5*Scale),BodyDir:toAngle(),vec(1,255,0))
+    holoModel(IRightArm,"cylinder")
+    #legs
+    ILeftLeg = BaseIndex+4
+    holoCreate(ILeftLeg,Pos,vec(1*Scale,1*Scale,3*Scale),BodyDir:toAngle(),vec(1,255,0))
+    holoModel(ILeftLeg,"cylinder")
+    IRightLeg = BaseIndex+5
+    holoCreate(IRightLeg,Pos,vec(1*Scale,1*Scale,3*Scale),BodyDir:toAngle(),vec(1,255,0))
+    holoModel(IRightLeg,"cylinder")
+    #cylinder special effect
+    ICylinder1 = BaseIndex+6
+    holoCreate(ICylinder1,vec(0,0,0),vec(0,0,0),ang(0,0,0),vec(0,0,255))
+    holoModel(ICylinder1,"cylinder")
+    #bullet special effect
+    IBullet1 = BaseIndex+7
+    holoCreate(IBullet1,vec(0,0,0),vec(0,0,0),ang(0,0,0),vec(255,0,0))
+    holoModel(IBullet1,"sphere")
+    
+
+    ######## Create the LEGS animation sequences #######
+    # Sequences are in format of:
+    # time: The number of ticks this action will be performed
+    #       before moving onto the next action.
+    # special: 0 for nothing,
+    #          1 to play walk sound at start of step,
+    #          2 to play walk sound at end of step,
+    #          3 to restart the sequence of actions but
+    #            skip the first action. Use this if you don't want the first
+    #            action to execute when it is looping. Otherwise it will
+    #            automatically restart from the first action at the end of
+    #            of the action sequence.
+    #          4 to play walk sound at start and end of step,
+    # angle velocity left leg:
+    #          Specifies the velocity of the left leg:
+    #          ie. ang(2,0,0) will extend his foot directly
+    #              towards his head sideways.
+    #              ang(0,2,0) will spin his foot towards his
+    #              front.
+    #              ang(5,5,0) will perform a forward kick,
+    #              by bring his foot around to the front and
+    #              increasing the pitch.
+    #          Note: With ang(2,0,0) his foot will
+    #               be slowly pitched exactly 40 degrees
+    #               if you time = 20; So you can perform
+    #               accurate movements!
+    # angle velocity right leg:
+    #          Specifies the velocity of the left leg:
+    ###############################################
+    
+    
+    #### RUNNING LEGS SEQUENCE ###########
+    #ACTION1# put feet together straight up instantly (They are starting out at 45 degrees sideways)
+    Count = 0
+    Seq_Legs_Run:setNumber(Count,1 ) # Do this animation for 1 tick
+    Seq_Legs_Run:setNumber(Count+1, 1 ) # Play walk sound at start of step
+    Seq_Legs_Run:setAngle(Count+2,ang(-45,90,0)) # Move left leg to perfectly vertical and rotate it forwards.
+    Seq_Legs_Run:setAngle(Count+3,ang(-45,90,0)) # Move right leg to perfectly vertical and rotate it forwards.
+    Count += 4
+    #ACTION1# left leg forward
+    Seq_Legs_Run:setNumber(Count,8 ) # Do this animation for 8 ticks
+    Seq_Legs_Run:setNumber(Count+1, 0 )
+    Seq_Legs_Run:setAngle(Count+2,ang(10,0,0)) # Move left leg up to (8[ticks]*10[deg/tick]=80 deg)
+    Seq_Legs_Run:setAngle(Count+3,ang(-10,0,0)) # Move right leg the opposite direction
+    Count += 4
+    #ACTION2# move left leg backwards
+    Seq_Legs_Run:pushNumber( 16 )
+    Seq_Legs_Run:pushNumber( 4 ) # Play Walk Sound at start and end of step
+    Seq_Legs_Run:pushAngle(ang(-10,0,0)) # Move left leg up to (16[ticks]*10[deg/tick]=160 deg)
+    Seq_Legs_Run:pushAngle(ang(10,0,0))
+    #ACTION3# move both legs back to standing
+    Seq_Legs_Run:pushNumber( 8 )
+    Seq_Legs_Run:pushNumber( 3 ) # SPECIAL FLAG -> LOOP FROM ACTION1 INSTEAD OF ACTION0
+    Seq_Legs_Run:pushAngle(ang(10,0,0))
+    Seq_Legs_Run:pushAngle(ang(-10,0,0))
+    # It will automatically loop back to ACTION1
+    
+    ######## Create the ARMS animation sequences #######
+    # Sequences are in format of:
+    # time: The number of ticks this action will be performed
+    #       before moving onto the next action.
+    #
+    # special: 0 for nothing,
+    #          1 to fire a ball from right hand
+    #          2 to fire a ball from left hand
+    #          4 to fire a ball from both arms
+    #          5 to draw a transparent cylinder from
+    #            right arm to world coordinates
+    #            in variable 'aim_position'
+    #          6 to draw a transparent cylinder from
+    #            left arm to world coordinates
+    #            in variable 'aim_position'
+    #          7 to draw a transparent cylinder from
+    #            both arms to world coordinates
+    #            in variable 'aim_position'
+    #          3 to restart the sequence of actions but
+    #            skip the first action. Use this if you don't want the first
+    #            action to execute when it is looping. Otherwise it will
+    #            automatically restart from the first action at the end of
+    #            of the action sequence.
+    #
+    # aim specifier:
+    #          0 to not auto-aim any arms
+    #          1 to aim right hand at world coordinates
+    #            in variable 'aim_position'
+    #          2 to aim left hand at world coordinates
+    #            in variable 'aim_position'
+    #          3 to aim both hands at world coordinates
+    #            in variable 'aim_position'
+    # (aim_position) -> This is an expression vector variable
+    #
+    # angle velocity left arm:
+    #          Specifies the velocity of the left leg:
+    #          ie. ang(2,0,0) will extend his foot directly
+    #              towards his head sideways.
+    #              ang(0,2,0) will spin his foot towards his
+    #              front.
+    #              ang(5,5,0) will perform a forward kick,
+    #              by bring his foot around to the front and
+    #              increasing the pitch.
+    #          Note

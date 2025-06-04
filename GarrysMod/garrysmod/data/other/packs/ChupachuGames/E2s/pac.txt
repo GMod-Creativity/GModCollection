@@ -1,0 +1,86 @@
+@name Player Animation Compiler
+@persist N Read Length Load Model
+@persist Anims:array Valid:array
+if(first()){
+    entity():setAlpha(0)
+    holoCreate(4)
+    holoModel(4,"hqtorus")
+    holoScale(4,vec(3,3,0.1))
+    holoColor(4,vec(100,100,255))
+    holoDisableShading(4,1)
+    holoParent(4,entity())
+    print("Type !model \"model\" without the quotes.")
+    runOnTick(1)
+    runOnChat(1)
+}
+if(chatClk(owner()) & !Model){
+    LastSaid = owner():lastSaid():explode(" ")
+    if(LastSaid[1,string] == "!model"){
+        hideChat(1)
+        holoCreate(1)
+        holoModel(1,LastSaid[2,string])
+        if(holoAnimNum(1,"ACT_IDLE") == -1){
+            print("That is not a valid player model!")
+            holoDelete(1)
+        }
+        else{
+            Ang = entity():angles()
+            Yaw = owner():eyeAngles():yaw() - 180
+            holoAng(1,ang(Ang:pitch(),Yaw,Ang:roll()))
+            holoAnim(1,"ACT_IDLE")
+            holoParent(1,entity())
+            Model = 1
+        }
+    }
+}
+elseif(fileCanLoad() & !Load & Model){
+    print("Loading animation file...")
+    fileLoad("anims.txt")
+    N = 1
+    Load = 1 
+}
+if(fileLoaded() & !Read & Model & Load){
+    Contents = fileRead()
+    Anims = Contents:explode("\n")
+    print("File loaded! Cycling through animations...")
+    Position = holoEntity(1):pos() + (holoEntity(1):up() * 75)
+    Scale = vec(0.01,0.01,0.01)
+    Angle = holoEntity(1):angles()
+    Color = vec(255,0,0)
+    holoCreate(2,Position,Scale,Angle,Color)
+    holoDisableShading(2,1)
+    holoParent(2,1)
+    holoCreate(3,Position,vec(0.05,4.8,0.15),Angle,vec(0,0,0))
+    holoDisableShading(3,1)
+    holoParent(3,2)
+    Read = 1
+}
+if(Read){
+    if(N >= 1368){
+        holoAng(2,owner():eyeAngles())
+        LastSaid = owner():lastSaid():explode(" ")
+        if(chatClk(owner()) & LastSaid[1,string] == "!filename"){
+            hideChat(1)
+            Filename = LastSaid[2,string]
+            File = ">e2shared/" + Filename + ".txt"
+            fileWrite(File,Valid:concat("\n"))
+            StartMessage = "Animations saved in "
+            EndMessage = "\"" + Filename + ".txt" + "\"" + "."
+            print(StartMessage + EndMessage)
+            selfDestruct()
+        }
+    }
+    if(N < 1368){
+        N++
+        holoScale(2,vec(0.1,N / 273.6,0.2))
+        holoColor(2,vec(255 - N / 5.36470588,N / 5.36470588,0))
+        holoAng(2,owner():eyeAngles())
+        Anim = Anims[N,string]
+        if(holoAnimNum(1,Anim) != -1){
+            Valid:pushString(Anim)
+        }
+        if(N == 1368){
+            print("Type !filename \"filename\" without the quotes.")
+        }
+    }
+}

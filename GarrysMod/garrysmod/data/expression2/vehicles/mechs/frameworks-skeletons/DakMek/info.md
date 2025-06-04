@@ -1,6 +1,8 @@
-Author: Dakota
+- Author: Dakota
+- Date: 02-20-2016
+- Title: New Mech Chip
 
-*New Mech Chip*
+## New Mech Chip
 
 Hello, this is my first post here, but I've been around on Gmod for a few years now as a builder. I've taken the past 3 days to create a new mech chip after previous public ones I've used were not cutting it for me.
 
@@ -34,6 +36,8 @@ Fixed an issue with sound triggers.
 
 EDIT6:
 Added torso chip link and code to post.
+
+**Mech Torso stuff**
 
 Code:
 @name Mech Torso stuff
@@ -102,7 +106,6 @@ if(Ded==0){
         Torso:applyAngForce((Torso:toLocal(CLAMPANG) * 250 - Torso:angVel() * 30) * shiftL(ang(Torso:inertia())))
     }
 }
-Mech Torso Stuff
 
 EDIT 7:
 Released an update for the torso chip for a variable to swap the roll and pitch in cases in which it is needed.
@@ -121,6 +124,8 @@ Updated Torso chip stability.
 
 EDIT 12:
 Included gun control chip.
+
+**Mech Gun Stuff**
 
 Code:
 @name Mech Gun stuff

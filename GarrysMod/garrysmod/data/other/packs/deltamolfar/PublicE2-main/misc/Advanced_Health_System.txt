@@ -1,0 +1,288 @@
+@name deltamolfar's Public Advanced Health System v1.3.2
+
+@inputs Hitbox:entity#If you have a single hitbox - you can just wire it up to this input
+@inputs HitboxArray:array#If you have multiple hitbox entities - use adv. Entity Marker (If AUTODETECT!=0 -> props that are in this array will be appended to other found entities)
+@inputs ReloadClk#Reloads the E2 (can be used, for example, to use same hitbox and same chip on "new" contraption
+
+@outputs Shield#Current Shield amount
+@outputs Health#Current Health amount
+@outputs IsDead#Is dead
+@outputs MaxShield#Maximum possible shield
+@outputs MaxHealth#Maximum possible health
+@outputs ShieldRegenClk#Number increments by one everytime shield gets regenerated (mainly useful for animations/sounds)
+@outputs HealthRegenClk#Number increments by one everytime shield gets regenerated (mainly useful for animations/sounds)
+
+@persist SETTINGS:table HITBOXES:array
+@strict
+
+#[
+    Chip made for setting up health and shield system for your drones/contraptions way easier.
+    To use:
+    1) Input the Hitbox entity, that will act as a main damage receiving prop/entity
+    2) Input HitboxArray using adv. Entity Marker to also tell this E2 which other props/entities should act as damage receiving props/entities
+    2.1) Alternatively you can ignore HitboxArray, and try to use SETTINGS["AUTODETECT", number] = 1 (read info above it)
+    3) Make config suit you
+    4) Don't foget to disable SetupMode variable once you've done setting it up (or don't, if you like to be annoyed :D)
+    5) Use Health/Shield/IsDead outputs as you want
+    
+    ###################################
+    ## Advanced Health System v1.3.2 ##
+    ##      made by deltamolfar      ##
+    ##        Glory to Ukraine       ##
+    ###################################
+    
+    This chip can be freely distributed between anyone you want, as long, as you keep the author credits.
+    If you want to change something, and help others, feel free to create an issue/PR.
+]#
+
+function init(){
+    # If >0 - E2 will print out calculated statistics of your configuration. (0, or less to disable this)
+    const SetupMode = 1
+    
+    SETTINGS = table()
+    
+#[
+    Should the chip find the props to count as hitbox by itself?
+    It will work by looking for entity/props constrains with Hitbox entity.
+    Be careful! Constraines INCLUDE the wirelinks, so, for example, the seat of the drone driver most likely be counted as a hitbox as well.
+    (It will act as a yes if the value is any number but a zero.)
+]#
+    SETTINGS["AUTODETECT", number] = 0
+    
+    
+    
+#[
+    Should the chip delete props/entities once health goes below zero?
+    0 -> No.
+    1 -> Only the this chip itself.
+    2 -> Only the props that are specified at the input.
+    3 -> Props that are specified at the input AND all constrained props to them (can accidently delete your base, if you constrain it poorly!)
+]#
+    SETTINGS["SELFDEESTRUCT_MODE", number] = 0  
+    
+    
+    
+#[
+    Should the chip crash once the health goes below zero?
+    (It will act as a yes if the value is any number but a zero.)
+    (If the SELFDEESTRUCT_MODE is non-zero, this will be ignored!)
+]#
+    SETTINGS["AUTOCRASH", number] = 0
+    
+    
+    
+#[
+    Modify this to get different resistances to different types of damage.
+    Sometimes, addons uses another enums, so you wouldn't be able to edit ALL the damage types)
+    WILL NOT WORK WITHOUT DAMAGE(built in) EXTENSION!
+
+    ( The descriptions are from https://wiki.facepunch.com/gmod/Enums/DMG )
+    Example:
+        _DMG_BULLET = 0.5 -> Resulting damage of bullets will be cut in half.
+]#
+    SETTINGS["RESISTANCE", table] = table(
+        _DMG_ACID = 1,                  # - Toxic chemical or acid burn damage used by the Antlion Workers
+        _DMG_AIRBOAT = 1,               # - Airboat gun damage
+        _DMG_ALWAYSGIB = 1,             # - Always create gibs
+        _DMG_BLAST = 1,                 # - Explosion damage like grenades, helicopter bombs, combine mines, Will be ignored by most vehicle passengers.
+        _DMG_BLAST_SURFACE = 1,         # - This won't hurt the player underwater
+        _DMG_BUCKSHOT = 1,              # - The pellets fired from a shotgun
+        _DMG_BULLET = 1,                # - Bullet damage from Ceiling Turrets, the Strider, Turrets and most guns.
+        _DMG_BURN = 1,                  # - Damage from fire
+        _DMG_CLUB = 1,                  # - Blunt attacks such as from the Crowbar, Antlion Guard & Hunter
+        _DMG_CRUSH = 1,                 # - Caused by physics interaction and ignored by airboat drivers. This is used by the Rollermine and an unused animation attack called 'Fireattack' by the Antlion Guard
+        _DMG_DIRECT = 1,                # - Direct damage to the entity that does not go through any damage value modifications
+        _DMG_DISSOLVE = 1,              # - Forces the entity to dissolve on death. This is what the combine ball uses when it hits a target.
+        _DMG_DROWN = 1,                 # - Drown damage
+        _DMG_DROWNRECOVER = 1,          # - Damage applied to the player to restore health after drowning
+        _DMG_ENERGYBEAM = 1,            # - Laser damage
+        _DMG_FALL = 1,                  # - Fall damage
+        _DMG_GENERIC = 1,               # - eneric damage (used by weapon_fists)
+        _DMG_MISSILEDEFENSE = 1,        # - Damage from npc_missiledefense, npc_combinegunship, or monster_mortar
+        _DMG_NERVEGAS = 1,              # - Neurotoxin damage
+        _DMG_NEVERGIB = 1,              # - Crossbow damage, never creates gibs.
+        _DMG_PARALYZE = 1,              # - ame as _DMG_POISON
+        _DMG_PHYSGUN = 1,               # - Damage done by the gravity gun.
+        _DMG_PLASMA = 1,                # - Plasma damage
+        _DMG_POISON = 1,                # - Poison damage used by Antlion Workers & Poison Headcrabs.
+        _DMG_PREVENT_PHYSICS_FORCE = 1, # - Prevent a physics force.
+        _DMG_RADIATION = 1,             # - Radiation damage & it will be ignored by most vehicle passengers
+        _DMG_REMOVENORAGDOLL = 1,       # - Don't create a ragdoll on death
+        _DMG_SHOCK = 1,                 # - Electrical damage, shows smoke at the damage position and its used by Stalkers & Vortigaunts
+        _DMG_SLASH = 1,                 # - Used by the Stunstick, Manhacks, Antlions, Antlion Guards, Headcrabs, Fast Headcrabs, all Zombies types, Hunter, and potentially other NPCs attacks
+        _DMG_SLOWBURN = 1,              # - In an oven
+        _DMG_SNIPER = 1,                # - Damage from SniperRound/SniperPenetratedRound ammo types
+        _DMG_SONIC = 1,                 # - Sonic damage, used by the Gargantua and Houndeye NPCs
+        _DMG_VEHICLE = 1                # - Hit by a vehicle (This will need to be set for passengers of some vehicle to receive damage)
+    )
+    
+    # -- Your health settings    
+    SETTINGS["HEALTH", table] = table(
+        "MAX" = 1000, # How much should you have in total?
+        "REGEN_DELAY" = 100, # How fast should this be regenerated? (0 -> It shouldn't regen at all) (In miliseconds!)
+        "REGEN_AMOUNT" = 5, # How much should this regenerate per delay? (0 -> It shouldn't regen at all)
+        "REGEN_TIMEOUT" = 15000 # For how much time should the regeneration be delayed after getting damage? (0 to disable the timeout) (In miliseconds!)
+    )
+    
+    # -- Your shield settings
+    SETTINGS["SHIELD", table] = table(
+        "MAX" = 500, # How much should you have in total? (0 -> No shield)
+        "REGEN_DELAY" = 100, # How fast should this be regenerated? (0 -> It shouldn't regen at all) (In miliseconds!)
+        "REGEN_AMOUNT" = 10, # How much should this regenerate per delay? (0 -> It shouldn't regen at all)
+        "REGEN_TIMEOUT" = 10000 # For how much time should the regeneration be delayed after getting damage? (0 to disable the timeout) (In miliseconds!)
+    )
+    
+    # How many miniseconds should be between getting new damage? (The more the timer - the more time you will be invincible after a damage)
+    SETTINGS["NO_DAMAGE_DELAY", number] = 10 
+    
+    
+    # ---------------------------------------------------------------------------------------------------------------------------
+    # -------------------- DO NOT TOUCH ANYTHINGG BELOW THIS LINE, UNLESS YOU REALLY KNOW WHAT YOU'RE DOING! --------------------
+    # ---------------------------------------------------------------------------------------------------------------------------
+    
+    
+    assert(inrange(SETTINGS["SELFDEESTRUCT_MODE", number], 0, 3), "SETTINGS[\"SELFDEESTRUCT_MODE\", number] should hold a value from 0 to 3!")
+    
+    MaxShield = SETTINGS["SHIELD", table]["MAX", number]
+    MaxHealth = SETTINGS["HEALTH", table]["MAX", number]
+    Shield = MaxShield
+    Health = MaxHealth
+    ShieldRegenClk = 0
+    HealthRegenClk = 0
+    IsDead = 0
+    
+    if( SETTINGS["AUTODETECT", number] ){
+        HITBOXES = Hitbox:getConnectedEntities()
+        local LookupTable = invert(HITBOXES)
+        
+        foreach(_:number, V:entity = HitboxArray){
+            if( !LookupTable:exists(toString(V)) ){ HITBOXES:pushEntity(V) }
+        }
+    } else{
+        HITBOXES = HitboxArray:clone()
+        HITBOXES:pushEntity(Hitbox)
+    }
+    
+    if( SetupMode>0 ){
+        hint("Advanced Health System: Setup info printed to chat. To disable - put SetupMode variable to 0 or less", 7)
+        const HealthTable = SETTINGS["HEALTH", table]
+        const HealthRegen = floor(HealthTable["REGEN_AMOUNT", number]/HealthTable["REGEN_DELAY", number]*1000, 2)
+        
+        const ShieldTable = SETTINGS["SHIELD", table]
+        const ShieldRegen = floor(ShieldTable["REGEN_AMOUNT", number]/ShieldTable["REGEN_DELAY", number]*1000, 2)
+        
+        local DeltaModifier = 0
+        foreach(_:number, V:number = SETTINGS["RESISTANCE", table]){
+            DeltaModifier += V
+        }
+        
+        DeltaModifier /= SETTINGS["RESISTANCE", table]:count()
+        DeltaModifier = floor(DeltaModifier, 2)
+        
+        printColor(vec(0,255,255), "| Advanced Health System SetupMode",
+            vec(0,255,255), "\n| ", vec(255,180,180), "Health: "+HealthTable["MAX", number]+" -> Regen: ~"+HealthRegen+"/s",
+            vec(0,255,255), "\n| ", vec(110,255,255), "Shield: "+ShieldTable["MAX", number]+" -> Regen: ~"+ShieldRegen+"/s",
+            vec(0,255,255), "\n| ", vec(255), "HP Sum: "+(HealthTable["MAX", number]+ShieldTable["MAX", number]),
+            vec(0,255,255), "\n| ", vec(255), "Total amount of hitboxes: "+HITBOXES:count(),
+            vec(0,255,255), "\n| ", lerp(vec(255,0,0), vec(0,255,0), DeltaModifier), "Damage modifier: x"+DeltaModifier
+        )
+    }
+}
+
+function number isTimerRunning(Name:string){
+    return invert( getTimers() ):exists(Name)
+}
+
+function end(){
+    Shield = 0
+    IsDead = 1
+    stoptimer("REGEN_SHIELD")
+    stoptimer("REGEN_HEALTH")
+    
+    switch( SETTINGS["SELFDEESTRUCT_MODE", number] ){
+        case 1,
+            selfDestruct()
+        break
+        case 2,
+            Hitbox:propDelete()
+            foreach(_:number, V:entity = HitboxArray){
+                V:propDelete()
+            }
+        break
+        case 3,
+            selfDestructAll()
+        break
+    }
+    
+    if( SETTINGS["AUTOCRASH", number] ){
+        assert(0, "Advanced Health System: Health reached zero!")
+    }
+}
+
+if( first() || dupefinished() ){
+    init()
+}
+elseif( clk("REGEN_SHIELD") ){
+    if( Shield<MaxShield ){
+        ShieldRegenClk++
+        Shield = clamp( Shield+SETTINGS["SHIELD", table]["REGEN_AMOUNT", number], 0, SETTINGS["SHIELD", table]["MAX", number])
+        timer("REGEN_SHIELD", SETTINGS["SHIELD", table]["REGEN_DELAY", number])
+    }
+}
+elseif( clk("REGEN_HEALTH") ){
+    if( Health<MaxHealth ){
+        HealthRegenClk++
+        Health = clamp( Health+SETTINGS["HEALTH", table]["REGEN_AMOUNT", number], 0, SETTINGS["HEALTH", table]["MAX", number])
+        timer("REGEN_HEALTH", SETTINGS["HEALTH", table]["REGEN_DELAY", number])
+    }
+}
+
+event input(InputName:string) {
+    if( InputName=="ReloadClk" && ReloadClk!=0 ){
+        init()
+    }
+}
+
+event entityDamage(Victim:entity, Damage:damage) {
+    if( IsDead ){ exit() }
+    if( isTimerRunning("NO_DAMAGE_DELAY") ){ exit() }
+    
+    local IsLegal = 0
+    foreach(_:number, V:entity = HITBOXES){
+        if( Victim==V ){
+            IsLegal = 1
+            break
+        }
+    }
+    
+    if( !IsLegal ){ exit() }
+    
+    local DamageAmount = Damage:getAmount()
+    
+    foreach(Key:number, _:number = SETTINGS["RESISTANCE", table]){
+        if( Damage:isType(Key) ){
+            DamageAmount *= SETTINGS["RESISTANCE", table][Key, number]
+            break
+        }
+    }
+    
+    stoptimer("REGEN_SHIELD")
+
+    if( Shield>0 ){
+        Shield = clamp( Shield-DamageAmount, 0, SETTINGS["SHIELD", table]["MAX", number])
+    } else{
+        stoptimer("REGEN_HEALTH")
+        Health = clamp( Health-DamageAmount, 0, SETTINGS["HEALTH", table]["MAX", number])
+    }
+    
+    if( Health<=0 ){ end() }
+    
+    if( SETTINGS["SHIELD", table]["REGEN_DELAY", number]!=0 && SETTINGS["SHIELD", table]["REGEN_AMOUNT", number]!=0 ){
+        timer("REGEN_SHIELD", SETTINGS["SHIELD", table]["REGEN_TIMEOUT", number])
+    }
+    if( SETTINGS["HEALTH", table]["REGEN_DELAY", number]!=0 && SETTINGS["HEALTH", table]["REGEN_AMOUNT", number]!=0 ){
+        timer("REGEN_HEALTH", SETTINGS["HEALTH", table]["REGEN_TIMEOUT", number])
+    }
+    
+    timer("NO_DAMAGE_DELAY", SETTINGS["NO_DAMAGE_DELAY", number])
+}

@@ -1,0 +1,85 @@
+@name Chaqua VTOL
+@outputs [E P]:entity [FC FM M1 M2 Speed]:number
+if(first())
+{
+    runOnTick(1)
+    
+    entity():setColor(0,0,0,0)
+    
+    E = entity():isConstrainedTo()
+    if(E:isValid())
+    {
+        E:setMass(50000)
+        
+        if(E:isVehicle())
+        {
+            selfDestruct()
+        }else
+        {
+            P = E:isConstrainedTo()
+        }
+    }else
+    {
+        selfDestruct()
+    }
+    
+    FC = 9
+    M1 = 0
+    M2 = 0
+    
+    holoCreate(1) #Remove this holo stuff here if you don't want a holo showing how much force is being applied
+    holoModel(1,"hq_cylinder")
+    holoAng(1,E:toWorld(ang(0,0,5)))
+    holoPos(1,E:toWorld(vec(20,40,5.5)))
+    holoDisableShading(1,1)
+    holoParent(1,E)
+}
+Speed=entity():vel():length()
+Speed=toUnit("mph",Speed)
+Speed=round(Speed)
+Dri = P:driver()
+Active = P:driver():isValid()
+if(Active)
+{
+    W = Dri:keyForward()
+    A = Dri:keyLeft()
+    S = Dri:keyBack()
+    D = Dri:keyRight()
+    Spc = Dri:keyJump()
+    Shift = Dri:keySprint()
+    R = Dri:keyReload()
+    
+    if(A & !D)
+    {
+        if(M2) {M2-=0.03}
+        M1 = 62 - min(Speed, 62)
+        M1 = clamp((M1/50),0.2,1.2)
+    }
+    if(D & !A)
+    {
+        if(M1) {M1-=0.03}
+        M2 = 60 - min(Speed, 60)
+        M2 = clamp((M2/50),0.2,1.2)
+    }
+    
+    if(!A & !D) {M1-=0.03,M2-=0.03}
+    if(M1 < 0) {M1 = 0}
+    if(M2 < 0) {M2 = 0}
+    
+    FM+=0.0025
+}else
+{
+    FM-=0.0025
+}
+FM = clamp(FM,0,1)
+
+if(changed(FM)) #Remove this block of code here if you don't want to see the visual representation of the amount of force being applied
+{
+    local N = FM*255
+    holoColor(1,vec(255-N,N,0))
+    holoScale(1,vec(1,1,FM))
+    holoPos(1,E:toWorld(vec(20,40,0.5+FM*6)))
+}
+
+E:applyForce((E:up()*(FC+((Spc-Shift)*4))-(E:vel()*vec(0.0025,0.0025,0.005)))*E:mass()*FM)
+E:applyAngForce((ang((D-A)*30,(M1-M2)*60,(S-W)*30)-(E:angles()*ang(1.5,0,1.5))-E:angVel()*0.75)*E:mass()*FM)

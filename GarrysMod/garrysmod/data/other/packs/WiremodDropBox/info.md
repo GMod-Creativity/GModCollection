@@ -7,6 +7,7 @@
 - Description: All public releases from my wiremod folders.
 - Date (dd-mm-yyyy): 19-07-2017
 - Source: https://github.com/WiremodDropBox/WiremodStuff
+- Source: https://web.archive.org/web/20160417090537/http://www.wiremod.com/forum/finished-contraptions/35570-my-releases.html
 - Source Accessed (dd-mm-yyyy): 06-06-2025
 
 My releases

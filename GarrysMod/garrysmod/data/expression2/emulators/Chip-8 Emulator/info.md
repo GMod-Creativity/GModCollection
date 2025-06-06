@@ -1,4 +1,5 @@
 - Author: Techni
+- Steam Profile: https://steamcommunity.com/profiles/76561197983168201
 - Date: Nov 2010
 - Title: Chip-8 Emulator 99% Speed and Compatability (Code & Dupe in thread)
 - GMODCOLLECTION_INFO: change mtable to table

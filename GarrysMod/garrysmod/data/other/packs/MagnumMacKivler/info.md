@@ -7,7 +7,7 @@
 - Date (dd-mm-yyyy): 16-01-2021
 - Source: https://github.com/MagnumMacKivler/dragonscript
 - Source Accessed (dd-mm-yyyy): 05/06/2025
-- GMODCOLLECTION_INFO: dragon script: grayscale -> add   return 0   in function were it gives error.
+- GMODCOLLECTION_COMMENT: dragon script: grayscale -> add   return 0   in function were it gives error.
 
 **RLCPT2-master**
 - Description: RLC Platinum 2.0 Gamma

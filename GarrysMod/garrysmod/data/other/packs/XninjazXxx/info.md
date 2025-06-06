@@ -4,6 +4,7 @@
 - Date (dd-mm-yyyy): 18-01-2016
 - Title: Every E2 I've ever made
 - Source: https://web.archive.org/web/20160414162019*/http://www.wiremod.com:80/forum/finished-contraptions/35442-every-e2-ive-ever-made.html
+- Source: https://web.archive.org/web/20161030154844/https://track3.mixtape.moe/stfiwl.zip
 - Date Accessed (dd-mm-yyyy): 06-06-2025
 
 Well, it's been a while since I've posted anything here. I've completely forgot about wiremod until someone contacted me with telling that someone was abusing my stuff. Since I'm probably never going to pick up gmod again, I might as well post every single E2 I have (know that some of them are very old). Just a final note, some of them aren't finished and don't work. This is my entire "original" folder of E2s so be warned!

@@ -1,5 +1,5 @@
-Author: xznhj8129 (frogmane)
-Github: https://github.com/xznhj8129
+- Author: xznhj8129 (frogmane)
+- Github: https://github.com/xznhj8129
 
 **wiremod-master**
 - Description: All my wiremod e2 code!

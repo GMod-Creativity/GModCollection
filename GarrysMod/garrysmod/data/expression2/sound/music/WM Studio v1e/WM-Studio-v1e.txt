@@ -1,0 +1,997 @@
+@name WM Studio v1e
+@inputs EGP:wirelink
+@outputs 
+@persist [PianoRoll KeyLookupT]:table [Colour Pitch NoteOpen DefaultNO NoteLookup KeyLookup KeysOld]:array
+@persist M1 M2 E [Owner User]:entity Mode:string #Modes: Load, Save, Record, Edit, Play, Clear
+@persist Page PageFlip PlayTime Tempo Length Repeat KeyPlayed SoundPlayed
+@persist [LoadFile SaveFile SongName]:string FileSaved FileLoaded DeltaM FLColours 
+@persist Page1Lim Page2Lim AutoScroll
+@trigger none
+
+############################
+#   Made by Technicolour   #
+############################
+#      Credit to team      #
+#         Zoombahh         #
+#         MoPaZoDoZ        #
+#        Wenli/Epoch       #
+#          Omicron         #
+#          Divran          #
+#          Volvox          #
+#           Rasa           #
+#          Tolyzor         #
+############################
+
+if(clk("reset")){
+    if(->EGP){
+        reset()
+    }else{
+        timer("reset",1000)
+        exit()
+    }
+}
+if(first()){
+    if(!->EGP){
+        timer("reset",1000)
+        exit()
+    }
+    #Owner = findPlayerByName("zoom")
+    #User = findPlayerByName("zoom")
+    Owner = owner()
+    User = owner()
+
+}
+
+if (clk("AutoSave") | removing()) {
+    timer("AutoSave",30000)
+    if (SongName != "Unnamed" & fileCanWrite()) {
+        PianoRoll["Name",string] = SongName
+        PianoRoll["Bpm",number] = Tempo
+        PianoRoll["Length",number] = Length
+        fileWrite("WMStudio1/autosave.txt",vonEncode(PianoRoll))
+    }
+}
+    
+
+if (PageFlip) {
+    
+    if (PageFlip == 1) {
+        NoteOpen = DefaultNO:clone()
+        NoteLookup = array()
+        Page1Lim = 0
+        Page2Lim = 2
+        
+        EGP:egpSetText(94,Page:toString())
+        EGP:egpSetText(95,(Page+1):toString())
+    }
+    elseif (PageFlip == 33) {
+        PageFlip = 0
+        for (N = 1,NoteOpen:count()) {
+            NoteID = NoteOpen[N,number]
+            EGP:egpPos(124 + NoteID,vec2(1000,1000))
+        }
+    }
+              
+    while (inrange(PageFlip,1,32) & perf()) {
+        TempArray = PianoRoll[PageFlip + (Page-1)*16,array]
+        for (N = 1,clamp(TempArray:count(),0,6)) {
+            Coords = round(vec2(PageFlip,-(TempArray[N,number]-25)))
+            StrP = TempArray[N,number] + PageFlip*100
+            
+            NoteID = NoteOpen[1,number]
+            NoteOpen:shift()
+            
+            NoteLookup[StrP,number] = NoteID
+            
+            EGP:egpPos(124 + NoteID,round((Coords - vec2(1,1))*14 + vec2(65,86)) )
+            
+            if (inrange(PageFlip,1,16)) {
+                Page1Lim++
+            }elseif (inrange(PageFlip,17,32)) {
+                Page2Lim++
+            }
+            
+            if (!FLColours) {
+                NoteColour = Colour[TempArray[N,number],vector]
+            }else{
+                NoteColour = vec(156,214,165)
+            }
+            
+            
+            EGP:egpColor(124 + NoteID,NoteColour)
+        }
+        PageFlip++
+    }
+}
+
+if(!EGP:entity():isPlayerHolding()){
+    M1 = User:keyAttack1()
+    M2 = User:keyAttack2()
+    E = User:keyUse()
+    Cursor = EGP:egpCursor(User)
+}
+
+if (changed(Mode) & Mode == "Edit") {
+    DeltaM = 0
+    timer("EditTick",1500)
+}
+elseif (($M1 & !DeltaM)  | clk("EditTick")) {DeltaM = 1}
+
+if (Mode == "Edit"|Mode == "Play") {
+    if (M1 & $M1 & inrange(Cursor,vec2(490,0),vec2(512,25)) ) {
+        if (AutoScroll) {
+            AutoScroll = 0
+            EGP:egpSetText(124,"M")
+            EGP:egpColor(124,vec(0,0,200))
+        }else{
+            AutoScroll = 1
+            EGP:egpSetText(124,"A")
+            EGP:egpColor(124,vec(200,0,0))
+        }
+    }
+    
+    if (Mode == "Edit"|!AutoScroll) {
+        if ( M1 & $M1 & inrange(Cursor,vec2(36,446),vec2(96,486)) ) {
+            Page = clamp(Page-1,1,1000)
+            PageFlip = 1
+            EGP:egpColor(99,vec(135,206,250))
+            EGP:egpColor(100,vec(135,206,250))
+        }
+        elseif ( !M1 & inrange(Cursor,vec2(36,446),vec2(96,486)) ) {
+            EGP:egpColor(99,vec(135,206,250))
+            EGP:egpColor(100,vec(135,206,250))
+        }else{
+            EGP:egpColor(99,vec(0,56,80))
+            EGP:egpColor(100,vec(0,56,80))
+        }
+    
+        if ( M1 & $M1 & inrange(Cursor,vec2(416,446),vec2(476,486)) ) {
+            Page = clamp(Page+1,1,1000)
+            PageFlip = 1
+            EGP:egpColor(97,vec(135,206,250))
+            EGP:egpColor(98,vec(135,206,250))
+        }
+        elseif ( !M1 & inrange(Cursor,vec2(416,446),vec2(476,486)) ) {
+            EGP:egpColor(97,vec(135,206,250))
+            EGP:egpColor(98,vec(135,206,250))
+        }else{
+            EGP:egpColor(97,vec(0,56,80))
+            EGP:egpColor(98,vec(0,56,80))
+        }
+        
+    
+    }
+
+}
+
+if (Mode == "Edit" & !PageFlip & tickClk() & DeltaM) {
+    
+    Grid = round(floor((Cursor - vec2(65,86))/14)*14 + vec2(65,86))
+    Coords = round(floor((Cursor - vec2(65,86))/14) + vec2(1,1))
+    
+    CoX = round(Coords:x())
+    GloX = round(CoX + (Page-1)*16)
+    CoY = round(-(Coords:y()-25))
+    Str = round(CoY + CoX*100)
+    
+    if (inrange(Coords,vec2(1,1),vec2(32,24))) {
+        EGP:egpPos(85,Grid)
+        EGP:egpPos(86,vec2(1000,1000))
+    }else{
+        EGP:egpPos(86,Cursor)
+        EGP:egpPos(85,vec2(1000,100))
+    }
+    
+    if (!PianoRoll[Length,array]:count()) {Length--}
+    
+    if (M1 & inrange(Cursor,vec2(0,86),vec2(64,422)) ) {
+        if (KeyPlayed != clamp(CoY,1,24)) {
+            if (!KeyPlayed) {
+                KeyPlayed = clamp(CoY,1,24)
+            }
+            if (KeyPlayed) {
+                V = 24 + KeyLookupT[(-(KeyPlayed-25)):toString(),number]
+                if (inrange(V,1,38)) {
+                    EGP:egpColor(V,vec(255,255,255))
+                }else{
+                    EGP:egpColor(V,vec())
+                }
+            }
+            
+            if (!SoundPlayed) {
+                holoEntity(1):soundPlay(1,0,"synth/triangle_440.wav")
+                SoundPlayed = 1
+            }
+            soundVolume(1,1)
+            soundPitch(1,Pitch[KeyPlayed,number]/4.4)
+            
+            KeyPlayed = clamp(CoY,1,24)
+            V = 24 + KeyLookupT[(-(KeyPlayed-25)):toString(),number]
+            
+
+            if (!FLColours) {
+                NoteColour = Colour[KeyPlayed,vector]
+            } else {
+                if (inrange(V,1,38)) {
+                    NoteColour = vec(200,200,200)
+                }else{
+                    NoteColour = vec(50,50,50)
+                }
+            }
+            
+
+            EGP:egpColor(V,NoteColour)
+        }
+    }elseif (KeyPlayed) {
+        V = 24 + KeyLookupT[(-(KeyPlayed-25)):toString(),number]
+        if (inrange(V,1,38)) {
+            EGP:egpColor(V,vec(255,255,255))
+        }else{
+            EGP:egpColor(V,vec())
+        }
+        KeyPlayed = 0
+        SoundPlayed = 0
+        soundStop(1)
+    }
+    
+    if (M1 & $M1 & inrange(Cursor,vec2(5,65),vec2(30,80))) {
+        if (FLColours) {
+            FLColours = 0
+            EGP:egpColor(120,vec(100,100,100))
+        }else{
+            FLColours = 1
+            EGP:egpColor(120,vec(250,150,0))
+        }
+        PageFlip = 1
+    }
+            
+    
+    if ( M1 & inrange(Coords,vec2(1,1),vec2(32,24)) & NoteOpen:count() & !NoteLookup[Str,number]) {
+        
+        if (GloX > Length) {Length = GloX}
+
+        NoteID = NoteOpen[1,number]
+        
+        TempArray = PianoRoll[GloX,array]
+
+        if (TempArray:count() < 6 & ((Page1Lim < 88 & inrange(CoX,1,16)) | (Page2Lim < 88 & inrange(CoX,17,32)))) {
+            
+            if (inrange(CoX,1,16)) {
+                Page1Lim++
+            }elseif (inrange(CoX,17,32)) {
+                Page2Lim++
+            }
+            
+            TempArray:pushNumber(CoY)
+            PianoRoll[GloX,array] = TempArray
+            
+            NoteLookup[Str,number] = NoteID
+            
+            NoteOpen:shift()
+            EGP:egpPos(124 + NoteID,Grid)
+            
+            if (!FLColours) {
+                NoteColour = Colour[CoY,vector]
+            }else{
+                NoteColour = vec(156,214,165)
+            }
+            
+            EGP:egpColor(124 + NoteID,NoteColour)
+        }
+    }
+        
+    if ( M2 & inrange(Coords,vec2(1,1),vec2(32,24)) & NoteLookup[Str,number]) {
+        NoteID = NoteLookup[Str,number]
+
+        NoteLookup[Str,number] = 0
+        
+        EGP:egpPos(124 + NoteID,vec2(1000,1000))
+        NoteOpen:pushNumber(NoteID)
+        
+        TempArray = PianoRoll[GloX,array]
+        
+        if (inrange(CoX,1,16)) {
+            Page1Lim--
+        }elseif (inrange(CoX,17,32)) {
+            Page2Lim--
+        }
+        
+        for (N = 1,TempArray:count()) {
+            if (TempArray[N,number] == CoY) {
+                TempArray:remove(N)
+                break
+            }
+        }
+        
+        PianoRoll[GloX,array] = TempArray
+  
+    }
+
+    
+    
+    
+    
+    
+    if (M1 & $M1 & inrange(Cursor,vec2(236-90,446),vec2(276-90,486)) ) {
+        EGP:egpAlpha(89,255) 
+        EGP:egpAlpha(88,10) 
+        EGP:egpAlpha(111,255)
+        EGP:egpAlpha(110,255)
+        
+        timer("PlayTick",Tempo)
+        Mode = "Play"
+        
+        for (N= 1,3) {
+            holoEntity(N):soundPlay(N,0,"synth/triangle_440.wav")
+            soundVolume(N,0) 
+        }
+        
+        for (N= 4,6) {
+            holoEntity(N):soundPlay(N,0,"synth/tri.wav")
+            soundVolume(N,0) 
+        }
+        
+    }
+    
+    if (E & $E & inrange(Coords,vec2(1,1),vec2(32,24))) {
+        PlayTime = GloX
+    }
+    
+    
+    if (inrange(PlayTime - (Page-1)*16,1,32)) {
+        EGP:egpPos(96,vec2(68 + PlayTime*14 - (Page-1)*16*14 - 14,83))
+        EGP:egpAlpha(96,100)
+    }else{
+        EGP:egpPos(96,vec2(1000,1000))
+    }
+    
+    if (M1 & $M1 & inrange(Cursor,vec2(35,65),vec2(60,80))) {
+        if (!Repeat) {
+            Repeat = 1
+            EGP:egpPos(112,vec2(37,67))
+            EGP:egpLine(115,vec2(1000,1000),vec2(1000,1000))
+        }else{
+            Repeat = 0
+            EGP:egpPos(112,vec2(1000,1000))
+            EGP:egpLine(115,vec2(37,72),vec2(53,72))
+        }
+    }
+
+}
+
+elseif (Mode == "Play" & !chatClk()) {
+    
+    EGP:egpPos(86,Cursor)
+    EGP:egpPos(85,vec2(1000,100))
+    
+    
+    if (clk("PlayTick")) {
+        TempArray = PianoRoll[PlayTime,array]
+        
+        for (N = 1,KeysOld:count()) {
+            V = KeysOld[N,number]
+            if (inrange(V,1,38)) {
+                EGP:egpColor(V,vec(255,255,255))
+            }else{
+                EGP:egpColor(V,vec())
+            }
+        }
+        KeysOld = array()
+        
+        
+        for (N = 1,6) {
+            Key = TempArray[N,number]
+            if (Key) {
+                soundVolume(N,1)
+                soundPitch(N,Pitch[Key,number]/4.4)
+            }else{
+                soundVolume(N,0)
+            }
+            if (Key) {
+                V = 24 + KeyLookupT[(-(Key-25)):toString(),number]
+                
+                if (!FLColours) {
+                    NoteColour = Colour[Key,vector]
+                } else {
+                    if (inrange(V,1,38)) {
+                        NoteColour = vec(200,200,200)
+                    }else{
+                        NoteColour = vec(50,50,50)
+                    }
+                }
+                
+                EGP:egpColor(V,NoteColour)
+                KeysOld:pushNumber(V)
+            }
+            
+            
+            
+        }
+        timer("PlayTick",Tempo)
+        
+        if (AutoScroll) {
+            if (Page != ceil(PlayTime/32)*2 - 1) {
+                Page = ceil(PlayTime/32)*2 - 1
+                PageFlip = 1
+            }
+        }
+        
+        if (inrange(PlayTime - (Page-1)*16,1,32)) {
+            EGP:egpPos(96,vec2(68 + PlayTime*14 - (Page-1)*16*14 - 14,83))
+            EGP:egpAlpha(96,100)
+        }else{
+            EGP:egpPos(96,vec2(1000,1000))
+        }
+        
+        PlayTime++
+        if (PlayTime > Length) {
+            if (Repeat) {PlayTime = 1}
+            else{
+                
+                for (N = 1,KeysOld:count()) {
+                    V = KeysOld[N,number]
+                    if (inrange(V,1,38)) {
+                        EGP:egpColor(V,vec(255,255,255))
+                    }else{
+                        EGP:egpColor(V,vec())
+                    }
+                }
+                KeysOld = array()
+                
+                EGP:egpAlpha(89,10) 
+                EGP:egpAlpha(88,255) 
+                EGP:egpAlpha(111,10)
+                EGP:egpAlpha(110,10)
+                
+                stoptimer("PlayTick")
+                Mode = "Edit"
+                PlayTime = 1
+                
+                soundStop(1)
+                soundStop(2)
+                soundStop(3)
+                soundStop(4)
+                soundStop(5)
+                soundStop(6)
+                
+            }
+        }
+                
+    }
+    
+    if (M1 & $M1 & inrange(Cursor,vec2(5,65),vec2(30,80))) {
+        if (FLColours) {
+            FLColours = 0
+            EGP:egpColor(120,vec(100,100,100))
+        }else{
+            FLColours = 1
+            EGP:egpColor(120,vec(250,150,0))
+        }
+        PageFlip = 1
+    }
+    
+    Coords = round(floor((Cursor - vec2(65,86))/14) + vec2(1,1))
+    CoX = round(Coords:x())
+    GloX = round(CoX + (Page-1)*16)
+    if (E & $E & inrange(Coords,vec2(1,1),vec2(32,24))) {
+        PlayTime = GloX
+    }
+    
+    if (M1 & $M1 & inrange(Cursor,vec2(236,446),vec2(276,486)) ) {
+        for (N = 1,KeysOld:count()) {
+            V = KeysOld[N,number]
+            if (inrange(V,1,38)) {
+                EGP:egpColor(V,vec(255,255,255))
+            }else{
+                EGP:egpColor(V,vec())
+            }
+        }
+        KeysOld = array()
+        
+        
+        EGP:egpAlpha(89,10) 
+        EGP:egpAlpha(88,255) 
+        
+        EGP:egpAlpha(111,10)
+        EGP:egpAlpha(110,10)
+        
+        stoptimer("PlayTick")
+        Mode = "Edit"
+        PlayTime = 1
+        
+        soundStop(1)
+        soundStop(2)
+        soundStop(3)
+        soundStop(4)
+        soundStop(5)
+        soundStop(6)
+    }
+    
+    elseif (M1 & $M1 & inrange(Cursor,vec2(236+90,446),vec2(276+90,486)) ) {
+        
+        for (N = 1,KeysOld:count()) {
+            V = KeysOld[N,number]
+            if (inrange(V,1,38)) {
+                EGP:egpColor(V,vec(255,255,255))
+            }else{
+                EGP:egpColor(V,vec())
+            }
+        }
+        KeysOld = array()
+        
+        EGP:egpAlpha(89,10) 
+        EGP:egpAlpha(88,255) 
+        
+        EGP:egpAlpha(111,10)
+        EGP:egpAlpha(110,10)
+
+        stoptimer("PlayTick")
+        Mode = "Edit"
+        
+        soundStop(1)
+        soundStop(2)
+        soundStop(3)
+        soundStop(4)
+        soundStop(5)
+        soundStop(6)
+        
+        
+    }
+    
+    if (M1 & $M1 & inrange(Cursor,vec2(35,65),vec2(60,80))) {
+        if (!Repeat) {
+            Repeat = 1
+            EGP:egpPos(112,vec2(37,67))
+            EGP:egpLine(115,vec2(1000,1000),vec2(1000,1000))
+        }else{
+            Repeat = 0
+            EGP:egpPos(112,vec2(1000,1000))
+            EGP:egpLine(115,vec2(37,72),vec2(53,72))
+        }
+    }
+
+    
+}
+
+elseif (chatClk(Owner)) {
+    LastSaid = Owner:lastSaid():lower():explode(" ")
+    if (LastSaid[1,string] == "!save") {
+        hideChat(1)
+        Mode = "Save"
+        timer("SaveTick",1500)
+        SaveFile = "WMStudio1/" + Owner:lastSaid():sub(7)+".txt"
+        FileSaved = 0
+        
+        EGP:egpAlpha(101,255)
+        EGP:egpAlpha(102,255)
+        EGP:egpAlpha(105,255)
+        EGP:egpSetText(105,"Saving "+SaveFile:sub(11))
+    }
+    elseif (LastSaid[1,string] == "!load" & Mode == "Edit") {
+        hideChat(1)
+        Mode = "Load"
+        timer("LoadTick",10000)
+        LoadFile = "WMStudio1/" + Owner:lastSaid():sub(7)+".txt"
+        FileLoaded = 0
+        
+        EGP:egpAlpha(101,255)
+        EGP:egpAlpha(102,255)
+        EGP:egpAlpha(105,255)
+        EGP:egpSetText(105,"Loading "+LoadFile:sub(11))
+    }
+    elseif (LastSaid[1,string] == "!user") {
+        hideChat(1)
+        User = findPlayerByName(LastSaid[2,string]) 
+    }
+    elseif (LastSaid[1,string] == "!clear" & Mode == "Edit") {
+        hideChat(1)
+        Mode = "Clear"
+        
+        EGP:egpAlpha(101,255)
+        EGP:egpAlpha(102,255)
+        EGP:egpAlpha(105,255)
+        EGP:egpSetText(105,"Are you sure?")
+        EGP:egpAlpha(106,255)
+        EGP:egpAlpha(107,255)
+        EGP:egpAlpha(108,255)
+        EGP:egpAlpha(109,255)
+    }
+    elseif(LastSaid[1,string] == "!bpm") {
+        hideChat(1)
+        Tempo = round(60000/(LastSaid[2,string]:toNumber()*4),3)
+        EGP:egpSetText(121,"BPM: "+(round(LastSaid[2,string]:toNumber(),3):toString()))
+    }
+    elseif(LastSaid[1,string] == "!name") {
+        hideChat(1)
+        SongName = Owner:lastSaid():sub(7)
+        EGP:egpText(123,SongName:upper(),vec2(510 - SongName:length()*13,43))
+        EGP:egpFont(123,"Courier New",24)
+    }
+    elseif((LastSaid[1,string] == "!page"|LastSaid[1,string] == "!p") & (Mode == "Edit" | (Mode == "Play" & !AutoScroll)) ) {
+        hideChat(1)
+        Page = clamp(LastSaid[2,string]:toNumber(),1,10000)
+        PageFlip = 1
+    }
+}
+elseif (Mode == "Clear") {
+    EGP:egpPos(86,Cursor)
+    EGP:egpPos(85,vec2(1000,100))
+    
+    SongName = "Unnamed"
+    EGP:egpText(123,SongName:upper(),vec2(510 - SongName:length()*13,43))
+    EGP:egpFont(123,"Courier New",24)
+    
+    if (M1 & $M1 & inrange(Cursor,vec2(201,260),vec2(251,285))) {
+        Mode = "Edit"
+        EGP:egpAlpha(101,0)
+        EGP:egpAlpha(102,0)
+        EGP:egpAlpha(105,0)
+        EGP:egpAlpha(106,0)
+        EGP:egpAlpha(107,0)
+        EGP:egpAlpha(108,0)
+        EGP:egpAlpha(109,0)
+        PianoRoll = table()
+        PageFlip = 1
+    }
+        if (M1 & $M1 & inrange(Cursor,vec2(261,260),vec2(311,285))) {
+        Mode = "Edit"
+        EGP:egpAlpha(101,0)
+        EGP:egpAlpha(102,0)
+        EGP:egpAlpha(105,0)
+        EGP:egpAlpha(106,0)
+        EGP:egpAlpha(107,0)
+        EGP:egpAlpha(108,0)
+        EGP:egpAlpha(109,0)
+    }
+}
+
+elseif (Mode == "Load") {
+    EGP:egpPos(86,Cursor)
+    EGP:egpPos(85,vec2(1000,100))
+    
+    if (!FileLoaded & fileCanLoad()) {
+        fileLoad(LoadFile)
+        FileLoaded = 1
+    }
+    if (fileClk(LoadFile)) {
+        FileLoaded = 2
+    }
+    if (clk("LoadTick") | fileClk(LoadFile)) {
+        EGP:egpAlpha(103,255)
+        EGP:egpAlpha(104,255)
+        if (FileLoaded == 2 & fileStatus() == 1) {
+            EGP:egpSetText(105,"Load Successful")
+            PianoRoll = vonDecodeTable(fileRead())
+            Tempo = round(PianoRoll["Bpm",number],3)
+            EGP:egpSetText(121,"BPM: "+round((60000/(Tempo*4)),3):toString())
+            Length = PianoRoll["Length",number]
+            SongName = PianoRoll["Name",string]
+            
+            EGP:egpText(123,SongName:upper(),vec2(510 - SongName:length()*13,43))
+            EGP:egpFont(123,"Courier New",24)
+            
+            Page = 1
+            PageFlip = 1
+        } else {
+            EGP:egpSetText(105,"Load Failed")
+        }
+        FileLoaded = 3
+    }
+    
+    if (FileLoaded == 3 & M1 & $M1 & inrange(Cursor,vec2(231,260),vec2(281,285))) {
+        Mode = "Edit"
+        EGP:egpAlpha(101,0)
+        EGP:egpAlpha(102,0)
+        EGP:egpAlpha(103,0)
+        EGP:egpAlpha(104,0)
+        EGP:egpAlpha(105,0)
+    }
+        
+        
+        
+}      
+        
+        
+
+elseif (Mode == "Save") {
+    EGP:egpPos(86,Cursor)
+    EGP:egpPos(85,vec2(1000,100))
+    
+    if (fileCanWrite() & !FileSaved) {
+        PianoRoll["Name",string] = SongName
+        PianoRoll["Bpm",number] = Tempo
+        PianoRoll["Length",number] = Length
+        fileWrite(SaveFile,vonEncode(PianoRoll))
+        FileSaved = 1
+    }
+    
+    
+    
+    if(clk("SaveTick")) {
+        EGP:egpAlpha(103,255)
+        EGP:egpAlpha(104,255)
+        FileSaved = 2
+        if (FileSaved) {
+            EGP:egpSetText(105,"Save Successful")
+        } else {
+            EGP:egpSetText(105,"Save Failed")
+        }
+    }
+    
+    if (FileSaved == 2 & M1 & $M1 & inrange(Cursor,vec2(231,260),vec2(281,285))) {
+        Mode = "Edit"
+        EGP:egpAlpha(101,0)
+        EGP:egpAlpha(102,0)
+        EGP:egpAlpha(103,0)
+        EGP:egpAlpha(104,0)
+        EGP:egpAlpha(105,0)
+    }
+        
+    
+}
+    
+    
+
+elseif (first()) {
+    
+    runOnTick(1)
+    runOnFile(1)
+    runOnChat(1)
+    
+    timer("AutoSave",30000)
+    
+    Mode = "Edit"
+    
+    for (N = 1,176) {DefaultNO:pushNumber(N)}
+    NoteOpen = DefaultNO:clone()
+    
+    Colour = array( vec(255,0,0), vec(150,100,100), vec(255,127,0), vec(150,125,100),
+                    vec(255,255,0), vec(127,255,0), vec(125,150,100), vec(0,255,0),
+                    vec(100,150,100), vec(0,255,127), vec(100,150,125), vec(0,255,255),
+                    vec(0,127,255), vec(100,125,150), vec(0,0,255), vec(100,100,150), 
+                    vec(127,0,255), vec(255,0,255), vec(150,100,150), vec(255,0,127), 
+                    vec(150,100,125), vec(255,0,0), vec(150,100,100), vec(255,127,0) )
+                    
+    Pitch = array( 261.63,277.18,293.66,311.13,329.63,349.23,369.99,392.00,415.30,440.00,466.10,493.88,
+                   523.25,554.37,587.33,622.25,659.26,698.46,739.99,783.99,830.61,880.00,932.33,987.77 )
+    
+    KeyLookup = array(  1,3,5,7,8,10,12,13,15,17,19,20,22,24,
+                        2,4,6,0,9,11,0,14,16,18,0,21,23)
+                        
+    KeyLookupT = invert(KeyLookup)
+    
+    SongName = "Unnamed"
+    
+    PlayTime = 1
+    
+    Page = 1
+    Tempo = 60000/(100*4)
+    PianoRoll["Bpm",number] = Tempo
+    Length = 0
+    Repeat = 0
+    FLColours = 0
+    
+    AutoScroll = 1
+    
+    for (N = 1,6) {
+        holoCreate(N)
+        holoPos(N,EGP:entity():pos())
+        holoParent(N,EGP:entity())
+        holoAlpha(N,0)
+    }
+
+        
+    
+    
+    EGP:egpClear()
+    EGP:egpDrawTopLeft(1) 
+    
+    EGP:egpBox(1,vec2(64,84),vec2(449,336))
+    EGP:egpColor(1,vec(33,41,49))
+    
+    for (N = 1,23) {
+        if (N !=12) {
+            EGP:egpLine(N+1,vec2(64,84 + N*14),vec2(512,84 + N*14)) 
+            EGP:egpColor(N+1,vec(49,57,66))
+        }
+    }
+    
+    for (N = 1,14) {
+        EGP:egpBox(N+24,vec2(0,84+(N-1)*24),vec2(64,23))
+        #EGP:egpColor(N+24,Colour[KeyLookup[N,number],vector])
+        #EGP:egpMaterial(N+24,"models/cheeze/wires/metal_texture")
+    }
+    
+    for (N = 1,13) {
+        if (N != 4& N != 7 & N != 11) {
+            EGP:egpBox(N+38,vec2(0,84+N*24 - 6),vec2(40,14))
+            EGP:egpColor(N+38,vec(20,20,20))
+        }
+    }
+    
+    for (N = 1,31) {
+        EGP:egpLine(N + 51,vec2(64 + N*14,84),vec2(64+N*14,420))
+        
+        if (N == 4|N == 8|N == 12|N == 20|N == 24|N == 28) {
+            EGP:egpColor(N+51,vec(74,82,82))
+        }elseif (N == 16){
+            EGP:egpColor(N+51,vec(99,107,115))
+        }else{
+            EGP:egpColor(N+51,vec(49,57,66))
+        }
+    }
+    
+    EGP:egpLine(13,vec2(64,84 + 12*14),vec2(512,84 + 12*14)) 
+    EGP:egpColor(13,vec(99,107,115))
+        
+    EGP:egpText(83,"C5",vec2(42,233)) 
+    EGP:egpColor(83,vec(0,0,0))
+    EGP:egpFont(83,"Courier New",20) 
+    
+    EGP:egpText(84,"C4",vec2(42,401)) 
+    EGP:egpColor(84,vec(0,0,0))
+    EGP:egpFont(84,"Courier New",20) 
+    
+    #Play, Stop, Pause
+    EGP:egpTriangle(88,vec2(276-90,466),vec2(236-90,466-20),vec2(236-90,466+20))
+    EGP:egpColor(88,vec(0,200,50))
+    
+    EGP:egpBox(89,vec2(236,446),vec2(40,40))
+    EGP:egpColor(89,255,0,0,255)
+    
+    EGP:egpBox(110,vec2(236+90,446),vec2(15,40))
+    EGP:egpColor(110,255,215,0,255)
+    
+    EGP:egpBox(111,vec2(236+115,446),vec2(15,40))
+    EGP:egpColor(111,255,215,0,255)
+    
+    EGP:egpAlpha(111,10)
+    EGP:egpAlpha(110,10)
+    EGP:egpAlpha(89,10)
+    
+    #Page Forwards and Backwards buttons
+    U = 180
+    EGP:egpTriangle(97,vec2(276+U,466),vec2(236+U,446),vec2(236+U,486))
+    U = 200
+    EGP:egpTriangle(98,vec2(276+U,466),vec2(236+U,446),vec2(236+U,486))
+    U = -180
+    EGP:egpTriangle(99,vec2(236+U,466),vec2(276+U,446),vec2(276+U,486))
+    U = -200
+    EGP:egpTriangle(100,vec2(236+U,466),vec2(276+U,446),vec2(276+U,486))
+    
+    TempColour2 = vec(0,56,80)
+    EGP:egpColor(97,TempColour2)
+    EGP:egpColor(98,TempColour2)
+    EGP:egpColor(99,TempColour2)
+    EGP:egpColor(100,TempColour2)
+    
+    #Scroll box
+    EGP:egpBox(92,vec2(65,63),vec2(448,20))
+    EGP:egpColor(92,vec(57,66,74))
+    
+    EGP:egpBox(93,vec2(66,64),vec2(444,18))
+    EGP:egpColor(93,vec(10,15,20))
+    
+    EGP:egpText(94,"1",vec2(65+106,63))
+    EGP:egpText(95,"2",vec2(65+106+224,63))
+    
+    for (N = 124,300) {EGP:egpBox(N,vec2(1000,1000),vec2(14,13))}
+    
+    #ScrollBar
+    EGP:egpBox(96,vec2(1000,1000),vec2(7,336))
+    EGP:egpColor(96,255,0,0,100)
+    
+    
+    #Prompt Box
+    EGP:egpBox(101,vec2(181,216),vec2(150,80))
+    EGP:egpColor(101,vec())
+    
+    EGP:egpBox(102,vec2(183,218),vec2(146,76))
+    
+    EGP:egpText(105,"Are you sure?",vec2(186,230))
+    EGP:egpColor(105,vec())
+    EGP:egpSize(105,15)
+
+    #Okay button
+    EGP:egpBoxOutline(103,vec2(231,260),vec2(50,25))
+    EGP:egpColor(103,vec())
+    EGP:egpSize(103,2)
+    
+    EGP:egpText(104,"OK",vec2(245,262))
+    EGP:egpColor(104,vec())
+    
+    #Yes and No buttons
+    EGP:egpBoxOutline(107,vec2(261,260),vec2(50,25))
+    EGP:egpColor(107,vec())
+    EGP:egpSize(107,2)
+    
+    EGP:egpBoxOutline(106,vec2(201,260),vec2(50,25))
+    EGP:egpColor(106,vec())
+    EGP:egpSize(106,2)
+    
+    EGP:egpText(108,"Yes",vec2(215,262))
+    EGP:egpColor(108,vec())
+    
+    EGP:egpText(109,"No",vec2(275,262))
+    EGP:egpColor(109,vec())
+
+
+    EGP:egpAlpha(101,0)
+    EGP:egpAlpha(102,0)
+    EGP:egpAlpha(105,0)
+    
+    EGP:egpAlpha(103,0)
+    EGP:egpAlpha(104,0)
+    
+    EGP:egpAlpha(106,0)
+    EGP:egpAlpha(107,0)
+    EGP:egpAlpha(108,0)
+    EGP:egpAlpha(109,0)
+
+    
+    #Repeat icon
+    EGP:egpBoxOutline(112,vec2(37,67),vec2(20,10))
+    EGP:egpColor(112,vec(255,255,255))
+    EGP:egpSize(112,2)
+    
+    EGP:egpBox(113,vec2(-4,1),vec2(8,5))
+    EGP:egpParent(113,112)
+    EGP:egpColor(113,vec())
+    
+    EGP:egpTriangle(114,vec2(0,4),vec2(4,1),vec2(4,7))
+    EGP:egpParent(114,112)
+    
+    EGP:egpPos(112,vec2(1000,1000))
+    
+    #NoRepeat Icon
+    EGP:egpLine(115,vec2(37,72),vec2(53,72))
+    EGP:egpSize(115,2)
+    
+    EGP:egpTriangle(116,vec2(12,0),vec2(8,3),vec2(8,-3))
+    EGP:egpParent(116,115)
+    
+    #Colour icon
+    
+    EGP:egpBox(120,vec2(7,67),vec2(20,10))
+    EGP:egpColor(120,vec(250,150,0))
+    
+    EGP:egpBoxOutline(119,vec2(7,67),vec2(20,10))
+    EGP:egpSize(119,2)
+    
+    #Logo
+    EGP:egpText(118,"WM",vec2(3,1))
+    EGP:egpFont(118,"Coolvetica",30)
+    EGP:egpColor(118,vec(255,69,0))
+    
+    EGP:egpText(117,"STUDIO",vec2(49,2))
+    EGP:egpFont(117,"Coolvetica",20)
+    EGP:egpColor(117,vec(0,100,255))
+    
+    #BPM number
+    EGP:egpText(121,"BPM: "+(60000/(Tempo*4)):toString(),vec2(425,0))
+    EGP:egpSize(121,13)
+    
+    #By technicolour
+    EGP:egpText(122,"By Technicolour",vec2(1,500))
+    EGP:egpSize(122,10)
+    
+    #SongName
+    EGP:egpText(123,SongName:upper(),vec2(510 - SongName:length()*13,43))
+    EGP:egpFont(123,"Courier New",24)
+    
+    #AutoScrol toggle
+    EGP:egpText(124,"A",vec2(500,0))
+    EGP:egpColor(124,vec(200,0,0))
+    EGP:egpSize(124,13)
+    
+    
+    #Cursors, these go ontop of everything.
+    EGP:egpBoxOutline(85,vec2(),vec2(13,13))
+    
+    EGP:egpCircle(86,vec2(),vec2(2,2))
+    EGP:egpCircleOutline(87,vec2(),vec2(2,2))
+    EGP:egpColor(87,vec())
+    EGP:egpParent(87,86) 
+
+    
+}

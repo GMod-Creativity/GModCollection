@@ -1,0 +1,1368 @@
+@name Sentry Gun Dupe
+@inputs [Turret1 Turret2]:wirelink
+@persist Entity:entity [Base Players]:string [BaseCol BaseCol2 TeamColour]:vector Skin CheckSights [Excludes LOS Finds]:array
+@persist Building BuildAnim Level BuildProg BuildProg2 BuildRelief GunPos Target:entity Shoot ReloadProg HeadAng:angle
+
+@persist Active GunSpeed GunAimPosition:vector Oscillate Barrel Rotate   
+@persist ShootRocket RocketAnim RocketProg RocketProg2 RocketCooldown [Rockets]:array [Rocket Splode]:entity
+@persist WrangleMode [WrangleRangerLength]:ranger MeleeUpgrade
+
+@persist Level1Health Level2Health Level3Health Health MaxHealth Die SparkTime FireTime UpgradeProg Build HoloAmount Fade FadeAlpha
+@model models/props_c17/oildrum001.mdl
+
+interval(40)
+
+
+####################
+####################
+####################
+##########
+#####
+#####   yeah this code is a fucking mess, have fun lol
+#####
+##########
+####################
+####################
+####################
+
+if(duped()){reset()}
+
+#ifdef propSpawn(string,angle,number)
+
+if(first())
+{
+    propSpawnUndo(0)
+    Entity=entity()
+    Entity:setMass(1000)
+    Entity:setAlpha(0)
+    
+    function number lineOfSight(Start:vector,End:vector,Number,Target:entity)
+    {      
+        rangerFilter(Rockets)
+        rangerFilter(Turret1:entity())
+        rangerFilter(Turret2:entity())
+        LOS[Number,ranger] = rangerOffsetHull(Start,End,vec(2))##those 2 gotta be the same
+        if(LOS[Number,ranger]:entity()==Target){
+        return 1}
+        else{
+        return 0}
+    }
+
+    function quaternion aim(A:quaternion,B:quaternion,D){
+    local F = acos(min(abs(A:dot(B)),1))*2
+    if (F == 0){return B}
+    return nlerp(A,B,min(1,D/F))}    
+
+    function void holo(Index,Parent:entity,Model:string,Pos:vector,Ang:angle,Scale:vector,Material:string,Color:vector,Alpha)                                                                                             
+    { 
+        holoCreate(Index)
+        holoModel(Index,Model)
+        holoPos(Index,Parent:toWorld(+Pos))
+        holoAng(Index,Parent:toWorld(+Ang))
+        holoScale(Index,Scale)
+        holoColor(Index,Color)
+        holoAlpha(Index,Alpha)
+        holoMaterial(Index,Material)
+        holoParent(Index,Parent)
+    }  
+
+    function void holoWithTrail(Index,Parent:entity,Model:string,Pos:vector,Ang:angle,Scale:vector,Material:string,Color:vector,Alpha,Start,End,Length,String:string,Col:vector,TrailAlpha)                                                                                             
+    { 
+        holoCreate(Index)
+        holoModel(Index,Model)
+        holoPos(Index,Parent:toWorld(+Pos))
+        holoAng(Index,Parent:toWorld(+Ang))
+        holoScale(Index,Scale)
+        holoColor(Index,Color)
+        holoAlpha(Index,Alpha)
+        holoMaterial(Index,Material)
+        holoParent(Index,Parent)
+    
+        holoEntity(Index):setTrails(Start,End,Length,String,Col,TrailAlpha)
+    }  
+
+    Level1Health = 150
+    Level2Health = 180   
+    Level3Health = 216
+    
+    Health = Level1Health
+    MaxHealth = Health
+
+    Base="models/props_c17/metalladder001"
+    BaseCol=vec(136,139,125)
+    BaseCol2=vec(96,99,85)
+    TeamColour=vec(255,50,50)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          hint("3-in-1 Holo Sentry, by paul_rose",5)
+
+    if(!holoModelAny()){
+    print("wire_holograms_modelany 1   copy & paste this into the console")
+    error("please type 'wire_holograms_modelany 1' or the sentry model cant spawn properly")    
+    }
+
+
+
+    hint("press Numpad enter to change the Sentry skin",5)
+    hint("press Numpad 0 to enable Wrangler mode",5)
+    hint("hit the Sentry with your crowbar to upgrade/heal it",5)
+
+### Stand
+
+  holo(0,entity(),"",vec(0,0,20),ang(vec(0,0,0)),vec(0.5),"",vec(255),0)                                    
+
+  holo(1,holoEntity(0),"",vec(0,0,0),ang(vec(0,0,0)),vec(0.2,1,0.2),"",vec(255),255)                                    
+    holo(2,holoEntity(1),"models/hunter/tubes/circle2x2d.mdl",vec(-3.12,6,3.12),ang(vec(-90,0,90)),vec(0.215,0.215,0.5),Base,BaseCol,255)                                    
+    holo(3,holoEntity(2),"models/hunter/tubes/tube1x1x1d.mdl",vec(-1.5,-1.5,-0.5),ang(vec(0,90,180)),vec(0.3,0.3,0.01),Base,BaseCol-50,255)
+    holo(4,holoEntity(2),"models/hunter/plates/plate025x025.mdl",vec(-7.2,4.75,0),ang(vec(0,0,0)),vec(0.5,0.8,0.5),Base,BaseCol,255)                                    
+    holo(5,holoEntity(1),"models/hunter/tubes/circle2x2d.mdl",vec(-3.12,-6,3.12),ang(vec(-90,0,90)),vec(0.215,0.215,0.5),Base,BaseCol,255)                                    
+    holo(6,holoEntity(5),"models/hunter/tubes/tube1x1x1d.mdl",vec(-1.5,-1.5,-0.5),ang(vec(0,90,180)),vec(0.3,0.3,0.01),Base,BaseCol-50,255)                                    
+    holo(7,holoEntity(5),"models/hunter/plates/plate025x025.mdl",vec(-7.2,4.75,0),ang(vec(0,0,0)),vec(0.5,0.8,0.5),Base,BaseCol,255)                                    
+
+    holo(8,holoEntity(1),"models/holograms/rcube.mdl",vec(0,0,-6.8),ang(vec(0,0,0)),vec(0.8,1,0.2),Base,BaseCol,255)                                    
+    holo(9,holoEntity(8),"",vec(10,5,0),ang(vec(0,0,0)),vec(1,0.15,0.15),Base,BaseCol,255)                                    
+    holo(10,holoEntity(8),"",vec(10,-5,0),ang(vec(0,0,0)),vec(1,0.15,0.15),Base,BaseCol,255)                                    
+    holo(11,holoEntity(8),"models/hunter/tubes/tube1x1x1d.mdl",vec(-5,5.9,-6.9),ang(vec(135,0,90)),vec(0.4,0.4,0.05),Base,BaseCol,255)                                    
+    holo(12,holoEntity(8),"models/hunter/tubes/tube1x1x1d.mdl",vec(-5,-3.5,-6.9),ang(vec(135,0,90)),vec(0.4,0.4,0.05),Base,BaseCol,255)                                    
+      
+  holo(13,holoEntity(0),"models/xeon133/racewheelskinny/race-wheel-30_s.mdl",vec(0,0,0),ang(vec(0,0,0)),vec(0.18,1.5,0.18),Base,BaseCol-30,255)                                  
+    holo(14,holoEntity(13),"models/holograms/rcube.mdl",vec(4,8,0),ang(vec(0,0,0)),vec(1,0.1,0.25),Base,BaseCol,255)                                  
+    holo(15,holoEntity(14),"models/hunter/plates/plate.mdl",vec(6,0,0),ang(vec(0,0,0)),vec(1,0.6,2.5),Base,BaseCol,255)                                  
+    holo(16,holoEntity(15),"models/holograms/sphere2.mdl",vec(0,0,7.5),ang(vec(-45,0,0)),vec(0.3),Base,BaseCol,255)                                  
+    holo(17,holoEntity(16),"models/beer/wiremod/hydraulic_mini.mdl",vec(0,0,-4),ang(vec(0,0,0)),vec(1.25),Base,BaseCol,255)                                  
+
+    holo(18,holoEntity(13),"models/holograms/rcube.mdl",vec(4,-8,0),ang(vec(0,0,0)),vec(1,0.1,0.25),Base,BaseCol,255)                                  
+    holo(19,holoEntity(18),"models/hunter/plates/plate.mdl",vec(6,0,0),ang(vec(0,0,0)),vec(1,0.6,2.5),Base,BaseCol,255)                                  
+    holo(20,holoEntity(19),"models/holograms/sphere2.mdl",vec(0,0,7.5),ang(vec(0,0,0)),vec(0.3),Base,BaseCol,255)                                  
+    holo(21,holoEntity(20),"models/beer/wiremod/hydraulic_mini.mdl",vec(0,0,-4),ang(vec(0,0,0)),vec(1.25),Base,BaseCol,255)                                  
+
+### Head
+
+  holo(22,entity(),"",vec(0,0,20),ang(vec(0,0,0)),vec(0.5),"",vec(255),0)                                  
+    holo(23,holoEntity(22),"models/holograms/cylinder.mdl",vec(0,0,-2),ang(vec(0,0,0)),vec(0.4,0.4,1.4),Base,BaseCol2,255)                                      
+    holo(24,holoEntity(22),"models/beer/wiremod/hydraulic.mdl",vec(0,0,6),ang(vec(0,0,0)),vec(0.9,0.9,0.5),Base,BaseCol2,255)                                      
+
+  holo(25,holoEntity(22),"models/xeon133/racewheelskinny/race-wheel-80_s.mdl",vec(0,0,9.5),ang(vec(0,0,0)),vec(0.03,0.3,0.03),Base,BaseCol2,255)                            
+    holo(26,holoEntity(25),"",vec(0,0,1),ang(vec(0,0,0)),vec(0.65,1.3,0.1),Base,BaseCol2,255)                                    
+    holo(27,holoEntity(26),"models/hunter/plates/plate.mdl",vec(0,7.5,0),ang(vec(0,0,0)),vec(2.6,0.4,3),Base,BaseCol2,255)                                    
+    holo(28,holoEntity(26),"models/hunter/plates/plate.mdl",vec(0,-7.5,0),ang(vec(0,0,0)),vec(2.6,0.4,3),Base,BaseCol2,255)                                    
+    holo(29,holoEntity(27),"models/beer/wiremod/hydraulic.mdl",vec(0,0.5,5.5),ang(vec(0,0,-90)),vec(0.7,0.7,0.35),Base,BaseCol2,255)                                    
+    holo(30,holoEntity(28),"models/beer/wiremod/hydraulic.mdl",vec(0,-0.5,5.5),ang(vec(0,0,90)),vec(0.7,0.7,0.35),Base,BaseCol2,255)                                    
+
+    holo(31,holoEntity(25),"models/xeon133/racewheel/race-wheel-30.mdl",vec(-3,0,-1),ang(vec(0,0,0)),vec(0.1),Base,BaseCol2,255)                                    
+    holo(32,holoEntity(31),"models/hunter/plates/plate.mdl",vec(0,0,0),ang(vec(90,180,0)),vec(0.8,0.4,2.4),Base,BaseCol2,255)   
+    holo(33,holoEntity(31),"models/xeon133/racewheel/race-wheel-30.mdl",vec(-7,0,0),ang(vec(0,0,0)),vec(0.1),Base,BaseCol2,255)                                    
+    holo(34,holoEntity(33),"models/hunter/plates/plate.mdl",vec(0,0,0),ang(vec(90,180,0)),vec(0.8,0.4,3.2),Base,BaseCol2,255)   
+    holo(35,holoEntity(33),"models/xeon133/racewheel/race-wheel-30.mdl",vec(-10,0,0),ang(vec(0,0,0)),vec(0.15),Base,BaseCol2,255)                                    
+  
+    holo(36,holoEntity(35),"models/holograms/hq_cylinder.mdl",vec(0,0,5),ang(vec(0,0,0)),vec(1.5,1.5,0.9),Base,TeamColour,255)                                    
+    holo(37,holoEntity(36),"models/jaanus/wiretool/wiretool_waypoint.mdl",vec(0,0,5.3),ang(vec(0,0,0)),vec(0.45,0.45,0.5),Base,BaseCol,255)                                    
+    holo(38,holoEntity(36),"",vec(7,0,0),ang(vec(0,0,0)),vec(0.5,1.09,0.85),Base,TeamColour,255)                                    
+
+  holo(39,holoEntity(36),"models/holograms/hq_stube_thin.mdl",vec(0,0,0),ang(vec(90,0,0)),vec(0.8,1.07,1.35),Base,BaseCol2,255)                                     
+    holo(40,holoEntity(39),"",vec(0,0,7.2),ang(vec(90,0,0)),vec(0.1,1,0.75),Base,TeamColour,255)                                    
+    holo(41,holoEntity(39),"models/jaanus/thruster_flat.mdl",vec(1,2.5,7.75),ang(vec(0,0,0)),vec(0.7),Base,BaseCol2,255)                                    
+    holo(42,holoEntity(39),"models/hunter/tubes/tube1x1x1.mdl",vec(1,2.5,7.75),ang(vec(0,0,0)),vec(0.1,0.1,0.125),Base,BaseCol2,255)                                    
+    holo(43,holoEntity(39),"models/xeon133/racewheel/race-wheel-30.mdl",vec(3,-2.5,7.75),ang(vec(0,0,90)),vec(0.07),Base,BaseCol2,255)                                    
+    holo(44,holoEntity(39),"models/led2.mdl",vec(1.5,-4.5,8),ang(vec(0,0,0)),vec(0.8),"models/debug/debugwhite",TeamColour,255),holoDisableShading(44,1)                                    
+
+    holo(45,holoEntity(42),"",vec(0,0,15),ang(vec(0)),vec(0.5),"",vec(255),0)                                   
+    holo(1000,entity(),"",vec(0,0,29.5),ang(vec(0)),vec(0.2),"",vec(255),0)                                   
+        
+#[
+    holoPos(0,entity():toWorld(vec(0,0,20)))
+  holoAng(1,holoEntity(0):toWorld(ang(-25,0,0)))
+  holoPos(8,holoEntity(1):toWorld(vec(-25,0,-6.8)))
+
+    holoAng(13,holoEntity(0):toWorld(ang(45,0,0)))
+  holoAng(15,holoEntity(14):toWorld(ang(90,25,0)))
+  holoAng(16,holoEntity(0):angles())
+  holoAng(19,holoEntity(18):toWorld(ang(90,-25,0)))
+  holoAng(20,holoEntity(0):angles())
+
+    holoPos(22,entity():toWorld(vec(0,0,20)))
+  holoAng(31,holoEntity(25):toWorld(ang(-40,0,0)))
+  holoAng(33,holoEntity(31):toWorld(ang(95,0,0)))
+  holoAng(35,holoEntity(33):toWorld(ang(-55,0,0)))
+
+  holoAng(27,holoEntity(26):toWorld(ang(0,0,-0)))
+  holoAng(28,holoEntity(26):toWorld(ang(0,0,0)))
+  holoPos(39,holoEntity(36):toWorld(vec(15,0,0)))
+  holoPos(42,holoEntity(39):toWorld(vec(1,2.5,7.75)))
+]#
+
+
+    holoPos(0,entity():toWorld(vec(-2,0,20)))
+  holoAng(1,holoEntity(0):toWorld(ang(-80,0,0)))
+  holoPos(8,holoEntity(1):toWorld(vec(-6,0,0)))
+
+    holoAng(13,holoEntity(0):toWorld(ang(-90,0,0)))
+  holoAng(15,holoEntity(14):toWorld(ang(-90,0,0)))
+  holoAng(16,holoEntity(0):angles())
+  holoAng(19,holoEntity(18):toWorld(ang(-90,-0,0)))
+  holoAng(20,entity():angles())
+
+    holoPos(22,entity():toWorld(vec(0,0,0)))
+  holoAng(31,holoEntity(25):toWorld(ang(40,0,0)))
+  holoAng(33,holoEntity(31):toWorld(ang(70,0,0)))
+  holoAng(35,holoEntity(33):toWorld(ang(-20,0,0)))
+
+  holoAng(27,holoEntity(26):toWorld(ang(0,0,-15)))
+  holoAng(28,holoEntity(26):toWorld(ang(0,0,15)))
+  holoPos(39,holoEntity(36):toWorld(vec(3,0,0)))
+  holoPos(42,holoEntity(39):toWorld(vec(1,2.5,3)))
+
+    soundPlay("build1",10,"Building_Sentrygun.Build1")
+    soundPlay("build2",10,"Building_Sentrygun.BuildSteam1")
+    soundPlay("build3",10,"Building_Sentrygun.Build1A")
+
+    findExcludeClass("gmod_wire_hologram")
+    findIncludeClass("npc")   
+    findIncludeClass("player")    
+    findExcludeEntity(owner())
+
+    Level=1
+    Building=1
+    BuildAnim=1
+    ReloadProg=1
+
+    GunSpeed=1.8
+}
+
+if(!Die){
+
+
+
+
+
+
+
+if(changed(Turret1:entity():isValid())&Turret1:entity():isValid()){
+Turret1["Force",number]=200
+Turret1["Damage",number]=16
+Turret1["Spread",number]=0.02
+Turret1["Delay",number]=0.05
+Turret1["Sound",string]="" 
+Turret1:entity():setAlpha(0)
+Turret1:entity():propNotSolid(1)}
+
+if(changed(Turret2:entity():isValid())&Turret2:entity():isValid()){
+Turret2["Force",number]=200
+Turret2["Damage",number]=16
+Turret2["Spread",number]=0.02
+Turret2["Delay",number]=0.05
+Turret2["Sound",string]="" 
+Turret2:entity():setAlpha(0)
+Turret2:entity():propNotSolid(1)}
+
+
+
+
+
+if(Level==1){
+Turret1:entity():setPos(holoEntity(45):toWorld(vec(0,-1.2,-1.8)))
+Turret1:entity():setAng(holoEntity(45):angles())
+Turret1:entity():propFreeze(1)
+
+Turret2:entity():setPos(Entity:pos())
+Turret2:entity():propFreeze(1)
+}
+else
+{
+Turret1:entity():setPos(holoEntity(68):toWorld(vec(0,-1.2,-1.8)))
+Turret1:entity():setAng(holoEntity(68):angles())
+Turret1:entity():propFreeze(1)    
+    
+Turret2:entity():setPos(holoEntity(69):toWorld(vec(0,-1.2,-1.8)))
+Turret2:entity():setAng(holoEntity(69):angles())
+Turret2:entity():propFreeze(1)        
+}
+
+
+###############################################
+###############  Functions  ###################
+###############################################
+
+######## find stuff ##########
+##############################
+
+
+
+if(curtime()>CheckSights & Active & !WrangleMode)
+{
+    CheckSights=curtime()+0.2
+    
+    for(A=1,Finds:count(),perf(60)){
+    if(!lineOfSight(entity():boxCenterW(),Finds[A,entity]:boxCenterW(),A,Finds[A,entity])){
+    Excludes:pushEntity(Finds[A,entity])}}
+    
+    for(A=1,Excludes:count(),perf(60)){
+    if(!Excludes[A,entity]:isValid()|lineOfSight(entity():boxCenterW(),Excludes[A,entity]:boxCenterW(),A,Excludes[A,entity]))
+    {Excludes:remove(A)}}
+
+    findInSphere(entity():pos(),1500)
+    findExcludeEntity(owner())
+    findIncludeClass("npc")    
+    findIncludeClass("player") 
+    findSortByDistance(entity():boxCenterW())
+    findClipFromEntities(Excludes)
+    Finds=findToArray()
+
+    Target = Finds[1,entity]
+}
+
+
+
+######### Gun Functions ############
+####################################
+
+if(Active)
+{
+    if(!Target:isValid() & !WrangleMode)
+    {
+        GunSpeed=1.8
+        GunAimPosition=holoEntity(1000):pos()
+        
+        Turret1["Fire",number]=0  
+        Turret2["Fire",number]=0  
+        
+        if(curtime()>Oscillate)
+        {
+            Oscillate = curtime()+2.5    
+            
+            if(Level==1){holoEntity(25):soundPlay("GunScan",0,"Building_Sentrygun.Idle")} 
+            if(Level==2){holoEntity(25):soundPlay("GunScan2",0,"Building_Sentrygun.Idle2")} 
+            if(Level==3){holoEntity(25):soundPlay("GunScan3",0,"Building_Sentrygun.Idle3")} 
+        
+            if(GunPos==1 | GunPos==0){           
+            if(Level==1){holoPos(1000,entity():toWorld(vec(10,10,entity():toLocal(holoEntity(25):pos()):z())))}
+            if(Level==2){holoPos(1000,entity():toWorld(vec(6.5,10,entity():toLocal(holoEntity(25):pos()):z())))}                        
+            if(Level==3){holoPos(1000,entity():toWorld(vec(5.5,10,entity():toLocal(holoEntity(25):pos()):z())))}         
+            GunPos=2
+            }
+            elseif(GunPos==2){
+            if(Level==1){holoPos(1000,entity():toWorld(vec(10,-10,entity():toLocal(holoEntity(25):pos()):z())))}
+            if(Level==2){holoPos(1000,entity():toWorld(vec(6.5,-10,entity():toLocal(holoEntity(25):pos()):z())))}            
+            if(Level==3){holoPos(1000,entity():toWorld(vec(5.5,-10,entity():toLocal(holoEntity(25):pos()):z())))}     
+           GunPos=1}   
+        }
+    }
+    elseif(Target:isValid() | WrangleMode)
+    {
+       
+        if(!WrangleMode)
+        {
+            GunSpeed=8            
+            GunAimPosition=Target:boxCenterW()
+            
+            rangerFilter(Turret1:entity())
+            rangerFilter(Turret2:entity())
+            ShootRanger=rangerOffsetHull(90000,holoEntity(25):pos(),holoEntity(25):forward(),vec(10))        
+        }
+        else
+        {
+            GunSpeed=100                    
+            GunAimPosition=Target:boxCenterW() 
+        }
+        
+        if(curtime()>Shoot & ShootRanger:entity()==Target & !WrangleMode | curtime()>Shoot & WrangleMode & owner():keyAttack1())
+        {
+            if(Level==1)
+            {
+                Shoot=curtime()+0.225
+                ReloadProg=0
+                
+                holoAng(45,(Target:boxCenterW()-holoEntity(45):pos()):toAngle())
+
+                holoEntity(42):soundPlay("shoot",2,"Building_Sentrygun.Fire")                                                                                                                           
+                
+                 Turret1["Fire",number]=1       
+                
+                holoAng(25,holoEntity(25):angles()+ang(-9,0,0))
+            } 
+
+            if(Level==2 | Level==3)
+            {
+                if(Level==2){Shoot=curtime()+0.135}elseif(Level==3){Shoot=curtime()+0.075}
+                                
+                holoAng(68,(Target:boxCenterW()-holoEntity(68):pos()):toAngle())
+                holoAng(69,(Target:boxCenterW()-holoEntity(69):pos()):toAngle())
+
+                if(Barrel==2 | Barrel==0){   
+                Barrel=1                
+                }elseif(Barrel==1){
+                Barrel=2}                                                                                                                                   
+
+                if(Barrel==1)
+                {                
+                    Turret1["Fire",number]=1                  
+                    Turret1:entity():soundPlay("shoot1",2,"Building_Sentrygun.Fire")                                                                                                                                           
+                }
+                elseif(Barrel==2)                                                                                                                                                                           
+                {                
+                    Turret2["Fire",number]=1                  
+                    Turret2:entity():soundPlay("shoot2",2,"Building_Sentrygun.Fire")      
+                }                          
+                
+                if(!ShootRocket & curtime()>RocketCooldown & !WrangleMode & Level==3){
+                ShootRocket=1
+                RocketAnim=1
+                RocketCooldown=curtime()+3
+                }                                                      
+            } 
+        }
+        else
+        {
+        Turret1["Fire",number]=0  
+        Turret2["Fire",number]=0  
+        }
+
+
+        if(!ShootRocket & Level==3 & curtime()>RocketCooldown & WrangleMode  & owner():keyAttack2()){
+        ShootRocket=1
+        RocketAnim=1
+        RocketCooldown=curtime()+3}
+
+
+        if((Level==2|Level==3) & ShootRanger:entity()==Target & !WrangleMode | WrangleMode & WrangleMode & owner():keyAttack1()){
+        Rotate=Rotate+50
+        holoAng(46,holoEntity(45):toWorld(ang(0,Rotate,0)))
+        holoAng(58,holoEntity(57):toWorld(ang(0,Rotate,0)))}
+    }
+
+    if(changed(Target:isValid())&Target:isValid() & lineOfSight(entity():boxCenterW(),Target:boxCenterW(),0,Target) & !WrangleMode){
+    soundPlay("alert",3,"Building_Sentrygun.Alert") 
+    Target:soundPlay("alertTarget",3,"Building_Sentrygun.AlertTarget")}
+    
+
+    if(Level==1 & ReloadProg!=1){
+    ReloadProg=min(ReloadProg+0.15,1)
+    holoPos(42,holoEntity(39):toWorld(vec(1,2.5,4+3.75*ReloadProg)))}
+    
+    holoAng(25,aim(quat(holoEntity(25):angles()),quat((GunAimPosition-holoEntity(25):pos()):toAngle()):normalized(),GunSpeed):toAngle())        
+}
+
+
+
+if(ShootRocket)
+{
+    if(RocketAnim==1)    
+    {
+        RocketProg=min(RocketProg+0.08,1.5)    
+        RocketMin=min(RocketProg,1) 
+        RocketBez=bezier(vec(0),vec(1),vec(0),RocketMin):length()       
+        
+        RocketProg2=min(RocketProg2+0.055,1.1)    
+        RocketMin2=min(RocketProg2,1)         
+
+        if(changed(RocketProg>0.09)&RocketProg>0.09)
+        {        
+            for(A=93,96){holoAlpha(A,0)}    
+            soundPlay("rocket_shoot",5,"Building_Sentrygun.FireRocket")            
+            
+            Rocket=propSpawn("models/hunter/blocks/cube025x025x025.mdl",holoEntity(88):pos(),(Target:boxCenterW() - holoEntity(88):pos()):toAngle(),0)   
+            Rocket:propGravity(0)
+            Rocket:setMass(200)
+            Rocket:setAlpha(0)
+            Rocket:applyForce(Rocket:forward()*Rocket:mass()*500) 
+            Rockets:pushEntity(Rocket)       
+        }
+
+        holoAng(82,holoEntity(36):toWorld(ang(45-30*RocketBez,0,0)))
+        holoAng(83,holoEntity(82):toWorld(ang(120-40*RocketBez-30*RocketMin2,0,0)))
+        holoAng(86,holoEntity(83):toWorld(ang(-45,0,0)))
+
+        if(RocketProg==1.5){RocketProg=0,RocketProg2=0,RocketAnim=2,soundPlay("rocket_reload1",5,"Building_SentryGun.RocketMove1"),soundPlay("rocket_reload2",5,"Building_SentryGun.RocketSteam1")}
+    }
+    
+    if(RocketAnim==2)    
+    {
+        RocketProg=min(RocketProg+0.12,1.05)    
+        RocketMin=min(RocketProg,1) 
+        RocketBez=bezier(vec(0),vec(1),vec(0),RocketMin):length()       
+        
+        RocketProg2=min(RocketProg2+0.15,1.1)    
+        RocketMin2=min(RocketProg2,1)         
+      
+        holoPos(82,holoEntity(36):toWorld(vec(10-13.5*RocketMin,0,-4+2*RocketMin2)))
+    
+        holoAng(82,holoEntity(36):toWorld(ang(45+15*RocketMin2,0,0)))
+        holoAng(83,holoEntity(82):toWorld(ang(90-40*RocketMin2,0,0)))
+        holoAng(86,holoEntity(36):toWorld(ang(90,0,0)))
+ 
+        holoPos(88,holoEntity(87):toWorld(vec(0,0,4.85+4.15*RocketMin2)))
+        holoAng(88,holoEntity(87):toWorld(ang(-90*RocketMin2,0,0)))
+
+     
+        if(RocketProg==1.05){RocketProg=0,RocketProg2=0,RocketAnim=3,soundPlay("rocket_reload3",5,"Building_SentryGun.RocketClunk1")}                                                                  
+    }    
+
+    if(RocketAnim==3)    
+    {
+        RocketProg=min(RocketProg+0.18,2)    
+        RocketMin=min(RocketProg,1) 
+        RocketBez=bezier(vec(0),vec(1),vec(0),RocketMin):length()       
+
+        holoPos(88,holoEntity(87):toWorld(vec(0,0,9-15*RocketMin)))
+
+     
+        if(RocketProg==2){RocketProg=0,RocketProg2=0,RocketAnim=4,for(A=93,96){holoAlpha(A,255)},soundPlay("rocket_reload4",5,"Building_SentryGun.RocketMove2"),soundPlay("rocket_reload5",5,"Building_SentryGun.RocketSteam2")}
+    }  
+
+    if(RocketAnim==4)    
+    {
+        RocketProg=min(RocketProg+0.1,1.2)    
+        RocketMin=min(RocketProg,1) 
+        RocketBez=bezier(vec(0),vec(1),vec(0),RocketMin):length()       
+
+        RocketProg2=min(RocketProg2+0.25,1.1)    
+        RocketMin2=min(RocketProg2,1)     
+
+        holoPos(82,holoEntity(36):toWorld(vec(-3.5+15.5*RocketMin,0,-2)))
+    
+        holoPos(88,holoEntity(87):toWorld(vec(0,0,-6+16*RocketMin)))
+     
+        if(RocketProg==1.2){RocketProg=0,RocketProg2=0,RocketAnim=5}
+    }  
+
+    if(RocketAnim==5)    
+    {
+        RocketProg=min(RocketProg+0.13,1.1)    
+        RocketMin=min(RocketProg,1) 
+        RocketBez=bezier(vec(0),vec(1),vec(0),RocketMin):length()       
+
+        RocketProg2=min(RocketProg2+0.12,1.1)    
+        RocketMin2=min(RocketProg2,1)     
+
+        if(changed(RocketProg2>0.9)&RocketProg2>0.9){soundPlay("rocket_reload6",5,"Building_SentryGun.RocketClunk2")}
+
+        holoPos(82,holoEntity(36):toWorld(vec(12-2*RocketBez-2*RocketMin,0,-2)))
+    
+        holoAng(82,holoEntity(36):toWorld(ang(60-20*RocketBez-15*RocketMin,0,0)))
+        holoAng(83,holoEntity(82):toWorld(ang(50+20*RocketBez+40*RocketMin,0,0)))
+        holoAng(86,holoEntity(36):toWorld(ang(90,0,0)))
+ 
+        holoPos(88,holoEntity(87):toWorld(vec(0,0,10-5.15*RocketMin2)))
+        holoAng(88,holoEntity(87):toWorld(ang(-90+90*RocketMin2,0,0)))
+
+     
+        if(RocketProg==1.1){RocketProg=0,RocketProg2=0,RocketAnim=0,ShootRocket=0}
+    }      
+}
+
+
+for(A=1,Rockets:count(),Level==3)
+{
+    if(!holoEntity(2000+A):isValid() & Rockets[A,entity]:isValid()){
+    holo(2000+A,Rockets[A,entity],"",vec(0,0,0),ang(vec(0,0,0)),vec(1.5),"",vec(255),0)                                                                                                                                         
+
+    holoWithTrail(randint(3000,10^100),holoEntity(2000+A),"models/weapons/w_missile_closed.mdl",vec(0,3.5,3.5),ang(vec(0,0,0)),vec(0.7,0.9,0.9),Base,BaseCol,255,5,60,0.5,"trails/smoke",vec(150),255)                                  
+    holoWithTrail(randint(3000,10^100),holoEntity(2000+A),"models/weapons/w_missile_closed.mdl",vec(0,-3.5,3.5),ang(vec(0,0,0)),vec(0.7,0.9,0.9),Base,BaseCol,255,5,60,0.5,"trails/smoke",vec(150),255)                                     
+    holoWithTrail(randint(3000,10^100),holoEntity(2000+A),"models/weapons/w_missile_closed.mdl",vec(0,3.5,-3.5),ang(vec(0,0,0)),vec(0.7,0.9,0.9),Base,BaseCol,255,5,60,0.5,"trails/smoke",vec(150),255)                                      
+    holoWithTrail(randint(3000,10^100),holoEntity(2000+A),"models/weapons/w_missile_closed.mdl",vec(0,-3.5,-3.5),ang(vec(0,0,0)),vec(0.7,0.9,0.9),Base,BaseCol,255,5,60,0.5,"trails/smoke",vec(150),255)                                      
+    }
+
+    Rockets[100+A,number]=Rockets[100+A,number]+10
+    holoAng(2000+A,Rockets[A,entity]:toWorld(ang(0,0,Rockets[100+A,number])))
+
+    Rockets[A,entity]:applyForce(Rockets[A,entity]:forward()*Rockets[A,entity]:mass()*75)    
+    
+    rangerFilter(Rockets)
+    rangerFilter(Turret1:entity())
+    rangerFilter(Turret2:entity())    
+    RocketRanger = rangerOffsetHull(20,Rockets[A,entity]:pos(),Rockets[A,entity]:forward(),vec(40))  
+
+    if(RocketRanger:hit())
+    {
+        Splode=propSpawn("models/props_phx/ball.mdl",Rockets[A,entity]:pos(),1),Splode:propBreak()           
+        Rockets[A,entity]:propDelete()        
+        holoDelete(2000+A)
+    }
+
+    if(!Rockets[A,entity]:isValid()){Rockets:removeEntity(A)}
+}
+
+
+
+##################################################
+###############  Wrangle Mode  ###################
+##################################################
+
+Wrangle=owner():keyPressed("pad_0")
+
+if(changed(Wrangle)&Wrangle)
+{
+    if(WrangleMode==0){
+    WrangleMode=1
+    holo(10000,entity(),"models/holograms/hq_icosphere.mdl",vec(0,0,35),ang(vec(0)),vec(8.25),"",holoEntity(36):getColor(),50),holoDisableShading(10000,1)                                   
+    holo(10001,noentity(),"models/holograms/hq_icosphere.mdl",vec(0,0,35),ang(vec(0)),vec(1),"",vec(255),0)                             
+
+    }elseif(WrangleMode==1){
+    WrangleMode=0
+    holoDelete(10000)
+    holoDelete(10001)}       
+}
+
+if(WrangleMode)
+{
+    rangerFilter(Entity)
+    rangerFilter(Rockets)
+    rangerFilter(owner())
+    rangerFilter(Turret1:entity())
+    rangerFilter(Turret2:entity())
+    WrangleRangerLength=rangerOffset(99999999,(owner():pos()+vec(0,0,owner():height())),owner():aimPos()-(owner():pos()+vec(0,0,owner():height())))                                                                                                                  
+
+    rangerFilter(Entity)
+    rangerFilter(Rockets)    
+    rangerFilter(owner())
+    rangerFilter(Turret1:entity())
+    rangerFilter(Turret2:entity())
+    WrangleRanger=rangerOffsetHull(WrangleRangerLength:distance(),(owner():pos()+vec(0,0,owner():height())),owner():aimPos()-(owner():pos()+vec(0,0,owner():height())),vec(50)) 
+
+    holoPos(10001,WrangleRangerLength:pos())
+
+    if(WrangleRanger:entity():isValid()){
+    Target = WrangleRanger:entity()}else{
+    Target = holoEntity(10001)}
+}
+
+
+
+####################################################
+###############  Effects & Shit  ###################
+####################################################
+
+#ifdef effect():play(string)
+if(Health<MaxHealth*0.75)
+{
+    if(curtime()>SparkTime)
+    {
+        SparkTime=curtime()+  max((Health/MaxHealth*0.75)*4,0.5)+random(0,1)
+    
+        effect():setOrigin(holoEntity(36):toWorld(vec(0,0,7)))
+        effect():setNormal(holoEntity(36):up())
+        effect():setMagnitude(2)
+        effect():setRadius(1)
+        effect():setScale(1)
+        effect():play("Sparks")          
+    }       
+}
+#endif
+
+#ifdef particleCreate()
+if(Health<MaxHealth*0.5)
+{
+    if(curtime()>FireTime)
+    {
+        FireTime=curtime()+0.1
+
+        particleSetDuration(1)
+        particleSetStartSize(8*(1-Health/(MaxHealth*0.5)))
+        particleSetEndSize(8*(1-Health/(MaxHealth*0.5)))
+        particleSetEndAlpha(0)
+        particleSetPitch(randint(-180,180))  
+        particleSetColor(vec(255,150,0))
+        particleSetMaterial("particles/flamelet"+randint(1,5))
+        particleSetPosition(holoEntity(36):toWorld(vec(0,0,10)))
+        particleGravity(vec(0,0,20*(1-Health/(MaxHealth*0.5))))        
+        particleCreate()               
+    }       
+}
+#endif
+
+if(changed(owner():keyPressed("pad_enter"))&owner():keyPressed("pad_enter") & !WrangleMode)
+{
+    if(Skin==1 | Skin==0)
+    {
+        TeamColour=vec(180,180,255)
+        Skin=2   
+        
+        if(Level==1){
+        holoColor(36,TeamColour)      
+        holoColor(38,TeamColour)      
+        holoColor(40,TeamColour)                  
+        holoColor(44,TeamColour)   
+        }
+        else{
+        holoColor(36,TeamColour)      
+        holoColor(38,TeamColour)      
+        holoColor(42,TeamColour) 
+        holoColor(88,TeamColour)         
+        }    
+    }
+    elseif(Skin==2)
+    {
+        TeamColour=vec(255,50,50)        
+        Skin=1   
+
+        if(Level==1){
+        holoColor(36,TeamColour)      
+        holoColor(38,TeamColour)      
+        holoColor(40,TeamColour)                  
+        holoColor(44,TeamColour)   
+        }
+        else{
+        holoColor(36,TeamColour)      
+        holoColor(38,TeamColour)      
+        holoColor(42,TeamColour) 
+        holoColor(88,TeamColour)         
+        }
+    }   
+
+    soundPlay("skin_change",0,"Building_Sentrygun.Built")
+}
+
+
+
+##############################################################
+###############  Build/Upgrade Animations  ###################
+##############################################################
+
+
+if(Building)
+{
+    if(Level==1)
+    {
+        if(BuildAnim==1)
+        {
+            BuildProg=min(BuildProg+0.08,1.5)           
+            BuildMin=min(BuildProg,1)
+            BuildBez=bezier(vec(0),vec(1),vec(0),BuildMin):length()        
+            
+            holoPos(0,entity():toWorld(vec(-2,0,15+10*BuildBez+3*BuildMin)))
+            holoPos(22,entity():toWorld(vec(0,0,-5+10*BuildBez+5*BuildMin)))            
+        
+            if(changed(BuildMin)&BuildMin==1){soundPlay("build4",5,"Building_Sentrygun.Build1B")}
+            
+            if(BuildProg==1.5)
+            {
+                BuildProg=0
+                BuildAnim=2
+                soundPlay("build5",5,"Building_Sentrygun.Build2")            
+                soundPlay("build6",5,"Building_Sentrygun.BuildSteam2")
+            }
+        }               
+
+        if(BuildAnim==2)
+        {
+            BuildProg=min(BuildProg+0.08,1.5)           
+            BuildMin=min(BuildProg,1)
+            BuildBez=bezier(vec(0),vec(1),vec(0),BuildMin):length()        
+            
+            holoPos(0,entity():toWorld(vec(-2+2*BuildMin,0,18+10*BuildBez)))
+            holoAng(0,entity():toWorld(ang(vec(0,360*BuildMin,0))))
+            
+            holoPos(22,entity():toWorld(vec(0,0,13*BuildBez+16*BuildMin)))            
+ 
+            holoAng(15,holoEntity(14):toWorld(ang(-90,-90*BuildMin,0)))
+            holoAng(19,holoEntity(18):toWorld(ang(-90,90*BuildMin,0)))
+
+            if(changed(BuildMin)&BuildMin==1){soundPlay("build7",5,"Building_Sentrygun.Build3")}
+                 
+            if(BuildProg==1.5){BuildProg=0,BuildAnim=3}
+        }   
+
+        if(BuildAnim==3)
+        {
+            BuildProg=min(BuildProg+0.08,1.5)           
+            BuildMin=min(BuildProg,1)
+            BuildBez=bezier(vec(0),vec(1),vec(0),BuildMin):length()        
+            
+            holoPos(0,entity():toWorld(vec(3*BuildMin,0,18)))
+            holoAng(1,holoEntity(0):toWorld(ang(vec(-80+10*BuildMin,0,0))))
+            
+            holoPos(22,entity():toWorld(vec(4*BuildMin,0,16)))            
+
+            holoAng(13,holoEntity(0):toWorld(ang(-90+140*BuildMin,0,0)))
+ 
+            holoAng(15,holoEntity(14):toWorld(ang(-90,-90-65*BuildMin,0)))            
+            holoAng(19,holoEntity(18):toWorld(ang(-90,90+65*BuildMin,0)))   
+                   
+            holoAng(20,entity():angles()) 
+            holoAng(16,entity():angles())
+
+            if(changed(BuildMin)&BuildMin==1){soundPlay("build8",5,"Building_Sentrygun.Build4")}
+
+            if(BuildProg==1.5){BuildProg=0,BuildAnim=4,soundPlay("build9",5,"Building_Sentrygun.Build5")}
+        }  
+
+        if(BuildAnim==4)
+        {
+            BuildProg=min(BuildProg+0.08,1.5)           
+            BuildMin=min(BuildProg,1)
+            BuildBez=bezier(vec(0),vec(1),vec(0),BuildMin):length()        
+            
+            holoPos(0,entity():toWorld(vec(3-3*BuildMin,0,18+5*BuildBez+2*BuildMin)))
+            holoAng(1,holoEntity(0):toWorld(ang(vec(-70+45*BuildMin,0,0))))
+            
+            holoPos(22,entity():toWorld(vec(4-4*BuildMin,0,16+5*BuildBez)))            
+            holoAng(13,holoEntity(0):toWorld(ang(50+10*BuildBez-5*BuildMin,0,0)))   
+            holoPos(8,holoEntity(1):toWorld(vec(-6-19*BuildMin,0,-6.8*BuildMin)))
+
+            holoScale(15,vec(1,0.6,2.5+2.5*BuildMin))
+            holoPos(16,holoEntity(15):toWorld(vec(0,0,7.5+7.5*BuildMin)))    
+            holoAng(16,entity():angles())
+
+            holoScale(19,vec(1,0.6,2.5+2.5*BuildMin))
+            holoPos(20,holoEntity(19):toWorld(vec(0,0,7.5+7.5*BuildMin)))                      
+            holoAng(20,entity():angles()) 
+
+            if(changed(BuildMin)&BuildMin==1){soundPlay("build10",5,"Building_Sentrygun.Build6"),soundStop("build9")}
+
+            if(BuildProg==1.5){BuildProg=0,BuildAnim=5,soundPlay("build11",5,"Building_Sentrygun.Build7")}
+        }  
+
+        if(BuildAnim==5)
+        {
+            BuildProg=min(BuildProg+0.04,1.2)           
+            BuildMin=min(BuildProg,1)
+            BuildBez=bezier(vec(0),vec(1),vec(0),BuildMin):length()        
+            
+            holoPos(0,entity():toWorld(vec(0,0,20)))
+            holoAng(1,holoEntity(0):toWorld(ang(vec(-25,0,0))))
+            
+            holoPos(22,entity():toWorld(vec(0,0,16+4*BuildMin)))            
+            holoAng(22,entity():toWorld(ang(0,360*BuildMin,0)))   
+
+            if(changed(BuildMin)&BuildMin==1){soundPlay("build12",5,"Building_Sentrygun.Build7A"),soundStop("build11")}
+
+            if(BuildProg==1.2){BuildProg=0,BuildAnim=6}
+        } 
+
+        if(BuildAnim==6)
+        {
+            BuildProg=min(BuildProg+0.08,1.8)           
+            BuildMin=min(BuildProg,1)
+            BuildMin2=min(BuildProg*3,1)             
+            BuildBez=bezier(vec(0),vec(1),vec(0),BuildMin):length()        
+
+            if(changed(BuildMin)&BuildMin==1){soundPlay("build13",5,"Building_Sentrygun.Build8")}
+            
+            if(BuildProg>1){BuildProg2=min(BuildProg2+0.175,1.1)}               
+
+            holoAng(27,holoEntity(26):toWorld(ang(0,0,-15-20*BuildMin2)))
+            holoAng(28,holoEntity(26):toWorld(ang(0,0,15+20*BuildMin2)))                    
+            
+            holoAng(31,holoEntity(25):toWorld(ang(40-40*BuildBez-10*BuildMin,0,0)))
+            holoAng(33,holoEntity(31):toWorld(ang(70-20*BuildBez-20*BuildMin,0,0)))
+            holoAng(35,holoEntity(33):toWorld(ang(-20-30*BuildBez-30*BuildMin,0,0)))    
+
+            holoPos(39,holoEntity(36):toWorld(vec(3+12*min(BuildProg2,1),0,0)))
+            holoPos(42,holoEntity(39):toWorld(vec(1,2.5,3+4.75*min(BuildProg2,1))))                
+           
+            if(BuildProg==1.8){BuildProg=0,BuildProg2=0,BuildAnim=7}
+        } 
+
+        if(BuildAnim==7)
+        {
+            BuildProg=min(BuildProg+0.15,4.5)           
+            BuildMin=min(BuildProg,1)         
+            BuildBez=bezier(vec(0),vec(1),vec(0),BuildMin):length()        
+          
+            if(BuildProg>1.6)
+            {
+                BuildProg2=min(BuildProg2+0.125,1.1)
+                BuildMin2=min(BuildProg2,1)    
+            
+                holoAng(31,holoEntity(25):toWorld(ang(20-60*BuildMin2,0,0)))
+                holoAng(33,holoEntity(31):toWorld(ang(50+45*BuildMin2,0,0)))
+                holoAng(35,holoEntity(33):toWorld(ang(-35-20*BuildMin2,0,0)))                
+            }
+            else
+            {
+                holoAng(31,holoEntity(25):toWorld(ang(30-10*BuildMin,0,0)))
+                holoAng(35,holoEntity(33):toWorld(ang(-50+15*BuildMin,0,0)))                      
+            }
+
+            if(changed(BuildMin)&BuildMin==1){soundPlay("build14",5,"Building_Sentrygun.Build9")}           
+            if(changed(BuildProg>1.6)&BuildProg>1.6){soundPlay("build15",5,"Building_Sentrygun.Build10")}
+
+            holoAng(27,holoEntity(26):toWorld(ang(0,0,-35+35*BuildMin)))
+            holoAng(28,holoEntity(26):toWorld(ang(0,0,35-35*BuildMin)))                    
+                         
+            if(BuildProg==4.5){BuildProg=0,BuildProg2=0,BuildAnim=0,Building=0,Active=1,soundPlay("active",5,"Building_Sentrygun.Built")}
+        } 
+    }       
+
+
+
+
+
+    if(Level==2)
+    {
+        if(BuildAnim==1)
+        {
+            BuildProg=min(BuildProg+0.15,1.5)           
+            BuildMin=min(BuildProg,1)
+            BuildBez=bezier(vec(0),vec(1),vec(0),BuildMin):length()        
+            
+            if(changed(BuildProg>0.09)&BuildProg>0.09){
+            soundPlay("build1",5,"Building_Sentrygun.Build1A")
+            soundPlay("build2",5,"Building_Sentrygun.BuildSteam1")
+            }
+            
+            holoAng(25,HeadAng)
+ 
+            holoPos(1,holoEntity(0):toWorld(vec(0,0,2*BuildBez)))
+            holoAng(1,holoEntity(0):toWorld(ang(-25+10*BuildBez+20*BuildMin,0,0)))
+
+            holoPos(8,holoEntity(1):toWorld(vec(-25,0,-6.5-6.5*BuildMin)))
+            holoAng(8,holoEntity(1):toWorld(ang(-25*BuildMin,0,0)))
+          
+            holoPos(22,entity():toWorld(vec(0,0,20+2*BuildBez)))         
+            holoAng(22,entity():toWorld(ang(-17.5*BuildMin,0,0)))
+            holoScale(24,vec(0.9,0.9,0.5+0.5*BuildMin))
+            holoPos(25,holoEntity(22):toWorld(vec(0,0,9.5+3.5*BuildMin)))              
+            holoPos(37,holoEntity(36):toWorld(vec(0,0,5.3+2.2*BuildMin)))       
+
+            if(BuildProg==1.5){BuildProg=0,BuildAnim=2
+            soundPlay("build3",5,"Building_Sentrygun.Build11")
+            soundPlay("build4",5,"Building_Sentrygun.BuildSteam4")}
+        }   
+
+        if(BuildAnim==2)
+        {
+            BuildProg=min(BuildProg+0.15,1.5)           
+            BuildMin=min(BuildProg,1)
+            BuildBez=bezier(vec(0),vec(1),vec(0),BuildMin):length()        
+            
+            if(changed(BuildProg>0.8)&BuildProg>0.8){
+            soundPlay("build5",5,"Building_Sentrygun.Build13")
+            soundPlay("build6",5,"Building_Sentrygun.Build2")}
+
+
+
+
+
+            holoAng(25,HeadAng)
+            
+            holoAng(27,holoEntity(26):toWorld(ang(0,0,-80*BuildMin)))
+            holoAng(28,holoEntity(26):toWorld(ang(0,0,80*BuildMin)))
+
+            holoAng(31,holoEntity(25):toWorld(ang(-40+40*BuildMin,0,0)))
+            holoAng(33,holoEntity(31):toWorld(ang(95-50*BuildMin,0,0)))
+            holoAng(35,holoEntity(33):toWorld(ang(-55+10*BuildMin,0,0)))
+
+            holoScale(36,vec(1.5+0.15*BuildMin,1.5+0.15*BuildMin,0.9+0.09*BuildMin))
+            holoPos(38,holoEntity(36):toWorld(vec(7+0.7*BuildMin,0,0)))
+            holoScale(38,vec(0.5+0.05*BuildMin,1.09+0.109*BuildMin,0.85+0.085*BuildMin))
+                               
+            if(BuildProg==1.5){BuildProg=0,BuildAnim=3
+            soundPlay("build7",5,"Building_Sentrygun.Build11")
+            soundPlay("build8",5,"Building_Sentrygun.BuildSteam4")}      
+        }
+
+        if(BuildAnim==3)
+        {
+            BuildProg=min(BuildProg+0.15,2)           
+            BuildMin=min(BuildProg,1)
+            BuildBez=bezier(vec(0),vec(1),vec(0),BuildMin):length()        
+            
+            holoAng(25,HeadAng)
+
+            holoPos(44,holoEntity(27):toWorld(vec(1,-4.5-3*BuildMin,6.9)))
+            holoScale(45,vec(0.7,0.7,1+0.5*BuildMin))
+            holoPos(46,holoEntity(45):toWorld(vec(0,0,5+5*BuildMin)))
+            for(A=48,53){holoScale(A,vec(0.2,0.2,1*BuildMin))}
+            holoPos(54,holoEntity(46):toWorld(vec(0,0,17*BuildMin)))
+
+            holoPos(56,holoEntity(28):toWorld(vec(1,4.5+3*BuildMin,6.9)))    
+            holoScale(57,vec(0.7,0.7,1+0.5*BuildMin))
+            holoPos(58,holoEntity(57):toWorld(vec(0,0,5+5*BuildMin)))
+            for(A=59,64){holoScale(A,vec(0.2,0.2,1*BuildMin))}
+            holoPos(65,holoEntity(58):toWorld(vec(0,0,17*BuildMin)))
+                              
+            if(BuildProg==2){BuildProg=0,BuildAnim=4
+            soundPlay("build9",5,"Building_Sentrygun.Build11")
+            soundPlay("build10",5,"Building_Sentrygun.BuildSteam1")}                
+        } 
+
+        if(BuildAnim==4)
+        {
+            BuildProg=min(BuildProg+0.2,4)           
+            BuildMin=min(BuildProg,1)
+            BuildBez=bezier(vec(0),vec(1),vec(0),BuildMin):length()        
+            
+            holoAng(25,HeadAng)
+
+            holoAng(27,holoEntity(26):toWorld(ang(0,0,-80-10*BuildMin)))
+            holoAng(28,holoEntity(26):toWorld(ang(0,0,80+10*BuildMin)))
+
+            holoClip(66,vec(10-20*BuildMin,0,0),vec(1,0,0),0)        
+            holoClip(67,vec(10-20*BuildMin,0,0),vec(1,0,0),0)        
+
+            if(BuildProg==4){BuildProg=0,BuildAnim=0,Building=0,Active=1,Build=0,soundPlay("active",5,"Building_Sentrygun.Built")}    
+        }
+    }
+
+    if(Level==3)
+    {
+        if(BuildAnim==1)
+        {
+            BuildProg=min(BuildProg+0.12,1.1)           
+            BuildMin=min(BuildProg,1)
+            BuildBez=bezier(vec(0),vec(1),vec(0),BuildMin):length()               
+
+            if(changed(BuildProg>1)&BuildProg>1){holoEntity(25):soundPlay("build3",5,"Building_Sentrygun.Build3")}
+            
+            holoPos(0,entity():toWorld(vec(0,0,20+6*BuildBez+4.5*BuildMin)))
+            holoAng(1,holoEntity(0):toWorld(ang(-5-65*BuildMin,0,0)))
+            holoPos(8,holoEntity(1):toWorld(vec(-25+5*BuildMin,0,-13+13*BuildMin)))
+            holoAng(8,holoEntity(1):toWorld(ang(-25+55*BuildMin,0,0)))
+            
+            holoAng(13,holoEntity(0):toWorld(ang(45+15*BuildMin +10*BuildBez,0,0)))
+            holoAng(16,holoEntity(0):angles())
+            holoAng(20,holoEntity(0):angles())
+
+            holoPos(22,entity():toWorld(vec(0,0,20+5*BuildMin)))
+            holoAng(22,entity():toWorld(ang(-17.5-1.5*BuildMin,0,0)))
+
+        
+            holoAng(70,holoEntity(8):toWorld(ang(90+90*BuildMin,20*BuildMin,130*BuildMin)))
+            holoAng(72,holoEntity(8):toWorld(ang(-90+50*BuildMin,20*BuildMin,0)))
+            holoAng(74,holoEntity(8):toWorld(ang(-135*BuildMin,0,0)))
+            holoScale(74,vec(0.13,0.13,0.4*BuildMin))
+            holoPos(75,holoEntity(74):toWorld(vec(0,0,17*BuildMin)))
+            holoAng(75,entity():angles())
+        
+            holoAng(76,holoEntity(8):toWorld(ang(90+90*BuildMin,-20*BuildMin,-130*BuildMin)))
+            holoAng(78,holoEntity(8):toWorld(ang(-90+50*BuildMin,-20*BuildMin,0)))
+            holoAng(80,holoEntity(8):toWorld(ang(-135*BuildMin,0,0)))
+            holoScale(80,vec(0.13,0.13,0.4*BuildMin))
+            holoPos(81,holoEntity(80):toWorld(vec(0,0,17*BuildMin)))
+            holoAng(81,entity():angles())
+       
+            if(BuildProg==1.1){BuildProg=0,BuildAnim=2,holoEntity(25):soundPlay("build4",5,"Building_Sentrygun.Build2")}           
+        }
+   
+        if(BuildAnim==2)
+        {
+            BuildProg=min(BuildProg+0.15,1.2)           
+            BuildMin=min(BuildProg,1)
+            BuildBez=bezier(vec(0),vec(1),vec(0),BuildMin):length()               
+
+            holoAng(31,holoEntity(25):toWorld(ang(-20*BuildMin,0,0)))
+            holoAng(33,holoEntity(31):toWorld(ang(45+30*BuildMin,0,0)))
+            holoAng(35,holoEntity(33):toWorld(ang(-45-100*BuildMin,0,0)))
+        
+            holoScale(66,vec(0.2,0.3+0.05*BuildMin,0.5))
+            holoPos(66,holoEntity(25):toWorld(vec(-3-2*BuildMin,-16+1*BuildMin,5)))
+            holoAng(66,holoEntity(25):toWorld(ang(-90,30+20*BuildMin,0)))
+            
+            holoScale(67,vec(0.2,0.3+0.05*BuildMin,0.5))
+            holoPos(67,holoEntity(25):toWorld(vec(-3-2*BuildMin,16-1*BuildMin,5)))
+            holoAng(67,holoEntity(25):toWorld(ang(-90,150-20*BuildMin,0)))            
+            
+            if(BuildProg==1.2){BuildProg=0,BuildAnim=3,holoEntity(25):soundPlay("build5",5,"Building_Sentrygun.BuildSteam4")}                        
+        }
+
+        if(BuildAnim==3)
+        {
+            BuildProg=min(BuildProg+0.18-BuildRelief,1.05)                       
+            BuildMin=min(BuildProg,1)
+            BuildRelief=0.16*BuildMin
+            BuildBez=bezier(vec(0),vec(1),vec(0),BuildMin):length()               
+
+            holoAng(31,holoEntity(25):toWorld(ang(-20+30*BuildMin,0,0)))
+            holoAng(33,holoEntity(31):toWorld(ang(75-10*BuildMin,0,0)))
+            holoAng(35,holoEntity(33):toWorld(ang(-145-20*BuildMin,0,0)))
+
+            holoPos(82,holoEntity(36):toWorld(vec(-8+20*BuildMin,0,-4)))
+            holoAng(82,holoEntity(36):toWorld(ang(45*BuildMin,0,0)))
+            holoAng(83,holoEntity(82):toWorld(ang(135-60*BuildMin,0,0)))
+            holoAng(86,holoEntity(36):toWorld(ang(90,0,0)))
+            holoPos(88,holoEntity(87):toWorld(vec(0,0,5+4*BuildMin)))
+     
+            if(BuildProg==1.05){BuildProg=0,BuildAnim=4}                        
+        }
+
+        if(BuildAnim==4)
+        {
+            BuildProg=min(BuildProg+0.12,1.5)                       
+            BuildMin=min(BuildProg,1)
+            BuildBez=bezier(vec(0),vec(1),vec(0),BuildMin):length()               
+
+            holoAng(31,holoEntity(25):toWorld(ang(10-30*BuildMin,0,0)))
+            holoAng(33,holoEntity(31):toWorld(ang(65+10*BuildMin,0,0)))
+            holoAng(35,holoEntity(33):toWorld(ang(-165+20*BuildMin,0,0)))
+
+            holoPos(82,holoEntity(36):toWorld(vec(12-2*BuildMin,0,-4)))
+            holoAng(82,holoEntity(36):toWorld(ang(45,0,0)))
+            holoAng(83,holoEntity(82):toWorld(ang(75+15*BuildMin,0,0)))
+            holoAng(86,holoEntity(36):toWorld(ang(90,0,0)))
+
+            holoPos(88,holoEntity(87):toWorld(vec(0,0,9-4.15*BuildMin)))
+            holoAng(88,holoEntity(87):toWorld(ang(-90+90*BuildMin,0,0)))
+
+            if(BuildProg==1.5){BuildProg=0,BuildAnim=0,Building=0,Active=1,Build=0,soundPlay("active",5,"Building_Sentrygun.Built")}    
+                          
+        }
+    }    
+}
+
+
+
+
+if(changed(Build)&Build & !Building & Level!=3)
+{
+    Active=0    
+    Building=1
+    BuildAnim=1
+    UpgradeProg=0
+    Level=Level+1
+
+    HeadAng=entity():toLocal(holoEntity(25):angles())
+
+    if(changed(Level)&Level==2)
+    {
+        Health = Level2Health
+        MaxHealth = Health
+
+        holoDisableShading(44,0)  
+
+        holo(39,holoEntity(37),"models/holograms/hq_cylinder.mdl",vec(0,0,-4.2),ang(vec(0,0,0)),vec(1.25,1.25,0.7),Base,BaseCol2,255)                                    
+    
+        holo(40,holoEntity(38),"models/holograms/rcube.mdl",vec(3,0,-2),ang(vec(0,0,0)),vec(0.2,1,0.5),Base,BaseCol,255)                                    
+        holo(41,holoEntity(38),"models/xeon133/racewheel/race-wheel-30.mdl",vec(3.5,-2.5,2),ang(vec(90,0,90)),vec(0.1),Base,BaseCol2,255)                                    
+        holo(42,holoEntity(38),"models/led2.mdl",vec(3.5,-1,3.8),ang(vec(90,0,0)),vec(1),"models/debug/debugwhite",TeamColour,255),holoDisableShading(42,1)                                    
+                
+        ## guns
+    
+        holo(43,holoEntity(29),"models/holograms/octagon.mdl",vec(0,0,-4),ang(vec(0,0,0)),vec(0.5),Base,BaseCol2,255)                                     
+        holo(44,holoEntity(27),"",vec(1,-4.5,6.9),ang(vec(0,0,0)),vec(1.35,0.5,0.8),Base,BaseCol2,255)                                     
+        holo(45,holoEntity(44),"models/holograms/rcylinder_thin.mdl",vec(0,-3,0),ang(vec(90,0,0)),vec(0.7,0.7,1.5),Base,BaseCol2,255)                                     
+        holo(46,holoEntity(45),"models/holograms/rcylinder_thin.mdl",vec(0,0,10),ang(vec(0,0,0)),vec(0.65,0.65,0.2),Base,BaseCol2,255)                                     
+    
+        holo(48,holoEntity(46),"models/kobilica/capacatitor.mdl",vec(0,-2,0),ang(vec(0,0,0)),vec(0.2,0.2,1),Base,BaseCol2,255)                                     
+        holo(49,holoEntity(46),"models/kobilica/capacatitor.mdl",vec(0,2,0),ang(vec(0,0,0)),vec(0.2,0.2,1),Base,BaseCol2,255)                                     
+        holo(50,holoEntity(46),"models/kobilica/capacatitor.mdl",vec(2,1,0),ang(vec(0,0,0)),vec(0.2,0.2,1),Base,BaseCol2,255)                                     
+        holo(51,holoEntity(46),"models/kobilica/capacatitor.mdl",vec(-2,1,0),ang(vec(0,0,0)),vec(0.2,0.2,1),Base,BaseCol2,255)                                     
+        holo(52,holoEntity(46),"models/kobilica/capacatitor.mdl",vec(2,-1,0),ang(vec(0,0,0)),vec(0.2,0.2,1),Base,BaseCol2,255)                                     
+        holo(53,holoEntity(46),"models/kobilica/capacatitor.mdl",vec(-2,-1,0),ang(vec(0,0,0)),vec(0.2,0.2,1),Base,BaseCol2,255)                                     
+        holo(54,holoEntity(46),"models/holograms/rcylinder_thin.mdl",vec(0,0,17),ang(vec(0,0,0)),vec(0.6,0.6,0.2),Base,BaseCol2,255)                                     
+    
+    
+        holo(55,holoEntity(30),"models/holograms/octagon.mdl",vec(0,0,-4),ang(vec(0,0,0)),vec(0.5),Base,BaseCol2,255)                                     
+        holo(56,holoEntity(28),"",vec(1,4.5,6.9),ang(vec(0,0,0)),vec(1.35,0.5,0.8),Base,BaseCol2,255)                                     
+        holo(57,holoEntity(56),"models/holograms/rcylinder_thin.mdl",vec(0,3,0),ang(vec(90,0,0)),vec(0.7,0.7,1.5),Base,BaseCol2,255)                                     
+        holo(58,holoEntity(57),"models/holograms/rcylinder_thin.mdl",vec(0,0,10),ang(vec(0,0,0)),vec(0.65,0.65,0.2),Base,BaseCol2,255)                                     
+    
+        holo(59,holoEntity(58),"models/kobilica/capacatitor.mdl",vec(0,-2,0),ang(vec(0,0,0)),vec(0.2,0.2,1),Base,BaseCol2,255)                                     
+        holo(60,holoEntity(58),"models/kobilica/capacatitor.mdl",vec(0,2,0),ang(vec(0,0,0)),vec(0.2,0.2,1),Base,BaseCol2,255)                                     
+        holo(61,holoEntity(58),"models/kobilica/capacatitor.mdl",vec(2,1,0),ang(vec(0,0,0)),vec(0.2,0.2,1),Base,BaseCol2,255)                                     
+        holo(62,holoEntity(58),"models/kobilica/capacatitor.mdl",vec(-2,1,0),ang(vec(0,0,0)),vec(0.2,0.2,1),Base,BaseCol2,255)                                     
+        holo(63,holoEntity(58),"models/kobilica/capacatitor.mdl",vec(2,-1,0),ang(vec(0,0,0)),vec(0.2,0.2,1),Base,BaseCol2,255)                                     
+        holo(64,holoEntity(58),"models/kobilica/capacatitor.mdl",vec(-2,-1,0),ang(vec(0,0,0)),vec(0.2,0.2,1),Base,BaseCol2,255)                                     
+        holo(65,holoEntity(58),"models/holograms/rcylinder_thin.mdl",vec(0,0,17),ang(vec(0,0,0)),vec(0.6,0.6,0.2),Base,BaseCol2,255)                                     
+    
+        holo(66,holoEntity(25),"models/hunter/tubes/tube2x2x025b.mdl",vec(-3,-16,5),ang(vec(-90,30,0)),vec(0.2,0.3,0.5),Base,BaseCol2,255),holoClipEnabled(66,1),holoClip(66,vec(10,0,0),vec(1,0,0),0)                                    
+        holo(67,holoEntity(25),"models/hunter/tubes/tube2x2x025b.mdl",vec(-3,16,5),ang(vec(-90,150,0)),vec(0.2,0.3,0.5),Base,BaseCol2,255),holoClipEnabled(67,1),holoClip(67,vec(10,0,0),vec(1,0,0),0)                
+    
+        holo(68,holoEntity(44),"",vec(30,-5,0),ang(vec(0)),vec(0.3),"",vec(255),0)                                  
+        holo(69,holoEntity(56),"",vec(30,5,0),ang(vec(0)),vec(0.3),"",vec(255),0)              
+     
+        holoPos(44,holoEntity(27):toWorld(vec(1,-4.5,6.9)))
+        holoScale(45,vec(0.7,0.7,1))
+        holoPos(46,holoEntity(45):toWorld(vec(0,0,5)))
+        for(A=48,53){holoScale(A,vec(0.2,0.2,0))}
+        holoPos(54,holoEntity(46):toWorld(vec(0,0,0)))
+
+        holoPos(56,holoEntity(28):toWorld(vec(1,4.5,6.9)))
+        holoScale(57,vec(0.7,0.7,1))
+        holoPos(58,holoEntity(57):toWorld(vec(0,0,5)))
+        for(A=59,64){holoScale(A,vec(0.2,0.2,0))}
+        holoPos(65,holoEntity(58):toWorld(vec(0,0,0)))   
+    }
+
+    if(changed(Level)&Level==3)
+    {
+        Health = Level3Health
+        MaxHealth = Health
+
+       holo(70,holoEntity(8),"models/hunter/plates/plate.mdl",vec(5,-4,0),ang(vec(90,0,0)),vec(1,0.8,3),Base,BaseCol,255)                                     
+        holo(71,holoEntity(70),"models/holograms/sphere.mdl",vec(0,0,9),ang(vec(0,0,0)),vec(0.425),Base,BaseCol,255)                                     
+       holo(72,holoEntity(70),"models/hunter/plates/plate.mdl",vec(0,0,9),ang(vec(0,0,0)),vec(1,0.8,5),Base,BaseCol,255)                                     
+        holo(73,holoEntity(72),"models/holograms/sphere.mdl",vec(0,0,15),ang(vec(0,0,0)),vec(0.425),Base,BaseCol,255)                                     
+       holo(74,holoEntity(72),"models/props_c17/oildrum001.mdl",vec(0,0,15),ang(vec(0,0,0)),vec(0.13,0.13,0.3),Base,BaseCol,255)                                     
+        holo(75,holoEntity(74),"models/holograms/cone.mdl",vec(0,0,14),ang(vec(0,0,180)),vec(1,1,0.2),Base,BaseCol,255)                                     
+    
+       holo(76,holoEntity(8),"models/hunter/plates/plate.mdl",vec(5,4,0),ang(vec(90,0,0)),vec(1,0.8,3),Base,BaseCol,255)                                     
+        holo(77,holoEntity(76),"models/holograms/sphere.mdl",vec(0,0,9),ang(vec(0,0,0)),vec(0.425),Base,BaseCol,255)                                     
+       holo(78,holoEntity(76),"models/hunter/plates/plate.mdl",vec(0,0,9),ang(vec(0,0,0)),vec(1,0.8,5),Base,BaseCol,255)                                     
+        holo(79,holoEntity(78),"models/holograms/sphere.mdl",vec(0,0,15),ang(vec(0,0,0)),vec(0.425),Base,BaseCol,255)                                     
+       holo(80,holoEntity(78),"models/props_c17/oildrum001.mdl",vec(0,0,15),ang(vec(0,0,0)),vec(0.13,0.13,0.3),Base,BaseCol,255)                                     
+        holo(81,holoEntity(80),"models/holograms/cone.mdl",vec(0,0,14),ang(vec(0,0,180)),vec(1,1,0.2),Base,BaseCol,255)                                     
+            
+            
+        holo(82,holoEntity(36),"models/hunter/plates/plate.mdl",vec(10,0,-4),ang(vec(45,0,0)),vec(1,1.5,3),Base,BaseCol,255)                                     
+    
+        holo(83,holoEntity(82),"models/xeon133/racewheel/race-wheel-30.mdl",vec(0,0,9),ang(vec(90,0,0)),vec(0.12,0.5,0.12),Base,BaseCol2,255)                                     
+        holo(84,holoEntity(83),"models/hunter/misc/roundthing2.mdl",vec(0,3.5,3.7),ang(vec(0,0,90)),vec(0.08,0.08,0.02),Base,BaseCol,255)                                     
+        holo(85,holoEntity(83),"models/hunter/misc/roundthing2.mdl",vec(0,-3.5,3.7),ang(vec(0,0,-90)),vec(0.08,0.08,0.02),Base,BaseCol,255)                                     
+    
+        holo(86,holoEntity(83),"models/xeon133/racewheel/race-wheel-30.mdl",vec(0,0,7.3),ang(vec(-45,0,0)),vec(0.12,0.5,0.12),Base,BaseCol2,255)                                     
+        holo(87,holoEntity(86),"",vec(0,0,0),ang(vec(0,0,0)),vec(0.85,1.16,0.1),Base,BaseCol2,255)                                     
+        holo(88,holoEntity(87),"models/holograms/rcube.mdl",vec(0,0,4.85),ang(vec(0,0,0)),vec(1.4,1.17,0.9),Base,TeamColour,255)                                     
+        
+        holo(89,holoEntity(88),"models/holograms/rcylinder_thin.mdl",vec(0,2.9,2),ang(vec(90,0,0)),vec(0.3,0.3,1.45),"models/debug/debugwhite",vec(),255)                                     
+        holo(90,holoEntity(88),"models/holograms/rcylinder_thin.mdl",vec(0,-2.9,2),ang(vec(90,0,0)),vec(0.3,0.3,1.45),"models/debug/debugwhite",vec(),255)                                     
+        holo(91,holoEntity(88),"models/holograms/rcylinder_thin.mdl",vec(0,2.9,-2),ang(vec(90,0,0)),vec(0.3,0.3,1.45),"models/debug/debugwhite",vec(),255)                                     
+        holo(92,holoEntity(88),"models/holograms/rcylinder_thin.mdl",vec(0,-2.9,-2),ang(vec(90,0,0)),vec(0.3,0.3,1.45),"models/debug/debugwhite",vec(),255)                                     
+    
+        holo(93,holoEntity(89),"models/weapons/w_missile_closed.mdl",vec(0,0,1),ang(vec(-90,0,0)),vec(0.7,0.9,0.9),Base,BaseCol,255)                                     
+        holo(94,holoEntity(90),"models/weapons/w_missile_closed.mdl",vec(0,0,1),ang(vec(-90,0,0)),vec(0.7,0.9,0.9),Base,BaseCol,255)                                     
+        holo(95,holoEntity(91),"models/weapons/w_missile_closed.mdl",vec(0,0,1),ang(vec(-90,0,0)),vec(0.7,0.9,0.9),Base,BaseCol,255)                                     
+        holo(96,holoEntity(92),"models/weapons/w_missile_closed.mdl",vec(0,0,1),ang(vec(-90,0,0)),vec(0.7,0.9,0.9),Base,BaseCol,255)                                     
+             
+        holoEntity(0):soundPlay("build1",10,"Building_Sentrygun.Build1")
+        holoEntity(1):soundPlay("build2",10,"Building_Sentrygun.BuildSteam1")        
+  
+           
+    # stand
+        holoAng(70,holoEntity(8):toWorld(ang(90,0,0)))
+        holoAng(72,holoEntity(8):toWorld(ang(-90,0,0)))
+        holoAng(74,holoEntity(8):toWorld(ang(0,0,0)))
+        holoScale(74,vec(0.13,0.13,0))
+        holoPos(75,holoEntity(74):toWorld(vec(0,0,0)))
+        holoAng(75,entity():angles())
+    
+        holoAng(76,holoEntity(8):toWorld(ang(90,0,0)))
+        holoAng(78,holoEntity(8):toWorld(ang(-90,0,0)))
+        holoAng(80,holoEntity(8):toWorld(ang(0,0,0)))
+        holoScale(80,vec(0.13,0.13,0))
+        holoPos(81,holoEntity(80):toWorld(vec(0,0,0)))
+        holoAng(81,entity():angles())
+    
+    # rocket
+        holoPos(82,holoEntity(36):toWorld(vec(-8,0,-4)))
+        holoAng(82,holoEntity(36):toWorld(ang(0,0,0)))
+        holoAng(83,holoEntity(82):toWorld(ang(135,0,0)))
+        holoAng(86,holoEntity(83):toWorld(ang(-45,0,0)))
+        holoPos(88,holoEntity(87):toWorld(vec(0,0,5)))
+        holoAng(88,holoEntity(87):toWorld(ang(-90,0,0)))        
+    }
+}
+
+
+}
+else
+{
+    if(clk("Fade")){Fade=1,FadeAlpha=255}
+
+    if(Fade)
+    {
+        FadeAlpha=max(FadeAlpha-3,0)             
+
+        if(FadeAlpha!=0){
+        for(A=1,HoloAmount){holoAlpha(A,FadeAlpha)}}     
+                
+        if(FadeAlpha==0){selfDestructAll()}
+    }    
+}
+
+
+
+#ifdef dmgClk()
+
+print(_HUD_PRINTCENTER,""+Health)
+
+runOnDmg(perf(70) & !Die,Entity)
+
+if(dmgClk() & !Die & dmgInflictor()!=Splode)
+{      
+    if(dmgType()=="Melee" & dmgAttacker()==owner())
+    {
+        soundPlay("repair",0,"Weapon_Wrench.HitBuilding_Success")
+        Health = min(Health+20,MaxHealth)
+
+        if(Health==MaxHealth & Level!=3){UpgradeProg=min(UpgradeProg+12,200)} 
+        if(UpgradeProg==200){Build=1}
+    }
+    else
+    {            
+        if(!WrangleMode){
+        if(dmgType()=="Explosive"){Health=Health-dmgDamage()/2}else{Health=Health-dmgDamage()}}
+        else{if(dmgType()=="Explosive"){Health=Health-dmgDamage()/4}else{Health=Health-dmgDamage()/2}}
+    
+        if(dmgDamage()>70){
+        soundPlay("damage",0,"Building_Sentry.Damage")}
+    }
+
+    if(Health<=0){Die=1,soundPlay("die",0,"Building_Sentry.Explode")}
+    
+    if(Die)
+    {
+        timer("Fade",4000)
+        Entity:propNotSolid(1)
+        
+        if(Level==1)
+        {
+            HoloAmount = 45
+        
+            Gib1=propSpawn("models/hunter/blocks/cube05x05x05.mdl",entity():toWorld(vec(0,0,12)),entity():angles(),0)    
+            Gib1:setAlpha(0)
+            Gib1:applyForce(randvec(-5,5)+Entity:vel()*Gib1:mass()*10)
+            holoParent(0,Gib1)
+
+            Gib2=propSpawn("models/hunter/blocks/cube05x05x05.mdl",entity():toWorld(vec(0,0,26)),entity():angles(),0)    
+            Gib2:setAlpha(0)
+            Gib2:applyForce(randvec(-5,5)+Entity:vel()*Gib2:mass()*10)
+            holoParent(22,Gib2)
+
+            Gib3=propSpawn("models/hunter/blocks/cube05x05x025.mdl",holoEntity(36):toWorld(vec(0)),holoEntity(36):angles(),0)    
+            Gib3:setAlpha(0)
+            Gib3:applyForce(randvec(-5,5)+Entity:vel()*Gib3:mass()*10) 
+            holoParent(36,Gib3)            
+            holoParent(39,Gib2) 
+        }    
+        
+        if(Level==2 | Level==3)
+        {            
+            if(Level==2){HoloAmount = 67}
+            if(Level==3){HoloAmount = 96}
+
+            holoDelete(66)
+            holoDelete(67)
+
+            Gib1=propSpawn("models/hunter/blocks/cube05x05x05.mdl",entity():toWorld(vec(0,0,12)),entity():angles(),0)    
+            Gib1:setAlpha(0)
+            Gib1:applyForce(randvec(-5,5)*Gib1:mass()*10)
+            holoParent(0,Gib1)
+
+            Gib2=propSpawn("models/hunter/blocks/cube05x05x05.mdl",entity():toWorld(vec(0,0,26)),entity():angles(),0)    
+            Gib2:setAlpha(0)
+            Gib2:applyForce(randvec(-5,5)*Gib2:mass()*10)
+            holoParent(22,Gib2)
+
+            Gib3=propSpawn("models/hunter/blocks/cube025x1x025.mdl",holoEntity(45):toWorld(vec(6,7,10)),holoEntity(44):toWorld(ang(90,0,90)),0)    
+            Gib3:setAlpha(0)
+            Gib3:applyForce(randvec(-5,5)*Gib3:mass()*10)
+            holoParent(44,Gib3)           
+   
+            Gib4=propSpawn("models/hunter/blocks/cube05x05x025.mdl",holoEntity(36):toWorld(vec(0)),holoEntity(36):angles(),0)    
+            Gib4:setAlpha(0)
+            Gib4:applyForce(randvec(-5,5)*Gib4:mass()*10) 
+            holoParent(36,Gib4)            
+            holoParent(39,Gib4) 
+        }                  
+    }   
+}
+
+#else                                                                                                                                                                                                                                                                                           
+
+if(owner():pos():distance(Entity:pos())<100 & owner():aimEntity()==Entity & owner():weapon():type()=="weapon_crowbar" & owner():keyAttack1() & curtime()>MeleeUpgrade & Level!=3 & !Building)
+{
+    MeleeUpgrade=curtime()+0.4
+
+    soundPlay("repair",0,"Weapon_Wrench.HitBuilding_Success")
+
+    UpgradeProg=min(UpgradeProg+12,200) 
+    if(UpgradeProg==200){Build=1}        
+}
+
+#endif
+
+#else
+    print("wire_expression2_extension_enable propcore       copy & paste this into the console")
+    error("please type 'wire_expression2_extension_enable propcore' so the Sentry can spawn/manilulate props")        
+#endif
+    
+
+

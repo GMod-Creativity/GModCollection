@@ -1,0 +1,160 @@
+@name MAP
+@inputs 
+@outputs Array:array String:string ASDF:vector Count Test:array
+@persist Asteroids:array AsteroidsCount ShipCores:array PlanetSkins:array
+@trigger 
+
+if(first()){
+    
+    if(map()=="sb_omen_v2"){
+        #Phobos
+        holoCreate(5,entity():pos(),vec(0.01,0.01,0.01))
+        holoModel(5,"Models/planets/phobos.mdl")
+        holoAng(5,entity(419):angles())
+       #Deimos
+        holoCreate(6,entity():pos(),vec(0.01,0.01,0.01))
+        holoModel(6,"Models/planets/deimos.mdl")
+        holoAng(6,entity(423):angles())
+    }
+    if(map()=="sb_gooniverse"){
+        PlanetSkins[1,string]="models/hiigara/hiigara.mdl"
+        PlanetSkins[2,string]="models/Demeter/Demeter.mdl"
+        PlanetSkins[3,string]="models/cerebus/cerebus.mdl"
+        PlanetSkins[4,string]="models/coruscant/coruscant.mdl"
+        PlanetSkins[5,string]="models/kobol/kobol.mdl"
+        PlanetSkins[6,string]="models/Endgame/Endgame.mdl"
+    }else{
+        PlanetSkins[1,string]="models/kobol/kobol.mdl"
+        PlanetSkins[2,string]="models/kobol/kobol.mdl"
+        PlanetSkins[3,string]="models/kobol/kobol.mdl"
+        PlanetSkins[4,string]="models/kobol/kobol.mdl"
+        PlanetSkins[5,string]="models/kobol/kobol.mdl"
+        PlanetSkins[6,string]="models/kobol/kobol.mdl"
+        PlanetSkins[7,string]="models/kobol/kobol.mdl"        
+    }   
+    
+    findByClass("infinity_planet")
+    Array=findToArray()
+    for(I=1,Array:count()){
+        if(map()=="sb_gooniverse"){
+            holoCreate(I+100,entity():pos()+(Array[I,entity]:pos())/200+vec(0,0,80),Array[I,entity]:boxSize()/(I>=4 ? ( I==4 ? -400000 : -1000000 ) : I==2 ? -1300000 : -1600000))
+        }else{
+            holoCreate(I+100,entity():pos()+(Array[I,entity]:pos())/200+vec(0,0,80),Array[I,entity]:boxSize()/-1400000)
+        }
+        holoModel(I+100,PlanetSkins[I,string])
+        holoAlpha(I+100,255)
+        holoParent(I+100,entity())
+        holoCreate(I+200,entity():pos()+(Array[I,entity]:pos())/200+vec(0,0,80),vec(Array[I,entity]:boxSize():x()/2200,Array[I,entity]:boxSize():y()/2200,0.1))
+        holoModel(I+200,"hqcylinder")
+        holoColor(I+200,vec4(255,255,255,255))
+        holoMaterial(I+200,"models/rendertarget")
+        holoParent(I+200,entity())
+    }
+    for(I=1,Array:count()){
+        Array[I,vector]=Array[I,entity]:boxSize()
+    }
+    #playerstuff
+    for(I=1,players():count()){
+        holoCreate(I+10,entity():pos()+(players()[I,entity]:pos()/500)+vec(0,0,40),vec(0.09,0.09,0.09))
+        #if the player model is red miku change it to blue miku with red tint because red miku is derp
+        if(players()[I,entity]:model()=="models/captainbigbutt/vocaloid/zatsune_miku.mdl"|players()[I,entity]:model()=="models/captainbigbutt/vocaloid/zatsune_miku.mdl"){
+            holoModel(I+10,"models/player/miku.mdl")
+            holoColor(I+10,vec(255,100,100))
+        }else{
+        holoModel(I+10,players()[I,entity]:model())
+        }
+    }
+    #asteroids
+    function void asteroids(){
+        for(I=AsteroidsCount*100,(AsteroidsCount+1)*100){
+            holoCreate(1000+I,entity():pos()+(Asteroids[I,entity]:pos()/200)+vec(0,0,80),vec(0.005,0.005,0.005))
+            holoModel(1000+I,Asteroids[I,entity]:model())
+            holoParent(1000+I,entity())
+        }
+        AsteroidsCount++
+    }
+
+    findByClass("mining_asteroid")
+    for(I=1,findToArray():count()){
+        Asteroids=findToArray()
+        AsteroidsCount=0
+        timer(100,ceil(Asteroids:count()/100),"Asteroids","asteroids()")
+    }
+    
+    #ship cores
+    function void shipcores() {
+        
+        for(I=1,ShipCores:count()){
+            if(!ShipCores[I,entity]:isValid()){
+                holoDelete(I*10000)
+            }
+        }
+        findByClass("ship_core")
+        ShipCores = findToArray()
+        for(I=1,findToArray():count()){
+            holoCreate(10000+I,entity():pos(),vec(0.1,0.1,0.1))
+            holoModel(10000+I,"models/spacebuild/nova/drone2.mdl")
+            holoEntity(10000+I):setTrails(10,10,10,"trails/physbeam",vec(255,0,0),255)
+
+        }
+    }
+    shipcores()
+    timer(30000,0,"Shipcores","shipcores()")
+    
+    function void movement(){
+        #player
+        for(I=1,players():count()){
+#            holoPos( I+10000, entity():toWorld(  ShipCores[I,entity]:pos() / 200 + vec(0,0,80) ) )
+            holoPos( I+10    , entity():toWorld(  players()[I,entity]:pos() / 200 + vec(0,0,80) ) )
+            holoAng(I+10,ang(0,players()[I,entity]:angles():yaw(),0))   
+            if(players()[I,entity]:isCrouch()){
+                holoAnim(I+10,61)
+            }elseif(players()[I,entity]:inNoclip()){
+                holoAnim(I+10,"sit_zen",0)
+            }else{
+                holoAnim(I+10,"idle",0)
+            }
+        }
+        String=entity(423):model()
+        
+        for(I=1,ShipCores:count()){
+            holoPos( I+10000, entity():toWorld(  ShipCores[I,entity]:pos() / 200 + vec(0,0,80) ) )
+            holoAng(I+10000,ShipCores[I,entity]:angles())
+        }
+        
+        #moonMovement
+        if(map()=="sb_omen_v2"){
+            holoPos(5,entity():pos()+(entity(419):pos()/200)+vec(0,0,80))
+            holoPos(6,entity():pos()+(entity(423):pos()/200)+vec(0,0,80))
+        }
+
+    }
+    holoPos(666,entity():pos()+find():pos()/200+vec(0,0,80))
+    
+    function void headTrack (I,Player:entity) {
+        
+        local MaxHeadYaw = 66.7 # Head tracking limits
+        local MaxAimYaw = 60
+        local MaxSpineYaw = 30        
+        local MinHeadPitch = -39.9 #scratch that #-30.9 #This is looking down
+        local MaxHeadPitch =  30.9 #scratch that #39.9 #This is looking up
+        local MaxAimPitch = 50
+        local MinAimPitch = -89
+        
+        holoSetPose( I+10 , "head_pitch" , clamp( Player:toLocal( Player:eyeAngles() ):pitch() , MinAimPitch , MaxAimPitch))
+        holoSetPose( I+10 , "aim_pitch"  , clamp( Player:toLocal( Player:eyeAngles() ):pitch() , MinAimPitch , MaxAimPitch))
+        
+        holoSetPose( I+10 , "head_yaw"   , min( Player:toLocal(Player:eyeAngles() ):yaw() , MaxAimYaw))
+        holoSetPose( I+10 , "aim_yaw"    , min( Player:toLocal(Player:eyeAngles() ):yaw() , MaxAimYaw))
+        holoSetPose( I+10 , "spine_yaw"  , min( Player:toLocal(Player:eyeAngles() ):yaw() , MaxSpineYaw))
+    }
+    function void headTracker(){
+        for( I= 1 , players():count() ){
+            headTrack(I,players()[I,entity])
+        }
+    } 
+    #timer("Movement",150)
+    #timer("headtracker",1000)
+    timer(200,0,"Movement","movement()")
+    timer(2000,0,"HeadTracker","headTracker()")
+}

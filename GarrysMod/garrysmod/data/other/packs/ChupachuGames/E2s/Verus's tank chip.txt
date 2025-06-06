@@ -1,0 +1,445 @@
+@name Badger's Tank Chip
+@inputs [Turret Barrel Pod Cam]:wirelink
+@outputs
+@persist [Bar Tur E Holo1]:entity [ThirdCameraPosition ThirdCameraRotation FirstCameraPosition]:vector
+@persist [Constrained EyeSensitivity Array1 Array2]:array Size2:vector2 EngineSound:string Eye:angle InTimer FLIRA FLIR AimingMethod
+@persist SX SY Yaw Zoom VMod Timer1 Timer2 Height Speed Forwards Backwards TurningSpeed ImpactDeath WaterLevel AimingModes
+@persist EnginePitch TurretSpeed Acceleration BarrelDepression BarrelElevation Stabalization EyeX1 EyeY1 TrueSensitivity UnderWater ControlMovement
+@model models/hunter/plates/plate2x3.mdl
+
+interval(20)
+if(first()){
+    
+    
+    #Read this before using
+# This is Badger130's tank chip
+# This e2 controls the tank's movement, turret rotation, barrel elevation, and camera
+# This e2 has trouble carring heavy props, and as such the turret and barrel should not have gravity
+# This e2 acts as the base of the tank, change the @model to your desired prop
+# Do NOT block the corners of the base prop, that is where the rangers trace for the base prop's angles
+    #Option variables
+
+    #Movement Options
+Height = 26 # This is how high off the ground the tank will float
+Speed = 110 # This is how much the tank will accelerate to, decreaseing increases torque
+Acceleration = 2 # This is how fast the tank will go from standstill to full speed
+TurningSpeed = 20 # This is how much A and D affect the tank
+ControlMovement = 1 # Does the e2 control movement for tank or not
+
+    #Turret Options
+BarrelDepression = 7 # This is how much the barrel can look downwards
+BarrelElevation = 15 # This is how much the barrel can look upwards
+TurretSpeed = 8 # This is how fast the turret traverses
+Stabalization = 1 # This determines if the turret is stabalized or not
+Sensitivity = 65 # This is how much the camera moves from your mouse, 100 being default
+
+    #Camera Options
+FirstCameraPosition = vec(20,50,40) # This 3rd person camera's base position realitive to the turret
+ThirdCameraPosition = vec(0,0,30) # This 3rd person camera's base position realitive to the tank
+ThirdCameraRotation = vec(-160,0,70) # This 3rd person camera's position rotated by your view angles
+FLIR = 1 #This determines weather the tank has infrared vision
+ReticuleColor = vec(255,25,25) #This is the color of the crosshair
+ReticuleMode = 4 # A number between 1 and 10 for diffrent reticules
+ReticuleSize = 1.5 #T his determines the size of the reticule
+
+    #Sound Options
+EngineSound = "/acf_engines/l6_diesellarge2.wav" # This is the sound of the engine
+EnginePitch = 10 # This is the default pitch of the engine and when it moves
+
+
+
+
+
+
+
+
+
+
+
+# The code is below
+# Only mess with if you know what your doing
+
+
+
+
+
+    ReticleModels = array("cylinder","octagon","hexagon","icosphere","icosphere2","icosphere3","sphere")
+
+    Tur = Turret:entity()
+    Bar = Barrel:entity()
+    E = entity()
+    Size = E:boxSize()/2
+    SX = Size:x()
+    SY = Size:y()
+    EyeSensitivity = array()
+    Array2 = array()
+    Array1 = array()
+    TrueSensitivity = Sensitivity / 400
+    ImpactDeath = 0
+    WaterLevel = -50000
+    
+    holoCreate(1,vec(),vec(),ang())
+    holoAlpha(1,0)
+    holoVisible(1,players(),0)
+    holoParent(1,E)
+    
+    holoCreate(2,vec(),vec(),ang())
+    holoVisible(2,players(),0)
+    holoParent(2,1)
+    OO5 = clamp(vec(0.05,0.05,0.05)*ReticuleSize,vec(0.05,0.05,0.05),vec(0.5,0.5,0.5))
+
+    holoCreate(3,vec(9,0,0),OO5,ang(90,0,0),ReticuleColor,"hq_torus_thin")
+    holoVisible(3,players(),0)
+    holoParent(3,2)
+    holoDisableShading(3,1)
+    
+    holoCreate(4,vec(9,0,0),OO5,ang(90,0,0),ReticuleColor,ReticleModels[clamp(ReticuleMode,1,7),string])
+    holoVisible(4,players(),0)
+    holoParent(4,2)
+    holoDisableShading(4,1)
+    holoMaterial(4,"models/wireframe")
+
+    
+    
+    Holo1 = holoEntity(1)
+    
+    Cam["Angle",angle] = ang()
+    Cam["Parent",entity] = holoEntity(1)
+    Cam["Position",vector] = vec()
+
+}
+else
+{
+    
+ 
+    W = Pod["W",number]
+    A = Pod["A",number]
+    S = Pod["S",number]
+    D = Pod["D",number]
+    Alt = Pod["Alt",number]
+    Light = Pod["Light",number]
+    Active = Pod["Active",number]
+    Seat = Pod["Entity",entity]
+    Up = Pod["NextWeapon",number]
+    Dn = Pod["PrevWeapon",number]
+
+
+if(!ImpactDeath & ControlMovement)
+{
+    
+    
+            rangerFilter(players())
+            rangerHitEntities(1)
+            FrontRight = rangerOffset(Height*2,E:toWorld(vec(SX,-SY,0)),-E:up())
+            FR = FrontRight:distance()
+            FRP = FrontRight:position()
+
+
+            rangerFilter(players())
+            rangerHitEntities(1) 
+            FrontLeft = rangerOffset(Height*2,E:toWorld(vec(SX,SY,0)),-E:up())
+            FL = FrontLeft:distance()
+            FLP = FrontLeft:position()
+
+
+            rangerFilter(players())
+            rangerHitEntities(1)
+            BackRight = rangerOffset(Height*2,E:toWorld(vec(-SX,-SY,0)),-E:up())
+            BR = BackRight:distance()
+            BRP = BackRight:position()
+
+
+            rangerFilter(players())
+            rangerHitEntities(1)
+            BackLeft = rangerOffset(Height*2,E:toWorld(vec(-SX,SY,0)),-E:up())
+            BL = BackLeft:distance()
+            BLP = BackLeft:position()
+
+
+    
+            Front = (FL + FR)/2
+            Rear = (BL + BR)/2
+            Left = (FL + BL)/2
+            Right = (FR + BR)/2
+        AverageH = (( FRP + FLP + BRP + BLP ) / 4):z() + Height
+        AboveGround = ((FR+FL+BR+BL)/4 < (Height + 5)) | 
+                      (E:angles() > ang(35,360,35)) | 
+                      (E:angles() < -ang(35,360,35))
+
+        Vel = E:vel():length()
+    if(Vel < 300)
+        {VAffection = Vel/100}
+    else
+        {VAffection = (1/Vel)*600}
+
+    if(!Active)
+        {Yaw = 0}
+    else
+        {Yaw = (A-D) * TurningSpeed * AboveGround * !UnderWater}
+
+
+
+  Pitch = Front - Rear
+  Roll =  Right - Left
+
+if(AboveGround)
+{
+V2 = rotationVector(quat(ang(Pitch,Yaw,Roll)-(E:angVel()/2)))
+E:applyTorque((90*V2)*E:inertia())
+
+
+                    AngRoll = clamp(E:angles():roll()*2 * Speed * (E:mass() / 1200000 + 0.01),-Speed/2,Speed/2)
+
+
+            Forwards =  clamp(Forwards + (S-!S*2)*Acceleration,0,Speed*0.65 + AngRoll)
+            Backwards = clamp(Backwards + (W-!W*2)*Acceleration,0,Speed - AngRoll)
+            Acc = Backwards - Forwards
+
+            Velocity = E:vel()* vec(0.2,0.2,0.5)
+        Z = clamp(AverageH - E:pos():z(),-1,20)
+E:applyForce((vec(0,0,Z)*20 - Velocity) * E:mass())
+
+E:applyForce(-E:right() * Acc * E:mass() * !UnderWater)
+
+Tur:applyForce(vec(0,0,7*E:mass()))
+Bar:applyForce(vec(0,0,7*E:mass()))
+}
+}
+
+
+    EyeAngles = Seat:toLocal(Seat:driver():eyeAngles())
+    EyePod1 = EyeAngles - EyeSensitivity[2,angle]
+    EyePodYaw = EyePod1:yaw()
+
+    EyeSensitivity:insertAngle(1,EyeAngles)
+if(EyeSensitivity:count() > 2)
+{
+    EyeSensitivity:pop()
+}
+
+if(EyePodYaw > 180)
+{
+    YawPlus = -360
+}
+elseif(EyePodYaw < -180)
+{
+    YawPlus = 360
+}
+else
+{
+    YawPlus = 0
+}
+    EyePod =  EyePod1 + ang(0,YawPlus,0)
+
+
+                        if(Alt)
+                    {InTimer = clamp(InTimer + 1,0,18)}
+                elseif(!Alt)
+            {InTimer = 0}
+
+        if(changed(InTimer) & (InTimer == 18))
+            {AimingMethod = mod(AimingMethod + 1,2)}
+
+
+
+
+if(AimingMethod == 0)
+{
+    EyeX1 = mod(EyeX1 + EyePod:pitch() * (TrueSensitivity + Zoom / 400),360)
+    EyeY1 = mod(EyeY1 + EyePod:yaw() * (TrueSensitivity + Zoom / 400),360)
+    
+            Pos = E:toWorld(ThirdCameraPosition)
+                rangerHitEntities(0)
+            CamPosition = rangerOffset(Pos,Pos + ThirdCameraRotation:rotate(Eye))
+            CamWorldPosition = CamPosition:position() + vec(10,0,0):rotate(Eye)
+                
+
+
+        holoPos(1,CamWorldPosition)
+        holoAng(1,Eye)
+        holoParent(1,E)
+}
+elseif(AimingMethod == 1)
+{
+    EyeX1 = clamp(mod(EyeX1 + clamp(EyePod:pitch(),-4,4) * (TrueSensitivity + Zoom / 400),360),-BarrelElevation,BarrelDepression)
+    EyeY1 = mod(EyeY1 + clamp(EyePod:yaw(),-4,4) * (TrueSensitivity + Zoom / 400),360)
+    
+        holoPos(1,Tur:toWorld(FirstCameraPosition))
+        holoAng(1,Bar:angles())
+        holoParent(1,Tur)
+}
+
+
+
+
+if(Active & Stabalization)
+{
+    Eye = ang(EyeX1,EyeY1,EyeAngles:roll())
+    
+}
+elseif(Active & !Stabalization)
+{
+    Eye = E:toWorld(ang(EyeX1,EyeY1,EyeAngles:roll()))
+    
+}
+
+
+
+
+
+if(!UnderWater)
+{
+
+        TurretSet = Eye:setPitch(E:angles():pitch())
+    TarQ1 = quat(TurretSet)
+    CurQ1 = quat(Tur:angles())
+        CannonSet = E:toWorld(clamp(E:toLocal(Eye),-ang(BarrelElevation,360,360),ang(BarrelDepression,360,360)))
+    TarQ2 = quat(CannonSet)
+    CurQ2 = quat(Bar:angles())
+    
+    Q1 = TarQ1/CurQ1
+    Q2 = TarQ2/CurQ2
+    
+        V4 = vec(TurretSpeed,TurretSpeed,TurretSpeed)
+        V5 = E:angVelVector() * !Stabalization * TurretSpeed / 50
+    V2 = clamp(Bar:toLocal(rotationVector(Q2)+Bar:pos()),-V4 + V5,V4 + V5)
+    Bar:applyTorque((300*V2 - 27*Bar:angVelVector())*Bar:inertia())
+    
+    
+    V1 = clamp(Tur:toLocal(rotationVector(Q1)+Tur:pos()),-V4 + V5,V4 + V5)
+    Tur:applyTorque((300*V1 - 32*Tur:angVelVector())*Tur:inertia())
+
+}
+
+
+
+    if(changed(Light) & Light & FLIR)
+    {FLIRA = !FLIRA
+        Seat:soundPlay(5,1,"/buttons/button16.wav")}
+
+
+        Zoom = clamp(Zoom+(Up-Dn)*30,10,100)
+    Cam["Activated",number] = Active
+    Cam["Zoom",number] = Zoom
+    Cam["FLIR",number] = FLIRA
+                
+
+    GunRanger = rangerOffset(9999999999,Bar:toWorld(vec(Bar:boxSize():x()*1.3,0,0)),Bar:forward()):position()
+    GunPos = ( GunRanger - Holo1:pos() ):toAngle()
+
+    if(changed(Active) & Active)
+    {
+    holoVisible(3,Seat:driver(),1)
+    holoVisible(4,Seat:driver(),1)
+    holoVisible(5,Seat:driver(),1)
+    Zoom = 100
+    }
+    elseif(changed(Active) & !Active)
+    {
+    holoVisible(3,players(),0)
+    holoVisible(4,players(),0)
+    holoVisible(5,players(),0)
+    Eye = Tur:angles()
+    }
+
+    holoAng(2,GunPos)
+
+
+    TurSpeed = E:toLocal(Bar:angles()):yaw()  + E:toLocal(Bar:angles()):pitch()
+
+    Array1:insertNumber(1,TurSpeed)
+if(Array1:count()>7)
+{
+    Array1:pop()
+}
+    Prev = abs( TurSpeed - Array1[7,number] )
+
+
+
+    Physgun = owner():weapon():type() == "weapon_physgun" & owner():keyAttack1()
+
+    Array2:insertNumber(1,Vel)
+if(Array2:count()>7)
+{
+    Array2:pop()
+}
+    Crash = (( Vel - Array2[7,number] ) < -600 ) & !Physgun
+
+     
+if(changed(E:isUnderWater()) & E:isUnderWater())
+{
+    WaterLevel = E:pos():z()
+}
+ 
+if((E:toWorld(vec(0,0,45)):z() < WaterLevel))
+{
+    UnderWater = 1
+}
+else
+{
+    UnderWater = 0
+}
+
+
+if(changed(Crash) & Crash)
+{
+    ImpactDeath = 1
+    E:soundPlay(5,1,"ATV_impact_heavy")
+}
+
+if(changed(Prev > 3) & (Prev > 3) & !UnderWater & Active)
+{
+    Tur:soundPlay(3,1,"/vehicles/tank_turret_start1.wav")
+    Tur:soundPlay(4,0,"/vehicles/tank_turret_loop1.wav")
+    soundVolume(3,0.3)
+    soundVolume(4,0.3)
+}
+elseif(changed(Prev < 3) & (Prev < 3) & !UnderWater & Active)
+{
+    Tur:soundPlay(3,1,"/vehicles/tank_turret_stop1.wav")
+    soundVolume(3,0.3)
+    soundStop(4)
+}
+if(ControlMovement)
+{
+
+if(changed(Active) & Active)
+    {
+    E:soundPlay(1,0,"/vehicles/v8/v8_start_loop1.wav")
+    soundPitch(1,EnginePitch*7)
+    timer("start",70*EnginePitch)
+    }
+elseif((changed(Active) & !Active) & !UnderWater)
+    {
+    E:soundPlay(1,1,"/vehicles/v8/v8_stop1.wav")
+    soundStop(2)
+    }
+elseif(changed(UnderWater) & UnderWater)
+    {
+    E:soundPlay(1,1,"/vehicles/jetski/jetski_no_gas_start.wav")
+    soundStop(2)
+}
+
+if(clk("start"))
+    {
+    soundStop(1)
+    E:soundPlay(2,0,"^" + EngineSound)   
+    }
+}
+
+if(changed(Active) & Active)
+{
+    Seat:hintDriver("This is Badger130's Tank Chip",1)
+        Seat:hintDriver("Hold Alt to Change Aiming Modes",5)
+            Seat:hintDriver("Press Light to enable FLIR",7)
+
+}
+
+
+
+soundPitch(1,EnginePitch*4.5)
+soundPitch(2,clamp(E:vel():length()*(EnginePitch/100),EnginePitch,150) * Active)
+soundVolume(2,clamp(E:vel():length()*(EnginePitch/10000),0.5,1))
+}
+if(dupefinished())
+    {reset()}

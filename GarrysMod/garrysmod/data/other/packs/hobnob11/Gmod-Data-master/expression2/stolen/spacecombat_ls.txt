@@ -1,0 +1,683 @@
+##################################################################
+#          Spacecombat 2 Compatible Lifesupport Manager          #
+#                     Created by Mouldy_Taco                     #
+#       Distribution is allowed, but only unmodified code        #
+##################################################################
+#                             NOTES                              #
+#+Not Feature complete, expect bugs and missing features         #
+#+Using same-type generators of different models not recommended #
+##################################################################
+@name Spacecombat_ls
+@persist [Wirelinks Usage Production BaseVolume]:table
+@persist [Filter GeneratorCount PumpStatus]:table
+@persist [FoundEntities]:array MaxEntities
+@persist ShipCore:entity Mute MultMin MultMax PriorityMod PriorityModBase  WaterPumpDist
+@outputs OpStats:table
+@autoupdate
+@model models/jaanus/wiretool/wiretool_controlchip.mdl
+if(duped()){exit()}
+if(dupefinished()){reset()}
+if(first() | dupefinished())
+{
+    Wirelinks=table()
+    Usage=table()
+    Production=table()
+    Filter=table()
+    GeneratorCount=table()
+    PumpStatus=table()
+    OpStats=table()
+    FoundEntities=array()
+    entity():setColor(vec(125,250,125))
+    Mute = 1
+    MultMin = 1
+    MultMax = 50 #Maximum multiplier to reflect server limitations
+    PriorityMod = 0
+    PriorityModBase = 150
+    WaterPumpDist=500 #Position to check below water pumps
+    #---START OF BASE MULTIPLIERS---#
+    
+    #-----Water Production-----#
+    Usage["Water Pump",number]=22.507
+    Production["Water Pump",number]=22.507
+    BaseVolume["Water Pump",number] = 22507
+    
+    Usage["Moisture Vaporator",number]=75
+    Production["Moisture Vaporator",number]=20
+    BaseVolume["Moisture Vaporator",number] = 16860
+
+    #-----Water Air Extractor-----#
+    Usage["Water Splitter",number]= 100 #Energy used
+    Production["Water Splitter",number]= 20 #Water used, oxygen produced, 2x hydrogen produced
+    BaseVolume["Water Splitter",number] = 11670
+    
+    #-----Fusion Reactor-----#
+    Usage["Fusion Reactor",number] = 30 #Hydrogen Used
+    Production["Fusion Reactor",number] = 3000 #energy produced, 1/3 energy cost
+    BaseVolume["Fusion Reactor",number] = 2291
+    
+    #-----Air Compressor-----#
+    Usage["Atmospheric Compressor",number] = 22.8015 #Energy used
+    Production["Atmospheric Compressor",number] = 0 #This is calculated in realtime because values will change over time
+    BaseVolume["Atmospheric Compressor",number] = 45603
+    
+    #-----Carbon Cycle-----#
+    Usage["Carbon Dioxide Splitter",number] = 125 #Energy used
+    Production["Carbon Dioxide Splitter",number] = 20 #Carbon Dioxide used, Water Used, 2xOxygen/hydrogen produced, Carbon Monoxide produced
+    BaseVolume["Carbon Dioxide Splitter",number] = 17799
+    
+    Usage["Carbon Monoxide Splitter",number] = 150 #Energy used
+    Production["Carbon Monoxide Splitter",number] = 20 #Carbon monoxide consumed, Carbon produced, Oxygen produced
+    BaseVolume["Carbon Monoxide Splitter",number] = 4593
+    
+    Usage["Carbon Fuel Cell",number] = 20 #Carbon used, 2x oxygen, a little less CO2 returned
+    Production["Carbon Fuel Cell",number] = 600 #Energy produced
+    BaseVolume["Carbon Fuel Cell",number] = 11631
+    
+    #-----Hydrogen Fuel Cell-----#
+    Usage["Hydrogen Fuel Cell",number] = 15 #Oxygen used, 2x hydrogen used, 0.5x water produced
+    Production["Hydrogen Fuel Cell",number] = 400 #Energy produced
+    BaseVolume["Hydrogen Fuel Cell",number] = 6021
+    
+    #-----Antimatter Cycle-----#
+    Usage["Antimatter Creator",number] = 2000 #Energy required, 1/4 hydrogen
+    Production["Antimatter Creator",number] = 12.5 #Antimatter Generated
+    BaseVolume["Antimatter Creator",number] = 97164
+    
+    Usage["Antimatter Reactor",number] = 12 #Hydrogen used, Antimatter used
+    Production["Antimatter Reactor",number] = 24000 #Energy produced, 1/6 energy required
+    BaseVolume["Antimatter Reactor",number] = 28733
+    
+    #ANYTHING BELOW THIS POINT IS INCOMPLETE/UNBALANCED AND WILL NEED TO BE UPDATED REGULARLY
+    
+    #-----Methanol Cycle-----# 
+    Usage["Methanol Synthesizer",number] = 43.814 #Hydrogen required
+    Production["Methanol Synthesizer",number] = 21.907 #Methanol Produced, Energy required, CO required
+    BaseVolume["Methanol Synthesizer",number] = 21907
+    
+    Usage["Methanol Fuel Cell",number] = 1.5 #Oxygen Required
+    Production["Methanol Fuel Cell",number] = 1 #Energy produced, methanol required
+    BaseVolume["Methanol Fuel Cell",number] = 23555
+    
+    Usage["Methanol Burner",number] = 13.461 #Methanol Required
+    Production["Methanol Burner",number] = 67.305 #Steam produced, water required
+    BaseVolume["Methanol Burner",number] = 13461
+    
+    Usage["Steam Turbine",number] = 57.478 #Steam use
+    Production["Steam Turbine",number] = 86.217 #Energy production
+    BaseVolume["Steam Turbine",number] = 57478
+    
+    #-----Polonium Nitrate-----#
+    Usage["PN Reactor",number] = 10 #PN required, 6x required water, 6x radioactive coolant produced
+    Production["PN Reactor",number] = 6000
+    BaseVolume["PN Reactor",number] = 37358
+    
+    #-----Fission Reactor-----#
+    Usage["Fission Reactor",number] = 1 #Uranium required
+    Production["Fission Reactor",number] = 1200 #Energy produced, 1/15 water consumed, 1/15 radioactive waste consumed
+    BaseVolume["Fission Reactor",number] = 15096
+    
+    
+    Usage["Water Purifier",number] = 2.669 #Energy cost
+    Production["Water Purifier",number] = 4.003 #Radioactive Coolant consumed, water produced, 1/50 carbon consumed
+    BaseVolume["Water Purifier",number] = 5338
+    
+    Usage["Water Distillator",number] = 35.238 #Energy cost
+    Production["Water Distillator",number] = 13.214 #Radioactive Coolant consumed, steam produced
+    BaseVolume["Water Distillator",number] = 5873
+    
+    Usage["Mining Drill Rig",number] = 100
+    Production["Mining Drill Rig",number] = 0
+    BaseVolume["Mining Drill Rig",number] = 124765
+    
+    Usage["Suit Dispenser",number] = 1
+    Production["Suit Dispenser",number] = 1
+    BaseVolume["Suit Dispenser",number] = 2
+    
+    #---END OF BASE MULTIPLIERS---#
+
+######User Defined Functions######
+    function number priority1(Energy:number,EnergyPcnt:number,Use:number)
+    {
+        local EnergyMin = PriorityMod
+        local EnergyPcntMin = 0.005
+        return ((Energy > EnergyMin) | (EnergyPcnt > EnergyPcntMin)) & (Energy > Use)
+    }
+    function number priority2(Energy:number,EnergyPcnt:number,Use:number)
+    {
+        local EnergyMin = PriorityMod*2
+        local EnergyPcntMin = 0.01
+        return ((Energy > EnergyMin) | (EnergyPcnt > EnergyPcntMin)) & (Energy > Use)
+    }
+    function number priority3(Energy:number,EnergyPcnt:number,Use:number)
+    {
+        local EnergyMin = PriorityMod*4
+        local EnergyPcntMin = 0.025
+        return ((Energy > EnergyMin) | (EnergyPcnt > EnergyPcntMin)) & (Energy > Use)
+    }
+    function number priority4(Energy:number,EnergyPcnt:number,Use:number)
+    {
+        local EnergyMin = PriorityMod*8
+        local EnergyPcntMin = 0.05
+        return ((Energy > EnergyMin) | (EnergyPcnt > EnergyPcntMin)) & (Energy > Use)
+    }
+    function number priority5(Energy:number,EnergyPcnt:number,Use:number)
+    {
+        local EnergyMin = PriorityMod*100
+        local EnergyPcntMin = 0.1
+        return ((Energy > EnergyMin) | (EnergyPcnt > EnergyPcntMin)) & (Energy > Use)
+    }
+    function number entity:inAtmo()
+    {
+        return This:lsName()!="Space"
+    }
+    #Takes: entity:func
+    #Returns: number
+    #This function returns the percentage of nitrogen in the atmosphere which the given entity is in
+    function number entity:nPercent()
+    {
+        local RV=0
+        if(This:inAtmo())
+        {
+            RV = This:lsNPercent()
+        }
+        return RV
+    }
+    function number entity:o2Percent()
+    {
+        local RV=0
+        if(This:inAtmo())
+        {
+            RV = This:lsO2Percent()
+        }
+        return RV
+    }
+    function number entity:hPercent()
+    {
+        local RV=0
+        if(This:inAtmo())
+        {
+            RV = This:lsHPercent()
+        }
+        return RV
+    }
+    function number entity:co2Percent()
+    {
+        local RV=0
+        if(This:inAtmo())
+        {
+            RV = This:lsCO2Percent()
+        }
+        return RV
+    }
+    #Takes: entity:func
+    #Returns: number
+    #This function returns the amount of nitrogen in the atmosphere which the given entity is in
+    function number entity:nAmount()
+    {
+        local RV=0
+        if(This:inAtmo())
+        {
+            RV = This:lsNAmount()
+        }
+        return RV
+    }
+    function number entity:o2Amount()
+    {
+        local RV=0
+        if(This:inAtmo())
+        {
+            RV = This:lsO2Amount()
+        }
+        return RV
+    }
+    function number entity:hAmount()
+    {
+        local RV=0
+        if(This:inAtmo())
+        {
+            RV = This:lsHAmount()
+        }
+        return RV
+    }
+    function number entity:co2Amount()
+    {
+        local RV=0
+        if(This:inAtmo())
+        {
+            RV = This:lsCO2Amount()
+        }
+        return RV
+    }
+    function number wirelink:heatOverride()
+    {
+        local RV = 9001
+        if((This["Overheat Percent",number] > 0.025) & (This["Overheating",number] == 1))
+        {
+            RV = 5
+        }
+        return RV
+        #This["Overheating",number]
+    }
+    #Takes: entity
+    #Returns: wirelink
+    #This function creates and returns a wirelink of the given entity
+    function wirelink createWL(Ent:entity)
+    {
+        return Ent:wirelink()
+    }
+    
+    #Takes: wirelink, number
+    #Returns: nothing
+    #This function controls whether a storage device is turned on or off
+    function void storageControl(WL:wirelink, On:number)
+    {
+        WL["Off",number]=!On
+    }
+    
+    #Takes: wirelink, number, number
+    #Returns: nothing
+    #This function controls whether a generator is on or off, and its multiplier
+    function void generatorControl(WL:wirelink, On:number, Mult:number)
+    {
+        WL["On",number]=On
+        WL["Multiplier",number]=clamp(Mult,MultMin,min(MultMax,WL:heatOverride()))
+    }
+    function void generatorControl(WL:wirelink, On:number)
+    {
+        WL["On",number]=On
+    }
+    function void suitDispenserControl(WL:wirelink,On:number)
+    {
+        WL["Disable Production",number] = !On
+    }
+    #Takes: string, entity
+    #Returns: nothing
+    #This function stores the wirelink of a given entity at the specified index in the 'Wirelinks' table.
+    function void addWirelink(Index:string,E:entity)
+    {
+        Wirelinks[Index,wirelink] = createWL(E)
+        Wirelinks[Index,wirelink]["Mute",number] = Mute
+        if(E:lsDeviceName()=="Water Pump" | E:lsDeviceName()=="Moisture Vaporator")
+        {
+            PumpStatus[E:id():toString(),number]=0
+        }
+    }
+    
+    #Takes: string, string
+    #Returns: nothing
+    #This function adds a device class to search for at runtime and gives it a nickname(Index)
+    function void addDevices(Indexes:array)
+    {
+        foreach(K,DeviceName:string=Indexes)
+        {
+            Filter[DeviceName,string] = DeviceName
+        }
+    }
+    
+    #Takes: nothing
+    #Returns: nothing
+    #This function modifies the Usage table to store usage data for each generator/storage found at runtime
+    function void setUsage()
+    {
+        local Avg = 0
+        local Ignore = 0
+        foreach(K,V:wirelink=Wirelinks)
+        {
+            TempEnt = V:entity()
+            local Class = TempEnt:lsDeviceName()
+            if(Class == "Suit Dispenser" | Class == "Life Support Core") {Ignore++ continue}
+            local Vol = round(TempEnt:volume())
+            local BaseVol = BaseVolume[Class,number]
+            local Negative = Vol>=BaseVol ? 1 : -1
+            local Mod = (((abs(Vol - BaseVol)^0.85)/BaseVol)*Negative + 1)
+            Usage[K,number] = Usage[Class,number] * Mod
+            Production[K,number] = Production[Class,number] * Mod
+            #print(Class,Mod)
+            Avg+=Mod
+        }
+        PriorityMod = (Avg/(Wirelinks:count() - Ignore)) * PriorityModBase
+        #print(PriorityMod)
+    }
+    
+    #Takes: number
+    #Returns: nothing
+    #This function performs witchcraft
+    function void wirelinkManage(Docked:number)
+    {
+        #First, get all resource values necessary for compatible generators
+        local Energy = ShipCore:lsAmount("Energy")
+        local MaxEnergy = ShipCore:lsCapacity("Energy")
+        local EnergyPcnt = Energy/MaxEnergy
+        local EnergyLeft = MaxEnergy - Energy
+        
+        local Water = ShipCore:lsAmount("Water")
+        local MaxWater = ShipCore:lsCapacity("Water")
+        local WaterPcnt = Water/MaxWater
+        local WaterLeft = MaxWater - Water
+        
+        local Oxygen = ShipCore:lsAmount("Oxygen")
+        local MaxOxygen = ShipCore:lsCapacity("Oxygen")
+        local OxygenPcnt = Oxygen/MaxOxygen
+        local OxygenLeft = MaxOxygen - Oxygen
+        
+        local Hydrogen = ShipCore:lsAmount("Hydrogen")
+        local MaxHydrogen = ShipCore:lsCapacity("Hydrogen")
+        local HydrogenPcnt = Hydrogen/MaxHydrogen
+        local HydrogenLeft = MaxHydrogen - Hydrogen
+
+        local CarbonDioxide = ShipCore:lsAmount("Carbon Dioxide")
+        local MaxCarbonDioxide = ShipCore:lsCapacity("Carbon Dioxide")
+        local CarbonDioxidePcnt = CarbonDioxide/MaxCarbonDioxide
+        local CarbonDioxideLeft = MaxCarbonDioxide - CarbonDioxide
+        
+        local CarbonMonoxide = ShipCore:lsAmount("Carbon Monoxide")
+        local MaxCarbonMonoxide = ShipCore:lsCapacity("Carbon Monoxide")
+        local CarbonMonoxidePcnt = CarbonMonoxide/MaxCarbonMonoxide
+        local CarbonMonoxideLeft = MaxCarbonMonoxide - CarbonMonoxide
+
+        local Carbon = ShipCore:lsAmount("Carbon")
+        local MaxCarbon = ShipCore:lsCapacity("Carbon")
+        local CarbonPcnt = Carbon/MaxCarbon
+        local CarbonLeft = MaxCarbon - Carbon
+        
+        local Nitrogen = ShipCore:lsAmount("Nitrogen")
+        local MaxNitrogen = ShipCore:lsCapacity("Nitrogen")
+        local NitrogenPcnt = Nitrogen/MaxNitrogen
+        local NitrogenLeft = MaxNitrogen - Nitrogen
+        
+        local Antimatter = ShipCore:lsAmount("Antimatter")
+        local MaxAntimatter = ShipCore:lsCapacity("Antimatter")
+        local AntimatterPcnt = Antimatter/max(1,MaxAntimatter)
+        local AntimatterLeft = MaxAntimatter - Antimatter
+        #print(AntimatterPcnt)  
+        local Methanol = ShipCore:lsAmount("Methanol")
+        local MaxMethanol = ShipCore:lsCapacity("Methanol")
+        local MethanolPcnt = Methanol/MaxMethanol
+        local MethanolLeft = MaxMethanol - Methanol
+        
+        local Steam = ShipCore:lsAmount("Steam")
+        local MaxSteam = ShipCore:lsCapacity("Steam")
+        local SteamPcnt = Steam/MaxSteam
+        local SteamLeft = MaxSteam - Steam
+        
+        local Uranium = ShipCore:lsAmount("Uranium")
+        local MaxUranium = ShipCore:lsCapacity("Uranium")
+        local UraniumPcnt = Uranium/MaxUranium
+        local UraniumLeft = MaxUranium - Uranium
+        
+        local PoloniumNitrate = ShipCore:lsAmount("Polonium Nitrate")
+        local MaxPoloniumNitrate = ShipCore:lsCapacity("Polonium Nitrate")
+        local PoloniumNitratePcnt = PoloniumNitrate/MaxPoloniumNitrate
+        local PoloniumNitrateLeft = MaxPoloniumNitrate - PoloniumNitrate
+        
+        local RadioactiveCoolant = ShipCore:lsAmount("Radioactive Coolant")
+        local MaxRadioactiveCoolant = ShipCore:lsCapacity("Radioactive Coolant")
+        local RadioactiveCoolantPcnt = RadioactiveCoolant/MaxRadioactiveCoolant
+        local RadioactiveCoolantLeft = MaxRadioactiveCoolant - RadioactiveCoolant
+
+        foreach(Idx,WL:wirelink=Wirelinks) #For every wirelink device stored in the Wirelinks table, do the following:
+        {
+            local IdxR = Idx:explode("|")
+            local Class = IdxR[1,string] #Explode the index to get the first portion, which is the entity's class
+            local GenCountMul = GeneratorCount[Class,number] #Get the number of devices of that class
+            local Use = Usage[Idx,number] * GenCountMul #Grab the stored Usage for this specific device, then multiply by the number of devices
+            local Make = Production[Idx,number] * GenCountMul   #Grab the stored Production for this specific device, then multiply by the number of devices
+            local Atmo = WL:entity():inAtmo()
+            switch(Class)  #Switch statement by class
+            {
+                case "Water Pump",   #Water pump, generates water when placed over water source
+                    ThisPumpDocked = PumpStatus[IdxR[2,string],number]
+                    On = (ThisPumpDocked) & priority4(Energy,EnergyPcnt,Use) & (WaterLeft>Make*2)
+                    Mult = min(Energy/(Use*6),(WaterLeft)/(2*Make))
+                    generatorControl(WL,On,Mult)
+                    break
+                    
+                case "Moisture Vaporator",
+                    On = (Docked) & priority4(Energy,EnergyPcnt,Use) & (WaterLeft > Make*2)
+                    Mult = min(Energy/(Use*5),(WaterLeft)/(2*Make))
+                    generatorControl(WL,On,Mult)
+                    break
+                    
+                case "Water Splitter", #Water Splitter, takes water and turns it into oxygen/hydrogen at a 1->1:2 ratio
+                    On = (Docked) 
+                        ? priority3(Energy,EnergyPcnt,Use) & (Water>Make*1.1) & ((OxygenLeft > Make) | HydrogenLeft > (Make*2))
+                        : (Energy>Use*2) & (WaterPcnt > 0.05) & ((OxygenPcnt<0.25) | (HydrogenPcnt<0.15))
+                    Mult = min(Energy/(Use*5), (Water)/(2*Make),max((OxygenLeft)/(3*Make),(HydrogenLeft)/(6*Make)))
+                    generatorControl(WL,On,Mult)
+                    break
+                    
+                case "Fusion Reactor", #Fusion reactor, takes hydrogen and energy and produces more energy
+                    On = (Docked)
+                        ? (Energy > Make/3) & (Hydrogen > Use) & (EnergyPcnt < 0.985) & ((AntimatterPcnt < 0.1) | (MaxAntimatter == 0))
+                        : (Energy > Make/3) & (Hydrogen > Use) & (EnergyPcnt < 0.85) & ((AntimatterPcnt < 0.05) | (MaxAntimatter == 0))
+                    Mult = min(Hydrogen/(Use*2), (Energy)/(Make*(3/3)), (EnergyLeft)/(Make))
+                    #print(AntimatterPcnt,MaxAntimatter)
+                    generatorControl(WL,On,Mult)
+                    break
+                    
+                case "Atmospheric Compressor", #Grabs bits of gas available from atmosphere
+                    Make = max((((WL:entity():co2Percent()/10))* WL:entity():volume()/1000)/3,0.5)
+                    On = (Atmo)
+                        ? priority4(Energy,EnergyPcnt,Use) & (CarbonDioxidePcnt < 0.9 | CarbonMonoxidePcnt < 0.9)
+                        : 0
+                    Mult = min(Energy/(Use*20),CarbonDioxideLeft/(2*Make), CarbonMonoxideLeft/(2*Make))
+                    generatorControl(WL,On,Mult)
+                    break
+                    
+                case "Carbon Dioxide Splitter", #Dilutes CO2 into water, then electrolyzes the solution to create Carbon Monoxide, Oxygen, and Hydrogen
+                    On=(Atmo)
+                        ? priority2(Energy,EnergyPcnt,Use) & (CarbonDioxide > Make*1.1) & (Water > Make*1.1) & ((CarbonMonoxideLeft > Make) | (HydrogenLeft > Make*2) | (OxygenLeft > Make*2))
+                        : priority2(Energy,EnergyPcnt,Use) & (CarbonDioxide > Make*5) & (Water > Make*1.1) & ((CarbonMonoxidePcnt <0.75) | (HydrogenPcnt < 0.05) | (OxygenPcnt < 0.05))
+                    Mult = min(Energy/(Use*5),Water/(4*Make),CarbonDioxide/(4*Make),max(CarbonMonoxideLeft,HydrogenLeft,OxygenLeft)/(4*Make))
+                    generatorControl(WL,On,Mult)
+                    break
+                    
+                case "Carbon Monoxide Splitter", #Splits Carbon Monoxide into Carbon and Oxygen
+                    On=(Atmo)
+                        ? priority1(Energy,EnergyPcnt,Use) & (CarbonMonoxide > Make*1) & ((OxygenLeft > Make) | (CarbonLeft > Make))
+                        : priority1(Energy,EnergyPcnt,Use) & (CarbonMonoxide > Make*5) & ((OxygenPcnt < 0.05) | (CarbonPcnt < 0.75))
+                    Mult = min(Energy/(Use*2),CarbonMonoxide/(4*Make),max(CarbonLeft,OxygenLeft)/(4*Make))
+                    generatorControl(WL,On,Mult)
+                    break
+                    
+                case "Carbon Fuel Cell", #Combines Oxygen and Carbon to create Carbon Dioxide and Energy
+                    On=(Docked)
+                        ? (Carbon >= Use) & (Oxygen > Use) & (EnergyLeft > Make)
+                        : (Carbon > Use) & (OxygenPcnt > 0.05) & (EnergyPcnt < 0.9)
+                    Mult = min(Carbon/(Use*1.05),Oxygen/(2*Use),EnergyLeft/(2*Make),5)
+                    generatorControl(WL,On,Mult)
+                    break
+                    
+                case "Hydrogen Fuel Cell", #Electrocutes Hydrogen and Oxygen to generate Water and Energy
+                    On = (Atmo)
+                        ? ((WaterPcnt < 0.05) | EnergyPcnt < 0.05) & (OxygenPcnt > 0.05) & (HydrogenPcnt > 0.05)
+                        : 0
+                    Mult = min(Oxygen/(2*Use),Hydrogen/(4*Use),WaterLeft/(Use*0.5),EnergyLeft/(Make))
+                    generatorControl(WL,On,Mult)
+                    break
+                    
+                case "Antimatter Creator", #Captures antimatter using lots of energy and hydrogen
+                    On = (Docked|Atmo)
+                        ? priority2(Energy,EnergyPcnt,Use) & (Hydrogen > Use/2) & (AntimatterLeft > Make) & (Antimatter < (Hydrogen)*0.95)
+                        : (Energy > Use) & (Hydrogen > Use/2) & (AntimatterPcnt < 0.05) & (Antimatter < (Hydrogen)*0.95)
+                    Mult = min(Energy/(Use*5),Hydrogen/(Use/2),AntimatterLeft/(2*Make))
+                    generatorControl(WL,On,Mult)
+                    break
+                    
+                case "Antimatter Reactor", #Annihilates antimatter with Hydrogen to generate buckets of Energy
+                    On = (Docked)
+                        ? (Energy > Make/6) & (Hydrogen > Use) & (Antimatter > Use) & (EnergyPcnt < 0.975)
+                        : (Energy > Make/6) & (Hydrogen > Use*1) & (Antimatter > Use*1) & (EnergyPcnt < 0.95)
+                    Mult = min(Energy/(Make/3),Hydrogen/(Use*4),Antimatter/(Use*4),EnergyLeft/(2*Make))
+                    generatorControl(WL,On,Mult)
+                    break
+                    
+                
+                case "Steam Turbine",
+                    On = (Docked)
+                        ? (Steam > Use) & ((EnergyLeft > Make) | (WaterPcnt < 0.05))
+                        : (Steam > Use) & ((EnergyPcnt <0.985) | (WaterPcnt < 0.025))
+                    Mult = min(Steam/(Use),max(EnergyLeft/(Make),Water/(Use)))
+                    generatorControl(WL,On,Mult)
+                    break
+                
+                case "Fission Reactor",
+                    On = (Docked)
+                        ? (Uranium > Use) & (Water > Make/8) & (RadioactiveCoolantLeft > Make/8) & (EnergyPcnt < 0.995)
+                        : (Uranium > Use*5) & (Water > Make) & (RadioactiveCoolantLeft > Make) & (EnergyPcnt < 0.85)
+                    Mult = min(Uranium/(Use*2),Water/(Make*2),RadioactiveCoolantLeft/(Make*2),EnergyLeft/(Make))
+                    generatorControl(WL,On,Mult)
+                    break
+                
+                case "PN Reactor",
+                    On = (Docked)
+                        ? (PoloniumNitrate > Use) & (Water > Use*6) & (RadioactiveCoolantLeft > Use*6) & (EnergyPcnt < 0.99)
+                        : (PoloniumNitrate > Use*5) & (Water > Use*12) & (RadioactiveCoolantLeft > Use*12) & (EnergyPcnt < 0.8)
+                    Mult = min(PoloniumNitrate/(Use),Water/(Use*6),RadioactiveCoolantLeft/(Use*12),EnergyLeft/(Make))
+                    generatorControl(WL,On,Mult)
+                    break
+                
+                case "Water Purifier",
+                    On = (Energy > Use*5) & (RadioactiveCoolant > Make) & (Carbon > (Make/50))
+                    Mult = min(Energy/(Use*2),RadioactiveCoolant/(Make*2), Carbon/(Make/25))
+                    generatorControl(WL,On,Mult)
+                    break
+                
+                case "Water Distillator",
+                    On = (Energy > Use*5) & (RadioactiveCoolant > Make)
+                    Mult = min(Energy/(Use*2),RadioactiveCoolant/(Make*2))
+                    generatorControl(WL,On,Mult)
+                    break
+                
+                case "Suit Dispenser",
+                    On = priority5(Energy,EnergyPcnt,0)
+                    suitDispenserControl(WL,On)
+                    break
+                
+                case "Life Support Core",
+                    Use1 = WL["Required Energy",number]
+                    Use2 = WL["Required Oxygen",number]
+                    #print(Use1,Use2)
+                    On = priority5(Energy,EnergyPcnt,Use1) & ((Use1|Use2))
+                    generatorControl(WL,On)
+                    break
+                
+                case "Mining Drill Rig",
+                    On = priority2(Energy,EnergyPcnt,Use)
+                    generatorControl(WL,On)
+                    break
+                    
+                default,
+                    break
+            }
+        }
+    }
+    function number isDocked() #Return true(1) if at least one water pump is currently above water
+    {
+        local Docked=0
+        foreach(PumpID,IsDocked:number=PumpStatus)
+        {
+            local PumpEnt = entity(PumpID:toNumber())
+            if(PumpEnt:lsDeviceName()=="Water Pump")
+            {
+                rangerFlags("WI")
+                local R = rangerOffset(WaterPumpDist,PumpEnt:pos(),vec(0,0,-100))
+                if(R:hit() | PumpEnt:isUnderWater())
+                {
+                    PumpStatus[PumpID,number]=R:hit()
+                    Docked=1
+                }
+            }
+            else
+            {
+                Docked = PumpEnt:inAtmo()
+            }
+        }
+        return Docked
+    }
+    function void getOpStats()
+    {
+        local OpsThisCycle = opcounter()
+        local MaxOps = OpStats["Maximum Ops Used",number]
+        OpStats["Uptime(seconds)",number] = OpStats["Uptime(seconds)",number] + 1
+        OpStats["Ops Used This Cycle",number] = OpsThisCycle
+        OpStats["Average Ops",number] = ops()
+        OpStats["CPU Usage", number] = cpuUsage()*1000000
+        OpStats["Total Ops Used",number] = OpStats["Total Ops Used",number] + OpStats["Ops Used This Cycle",number]
+        if(OpsThisCycle > MaxOps)
+        {
+            OpStats["Maximum Ops Used",number] = OpsThisCycle
+        }
+    }
+#####End Functions######
+
+    #Add devices here
+    addDevices(array(   "Water Pump", "Moisture Vaporator",
+                        "Water Splitter", 
+                        "Fusion Reactor",
+                        "Antimatter Creator", "Antimatter Reactor",
+                        "Atmospheric Compressor",
+                        "Hydrogen Fuel Cell",
+                        "Carbon Monoxide Splitter", "Carbon Dioxide Splitter", "Carbon Fuel Cell",
+                        "Antimatter Creator", "Antimatter Reactor",
+                        "Methanol Synthesizer", "Methanol Fuel Cell", "Methanol Burner", "Steam Turbine",
+                        "Life Support Core",
+                        "Fission Reactor",
+                        "PN Reactor",
+                        "Water Purifier", "Water Distillator",
+                        "Mining Drill Rig",
+                        "Suit Dispenser" ))
+                            
+    #Get ship core and network entities
+    ShipCore = entity():isConstrainedTo():getCoreEnt()
+    FoundEntities = ShipCore:lsNetEntities()
+    MaxEntities = FoundEntities:count()
+    if(!ShipCore) #If shipcore is not found
+    {
+        setName("Disabled - No ship core found.")
+    }
+}
+
+interval(1000)
+
+if(changed(MaxEntities)!=0 & MaxEntities > 0) #If new entities are found
+{
+    local Name = ""
+    foreach(Idx,WL:wirelink=Wirelinks)   #Check if any entities are missing. If so, remove their wirelink from the table
+    {
+        if(!WL:entity())
+        {
+            Wirelinks:removeWirelink(Idx)
+            local Class = Idx:explode("|")[1,string]
+            GeneratorCount[Class,number] = GeneratorCount[Class,number] - 1
+        }
+    }
+    for(I=1,MaxEntities)    #Look for new wirelinks #VERY EXPENSIVE, optimize?
+    {
+        local E = FoundEntities[I,entity]
+        local ID = E:id()
+        local Class = E:lsDeviceName()
+        local Index = Class + "|" + toString(ID)
+        if(!Wirelinks:exists(Index) & Filter:exists(Class))
+        {
+            addWirelink(Index,E)
+            GeneratorCount[Class,number] = GeneratorCount[Class,number] + 1
+        }
+    }
+    foreach(GenName,GenClass:string=Filter)
+    {
+        local Count = GeneratorCount[GenClass,number]
+        if(Count > 0)
+        {
+            Name = Name + GenName + "(" + toString(Count) + ")" + "\n"
+        }
+    }
+    setName(Name:left(Name:length()-1))
+    setUsage()
+    getOpStats()
+    exit()
+}
+FoundEntities = ShipCore:lsNetEntities()
+MaxEntities = FoundEntities:count()
+wirelinkManage(isDocked())
+getOpStats()

@@ -1,0 +1,187 @@
+@name ShieldV3
+@inputs Target:vector
+@persist Sphere:array R Planet:entity I PlanetName:string PlanetPos:vector Built Props:array WeaponBase:entity SurfaceCenter:vector TurretBase:entity
+@persist Weapons:array
+@outputs State
+interval(80)
+if(first())
+{
+    #include "lib/hob"
+    
+    function build() {
+        if(I<Sphere:count())
+        {
+            if(propCanCreate())
+            {
+                I++
+                local V = PlanetPos+Sphere[I,vector]
+                if(!V:isInWorld()) {interval(10) exit()}
+                local A = Sphere[I,vector]:toAngle():up():toAngle()
+                local E = propSpawn("models/hunter/plates/plate32x32.mdl",V,A,1)
+                if(E:isValid()){
+                    E:weld(entity():isWeldedTo())
+                    E:setMaterial("models/props_combine/combine_fenceglow")
+                    Props[I,entity] = E
+                }else{
+                    interval(10) 
+                    exit()
+                }
+            }
+        }else{
+            #turret stuff
+            print("yo wtf")
+            WeaponBase = propSpawn("models/Boba_Fett/catwalk_build/gate_platform.mdl",SurfaceCenter+vec(0,0,40),ang(),1)
+            TurretBase = holoCreate(1,PlanetPos)
+            Built = 1
+            State = 1
+        }
+    }
+    
+    function sphereFinish(S:array) {
+        Sphere = S
+        build()
+    }
+    
+    function parentWeps()
+    {
+        foreach(K,V:entity=Weapons)
+        {
+            V:parentTo(WeaponBase)
+        }
+    }
+    function deparentWeps()
+    {
+        foreach(K,V:entity=Weapons){
+            V:deparent()
+        }
+    }
+    function parentWepBase()
+    {
+        WeaponBase:setPos(PlanetPos+vec(0,0,R+160))
+        WeaponBase:setAng(ang(0,0,0))
+        timer(100,1,"parentWepBase2()","parentWepBase2()")
+    }
+    function parentWepBase2()
+    {
+        WeaponBase:parentTo(TurretBase)
+    }
+    function moveWepBase()
+    {
+        WeaponBase:setPos(SurfaceCenter+vec(0,0,30))
+        WeaponBase:setAng(ang(0,0,0))
+    }
+    #runOnTick(1)
+    propSpawnUndo(0)
+    runOnChat(1)
+    #Current Planet
+    Planet = closestPlanet(entity():pos())
+    PlanetName = Planet:lsName()
+    print(PlanetName)
+    
+    #Planet Radius
+    R = ( max(Planet:boxSize():x(),Planet:boxSize():y(),Planet:boxSize():z())/2 ) *0.95
+    
+    #Planet pos
+    PlanetPos = (PlanetName=="Kobol" ? Planet:pos()+vec(0,0,250) : Planet:pos())
+    
+    #Center of the surface of the planet
+    rangerFlags("W")
+    SurfaceCenter = rangerOffset(PlanetPos+vec(0,0,R),PlanetPos):position()
+    
+    #sphere! :D
+    array():sphere(R,15,"sphereFinish",0)
+}
+if(Built==0 & Sphere:count())
+{
+    build()
+}else{
+
+    if(chatClk(owner()) & owner():lastSaid():sub(1,1) == "!")
+    {
+        hideChat(1)
+        local S = owner():lastSaid():sub(2):lower()
+        switch(S)
+        {
+            case "shield",
+                if(State==1){State=2 I=Props:count()+1}
+                if(State==4){State=3 I=0}
+                break
+            
+            case "repairshield",
+                if(State==1|State==4){State=5 I=0}
+                break
+        }
+    }   
+
+    switch(State) #1:Closed 2:Opening 3:Closing 4:Open 5:Repairing
+    {
+        case 1,
+            local WantedAngle = (Target-TurretBase:pos()):toAngle()
+            local CurrentAngle = TurretBase:angles()-ang(0,0,0) #the -ang(90,0,0) is just offset crap, you don't need to use it
+            local NewAngle = smoothness(CurrentAngle,WantedAngle,12.5)
+            holoAng(holoIndex(TurretBase),NewAngle)
+            break
+            
+        case 2,
+            if(I>0){
+                while(perf() & I>0){
+                    I--
+                    local E = Props[I,entity]
+                    E:setAlpha(0)
+                    E:setSolid(0)
+                }
+            }else{
+                State=4
+                holoAng(holoIndex(TurretBase),ang())
+                WeaponBase:deparent()
+                WeaponBase:unWeld(entity():isWeldedTo())
+                timer(100,1,"moveWepBase()","moveWepBase()")
+                timer(200,1,"deparentWeps()","deparentWeps()")
+            }
+            break
+            
+        case 3,# Closing
+            if(I==0){I++
+                WeaponBase:weld(entity():isWeldedTo())
+                findIncludePlayerProps(owner())
+                findByClass("sc_weapon_base")
+                findClipToSphere(SurfaceCenter,1000)
+                Weapons = findToArray()
+                print(Weapons:count())
+                for(X=1,Weapons:count())
+                {
+                    V = Weapons[X,entity]
+                    V:constraintBreak()
+                    V:lsLink(entity():isWeldedTo())
+                    V:setPos(SurfaceCenter+vec(cos(X*(360/Weapons:count()))*140,sin(X*(360/Weapons:count()))*140,20))
+                    V:setAng(ang(0,0,0))
+                }
+                timer(100,1,"parentWeps()","parentWeps()")
+                timer(200,1,"parentWepBase()","parentWepBase()")
+            }elseif(I<Props:count()){
+                while(perf() & I<Props:count()){
+                    I++
+                    local E = Props[I,entity]
+                    E:setAlpha(255)
+                    E:setSolid(1)
+                }
+            }else{
+                State = 1
+                
+            }
+            break
+            
+        case 4,
+            break
+            
+        case 5,
+            if(I<Props:count()){I++
+                Props[I,entity]:propDelete()
+            }else{
+                Props = array()
+                Built = 0
+                I = 0
+            }
+            break
+    }
+}

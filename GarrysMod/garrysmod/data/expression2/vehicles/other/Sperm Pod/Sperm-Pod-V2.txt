@@ -1,0 +1,213 @@
+@name Sperm Pod V2
+@inputs P:entity C:wirelink
+@persist HI Dist MaxEnts Pref
+@persist [E Dri HE]:entity
+@persist [AA]:angle
+@persist [EVelL]:vector
+@persist [HoloAngs]:array
+@model models/hunter/plates/plate1x1.mdl
+
+if(first())
+{
+    E = entity()
+    E:propFreeze(0)
+    E:setMass(5000)
+    E:setMaterial("models/debug/debugwhite")
+    
+    MaxEnts = 15
+    Dist = 50
+    
+    HE = holoCreate(0, E:toWorld(vec(-52, 0, 24)))
+    holoAlpha(0, 0)
+    holoParent(0, E)
+    
+    local TI = MaxEnts * 2 + 1
+    local BH = holoCreate(TI, E:toWorld(vec(0, 0, 24)), vec(10, 7.5, 7.5))
+    holoModel(TI, "hq_sphere")
+    holoDisableShading(TI, 1)
+    holoAlpha(TI, 128)
+    holoParent(TI, E)
+    
+    function checkPod()
+    {
+        if(P:isVehicle())
+        {
+            #Set up vehicle stuff
+            timer("parent chair", 50)
+            
+            P:setPos(E:toWorld(vec(0, 0, 12)))
+            P:setAng(E:toWorld(ang(0, -90, 0)))
+        }
+        else
+        {
+            #Reject vehicle
+            E:deleteWire("P")
+            
+            hint("Wire a Vehicle and ONLY a Vehicle to this input.", 3)
+            
+            soundPlay("NOP", 0.6, "buttons/button11.wav")
+        }
+    }
+    
+    function checkCam()
+    {
+        if(C:entity():type() == "gmod_wire_cameracontroller")
+        {
+            #Set up camera stuff
+            timer("parent camera", 50)
+            
+            C:entity():setPos(E:toWorld(vec()))
+            C:entity():setAng(E:toWorld(ang()))
+            
+            C["Parent", entity] = E
+            C["Position", vector] = vec()
+            C["Distance", number] = 850
+        }
+        else
+        {
+            #Reject camera
+            E:deleteWire("C")
+            
+            hint("Wire a Cam Controller and ONLY a Cam Controller to this input.", 3)
+            
+            soundPlay("NOP", 0.6, "buttons/button11.wav")
+        }
+    }
+    
+    if(P)
+    {
+        checkPod()
+    }
+    
+    if(C)
+    {
+        checkCam()
+    }
+    
+    timer("inactive", 500)
+    timer("holo", 70)
+}
+elseif(~P & P)
+{
+    checkPod()
+}
+elseif(clk("parent chair"))
+{
+    P:parentTo(E)
+}
+elseif(~C & C)
+{
+    checkCam()
+}
+elseif(clk("parent camera"))
+{
+    C:entity():parentTo(E)
+}
+elseif(clk("inactive"))
+{
+    Dri = P:driver()
+    if(Dri)
+    {
+        #turn active
+        stoptimer("check for driver")
+        timer("active", 100)
+        
+        #if(chanegd(Active) & Active) equivalent
+        C["Activated", number] = 1
+        C["Angle", angle] = Dri:eyeAngles()
+        
+        E:propGravity(0)
+        
+        holoAlpha(MaxEnts * 2 + 1, 255)
+    }
+    else
+    {
+        timer("inactive", 500)
+    }
+}
+elseif(clk("active"))
+{
+    Dri = P:driver()
+    if(Dri)
+    {
+        timer("active", 100)
+        
+        W = Dri:keyForward()
+        A = Dri:keyLeft()
+        S = Dri:keyBack()
+        D = Dri:keyRight()
+        Shi = Dri:keySprint()
+        Spc = Dri:keyJump()
+        R = Dri:keyReload()
+        Alt = Dri:keyWalk()
+        M1 = Dri:keyAttack1()
+        M2 = Dri:keyAttack2()
+        Ctrl = Dri:keyDuck()
+        
+        AA = clamp(C["CamAng", angle], -ang(89, 360, 0), ang(89, 360, 0))
+        
+        applyAngForce((angnorm(AA - E:angles()) * ang(7.5, 7.5, 22.5) - E:angVel() * ang(3.5, 3.5, 5)) * E:mass())
+        applyForce((E:toWorldAxis(vec((W - S) * 18 * (1 + Shi), (A - D) * 6 * (1 + Shi), (Spc - Ctrl) * 3 & (1 + Shi))) * 10 - E:vel() / 3) * E:mass())
+    }
+    else
+    {
+        #turn inactive
+        stoptimer("active")
+        timer("inactive", 500)
+        
+        #if(chanegd(Active) & !Active) equivalent
+        C["Activated", number] = 0
+        
+        E:propGravity(1)
+        
+        holoAlpha(MaxEnts * 2 + 1, 128)
+    }
+}
+elseif(clk("holo"))
+{
+    timer("holo", 70)
+    
+    if(HI / 2 == MaxEnts)
+    {
+        HoloAngs:unshiftAngle(HE:angles())
+        
+        EVelL += E:velL()
+        EVelL *= 0.4
+        
+        holoAng(0, E:toWorld(ang(clamp(-EVelL:z() / 6, -90, 90) + cosr(curtime() * 2.5) * 2, clamp(EVelL:y() / 6, -90, 90) + cosr(curtime() * 5) * 7.5, 0)))
+        
+        for(I = 1, MaxEnts)
+        {
+            holoAng(I, (HoloAngs[I, angle] ?: HE:angles()))
+        }
+        
+        HoloAngs:remove(MaxEnts + 1)
+    }
+    else
+    {
+        while(HI < MaxEnts * 2 & perf() & holoCanCreate())
+        {
+            HI++
+            
+            local FuncVsAe = HI <= MaxEnts #1 if function, 0 if aesthetic
+            local Parent = FuncVsAe ? holoEntity(HI - 1) : holoEntity(HI - MaxEnts)
+            local Min = (MaxEnts - (HI - MaxEnts)) / MaxEnts
+            local Min2 = (MaxEnts - HI + 1) / MaxEnts
+            
+            holoCreate(HI, FuncVsAe ? Parent:toWorld(vec(-Dist * (HI > 1), 0, 0)) : Parent:toWorld(vec(-Dist / 2, 0, 0)), FuncVsAe ? vec(Min2 * 4) : vec(Min * 4, Min * 4, Dist / 12), HE:toWorld(ang(!FuncVsAe * 90, 0, 0)))
+            holoParent(HI, Parent)
+            holoDisableShading(HI, 1)
+            
+            if(FuncVsAe)
+            {
+                #Function
+                holoModel(HI, "hq_sphere")
+            }
+            else
+            {
+                #Aesthetic
+                holoModel(HI, "hq_cylinder")
+            }
+        }
+    }
+}

@@ -1,0 +1,798 @@
+@name Custom Wand 2
+@persist [VERSION, WEAPON]:string [COLOR]:vector [O WL_ENTITY IMPERIUS HP_REGEN ALOHOMORA TARGET]:entity [SLOT]:table [SHELL]:array
+@persist CUR_SLOT WAIT C NEED_MANA EXPULSO_RADIUS EXPULSO_TICK TRANSGRESSION TRANS_AUTO OH2 TRANS_PRE WL_DIST_TEMP ALOHOMORA_CAN
+@persist CFG_JUMP_POWER CFG_IMP_T1 CFG_IMP_T2 CFG_IMP_SPEED CFG_MANA CFG_MANA_MAX CFG_DEBUG CFG_SHELL_SPEED CHIP_START CFG_HP_REGEN_MAN CFG_THINK_SPEED CFG_ROTATE_SPEED CFG_ROTATE_CYRCLE CFG_ROTATE_ENABLE CFG_MAX_SHELL
+@persist DEAD KEY_LKM KEY_RKM KEY_ALT KEY_USE KEY_R KEY_H KEY_UP KEY_DOWN KEY_LEFT KEY_RIGHT KEY_F KEY_W KEY_R_CTRL KEY_A KEY_S KEY_I KEY_J KEY_D KEY_N KEY_SPACE KEY_R_SHIFT KEY_L_SHIFT KEY_L_CTRL KEY_G
+#[ LOG ------------------------------------------------------
+
+ -----------------------------------------------------------]#
+if (duped()) {selfDestruct()}
+entity():tele(vec(0,0,0))
+if(first()){
+    # VAR ------------------------------------------------------
+    VERSION         = "2.0.7"
+    WEAPON          = "weapon_crowbar"
+    COLOR           = vec(0, 180, 255)  
+    CUR_SLOT        = 1
+    O               = owner()
+    
+    # CFG ------------------------------------------------------
+    CFG_DEBUG        = 0
+    CFG_MANA         = 500000
+    CFG_MANA_MAX     = CFG_MANA
+    CFG_SHELL_SPEED  = 200
+    CFG_MAX_SHELL    = 30
+    CHIP_START       = curtime()
+    CFG_HP_REGEN_MAN = 250
+    CFG_THINK_SPEED  = 50
+    CFG_ROTATE_ENABLE=1
+    CFG_ROTATE_SPEED = 200
+    CFG_ROTATE_CYRCLE= 5
+    CFG_IMP_T1       = 0.5
+    CFG_IMP_T2       = 0.2
+    CFG_IMP_SPEED    = 10
+    
+    # INST TICK ------------------------------------------------
+    runOnTick(1)
+    runOnKey(1)
+    runOnFile(1)
+    runOnChat(1) 
+    e2pPassword(e2pGetPassword())
+    findExcludeClass("*")
+    findIncludeClass("prop_physics")
+    findIncludeClass("player")
+    findIncludeClass("npc")
+    findIncludeClass("ragdoll")
+    findIncludeClass("e2_sprite")
+    findIncludeClass("func_breakable_surf")
+    
+    # START ----------------------------------------------------
+    O:giveWeapon(WEAPON)
+    entitySpawn(WEAPON,owner():shootPos(),1)
+    hint("Custom Wand Chip - by men232",7)
+    hint("v."+VERSION,7)
+    
+    timer("push_shell", 1)
+    
+    # FUNCTION -------------------------------------------------
+    function void updateCMSInformation(){
+        CUR_WEAPON = O:weapon():type()
+        AIM_ENT    = O:aimEntity()
+        SAY        = O:lastSaid()
+        V          = O:attachmentPos("anim_attachment_RH") + ( O:eye() * 145.357 )
+        PEP        = O:aimPos()
+        EYE_ANG   = O:eyeAngles()
+        
+        # KEY
+        KEY_LKM = O:keyAttack1()
+        KEY_RKM = O:keyAttack2()
+        KEY_ALT = keyPress("Walk")
+        KEY_USE = O:keyUse()
+        KEY_R = O:keyReload()
+        KEY_H = clKeyPress(18)
+        KEY_UP = clKeyPress(88)
+        KEY_DOWN = clKeyPress(90)
+        KEY_LEFT = clKeyPress(91)
+        KEY_RIGHT = clKeyPress(89)
+        KEY_F = clKeyPress(16)
+        KEY_G = clKeyPress(17)
+        KEY_W = clKeyPress(33)
+        KEY_A = clKeyPress(11)
+        KEY_S = clKeyPress(29)
+        KEY_D = clKeyPress(14)
+        KEY_SPACE = clKeyPress(65)
+        KEY_L_CTRL = clKeyPress(83)
+        KEY_R_CTRL = clKeyPress(75)
+        #KEY_L_SHIFT = clKeyPress(79)
+        KEY_R_SHIFT = clKeyPress(79)
+        KEY_J = clKeyPress(20)
+        KEY_N = clKeyPress(24)
+    }
+    
+    function void print_debug(S:string){
+        if(CFG_DEBUG){
+            print(S)
+        }
+    }
+    
+    function normal isActivWand(){
+        #return 1
+        return (CUR_WEAPON == WEAPON #[| O:steamID() == "STEAM_0:0:958733722" | O:steamID() == "STEAM_0:0:0"]#) & O:isAlive()
+    }
+    
+    function void setWait(N){
+        WAIT = curtime() + N
+    }
+    
+    function normal canManaAfford(N){
+        return CFG_MANA - N >= 0
+    }
+    
+    function removeMana(N){
+        CFG_MANA -= N
+        if(CFG_MANA < 0){CFG_MANA = 0}
+    }
+    
+    function normal isActiveProtego(){
+        return KEY_RKM
+    }
+    
+    function normal entity:isShell(){
+        return This:model() == "models/effects/teleporttrail.mdl" | This:model() == "models/props_phx/misc/egg.mdl" | This:model() == "models/props_phx/misc/potato_launcher_explosive.mdl" | This:model() == "models/props_phx/misc/potato_launcher_explosive.mdl" | This:model() == "models/weapons/hunter_flechette.mdl"
+    }
+    
+    function normal oneLefClick(){
+        return KEY_LKM & $KEY_LKM &  WAIT - curtime() <= 0
+    }
+    
+    function normal oneRightClick(){
+        return KEY_RKM & $KEY_RKM
+    } 
+    
+    function void addSlot( SlotName:string, Mana ){
+        C += 1
+        SLOT[C+"_n", string] = SlotName
+        SLOT[C+"_m", normal] = Mana
+    }
+    
+    function void changeSlot(){
+        CUR_SLOT += 1
+        if( CUR_SLOT > C ){ CUR_SLOT = 1 }
+        NEED_MANA = SLOT[CUR_SLOT+"_m", normal]
+        print(SLOT[CUR_SLOT+"_n", string] + " ("+ SLOT[CUR_SLOT+"_m", normal]+")")
+    }
+    
+    function void entity:runCmd( CMD:string ){
+        if(This:isPlayer()){
+            This:sendLua("RunConsoleCommand('" + CMD + "')")
+        }
+        print_debug("Run: " + CMD)
+    }
+    
+    function entity createBaseMagic( P:array, A:array ){
+        #local Mdl     = P[1, string]
+        local Size    = P[1, normal]
+        local L_color = P[2, vector]
+        local L_shain = P[3, normal]
+        local L_size  = P[4, normal]
+        local T_name  = P[5, string]
+        local T_s_s   = P[6, normal]        
+        local T_e_s   = P[7, normal]  
+        local T_len   = P[8, normal]   
+        local Ang = (PEP - V):toAngle()
+        local E = entity()
+        
+        if(SHELL:count() < CFG_MAX_SHELL){
+            E = drawSprite("sprites/light_glow03", V, L_color, 255, Size, Size)
+        }else{
+            return noentity()
+        }
+    
+        if(E:isValid()){
+            ID = SHELL:count()+1
+            SHELL:insertEntity(ID, E)
+            
+            E:setAng(Ang)
+            E:setVarNum("sprite_size", Size)
+            #E:setdLight(E:pos(), L_color, L_shain, L_size, 0)
+            if(T_name & T_name != ""){
+                E:setTrails( T_s_s, T_e_s, T_len, T_name, L_color, 255)
+            }        
+            print_debug("Create magic shell")
+            E:setVarNum("create_time", curtime())
+            E:setVarNum("Type", A[1, normal])
+            E:setVarNum("dmg_rad", A[2, normal])
+            E:setVarNum("dmg", A[3, normal])
+            E:setVarNum("ignite", A[4, normal])
+            E:setVar("start_pos", V )
+            E:setVar("target", O:aimPos() )
+            return E
+        }
+    }
+    
+    function void shellTakeDemageEffect( P:array, E:entity ){
+        local Type    = P[1, normal]
+        local FindRad = P[2, normal]
+        local Demage  = P[3, normal]
+        local Ignite  = P[4, normal]
+        
+        E:soundPlay(randint(1, 5), 200, "/weapons/fx/rics/ric"+randint(1,5)+".wav")
+            
+        # SPAWN EFFECT ----------------------------------------------
+        if(Type == 1){  
+            #                
+        }elseif(Type == 2){
+            E:effectSpawn("Explosion", E:pos(), vec(0,0,0), vec(0,0,0),1)
+            E:particleEffect("striderbuster_explode_smoke")
+        }elseif(Type == 3){
+            #
+        }elseif(Type == 4){
+            E:particleEffect("Weapon_Combine_Ion_Cannon_Explosion_f")
+            E:particleEffect("electrical_arc_01_system")
+        }
+        
+        # TAKE DEMAGE -----------------------------------------------
+        findInSphere(E:pos(), FindRad)
+        local Find = findToArray()
+        for(I=0, Find:count()){
+            local T = Find[I, entity]
+            if( !T:isAlive() & T:type() != "func_breakable_surf" ){continue}
+            
+            # Demage
+            T:takeDamage(Demage, O, O)
+            
+            if(T:type() == "func_breakable_surf"){
+                T:setFire("Shatter", "", 0)
+            }
+            
+            # Incendio
+            if(Ignite){T:ignite(Ignite)}
+            
+            #[ Avada
+            if(Type == 4){
+                #E:particleEffect("Weapon_Combine_Ion_Cannon_Explosion_f", T:pos(), ang(0))
+                #T:particleEffectStop()
+            }]#
+        }
+    }
+    
+    function void pushShell(){
+        for(I=1, SHELL:count()){
+            local E = SHELL[I, entity]
+            local Type = E:getVarNum("Type")
+            if(!E:isValid()){
+                print_debug("Shell is not valid - remove")
+                SHELL:remove(I)
+                continue
+            }
+            
+            if(!E:getVarNum("dead")){
+                local VEC_ADD = vec()
+                if(CFG_ROTATE_ENABLE){
+                    local T_CREATE = E:getVarNum("create_time") + curtime()
+                    VEC_ADD = vec( sin(T_CREATE * CFG_ROTATE_SPEED) * CFG_ROTATE_CYRCLE, cos(T_CREATE * CFG_ROTATE_SPEED) * CFG_ROTATE_CYRCLE, sin(T_CREATE * CFG_ROTATE_SPEED) * CFG_ROTATE_CYRCLE ):rotate(E:forward():toAngle())
+                }
+                local IMP_TARGET = E:getVar("imp_target")[1, entity]
+                if(E:getVarNum("imp_t") & IMP_TARGET:isAlive()){
+                    local IMP_V = vec()
+                    local IMP_ID = E:getVarNum("imp_id")
+                    local IMP_T1 = E:getVarNum("imp_t")
+                    local IMP_T2 = IMP_T1 + CFG_IMP_T2
+                    if(IMP_T1 - curtime() <= 0 & IMP_T2 - curtime() > 0){
+                        if(IMP_ID == 1){IMP_V = -E:right()}
+                        elseif(IMP_ID == 2){IMP_V = E:right()}
+                        elseif(IMP_ID == 3){IMP_V = E:up()}
+                        elseif(IMP_ID == 4){IMP_V = -E:up()}
+                        VEC_ADD += IMP_V * CFG_SHELL_SPEED
+                    }elseif(IMP_T2 - curtime() <= 0 & ( E:toLocal(IMP_TARGET:pos()):x() > -1600 | IMP_T2 + 2 -curtime() >=0 )){
+                    #}elseif(IMP_T2 - curtime() <= 0){
+                        local ANG =E:toLocal((IMP_TARGET:pos()-E:pos()):toAngle())
+                        E:setAng(E:angles()+ang(ANG:pitch()*10/abs(ANG:pitch()),ANG:yaw()*CFG_IMP_SPEED/abs(ANG:yaw()),0))
+                    }
+                }
+                local PUSH_VEC = E:pos() + E:forward() * CFG_SHELL_SPEED + VEC_ADD
+                local Ran = rangerOffset(E:pos(), PUSH_VEC)
+                
+                # PUSH -----------------------------------------------------
+                if(Ran:hit() & !E:getVarNum("dead")){
+                    E:setVarNum("dead", 1)
+                    E:setPos(Ran:position())
+                    local S = E:getVarNum("sprite_size") * 5
+                    E:spriteSize(S, S)
+                    #E:dLightRemove()
+                    
+                    # HIT EFFECT -----------------------------------------------
+                    if(Type == 4){Ran:drawPaint("scorch")}
+                    shellTakeDemageEffect( array(Type, E:getVarNum("dmg_rad"), E:getVarNum("dmg"), E:getVarNum("ignite")), E )
+                    
+                    print_debug("Shell hit: " + Type)
+                    
+                    # TAKE BONNUS DEMAGE ---------------------------------------
+                    if(Ran:entity():isAlive()){
+                        Ran:entity():takeDamage(E:getVarNum("dmg"), O, O)
+                    }
+                }else{                
+                    #print_debug("Shell push")
+                    #E:setPos(E:pos() + E:forward() * CFG_SHELL_SPEED + VEC_ADD)
+                    #local M = E:getVar("target"):vector(1) - E:getVar("start_pos"):vector(1)
+                    #local P = E:pos() - E:getVar("start_pos"):vector(1)
+                    #VEC_ADD = vec(0, 0, sin( ( 90 * ( M:length() / P:length() ) ) ) )*5
+                    
+                    E:setPos(PUSH_VEC)
+                }
+                
+                # THINK EFFECT - ACTIVE EFFECT -----------------------------
+                local CAN_EFFECT = E:getVarNum("effect_delay") - curtime() <= 0
+                if(Type == 1 | Type == 3){
+                    #E:particleEffect("electrical_arc_01_system")
+                }elseif(Type == 2){
+                    # Fire
+                    findInSphere(E:pos(), E:getVarNum("dmg_rad"))
+                    local F = findToArray()         
+                    for(I=1, F:count()){
+                        local T = F[I, entity]
+                        if( T:type() == "e2_sprite" ){continue}
+                        T:ignite(E:getVarNum("ignite")/2)
+                    }
+                }elseif(Type == 4){
+                    # Active
+                    findInSphere(E:pos(), E:getVarNum("dmg_rad"))
+                    local F = findToArray()         
+                    for(I=1, F:count()){
+                        local T = F[I, entity]
+                            if( !T:isAlive() | T == O ){continue}
+                            T:takeDamage(2147483647, O, O)
+                            E:particleEffect("Weapon_Combine_Ion_Cannon_Explosion_f", T:pos(), ang(0))
+                            E:particleEffect("electrical_arc_01_system", T:pos(), ang(0))
+                    }
+                    
+                    # Effect
+                    if(!CAN_EFFECT){continue}
+                    E:particleEffect("hunter_shield_impact2")
+                    E:particleEffect("hunter_shield_impactglow")   
+                    E:particleEffect("electrical_arc_01_system")  
+                    E:particleEffect("test_beam")
+                    E:setVarNum("effect_delay", curtime() + 0.2)            
+                }
+            }else{
+                local A = E:getAlpha() - 42.5
+                if(A < 1){
+                    E:remove()
+                    SHELL:remove(I)
+                }else{E:setAlpha(A)}
+            }
+        }
+        timer("push_shell", CFG_THINK_SPEED)
+        timer("Mana", 1000)
+    }
+    
+    function void transgression( Enable ){        
+        if(!Enable){
+            TRANSGRESSION = 0
+            
+            # Show Player
+            #O:weapon():setAlpha(255) O:setColor(255,255,255,255) O:setMaterial("BlaH")
+            O:particleEffectStop()
+            print_debug("Transgression: disabled")
+        }else{
+            TRANSGRESSION = 1
+            timer("TRANSGRESSION", 0.0001)
+            
+            # Hide Player
+            #O:setColor(0,0,0) O:weapon():setAlpha(0) O:setMaterial("Models/effects/vol_light001")
+            #for(I=0, 27){O:particleEffect("explosion_turret_break_pre_smoke")}
+            for(I=0, 26){O:particleEffect("fire_large_01")}
+        }
+    }
+    
+    addSlot( "Stupefy", 5 )
+    addSlot( "Incendio", 35 )
+    addSlot( "Expelliarmus", 75 )
+    addSlot( "Petrificus Totalus", 150 )
+    addSlot( "Expulso", 10 )
+    addSlot( "Lumus maxima", 15 )
+    addSlot( "Impedimenta", 350 )
+    addSlot( "Avada Kedavra", 1000 )
+    addSlot( "Imperius", 250 )
+    NEED_MANA = SLOT[CUR_SLOT+"_m", normal]
+    
+}
+
+# MAIN CODE -------------------------------------------------
+updateCMSInformation() # Load cms var
+
+# STUPEFY ---------------------------------------------------
+CAN_MAGIC = isActivWand() & !isActiveProtego() & canManaAfford(NEED_MANA)
+
+if(oneLefClick() & CUR_SLOT == 1 & CAN_MAGIC){    
+    # Size, L_color, L_shine, L_size, T_name, T_s_s, T_e_s, T_color, T_len
+    local E = createBaseMagic( array( 35, vec(0, 180, 255), 1, 300, "trails/physbeam", 20, 0.001, 0.1), array(1, 65, 5, 0) )
+    if(E:isValid()){
+        removeMana(NEED_MANA)
+        setWait(0.3)
+    }
+}
+
+# INCENDIO --------------------------------------------------
+if(oneLefClick() & CUR_SLOT == 2 & CAN_MAGIC){
+    local E = createBaseMagic( array( 0, vec(255, 100, 0), 2, 1000), array(2, 100, 35, 1) )
+    if(E:isValid()){
+        #E:particleEffect("fire_jet_01_flame")
+        #E:particleEffect("fire_jet_01_flame")
+        E:particleEffect("fire_large_01")
+        E:particleEffect("fire_large_01")
+        removeMana(NEED_MANA)
+        setWait(0.6)
+    }
+}
+
+# Expelliarmus ----------------------------------------------
+if(oneLefClick() & CUR_SLOT == 3 & CAN_MAGIC){
+    O:particleEffect("hunter_shield_impactglow", O:aimPos(), ang(0))
+    
+    if(AIM_ENT:isPlayer() | AIM_ENT:isNPC())
+    {
+        AIM_ENT:weapon():remove()
+        ES_POS = (((O:shootPos() - AIM_ENT:shootPos()):normalized())*100)+AIM_ENT:shootPos()
+        ES=entitySpawn(AIM_ENT:weapon():type(),ES_POS,0)
+        ES:propFreeze(1) ES:propFreeze(0)
+        ES:setVel((O:shootPos()-ES:pos()))
+    }else
+    {
+        AimPos = AIM_ENT:pos() - O:pos()
+        if(KEY_ALT){AimPos = -AimPos}
+        AIM_ENT:setVel(AimPos:normalized()*4100)
+    }
+    removeMana(NEED_MANA)
+    setWait(0.6)
+}
+
+# Expulso ---------------------------------------------------
+if(KEY_LKM & CUR_SLOT == 5 & isActivWand() & !isActiveProtego()){
+    if(oneLefClick()){
+        timer("Expulso", 25)
+    }
+    
+    if( clk("Expulso") & canManaAfford(NEED_MANA) ){        
+        local E = createBaseMagic( array( 35, vec(0, 180, 255), 1, 300, "trails/physbeam", 20, 0.001, 0.1), array(1, 65, 5, 0) )
+        if(E:isValid()){
+            E:setVarNum("Type", 1)            
+            removeMana(NEED_MANA)
+            setWait(1)
+        }
+        if(CUR_SLOT == 5 & isActivWand()){timer("Expulso", 125)}
+    }
+}
+
+# Impedimenta -----------------------------------------------
+if(CUR_SLOT == 7){
+    if(AIM_ENT:isAlive() & (AIM_ENT:isPlayer() || AIM_ENT:isNPC()) & AIM_ENT != TARGET){
+        TARGET = AIM_ENT
+        print("Target: " + AIM_ENT:name())
+    }
+}
+if(oneLefClick() & CUR_SLOT == 7 & CAN_MAGIC){
+    for(I=1, 4){
+        local E = createBaseMagic( array( 0, vec(255, 100, 0), 2, 1000), array(2, 100, 35, 1) )
+        if(E:isValid()){
+            E:setVar("imp_target", TARGET)
+            E:setVarNum("imp_id", I)
+            E:setVarNum("imp_t", curtime() + CFG_IMP_T1)
+            E:particleEffect("fire_large_01")
+            E:particleEffect("fire_large_01")
+            removeMana(NEED_MANA)
+            setWait(3)
+        }
+    }
+}
+
+# Avada Kedavra ---------------------------------------------
+if(oneLefClick() & CUR_SLOT == 8 & CAN_MAGIC){    
+    local E = createBaseMagic( array( 400, vec(0, 255, 0), 5, 1200), array(4, 100, 2147483647, 0) )
+    if(E:isValid()){
+        E:particleEffect("vortigaunt_charge_token")
+        E:particleEffect("superrare_burning2")
+        E:particleEffect("electrical_arc_01_system")
+        E:particleEffect("test_beam")
+        E:soundPlay(0,1000,"ambient/outro/lowercitadelexplosiongroup.wav")
+        E:setVarNum("Type", 4)
+        removeMana(NEED_MANA)
+        setWait(3)
+    }
+}
+
+# Protego ---------------------------------------------------
+if(KEY_RKM & isActivWand()){
+    findInCone(O:shootPos(), O:eye(), 300, 65)
+    local Find = findToArray()
+    for(I=1, Find:count()){
+        if(I < 15 & O:pos():distance(Find[I, entity]:pos()) < 200){
+            ProRand=randint(1,14)
+            if(ProRand<10){ProSound="weapons/fx/nearmiss/bulletltor0"+ProRand+".wav"}
+            elseif(ProRand>10){ProSound="weapons/fx/nearmiss/bulletltor"+ProRand+".wav"}
+            
+            local E = Find[I, entity]
+            if(E:isAlive() & E != O ){
+                E:playerNoclip(0)
+                FP = E:pos() - O:shootPos()
+                E:setVel(FP*3)
+                E:particleEffect("hunter_shield_impact", E:pos()+vec(0,0,E:height()/2), ang(0))
+                E:soundPlay(I, 1000, ProSound)
+            }elseif(E != O & !E:getVarNum("protego")){
+                if(E:isShell()){
+                    RVec = vec(2,2,2)
+                    E:setVarNum("protego", 1)
+                    local Own = E:owner()
+                    if(Own == O){
+                        Own = TARGET
+                    }
+                    E:setVar("imp_target", Own)
+                    E:setAng(EYE_ANG + ang( randvec(RVec, -RVec) ) )
+                    E:setVel(owner():eye()*E:mass()*1000)
+                }else{
+                    E:setVel(owner():eye()*E:mass()*1000)
+                }
+                E:particleEffect("hunter_shield_impact")
+                E:soundPlay(I, 1000, ProSound)
+            }
+        }
+    }
+}
+
+# Imperius --------------------------------------------------
+if(oneLefClick() & CUR_SLOT == 9 & CAN_MAGIC & !IMPERIUS & AIM_ENT:isPlayer() & AIM_ENT:isAlive()){
+    IMPERIUS = AIM_ENT
+    print("Imperius: " + IMPERIUS:name())
+    
+    local Pos = IMPERIUS:pos() + vec(0,0, IMPERIUS:height() - 5)
+    IMPERIUS:particleEffect("hunter_shield_impactglow", Pos, ang(0))
+    
+    IMPERIUS:sendLua("function NoMove() RunConsoleCommand('-forward') RunConsoleCommand('-back') RunConsoleCommand('-moveright') RunConsoleCommand('-moveleft') RunConsoleCommand('-attack') RunConsoleCommand('-jump') end")
+    IMPERIUS:sendLua("
+        timer.Create( 'Imperio', 0.001, 0, function()
+            if !Imperio then NoMove() end  
+            local ang = ImperioAng or Angle() LocalPlayer():SetEyeAngles(ang)     
+        end)
+    ")
+    removeMana(NEED_MANA)
+    
+}elseif( oneLefClick() & IMPERIUS ){
+    IMPERIUS:sendLua("
+        timer.Destroy('Imperio')
+    ")
+    
+    local Pos = IMPERIUS:pos() + vec(0,0, IMPERIUS:height() - 5)
+    IMPERIUS:particleEffect("hunter_shield_impactglow", Pos, ang(0))
+    
+    IMPERIUS = noentity()
+    print("Imperius removed")
+}
+
+if( IMPERIUS:isAlive() & IMPERIUS ){
+    
+    if(KEY_UP | KEY_ALT){ IMP_UP = "+forward" }else{ IMP_UP = "-forward" }
+    if(KEY_DOWN){ IMP_BACK = "+back" }else{ IMP_BACK = "-back" }
+    if(KEY_LEFT){ IMP_LEFT = "+moveright" }else{ IMP_LEFT = "-moveright" } 
+    if(KEY_RIGHT){ IMP_RIGHT = "+moveleft" }else{ IMP_RIGHT = "-moveleft" }
+    if(KEY_R_CTRL){ IMP_FIRE = "+attack" }else{ IMP_FIRE = "-attack" }
+    if(KEY_R_SHIFT){ IMP_JUMP = "+jump" }else{ IMP_JUMP = "-jump" }
+    IMPERIUS_ANG = (O:aimPos()-IMPERIUS:shootPos()):toAngle()
+    
+    #print(IMP_UP + IMP_BACK + IMP_LEFT + IMP_RIGHT + IMP_FIRE + IMP_JUMP)
+    IMPERIUS:sendLua("Imperio = true")
+    IMPERIUS:sendLua("
+        RunConsoleCommand('" + IMP_UP + "') RunConsoleCommand('" + IMP_BACK + "')
+        RunConsoleCommand('" + IMP_LEFT + "') RunConsoleCommand('" + IMP_RIGHT + "')
+        RunConsoleCommand('" + IMP_FIRE + "') RunConsoleCommand('" + IMP_JUMP + "')  
+            
+    ")
+    IMPERIUS:sendLua("ImperioAng = Angle(" + IMPERIUS_ANG:pitch() + "," + IMPERIUS_ANG:yaw()+ "," + IMPERIUS_ANG:roll() + ")")
+    if(!KEY_UP & !KEY_DOWN & !KEY_LEFT & !KEY_RIGHT & !KEY_R_CTRL & !KEY_R_SHIFT & !KEY_ALT){
+        IMPERIUS:sendLua("Imperio = false")
+    }
+}
+
+# Wingardium Leviosa ----------------------------------------
+if(WL_ENTITY){
+    WL_DIST = floor(WL_ENTITY:pos():distance(O:pos()))
+    if(WL_DIST > 1200){WL_ENTITY = noentity()}
+}
+
+if(KEY_H & $KEY_H & canManaAfford(0.02)){
+    WL_ENTITY = AIM_ENT
+    WL_DIST_TEMP = floor(WL_ENTITY:pos():distance(O:pos()))
+    timer("wp_particle", 1)
+
+    
+}elseif(KEY_H & WL_ENTITY & canManaAfford(0.02)){
+    if(WL_ENTITY:isPlayer() | WL_ENTITY:isNPC()){
+        GRAV_V = WL_ENTITY:pos()+vec(0,0,WL_ENTITY:height()/2)
+    }else{
+        GRAV_V = WL_ENTITY:pos()
+    }
+  
+    
+    ParVec = vec(WL_ENTITY:radius(),WL_ENTITY:radius(),WL_ENTITY:radius())
+    ArtPos = GRAV_V#+randvec( -ParVec, ParVec)
+    SPEED = 50
+    RAD = 5
+    Vec = vec(100,100,100)
+    
+    ParPos = ArtPos + randvec( -Vec, Vec)
+    particleGravity( GRAV_V - ParPos + WL_ENTITY:vel() )
+    if(clk("wp_particle")){
+        particle((ParPos-ArtPos):length()/SPEED,randint(0,RAD),randint(0,RAD),"sprites/light_glow03", COLOR,ArtPos,(ParPos-ArtPos):normalized()*SPEED )
+        WL_ENTITY:particleEffect("hunter_shield_impact", GRAV_V, ang(0))
+        timer("wp_particle", 50)
+    }
+    
+    if(WL_ENTITY:isPlayer() | WL_ENTITY:isNPC()){LV_MIN = WL_ENTITY:vel()}
+    Point = (O:shootPos()+owner():eye()*WL_DIST_TEMP)-LV_MIN
+    WL_V = ((Point-WL_ENTITY:pos()))
+    if(WL_ENTITY:inNoclip()){WL_ENTITY:playerNoclip(0)}
+    WL_ENTITY:setVel(WL_V)
+    
+    if(KEY_UP){WL_DIST_TEMP += 5}
+    if(KEY_DOWN){WL_DIST_TEMP -= 5}
+    if(KEY_LEFT){WL_ENTITY:setAng(WL_ENTITY:angles()+ang(0,2,0))}
+    if(KEY_RIGHT){WL_ENTITY:setAng(WL_ENTITY:angles()-ang(0,2,0))}
+    #67108864
+    
+    removeMana(0.02)
+    setWait(1)
+
+}
+
+# Health Regen ----------------------------------------------
+if(KEY_N & $KEY_N & (AIM_ENT:isPlayer() || KEY_ALT) & isActivWand() & canManaAfford(0.4) ){
+    if(KEY_ALT){
+        HP_REGEN = O
+    }else{
+        HP_REGEN = AIM_ENT
+    }
+    HP_REGEN:particleEffect("test_beam")
+    print("Health regen " + HP_REGEN:name())
+    timer("REGEN", 1)
+}
+
+if(KEY_N & isActivWand() & canManaAfford(1) & HP_REGEN:isPlayer()){
+    local E = HP_REGEN
+    local HP = E:health()
+    local Pos = E:pos() #+ vec(0,0,E:height()/2)
+    if(clk("REGEN")){
+        if(HP < CFG_HP_REGEN_MAN){
+            E:setHealth(HP + 2)
+        }
+        removeMana(0.4)
+        setWait(1)
+        
+        E:particleEffectStop()
+        if(E:health() > CFG_HP_REGEN_MAN){E:setHealth(CFG_HP_REGEN_MAN)}
+        timer("REGEN", 50)
+    }
+    E:particleEffect("test_beam", Pos, ang(-90))
+}elseif(HP_REGEN:isPlayer()){
+    HP_REGEN:particleEffectStop()
+    HP_REGEN = noentity()
+}
+
+# Alohomora
+if(KEY_J & $KEY_J & isActivWand() & canManaAfford(25) & !ALOHOMORA_CAN){
+    local E = AIM_ENT
+    if(E:type() == "prop_door_rotating"){
+        E:setFire("unlock", "", 0.1)
+        #E:setFire("open", "", 0.1)
+        local Pos = E:pos() - ( E:right() * 23 )
+        E:particleEffect("electrical_arc_01_system", Pos, ang(0))
+        E:particleEffect("hunter_shield_impactglow", Pos, ang(0))
+        ALOHOMORA = E
+        ALOHOMORA_CAN = 1
+        removeMana(25)
+        setWait(1)
+        timer("ALOHOMORA_STOP_PARTICLE", 1000)
+    }
+}
+
+if(clk("ALOHOMORA_STOP_PARTICLE") & ALOHOMORA){
+    ALOHOMORA:particleEffectStop()
+    ALOHOMORA_CAN = 0
+}
+
+# Lumus
+if(KEY_USE & isActivWand() & canManaAfford(0.01)){
+    if(!holoEntity(1)){
+        holoCreate(1,O:attachmentPos("anim_attachment_RH"))
+        holoEntity(1):soundPlay(1,1000,"buttons/lightswitch2.wav")
+        #holoEntity(1):setdLight(holoEntity(1):pos(),vec(255,255,255),5,600,0)
+        holoParent(1, O)
+        holoEntity(1):setAlpha(0)
+    }
+    removeMana(0.01)
+    #setWait(0.2)
+}elseif(holoEntity(1)){
+    holoDelete(1) soundStop(1)
+}
+
+# TRANGRESSION ----------------------------------------------
+if(KEY_SPACE & $KEY_SPACE & canManaAfford(100)){
+    TRANS_PRE++
+    if(!TRANSGRESSION & TRANS_PRE >= 2){
+        removeMana(50)
+        transgression(1)
+        OH2 = O:health()
+        print("Transgression: enabled")
+    }
+}
+
+# Auto stabilization
+if(KEY_G & $KEY_G & TRANSGRESSION){
+    if(TRANS_AUTO){
+        TRANS_AUTO = 0
+        print("Transgression stabilization: disabled")
+    }else{
+        TRANS_AUTO = 1
+        print("Transgression stabilization: enabled")
+    }
+}
+
+if(TRANSGRESSION & canManaAfford(0.1)){
+    #if(clk("TRANSGRESSION")){
+        removeMana(0.1)
+        # Fly control
+        Vac_AP = vec()
+        if(KEY_D){Vac_AP += O:right()}
+        if(KEY_A){Vac_AP += -O:right()}
+        if(KEY_S){Vac_AP += -O:forward()}
+        if(KEY_W){Vac_AP += O:forward()}
+        if(KEY_SPACE){Vac_AP += O:up()}
+        if(KEY_L_CTRL){Vac_AP += -O:up()}
+        
+        if(TRANS_AUTO & !KEY_SPACE){ Vac_AP += vec(0,0,0.220) }
+        
+        # Push
+        if(!O:isOnGround()){O:setVel(Vac_AP * 80)}
+    #}
+    
+    timer("TRANSGRESSION", 50)
+}elseif(TRANSGRESSION == 1){
+    transgression(0)
+}
+
+if(O:isOnGround() & TRANSGRESSION){
+    # Anti fall demage
+    OH = O:health()
+    Del = OH2 - OH owner():heal(Del)
+    transgression(0)
+}elseif( O:isOnGround() & TRANS_PRE ){
+    TRANS_PRE = 0
+}
+
+# Change slot
+if(KEY_R & $KEY_R & isActivWand()){
+    changeSlot()
+}
+
+# Push Shell
+if(clk("push_shell")){
+    pushShell()
+}
+
+# Mana Reset
+if(clk("Mana") & WAIT - curtime() <= 0){
+    if(CFG_MANA < CFG_MANA_MAX & !TRANSGRESSION){
+        CFG_MANA += 5
+    }elseif(CFG_MANA > CFG_MANA_MAX){
+        CFG_MANA = CFG_MANA_MAX
+    }
+    timer("Mana", 250)
+}
+
+# IF DEAD
+if(!O:isAlive() & !DEAD){
+    DEAD = 1
+}elseif(O:isAlive() & DEAD){
+    O:giveWeapon(WEAPON)
+    DEAD = 0
+}
+
+print(_HUD_PRINTCENTER , "Magic: "+floor(CFG_MANA))
+
+# CHAT CMD ------------------------------------------------
+S = SAY:explode(" ")
+if(S:string(1) == "/speed" & chatClk(O)){
+    hideChat(1)
+    CFG_SHELL_SPEED = S:string(2):toNumber()
+    print("Set speed: " + CFG_SHELL_SPEED)
+}elseif(S:string(1) == "/r" & chatClk(O)){
+    hideChat(1)
+    CFG_ROTATE_ENABLE = S:string(2):toNumber()
+    print("Rotate: " + CFG_ROTATE_ENABLE)
+}elseif(S:string(1) == "/rs" & chatClk(O)){
+    hideChat(1)
+    CFG_ROTATE_SPEED = S:string(2):toNumber()
+    print("Rotate speed: " + CFG_ROTATE_SPEED)
+}elseif(S:string(1) == "/rc" & chatClk(O)){
+    hideChat(1)
+    CFG_ROTATE_CYRCLE = S:string(2):toNumber()
+    print("Rotate cyrcle: " + CFG_ROTATE_CYRCLE)
+}

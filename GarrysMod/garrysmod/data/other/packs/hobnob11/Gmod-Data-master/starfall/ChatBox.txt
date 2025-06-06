@@ -1,0 +1,48 @@
+--@name ChatBox
+--@sharedscreen
+
+if SERVER then 
+    --NET MESSAGES
+    hook.add("PlayerSay","PlayerSay",function(Player,Text,teamChat)
+        net.start("NetMsg")
+        local Message = Text
+        net.writeInt(Player:entIndex(),16)
+        net.writeString(Message)
+        net.writeBit(teamChat)
+        net.send()
+    end)
+else
+    --DISPLAY STOOF
+    local Tbl = {}
+    local Teams =  {"","","","Cadet","Admin","Respected"}
+    local TColour ={Color(255,255,255,255),Color(255,255,255,255),Color(255,255,255,255),Color(50,255,50,255),Color(255,50,50,255),Color(255,255,50)}
+    hook.add("net","netmsg",function(Name,Length,A)
+        local Player = entities.entity(net.readInt(16))
+        local Message = net.readString()
+        local teamChat = net.readBit()
+        local Msg = {}
+        Msg[1]=Player:getName()
+        Msg[2]=Player:getTeam()
+        local Count = 0
+        while Message:len()/80 > Count do
+            table.insert(Msg,Message:sub(Count*80,(Count+1)*80))
+            Count = Count + 1
+        end
+        table.insert(Tbl,Msg)
+    end)
+    hook.add("render","render",function()
+        render.clear()
+        if #Tbl > 0 then
+            local Count = 0
+            for _,V in pairs(Tbl) do
+                Count=Count+1
+                render.setColor(TColour[V[2]])
+                render.drawText(10,480-(#Tbl*20)+Count*20,Teams[V[2]].." "..V[1],0)
+            end
+        else
+            render.drawText(256,256,"NO STRING",1)
+        end
+    --hook.remove("render","render")
+    end)
+end
+

@@ -1,0 +1,77 @@
+@name Bezier Curve
+@outputs 
+@outputs T Inc StepDist
+@persist [StartPos EndPos LastPos]:vector NumProps [P0 P1 P2 P3]:vector [E1 E2]:entity
+@persist IDX N R:array Nodes:array
+@trigger 
+@model models/sprops/cuboids/height12/size_1/cube_12x12x12.mdl
+if(first())
+{
+    #entity():setPos(owner():pos())
+    findIncludePlayerProps(owner())
+    findInSphere(entity():pos(),50000)
+    findClipToModel("models/smallbridge/panels/sbpaneldoorsquare.mdl")
+    Nodes=findToArray()
+    propSpawnUndo(1)
+    if(Nodes:count()==2)
+    {
+        
+        E1 = Nodes[1,entity]
+        E2 = Nodes[2,entity]
+        
+        local Offset = 0#-E1:boxSize():z()/2.1
+        
+        P0 = E1:toWorld(vec(0,0,Offset))
+        P3 = E2:toWorld(vec(0,0,Offset))
+        
+        local L = P0:distance(P3)
+        P1 = E1:toWorld(vec(L/2,0,Offset))
+        P2 = E2:toWorld(vec(L/2,0,Offset))
+        
+        
+    }
+    Inc=0.0001
+    
+    StepDist = 111/1.5 #First number is length of prop
+    function vector bezier4(P0:vector, P1:vector, P2:vector, P3:vector, Step)
+    {
+        return P0*(1-Step)^3+3*P1*Step*(1-Step)^2+3*P2*Step^2*(1-Step)+Step^3*P3
+    }
+    
+    StartPos = bezier4(P0,P1,P2,P3,0)
+    EndPos = bezier4(P0,P1,P2,P3,1)
+    Distance = StartPos:distance(EndPos)
+    runOnLast(1)
+}
+interval(100)
+while(LastPos:distance(EndPos) > StepDist & perf() & propCanCreate())
+{
+    
+    T+=Inc
+    local V = bezier4(P0,P1,P2,P3,T)
+    if(V:distance(LastPos)>StepDist)
+    {
+        local E = propSpawn("models/smallbridge/hulls_sw/sbhulle05.mdl",1)
+        if(E)
+        {
+            R:pushEntity(E)
+            local A = (bezier4(P0,P1,P2,P3,T+Inc) - V):toAngle()
+            LastPos = V
+            E:setPos(V)
+            E:setAng(A:rotateAroundAxis(A:up()*100,0):rotateAroundAxis(A:forward()*100,0))
+            E:propPhysicalMaterial("ice")
+            E:combatImmune(1)
+            E:setSkin(1)
+            E:weld(E1)
+            N++
+        }
+        else
+        {
+            T-=Inc
+        }
+    }
+}
+if(last())
+{
+    R:propDelete()
+}

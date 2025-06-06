@@ -1,0 +1,68 @@
+@name MiniFalc3
+@inputs 
+@outputs Angle:angle OTElevation TElevation TBearing Target:entity
+@persist  Array:array E:entity AimSpeed
+@trigger 
+interval(100)
+
+if(first()){
+    AimSpeed = 18
+    E = entity():isWeldedTo()
+    E:sbSetGravityOverride(1)
+    E:propGravity(0)
+    Array = E:getConstraints()
+    foreach(K,V:entity=Array)
+    {
+        V:parentTo(E)
+        V:sbSetGravityOverride(1)
+        V:propGravity(0)
+        V:weld(E)
+        V:noCollide()
+    }
+    holoCreate(1,E:pos())
+    holoAng(1,ang())
+    holoCreate(11,E:pos())
+    holoAng(11,ang())
+    holoCreate(111,E:pos())
+    holoAng(111,ang())
+    holoParent(11,1)
+    holoParent(111,1)
+    holoAlpha(1,0)
+    holoAlpha(11,0)
+    holoAlpha(111,0)
+    Target = owner()
+    runOnChat(1)
+    runOnLast(1)
+}
+holoPos(1,E:pos())
+OTElevation = TElevation
+TBearing = -holoEntity(1):bearing(Target:boxCenterW())
+TElevation = holoEntity(111):elevation(Target:boxCenterW())
+
+OTElevation = OTElevation - TElevation
+
+if (OTElevation<-AimSpeed){TElevation+=OTElevation+AimSpeed} elseif (OTElevation>AimSpeed) {TElevation+=OTElevation-AimSpeed}
+if (TBearing<-AimSpeed){TBearing=-AimSpeed} elseif (TBearing>AimSpeed) {TBearing=AimSpeed}
+
+holoAng(1,holoEntity(1):toWorld(ang(0,TBearing,0)))
+holoAng(11, holoEntity(1):toWorld(ang(-TElevation, 0, 0)))
+
+E:setAng(holoEntity(11):angles()+ang(0,0,90))
+
+if(E:pos():distance(Target:pos())>300){
+E:setPos(E:toWorld(vec(clamp(E:pos():distance(Target:pos())/10,-300,300),0,0)))
+}
+if(chatClk(owner())){
+    local M = owner():lastSaid()
+    if(M:sub(1,1)=="!")
+    {
+        hideChat(1)
+        Target = findPlayerByName(M:sub(2,M:length()))
+    }
+}
+if(last()){
+    foreach(K,V:entity = Array)
+    {
+        V:deparent()
+    }
+}

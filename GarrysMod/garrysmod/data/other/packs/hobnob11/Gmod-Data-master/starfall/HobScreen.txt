@@ -1,0 +1,211 @@
+--@name HobScreen
+--@author 
+--@shared
+
+me = FindPlayerByName("H08")
+
+if SERVER then
+    
+    active = {}
+    
+    hook.Add("PlayerSay","HideUtilHud",function(ply,text)
+        local t = string.lower(text)
+        if t == "!cam" then
+            net.Start("HideUtilHud")
+                net.WriteBool(false)
+            net.Send(me)
+            return ""
+        elseif t == "!camoff" then
+            net.Start("HideUtilHud")
+                net.WriteBool(true)
+            net.Send(me)
+            return ""
+        end
+    end)
+    
+    function RemoveTarget(core)
+        if core and core:IsValid() then
+            active[core] = nil
+            net.Start("RemoveCoreTarget")
+                net.WriteUInt(core:EntIndex(),13)
+            net.Send(me)
+        end
+    end
+
+    function UpdateTargets()
+        local keys = table.GetKeys(active)
+        for i=#keys,1,-1 do
+            if not keys[i]:IsValid() then table.remove(active,keys[i]) end
+        end
+        for core,_ in pairs(active) do
+            net.Start("UpdateCoreTarget")
+                net.WriteUInt(core:EntIndex(), 13)
+                net.WriteUInt(core:GetShieldAmount(), 32)
+                net.WriteUInt(core:GetShieldMax(), 32)
+                net.WriteUInt(core:GetArmorAmount(), 32)
+                net.WriteUInt(core:GetArmorMax(), 32)
+                net.WriteUInt(core:GetHullAmount(), 32)
+                net.WriteUInt(core:GetHullMax(), 32)
+            net.Send(me)
+        end
+    end
+    
+    function CheckAim() 
+        local aiment = me:GetEyeTrace().Entity
+        if aiment and aiment:IsValid() then
+            local core = aiment:GetCoreEntity()
+            if core and core:IsValid() then
+                if not active[core] then
+                    active[core] = core
+                    net.Start("NewCoreTarget")
+                        net.WriteUInt(core:EntIndex(), 13)
+                        net.WriteString(core:GetShipClass())
+                        net.WriteString(core:GetShipName())
+                        net.WriteUInt(core:GetShieldAmount(), 32)
+                        net.WriteUInt(core:GetShieldMax(), 32)
+                        net.WriteUInt(core:GetArmorAmount(), 32)
+                        net.WriteUInt(core:GetArmorMax(), 32)
+                        net.WriteUInt(core:GetHullAmount(), 32)
+                        net.WriteUInt(core:GetHullMax(), 32)
+                    net.Send(me)
+                end
+                timer.Create("remove"..core:EntIndex(),3,1,function() RemoveTarget(core) end)
+            end
+        end
+    end
+    
+    timer.Create("scan",0.3,0,CheckAim)
+    timer.Create("update",1,0,UpdateTargets)
+    
+else
+    if entities.player() == me then
+        Players = find.AllPlayers()
+        LPly = entities.player()
+        active = true
+        cores = {}
+        
+        TeamColours ={
+            Color(100,255,255), -- 1 ?
+            Color(255,100,255), -- 2 ? 
+            Color(255,255,100), -- 3 ?
+            Color(100,255,100), -- 4 Player
+            Color(255,0,0),     -- 5 Administrator
+            Color(255,255,0),   -- 6 Respected Player
+            Color(255,255,255)} -- clamp
+        
+        
+        function DrawWedge(px,py,w,h,angle,size,col)
+        	local vertices = {}
+        	local fidelity = 180
+        
+        	vertices[1] = { x = px, y = py, u = px, v = py }
+        	local ang = -math.rad(angle)
+        	local c = math.cos(ang)
+        	local s = math.sin(ang)
+        	for ii=0,fidelity do
+        		local i = ii*(size)/fidelity
+        		local radd = math.rad(i)
+        		local x = math.cos(radd)
+        		local u = (x+1)/2
+        		local y = math.sin(radd)
+        		local v = (y+1)/2
+        
+        		--radd = -rad(angle)
+        		local tempx = x * w * c - y * h * s + x
+        		y = x * w * s + y * h * c + y
+        		x = tempx
+        
+        		vertices[ii+2] = { x = x+px, y = y+py, u = u + px, v = v + py }
+        	end
+        
+        	surface.SetDrawColor( col )
+        	if (vertices and #vertices>0) then
+        		surface.DrawPoly( vertices )
+        	end
+        end
+        hook.Add("HUDPaint","UtilHud",function()
+            --players
+            if LPly:IsValid() and LPly:Alive() and LPly:GetActiveWeapon()~="weapon_stunstick" and active then
+                if #Players > 0 then
+                    for _,P in pairs(Players) do
+                        if P ~= nil and P:IsValid() then
+                            if P~=LPly then
+                                local vec = (P:OBBCenterW()+Vector(0,0,P:OBBSize().z/2 + 10))
+                                local dist = vec:Distance(LPly:EyePos())
+                                local toScrn = (vec + Vector(0,0,dist*0.02)):ToScreen()
+                                local pos = {x=math.Clamp(toScrn.x,100,surface.ScreenW()-100),y=math.Clamp(toScrn.y,100,surface.ScreenH()-100)}
+                                if(P:Team()) then
+                                    surface.SetTextColor(TeamColours[math.Clamp(P:Team(),1,7)])
+                                end
+                                surface.SetFont("Default")
+                                local w,h =surface.GetTextSize(P:GetName())
+                                surface.SetTextPos(pos.x -w/2,pos.y+10)
+                                surface.DrawText(P:GetName())
+                            end
+                        end
+                    end
+                end
+                if #cores then
+                    local keys = table.GetKeys(cores)
+                    for i=#keys,1,-1 do
+                        if not keys[i]:IsValid() then table.remove(cores,keys[i]) end
+                    end
+                    for c,t in pairs(cores) do
+                        local vec = c:LocalToWorld(c:OBBCenter())
+                        local toScrn = vec:ToScreen()
+                        local pos = {x=math.Clamp(toScrn.x,100,surface.ScreenW()-100),y=math.Clamp(toScrn.y,100,surface.ScreenH()-100)}
+
+                        local HPMax = t.shieldmax + t.armormax + t.hullmax
+                        local HuAng = (t.hull / HPMax)*360
+                        local ArAng = (t.armor / HPMax)*360
+                        local ShAng = (t.shield / HPMax)*360
+                        DrawWedge(pos.x,pos.y,40,40,90,-HuAng,Color(255,0,0,255))
+                        DrawWedge(pos.x,pos.y,40,40,90+HuAng,-ArAng,Color(155,155,155,255))
+                        DrawWedge(pos.x,pos.y,40,40,90+HuAng+ArAng,-ShAng,Color(0,0,255,255))
+                        surface.DrawCircle(pos.x,pos.y,40,Color(55,55,55,255))
+                        surface.SetDrawColor(Color(55,55,55,255))
+                        surface.SetTextColor(Color(255,255,255,255))
+                        surface.SetTextPos(pos.x+34,pos.y-40)
+                        surface.DrawText(t.class)
+                        surface.SetTextPos(pos.x+42,pos.y-25)
+                        surface.DrawText(t.name)
+                    end
+                end
+            end
+            -- hook.Remove("HUDPaint","UtilHud")
+        end)
+        
+        timer.Create("refresh",15,0,function() 
+            Players = find.AllPlayers()
+        end)
+        
+        hook.Add("net", "HideUtilHud", function(name, len, ply)
+            if name == "HideUtilHud" then
+                active = net.ReadBool()
+            elseif name == "NewCoreTarget" then
+                local core = Entity(net.ReadUInt(13))
+                cores[core] = {
+                        class=net.ReadString(),
+                        name=net.ReadString(),
+                        shield=net.ReadInt(32),
+                        shieldmax=net.ReadInt(32),
+                        armor=net.ReadInt(32),
+                        armormax=net.ReadInt(32),
+                        hull=net.ReadInt(32),
+                        hullmax=net.ReadInt(32)
+                    }
+            elseif name == "UpdateCoreTarget" then
+                local core = Entity(net.ReadUInt(13))
+                cores[core].shield=net.ReadInt(32)
+                cores[core].shieldmax=net.ReadInt(32)
+                cores[core].armor=net.ReadInt(32)
+                cores[core].armormax=net.ReadInt(32)
+                cores[core].hull=net.ReadInt(32)
+                cores[core].hullmax=net.ReadInt(32)
+            elseif name == "RemoveCoreTarget" then
+                local core = Entity(net.ReadUInt(13))
+                cores[core] = nil
+            end
+        end)
+    end
+end

@@ -1,0 +1,235 @@
+server{
+    array PlayerScores = tableArray()
+        
+   
+    /*-----
+        Receive Submitted Score
+    -----*/
+    netReceive("UploadScore", function( netstream data ) {
+        
+        player P = data.readPlayer()
+        number N = data.readNumber()
+        
+        
+        int ID = #PlayerScores+1
+        
+        foreach(int k;table v:PlayerScores) if(v[1,player] == P) ID = k    
+
+        
+        if(ID == #PlayerScores+1) PlayerScores[ID, table] = {P,N}    
+        else if(PlayerScores[ID,table][2,number] < N) PlayerScores[ID, table] = {P,N} 
+
+    })
+    
+    
+    /*-----
+        Send Scores
+    -----*/
+    timerCreate("send",5,0,function(){
+        array Sorted = PlayerScores.sort( function( table a, table b){ 
+            return a[2,number] > b[2,number]    
+        })
+    
+        netstream net = stream()
+            net.writeString( serialize( Sorted ) )
+        net.netBroadcast( "DownloadScores" )
+    })    
+}
+
+client{
+    
+    
+    
+    /*-----
+        Variables
+    -----*/
+    array Snake = vector2Array()            
+    number Score = 0                        
+    number Speed = 5                    // Speed to move
+    vector2 Direction
+    vector2 Snack
+    vector2 Candy
+    bool InGame = false
+    array Scores = tableArray()
+    
+    
+    
+    /*-----
+        Start Function
+    -----*/
+    function void begin(){
+        
+        // Original Snake
+        Snake = vector2Array()
+        for(int I = 1;20;1) Snake[#Snake+1,vector2] = vec2(256,256)     
+        
+        //Snack Location
+        Snack = vec2( random(20, 480), random(20, 480) )
+        Candy = vec2( -11,-11)
+        
+        //Score
+        Score = 0    
+        Direction = vec2(0,0)
+        
+        InGame = false
+    }
+    begin()
+    
+    function void newSnack(){
+        Score++
+        Snack = vec2( random(20, 480), random(20, 480) )
+        
+        if( round(random(1,5)) == 1){
+                        
+            Candy = vec2( random(20, 480), random(20, 480) )
+            timerCreate("CandyReset", 5,1,function(){
+                Candy = vec2(-11, -11)
+            })    
+        }
+    }
+    
+    
+    /*-----
+        Keypress Controll
+    -----*/
+    event keypress(player P, number K){
+        
+        if(P != localPlayer()) return
+        
+        if(K == 17)     Direction = vec2(0, -Speed)
+        elseif(K == 18) Direction = vec2(0, Speed)
+        elseif(K == 19) Direction = vec2(-Speed, 0)
+        elseif(K == 20) Direction = vec2(Speed, 0)
+            
+        if(!InGame && K == [17,18,19,20]) InGame = true
+            
+    }
+    
+    
+    /*-----
+        Net Scores
+    -----*/
+    netReceive( "DownloadScores", function( netstream data ){
+    
+        string S = data.readString()
+        Scores = deserialize( S )    
+    })
+    
+    
+    /*-----
+        The Screen
+    -----*/
+    event drawScreen(int W, int H){
+        
+        if(InGame){
+
+            //Temp array + Next position render
+            array A = vector2Array()
+            vector2 New = Snake[1,vector2] + Direction
+            
+            
+            //Border
+            setDrawColor( color(255,255,255) )
+            drawBox( vec2(0,0), vec2(W,H) )
+            setDrawColor( color(0,0,0) )
+            drawBox( vec2(W*0.01, H*0.01) , vec2(W*0.98, H*0.98) )
+            
+            // Score
+            setFont("BudgetLabel",32, color(255,255,255) )
+            drawTextCentered( vec2(W*0.5,H*0.90), (string)Score )
+            
+            //Wall Cycle Pos
+            if(New.getX() > 502) New = vec2( 8, New.getY()) 
+            if(New.getX() < 5) New = vec2( 502, New.getY()) 
+            if(New.getY() > 502) New = vec2( New.getX(), 8) 
+            if(New.getY() < 5) New = vec2( New.getX(), 502)
+            A[1,vector2] = New
+            
+            //Draw Snack
+            setDrawColor( color(random(100,255),random(100,255), random(100,255)) )
+            drawBox( Candy, vec2(10,10) )
+            setDrawColor( color( 255, 100, 100) )
+            drawBox( Snack, vec2(10,10) )
+            
+            
+            // Check Hitbox
+            setDrawColor( color( 100, 255, 100) )
+            
+            
+            
+            foreach(int k; vector2 v:Snake){
+                drawBox( v, vec2(5,5) )
+    
+                //Hitbox Self
+                if(New.distance(v) <=4 && k != 1){
+                    
+                    // Send Score
+                    netstream net = stream()
+                        net.writePlayer( localPlayer() )
+                        net.writeNumber( Score )
+                    net.sendToServer( "UploadScore" )
+                    
+                    begin()    
+                    return // Breaks the rest of the draw event
+                }
+                
+                // Calculate Next Position for Snake
+                if(k != #Snake) A[#A+1,vector2] = v
+                
+                
+                //Hitbox Snack
+                if(v.distance(Snack) < 10){
+                    
+                    //Expand your body!
+                    
+                    for(int k = #Snake+1;#Snake+6;2){
+                        A[#A+1,vector2] = v + vec2( Direction.getY()/3, Direction.getX()/3 )
+                        A[#A+1,vector2] = v + vec2( -Direction.getY()/3, -Direction.getX()/3 )
+                    }
+                    newSnack()
+                }
+                
+                //Hitbox Candy
+                if(v.distance(Candy) < 10){
+                    
+                    for(int k = #Snake+1;#Snake+52;1){
+                        A[#A+1,vector2] = v + vec2( Direction.getY()/3, Direction.getX()/3 )
+                        A[#A+1,vector2] = v + vec2( -Direction.getY()/3, -Direction.getX()/3 )
+                        
+                    }
+                    Score = Score + 11
+                    Candy = vec2(-11,-11)    
+                }
+                
+            }
+            
+            
+            Snake = A
+        }
+        
+        else{
+            setFont("BudgetLabel",32, color(255,255,255) )
+            drawTextCentered( vec2( W*0.5, H*0.05), " --]] Snakes [[-- ")
+            
+            setFont("BudgetLabel", 24)
+            drawTextCentered( vec2( W*0.5, H*0.90), " Use the arrow keys to begin.")
+            
+            foreach(int k;table v:Scores){
+                
+                if(k <= 10){
+                    number Height = H*0.10+(k*25)
+                    setFont("BudgetLabel", 24, color(255,255,255) )
+                    drawText( vec2(W*0.15, Height ), k + ". ")
+                    
+                    setFont("BudgetLabel", 24, teamColor( v[1,player].team() ) )
+                    drawText( vec2(W*0.19, Height), v[1,player].name() )
+                    
+                    setFont("BudgetLabel", 24, color(255,255,255) )
+                    drawText( vec2(W*0.75, Height), (string)v[2,number])
+                    
+                    drawLine( vec2( W*0.10, Height+25), vec2(W*0.90, Height+25) )
+                }
+            }
+        }
+    } 
+}

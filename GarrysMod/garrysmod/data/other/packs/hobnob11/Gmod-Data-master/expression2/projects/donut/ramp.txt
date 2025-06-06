@@ -1,0 +1,109 @@
+@name Donut Loading Ramp
+@inputs Button
+@outputs 
+@persist DoorModel:string DoorOffset:vector BayOffset:vector DoorAngOffset:angle TraceOffset:vector
+@persist State Bay:entity BayHinge:entity DoorHinge:entity DoorHolo:entity DoorAngle Speed MaxSpeed Acc DoorProp:entity
+@trigger 
+@autoupdate
+if ( dupefinished() | (first() & !duped()) ) 
+{
+    ## fuck with these
+    DoorModel = "models/smallbridge/ship parts/sblandramppdw.mdl"
+    BayOffset = vec( 102.3, 0, -55.7 )
+    BayAngOffset = ang( 0, 0, 90 )
+    DoorOffset = vec( -102.3, 55.7, 0 )
+    DoorAngOffset = ang( 0, 0, -90 )
+    TraceOffset = vec( -102.3, 0, -55.7 - 9 ) # the -9 is an attempt to account for the thickness of the ramp without doing more trig
+    MaxSpeed = 0.2 
+    Acc = 0.001
+    #if you have to fuck with these you should make it so it dont
+    #include "lib/hob"
+    State = 1
+    DoorAngle = 0
+    Bay = entity():isWeldedTo()
+    
+    runOnTick(1)
+}
+switch( State )
+{
+    case 1, #setup
+        BayHinge = holoCreate( 1 )
+            holoModel( 1 , "cylinder" )
+            holoScale( 1 , vec( 0.1, 0.1, 32.6 ) )
+            holoPos( 1 , Bay:toWorld( BayOffset ) )
+            holoAng( 1 , Bay:toWorld( BayAngOffset ) )
+            holoParent( 1 , Bay )
+
+        DoorHinge = holoCreate( 2 )
+            holoModel( 2 , "cylinder" )
+            holoScale( 2 , vec( 0.2, 0.2, 32.6 ) )
+            holoPos( 2 , BayHinge:pos() )
+            holoAng( 2 , BayHinge:toWorld( ang() ) )
+            holoMaterial( 2 , "phoenix_storms/stripes" )
+            holoParent( 2 , 1 )
+        
+        DoorHolo = holoCreate( 3 )
+            holoModel( 3 , DoorModel )
+            holoPos( 3 , DoorHinge:toWorld( DoorOffset ) )
+            holoAng( 3 , DoorHinge:toWorld( DoorAngOffset ) )
+            holoParent( 3 , 2 )
+            
+        State = 2
+        break
+    
+    case 2, #closed
+        if( Button )
+        {
+            State = 3
+            Bay:soundPlay( "RampSound1", 3.953, "misc/hologram_start.wav")
+            Bay:soundPlay( "RampSound2", 0, "misc/hologram_move.wav")
+        }
+        break
+        
+    case 3, #opening
+        #figure out the angle needed to get the ramp to the floor
+        local Tr = rangerOffset( Bay:toWorld( TraceOffset ), Bay:toWorld( TraceOffset - vec( 0, 0, 1000 ) ) )
+        #shit never goes well when i try to do trig, so brace yourself
+        local H = DoorHolo:boxSize():x() + 20 # the 20 is because i have no idea
+        local O = Tr:distance()
+        local X = asin( O / H ) + 29 # 29 is the door open and level
+        
+        if( DoorAngle < X )
+        {
+            Speed = clamp( Speed + Acc, 0, MaxSpeed )
+            DoorAngle += Speed
+            soundPitch( "RampSound2" , (Speed/MaxSpeed)*100 )
+        }else{
+            Speed = 0
+            State = 4
+            soundStop( "RampSound2" )
+            Bay:soundPlay( "RampSound3", 3.587, "misc/hologram_stop.wav" )
+            DoorProp = propSpawn( DoorModel, DoorHolo:pos(), DoorHolo:angles(), 1 )
+            DoorProp:setAlpha(0)
+        }
+        break
+        
+    case 4, #open
+        if( Button )
+        {
+            DoorProp:propDelete()
+            State = 5
+            Bay:soundPlay( "RampSound1", 3.953, "misc/hologram_start.wav")
+            Bay:soundPlay( "RampSound2", 0, "misc/hologram_move.wav")
+        }
+        break
+    case 5, #closing
+        if( DoorAngle > 0 )
+        {
+            Speed = clamp( Speed + Acc, 0, 1 )
+            DoorAngle -= Speed
+        }else{
+            Speed = 0
+            State = 2
+            soundStop( "RampSound2" )
+            Bay:soundPlay( "RampSound3", 3.587, "misc/hologram_stop.wav" )
+        }
+        break
+}
+
+DoorHinge:hSetAng( BayHinge:toWorld( ang( 0, DoorAngle, 0 ) ) )

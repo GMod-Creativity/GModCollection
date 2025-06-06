@@ -1,0 +1,226 @@
+Testclient {
+    event enablePlayURL()
+    audio aud
+    bool useDown = false
+    int useC = 0
+    int volume = 50
+    string Radio1 = "http://www.listenlive.eu/bbcradio1.m3u"
+    string Radio2 = "http://www.listenlive.eu/bbcradio2.m3u"
+    string TRUMPET= "http://hobnob.fox.re/Trumpet.mp3"
+    string CurURL = "http://hobnob.fox.re/Trumpet.mp3"
+    string LastURL= "http://hobnob.fox.re/Trumpet.mp3"
+    bool HobBool = false
+    global bool HobBool2 = false
+    global bool HobBool3 = false
+    function number lpintersect(vector P1,vector N1,vector P2,vector N2)
+    {
+        return (N1.dot(P1-P2))/(N1.dot(N2))
+    }
+    function bool VecIn(vector2 m, vector2 pos, vector2 size) {
+        return (m>pos && (m<(pos+size)))
+    }
+    function void DrawGUI() {
+        vector guipos = entity().toWorld(vec(0,0,30))
+        angle an = (guipos-localPlayer().shootPos()).angle()
+        vector realPos = guipos-(guipos-localPlayer().shootPos()).normal()*clamp(guipos.distance(localPlayer().shootPos())-45,20,150)
+        vector planePos = localPlayer().shootPos()+localPlayer().eye()*lpintersect(realPos, an.forward(), localPlayer().shootPos(), localPlayer().eye())
+        vector2 mpos = vec2(-((planePos-realPos).getY()*cos(an.getYaw())-(planePos-realPos).getX()*sin(an.getYaw())) * 20, -(planePos-realPos).getZ() * 20)
+        start3D2D(guipos-(guipos-localPlayer().shootPos()).normal()*clamp(guipos.distance(localPlayer().shootPos())-45,20,150),
+        an+ang(-an.getPitch(),-90,90-an.getPitch()), 0.05)  
+        
+        //Background
+        setDrawColor(255,255,255)
+        drawBox(vec2(-200,-120), vec2(400,240))
+        
+        //ChannelSelectStuff
+
+        
+        //theBoxes
+        setDrawColor(0,150,235)
+        setFont("Trebuchet24",16)
+        setFontColor(color(255,255,255))
+        
+
+        if(mpos.insideAABox(vec2(-200,-45),vec2(-120,-25))){
+            setDrawColor(0,100,255)
+            if(localPlayer().keyUse() && !HobBool){
+                HobBool=true
+                HobBool2=true
+                CurURL = Radio1
+                aud.pause()
+                timerSimple(0.5,function(){HobBool=false})                
+            }
+        }else{
+            setDrawColor(0,150,235)
+        }
+        drawBox(vec2(-200,-45),vec2(80,20))
+        drawText(vec2(-195,-45),"BBC Radio 1")
+        setDrawColor(0,150,235)
+        
+        
+        if(mpos.insideAABox(vec2(-200,-15),vec2(-120,5))){
+            setDrawColor(0,100,255)
+            if(localPlayer().keyUse() && !HobBool){
+                HobBool=true
+                HobBool2=true
+                CurURL = Radio2
+                aud.pause()
+                timerSimple(0.5,function(){HobBool=false})                
+            }
+        }else{
+            setDrawColor(0,150,235)
+        }
+        drawBox(vec2(-200,-15),vec2(80,20))
+        drawText(vec2(-195,-15),"BBC Radio 2")
+        setDrawColor(0,150,235)
+        
+        
+        if(mpos.insideAABox(vec2(-200,15),vec2(-120,35))){
+            setDrawColor(0,100,255)
+            if(localPlayer().keyUse() && !HobBool){
+                HobBool=true
+                HobBool2=true
+                CurURL = TRUMPET
+                aud.pause()
+                timerSimple(0.5,function(){HobBool=false})                
+            }
+        }else{
+            setDrawColor(0,150,235)
+        }
+        drawBox(vec2(-200,15),vec2(80,20))
+        drawText(vec2(-195,15),"TRUMPETS")
+        setDrawColor(0,150,235)
+        
+              
+        
+        //Text
+        string DisplayString = "playing: "+CurURL.sub(26,#CurURL-4)
+        if(CurURL==TRUMPET){
+            DisplayString = "playing: TRUMPET"
+        }
+
+        setFontColor(color(150,150,150))
+        setFont("Trebuchet24", 32)
+        setFont( "Trebuchet24" ,  ( 400 / getTextWidth(DisplayString) )*26)
+        drawText(vec2(-getTextWidth(DisplayString)/2,-154+(getTextHeight(DisplayString)/2)), DisplayString )
+        
+        //Play/Pause Circle
+        if(mpos.distance(vec2(0,0)) > 70)
+            setDrawColor(200,200,200)
+        else {
+            setDrawColor(150,150,150)
+            if(localPlayer().keyUse() && !HobBool) {
+                if(aud.isPaused()){
+                    aud.play()
+                }else{
+                    aud.pause()
+                }
+                HobBool=true
+                timerSimple(0.5,function(){HobBool=false})
+            }
+        }
+        drawCircle(vec2(0,0), 70)
+        
+        //Symbol on play/pause
+        setDrawColor(100,100,100)
+        if(!aud.isPaused()) {
+            //Pause symbol
+            drawBox(vec2(-30,-40), vec2(20,80))
+            drawBox(vec2(10,-40), vec2(20,80))
+        }
+        else {
+            //Play Symbol
+            drawPoly(vector2Array(vec2(-20,-40),vec2(-20,40),vec2(40,0)))
+        }
+        
+        //Volume Slider
+        setDrawColor(100,100,100)
+        drawBox(vec2(120,-80), vec2(40,160))
+        setDrawColor(0,150,235)
+        drawBox(vec2(120,-80+160*(1-volume/100)), vec2(40,round(volume/100*160)+1))
+        if(VecIn(mpos, vec2(120,-90+160*(1-volume/100)), vec2(40,20))) {
+            if(localPlayer().keyUse()) {
+                volume = clamp(100*((80-mpos.getY())/160),0,100)
+            }
+            setDrawColor(150,150,150)
+        }
+        else{
+            setDrawColor(200,200,200)
+        }
+        drawBox(vec2(120,-90+160*(1-volume/100)), vec2(40,20))
+        setDrawColor(100,100,100)
+        drawBox(vec2(-200,100), vec2(400,10))
+        
+        //as far as i can tell this is the blue bar at the bottom and is supposed to be like a duration thing
+        //but its streaming live radio so its just a pretty bar
+        setDrawColor(0,150,235)
+        drawBox(vec2(-200,100), vec2(aud.isBlockStreamed() ? 400 : realtime()*50%400,10))
+        //int p = tan(realtime()*50)*50
+        //drawBox(vec2(-30 + p,100), vec2(clamp(200-p+30,0,60),10))
+        end3D2D()
+       // print(mpos)
+    }
+    array dubs = numberArray()
+    int maxdub = 0
+    int nextdub = 0
+    bool cooldown = false
+    int maxDistance = 2000
+    bool fading = true
+    array fft = numberArray()
+    array fftSmooth = numberArray()
+    function void Play() {
+        playURL(CurURL,"",function(audio a){
+            aud = a
+            a.play()
+            a.setVolume(volume)
+            fft = a.fft(41)
+            fftSmooth = fft
+            event tick() {
+                fft = a.fft(41)
+                if(fading) {
+                    a.setVolume(clamp((1-entity().pos().distance(localPlayer().pos())/maxDistance)*volume,0,100))
+                }
+            }
+            event draw3D() {
+                end3D2D()
+                DrawGUI()
+            }
+        },function() {})
+    }
+    if(canPlayFromURL()) {
+        Play()
+    }
+    event enablePlayURL() {
+        Play()
+        netstream nst = stream()
+        nst.writeString(localPlayer().name())
+        nst.sendToServer("enabled")
+    }
+    event drawScreen(int w, int h) {
+        setFontColor(color(0,100,255))
+        setFont("Trebuchet24",48)
+        drawText(vec2(h/2-getTextWidth("Enable URL sounds :>")/2,230), "Enable URL sounds :>")
+    }
+    event draw3D() {}
+    event requestFeatures() {
+        request3DRendering()
+        requestPlayURL()
+        return true
+    }
+    event think(){
+    if(HobBool2){
+        HobBool3=true
+        print("ohai")
+        if(!(CurURL==LastURL)){
+            LastURL=CurURL
+            Play()
+        }
+        timerSimple(0.5,function(){HobBool2=false; HobBool3=false})
+    }
+    }
+}
+server {
+    netReceive("enabled", function(netstream st) {
+        print(st.readString() + "has enabled Radio")
+    })
+}

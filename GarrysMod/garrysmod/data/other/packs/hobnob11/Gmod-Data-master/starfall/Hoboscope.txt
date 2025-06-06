@@ -1,0 +1,111 @@
+--@name Hoboscope
+--@author Hob
+--@shared
+--@inputs X:Normal Entity:Entity
+ 
+if SERVER then
+    hook.Add("think","wireUpdate",function()
+        if net.CanSend() then 
+            net.Start("wireUpdate")
+            net.WriteInt(wire.ports["Entity"]:EntIndex(),32)
+            net.Send()
+        end
+    end)
+    entities.self():SetAngles(Angle(90,180,0))
+elseif CLIENT then
+    HEH = 0
+    Plots = {}
+    Axis = {}
+    Ent = entities.self()
+    function DrawAxis(X1,X2,Y1,Y2)
+        Axis = {X1=X1,Y1=Y1,X2=X2,Y2=Y2}
+        local YPos
+        local XPos
+        if X1>=0 then
+            XPos = 56
+        elseif X2<=0 then
+            XPos = 456
+        else
+            XPos = math.Round((math.abs(X1) / (math.abs(X1)+X2))*400) + 56
+        end
+        if Y1>=0 then
+            YPos = 56
+        elseif Y2<=0 then
+            YPos = 456
+        else
+            YPos = math.Round((math.abs(Y1) / (math.abs(Y1)+Y2))*400) + 56
+        end
+       
+        render.DrawLine(56,YPos,456,YPos) --X Axis
+        --X Axis Lines
+        local K = (456 - YPos)/10
+        local J = K - 40
+        for I = J,K do
+            render.DrawLine(I*10+YPos,YPos-3,I*10+YPos,YPos+3)
+        end
+        
+        render.DrawLine(XPos,56,XPos,456) --Y Axis
+        --Y Axis Lines
+        local K = (456 - XPos)/10
+        local J = K - 40
+        for I = J,K do
+            render.DrawLine(XPos-3,I*10+XPos,XPos+3,I*10+XPos)
+        end
+    end
+   
+    function Plot(line,x,y)
+        if not Plots[line] then 
+            Plots[line] = {}
+        end
+        local i = table.getn(Plots[line])
+        if i >= 160 then
+            table.remove(Plots[line],1)
+        end
+        --Plots[line][i+1] = {x=x,y=y}
+        table.insert(Plots[line],{x=x,y=y})
+        
+    end
+    
+    function DrawLine(line,colour)
+        render.SetColor(colour)
+        local x = 0
+        local y = 0
+        for k,v in pairs(Plots[line]) do
+            local Height = math.abs(Axis.Y1) + math.abs(Axis.Y2)
+            local Width  = math.abs(Axis.X1) + math.abs(Axis.X2)
+            xt = x
+            yt = y
+            x = (v.x / Width) * 400 + 56
+            y = (v.y / Height) * 400 + 256
+            --print(x,y)
+            if xt==0 or yt ==0 or xt > x then
+                render.DrawLine(x,y,x+1,y+1)
+            else
+                render.DrawLine(x,y,xt,yt)
+            end
+        end
+        render.DrawText(x,y,line..": "..math.Round(table.GetLastValue(Plots[line]).y),0)
+    end
+    
+    hook.Add("net","WireUpdate",function(name)
+        if name == "wireUpdate" then
+            Ent = entities.entity(net.ReadInt(32))
+        end
+    end)
+
+    hook.Add("render","ScreenRender",function()
+        if HEH%2 == 0 then
+            local Anglu = Ent:GetAngles()
+            --print(Anglu)
+            render.Clear()
+            DrawAxis(0,100,-100,100)
+            Plot("Height",CurTime()%100,Ent:GetPos().z-11300)
+            DrawLine("Height",Color(255,0,0))
+            Plot("X",CurTime()%100,Ent:GetPos().x +10100)
+            DrawLine("X",Color(0,255,0))
+            Plot("Y",CurTime()%100,Ent:GetPos().y+13000)
+            DrawLine("Y",Color(255,0,255))
+        end
+        HEH = HEH + 1
+    end)
+end

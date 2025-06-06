@@ -1,0 +1,147 @@
+@name A Simple Purpose..
+@inputs 
+@outputs 
+@persist Weapons:array Base:entity Turret:entity MainFirst Quack Fire Speed X Volume Mini Ang:angle CurWep
+@trigger 
+
+if(first())
+{
+    runOnLast(1)
+    runOnUse(1)
+    runOnChat(1)
+    
+    local Dia =100
+    local Dia2 = 75
+    
+    setName("STATUS: ALIGNING")
+    soundPlay("sound1",2275,"mvm/mvm_deploy_giant.wav")
+    
+    findIncludePlayerProps(owner())
+    findByClass("sc_weapon_base")
+    Weapons = findToArray()
+    Base = holoCreate(1,entity():toWorld(vec(0,0,100)),vec(1,1,1)*0.1,ang(0,0,0))
+    Turret = holoCreate(2,Base:pos(),vec(1,1,1)*0.1,Base:angles())
+    holoCreate(3,Turret:toWorld(vec(0,0,50)))
+    holoModel(3,"hqsphere")
+    holoColor(3,vec(255,0,0))
+    holoParent(3,2)
+    holoParent(2,1)
+    holoParent(1,entity())
+    for(I=1,Weapons:count())
+    {
+        E = Weapons[I,entity]
+        A = (720/Weapons:count())* I
+        if(A>360){
+            Dia = Dia2
+            A = A + 360/Weapons:count()
+        }
+        E:setPos(Turret:toWorld(vec(sin(A)*Dia,cos(A)*Dia,0)))
+        E:setAng(Turret:toWorld(ang(0,0,0)))
+        E:lsLink(entity():isWeldedTo())
+    }
+    
+    timer("parent",2275)
+}
+if(clk("parent"))
+{
+    Quack = Quack + 1
+    setName("STATUS: SUPER-GLUING WEAPON " + Quack)
+    Weapons[Quack,entity]:parentTo(Turret)
+    Weapons[Quack,entity]:lsLink(entity():isWeldedTo())
+    Weapons[Quack,entity]:soundPlay("Quack"+Quack,0,"mvm/melee_impacts/pan_impact_robo01.wav")
+    if(Quack == Weapons:count())
+    {
+        timer("main",1000)
+    }else{
+        timer("parent",100)
+    }
+}
+if(useClk())
+{
+    Fire = (Fire ? 0 : 1)
+}
+if(chatClk(owner()))
+{
+    print(owner():lastSaid())
+    if(owner():lastSaid():sub(1,3) == "Ang")
+    {
+        local Arg = table(owner():lastSaid():sub(4):explode(","))
+        printTable(Arg)
+        Ang = ang(Arg["1",number],Arg["2",number],Arg["3",number])
+        print(Ang)
+    }
+}
+if(clk("main"))
+{
+    if(MainFirst==0)
+    {
+        setName("STATUS: OPERATIONAL")
+        soundPlay("sound3",0,"music/mvm_class_menu_bg.wav")
+        Volume = 1
+    }
+    Volume = clamp(Volume-0.01,0,1)
+    soundVolume("sound3",Volume)
+    if(Fire)
+    {
+        if(Speed<100){
+            setName("STATUS: SPINNING UP - " + Speed + "%")
+            Speed = clamp(Speed + 1,0,100) 
+        }else{
+            setName("STATUS: FIRING")
+            CurWep = (CurWep == Weapons:count() ? 1 : CurWep+1)
+            local LastWep = (CurWep == 1 ? Weapons:count() : CurWep-1)
+            local WL = Weapons[CurWep,entity]:wirelink()
+            WL["Fire",number] = 1
+            local WL = Weapons[LastWep,entity]:wirelink()
+            WL["Fire",number] = 1
+            
+        }
+    }else{
+        if(Speed>0){
+            setName("STATUS: SPINNING DOWN - " + Speed + "%")
+            Speed = clamp(Speed - 1,0,100)
+            for(I=1,Weapons:count()){
+                local AAAA = Weapons[I,entity]:wirelink()
+                AAAA["Fire",number] = 0
+            }
+            
+        }else{
+            setName("STATUS: OPERATIONAL")
+        }
+    }
+    
+    if(Speed>0){
+        X = X + Speed
+        if(!Mini){
+            entity():soundPlay("mini",0,"weapons/minigun_spin.wav")
+            Mini = 1
+        }
+    }else{
+        if(Mini){
+            soundStop("mini")
+            Mini = 0
+        }
+        if((X%360)!=0){
+            X = X%360 + ( X>180 ? 4 : -4)
+            if(inrange(X,-4,4))
+            {
+                X = 0
+            }
+        }
+    }
+    holoAng(1,entity():angles())
+    holoAng(2,Base:toWorld(ang(0,X,0)))
+    soundPitch("mini",50+Speed)
+    timer("main",200)
+    MainFirst = 1
+}
+if(last())
+{
+    
+    for(I=1,Weapons:count())
+    {
+        E = Weapons[I,entity]
+        E:deparent()
+    }
+    
+}

@@ -1,0 +1,174 @@
+@name TorqueTesting
+@inputs [Eye Pod]:wirelink
+@outputs Elev Bear DP DY DR Roll TRoll AngDiff [AngVel Ang EAng]:angle  
+@persist [E T]:entity [Ang]:angle Elev Bear Pitch Yaw Roll ForceN:vector
+@trigger 
+
+if(first() | dupefinished()) {
+    
+    setName("FuckTorque")
+    
+    local Dist = 150
+    local Offset = vec(0,0,0)
+    
+    E = entity():isConstrainedTo()
+    E:setMass(50000)
+    E:sbSetDragOverride(1)
+    E:propDrag(0)
+    E:sbSetGravityOverride(1)
+    E:propGravity(0)
+    entity():parentTo(E)
+    
+    Ang = E:angles():setRoll(0)
+    
+    #holoCreate(1,E:toWorld(vec(1,0,0)*Dist+Offset),vec(3),E:up():toAngle(),vec(255,0,0),"models/Punisher239/punisher239_rocket.mdl")
+    #holoCreate(2,E:toWorld(vec(1,0,0)*-Dist+Offset),vec(3),-E:up():toAngle(),vec(255,0,0),"models/Punisher239/punisher239_rocket.mdl")
+    
+    #holoCreate(3,E:toWorld(vec(0,1,0)*Dist+Offset),vec(3),E:forward():toAngle(),vec(0,255,0),"models/Punisher239/punisher239_rocket.mdl")
+    #holoCreate(4,E:toWorld(vec(0,1,0)*-Dist+Offset),vec(3),-E:forward():toAngle(),vec(0,255,0),"models/Punisher239/punisher239_rocket.mdl")
+    
+    #holoCreate(5,E:toWorld(vec(0,0,1)*Dist+Offset),vec(3),E:right():toAngle(),vec(0,0,255),"models/Punisher239/punisher239_rocket.mdl")
+    #holoCreate(6,E:toWorld(vec(0,0,1)*-Dist+Offset),vec(3),-E:right():toAngle(),vec(0,0,255),"models/Punisher239/punisher239_rocket.mdl")
+    
+    #for(I=1,6) {holoParent(I,E)}
+    
+    #T = propSpawn("models/props_junk/wood_crate001a.mdl",E:toWorld(vec(500,0,0)),1)
+    
+    holoCreate(1)
+    holoCreate(2)
+    
+    #runOnLast(1)
+    
+    HF = 0.93
+    BF = 1-HF
+}
+
+interval(30)
+
+DesiredDirection = vec(1,0,0)
+DesiredDirectionRight = DesiredDirection:cross(vec(0,0,1))
+#LocalDifference1 = vec(E:forward():dot(DesiredDirection),E:right():dot(DesiredDirection),E:up():dot(DesiredDirection))	
+#LocalDifference2 = vec(E:forward():dot(DesiredDirectionRight),E:right():dot(DesiredDirectionRight),E:up():dot(DesiredDirectionRight))	
+#DifAngle = angnorm(ang( LocalDifference1:toAngle():pitch(), LocalDifference1:toAngle():yaw(), LocalDifference2:toAngle():pitch() ))	
+
+#[Pitch
+local Dir = E:forward()
+local Dot = E:forward():dot(DesiredDirection)
+Pitch = acos(Dot)
+local Force = Dot*Inertia:x()*E:up()
+holoScale(1,vec(3*Dot,3,3))
+holoScale(2,vec(3*Dot,3,3))
+#E:applyOffsetForce(Force,Dir)
+#E:applyOffsetForce(-Force,-Dir)
+#Yaw
+local Dir = E:right()
+local Dot = E:right():dot(DesiredDirection)
+Yaw = acos(Dot)
+local Force = Dot*Inertia:y()*E:forward()
+holoScale(3,vec(3*Dot,3,3))
+holoScale(4,vec(3*Dot,3,3))
+#E:applyOffsetForce(Force,Dir)
+#E:applyOffsetForce(-Force,-Dir)
+#Roll
+local Dir = E:up()
+local Dot = E:forward():dot(DesiredDirectionRight)
+Roll = acos(Dot)
+local Force = Dot*Inertia:z()*E:right()
+holoScale(5,vec(3*Dot,3,3))
+holoScale(6,vec(3*Dot,3,3)) ]#
+#E:applyOffsetForce(Force,Dir)
+#E:applyOffsetForce(-Force,-Dir)
+
+
+PodM = 0.5
+DRR = (Pod["A",number]-Pod["D",number])*-0.4*Pod["Alt",number]
+DR = DR + DRR
+DR = DR - sign(DR)*(min(0.3,abs(DR)))
+TRoll = Ang:roll() + DR
+EAng = E:angles()
+DP = cos(TRoll)*-Eye["Y",number]*PodM + sin(TRoll)*Eye["X",number]*PodM
+DY = sin(TRoll)*-Eye["Y",number]*PodM + cos(TRoll)*-Eye["X",number]*PodM
+Ang = Ang + ang(DP,DY,DR)
+Target = E:massCenter() + 1000*(Ang:forward())
+RTarget = E:massCenter() + 1000*(Ang:right())
+#MassDiff = E:massCenterL()
+holoPos(1,Target)
+holoPos(2,RTarget)
+#AngVel = E:angVel()*0.5
+#Inertia = E:inertia()*3
+DeltaF = -8
+Mult = 2
+Max = 30
+
+TarQ = quat(Ang) #Calculate quaternion for target orientation
+CurQ = quat(E) #Calculate current orientation quaternion
+ 
+#TarQ/CurQ is a quaternion representing the rotation that will rotate the object from current orientation to the target one.
+Q = TarQ/CurQ
+ 
+#applyTorque() works on intrinsic vectors! Get the rotation vector and transform it.
+V = E:toLocal(rotationVector(Q)+E:pos())
+#Alternatively, can use "V = transpose(matrix(E))*rotationVector(Q)"
+ 
+#Apply torque. angVelVector() works like a delta term.
+#Factors 150 and 12 can be adjusted to achieve best effect.
+E:applyTorque((100*V - 12*E:angVelVector())*E:inertia())
+
+#[#Pitch
+Elev = E:elevation(Target)*Mult
+ElevDel = clamp(Elev+AngVel:pitch()-$Elev*DeltaF,-Max,Max)
+local Dir = E:forward()
+local Force = ElevDel*Inertia:x()*E:up()
+E:applyOffsetForce(Force,MassDiff + Dir)
+E:applyOffsetForce(-Force,MassDiff - Dir)
+#holoScale(1,vec(3*(abs(ElevDel)/30),3,3))
+#holoAng(1,E:up():toAngle()*sign(ElevDel))
+#holoScale(2,vec(3*(abs(ElevDel)/30),3,3))
+#holoAng(2,-E:up():toAngle()*sign(ElevDel))
+
+#Yaw
+Bear = -E:bearing(Target)*Mult
+BearDel = clamp(Bear-AngVel:yaw()-$Bear*DeltaF,-Max,Max)
+local Dir = E:right()
+local Force = BearDel*Inertia:y()*E:forward()
+E:applyOffsetForce(Force,MassDiff + Dir)
+E:applyOffsetForce(-Force,MassDiff - Dir)
+#holoScale(3,vec(3*(abs(BearDel)/30),3,3))
+#holoAng(3,E:forward():toAngle()*sign(BearDel))
+#holoScale(4,vec(3*(abs(BearDel)/30),3,3))
+#holoAng(4,-E:forward():toAngle()*sign(BearDel))
+
+#Roll
+#local TDir = (Target-E:pos()):normalized()
+#local Dist = E:pos():distance(Target)
+#local RightTarget = E:pos() + TDir:cross(vec(0,0,-1))*Dist
+
+#holoPos(2,RTarget)
+Roll = E:elevation(RTarget)*Mult
+RollDel = clamp(-Roll-AngVel:roll()+$Roll*DeltaF,-Max,Max)
+#RollDel = clamp(-AngVel:roll(),-Max,Max)
+local Dir = E:up()
+local Force = RollDel*Inertia:z()*E:right()
+E:applyOffsetForce(Force,MassDiff + Dir)
+E:applyOffsetForce(-Force,MassDiff - Dir)
+#holoScale(5,vec(3*(abs(RollDel)/30),3,3))
+#holoAng(5,E:forward():toAngle()*sign(RollDel))
+#holoScale(6,vec(3*(abs(RollDel)/30),3,3))
+#holoAng(6,-E:forward():toAngle()*sign(RollDel))]#
+
+
+
+
+# Apply force	
+#E:applyAngForce(-ang(-502624961.5808*DifAngle:pitch() + 17657406.304416*E:angVel():pitch(),627424282.58402*DifAngle:yaw() + 22090419.832355*E:angVel():yaw(),-358997717.42996*DifAngle:roll() + 13489276.534455*E:angVel():roll()))	
+
+W = Pod["W",number] S = Pod["S",number] A = Pod["A",number] D = Pod["D",number] Space = Pod["Space",number] Shift = Pod["Shift",number] Alt = Pod["Alt",number]
+Forward = (W - S) * E:forward()
+Sideways = (D - A) * (1-Alt) * E:right()
+Vertical = (Space - Shift) * E:up()
+Brake = E:vel() * E:mass() * 0.01
+Thrust = ((Forward + Sideways + Vertical) * (E:mass()*50))
+ForceN = 0.93*(Thrust - Brake) + 0.07*ForceN
+E:applyForce(ForceN)
+
+#if(last()) {T:propBreak()}

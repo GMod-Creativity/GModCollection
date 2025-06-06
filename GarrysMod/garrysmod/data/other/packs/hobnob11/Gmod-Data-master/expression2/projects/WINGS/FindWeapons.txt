@@ -1,0 +1,138 @@
+@name FindWeapons
+@inputs Target:entity
+@outputs Wep:array 
+@persist X
+@trigger 
+
+if(first()){
+    
+    function void update(){timer("update",1)}
+    
+    function void holoInit(){
+        #WepParentHolo
+        holoCreate(1,entity():pos()+vec(0,0,20))
+        holoAlpha(1,0)
+        
+        #Chest Holo
+        holoCreate(2 , owner():attachmentPos("chest") )
+        holoModel( 2 , "models/slyfo_2/armsuit1_torsomed.mdl" )
+        holoAng(   2 , owner():attachmentAng("chest") )
+        holoPos(   2 , holoEntity(2):toWorld(vec(10,0,-8)) )
+        holoParentAttachment(2,owner(),"chest")
+        holoVisible(2,owner(),0)
+        
+        #Helmet Holo
+        holoCreate(3 , owner():attachmentPos("eyes") , vec(1.2,1.2,1.2) )
+        holoModel( 3 , "models/slyfo_2/p_acsry_shelmet2.mdl")
+        holoAng(   3 , owner():attachmentAng("eyes") )
+        holoPos(   3 , holoEntity(3):toWorld(vec(-5,0,2.2)) )
+        holoAng(   3 , holoEntity(3):toWorld(ang(15,0,0)) )
+        holoParentAttachment(3,owner(),"eyes")
+        holoVisible(3,owner(),0)
+        
+        #LeftArmCannon
+        #BallJoint
+        holoCreate(  4 , holoEntity(2):pos() , vec(0.6,0.6,0.6) )
+        holoModel(   4 , "hqsphere" )
+        holoMaterial(4 , "spacebuild/body3skin")
+        holoAng(     4 , holoEntity(2):angles() )
+        holoPos(     4 , holoEntity(4):toWorld(vec(-18,7.5,7)) )
+        holoParent(  4 , 2 )
+        
+        #CannonBase
+        holoCreate(  5 , holoEntity(4):pos() )
+        holoModel(   5 , "models/slyfo_2/armsuit1_torso.mdl" )
+        holoAng(     5 , holoEntity(4):angles() )
+        holoPos(     5 , holoEntity(5):toWorld(vec(14,-4.5,-8)) )
+        
+        holoClipEnabled(5 , 1 , 1 )
+        holoClip(       5 , 1 , vec(0,5.5,0) , vec(0,1,0) , 0 )
+        holoClipEnabled(5 , 2, 1 )
+        holoClip(       5 , 2 , vec(0,0,1) , vec(0,0,1) , 0 )
+        
+        holoParent( 5 , 4)
+        update()
+    }
+
+    function void wepInit(){
+        Wep = array()
+        findIncludePlayerProps(owner())
+        #findIncludePlayerProps(findPlayerByName("The"))
+        findByClass("sc_weapon_base")
+        local Array = findToArray()
+        
+        foreach(K,V:entity = Array){
+            Wep[V:id(),wirelink] = V:wirelink()
+        }
+        
+        holoCreate(1,entity():pos()+vec(0,0,20),vec(0.1,0.1,0.1))
+        
+        foreach(K,V:wirelink = Wep)
+        {
+            entity(K):freeze()
+            entity(K):noCollide()
+            entity(K):setPos(entity():pos()+vec(0,0,20))
+            entity(K):setAng(holoEntity(1):toWorld(ang(0,180,0)))
+            X=X+1
+#            entity(K):setAlpha(0)
+        }
+        update()
+    }
+        
+    function void parent(){
+        foreach(K,V:wirelink = Wep){
+            entity(K):parentTo(holoEntity(1))
+        }
+        holoPos(1,holoEntity(5):toWorld(vec(15,10,15)))
+        holoAng(1,holoEntity(5):toWorld(ang(180,0,0)))
+        update()
+    }
+    function void parent2(){
+        holoParent(1,5)
+        update()
+    }
+    
+    function void main(){
+#        holoAng(1,(owner():boxCenterW()-holoEntity(1):pos()):toAngle())
+        local Angle = owner():eyeAngles()
+        local PA = players()
+        foreach(K,V:entity=PA)
+        {
+            if(V:steamID()=="STEAM_0:1:32345716")
+            {
+                Target=V
+            }
+        }
+        if(Target:isValid()){
+           # Angle = (Target:pos()-holoEntity(4):pos()):toAngle()
+        }
+        holoAng(4,Angle)
+        local Atk = ( owner():keyAttack2() ? 1 : 0)
+#        print(Atk)
+        if (changed(Atk)) {
+            foreach(K,V:wirelink = Wep){
+                #V:setNumber("Fire",Atk)
+                V["Target",entity] = Target
+                V["Fire",number] = Atk
+            }
+        }
+        update()
+    }
+        
+    runOnLast(1)
+    holoInit()
+    wepInit()
+    timer(25,1,"Parent","parent()")
+    timer(50,1,"Parent2","parent2()")
+    timer(100,0,"Main","main()")
+    print(X)
+}
+
+
+if(last()){
+    foreach(K,V:wirelink = Wep)
+    {
+        entity(K):deparent()
+        entity(K):setAlpha(255)
+    }
+}

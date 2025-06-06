@@ -1,0 +1,56 @@
+--@name AWeaponToSurpass
+--@author 
+--@include lib/pid.txt
+
+require("lib/pid.txt")
+
+if SERVER then 
+    wire.adjustInputs({"Base","L","R"},{"Entity","Entity","Entity"})
+    wire.adjustOutputs({"Mul","LVec","RVec","RO","LO"},{"normal","Vector","Vector","Angle","Angle"})
+    local E = entities.self():IsWeldedTo()
+    L = wire.ports["L"]
+    R = wire.ports["R"]
+    local Home = E:GetPos()
+    Mass = 0
+    for k,v in pairs(E:GetAllConstrainedEnts()) do
+        Mass = Mass + v:GetMass()
+    end
+    Mass = Mass / #L:GetAllConstrainedEnts()
+    Mul = 100
+    MulPid = PID(0.981*Mass,0.075*Mass,0.2*Mass,0,0.2*Mass,Home.z)
+    YawPid = PID(0.1,0,0.2,-1,1,0)
+    XPid = PID(0.1,0,0.2,-1,1,0)
+    YPid = PID(0.1,0,0.2,-1,1,0)
+    Sound = sounds.Create(E,"ls/generators/pulsetone.mp3")
+    Sound:Play()
+    hook.Add("think","think",function()
+        
+        Home = entities.owner():GetPos()+Vector(0,0,100)
+        
+        local YawSet = YawPid:Run(E:GetAngles().y)
+        local Xset = -XPid:Run(E:GetPos().x - Home.x)
+        local Yset = -YPid:Run(E:GetPos().y - Home.y)
+        
+        LPitch = math.Clamp(-Xset+YawSet,-25,25)
+        LYaw = 0
+        LRoll = math.Clamp(Yset,-25,25)
+        LOffset = Angle(LPitch,LYaw,LRoll)
+        
+        RPitch = math.Clamp(-Xset-YawSet,-25,25)
+        RYaw = 0
+        RRoll = math.Clamp(Yset,-25,25)
+        ROffset = Angle(RPitch,RYaw,RRoll)
+
+        wire.ports["LVec"] = L:WorldToLocal(L:GetPos()-LOffset:Up())
+        wire.ports["RVec"] = R:WorldToLocal(R:GetPos()-ROffset:Up())
+        Mul =  MulPid:Run(E:GetPos().z)
+        wire.ports["Mul"] = Mul
+        
+        wire.ports["LO"] = LOffset
+        wire.ports["RO"] = ROffset
+        
+        Sound:ChangePitch(math.Clamp(Mul/Mass*250,50,250),0)
+
+        
+    end)
+end

@@ -1,0 +1,48 @@
+--@name Sync
+--@author INP
+--@shared
+
+if SERVER then
+    -- Code only executed on the server
+    local randomNumber = math.floor( math.random() * 100 )
+
+    hook.Add( "net", "uniqueHookNameHere", function ( name, len, ply )
+        -- ply being the client that sent the net message
+        -- A client is asking for the number
+        if name == "request" then
+            -- Send it to the client
+            net.Start( "number" )
+                -- 8 is the amount of bits to use for the transmission
+                net.WriteInt( randomNumber, 8 )
+            net.Send( ply )
+        end
+    end )
+else
+    -- Code only executed on the client
+    local randomNumber
+
+    local font = render.CreateFont( "Default", 62 )
+
+    -- Send a request for the number to the server
+    net.Start( "request" )
+    net.Send()
+
+    hook.Add( "net", "uniqueHookNameHerev2", function ( name, len )
+        -- No client argument, since it can only come from the server
+        -- The server is sending us the number
+        if name == "number" then
+            randomNumber = net.ReadInt( 8 )
+        end
+    end )
+
+    -- The render hook is called every frame the client requires the screen to be rendered
+    -- If the client has 120 FPS then this hook will be called 120 in a second.
+    hook.Add( "render", "renderHook", function ()
+        render.Clear()
+        if randomNumber then
+            render.SetColor( Color( 0,255,255,255 ) )
+            render.SetFont( font )
+            render.DrawText( 20, 20, tostring( randomNumber ) )
+        end
+    end )
+end

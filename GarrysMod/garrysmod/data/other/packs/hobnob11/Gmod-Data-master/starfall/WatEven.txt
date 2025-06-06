@@ -1,0 +1,107 @@
+--@name Wat Even
+--@author Hob
+--@sharedscreen
+
+if SERVER then
+    local damnNetMsg = 0
+    local Player 
+    local X = 256
+    local Y = 256
+    hook.add("starfallUsed","starfallUsed",function(Activator)
+        if Player == nil then
+            Player = Activator
+        elseif Player == Activator then
+            Player = nil
+        else
+            Player = Activator
+        end
+    end)
+    hook.add("net","net2",function()
+        X = net.readInt(16)
+        Y = net.readInt(16)
+    end)
+    
+    hook.add("think","think",function()
+        if damnNetMsg == 20 then
+            damnNetMsg = 0
+            net.start("BoxPos")
+            net.writeInt(X,16)
+            net.writeInt(Y,16)
+            if Player ~= nil then
+                net.writeInt(Player:entIndex(),16)
+            end
+            net.send()
+        else
+            damnNetMsg = damnNetMsg + 1
+        end
+    end)
+
+else
+
+    local BX = 256
+    local BY = 256
+    local Player
+    hook.add("net","net",function()
+        BX = net.readInt(16)
+        BY = net.readInt(16)
+        Player = entities.entity(net.readInt(16))
+    end)
+    local TextM= Matrix()
+    local BoxM = Matrix()
+    local BoxM2= Matrix()
+    local BoxM3= Matrix()
+    local Cursor= false
+    hook.add("render","render",function()
+    
+        render.clear()
+        render.pushMatrix(TextM)
+            local Scale = Vector(1,1,1) * 4
+            if TextM:getScale() ~= Scale then
+                TextM:scale(Scale)
+            end
+            TextM:setAngles(Angle(0,0,0))
+            TextM:setTranslation(Vector(256,0,0))
+            render.drawText(0,0,"God Dammit Ninja",1)
+        render.popMatrix()
+        
+        render.pushMatrix(BoxM)
+            BoxM:setAngles(Angle(0,0,0))
+            if Player ~= nil and type(Player) == "Player" then
+                local a , b = render.cursorPos(Player)
+                BoxM:setTranslation(Vector(a,b,0))
+                Cursor = true
+            else
+                if Cursor then
+                    Cursor = false
+                    net.start("LeftAt")
+                    local v = BoxM:getTranslation()
+                    local a = v.x
+                    local b=  v.y
+                    net.writeInt(a,16)
+                    net.writeInt(b,16)
+                    net.send()
+                end
+                BoxM:setTranslation(Vector(BX,BY,0))
+            end
+            --render.drawRect(-10,-10,20,20)
+            render.drawText(0,0,"God",1)
+            render.pushMatrix(BoxM2)
+                BoxM2:setTranslation(Vector(math.cos(timer.curtime()%360)*40,math.sin(timer.curtime()%360)*40,0))
+                BoxM2:setAngles(Angle(0,timer.curtime()%360,0))
+                --render.drawRect(-4,-4,8,8)
+                render.drawText(0,0,"Dammit",1)
+                
+                render.pushMatrix(BoxM3)
+                    BoxM3:setTranslation(Vector(math.cos(timer.curtime()*2%360)*20,math.sin(timer.curtime()*2%360)*20,0))
+                    BoxM3:setAngles(Angle(0,timer.curtime()%360,0))
+                    --render.drawRect(-2,-2,4,4)
+                    render.drawText(0,0,"Ninja",1)
+                render.popMatrix()
+                
+            render.popMatrix()
+            
+        render.popMatrix()
+        
+    end)
+
+end

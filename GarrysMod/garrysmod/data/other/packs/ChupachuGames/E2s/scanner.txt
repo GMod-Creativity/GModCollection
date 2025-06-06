@@ -1,0 +1,144 @@
+@name Project/3D scanner V0.1
+@inputs DigitalS:wirelink On
+@outputs X Y Resolution Scale Pos:vector X1 Y1 Ranger:ranger Color:vector Ace
+@outputs OldT NewT Secs Mins AvgRate TimeRemain TotalTime TimeStr:string
+@outputs TimeRStr:string TimerStarted Distance Clr GreyScale RC:vector RN
+@persist RE:vector PercentDone Done Remaining Time Height
+@trigger 
+
+runOnTick(1)
+
+if(first()){
+    #Only Change this things
+    
+    #Resolution
+    Resolution = 512
+    
+    #Change it Depending on the thing to scan
+    Scale = 12
+    
+    #Change this Depending on the thing to scan
+    Distance = 400
+    
+    #Recomended GreyScale 1000
+    GreyScale = 1000
+}
+
+
+
+
+#DONT CHANGE NOTHING FROM HERE UNLESS YOU KNOW WHAT YOU ARE DOING!!!!
+
+function wirelink:initScreen(Resolution){
+        This[1048574]=0 #Reset Screen and whatever was on it will be cleared.
+        This[1048569]=3 #Set color mode to 3
+        This[1048575]=1 #Apply changes
+        This[1048572]=Resolution #Set new resolution on Y (Height)
+        This[1048573]=Resolution #Set new resolution on X (Width)
+        This["PixelG",number] = 999
+}   
+
+if(first()){
+    
+    
+    TimerStarted = 0
+    Height = 0.5
+    
+    holoCreate(1)
+    holoCreate(2)
+    holoCreate(3)
+    holoCreate(4)
+    holoCreate(5)
+    holoPos(3,entity():toWorld(vec(Distance/2,0,-0.25)))
+    holoAng(3,entity():angles())
+    holoScaleUnits(3,vec(Distance,Scale*12,6))
+    holoColor(3,vec(0,180,0))
+    holoPos(4,entity():toWorld(vec(Distance,0,Scale*6)))
+    holoAng(4,entity():toWorld(ang(90,0,0)))
+    holoScale(4,vec(Scale,Scale,0.5))
+    holoColor(4,vec(0,180,0))
+    holoPos(5,entity():toWorld(vec(Distance/2,0,Scale*6)))
+    holoAng(5,entity():toWorld(ang(90,0,0)))
+    holoScale(5,vec(Scale,Scale,2))
+    holoAlpha(5,100)
+
+    DigitalS:initScreen(Resolution)
+}
+
+if(On){
+for (A = 1, 12) {
+    
+    Pos = entity():toWorld(vec(0,(X*(Scale/(Resolution/12.8)))-(Resolution/(Resolution/(Scale*6))),(Y*(Scale/(Resolution/12.8))) + 0.5))
+    Ranger = rangerOffset(Distance,holoEntity(1):toWorld(vec()),holoEntity(1):forward())
+    RC = Ranger:entity():getColor() 
+    RN = (entity():up():distance(Ranger:hitNormal())) / 2
+    Clr = GreyScale - Ranger:distance()
+    Color = round((RN*(vec(Clr,Clr,Clr)/GreyScale))*RC)
+    holoPos(1,Pos)
+    
+    holoPos(2,Ranger:pos())
+    
+    
+    if(Y < Resolution&On){
+        X += 1
+    }
+    
+    if (X > Resolution) {
+        X = 0
+        Y += 1
+    }
+    
+    if (Y > Resolution) {
+        X = 0
+        Y = 0
+    }
+    
+    if(Ranger:hit()){
+        X1=X-2
+        Y1=Y
+    }
+    
+    
+    
+    function wirelink:drawPixel(X,Y,Color:vector,Resolution){
+            This[X+Y*Resolution]=rgb2digi(Color,3)
+    }
+    
+    
+    DigitalS:drawPixel(X1,Y1,Color,Resolution)
+}
+
+
+PercentDone = round((((Y*Resolution)+X)/(Resolution*Resolution))*100)
+Done = round((Y*Resolution)+X)
+Remaining = round(Resolution*Resolution)
+
+setName("3D Scanner
+"+PercentDone+"%
+"+Done+"/"+Remaining+"
+"+TimeRStr)
+
+if (!TimerStarted) {
+    TimerStarted = 1
+    timer("clock",100)
+    
+    if (On) {
+        Time += 0.1
+        AvgRate = Done / Time
+        TotalTime = Resolution^2 / AvgRate
+        TimeRemain = TotalTime - Time
+        
+        Mins = floor(Time / 60)
+        Secs = floor(Time % 60)
+        if (Secs >= 10) { TimeStr = Mins + ":" + Secs } else { TimeStr = Mins + ":0" + Secs }
+        
+        Mins = floor(TimeRemain / 60)
+        Secs = floor(TimeRemain % 60)
+        if (Secs >= 10) { TimeRStr = "Time Remaining : " + Mins + ":" + Secs } else { TimeRStr = "Time Remaining : " + Mins + ":0" + Secs }
+    }
+}
+if (clk("clock")) {
+    TimerStarted = 0
+}
+}
+if(changed(On)&On){timer("clock",100)}

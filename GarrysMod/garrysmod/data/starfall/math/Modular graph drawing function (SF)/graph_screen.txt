@@ -1,0 +1,234 @@
+--@name graph_screen
+--@author Tolyzor
+update = true
+roundIncrements = function(min, max)
+    -- outputs floor/ceiled limits + number of incriments in between
+    -- array output key: realmin, realmax, #increments
+    local temp = {}
+    local range = max - min
+    local order = 10^math.floor(math.log10(range))  
+    range = range / order
+    if (range <= 2.5) then range = 2.5 
+    elseif(range <= 5) then range = 5
+    else range = 10 end
+    range = range * order
+    local realMin = (range * 0.1) * math.floor(min / (range * 0.1))
+    local realMax = (range * 0.1) * math.ceil(max / (range * 0.1))
+    temp[1] = realMin 
+    temp[2] = realMax 
+    temp[3] = (realMax - realMin) / (range * 0.1)
+    return temp
+end
+
+mapNumber = function(inputVal, inputMin, inputMax, outputMin, outputMax)
+    -- maps the value inputted to a specified output range
+    return ((inputVal - inputMax) * ((outputMin - outputMax) / (inputMin - inputMax)) + outputMax)
+end
+
+drawGraph = function(pos, size, bgCol, plotBgCol, title, col, minX, maxX, titleX, minY, maxY, titleY, dataX, dataY, plotCol) 
+    -- plots a graph with nice axes, gridlines, etc, given the inputs
+    -- make labels for all gridlines, not just min and max
+    -- consider adding a feature that makes sure gridline labels fit; if graph size is small, use fewer grid lines
+    local titleFont = "Trebuchet22"
+    local labelFont = "Trebuchet22" -- these fonts are not applied at the moment: fix
+    -- draw background
+    render.setColor(bgCol)
+    render.drawRect(pos.x - size.x / 2, pos.y - size.y / 2, size.x, size.y)
+    
+    -- draw plot area
+    local lengthX = (size.x - 40) / 2
+    local lengthY = (size.y - 40) / 2
+    render.setColor(plotBgCol)
+    render.drawRect(pos.x - lengthX, pos.y - lengthY, 2 * lengthX, 2 * lengthY)
+        
+    -- calculate real (round) max and min values
+    -- x
+    local incrementsX = roundIncrements(minX, maxX)
+    local realMinX = incrementsX[1]
+    local realMaxX = incrementsX[2]
+    -- y
+    local incrementsY = roundIncrements(minY, maxY)
+    local realMinY = incrementsY[1]
+    local realMaxY = incrementsY[2]
+
+    -- draw gridlines
+    render.setColor(Color(150, 150, 150))
+    -- x
+    local incNumX = incrementsX[3]
+    for k = 0, incNumX do
+        local val = -lengthX + (k * 2 * lengthX) / incNumX
+        render.drawLine(pos.x + val, pos.y + lengthY, pos.x + val, pos.y - lengthY)
+    end
+    -- y
+    local incNumY = incrementsY[3]
+    for k = 0, incNumY do
+        local val = -lengthY + (k * 2 * lengthY) / incNumY
+        render.drawLine(pos.x + lengthX, pos.y + val, pos.x - lengthX, pos.y + val)
+    end
+    
+    -- plot data
+    render.setColor(plotCol)
+    local indexes = #dataX
+    for k = 1, indexes - 1 do
+        local x0 = mapNumber(dataX[k], realMinX, realMaxX, -lengthX, lengthX)
+        local y0 = mapNumber(dataY[k], realMinY, realMaxY, -lengthY, lengthY)
+        local x1 = mapNumber(dataX[k + 1], realMinX, realMaxX, -lengthX, lengthX)
+        local y1 = mapNumber(dataY[k + 1], realMinY, realMaxY, -lengthY, lengthY)
+        render.drawLine(pos.x + x0, pos.y - y0, pos.x + x1, pos.y - y1)
+    end
+    
+    -- draw title
+    render.setColor(Color(0, 0, 0))
+    render.drawText(pos.x, pos.y - size.y / 2, title, 1)
+    
+    -- draw axis
+    render.setColor(col)
+    
+    -- x axis
+    local x0 = -lengthX
+    local x1 = lengthX
+    if (minY >= 0) then y = lengthY
+    elseif (maxY <= 0) then y = -lengthY
+    else y = lengthY + minY * (2 * lengthY / (maxY - minY)) end
+    render.drawLine(pos.x + x0, pos.y + y, pos.x + x1, pos.y + y)
+    -- minX marker
+    local xm0 = x0
+    local ym0 = y
+    local xm1 = x0
+    local ym1 = y + 3
+    render.drawLine(pos.x + xm0, pos.y + ym0, pos.x + xm1, pos.y + ym1)
+    -- minX label
+    render.drawText(pos.x + xm0, pos.y + ym0 + 1, tostring(realMinX), 1) -- this number is going to need propper (scientific) formating
+   -- maxX marker
+    local xm0 = x1
+    local ym0 = y
+    local xm1 = x1
+    local ym1 = y + 3
+    render.drawLine(pos.x + xm0, pos.y + ym0, pos.x + xm1, pos.y + ym1)
+    -- maxX label
+    render.drawText(pos.x + xm0, pos.y + ym0 + 1, tostring(realMaxX), 1) -- this number is going to need propper (scientific) formating
+    -- X axis title
+    render.drawText(pos.x + (x0 + x1) / 2, pos.y + y, titleX, 1) -- this number is going to need propper (scientific) formating
+            
+    -- y axis
+    local y0 = -lengthY
+    local y1 = lengthY
+    if (minX >= 0) then x = -lengthX
+    elseif (maxX <= 0) then x = lengthX
+    else x = -lengthX - minX * (2 * lengthX / (maxX - minX)) end
+    render.drawLine(pos.x + x, pos.y + y0, pos.x + x, pos.y + y1)
+    -- minY marker
+    local xm0 = x
+    local ym0 = y0
+    local xm1 = x - 3
+    local ym1 = y0
+    render.drawLine(pos.x + xm0, pos.y - ym0, pos.x + xm1, pos.y - ym1)
+    -- minY label
+    render.drawText(pos.x + xm0 - 3, pos.y - ym0 - 10, tostring(realMinY), 2)
+    -- maxY marker
+    local xm0 = x
+    local ym0 = y1
+    local xm1 = x - 3
+    local ym1 = y1
+    render.drawLine(pos.x + xm0, pos.y - ym0, pos.x + xm1, pos.y - ym1)
+    -- maxY label
+    render.drawText(pos.x + xm0 - 3, pos.y - ym0 - 10, tostring(realMaxY), 2)
+    -- Y axis title
+    local matrix = Matrix()
+    matrix:rotate(Angle(0, -90 ,0))
+    render.pushMatrix(matrix)
+    render.drawText(-(pos.y + (y0 + y1) / 2), pos.x + x - 21, titleY, 1) -- because element is rotated 90 deg, x and y swap and x becomes negative
+    render.popMatrix() -- set matrix back again
+        
+end
+
+
+-- rendering function (runs ever time the screen can render)
+renderFunction = function()
+    if update == true then
+        -- clear previous
+        render.clear()
+        --render.setTexture(nil)
+        -- draw screen background
+        render.setColor(Color(90, 155, 180))
+        render.drawRect(0, 0, 512, 512)
+        
+        -- testing the graph drawing function
+        local pos = Vector(129, 128)
+        local size = Vector(248, 248)
+        local bgCol = Color(200, 200, 200)
+        local plotBgCol = Color(170, 170, 200)
+        local title = "y = sin(x)"
+        local titleX = "X"
+        local titleY = "Y"
+        local col = Color(0, 0, 0)
+        local minX = -2
+        local maxX = 7
+        local minY = -1
+        local maxY = 1
+        dataX = {}
+        dataY = {}
+        for k = minX, maxX, 0.05 do
+            table.insert(dataX, k)
+            table.insert(dataY, math.sin(k)) 
+        end
+        local plotCol = Color(0, 0, 0)
+        drawGraph(pos, size, bgCol, plotBgCol, title, col, minX, maxX, titleX, minY, maxY, titleY, dataX, dataY, plotCol)
+        
+        local pos = Vector(384, 128)
+        local size = Vector(248, 248)
+        local bgCol = Color(200, 220, 180)
+        local plotBgCol = Color(200, 170, 200)
+        local title = "Graph Title 2"
+        local titleX = "X axis label"
+        local titleY = "Y axis label"
+        local col = Color(0, 0, 70)
+        local minX = -2
+        local maxX = 7
+        local minY = 0
+        local maxY = 74
+        local dataX = {-1.5, -1, 6.5}
+        local dataY = {0.4, 50, 74}
+        local plotCol = Color(0, 0, 0)
+        drawGraph(pos, size, bgCol, plotBgCol, title, col, minX, maxX, titleX, minY, maxY, titleY, dataX, dataY, plotCol)
+        
+        local pos = Vector(129, 384)
+        local size = Vector(248, 248)
+        local bgCol = Color(200, 200, 200)
+        local plotBgCol = Color(170, 200, 200)
+        local title = "Graph Title 3"
+        local titleX = "X axis label"
+        local titleY = "Y axis label"
+        local col = Color(0, 0, 70)
+        local minX = 0
+        local maxX = 5.3
+        local minY = 0
+        local maxY = 62
+        local dataX = {1, 1.3, 4.9}
+        local dataY = {0.4, 50, 52}
+        local plotCol = Color(100, 0, 0)
+        drawGraph(pos, size, bgCol, plotBgCol, title, col, minX, maxX, titleX, minY, maxY, titleY, dataX, dataY, plotCol)
+        
+        local pos = Vector(384, 384)
+        local size = Vector(248, 248)
+        local bgCol = Color(100, 200, 100)
+        local plotBgCol = Color(200, 200, 200)
+        local title = "Graph Title 4"
+        local titleX = "X axis label"
+        local titleY = "Y axis label"
+        local col = Color(120, 0, 0)
+        local minX = -7
+        local maxX = -2
+        local minY = -74
+        local maxY = 0
+        local dataX = {-6, -3}
+        local dataY = {0, -50}
+        local plotCol = Color(0, 0, 190)
+        drawGraph(pos, size, bgCol, plotBgCol, title, col, minX, maxX, titleX, minY, maxY, titleY, dataX, dataY, plotCol)
+        
+        
+    end
+    --update = false -- don't update the screen again until needed
+end
+
+hook.add("render", "continuous_render", renderFunction)

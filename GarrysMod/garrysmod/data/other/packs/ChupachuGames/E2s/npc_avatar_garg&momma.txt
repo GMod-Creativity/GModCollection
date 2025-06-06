@@ -1,0 +1,112 @@
+@name NPC_avatar_Garg&Momma
+@inputs Control:wirelink
+@outputs Pos:vector Ang:angle NPCpar:entity
+@persist NPC:entity Target:entity V:vector Flag Go
+@persist IsAlive Pod:entity Fix
+@trigger none
+
+runOnTick(1)
+
+if(first()){
+    holoCreate(1) #need to set view
+    Flag = 1 #need to set camera
+    hint("Welcome to the Avatex. Made by coolerthanu9, or Chupachu.",8)
+}
+
+X = -owner():eye():x()*100
+Y = owner():eye():y()*100
+
+if(!NPC){
+    R = ranger(500) #need to find NPC
+    holoPos(1,entity():toWorld(vec(Y,X,0)))
+    holoAlpha(1,255)
+}else{
+    holoAlpha(1,0)
+}
+
+if(R:entity() & !NPC & R:entity():isNPC()){
+    hint("Victim selected.",10)
+    NPC = R:entity()
+    hint(toString(NPC),5)
+    NPC:npcRelationship(owner(),"like",1)
+}
+
+if(NPC){    
+    Ang = owner():eyeAngles()
+    
+    if(Flag){
+        timer("SetCam",2000)
+        Flag = 0
+    }
+    if(Control:number("Active") & clk("SetCam")){
+        Height = NPC:height()
+        Pos = NPC:toWorld(vec(-200,0,Height+100)) #Fixed
+    }
+
+    if(Control:number("Active")){NPCpar = NPC}else{NPCpar = entity()}
+    
+    NPC:npcFace(entity():toWorld(vec(Y,X,0))) #facing NPC. If you will have problems with this part of code tell me, I'll explain.
+    
+    V = vec(0,0,0)
+    if(Control:number("W")){
+        V += vec(150,0,0)
+    }elseif(Control:number("S")){
+        V += vec(-150,0,0)
+    }
+    
+    if(Control:number("A")){
+        V += vec(0,150,0)
+    }elseif(Control:number("D")){
+        V += vec(0,-150,0)
+    }
+    
+    if(Control:number("W") | Control:number("A") | Control:number("S") | Control:number("D")){
+        if(Go == 0 | Go > 3){timer("Go",50)}else{timer("Go",400)} #There is some bug with movement in far distanse from chip.. This fix it.
+        if(clk("Go")){ 
+            if(Control:number("Shift")){
+                NPC:npcGoRun(NPC:toWorld(V))
+                    Go++
+            }else{
+                NPC:npcGoWalk(NPC:toWorld(V))
+                    Go++
+            }
+        }
+    }elseif(Control:number("Mouse1")){ #Attack NPC
+        timer("Attack",1000)
+        if(clk("Attack")){
+            hint("Fire",3) 
+            findInSphere(NPC:pos(),1000)
+            findClipToClass("npc_*")
+            findClipFromModel(NPC:model())
+            Target = findClosest(NPC:pos())
+            if(Target){
+                hint("FIND!"+toString(Target),3)
+                NPC:npcRelationship(Target,"hate",1)
+            }
+        }
+    }elseif(Control:number("Mouse2")){ #Attack players
+        timer("Attack2",1000)
+        if(clk("Attack2")){
+            hint("Fire",3) 
+            findInSphere(NPC:pos(),1000)
+            findClipToClass("player")
+            findClipFromName(owner():name())
+            Target = findClosest(NPC:pos())
+            if(Target){
+                hint("FIND!"+toString(Target),3)
+                NPC:npcRelationship(Target,"hate",1)
+            }
+        }
+    }elseif(Control:number("R")){ #Give SMG
+        NPC:npcGiveWeapon()    
+    }elseif(Control:number("Alt")){ #Say sound file..)
+        NPC:soundPlay(1,5,"vo/Breencast/br_tofreeman02.wav")
+    }else{
+        NPC:npcGoRun(NPC:pos())
+        Go = 0
+    }
+}
+
+if(!Control:number("Active")){
+    Flag = 1
+}

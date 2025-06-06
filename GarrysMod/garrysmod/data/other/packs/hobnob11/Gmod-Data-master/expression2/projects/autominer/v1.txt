@@ -1,0 +1,67 @@
+@name Auto Miner V1
+
+@persist Core:entity E:entity Home:vector TargetRoid:entity Offset:vector Lasers:array
+
+@outputs State:string
+if(first())
+{
+    E = entity():isWeldedTo()
+    Core = E:getCoreEnt()
+    Home = E:pos()
+    Offset = E:toLocal(entity():pos()) + vec(0, 0, 100)
+    dsJoinGroup("HobMiner")
+    dsSetScope(0)
+    runOnSignal("HobMiner",0,1)
+    
+    foreach(K,V:entity=E:getConstraints())
+    {
+        if(V:type()=="sc_weapon_base")
+        {
+            Lasers[Lasers:count()+1,entity] = V
+        }
+    }
+}
+
+if(dsClk())
+{
+    print(dsGetString())
+    State = dsGetString()
+}
+
+interval(1000)
+
+switch(State)
+{
+    case "Idle",
+
+        break
+    case "GoHome",
+        E:setPosition( Home )
+        for(I =1, Lasers:count())
+        {
+            local WL = Lasers[I,entity]:wirelink()
+            WL["Fire",number] = 0
+        }
+        State = "Idle"
+        break
+        
+    case "Mining",
+        if( !TargetRoid:isValid() )
+        {
+            State = "NextRoid"
+        } 
+        break
+        
+    case "NextRoid",
+        findByClass("mining_asteroid")
+        findSortByDistance(entity():pos())
+        TargetRoid = find()
+        E:setPosition( TargetRoid:pos() - Offset )
+        for(I =1, Lasers:count())
+        {
+            local WL = Lasers[I,entity]:wirelink()
+            WL["Fire",number] = 1
+        }
+        break
+        
+}

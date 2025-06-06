@@ -1,0 +1,126 @@
+--@name Plane
+--@author 
+--@shared
+
+if SERVER then
+    
+    Throttle = 0
+    W = 0
+    A = 0
+    S = 0
+    D = 0
+    Shift = 0
+    Space = 0
+    Seat = 0
+    Mass = 0
+    for K,V in pairs(entities.self():GetAllConstrainedEnts()) do
+        Mass = Mass + V:GetMass()
+        if(V:GetClass() == "prop_vehicle_prisoner_pod") then 
+            Seat = V:EntIndex()
+        end
+    end
+    Driver = entities.entity(Seat):GetDriver() 
+    Text = ""
+    Offset = Vector(0,0,0)
+    function NetworkVars()
+        if net.CanSend() then
+            net.Start("Throttle")
+            net.WriteDouble(Throttle)
+            if Driver:IsValid() then
+                net.WriteInt(Driver:EntIndex(),8)
+            else
+                net.WriteInt(-1,8)
+            end
+            net.WriteString(Text)
+            net.Send()
+        end
+    end
+    
+    hook.Add("KeyPress","HobPress",function(ply,key)
+        if ply == Driver then
+            if key == 8 then
+                W = 1
+            elseif key == 512 then
+                A = 1
+            elseif key == 16 then
+                S = 1
+            elseif key == 1024 then
+                D = 1
+            elseif key == 131072 then
+                Shift = 1
+            elseif key == 2 then
+                Space = 1
+            end
+        end
+    end)
+    hook.Add("KeyRelease","HobRelease",function(ply,key)
+        if ply == Driver then
+            if key == 8 then
+                W = 0
+            elseif key == 512 then
+                A = 0
+            elseif key == 16 then
+                S = 0
+            elseif key == 1024 then
+                D = 0
+            elseif key == 131072 then
+                Shift = 0
+            elseif key == 2 then
+                Space = 0
+            end
+        end
+    end)
+    
+    Holo = holograms.create(entities.self():GetPos(),Angle(0,0,0),"models/hunter/blocks/cube025x025x025.mdl",Vector(1,1,1))
+    Holo:SetColor(Color(255,0,0))
+    hook.Add("Think","HobThink",function() 
+        
+        local ThrstMul = 50 * Mass
+        local PitchMul = 5 * Mass
+        local YawMul = 5 * Mass
+        local RollMul = 500 * Mass
+        
+        --internal vars
+        local Ent = entities.self():IsWeldedTo()
+        Driver = entities.entity(Seat):GetDriver() 
+        Throttle = math.Clamp(Throttle + W/100 - S/100, 0 , 1)
+        if Driver:IsValid() then 
+            Holo:setPos(Driver:EyePos() + Driver:EyeAngles():Forward()*500 +Offset)
+            Ang = (Driver:EyePos() - Holo:GetPos()):Angle()
+            Ang[2] = Ang[2] - Ent:GetAngles()[2]
+            Ang[2] = Ang[2] + 90
+            Ang[1] = Ang[1] - Ent:GetAngles()[3]
+            Ang:Normalize()
+            Text = "Pitch: " .. math.Round(Ang[1]) .. " Yaw: " .. math.Round(Ang[2]) .. " Roll: " .. (D-A)
+            Ent:ApplyAngForce(Angle(RollMul*(D-A),YawMul*Ang[2],PitchMul*Ang[1]))
+            Ent:ApplyForceCenter(-Ent:GetRight()*ThrstMul*Throttle)
+        end
+        NetworkVars()
+    end)
+    
+
+
+else
+    Driver = nil
+    Text = ""
+    hook.Add("net","HobNet",function(Name)
+        if Name == "Throttle" then
+            Throttle = net.ReadDouble()
+            Driver = entities.entity(net.ReadInt(8))
+            Text = net.ReadString()
+        end
+    end)
+    Throttle = 0.5
+    hook.Add("HUDPaint","HobPaint",function() 
+        if entities.player() == Driver then
+            local w,h = surface.ScreenW(), surface.ScreenH()
+            surface.SetDrawColor(Color(200,200,200))
+            surface.DrawRect(21,h-160,290,30)
+            surface.SetDrawColor(Color(100,100,100))
+            surface.DrawRect(23,h-158,286*Throttle,26)
+            surface.SetTextColor(Color(255,255,255))
+            surface.SetTextPos(23,h-175)
+            surface.DrawText(Text)
+        end
+    end)
+end

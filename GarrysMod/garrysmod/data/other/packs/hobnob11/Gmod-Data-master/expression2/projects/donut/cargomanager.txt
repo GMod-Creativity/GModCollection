@@ -1,0 +1,213 @@
+@name Donut Cargo Manager
+@inputs F1 F2 B1 B2
+@outputs State:string [ANG TANG ANGF]:angle
+@persist Parent:entity X BayOneLoaded BayTwoLoaded CargoPodOne:entity CargoPodTwo:entity Ready Timer
+@persist [CentralAxisInner CentralAxisOuter CargoPodOneHolo CargoPodTwoHolo]:entity
+@autoupdate
+if ( dupefinished() | (first() & !duped()) )
+{
+    #include "lib/hob"
+    Parent = entity():isWeldedTo()
+    State = "Init"
+    runOnTick(1)
+}
+switch( State )
+{
+    case "Init",
+        CentralAxisInner = holoCreate( 1 )
+            holoPos( 1, Parent:toWorld( vec( 0, 0, 0 ) ) )
+            holoAng( 1, Parent:toWorld( ang( 90, -90, 0 ) ) )
+            holoModel( 1, "hqcylinder" )
+            holoScaleUnits( 1, vec( 1, 1, 500 ) )
+            holoParent( 1, Parent )
+            
+        CentralAxisOuter = holoCreate( 2 )
+            holoPos( 2, CentralAxisInner:toWorld( vec( 0, 0, 0 ) ) )
+            holoAng( 2, CentralAxisInner:toWorld( ang( 0, 0, 0 ) ) )
+            holoModel( 2, "hqcylinder" )
+            holoMaterial( 2, "phoenix_storms/stripes" )
+            holoScaleUnits( 2, vec( 10, 10, 500 ) )
+            holoParent( 2, 1 )
+            
+        CargoPodOneHolo = holoCreate( 3 )
+            holoPos( 3, CentralAxisInner:toWorld( vec( 0, 0, 0 ) ) )
+            holoAng( 3, CentralAxisInner:toWorld( ang( 0, 0, 0 ) ) )
+            holoScale( 3, vec( 0.2 ) )
+            holoParent( 3, 2 )
+            
+        CargoPodTwoHolo = holoCreate( 4 )
+            holoPos( 4, CentralAxisInner:toWorld( vec( 0, 0, 0 ) ) )
+            holoAng( 4, CentralAxisInner:toWorld( ang( 0, 0, 0 ) ) )
+            holoScale( 4, vec( 0.2 ) )
+            holoParent( 4, 2 )
+            
+        State = "Idle"
+        break
+        
+    case "Idle",  
+        if( F1 | F2 )
+        {
+            State = "Lower Bay 2"
+        }
+        if( B1 | B2 )
+        {
+            State = "Lower Bay 1"
+        }
+        break
+    
+    case "Lower Bay 1",
+        if( X < 90 )
+        {
+            X = X + 1
+            CentralAxisOuter:hSetAng( CentralAxisInner:toWorld( ang( 0, X, 0 ) ) )
+        }else{
+            State = "Bay 1 Down"
+        }
+        break
+        
+    case "Bay 1 Down",
+        if( BayOneLoaded )
+        {
+            BayOneLoaded = 0
+            CargoPodOne:deparent()
+            CargoPodOne = noentity()
+            State = "Raise Bay 1"
+            
+        }else{
+            rangerFilter(entity():getConstraints())
+            rangerFilter(CentralAxisOuter)
+            local TR = rangerOffset( 10000, CentralAxisOuter:pos(), vec( 0, 0, -1 ) )
+            if( CargoPodOne:isValid() )
+            {
+                local TargetPos = CentralAxisOuter:toWorld( vec( 0, -150, 0 ) )
+                local TargetAng = CentralAxisOuter:toWorld( ang( 0, 0, 0 ) )
+                
+                CargoPodOneHolo:hSetPos( CargoPodOne:boxCenterW() )
+                CargoPodOneHolo:hSetAng( CargoPodOne:angles() )
+                
+                if( CargoPodOne:boxCenterW():distance( TargetPos ) <= 5 & CargoPodOne:angles() >= TargetAng-ang(2,2,2) & CargoPodOne:angles() <= TargetAng+ang(2,2,2) )
+                {
+                    BayOneLoaded = 1
+                    State = "Raise Bay 1"
+                } else {
+
+                    CargoPodOne:parentTo( CargoPodOneHolo )
+                    if( Ready == 0 & Timer == 0 )
+                    {
+                        timer( "holoParent", 100 )
+                        Timer = 1
+                    }
+                    if( clk( "holoParent" ) )
+                    {
+                        Ready = 1
+                    }
+                    if( Ready ) 
+                    {
+                        local Dir = TargetPos - CargoPodOneHolo:pos() 
+                        local Vec = min( ( Dir/Dir:length() ), Dir )
+                        CargoPodOneHolo:hSetPos( CargoPodOneHolo:pos() + Vec )
+                        
+                        CargoPodOneHolo:hSetAng( smoothness( CargoPodOneHolo:angles(), TargetAng, 1) )
+                        
+                    }
+                    
+                }
+                    
+            } elseif( TR:entity():isValid() )
+            {
+                if( TR:entity():model() == "models/mandrac/resource_cache/colossal_cache.mdl" )
+                {
+                    CargoPodOne = TR:entity()
+                }
+            }
+        }
+        break
+        
+    case "Raise Bay 1",
+        if( X > 0 )
+        {
+            X = X - 1
+            CentralAxisOuter:hSetAng( CentralAxisInner:toWorld( ang( 0, X, 0 ) ) )
+        }else{
+            State = "Idle"
+        }
+        break
+        
+    case "Lower Bay 2",
+        if( X > -90 )
+        {
+            X = X - 1
+            CentralAxisOuter:hSetAng( CentralAxisInner:toWorld( ang( 0, X, 0 ) ) )
+        }else{
+            State = "Bay 2 Down"
+        }
+        break
+        
+    case "Bay 2 Down",
+        if( BayTwoLoaded )
+        {
+            BayTwoLoaded = 0
+            CargoPodTwo:deparent()
+            CargoPodTwo = noentity()
+            State = "Raise Bay 2"
+            
+        }else{
+            rangerFilter(entity():getConstraints())
+            rangerFilter(CentralAxisOuter)
+            local TR = rangerOffset( 10000, CentralAxisOuter:pos(), vec( 0, 0, -1 ) )
+            if( CargoPodTwo:isValid() )
+            {
+                local TargetPos = CentralAxisOuter:toWorld( vec( 0, 150, 0 ) )
+                local TargetAng = CentralAxisOuter:toWorld( ang( 0, 0, 0 ) )
+                
+                CargoPodTwoHolo:hSetPos( CargoPodTwo:boxCenterW() )
+                CargoPodTwoHolo:hSetAng( CargoPodTwo:angles() )
+                
+                if( CargoPodTwo:boxCenterW():distance( TargetPos ) <= 5 & CargoPodTwo:angles() >= TargetAng-ang(2,2,2) & CargoPodTwo:angles() <= TargetAng+ang(2,2,2) )
+                {
+                    BayTwoLoaded = 1
+                    State = "Raise Bay 2"
+                } else {
+
+                    CargoPodTwo:parentTo( CargoPodTwoHolo )
+                    if( Ready == 0 & Timer == 0 )
+                    {
+                        timer( "holoParent", 100 )
+                        Timer = 1
+                    }
+                    if( clk( "holoParent" ) )
+                    {
+                        Ready = 1
+                    }
+                    if( Ready ) 
+                    {
+                        local Dir = TargetPos - CargoPodTwoHolo:pos() 
+                        local Vec = min( ( Dir/Dir:length() ), Dir )
+                        CargoPodTwoHolo:hSetPos( CargoPodTwoHolo:pos() + Vec )
+                        
+                        CargoPodTwoHolo:hSetAng( smoothness( CargoPodTwoHolo:angles(), TargetAng, 1) )
+                        
+                    }
+                    
+                }
+                    
+            } elseif( TR:entity():isValid() )
+            {
+                if( TR:entity():model() == "models/mandrac/resource_cache/colossal_cache.mdl" )
+                {
+                    CargoPodTwo = TR:entity()
+                }
+            }
+        }
+        break
+        
+    case "Raise Bay 2",
+        if( X < 0 )
+        {
+            X = X + 1
+            CentralAxisOuter:hSetAng( CentralAxisInner:toWorld( ang( 0, X, 0 ) ) )
+        }else{
+            State = "Idle"
+        }
+        break
+}

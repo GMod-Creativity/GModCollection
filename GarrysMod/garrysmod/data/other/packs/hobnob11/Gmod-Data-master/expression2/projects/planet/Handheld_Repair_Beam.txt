@@ -1,0 +1,74 @@
+@name Handheld Reapir Beam
+
+@persist Weapons:array CurTime Speed 
+
+if(first())
+{
+    runOnLast(1)
+    runOnTick(1)
+    #include "lib/hob/math"
+    #include "lib/hob/spacecombat"
+    
+    holoCreate(1)
+    holoScaleUnits(1,vec(1,1,1))
+    holoModel(1,"hqsphere")
+    holoPos(1,owner():pos()+vec(0,0,owner():boxSize():z()+10))
+    holoAng(1,owner():eyeAngles()+ang(90,0,0))
+    findIncludePlayerProps(owner())
+    findByClass("sc_weapon_base")
+    foreach(K,V:entity=findToArray())
+    {
+        if(V:getWeaponName():find("Swarm"))
+        {
+            Speed = V:getWeaponSpeed()
+            print(V:getWeaponName())
+            Weapons:pushWirelink(V:wirelink())
+            V:setPos(holoEntity(1):pos())
+            V:setAng(holoEntity(1):angles())
+            V:lsLink(entity():isWeldedTo())
+            V:setSolid(0)
+        }
+    }
+    function parent()
+    {
+        print("heh")
+        foreach(K,V:wirelink=Weapons)
+        {
+            local E = V:entity()
+            print(E)
+            E:parentTo(holoEntity(1))
+        }
+    }
+    timer(100,1,"parent","parent()")
+}
+entity():isWeldedTo():setCapAmount(700000000)
+
+holoPos(1,owner():pos()+vec(0,0,owner():boxSize():z()+10))
+local CurAng = holoEntity(1):angles()
+local TarAng = owner():eyeAngles()
+CurTime = curtime()
+holoAng(1,smoothness(CurAng,TarAng,$CurTime*Speed))
+
+local Math = holoEntity(1):forward():dot(owner():eye())
+if(acos(clamp(Math,0,1))<=1)
+{
+    foreach(K,V:wirelink=Weapons)
+    {
+        V["Fire",number] = owner():keyAttack1() != 0
+    }
+}else{
+    foreach(K,V:wirelink=Weapons)
+    {
+        V["Fire",number] = 0
+    }
+}
+
+if(last())
+{
+    foreach(K,V:wirelink=Weapons)
+    {
+        local E = V:entity()
+        E:deparent()
+        E:setSolid(1)
+    }
+}

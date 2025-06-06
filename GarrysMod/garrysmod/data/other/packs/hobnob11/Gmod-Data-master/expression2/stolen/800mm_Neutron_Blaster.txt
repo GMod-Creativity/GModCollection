@@ -1,0 +1,151 @@
+@name 800mm Neutron Blaster
+@persist MaxElevation MinElevation AimSpeed Range Hitscan:ranger GLOBAL:gtable Group:string Fire Active
+@persist [Weapons WeaponSlots WaitingForParent]:array LastSlot LastParented TElevation OTElevation
+@model models/mandrac/hybride/heavy_base.mdl
+runOnChat(1)
+runOnLast(1)
+
+Active = 1#GLOBAL["TURR_ACTIVE_"+Group,number]
+Target = owner()#GLOBAL["TURR_TARGET_"+Group,entity]
+
+interval(Active ? 100 : 1000)
+
+if (chatClk(owner())) {
+    if(owner():lastSaid():lower() == "!deparent"){
+        hideChat(1)
+        #Unparent the weapons
+        foreach(K, V:wirelink=Weapons){
+            E = V:entity()
+            if(E:isValid()){
+                E:setAlpha(255)
+                E:propNotSolid(0)
+                E:deparent()
+            }
+        }
+        print("Weapons Detached!")
+    }elseif(owner():lastSaid():lower() == "!weld" && entity():getCoreEnt():isValid()){
+        hideChat(1)
+        foreach(K, E:wirelink=Weapons){
+            E:entity():weld(entity():getCoreEnt())
+        }
+    }elseif(owner():lastSaid():lower() == "!attach"){
+        hideChat(1)
+        findClearWhiteList()
+        findIncludeClass("sc_weapon*")
+        findInSphere(entity():pos(), 150)
+        
+        foreach(K, E:entity=findToArray()){
+            SE = WeaponSlots[LastSlot+1, entity]
+            LastSlot = LastSlot + 1
+            if(LastSlot > WeaponSlots:count()){LastSlot = 0}
+            
+            if(SE:isValid()){
+                E:freeze()
+                E:propNotSolid(1)
+                E:setMass(1)
+                E:setPos(SE:toWorld(vec(0,0,0)))
+                E:setAng(SE:toWorld(ang(0,0,0)))
+                WaitingForParent[WaitingForParent:count()+1, entity] = E
+            }
+        }
+        
+        timer("PARENT", 100)
+    }
+}elseif (clk("PARENT")){
+    local Looped = 0
+    for(I=LastParented+1, WaitingForParent:count()){
+        E = WaitingForParent[I, entity]
+        E:parentTo(holoEntity(11))
+        Weapons[Weapons:count()+1, wirelink] = E:getWirelink()
+        WaitingForParent:removeEntity(I)
+        Looped = Looped + 1
+        if(Looped == 2){
+            timer("PARENT", 100)
+            break
+        }
+    }
+}elseif (first()|dupefinished()){
+    #Variables
+    MaxElevation = 75
+    MinElevation = -10
+    Range = 15000
+    AimSpeed = 5
+    AutoClean = 0
+    Group = "BA_BRAN_TUR_SHIP"
+    
+    GLOBAL = gTable("RECETIUMEXTERNALINTERFACE")
+    
+    #Holograms
+    holoCreate(1,entity():toWorld(vec(0,20,40)))
+        holoAng(1,entity():toWorld(ang(0,-90,0)))
+        holoAlpha(1,0)
+        holoParent(1,entity())
+            
+    holoCreate(11,entity():toWorld(vec(0,20,75)))
+        holoAng(11,holoEntity(1):toWorld(ang(0,0,0)))
+        holoAlpha(11,0)
+        holoScale(11, vec(10,1,1))
+        holoParent(11,1)
+        WeaponSlots[1, entity] = holoEntity(11)
+        
+    holoCreate(111,entity():toWorld(vec(0,20,75)))
+        holoAng(111,holoEntity(1):toWorld(ang(0,0,0)))
+        holoAlpha(111,0)
+        holoParent(111,1)
+        
+    holoCreate(2,entity():toWorld(vec(0,20,40)))
+        holoAng(2,entity():toWorld(ang(0,0,0)))
+        holoModel(2,"models/mandrac/hybride/heavy_body.mdl")
+        holoParent(2,1)
+    
+    holoCreate(22,holoEntity(11):toWorld(vec(-25,0,0)))
+        holoModel(22,"models/mandrac/hybride/heavy_blaster.mdl") 
+        holoAng(22,entity():toWorld(ang(180,-180,-90))) 
+        holoParent(22,11)
+}
+
+elseif (last() & AutoClean == 1){
+    #Remove the guns if the turret is deleted   
+    foreach(K, V:wirelink=Weapons){
+        V:entity():propDelete()
+    }
+}
+    
+elseif (Active&&Target:isValid()){
+    OTElevation = TElevation
+    TBearing = -holoEntity(1):bearing(Target:boxCenterW())
+    TElevation = holoEntity(111):elevation(Target:boxCenterW())
+    
+    if (TElevation<MinElevation){TElevation=MinElevation} elseif (TElevation>MaxElevation) {TElevation=MaxElevation}
+    
+    OTElevation = OTElevation - TElevation
+    
+    if (OTElevation<-AimSpeed){TElevation+=OTElevation+AimSpeed} elseif (OTElevation>AimSpeed) {TElevation+=OTElevation-AimSpeed}
+    if (TBearing<-AimSpeed){TBearing=-AimSpeed} elseif (TBearing>AimSpeed) {TBearing=AimSpeed}
+    
+    holoAng(1,holoEntity(1):toWorld(ang(0,TBearing,0)))
+    holoAng(11, holoEntity(1):toWorld(ang(-TElevation, 0, 0)))
+    
+    Fire = GLOBAL["TURR_FIRE_"+Group,number]
+    
+    #Check if the target is owned by the owner of the chip, or is on the owners prop protection before firing
+    if(~Fire||Fire){
+        foreach(K, V:wirelink=Weapons){
+            E = V:entity()
+            rangerFilter(E)
+            Hitscan = rangerOffset(Range, E:boxCenterW(), E:forward())
+            if (!Hitscan:entity():isValid() || Hitscan:entity() == owner() || Hitscan:entity():owner() == owner())
+            {
+                V["Fire", number] = 0
+            }
+            else
+            {
+                V["Fire", number] = Fire
+            }
+        }
+    }
+}elseif(~Active && !Active){
+    foreach(K, V:wirelink=Weapons){
+        V["Fire", number] = 0
+    }
+}

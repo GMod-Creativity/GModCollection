@@ -1,0 +1,161 @@
+@name Ragdoll Animator
+@outputs [BonPos List Animations]:array Rag:entity Scene:table [Animation Z]:string A AA MixPer MPO PlaySpeed Frame NewFrame
+@persist [E O Rag]:entity [BonPos BonAng Bones LoadArray Animations BPOld BPNext]:array
+@persist [Name Animation]:string [Scene]:table
+@persist Load Usable BC BoneNum Force Frame Save NewFrame KR MPO Auto Play PlaySpeed FramePerSec NF ListCheck
+#@model models/Combine_Scanner.mdl
+if(duped()){selfDestructAll()}
+if(first()){
+    hideChat(1)
+    runOnTick(1)
+    runOnFile(1)
+    runOnChat(1)
+    E=entity() O=owner()
+    Force=4
+    FramePerSec=2
+    PlaySpeed=1
+    function void load(){ 
+        LoadArray=vonDecode(fileRead())
+        BonPos=vonDecode(LoadArray[1,string])
+        BonAng=vonDecode(LoadArray[2,string])
+    }
+    function void force(Num){
+        BoneNum=Num%BC+1
+        Bone=Bones[BoneNum,bone]
+        Bone:applyForce((E:toWorld(BonPos[BoneNum,vector])-Bone:pos())*Bone:mass()*Force-Bone:vel()/2)
+ #       Bone:applyAngForce((BonAng[BoneNum,angle]-E:toLocal(Bone:angles()))*Bone:mass()*Force-Bone:angVel()/2)
+    }
+    findIncludePlayerProps(owner())
+    findByClass("prop_ragdoll")
+    Rag=findResult(1)
+    Bones=Rag:bones()
+    BC=Bones:count()
+    Frame=1 Animation="" NF=1
+    fileList("bones/"+Animation)
+    function void save(Rag:entity){
+        for(BP=1,Bones:count()){
+            BonPos[BP,vector]=E:toLocal(Bones[BP,bone]:pos())
+            BonAng[BP,angle]=E:toLocal(Bones[BP,bone]:angles())
+        }
+        SaveArray=array(vonEncode(BonPos),vonEncode(BonAng))
+        SaveString=vonEncode(SaveArray)
+        fileWrite("bones/"+Animation+Name+".txt",SaveString)
+        Save=0
+    }
+}
+if ((chatClk(O)) & O:lastSaid():left(1)=="!"){
+    Cmd=O:lastSaid()
+    Input = Cmd:explode(" ")
+    Cmd=Input[1, string]:sub(2,Input[1, string]:length())
+    Argument = Input[2, string]
+    if(Cmd=="reset"){reset()}
+    if(Cmd=="animation"){
+        Animation=Argument+"/"
+        Usable=0
+        Scene=table()
+        if(fileCanList()){
+            fileList("bones/"+Animation)
+        }else{hint("Error,Try again",1000)}
+    }
+    if(Cmd=="auto"){
+        Auto=(Argument:toNumber() > 0 ? 1 : 0)
+        Rag:soundPlay(0,0,"buttons/button3.wav")
+        Play=0
+    }
+    if(Cmd=="usable"){
+        Usable=(Argument:toNumber() > 0 ? 1 : 0)
+    }
+    
+    if(Cmd=="save"){
+        Name=Argument
+        Save=1
+        Load=0 Usable=0 Auto=0 Play=0 ListCheck=0
+    }
+    if(Cmd=="play"){
+        Frame=1
+        Play=(Argument:toNumber() > 0 ? 1 : 0)
+        Rag:soundPlay(0,0,"buttons/button3.wav")
+        NewFrame=(Frame==List:count() ? 1 : Frame+1)
+        BPOld=Scene[toString(Frame),array]
+        BPNext=Scene[toString(NewFrame),array]
+        Auto=0
+    }
+    if(Cmd=="playspeed"){
+        PlaySpeed=Argument:toNumber()
+    }
+}
+KR=O:keyReload()
+if(KR & $KR){
+    Frame=(Frame==List:count() ? 1 : Frame+1)
+    BonPos=Scene[toString(Frame),array]
+    Rag:soundPlay(0,0,"buttons/button16.wav")
+    }
+if(fileListClk()){
+    hint("List downloaded",3000)
+    List=fileReadList()
+    for(LI=1,List:count()){
+        if(List[LI,string]:right(1)=="/"){
+            Animations[NF,string]=List[LI,string]
+            NF++
+            List:remove(LI)
+            ListCheck=1
+        }
+    }
+    if(List:count()){Load=1} 
+    Name=toString(Load)
+    }
+if(fileCanLoad() & Load ){
+    fileLoad("bones/"+Animation+Load+".txt")
+}
+if(fileClk("bones/"+Animation+Load+".txt")){
+    load()
+    Scene[toString(Load),array]=BonPos
+    hint("animation loading ... "+toString(round(Load/List:count()*100))+"%",3000)
+    Load++
+    if(Load-1==List:count()){
+        Rag:soundPlay(0,0,"buttons/button17.wav")
+        Load=0
+    }
+}
+if(Usable){
+    for(Num=1,BC){
+        force(Num)
+    }
+    if(Auto){
+        timer("auto",1000/FramePerSec)
+        if(clk("auto")){
+            Frame=(Frame==List:count() ? 1 : Frame+1)
+            BonPos=Scene[toString(Frame),array]
+        }
+        
+    }
+    if(Play){
+        MixPer=(curtime()*PlaySpeed)%1
+        if(MixPer<MPO){
+            BPOld=Scene[toString(NewFrame),array]
+            Frame=NewFrame
+            NewFrame=(Frame==List:count() ? 1 : Frame+1)
+            BPNext=Scene[toString(NewFrame),array]
+            AA++
+        }
+        for(MixFrame=1,BPNext:count()){
+            BonPos[MixFrame,vector]=mix(BPOld[MixFrame,vector],BPNext[MixFrame,vector],1-MixPer)
+        }
+        MPO=MixPer
+    }
+}
+if(ListCheck){
+    ListCheck=0
+    for(LI=1,List:count()){
+        if(List[LI,string]:right(1)=="/"){
+            Animations[NF,string]=List[LI,string]
+            NF++
+            List:remove(LI)
+            ListCheck=1
+        }
+    }
+    if(List:count()){Load=1}
+}
+if(Save & fileCanWrite()){
+    save(Rag)
+}

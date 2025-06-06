@@ -1,0 +1,9 @@
+- Author: CrishNate
+- Edited: Ashleyjamesy
+- Edited-Reddit: https://www.reddit.com/user/ashleyjamesy/
+- Edited-Steam Profile: https://steamcommunity.com/profiles/76561198005223075
+- Edited-Github: https://github.com/AshleyJamesy
+- Date (dd-mm-yyyy): 13-04-2017
+- Source: https://www.reddit.com/r/wiremod/comments/63p4zm/chastifol_e2_fix/
+- Source: https://pastebin.com/Qbd7FnLi
+- Source Accessed (dd-mm-yyyy): 05-06-2025

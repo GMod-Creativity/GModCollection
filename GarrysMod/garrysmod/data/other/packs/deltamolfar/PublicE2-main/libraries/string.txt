@@ -1,0 +1,311 @@
+@persist LIB_STRING_INTERNAL_PrintOutTable:table
+
+#[
+    Just a bunch of useful string functions that I often use.
+    
+    ###################################
+    ##           StringLib           ##
+    ##      made by deltamolfar      ##
+    ##        Glory to Ukraine       ##
+    ###################################
+    
+    This chip can be freely distributed between anyone you want, as long, as you keep the author credits.
+    If you want to change something, and help others, feel free to create an issue/PR.
+]#
+
+if( first() || duped() ){
+    LIB_STRING_INTERNAL_PrintOutTable = table(
+        "NOTIFICATION" = 0,
+        "IsFinished" = 1,
+        "START" = 0,
+        "MESSAGE_ARRAY" = array(),
+        "DELAY" = 50 # <- Static. If you want to, you can try to modify it (making this number too little will result in some messages not be sent).
+    )
+}
+
+# Returns if the string is a number (it allow dots, so may be faulty sometimes ex. isDigit("123.")==1)
+function number isDigit(String:string){
+    local StrLen = String:length()
+    if( StrLen==0 ){ return 0 }
+    
+    local ASCII = 0
+    for(I=1, StrLen){
+        ASCII = toByte(String[I])
+        
+        if( ASCII<48 || ASCII > 57){ if( ASCII!=46 ){ return 0 } }
+    }
+    
+    return 1
+}
+
+# Alias of isDigit(s)
+function number string:isDigit(){
+    return isDigit(This)
+}
+
+# Similar to isDigit(s) but doesn't permit dots (making it more fail-proof. Ex. isDigit("123.")==0)
+function number isInt(String:string){
+    local StrLen = String:length()
+    if( StrLen==0 ){ return 0 }
+    
+    local ASCII = 0
+    for(I=1, StrLen){
+        ASCII = toByte(String[I])
+        
+        if( ASCII<48 || ASCII > 57){ return 0 }
+    }
+    
+    return 1
+}
+
+# Alias of isInt(s)
+function number string:isInt(){
+    return isInt(This)
+}
+
+# Experimental. Translates a string to very big number. Made to be used with satelite dish/radio. Not very useful.
+function number toByteSentence(String:string){
+    local NumberArr = array()
+    local Number = 1
+    
+    for(I=1, String:length()){
+        NumberArr:pushNumber(toByte(String[I]))
+    }
+    
+    foreach(_:number, V:number = NumberArr){
+        Number = Number * 1000 + V
+    }
+    
+    return Number
+}
+
+# Experimental. Translates a very big number to string. Made to be used with satelite dish/radio. Not very useful.
+function string toCharSentence(Number:number){
+    local String = ""
+    local Number_Str = Number:toString()
+    
+    for(I=2, Number_Str:length(), 3){
+        local Group = Number_Str:sub(I, I+2)
+        for(J=1, 1){
+            if( Group[J]=="0" ){ Group:sub(2) }
+        }
+        
+        String += toChar(Group:toNumber())
+    }
+    
+    return String
+}
+
+# Formats time as time string. Ex. formatAsTime(320) == "5:20"
+function string formatAsTime(Time:number){
+    local Result = ""
+    if( Time<=0 ){ return "N/A" }
+    
+    #Minutes
+    local Minutes = floor( Time/60 )
+    if( Minutes==0 ){
+        Result += "00"
+    }
+    elseif( Minutes<10 ){ 
+        Result += "0"
+        Result += Minutes+""
+    } elseif( Minutes>99 ){
+        Result += "99"
+    } else{
+        Result += Minutes+""
+    }
+    Result += ":"
+    
+    #Seconds
+    local Seconds = floor( Time-Minutes*60 )
+    if( Seconds==0 ){
+        Result += "00"
+    }
+    elseif( Seconds<10 ){ 
+        Result += "0"
+        Result += Seconds+""
+    } elseif( Seconds>99 ){
+        Result += "99"
+    } else{
+        Result += Seconds+""
+    }
+    
+    return Result
+}
+
+# Formats number as a bool. Ex. formatAsBool(1) == "true"
+function string formatAsBool(Statement:number){
+    if( Statement<=0 ){
+        return "false"
+    } else{
+        return "true"
+    }
+}
+
+# Beautifully formats a number. Ex. 1000000:formatNumber() == "1.000.000"
+function string number:formatNumber(){
+    This = floor(This)
+    local NumberStr = This:toString()
+    const Length = NumberStr:length()
+
+    if( Length<=3 ){ return NumberStr }
+
+    local Formatted = ""
+
+    for(I=1, Length){
+        if( I%3 == (Length+1)%3 & I!=1 ){
+            Formatted+="."
+        }
+        Formatted+=NumberStr[I]
+    }
+
+    return Formatted
+}
+
+# Translates common string boolean values to number representing boolean (1/0 - True/False).
+function number boolToNumber(Statement:string){
+    Statement = Statement:trim():lower()
+
+    if( Statement=="true" || Statement=="yes" || Statement=="y" || Statement=="1" || Statement=="ya" || Statement=="yay" ){
+        return 1
+    }
+
+    return 0
+}
+
+# Alias of boolToNumber(s)
+function number string:boolToNumber(){
+    return boolToNumber(This)
+}
+
+# Capitalizes first letter. Ex. "fff":capitalizeFirst() == "Fff"
+function string string:capitalizeFirst(){
+    local TempString = This[1]
+    
+    return TempString+This:sub(2)
+}
+
+# Deletes all letters from string. Ex. "A1B2C3":deleteLetters() == "123"
+function string string:deleteLetters(){
+    local New = ""
+    
+    for(I=1, This:length()){
+        const Char = This[I]
+        const ASCII = toByte(Char)
+        
+        if( ASCII<65 || ASCII>122 ){
+            New += Char
+        }
+    }
+    
+    return New
+}
+
+# Forcefully translates a string to number (ignoring other characters in a way). Ex. "A1B2C3":toNumberForced() == 123
+function number string:toNumberForced(){
+    This = This:trim()
+    
+    local New = ""
+    local ASCII = 0
+    local Char = ""
+    
+    for(I=1, This:length()){
+        Char = This[I]
+        ASCII = toByte(Char)
+        
+        if( (ASCII>=48 && ASCII<=57) || ASCII==46 ){
+            New += Char
+        }
+    }
+    
+    return New:toNumber()
+}
+
+# Forcefully translates a string to number (ignoring other characters in a way+dots (making it more fail-proof)). Ex. "A1B2C3":toNumberForced() == 123
+function number string:toIntForced(){
+    This = This:trim()
+
+    local New = ""
+    local Char = ""
+
+    for(I=1, This:length()){
+        Char = This[I]
+        const ASCII = toByte(Char)
+
+        if( ASCII>=48 && ASCII<=57 ){
+            New += Char
+        }
+    }
+
+    return New:toNumber()
+}
+
+# Transforms a string to vector. Ex. "123,234,345":toVector() == vec(123,234,345)
+function vector string:toVector(){
+    local NewArray = array()
+
+    foreach(I:number, V:string = This:explode(",")){
+        NewArray[I, number] = V:toNumberForced()
+    }
+    
+    return vec(NewArray[1, number], NewArray[2, number], NewArray[3, number])
+}
+
+function lib_string_internal_consolePrintoutClk(){
+    if( LIB_STRING_INTERNAL_PrintOutTable["MESSAGE_ARRAY", array]:count()==0 ){
+        LIB_STRING_INTERNAL_PrintOutTable["IsFinished", number] = 1
+        print(_HUD_PRINTCONSOLE, "-----=====[ Print out finished. Powered by deltamolfar ]=====-----\n\n")
+        
+        if( LIB_STRING_INTERNAL_PrintOutTable["NOTIFICATION", number] ){
+            hint("Console printout finished! (Check console)", 7)
+        }
+    } else{
+        local CurrentMessage = LIB_STRING_INTERNAL_PrintOutTable["MESSAGE_ARRAY", array][1, string]
+        LIB_STRING_INTERNAL_PrintOutTable["MESSAGE_ARRAY", array]:removeString(1)
+        
+        if( CurrentMessage=="" && LIB_STRING_INTERNAL_PrintOutTable["MESSAGE_ARRAY", array]:count()>0 ){
+            lib_string_internal_consolePrintoutClk()
+            exit()
+        }
+        
+        print(_HUD_PRINTCONSOLE, CurrentMessage)
+        timer("LIB_STRING_INTERNAL_TIMER_PrintConsoleClk", LIB_STRING_INTERNAL_PrintOutTable["DELAY", number])
+    }
+}
+
+# This function will print out each string of array to owner's console. It will return 0, if this function already prints out some information, 1 in another case.
+function number array:printToConsole(){
+    if( LIB_STRING_INTERNAL_PrintOutTable["IsFinished", number]==0 ){ return 0 }
+    
+    LIB_STRING_INTERNAL_PrintOutTable["IsFinished", number] = 0
+    LIB_STRING_INTERNAL_PrintOutTable["START", number] = curtime()
+    LIB_STRING_INTERNAL_PrintOutTable["MESSAGE_ARRAY", array] = This
+    LIB_STRING_INTERNAL_PrintOutTable["NOTIFICATION", number] = 0
+
+    print(_HUD_PRINTCONSOLE, "\n\n-----=====[ Print out started. Estimated printout time: "+LIB_STRING_INTERNAL_PrintOutTable["DELAY", number]*(This:count()+1)*0.001+"s ]=====-----")
+    
+    timer("LIB_STRING_INTERNAL_TIMER_PrintConsoleClk", LIB_STRING_INTERNAL_PrintOutTable["DELAY", number])
+    return 1
+}
+
+# Alias of r:printToConsole()
+function number printToConsole(Arr:array){
+    return Arr:printToConsole()
+}
+
+# Will also notify when printout is finished.
+function number array:printToConsoleNotify(){
+    local N = This:printToConsole()
+    LIB_STRING_INTERNAL_PrintOutTable["NOTIFICATION", number] = 1
+    
+    return N
+}
+
+# Alias
+function number printToConsoleNotify(Arr:array){
+    return Arr:printToConsoleNotify()
+}
+
+if( clk("LIB_STRING_INTERNAL_TIMER_PrintConsoleClk") ){
+    lib_string_internal_consolePrintoutClk()
+}

@@ -1,0 +1,85 @@
+@name ACF Car Controls lanbox mod v1
+@inputs Wirelink:wirelink RPM1 RPM2 Speed Active
+@outputs LeftBrake LeftClutch LeftGear Throttle EngineOn
+@persist Clutch MaxGear Cutoff Shift IdleThrottle Gear PivotResistance
+@persist ShiftUpRPM ShiftDownRPM ShiftWait ShiftDelay BrakeForce TopSpeed PivotSpeed
+
+## The LANBox ACF Tank Controls by blaknite ##
+##    Visit The LANBox - Gaming, networked.    ##
+## modified by buder5 ##
+## ctrl is unused rpm2 input is unused ##
+
+runOnTick(1)
+
+if(first()){
+    ## Initialise persistant variables. Do not change ##
+    Gear=1
+    Clutch=0
+    
+    ## Configuration Variables. Change these to suit your set up ##
+    MaxGear=6              # Number of gears. Highest gear is reverse.
+    ShiftDelay=25          # Delay between successive shifts. it work great at 100 -120
+    Cutoff=1000            # Set this to the RPM at the bottom of your engine(s) powerband.
+    ShiftUpRPM=3500        # Engine RPM needed before shifting into a higher gear.
+    ShiftDownRPM=1200      # Engine RPM needed before shifting into a lower gear.
+    BrakeForce=10          # Force applied when in Park or space is held. Shouldn't exceed 10 unless you know what you're doing.
+    IdleThrottle=1         # Throttle at idle. Can be useful for stall converter setups.
+    TopSpeed=30            # Top speed in kph. This is used to decrease brake power while turning at high speed.
+    PivotResistance=0      # Don't touch this is unused
+    PivotSpeed=-1          # Don't touch this is unused
+}
+
+## The Guts. Don't touch anything below unless you know what you're doing. ##
+W = Wirelink:number("W")
+#A = Wirelink:number("A")
+S = Wirelink:number("S")
+#D = Wirelink:number("D")
+Space = Wirelink:number("Space")
+Ctrl = Wirelink:number("Ctrl")
+
+EngineOn = 1
+
+if ( PivotSpeed < 0 ) { RPM = RPM1 } else { RPM = min(RPM1,RPM2) }
+
+if( W || S ) { Throttle = 100 } else { Throttle = IdleThrottle }
+
+Brake = Space*BrakeForce
+
+if ( Shift && ShiftWait <= ShiftDelay ) { ShiftWait++ }
+if ( ShiftWait > ShiftDelay ) { ShiftWait=0, Shift=0 }
+
+Clutch = clamp(((Cutoff*1.4)-RPM)/(min(Cutoff/2,500)),0,1)
+
+if ( RPM > ShiftUpRPM && Gear < (MaxGear-1) && !ShiftWait) { Gear++, Shift=1 }
+if ( RPM < ShiftDownRPM && Gear > 1 && !ShiftWait) { Gear--, Shift=1 }
+
+Turn = (Ctrl)
+TurnForce = Turn*clamp(BrakeForce*(((TopSpeed*1.2)-Speed)/(TopSpeed*1.2)), BrakeForce*0.2, BrakeForce)
+
+if ( S ) {
+    LeftGear = RightGear = MaxGear
+    LeftClutch = Clutch+Space+clamp(Turn,0,1)
+    RightClutch = Clutch+Space+clamp(Turn,0,1)
+    LeftBrake = clamp(Brake+clamp(-TurnForce,0,BrakeForce),0,BrakeForce)
+    RightBrake = clamp(Brake+clamp(TurnForce,0,BrakeForce),0,BrakeForce)
+} #elseif ( ( A||D ) && !W && Speed < PivotSpeed ) {
+    #LeftGear = clamp(-Turn,0,1)*(MaxGear-1)+1
+    #RightGear = clamp(Turn,0,1)*(MaxGear-1)+1
+    #LeftClutch = Clutch+Space
+    #RightClutch = Clutch+Space
+    #LeftBrake = clamp(Brake+(BrakeForce*PivotResistance),0,BrakeForce)
+    #RightBrake = clamp(Brake+(BrakeForce*PivotResistance),0,BrakeForce)
+
+#} 
+else {
+    LeftGear = RightGear = Gear
+    LeftClutch = Clutch+Space+clamp(Turn,0,1)
+    RightClutch = Clutch+Space+clamp(Turn,0,1)
+    LeftBrake = clamp(Brake+clamp(TurnForce,0,BrakeForce),0,BrakeForce)
+    RightBrake = clamp(Brake+clamp(TurnForce,0,BrakeForce),0,BrakeForce)
+}
+
+if( !Active ){
+  LeftBrake = RightBrake = BrakeForce
+  LeftClutch = RightClutch = 1
+}

@@ -1,0 +1,43 @@
+@name Cuddly_Airplane_Control_v1
+@inputs [Pod Cam]:wirelink M1
+@outputs CamPos:vector
+@persist YConst ZConst VertMove Throttle Roll AngCheck
+@persist [Body]:entity [CamVec VT]:vector [Ang Eye]:angle
+#Made by Cuddles
+if(first()|duped()){
+    runOnTick(1)
+    Body = entity():isWeldedTo()
+    Throttle = 0
+    Roll = 0
+    Body:setMass(25000)
+}else{
+    if(Pod["Active",number]){
+        Eye = Body:toLocal(Pod["Entity",entity]:driver():eyeAngles():rotateAroundAxis(Body:up(),90))
+        Body:applyForce(-vec(Body:vel():x()/25,Body:vel():y()/25,Body:vel():z()/25)*Body:mass())
+        ZConst = 0.001*Body:velL():x()
+        YConst = 0.002*Body:velL():y()
+        Body:applyOffsetForce(Body:up()*Body:mass()*ZConst,Body:massCenter())
+        if(abs(YConst)>0.7){Roll += YConst}elseif(Roll<0){Roll+=2}elseif(Roll>0){Roll-=2}
+        Ang = Eye:setRoll(Roll)
+        if(Pod["PrevWeapon",number]&(Throttle<70)){Throttle++}
+        if(Pod["NextWeapon",number]&(Throttle>0)){Throttle--}
+        Body:applyForce(Body:forward()*Body:mass()*(Throttle^1.25))
+        VT = Body:toLocal(rotationVector(quat(Ang)/quat(Body))+Body:pos()) 
+        AngCheck = (Ang:forward():dot(Body:eyeAngles():forward()))
+        if(abs(AngCheck>0.99)){
+            V = VT
+        }else{
+            V = (VT/VT:length())*5
+        }
+    }else{Ang = ang(0,Body:eyeAngles():yaw(),0),AngCheck = 1,V = Body:toLocal(rotationVector(quat(Ang)/quat(Body))+Body:pos()),Throttle = 0}
+    Body:applyTorque((500*V - 25*Body:angVelVector())*Body:inertia())
+    
+    CamVec = Body:pos() + vec(-500,0,150):rotate(Eye)
+    Cam["Position",vector] = CamVec
+    Cam["Angle",angle] = Eye
+    Cam["Activated",number] = Pod["Active",number]
+}
+if(dupefinished()){reset()}
+if(changed(M1)&M1){P=propSpawn("models/props_phx/mk-82.mdl",entity():pos()+vec(0,0,-50),entity():angles()+ang(0,-45,0),0),timer("Wait",500)}
+if((entity():vel()):length()<5&clk("Wait")){P:propBreak()}
+P:setMass(50000)

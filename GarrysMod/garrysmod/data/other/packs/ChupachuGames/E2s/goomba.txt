@@ -1,0 +1,157 @@
+@name Goomba (Dingo)
+@persist [Body Head LFoot RFoot]:entity STog RTog Z Walk Val Ang RandDir:vector
+@trigger 
+runOnTick(1)
+#==================================================================================================
+#Hologram Creation
+if(first()){
+    Walk = 1
+    timer("wander",10000)
+    RandDir = randvec():setZ(0):normalized()
+    Val = 4
+    Body = holoCreate(1,entity():pos(),vec(),ang(),vec(185,150,110),"hqicosphere2")
+    holoScaleUnits(1,vec(15,10,15))
+    holoPos(1,Body:toWorld(vec(0,0,12)))
+    
+    Head = holoCreate(2,Body:toWorld(vec(0,0,13)),vec(),ang(),vec(180,100,60),"hqicosphere2")
+    holoScaleUnits(2,vec(20,15,20))
+    holoMaterial(2,"phoenix_storms/mat/mat_phx_metallic")
+    
+    LEye = holoCreate(3,Head:toWorld(vec(2,5,1)),vec(),ang(),vec(255,255,255),"hqicosphere2")
+    holoScaleUnits(3,vec(7,5,8))
+    
+    REye = holoCreate(4,Head:toWorld(vec(-2,5,1)),vec(),ang(),vec(255,255,255),"hqicosphere2")
+    holoScaleUnits(4,vec(7,5,8))
+    
+    LPupil = holoCreate(5,LEye:toWorld(vec(-0.3,1.5,0)),vec(),ang(),vec(),"hqicosphere2")
+    holoScaleUnits(5,vec(3,3,4))
+    
+    RPupil = holoCreate(6,REye:toWorld(vec(0.3,1.5,0)),vec(),ang(),vec(),"hqicosphere2")
+    holoScaleUnits(6,vec(3,3,4))
+    
+    LBrow = holoCreate(7,LEye:toWorld(vec(2.4,1.5,4)),vec(),ang(-30,0,0),vec(),"hqicosphere2")
+    holoScaleUnits(7,vec(10,2,2))
+    
+    RBrow = holoCreate(8,REye:toWorld(vec(-2.4,1.5,4)),vec(),ang(30,0,0),vec(),"hqicosphere2")
+    holoScaleUnits(8,vec(10,2,2))
+    
+    LTooth = holoCreate(9,Head:toWorld(vec(4,6,-2)),vec(),ang(0,-10,-30),vec(255,255,255),"hqcone")
+    holoScaleUnits(9,vec(3,2,3))
+    
+    RTooth = holoCreate(10,Head:toWorld(vec(-4,6,-2)),vec(),ang(0,10,-30),vec(255,255,255),"hqcone")
+    holoScaleUnits(10,vec(3,2,3))
+    
+    LFoot = holoCreate(11,Body:toWorld(vec(4,2,-8)),vec(),ang(),vec(120,80,50),"hqicosphere2")
+    holoScaleUnits(11,vec(8,9,7))
+    holoMaterial(11,"phoenix_storms/mat/mat_phx_metallic")
+    
+    RFoot = holoCreate(12,Body:toWorld(vec(-4,2,-8)),vec(),ang(),vec(120,80,50),"hqicosphere2")
+    holoScaleUnits(12,vec(8,9,7))
+    holoMaterial(12,"phoenix_storms/mat/mat_phx_metallic")
+    
+    LCheek = holoCreate(13,Head:toWorld(vec(7,0,-3)),vec(),ang(),vec(180,100,60),"hqicosphere2")
+    holoScaleUnits(13,vec(9,15,11))
+    holoMaterial(13,"phoenix_storms/mat/mat_phx_metallic")
+    
+    RCheek = holoCreate(14,Head:toWorld(vec(-7,0,-3)),vec(),ang(),vec(180,100,60),"hqicosphere2")
+    holoScaleUnits(14,vec(9,15,11))
+    holoMaterial(14,"phoenix_storms/mat/mat_phx_metallic")
+    
+    holoParent(2,1)
+    holoParent(11,1)
+    holoParent(12,1)
+    holoParent(3,2)
+    holoParent(4,2)
+    holoParent(5,2)
+    holoParent(6,2)
+    holoParent(7,2)
+    holoParent(8,2)
+    holoParent(9,2)
+    holoParent(10,2)
+    holoParent(13,2)
+    holoParent(14,2)
+}
+#==================================================================================================
+#Wander Math
+if(Walk){
+if(clk("wander")){
+    timer("wander",10000)
+    RandDir = randvec():setZ(0):normalized()
+}
+holoAng(1,RandDir:toAngle()-ang(0,90,0))
+holoPos(1,Body:pos()+RandDir*4)
+}
+#==================================================================================================
+#Squisher Detection
+R = rangerOffset(30,Body:pos(),vec(0,0,1))
+if(R:hit()){
+    SquEnt = R:entity()
+    Vel = SquEnt:vel()
+    if(Vel:z()<-150 & !STog){
+        Walk = 0
+        soundPlay(1,0,"physics/flesh/flesh_squishy_impact_hard1.wav")
+        STog = 1
+        holoPos(2,Head:toWorld(vec(0,0,-10)))
+        holoScaleUnits(2,vec(20,15,10))
+        holoPos(1,Body:toWorld(vec(0,0,-5)))
+        holoScaleUnits(1,vec(15,10,5))
+        timer("wait",1000)
+    }
+}
+#==================================================================================================
+#Squish Animation
+if(clk("wait")){
+    soundPlay(1,0,"npc/strider/strider_legstretch1.wav")
+    soundPitch(1,150)
+    timer("unsizeA",50)
+    RTog = 1
+    Z = 0
+}
+
+if(clk("unsizeA") & RTog){
+    Z+=2
+    holoPos(1,Body:toWorld(vec(0,0,1)))
+    holoScaleUnits(1,vec(15,10,5+Z))
+    holoPos(2,Head:toWorld(vec(0,0,2)))
+    holoScaleUnits(2,vec(20,15,10+Z))
+    if(Z>=10){Walk = 1
+        RTog = 0, STog = 0}
+    timer("unsizeA",100)
+}
+#==================================================================================================
+#Walking Animation
+if(Walk){
+    Ang+=Val
+    if(abs(Ang)==40){
+        Val*=-1
+    }
+    Sin = sin(Ang)
+    Cos = cos(Ang)
+    BSin = sin(-Ang)
+    holoPos(11,Body:toWorld(vec(4,-8*Sin,-8*Cos)))
+    holoPos(12,Body:toWorld(vec(-4,8*Sin,-8*Cos)))
+    holoAng(11,Body:toWorld(ang(0,0,-Ang)))
+    holoAng(12,Body:toWorld(ang(0,0,Ang)))
+}
+else{
+    Ang = 0
+    holoPos(11,Body:toWorld(vec(4,2,-8)))
+    holoPos(12,Body:toWorld(vec(-4,2,-8)))
+    holoAng(11,Body:toWorld(ang(0,0,0)))
+    holoAng(12,Body:toWorld(ang(0,0,0)))
+}
+#==================================================================================================
+#Falling and Avoiding
+GapCheck = rangerOffset(24,Body:pos()+RandDir*5,vec(0,0,-1))
+GroundCheck = rangerOffset(1000000,Body:pos(),vec(0,0,-1))
+WallCheck = rangerOffset(7.5,Body:pos(),RandDir)
+
+if(!GapCheck:hit() | WallCheck:hit() & GroundCheck:distance()==12){
+    RandDir*=-1
+}
+if(GroundCheck:distance()!=12){
+    Zed = Body:pos():z() - GroundCheck:position():z()
+    Zed = (abs(12-Zed)>=5 ? Zed + sign(12-Zed)*5 : 12)
+    holoPos(1,Body:pos():setZ(GroundCheck:position():z()+Zed))
+}
+#==================================================================================================

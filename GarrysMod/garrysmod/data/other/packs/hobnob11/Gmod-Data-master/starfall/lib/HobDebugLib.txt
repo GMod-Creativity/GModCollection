@@ -1,0 +1,112 @@
+--@name HobDebugLib
+--@author
+--@shared
+--@include lib/unique.txt
+require("lib/unique.txt")
+ 
+HobDebug = {}
+HobDebug.Level = 0 -- defualt to aww hell naw
+HobDebug.SrcSize = {x=1768,y=992}
+HobDebug.Icons = {"icon16/bug.png","icon16/bug_error.png","icon16/error.png","icon16/exclamation.png"}
+-- 0 = debug - prepare for spam
+-- 1 = warn - well that probably shouldent of happened
+-- 2 = error - shits broke yo
+-- 3 = aww hell naw - SHITS BAD YO.
+if SERVER then
+    function HobDebug.PrintError(level, header, message)
+        net.Start("HobDebugError")
+        net.WriteUInt(level,2)
+        net.WriteString(header)
+        net.WriteString(message)
+        net.Send(entities.owner())
+    end
+    function HobDebug.SetDebugLevel(level)
+        level = math.Clamp(level,0,3)
+        net.Start("HobDebugSetLevel")
+        net.WriteUInt(level,2)
+        net.Send(entities.owner())
+        HobDebug.Level = level
+ 
+    end
+    timer.Simple(2,function()
+        HobDebug.PrintError(3,"oh noes","you have fucked up now.")
+    end)
+    timer.Simple(3,function()
+        HobDebug.PrintError(3,"pls no","you have fucked up now.")
+    end)
+    timer.Simple(4,function()
+        HobDebug.PrintError(2,"aie","this is like mostly bad.")
+    end)
+    timer.Simple(5,function()
+        HobDebug.PrintError(1,"meh.","no one cares about this.")
+    end)
+    timer.Simple(6,function()
+        HobDebug.PrintError(0,"debugh.","spaaaaaaam")
+    end)
+elseif CLIENT and Unique() then
+    HobDebug.Errors = {}
+    hook.Add("net","DebugHook",function(name,length)
+        if name == "HobDebugError" then
+            local level = net.ReadUInt(2)
+            local header= net.ReadString()
+            local message=net.ReadString()
+            table.insert(HobDebug.Errors,{level,header,message})
+            UpdateDebug()
+        elseif name == "HobDebugSetLevel" then
+            local level = net.ReadUInt(2)
+            HobDebug.Level = level
+            UpdateDebug()
+        end
+    end)
+    function CreateWindow()
+        HobDebug.DebugConsole = vgui.Create("DFrame")
+        local dc = HobDebug.DebugConsole
+        local ss = HobDebug.SrcSize
+        dc:SetSkin("Default")
+        dc:SetTitle("Hob-Co Debug Console")
+        dc:SetSize(550,300)
+        dc:SetPos(ss.x-550,ss.y-400)
+        dc.List = vgui.Create("DListView",dc)
+        dc.List:SetMultiSelect( false )
+        dc.List:SetSize(530,265)
+        dc.List:SetPos(10,25)
+        dc.List.Level   = dc.List:AddColumn( "Lvl" )
+            dc.List.Level:SetMinWidth(18)
+            dc.List.Level:SetMaxWidth(18)
+        dc.List.Title   = dc.List:AddColumn( "Title" )
+            dc.List.Title:SetMinWidth(128)
+            dc.List.Title:SetMaxWidth(128)
+        dc.List.Message = dc.List:AddColumn( "Message" )
+       
+    end
+    function UpdateDebug()
+        local l = HobDebug.DebugConsole.List
+        l:Clear()
+        for _,e in pairs(HobDebug.Errors) do
+            if e[1] >= HobDebug.Level then
+                local item = l:AddLine(unpack(e))
+                local mat = Material(HobDebug.Icons[e[1]+1])
+                function item:PaintOver(width,height)
+                    surface.SetDrawColor(Color(255,255,255,255))
+                    surface.SetMaterial(mat)
+                    surface.DrawTexturedRect(1,1,height-2,height-2)
+                end
+            end
+        end
+end
+    function HobDebug.SetDebugLevel(level)
+        HobDebug.Level = level
+    end
+    function HobDebug.PrintError(level, header, message)
+        table.insert(HobDebug.Errors,{level,header,message})
+        UpdateDebug()
+    end
+ 
+    CreateWindow()
+   
+   
+   
+    hook.Add("Removed","onLast",function()
+        HobDebug.DebugConsole:Remove()
+    end)
+end

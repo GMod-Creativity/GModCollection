@@ -1,0 +1,200 @@
+@name A* Map
+@inputs 
+@outputs 
+@persist Mapname:string Mode AP:vector P1:vector P2:vector MeshCenters:array MeshDimensions:array SelectedMesh Interval Connections:array Data:string MeshSize FileLoading:string Firstframe
+@trigger 
+
+runOnChat(1)
+runOnFile(1)
+if(first()|dupefinished()){
+    dsJoinGroup("A*")
+    Firstframe=1
+    Interval=500
+    SelectedMesh=1
+    holoCreate(1)
+    Mode=1
+    holoCreate(-4)
+    holoCreate(-3)
+    holoCreate(-2)
+    holoScale(-2,vec(0.5,0.1,0.1))
+    holoAng(-2,ang(0,90,0))
+    holoCreate(-1)
+    holoScale(-1,vec(0.5,0.1,0.1))
+    holoCreate(0)
+    holoScale(0,vec(0.1,0.1,0.5))
+    holoParent(-2,0)
+    holoParent(-1,0)
+    
+    dsSend("Overseer","A*","getstep|"+entity():pos()+"|"+entity():pos())
+}
+interval(Interval)
+function drawCursor(){
+    holoPos(0,AP)
+}
+
+function connect(One:number,Two:string){
+    
+    Connections[One,string]=Two
+    
+}
+
+function submit(){
+    MeshCenters[SelectedMesh-1,vector] = holoEntity(SelectedMesh):pos()
+    MeshDimensions[SelectedMesh-1,vector]=vec(abs(P2:x()-P1:x())/12,abs(P2:y()-P1:y())/12,0.1+(abs(P2:z()-P1:z())/12))
+    SelectedMesh+=1
+    MeshSize = MeshSize + 1
+}
+
+
+function saveMesh(Name:string){
+    Data=""
+    print(MeshSize)
+    for(I=0,MeshSize){
+        Center = MeshCenters[I,vector]
+        Data+="|"+I+":"+Center:x()+","+Center:y()+","+Center:z()+":"+Connections[I,string]
+    }
+    if(fileCanWrite()){
+        fileWrite(Name+".txt",Data)
+    }
+}
+function loadMesh(Name:string){
+    soundPlay(101,100,"ui/hint.wav")
+    #print("LOAD MESH")
+    FileLoading=Name
+    fileLoad(Name)
+
+            
+}
+
+
+function buildMode(){
+    Interval=50
+    drawCursor()
+    holoPos(-3,P1)
+    holoPos(-4,P2)
+    if(owner():weapon():type()=="weapon_physgun"){
+    if(changed(owner():keyAttack1())&owner():keyAttack1()){
+        P1=AP
+    }
+    if(changed(owner():keyAttack2())&owner():keyAttack2()){
+        P2=AP
+    }
+    }
+    
+    holoPos(SelectedMesh,P2-(P2-P1)/2)
+    holoScale(SelectedMesh,vec(abs(P2:x()-P1:x())/12,abs(P2:y()-P1:y())/12,0.1+(abs(P2:z()-P1:z())/12)))
+    
+    
+}
+
+function vector stringToVec(S:string){
+    S=S:sub(2,S:length()-1)
+    X=S:explode(",")[1,string]:toNumber()
+    Y=S:explode(",")[2,string]:toNumber()
+    Z=S:explode(",")[3,string]:toNumber()
+    return vec(X,Y,Z)   
+}
+
+function readNavMesh(){
+    #read file
+    #|| separates file
+    #index:corner1x,corner1y-corner2x,corner2y:connectionindex1,etc
+    
+    
+    
+}
+function loadMeshComplete() {
+    soundPlay(102,100,"ui/buttonclick.wav")
+    #print("File Loaded")
+    MeshSize=0
+    Contents = fileRead()
+    
+    Meshes = Contents:explode("|")
+    
+    
+    
+    for(I=0,Meshes:count()){
+        print(I)
+        Fields = Meshes[2,string]:explode(":")
+        #print(Fields[1,string])#index
+        
+        Points = Fields[2,string]:explode(",")
+        
+        Connects = Fields[3,string]:explode("+")
+        
+        
+        
+        Center = vec(Points[1,string]:toNumber(),Points[2,string]:toNumber(),Points[3,string]:toNumber())
+        print("Center: "+Center)
+        
+        
+        
+        MeshCenters[I,vector]=Center
+        MeshDimensions[I,vector]=vec(X,Y,Z)
+        SelectedMesh=I+1
+            holoCreate(SelectedMesh)
+            print("Holo Created")
+        holoPos(SelectedMesh,Center)
+        print("Holo Pos: "+Center)
+        holoScale(SelectedMesh,vec(1,1,1))
+        print("Holo Scale: "+vec(X,Y,Z))
+        submit()
+        
+        for(J=0,Connects:count()){
+            Connections[I,string]= Connections[I,string] + Connects[J,string]
+        }
+        
+        #+2
+        #Data+="|"+I+":"+(MeshCenters[I,vector]:x()-MeshDimensions[I,vector]:x()/2)+","+(MeshCenters[I,vector]:y()+MeshDimensions[I,vector]:y()/2)+","+(MeshCenters[I,vector]:z()+MeshDimensions[I,vector]:z()/2)+":"+Connections[I,string]
+    }
+    
+}
+
+AP=owner():aimPos()
+#UPDATE
+
+if(fileClk(FileLoading)){
+    loadMeshComplete()
+}
+    
+    
+if(changed(SelectedMesh)){
+    holoCreate(SelectedMesh)
+    
+}
+if(!Firstframe){
+if(changed(owner():keyPressed("ENTER"))&(owner():keyPressed("ENTER"))&owner():weapon():type()=="weapon_physgun"){
+    
+    print("SAVING SELECTION")
+    submit()
+}
+
+if(changed(owner():lastSaid())&owner():lastSaid():explode(" ")[1,string]=="!savemesh"){
+    saveMesh("NAVMESH_"+owner():lastSaid():explode(" ")[2,string])
+}
+if(changed(owner():lastSaid())&owner():lastSaid():explode(" ")[1,string]=="!loadmesh"){
+    FileLoading="NAVMESH_"+owner():lastSaid():explode(" ")[2,string]+".txt"
+    loadMesh("NAVMESH_"+owner():lastSaid():explode(" ")[2,string]+".txt")
+}
+}
+if(dsClk()){
+    Str = dsGetString()
+    Cmd = Str:explode("|")[1,string]
+    Vec = Str:explode("|")[2,string]
+    #get step series
+    if(Cmd=="getstep"){
+        print(stringToVec(Vec):toString())
+    }
+    #get one step
+        #Find closest nav mesh to target, send to next closest to destination
+        
+    
+}
+
+#if( owner():lastSaid():sub(0,8) == "!buildmode"
+
+if(Mode==1){
+    buildMode()
+    
+}
+Firstframe=0

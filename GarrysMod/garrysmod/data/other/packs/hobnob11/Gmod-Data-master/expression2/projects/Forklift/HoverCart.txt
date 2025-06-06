@@ -1,0 +1,73 @@
+@name HoverCart
+@inputs Pallet:entity Chair:entity
+@outputs X Y
+@persist Target:vector Base:entity Driver:entity TraceHullSize:vector
+@trigger 
+
+if(first()||duped())
+{
+    Base=entity():isWeldedTo()
+    runOnTick(1)
+    Target = Base:pos()
+    Base:setAng(ang(0,0,0))
+    TraceHullSize = vec(Base:boxSize():x(),Base:boxSize():x(),2)    
+    Y = 50
+    holoCreate(1)
+    holoScale(1,TraceHullSize/12)
+    holoAlpha(1,50)
+
+    holoCreate(2)
+    holoScale(2,vec(2,2,2)/12)
+    
+}
+Driver=Chair:driver()
+
+rangerFilter(array(Base,Pallet,Chair,entity()))
+rangerFilter(Base:getConstraints())
+rangerFilter(players())
+rangerHitEntities(0)
+rangerHitWater(1)
+local R = rangerOffsetHull( Base:pos()+vec(0,0,20),Base:pos()-vec(0,0,3000), TraceHullSize )
+holoPos(1,R:pos())
+holoPos(2,R:pos())
+
+local Target = R:position()+vec(0,0,Y)
+local Force = ((Target-Base:pos())*5-Base:vel())*Base:mass()
+Base:applyForce(vec(0,0,Force:z()))
+local Inertia = shiftL(ang(Base:inertia()))
+Base:applyAngForce((-Base:angles():setYaw(X) - Base:angVel())*Inertia*20)
+
+if(Driver:keyLeft())
+{
+    X = -50
+}elseif(Driver:keyRight())
+{
+    X = 50
+}else
+{
+    X = 0
+}
+
+if(Driver:keyForward())
+{
+    Base:applyForce(Base:forward()*Base:mass()*2)
+}elseif(Driver:keyBack())
+{
+    Base:applyForce(-Base:forward()*Base:mass()*2)
+}else
+{
+    local Vec = vec(Base:vel():x(),Base:vel():y(),0)
+    Base:applyForce(-Vec*Base:mass()*0.1)
+}
+
+if(Driver:keyJump())
+{
+    if(Y <= 2000){
+        Y = Y + 0.5
+    }
+}elseif(Driver:keySprint())
+{
+    if(Y >= 1){
+        Y = Y - 0.5
+    }
+}

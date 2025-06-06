@@ -1,0 +1,692 @@
+@name Carrier Fighter Controller
+@inputs Mouse1 Mouse2 ParentLink:wirelink
+@inputs [F1 F2 F3 F4 F5 F6]:wirelink
+@inputs [L1 L2 L3 L4 L5 L6]:wirelink
+@outputs Fire1 Fire2 Fire3 Fire4 Fire5 Fire6
+@outputs Targ1:entity Targ2:entity Targ3:entity Targ4:entity Targ5:entity Targ6:entity
+@outputs XYZ1:vector XYZ2:vector XYZ3:vector XYZ4:vector XYZ5:vector XYZ6:vector
+@persist RadiusAttack RadiusOrbit LT Count FindResults:array
+@persist Fighters:array Targets:array Positions:array States:array
+@persist TLSearch Warmup TargetIn:entity
+@persist ForceAttacked LandPropArray:array Parent:entity
+@persist Avoidance Fire:array Land Orbit Attack ForceAttack
+@trigger Mouse1 Mouse2
+
+Count++
+
+
+if( first() | duped() )
+{
+    Laser = 0
+    RadiusAttack = 12000
+    RadiusOrbit = 2000
+    timer("init",10000)
+    Targets = array()
+    Positions = array()
+    States = array()
+    Fighters = array()
+    Warmup = 1
+    
+    Fighters[1,entity] = F1:entity()
+    Fighters[2,entity] = F2:entity()
+    Fighters[3,entity] = F3:entity()
+    Fighters[4,entity] = F4:entity()
+    Fighters[5,entity] = F5:entity()
+    Fighters[6,entity] = F6:entity()
+    
+    Fire1 = 0
+    Fire2 = 0
+    Fire3 = 0
+    Fire4 = 0
+    Fire5 = 0
+    Fire6 = 0
+    
+    runOnChat(1)
+}elseif( ~Mouse1 | clk("attackAgain") )
+{
+    if( (Mouse1 & !Attack) | clk("attackAgain") )
+    {
+        # Process this attack request
+        if( !findCanQuery() )
+        {
+            # Send a another chat execution
+            timer("attackAgain",200)
+            exit()
+        }
+        
+        # Find a target ahead of this ship
+        Count = findInCone( Parent:pos() + Parent:up()*800, Parent:up(), 30000, 40 )
+        findSortByDistance(Parent:pos())
+        Index = 1
+        while( Index <= Count & !( findResult(Index):isPlayer() | findResult(Index):owner():isPlayer() ) )
+        { Index++ }
+        print("Count " + Count:toString() + " Index " + Index:toString() )
+        if( Count > 0 & Index <= Count & ( findResult(Index):isPlayer() | findResult(Index):owner():isPlayer() ) )
+        {
+            # Target the closest prop
+            ForceAttack = 1
+            TargetIn = findResult(Index)
+            Orbit = 0
+            Land = 0
+            Attack = 1
+            Name = "NULL"
+            if( TargetIn:owner():isPlayer() )
+            { Name = TargetIn:owner():name() }
+            elseif( TargetIn:isPlayer() )
+            { Name = TargetIn:name() }
+            print("Atacking player " + Name)
+        }else{
+            print("No target found.")
+        }
+    }elseif( Mouse1 & Attack )
+    {
+        print("Ordering jets to land.")
+        
+        # Cancel attack
+        ForceAttack = 0
+        Orbit = 0
+        Land = 1
+        Attack = 0
+    }
+}elseif( clk("init") )
+{   
+    Parent = ParentLink:entity()
+    
+    # Load the fighters
+    Fighters[1,entity] = F1:entity()
+    Fighters[2,entity] = F2:entity()
+    Fighters[3,entity] = F3:entity()
+    Fighters[4,entity] = F4:entity()
+    Fighters[5,entity] = F5:entity()
+    Fighters[6,entity] = F6:entity()
+    
+    LandPropArray[1,entity] = L1:entity()
+    LandPropArray[2,entity] = L2:entity()
+    LandPropArray[3,entity] = L3:entity()
+    LandPropArray[4,entity] = L4:entity()
+    LandPropArray[5,entity] = L5:entity()
+    LandPropArray[6,entity] = L6:entity()
+    
+    
+    
+    # Mark the fighters with holograms
+    if( 0 )
+    {
+        holoCreate(1,Fighters[1,entity]:pos(),vec(1,1,5),ang(0,0,0),vec(255,0,0))
+        holoCreate(2,Fighters[2,entity]:pos(),vec(1,1,5),ang(0,0,0),vec(0,255,0))
+        holoCreate(3,Fighters[3,entity]:pos(),vec(1,1,5),ang(0,0,0),vec(0,0,255))
+        holoCreate(4,Fighters[4,entity]:pos(),vec(1,1,5),ang(0,0,0),vec(255,0,0))
+        holoCreate(5,Fighters[5,entity]:pos(),vec(1,1,5),ang(0,0,0),vec(0,255,0))
+        holoCreate(6,Fighters[6,entity]:pos(),vec(1,1,5),ang(0,0,0),vec(0,0,255))
+        holoParent(1,Fighters[1,entity])
+        holoParent(2,Fighters[2,entity])
+        holoParent(3,Fighters[3,entity])
+        holoParent(4,Fighters[4,entity])
+        holoParent(5,Fighters[5,entity])
+        holoParent(6,Fighters[6,entity])
+    }
+    
+    # Set the initial states
+    #for(I = 1, 6)
+    #{States[I,number] = 7}
+    
+    
+    
+    #Fighters[2,entity]:setTrails(40,20,5,"trails/smoke",vec(250,0,0),250)
+    #Fighters[3,entity]:setTrails(40,20,5,"trails/smoke",vec(250,0,0),250)
+    #Fighters[4,entity]:setTrails(40,20,5,"trails/smoke",vec(250,0,0),250)
+    #Fighters[5,entity]:setTrails(40,20,5,"trails/smoke",vec(250,0,0),250)
+    #Fighters[6,entity]:setTrails(40,20,5,"trails/smoke",vec(250,0,0),250)
+    
+    print( "Found " + Fighters:count() + " Fighters." )
+    
+    # Initialize the arrays
+    Index = 1
+    while( Index <= Fighters:count() )
+    {
+        Fighters[Index,entity]:setMass(2000)
+        Targets[Index,entity] = noentity()
+        Positions[Index,vector] = vec(0,0,0)
+        States[Index,number] = 7
+        #Fighters[Index,entity]:deparent()
+        #Fighters[Index,entity]:unWeld(Parent)
+        #Fighters[Index,entity]:unWeld(Parent)
+        #Fighters[Index,entity]:unWeld(Parent)
+        #Fighters[Index,entity]:unWeld(Parent)
+        #Fighters[Index,entity]:unWeld(Parent)
+        #Fighters[Index,entity]:unWeld(Parent)
+        #Fighters[Index,entity]:unWeld(Parent)
+        #Fighters[Index,entity]:unWeld(Parent)
+        #Fighters[Index,entity]:unWeld(entity(0))
+        Fighters[Index,entity]:removeTrails()
+        #Fighters[Index,entity]:setTrails(20,5,2,"trails/smoke",vec(250,250,250),999)
+        Index++
+    }
+    interval(50)
+}elseif(chatClk() | clk("chatAgain"))
+{
+    if( chatClk(owner()) | clk("chatAgain") )
+    {
+        # The owner is giving a command
+        if( owner():lastSaid() == "attackaim" )
+        {
+            hideChat(1)
+            ForceAttack = 1
+            TargetIn = owner():aimEntity()
+            Orbit = 0
+            Land = 0
+            Attack = 1
+        }elseif( owner():lastSaid() == "orbit" ){
+            hideChat(1)
+            Orbit = 1
+            Attack = 0
+            Land = 0
+            ForceAttack = 0
+        }elseif( owner():lastSaid() == "attack" ){
+            hideChat(1)
+            Orbit = 0
+            Attack = 1
+            Land = 0
+            ForceAttack = 0
+        }elseif( owner():lastSaid() == "land" ){
+            hideChat(1)
+            Orbit = 0
+            Attack = 0
+            Land = 1
+            ForceAttack = 0
+        }elseif( owner():lastSaid():left(7) == "attack " ){
+            hideChat(1)
+            if( !findCanQuery() )
+            {
+                # Send a another chat execution
+                timer("chatAgain",200)
+                exit()
+            }
+            
+            # Force attacking a player
+            Name = owner():lastSaid():sub(8)
+            
+            Player = findPlayerByName(Name)
+            if( Player )
+            {
+                print("Attacking Player " + Player:name())
+                Orbit = 0
+                Attack = 1
+                Land = 0
+                ForceAttack = 1
+                TargetIn = Player
+            }else{
+                print("No Player Found: " + Name)
+            }
+        }
+    }
+}else{
+    DT = curtime()-LT
+    LT = curtime()
+    
+    # Process each fighter
+    Index = 1
+    while( Index <= Fighters:count() )
+    {
+        ################ FIGHTER STATE PROCESSING ##############
+        # State list:
+        # 0 -> Powered off
+        # 1 -> Taking off
+        # 2 -> Orbitting
+        # 3 -> Attacking Searching
+        # 4 -> Attacking Approach
+        # 5 -> Attacking Flying Away
+        # 6 -> Landing
+        State = States[Index,number]
+        Fighter = Fighters[Index,entity]
+        
+        # Check if we are force attacking
+        if(ForceAttack)
+        {
+            Targets[Index,entity] = TargetIn
+            Attack = 1
+            if( State == 3 )
+            { State = 4 }
+        }
+        
+        if( State == 0 )
+        {
+            # NOTHING for this jet
+            Force = 6
+            LandPosition = LandPropArray[Index,entity]:up()*35 + LandPropArray[Index,entity]:pos()
+            Positions[Index,vector] = LandPosition
+            Avoidance = 0
+            
+            if( Attack | Orbit )
+            { # Unweld this jet
+            #Fighter:unWeld(Parent)
+            # Set the weight to normal
+            Fighter:setMass(2000)
+            #Fighter:deparent()
+            State = 1 }
+        }elseif( State == 1 ){
+            # TAKE OFF sequence
+            
+            Warmup = 1
+            Force = 1
+            Avoidance = 0
+            RunwayEnd = 600*LandPropArray[Index,entity]:up() + 2500*LandPropArray[Index,entity]:forward() + LandPropArray[Index,entity]:pos()
+            Positions[Index,vector] = RunwayEnd
+            if( RunwayEnd:distance(Fighter:pos()) < 500 )
+            {
+                # New state
+                if( Attack ){State = 3}
+                elseif( Orbit ){State = 2, Positions[Index,vector] = entity():pos() + vec(0,0,RadiusOrbit/2) + vec(random(-1,1),random(-1,1),0):normalized()*RadiusOrbit}
+                else{State = 6} 
+            }
+        }elseif( State == 2 ){
+            # ORBITTING sequence
+            Warmup = 1
+            Force = 1
+            Avoidance = 1
+            if( Positions[Index,vector]:distance(Fighter:pos()) < 500 )
+            {
+                # Assign a new orbit position
+                Positions[Index,vector] = entity():pos() + vec(0,0,RadiusOrbit/2) + vec(random(-1,1),random(-1,1),0):normalized()*RadiusOrbit + vec(0,0,random(-800,800))
+            }
+            
+            # Check for change of states
+            if( Attack ){State = 3}
+            elseif( Land ){State = 6}
+        }elseif( State == 3 ){
+            # ATTACKING SEARCH sequence
+            Force = 1
+            Warmup = 1
+            Avoidance = 1
+            if( curtime() - TLSearch > 1 )
+            {
+                # Perform a target find
+                findClearWhiteList()
+                findClearBlackList()
+                findExcludePlayer(entity():owner())
+                findExcludePlayerProps(entity():owner())
+                findInSphere(entity():pos(),RadiusAttack)
+                findClipFromSphere(entity():pos(),500)
+                FindResults = findToArray()
+                TLSearch = curtime()
+            }
+            
+            if( FindResults:count() > 0 & !ForceAttack )
+            {
+                # Assign a random target for this fighter
+                Targets[Index,entity] = FindResults[round(random(0.51,FindResults:count()+0.49)),entity]
+                
+                # Attack this target if this target is valid
+                Dist = (Targets[Index,entity]:pos()-entity():pos()):length()
+                if( ( Targets[Index,entity]:isPlayer() | Targets[Index,entity]:owner():isPlayer() ) & Dist < RadiusAttack )
+                {
+                    # Attack this target
+                    if( Targets[Index,entity]:isPlayer() )
+                    {print("Jet " + Index + ": Attacking Player " + Targets[Index,entity]:name())}
+                    else
+                    {print("Jet " + Index + ": Attacking Player " + Targets[Index,entity]:owner():name() + ", Model " + Targets[Index,entity]:model())}
+                    State = 4
+                }
+            }
+            
+            if( Positions[Index,vector]:distance(Fighter:pos()) < 500 )
+            {
+                # Assign a new orbit position
+                Positions[Index,vector] = entity():pos() + vec(0,0,RadiusOrbit/2) + vec(random(-1,1),random(-1,1),0):normalized()*RadiusOrbit
+            }
+            
+            # Check for a change of states
+            if( Orbit ){State = 2}
+            elseif( Land ){State = 6}
+        }elseif( State == 4 ){
+            # ATTACKING APPROACH sequence
+            Force = 3 # This will fire the cannon if aim is good
+            Warmup = 1
+            Avoidance = 1
+            
+            # Set our target output
+            if( Index == 1 )
+            {Targ1 = Targets[Index,entity]}
+            elseif( Index == 2)
+            {Targ2 = Targets[Index,entity]}
+            elseif( Index == 3)
+            {Targ3 = Targets[Index,entity]}
+            elseif( Index == 4)
+            {Targ4 = Targets[Index,entity]}
+            elseif( Index == 5)
+            {Targ5 = Targets[Index,entity]}
+            elseif( Index == 6)
+            {Targ6 = Targets[Index,entity]}
+            
+            
+            # Validate our target
+            Dist = (Targets[Index,entity]:pos()-entity():pos()):length()
+            if( !Targets[Index,entity] )
+            {
+                # Target is dead or out of range
+                State = 3
+                Force = 1
+            }else{
+                DistToTarget = (Targets[Index,entity]:pos()-Fighter:pos()):length()
+                if( DistToTarget < 2000 )
+                {
+                    # Back away from target
+                    State = 5
+                    Force = 4
+                    
+                    # Disable gunfire
+                    Fire[Index,number] = 0
+                }
+            }
+
+            if( Orbit ){State = 2}
+            elseif( Land ){State = 6}
+        }elseif( State == 5 ){
+            # Back away from target
+            Force = 4
+            Avoidance = 1
+            
+            # Validate our target
+            Dist = (Targets[Index,entity]:pos()-entity():pos()):length()
+            if( !Targets[Index,entity] | Dist > RadiusAttack )
+            {
+                # Target is dead or out of range
+                State = 3
+                Force = 1
+            }else{
+                DistToTarget = (Targets[Index,entity]:pos()-Fighter:pos()):length()
+                if( DistToTarget > 7000 )
+                {
+                    # Attack again
+                    State = 4
+                    Force = 3
+                }
+            }
+            
+            if( Orbit ){State = 2}
+            elseif( Land ){State = 6}
+        }elseif( State == 6 ){
+            # LANDING sequence 1
+            Force = 1
+            Avoidance = 1
+            
+            Positions[Index,vector] = -1500*LandPropArray[Index,entity]:forward() + 500*LandPropArray[Index,entity]:up()+LandPropArray[Index,entity]:pos()
+            
+            if( Positions[Index,vector]:distance(Fighter:pos()) < 300 )
+            {
+                State = 7
+            }
+            
+            if( Attack | Orbit )
+            { State = 1 }
+        }elseif( State == 7 ){
+            # LANDING sequence 2
+            
+            Force = 2
+            Avoidance = 0
+            LandPosition = LandPropArray[Index,entity]:up()*35 + LandPropArray[Index,entity]:pos()
+            Positions[Index,vector] = LandPosition
+            if( LandPosition:distance(Fighter:pos()) < 10 & Fighter:vel():length() < 50 )
+            {
+                # Finished landing
+                State = 0
+                
+                # Weld this jet
+                #Fighter:weld(Parent)
+                #Fighter:setMass(20)
+                #Fighter:parentTo(Parent)
+                
+                # Print docking message
+                print("Docked: Fighter #" + Index:toString())
+            }
+            if( Attack | Orbit )
+            { State = 1 }
+        }
+        States[Index,number] = State
+        ################################################
+        
+        ################ OBSTACLE AVOIDANCE ##############
+        Position = Positions[Index,vector]
+        if( Avoidance )
+        {
+            # Takeover force on jet if we are going to hit something
+            
+            # Perform our short-distance object avoidance
+            RD1 = rangerOffset(200,Fighter:massCenter()+250*Fighter:right(),Fighter:toWorld(vec(0,1,0)))
+            RD2 = rangerOffset(200,Fighter:massCenter()+250*Fighter:toWorld(vec(-0.5,1,0)),Fighter:toWorld(vec(1,0,0)))
+            RD3 = rangerOffset(200,Fighter:massCenter()+250*Fighter:toWorld(vec(0.5,1,0)),Fighter:toWorld(vec(-1,0,0)))
+            RD4 = rangerOffset(200,Fighter:massCenter()+250*Fighter:toWorld(vec(0,1,-0.5)),Fighter:toWorld(vec(0,0,1)))
+            RD5 = rangerOffset(200,Fighter:massCenter()+250*Fighter:toWorld(vec(0,1,0.5)),Fighter:toWorld(vec(0,0,-1)))
+            if( RD1:hit() | RD2:hit() | RD3:hit() | RD4:hit() | RD5:hit() )
+            {
+                # We need to severe action to angle ourselves away from the obstacle
+                Distance = 10000
+                if( RD1:hit() ){TmpRd = RD1, Distance = TmpRd:distance()}
+                elseif( RD2:hit() & RD2:distance() < Distance ){TmpRd = RD2, Distance = TmpRd:distance()}
+                elseif( RD3:hit() & RD3:distance() < Distance ){TmpRd = RD3, Distance = TmpRd:distance()}
+                elseif( RD4:hit() & RD4:distance() < Distance ){TmpRd = RD4, Distance = TmpRd:distance()}
+                elseif( RD5:hit() & RD5:distance() < Distance ){TmpRd = RD5}
+                
+                #print("Avoidance")
+                
+                # Adjust the target position to be away from the target
+                Position = TmpRd:hitNormal()*500+Fighter:pos()
+                
+                # Adjust the fighter to aim away from the wall
+                LocalVec = vec(Fighter:right():dot(TmpRd:hitNormal()),Fighter:forward():dot(TmpRd:hitNormal()),Fighter:up():dot(TmpRd:hitNormal()))
+                
+                # Set the force type to be 2 since this is an emergency avoid
+                Force = 5
+            }
+        }
+        
+        ################ APPLY FORCE TO FIGHTER ##############
+        if( Force > 0 )
+        {
+            # Apply the force to this jet
+            
+            DifPos = (Position - Fighter:pos())
+            
+            if( Force == 1 | (Force == 2 & DifPos:length()>1000) )
+            {
+                # Turn off guns
+                if( Fire[Index,number] )
+                {Fire[Index,number] = 0}
+                
+                LocalVec = vec(Fighter:right():dot(DifPos),Fighter:forward():dot(DifPos),Fighter:up():dot(DifPos))
+                DifAng = angnorm(LocalVec:toAngle())
+            
+                ForceAng = ang(0,DifAng:yaw(),DifAng:pitch())
+                Fighter:applyAngForce(ForceAng*80000*DT*100/2)
+            
+                if( Fighter:vel():length() < (1300))
+                {Fighter:applyForce(Fighter:right()*1000000)}
+                
+                # Create angular friction
+                Fighter:applyAngForce(-Fighter:angVel()*DT*1000000/1.5)
+                
+                # Add more positional friction in directions
+                # against movement
+                VelMinusDir = Fighter:vel() - Fighter:vel():dot(Fighter:right()) * Fighter:right()
+                Fighter:applyForce(-VelMinusDir*40000*DT)
+                
+                # Add a slight roll fix
+                Fighter:applyAngForce(-10/2*ang(Fighter:angles():pitch(),0,0)*10000*DT*100 -10000*Fighter:angVel():setYaw(0):setRoll(0))
+            }elseif( Force == 2 )
+            {
+                # Position the fighter properly on the runway
+                
+                # Turn off guns
+                if( Fire[Index,number] )
+                {Fire[Index,number] = 0}
+                
+                # Angles
+                LocalVec = vec(Fighter:right():dot(LandPropArray[Index,entity]:forward()),Fighter:forward():dot(LandPropArray[Index,entity]:forward()),Fighter:up():dot(LandPropArray[Index,entity]:forward()))
+                LocalVec2 = vec(Fighter:right():dot(LandPropArray[Index,entity]:right()),Fighter:forward():dot(LandPropArray[Index,entity]:right()),Fighter:up():dot(LandPropArray[Index,entity]:right()))
+                DifAng = angnorm(LocalVec:toAngle())
+                ForceAng = ang(0,DifAng:yaw(),DifAng:pitch())
+                Fighter:applyAngForce(ForceAng*80000*DT*100/2)
+                Fighter:applyAngForce(-Fighter:angVel()*DT*1000000/1.5)
+                Roll = Fighter:angles():pitch()
+                Roll2 = Fighter:angles():right()
+                #Fighter:applyAngForce(-10/2*ang(Fighter:angles():pitch()+LasArray[Index,entity]:angles():roll(),0,0)*10000*DT*100 -10000*Fighter:angVel():setYaw(0):setRoll(0))
+                Fighter:applyAngForce(-10/2*ang(angnorm(LocalVec2:toAngle()):pitch(),0,0)*10000*DT*100 -10000*Fighter:angVel():setYaw(0):setRoll(0))
+                
+                
+                
+                # Cancel gravity
+                Fighter:applyForce( vec(0,0,1.5)*Fighter:mass()*gravity()*DT )
+                
+                # Position the jet in
+                Fighter:applyForce( (DifPos*50000 - 20000*Fighter:vel())*1*DT )
+            }elseif( Force == 3 ){
+                # Attack run
+                DifPos = (Targets[Index,entity]:pos() - Fighter:pos())
+                LocalVec = vec(Fighter:right():dot(DifPos),Fighter:forward():dot(DifPos),Fighter:up():dot(DifPos))
+                DifAng = angnorm(LocalVec:toAngle())
+                
+                # Shoot if aiming at the target
+                if( abs(DifAng:yaw())+abs(DifAng:pitch()) < 7 )
+                {
+                    # Perform a ranger check
+                    RD = rangerOffset(15000,Fighter:pos()+500*Fighter:right(),Fighter:right())
+                    if( RD:entity() & ( RD:entity()==Targets[Index,entity] | RD:entity():owner()==Targets[Index,entity]:owner() | RD:entity():owner()==Targets[Index,entity] ) )
+                    {
+                        # Shoot this gun
+                        Fire[Index,number] = 1
+                    }else{
+                        # Dont shoot this gun
+                        Fire[Index,number] = 0
+                    }
+                }
+            
+                ForceAng = ang(0,DifAng:yaw(),DifAng:pitch())
+                Fighter:applyAngForce(ForceAng*80000*DT*100/2)
+            
+                #if( Fighter:vel():length() < (1300))
+                #{Fighter:applyForce(Fighter:right()*1000000)}
+                if( Fighter:vel():length() < (700))
+                {Fighter:applyForce(Fighter:right()*300000)}
+                
+                # Create angular friction
+                Fighter:applyAngForce(-Fighter:angVel()*DT*1000000/1.5)
+                
+                # Add more positional friction in directions
+                # against movement
+                VelMinusDir = Fighter:vel() - Fighter:vel():dot(Fighter:right()) * Fighter:right()
+                Fighter:applyForce(-VelMinusDir*40000*DT)
+                
+                # Add a slight roll fix
+                Fighter:applyAngForce(-10/2*ang(Fighter:angles():pitch(),0,0)*10000*DT*100 -10000*Fighter:angVel():setYaw(0):setRoll(0))
+            }elseif( Force == 4 ){
+                # Retreat run
+                DifPos = -(Targets[Index,entity]:pos() - Fighter:pos())
+                LocalVec = vec(Fighter:right():dot(DifPos),Fighter:forward():dot(DifPos),Fighter:up():dot(DifPos))
+                DifAng = angnorm(LocalVec:toAngle())
+            
+                ForceAng = ang(0,DifAng:yaw(),DifAng:pitch())
+                Fighter:applyAngForce(ForceAng*80000*DT*100/2)
+            
+                if( Fighter:vel():length() < (1300))
+                {Fighter:applyForce(Fighter:right()*1000000)}
+                
+                # Create angular friction
+                Fighter:applyAngForce(-Fighter:angVel()*DT*1000000/1.5)
+                
+                # Add more positional friction in directions
+                # against movement
+                VelMinusDir = Fighter:vel() - Fighter:vel():dot(Fighter:right()) * Fighter:right()
+                Fighter:applyForce(-VelMinusDir*40000*DT)
+                
+                # Add a slight roll fix
+                Fighter:applyAngForce(-10/2*ang(Fighter:angles():pitch(),0,0)*10000*DT*100 -10000*Fighter:angVel():setYaw(0):setRoll(0))
+            }elseif( Force == 5 )
+            {
+                # Obstacle avoidance force
+                
+                # Turn off guns
+                if( Fire[Index,number] )
+                {Fire[Index,number] = 0}
+                
+                # Angles
+                # Local Vec has already been defined in Avoidance code                
+                DifAng = angnorm(LocalVec:toAngle())
+                ForceAng = ang(0,DifAng:yaw(),DifAng:pitch())
+                Fighter:applyAngForce(ForceAng*80000*DT*100/2)
+                Fighter:applyAngForce(-Fighter:angVel()*DT*1000000/1.5)
+                Fighter:applyAngForce(-10/2*ang(Fighter:angles():pitch(),0,0)*10000*DT*100 -10000*Fighter:angVel():setYaw(0):setRoll(0))
+                
+                # Cancel gravity
+                #Fighter:applyForce( vec(0,0,1)*Fighter:mass()*gravity()*DT )
+                
+                # Position the jet in
+                Fighter:applyForce( (DifPos*20000 - 15000*Fighter:vel())*1*DT )
+            }elseif( Force == 6 ) {
+                # Welded to landing point through apply force
+                
+                # Turn off guns
+                if( Fire[Index,number] )
+                {Fire[Index,number] = 0}
+                
+                # Angles
+                LocalVec = vec(Fighter:right():dot(LandPropArray[Index,entity]:forward()),Fighter:forward():dot(LandPropArray[Index,entity]:forward()),Fighter:up():dot(LandPropArray[Index,entity]:forward()))
+                LocalVec2 = vec(Fighter:right():dot(LandPropArray[Index,entity]:right()),Fighter:forward():dot(LandPropArray[Index,entity]:right()),Fighter:up():dot(LandPropArray[Index,entity]:right()))
+                DifAng = angnorm(LocalVec:toAngle())
+                ForceAng = ang(0,DifAng:yaw(),DifAng:pitch())
+                Fighter:applyAngForce(ForceAng*80000*DT*100/2)
+                Fighter:applyAngForce(-Fighter:angVel()*DT*1000000/1.5)
+                Roll = Fighter:angles():pitch()
+                Roll2 = Fighter:angles():right()
+                #Fighter:applyAngForce(-10/2*ang(Fighter:angles():pitch()+LasArray[Index,entity]:angles():roll(),0,0)*10000*DT*100 -10000*Fighter:angVel():setYaw(0):setRoll(0))
+                Fighter:applyAngForce(-10/2*ang(angnorm(LocalVec2:toAngle()):pitch(),0,0)*10000*DT*100 -10000*Fighter:angVel():setYaw(0):setRoll(0))
+                
+                
+                
+                # Cancel gravity
+                Fighter:applyForce( vec(0,0,1.5)*Fighter:mass()*gravity()*DT )
+                
+                # Position the jet in
+                #Fighter:applyForce( (DifPos*50000 - 20000*Fighter:vel())*1*DT )
+                
+                Fighter:applyForce( 50902.587946834*DifPos-1985.7226683326*Fighter:vel() )
+
+            }
+        }
+        ################################################
+        
+        Index++
+    }
+    
+    Total = 0
+    I = 1
+    while( I <= 6 )
+    {
+        Total+=Fire[I,number]
+        I++
+    }
+    
+    # Only update the fires and xyz positions if we are firing
+    if( Total > 0 )
+    {
+        # Set the xyz outputs
+        XYZ1 = Targets[1,entity]:pos()
+        XYZ2 = Targets[2,entity]:pos()
+        XYZ3 = Targets[3,entity]:pos()
+        XYZ4 = Targets[4,entity]:pos()
+        XYZ5 = Targets[5,entity]:pos()
+        XYZ6 = Targets[6,entity]:pos()
+    }
+    
+    # Set the fire outputs
+    Fire1 = Fire[1,number]
+    Fire2 = Fire[2,number]
+    Fire3 = Fire[3,number]
+    Fire4 = Fire[4,number]
+    Fire5 = Fire[5,number]
+    Fire6 = Fire[6,number]
+    
+
+    interval(50)
+}
+
+

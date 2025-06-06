@@ -1,0 +1,292 @@
+@name HoloLookingHatsune
+@inputs InputTarget:entity
+@outputs Target:entity Aiming SearchingForTarget Accurate Error:string
+@persist MaxDistance MaxDistance2
+@persist MaxHeadYaw MaxBodyYaw MaxSpineYaw MaxAimYaw MaxYaw
+@persist MinHeadPitch MaxHeadPitch MinAimPitch MaxAimPitch MinPitch MaxPitch
+@outputs TargetYaw CurrentYaw TargetPitch CurrentPitch
+@persist WaitForTarget WaitTime 
+@persist VisibleCheck VisibleCheckTime
+@trigger
+@persist AimPitch HeadPitch AimYaw HeadYaw BodyYaw SpineYaw YawSign
+#[        local AimPitch = 0
+        local HeadPitch = 0
+        
+        local AimYaw = 0
+        local HeadYaw = 0
+        local BodyYaw = 0
+        local SpineYaw = 0
+        local YawSign]#
+@persist [MikuPos MikuHeadPos LocalPos]:vector [MikuAng LocalAngle]:angle CanSeeTarget LocalPitch LocalYaw
+#[        local MikuPos = holoEntity(1):pos()
+        local MikuAng = holoEntity(1):angles()
+        local MikuHeadPos = holoEntity(1):attachmentPos("anim_attachment_head")
+        local LocalPos = toLocal(Target:shootPos(),Target:angles(),MikuHeadPos,MikuAng)
+        local LocalAngle = LocalPos:toAngle()
+
+        local CanSeeTarget = 1
+        
+        local LocalPitch = LocalAngle:pitch()
+
+        local LocalYaw = LocalAngle:yaw()]#
+@persist Index
+if(first() || duped()){
+    function void updateAimingState(){
+        MaxHeadYaw = 66.7
+        MaxBodyYaw = 30
+        MaxSpineYaw = 30
+        MaxAimYaw = 60
+        
+        MinHeadPitch = -39.9 #scratch that #-30.9 #This is looking down
+        MaxHeadPitch =  30.9 #scratch that #39.9 #This is looking up
+        MaxAimPitch = 50
+        MinAimPitch = -89
+        
+        MaxYaw = (Accurate ? 0 : MaxBodyYaw + MaxSpineYaw) + (Aiming ? MaxAimYaw : MaxHeadYaw)
+        MinPitch = Aiming ? MinAimPitch : MinHeadPitch
+        MaxPitch = Aiming ? MaxAimPitch : MaxHeadPitch
+        #When setting the head pitch, take the negative
+        #There is spine yaw... but that's a bit buggy
+        TargetYaw = CurrentYaw = TargetPitch = CurrentPitch = 0
+        holoAnim(1, Aiming ? "Pistol_idle_aim" :"LineIdle03")
+        holoAlpha(2,Aiming ? 255 : 0)
+        #holoAnim(1, "walk_all")
+    }
+    function void updateAngles(Pitch:number, Yaw:number){
+        #Head/Aim > Body > Spine
+        AimPitch = 0
+        HeadPitch = 0
+        
+        AimYaw = 0
+        HeadYaw = 0
+        BodyYaw = 0
+        SpineYaw = 0
+        YawSign = sign(Yaw) #Remember to multiply by this
+        Yaw = abs(Yaw) #Make Yaw Positive to simplify things
+        
+        if(Aiming){
+            AimPitch =  clamp(Pitch, MinAimPitch, MaxAimPitch)
+            Pitch -= AimPitch
+            if(Pitch > 0){
+                HeadPitch = clamp(Pitch, MinHeadPitch, MaxHeadPitch)
+            }
+        }else{
+            HeadPitch = clamp(Pitch, MinHeadPitch, MaxHeadPitch)
+            Pitch -= HeadPitch
+            if(Pitch > 0){
+                AimPitch =  clamp(Pitch, MinAimPitch, MaxAimPitch)
+            }
+        }
+        while(Yaw != 0){
+            if(!Aiming && !HeadYaw){
+                HeadYaw = min(Yaw, MaxHeadYaw)
+                Yaw -= HeadYaw
+                continue
+            }elseif(Aiming && !AimYaw){
+                AimYaw = min(Yaw, MaxAimYaw)
+                Yaw -= AimYaw
+                continue
+            }elseif(!BodyYaw){
+                BodyYaw = min(Yaw, MaxBodyYaw)
+                Yaw -= BodyYaw
+                continue
+            }elseif(!SpineYaw){
+                SpineYaw = min(Yaw, MaxSpineYaw)
+                Yaw -= SpineYaw
+                continue
+            }elseif(!Aiming && !AimYaw){
+                AimYaw = min(Yaw, MaxAimYaw)
+                continue
+            }elseif(Aiming && !HeadYaw){
+                HeadYaw = min(Yaw, MaxHeadYaw)
+                continue
+            }
+            break
+        }
+        AimYaw *= YawSign
+        HeadYaw *= YawSign
+        BodyYaw *= YawSign
+        SpineYaw *= YawSign
+        
+        if(Yaw != 0 || Pitch != 0){
+            #This is not ment to occur
+            Error = "Too great of a yaw("+Yaw+")/pitch("+Pitch+")"
+        }
+        holoSetPose(1, "aim_pitch", AimPitch)
+        holoSetPose(1, "head_pitch", HeadPitch)
+        holoSetPose(1, "aim_yaw", AimYaw)
+        holoSetPose(1, "head_yaw", HeadYaw)
+        holoSetPose(1, "body_yaw", BodyYaw)
+        holoSetPose(1, "spine_yaw", SpineYaw)
+    }
+}
+
+if(tickClk()){
+    #holoSetPose(1, "move_yaw", curtime()*10 % 360 - 180)
+#[    if(CurrentYaw != TargetYaw){
+        Diff = TargetYaw - CurrentYaw
+        if(abs(Diff) < 1){
+            CurrentYaw = TargetYaw
+        }else{
+            CurrentYaw += Diff*0.3
+        }
+    }
+    if(CurrentPitch != TargetPitch){
+        Diff = TargetPitch - CurrentPitch
+        if(abs(Diff) < 1){
+            CurrentPitch = TargetPitch
+        }else{
+            CurrentPitch += Diff*0.3
+        }
+    }]#
+    #CurrentPitch = TargetPitch
+    #CurrentYaw = TargetYaw
+    if(CurrentYaw != TargetYaw){
+        Diff = TargetYaw - CurrentYaw
+        Sign = sign(Diff)
+        CurrentYaw += abs(Diff) > 5 ? 5*Sign : Diff
+    }
+    if(CurrentPitch != TargetPitch){
+        Diff = TargetPitch - CurrentPitch
+        Sign = sign(Diff)
+        CurrentPitch += abs(Diff) > 5 ? 5*Sign : Diff
+    }
+    
+    if(!Target){
+        #print("NoTarget")
+        if(!SearchingForTarget){
+            timer("ScanTargets", 10)
+        }
+        TargetPitch = 0
+        TargetYaw = 0
+    }else{
+        MikuPos = holoEntity(1):pos()
+        MikuAng = holoEntity(1):angles()
+        MikuHeadPos = holoEntity(1):attachmentPos("anim_attachment_head")
+        #// Convert to local MikuHead coordinates
+        LocalPos = toLocal(Target:shootPos(),Target:angles(),MikuHeadPos,MikuAng)
+        LocalAngle = LocalPos:toAngle()
+        #print("0")
+        CanSeeTarget = MikuHeadPos:distance2(Target:shootPos()) < MaxDistance2
+        #if(CanSeeTarget){print("1")}
+        if(CanSeeTarget){
+            
+            LocalPitch = LocalAngle:pitch()
+            LocalPitch = LocalPitch > 180 ? LocalPitch - 360 : LocalPitch
+            CanSeeTarget = LocalPitch > MinPitch && LocalPitch < MaxPitch
+        }
+        #if(CanSeeTarget){print("2")}
+        if(CanSeeTarget){
+            LocalYaw = LocalAngle:yaw()
+            #LocalYaw = LocalYaw > 180 ? LocalYaw - 360 : LocalYaw
+            while(LocalYaw > 180){LocalYaw -= 360}
+            CanSeeTarget = abs(LocalYaw) < MaxYaw
+            
+        }
+        #if(CanSeeTarget){print("3")}
+#[        if(CanSeeTarget){
+            local RangerData = rangerOffset(10000,MikuHeadPos,(Target:shootPos() - MikuHeadPos):normalized())
+            CanSeeTarget = Target == RangerData:entity()
+        }]#
+        if(!CanSeeTarget){
+            WaitForTarget--
+            if(WaitForTarget <= 0){
+                Target = noentity()
+            }
+        }else{
+            WaitForTarget = WaitTime # //Reset the wait time because we can see the target
+            TargetPitch = LocalPitch
+            TargetYaw = LocalYaw
+        }
+    }
+    if($CurrentYaw || $CurrentPitch){
+        updateAngles(CurrentPitch, CurrentYaw)
+    }
+}elseif(clk("ScanTargets")){
+    if(SearchingForTarget){
+        exit()
+    }
+    SearchingForTarget = 1
+    
+    if(findCanQuery())
+    {
+        #print("SearchingForTarget")
+        findByClass("player") #// Find all the players
+    MikuPos = holoEntity(1):pos()
+    MikuAng = holoEntity(1):angles()
+    MikuHeadPos = holoEntity(1):attachmentPos("anim_attachment_head")
+    #local MikuHeadAng = holoEntity(1):attachmentAng("anim_attachment_head")
+    EntityCount = findSortByDistance(MikuHeadPos)
+    Index = 0
+    while(Index < EntityCount){
+        Index++
+        Result = findResult(Index) 
+        #// Check that they are close enough
+        if(!(MikuHeadPos:distance2(Result:shootPos()) < MaxDistance2)){
+            #print("NotClose")
+            break
+        }
+        #// Convert to local MikuHead coordinates
+        LocalPos = toLocal(Result:shootPos(),Result:angles(),MikuHeadPos, MikuAng)
+        LocalAngle = LocalPos:toAngle()
+        #// Check that Miku can look at them
+        LocalPitch = LocalAngle:pitch()
+        LocalPitch = LocalPitch > 180 ? LocalPitch - 360 : LocalPitch
+        if(!(LocalPitch > MinPitch && LocalPitch < MaxPitch)){
+            Error = "NotAngledPitch: " + LocalPitch
+            continue
+        }
+        LocalYaw = LocalAngle:yaw()
+        #LocalYaw = LocalYaw > 180 ? LocalYaw - 360 : LocalYaw
+        while(LocalYaw > 180){LocalYaw -= 360}
+        if(!(abs(LocalYaw) < MaxYaw)){
+            Error = "NotAngledYaw: " + LocalAngle:yaw()
+            continue
+        }
+        #// Check that Miku can see them
+#[        rangerFilter(Result:weapon())
+        local RangerData = rangerOffset(10000,MikuHeadPos,(Result:shootPos() - MikuHeadPos):normalized())
+        if(RangerData:entity() != Result){
+            #print("Can't See")
+            continue
+        }]#
+        Target = Result
+        #print("FoundTarget")
+        break
+    }
+    }
+    SearchingForTarget = 0
+}elseif(clk("FindValidTarget")){
+}elseif(first() || duped()){
+    #SearchingForTarget = 1
+    #EyeHeight = 61
+    holoCreate(1)
+    holoModel(1,"models/miku.mdl")
+    holoPos(1,entity():pos() + vec(0,0, 0))
+    holoAng(1,entity():angles())
+    holoParent(1, entity())
+    
+    holoCreate(2)
+    holoModel(2,"models/weapons/w_pistol.mdl")
+    local Angle = holoEntity(1):attachmentAng("anim_attachment_RH")
+    local FinalAngle = Angle:rotateAroundAxis(Angle:up(), 180):rotateAroundAxis(Angle:forward(), -10)
+    FinalAngle = FinalAngle:rotateAroundAxis(Angle:up(), 10)
+    holoPos(2,holoEntity(1):attachmentPos("anim_attachment_RH") + Angle:forward()*3 + Angle:up()*3 + Angle:right()*-0.5)
+    holoAng(2, FinalAngle)
+    holoParentAttachment(2,holoEntity(1),"anim_attachment_RH")
+    holoAlpha(2,0)
+    
+    Aiming = 0
+    Accurate = Aiming
+    WaitForTarget = 0
+    WaitTime = 20
+    MaxDistance = 1000
+    MaxDistance2 = MaxDistance*MaxDistance
+    OutOfAngle = 0
+    updateAimingState()
+    runOnTick(1)
+    
+    VisibleCheckTime = 15
+    VisibleCheck = 0
+    
+}

@@ -1,0 +1,212 @@
+@name ShieldV5
+@inputs 
+@outputs PlanetPos:vector R
+@persist Sphere:array Planet:entity I PlanetName:string Built Props:array SurfaceCenter:vector
+@persist Weapons:array ASDF
+@outputs State
+@trigger none
+
+interval(80)
+if(first())
+{
+    #include "lib/hob"
+    
+    entity():isWeldedTo():setShipName("Kappa Project: Dark Star")
+    
+    function build() {
+        if(I<Sphere:count())
+        {
+            if(propCanCreate())
+            {
+                I++
+                local V = PlanetPos+Sphere[I,vector]
+                if(!V:isInWorld()) {interval(10) exit()}
+                local A = Sphere[I,vector]:toAngle():up():toAngle()
+                local E = propSpawn("models/hunter/plates/plate32x32.mdl",V,A,1)
+                if(E:isValid()){
+                    E:weld(entity():isWeldedTo())
+                    E:setRenderMode(10)
+                    E:propShadow(0)
+                    
+                    Props[I,entity] = E
+                }else{
+                    interval(10) 
+                    exit()
+                }
+            }
+        }else{
+            #turret stuff
+            print("Finished Building")
+#[            WeaponBase = propSpawn("models/Boba_Fett/catwalk_build/gate_platform.mdl",SurfaceCenter+vec(0,0,40),ang(),1)
+            TurretBase = holoCreate(1,PlanetPos,vec(1),ang(-90,0,0))
+            HologramBase = holoCreate(2,PlanetPos,vec(1),ang(-90,0,0))]#
+            #holoModel(1,"models/player/items/engineer/clockwerk_hat.mdl")
+            #holoScaleUnits(1,vec(1,1,1)*R*3)
+            Built = 1
+            State = 1
+        }
+    }
+    
+    function sphereFinish(S:array) {
+        Sphere = S
+        build()
+    }
+    
+#[    function parentWeps()
+    {
+        foreach(K,V:entity=Weapons)
+        {
+            V:parentTo(WeaponBase)
+        }
+    }
+    function deparentWeps()
+    {
+        foreach(K,V:entity=Weapons){
+            V:deparent()
+        }
+    }
+    function parentWepBase()
+    {
+        WeaponBase:setPos(PlanetPos+vec(0,0,R*1.1))
+        WeaponBase:setAng(ang(0,0,0))
+        timer(100,1,"parentWepBase2()","parentWepBase2()")
+    }
+    function parentWepBase2()
+    {
+        WeaponBase:parentTo(TurretBase)
+    }
+    function moveWepBase()
+    {
+        WeaponBase:setPos(SurfaceCenter+vec(0,0,30))
+        WeaponBase:setAng(ang(0,0,0))
+    }
+    ]#
+    #runOnTick(1)
+    propSpawnUndo(0)
+    runOnChat(1)
+    #Current Planet
+    Planet = closestPlanet(entity():pos())
+    PlanetName = Planet:lsName()
+    print(PlanetName)
+    
+    if(map()=="gm_interplaneteryfunk")
+    {
+        R = 3700
+        PlanetPos = vec(-10000,-10000,-6000)
+    }else{
+        #Planet Radius
+        R = 3700#( max(Planet:boxSize():x(),Planet:boxSize():y(),Planet:boxSize():z())/2 ) *0.95
+        
+        #Planet pos
+        PlanetPos = (PlanetName=="Kobol" ? Planet:pos()+vec(0,0,250) : Planet:pos())
+    }
+    #Center of the surface of the planet
+    rangerFlags("W")
+    SurfaceCenter = rangerOffset(PlanetPos+vec(0,0,R),PlanetPos):position()
+    
+    #sphere! :D
+    array():sphere(R,11,"sphereFinish",0)
+    
+}
+if(Built==0 & Sphere:count())
+{
+    build()
+}else{
+
+    if(chatClk(owner()) & owner():lastSaid():sub(1,1) == "!")
+    {
+        hideChat(1)
+        local S = owner():lastSaid():sub(2):lower()
+        switch(S)
+        {
+            case "shield",
+                if(State==1){State=2 I=Props:count()+1}
+                if(State==4){State=3 I=0}
+                break
+            
+            case "repairshield",
+                if(State==1|State==4){State=5 I=0}
+                break
+        }
+    }   
+
+    switch(State) #1:Closed 2:Opening 3:Closing 4:Open 5:Repairing
+    {
+        case 1,
+#[            Current = HologramBase:toLocal(TurretBase:angles()):forward()
+            Wanted = HologramBase:toLocal((Target - TurretBase:pos()):normalized():toAngle()):forward()
+            New = angnorm(smoothness2(Current,Wanted,45*(80/1000))):setRoll(0)
+            holoAng(holoIndex(TurretBase),HologramBase:toWorld(New))]#
+            break
+        case 2,
+            if(I>0){
+                while(perf() & I>0){
+                    I--
+                    local E = Props[I,entity]
+                    E:setAlpha(0)
+                    E:setSolid(0)
+                }
+            }else{
+                State=4
+#[                holoAng(holoIndex(TurretBase),ang(-90,0,0))
+                WeaponBase:deparent()
+                WeaponBase:unWeld(entity():isWeldedTo())
+                timer(100,1,"moveWepBase()","moveWepBase()")
+                timer(200,1,"deparentWeps()","deparentWeps()")]#
+            }
+            break
+        case 3,# Closing
+            if(I==0){I++
+#[                WeaponBase:weld(entity():isWeldedTo())
+                findIncludePlayerProps(owner())
+                findByClass("sc_weapon_base")
+                findClipToSphere(SurfaceCenter,1000)
+                Weapons = findToArray()
+                print(Weapons:count())
+                for(X=1,Weapons:count())
+                {
+                    V = Weapons[X,entity]
+                    V:constraintBreak()
+                    V:lsLink(entity():isWeldedTo())
+                    V:setPos(SurfaceCenter+vec(cos(X*(360/Weapons:count()))*140,sin(X*(360/Weapons:count()))*140,50))
+                    V:setAng(ang(0,0,0))
+                    V:createWire(entity(),"Fire","Fire")
+                }
+                timer(100,1,"parentWeps()","parentWeps()")
+                timer(200,1,"parentWepBase()","parentWepBase()")]#
+            }elseif(I<Props:count()){
+                while(perf() & I<Props:count()){
+                    I++
+                    local E = Props[I,entity]
+                    E:setAlpha(255)
+                    E:setSolid(1)
+                }
+            }else{
+                function s1()
+                {
+                    State = 1
+                    ASDF = 0
+                }
+                if(!ASDF){
+                    ASDF = 1
+                    timer(300,1,"heh","s1()")
+                }
+                
+            }
+            break
+            
+        case 4,
+            break
+            
+        case 5,
+            if(I<Props:count()){I++
+                Props[I,entity]:propDelete()
+            }else{
+                Props = array()
+                Built = 0
+                I = 0
+            }
+            break
+    }
+}
+#[Fire = FireIn]#

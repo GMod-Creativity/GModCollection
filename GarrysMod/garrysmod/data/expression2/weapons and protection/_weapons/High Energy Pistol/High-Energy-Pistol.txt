@@ -1,0 +1,234 @@
+@name Hologram Gun
+@inputs 
+@outputs 
+@persist [SelectMode]:string [Bullet Ent]:entity [Aimpos]:vector [PropS]:string 
+@persist [Sounds PropsIndex PropAddL]:array [Canfire Shot Index Reload Clip PropAdd ModeNo StopR]
+@trigger 
+@model models/Items/ammocrate_smg1.mdl
+P = owner()
+E = entity()
+interval(100)
+P:weapon():setAlpha(0)
+if(first()){
+    hint("Take anything with the half life 2 pistol/magnum model to use.",10)
+    Canfire = 1
+    Shot = 16
+    Clip = 48
+    PropS = "models/props_phx/oildrum001_explosive.mdl"
+    Sounds[0, string] = "vo/npc/male01/hacks01.wav"
+    Sounds[1, string] = "vo/npc/male01/hacks02.wav"
+    Sounds[2, string] = "vo/npc/male01/thehacks01.wav"
+    Sounds[3, string] = "vo/npc/male01/thehacks02.wav"
+    PropAdd = 15
+}
+#reloading ammo
+if(P:aimEntity() == E & changed(P:keyUse()) & P:keyUse() & P:pos():distance(E:pos()) < 50){
+    Shot = 16
+    Clip = (16*5)
+    Reload = 0
+    StopR = 0
+    Canfire = 1
+    hint("Ammo: "+Shot+" in magazine. "+Clip+" shot(s) left",10)
+    if(ModeNo == 5 | ModeNo == 10 | ModeNo == 11 | ModeNo == 12 | ModeNo == 13 | ModeNo == 15 | ModeNo>=16){
+    for(I = 1, PropsIndex:count(), 1){
+            PropsIndex[I,entity]:propBreak()
+    }
+        PropsIndex:clear()
+    }
+}
+Aimpos = P:aimPos()
+if(P:weapon():model() == "models/weapons/w_pistol.mdl" | P:weapon():model() == "models/weapons/w_357.mdl"){
+    #holographic gun (requires wire_holograms_modelany 1)
+    if(holoModelAny()){
+        P:weapon():setAlpha(0)
+        holoCreate(1)
+        holoModel(1,"models/weapons/w_alyx_gun.mdl")
+        holoAng(1,P:attachmentAng("anim_attachment_RH")+ang(180,0,180))
+        holoPos(1,P:attachmentPos("anim_attachment_RH")+vec(0,0,5))
+        holoParentAttachment(1,owner(),"anim_attachment_RH")
+    }
+    #shooting
+    if(Canfire & changed(P:keyAttack1())&P:keyAttack1()&!Reload){
+        timer("fireagain",400)
+        P:soundPlay(Index,Index,"weapons/ar2/fire1.wav")
+        if(ModeNo == 5 | ModeNo == 10 | ModeNo == 11 | ModeNo == 12 | ModeNo == 13 | ModeNo == 15 | ModeNo>=16){
+            if(ModeNo == 15){
+               P:soundPlay(1,1, Sounds[randint(0,3), string]) 
+            }
+            Bullet = propSpawn(PropS,P:attachmentPos("anim_attachment_RH"),P:eyeAngles(),0)
+            PropsIndex:pushEntity(Bullet)
+            Bullet:setTrails(1,1,1,"trails/smoke",vec(100,100,100),255)
+        }else{
+        Index++
+        holoDelete(2)
+        holoCreate(2)
+        holoPos(2,P:attachmentPos("anim_attachment_RH"))
+        holoColor(2, vec(255,255,255), 0)
+        holoEntity(2):setTrails(1,1,1,"trails/smoke",vec(100,100,100),255)
+        Bullet = propSpawn(PropS,Aimpos,ang(0),1)
+        timer("explode",10)
+        Bullet:setAlpha(0) 
+    }
+        Canfire = 0
+        Shot--
+    }elseif(Reload & changed(P:keyAttack1())&P:keyAttack1()){
+    P:soundPlay(-1,-1,"weapons/ar2/ar2_empty.wav")
+    
+}   
+    if(ModeNo == 5 | ModeNo == 10 | ModeNo == 11 | ModeNo == 12 | ModeNo == 13 | ModeNo == 15 | ModeNo>=16){
+        for(I2  = 1,PropsIndex:count()){
+            local PropsIndex2 = PropsIndex[I2,entity]
+            PropsIndex2:applyForce(PropsIndex2:forward()*10000000*PropsIndex2:mass())
+    }
+    }
+    if(clk("fireagain")){
+        Canfire = 1
+        holoEntity(2):setTrails(1,1,1,"trails/smoke",vec(100,100,100),0)
+    }
+    if(clk("explode")){
+        holoPos(2,Aimpos)
+        Bullet:propBreak()
+    }
+    #reloading
+    if(Shot<=0){
+        Reload = 1
+    }
+    if(Clip > 0){
+    if(changed(P:keyReload())&P:keyReload() & Shot != 16 &!StopR){
+        Index = 0
+        for(I = 1, PropsIndex:count(), 1){
+            PropsIndex[I,entity]:propBreak()
+    }
+        PropsIndex:clear()
+        if(Clip < 0){
+        Clip = 0
+    }
+        hint("Ammo: "+Shot+" in magazine. "+Clip+" shot(s) left",10)
+        P:soundPlay(-1,-1,"weapons/alyxgun/alyx_gun_reload.wav")
+        timer("reload",1017)
+        StopR = 1
+    }
+}elseif(Clip <= 0 & changed(P:keyReload())&P:keyReload()){
+        Clip = 0
+        hint("Ammo: "+Shot+" in magazine. "+Clip+" shot(s) left",10)
+} 
+    if(Clip < 0){
+        Clip = 0
+    }
+    if(clk("reload")){
+        Clip -= (16 - Shot)
+            if(Clip < 0){
+                Clip = 0
+                for(I = 1, PropsIndex:count(), 1){
+                    PropsIndex[I,entity]:propBreak()
+            }
+        }
+        Shot = 16
+        Reload = 0
+        hint("Ammo: "+Shot+" in magazine. "+Clip+" shot(s) left",10)
+        StopR = 0
+    }
+    #Switching modes:
+    if(changed(P:keyUse())&P:keyUse()&P:keyAttack2()){
+        if(ModeNo>PropAdd){
+        ModeNo = 0
+    }
+        ModeNo++
+    }
+    if(changed(ModeNo == 0)&ModeNo == 0){
+        PropS = "models/props_phx/oildrum001_explosive.mdl"
+        hint("Changed to mode Default.",10)
+    }
+
+    if(changed(ModeNo == 1)&ModeNo == 1){
+        hint("Changed to mode Napalm.",10)
+        PropS = "models/props_junk/gascan001a.mdl"
+    }
+    
+    if(changed(ModeNo == 2)&ModeNo == 2){
+        hint("Changed to mode Riot Control.",10)
+        PropS = "models/props_junk/propane_tank001a.mdl"
+    }
+    
+    if(changed(ModeNo == 3)&ModeNo == 3){
+        hint("Changed to mode Rubber Explosion.",10)
+        PropS = "models/props_phx/misc/potato_launcher_explosive.mdl"
+    }
+
+    if(changed(ModeNo == 4)&ModeNo == 4){
+        hint("Changed to mode TNT.",10)
+        PropS = "models/props_phx/ball.mdl"
+    }
+    if(changed(ModeNo == 5)&ModeNo == 5){
+        hint("Changed to mode Melon.",10)
+        PropS = "models/props_junk/watermelon01.mdl"
+    }
+    if(changed(ModeNo == 6)&ModeNo == 6){
+        PropS = "models/props_c17/oildrum001_explosive.mdl"
+        hint("Changed to mode Rectangular Frag.",10)
+    }
+    if(changed(ModeNo == 7)&ModeNo == 7){
+        PropS = "models/props_phx/misc/flakshell_big.mdl"
+        hint("Changed to mode Frag.",10)
+    }
+    if(changed(ModeNo == 8)&ModeNo == 8){
+        PropS = "models/props_phx/torpedo.mdl"
+        hint("Changed to mode Nuclear.",10)
+    }
+    if(changed(ModeNo == 9)&ModeNo == 9){
+        PropS = "models/props_phx/cannonball_solid.mdl"
+        hint("Changed to mode Anti-Banned Prop.",10)
+    }
+    if(changed(ModeNo == 10)&ModeNo == 10){
+        PropS = "models/props_junk/cardboard_box002a.mdl"
+        hint("Changed to mode Box.",10)
+    }
+    if(changed(ModeNo == 11)&ModeNo == 11){
+        PropS = "models/props_junk/CinderBlock01a.mdl"
+        hint("Changed to Brick.",10)
+    }
+    if(changed(ModeNo == 12)&ModeNo == 12){
+        PropS = "models/props_junk/sawblade001a.mdl"
+        hint("Changed to mode Saw Blade.",10)
+    }
+    if(changed(ModeNo == 13)&ModeNo == 13){
+        PropS = "models/props_c17/tv_monitor01.mdl"
+        hint("Changed to mode TV.",10)
+    }
+    if(changed(ModeNo == 14)&ModeNo == 14){
+        PropS = "models/props_phx/mk-82.mdl"
+        hint("Changed to mode C4.",10)
+    }
+    if(changed(ModeNo == 15)&ModeNo == 15){
+        PropS = "models/props_lab/monitor02.mdl"
+        hint("Changed to mode HAXXXS.",10)
+    }
+    if(changed(ModeNo)&ModeNo&ModeNo>=16){
+        PropS = PropAddL[ModeNo,string]
+        hint("Now Shooting Prop "+PropAddL[ModeNo,string],10)
+    }
+}else{
+    if(holoModelAny()){
+        P:weapon():setAlpha(255)
+        holoDelete(1)
+    }
+}
+if(duped()){
+    reset()
+}
+#Adding props
+if(changed(P:keyWalk())&P:keyWalk()&P:keyAttack2()){
+    PropAdd++
+    Ent = P:aimEntity()
+    PropAddL[PropAdd,string] = Ent:model()
+    hint("Added Prop: "+PropAddL[PropAdd,string]+" "+PropAdd,10)
+}
+#Removing props
+if(changed(P:keyDuck())&P:keyDuck()&P:keyAttack2()){
+    hint("Removed Prop: "+PropAddL[PropAdd,string]+" "+PropAdd,10)
+    PropAddL[PropAdd,string] = ""
+    PropAdd--
+}
+if(PropAdd<15){
+    PropAdd = 15
+}

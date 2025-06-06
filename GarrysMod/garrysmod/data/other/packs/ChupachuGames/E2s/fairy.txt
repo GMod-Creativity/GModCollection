@@ -1,0 +1,332 @@
+@name Fairy
+@persist Fairy:entity Owner:entity FairyPos:vector CurPos:vector Target:entity
+@persist HoloGo ColourList:array Mass
+@persist Players:array PlayerKills:array Deaths TargetDeaths PlayerCount
+@persist HideChat Mode LastMode Revenge Radius
+
+#Based on General Guy's Fairy by Talix
+
+runOnTick(1)
+runOnChat(1)
+
+
+
+if(first() | duped())
+{
+    #Default Values
+    DefaultColour = "purple"
+    Revenge = 0
+    Mode = 2
+    
+    Owner = owner()
+    Fairy = entity()
+    HoloGo = 1
+    Radius = 1
+    hint("Hello, "+owner():name()+".",25)
+    hint("To see a detailed list of commands, or for help, type !cmds",25)
+    hint("If you don't have a name for me already, give me one!",25)
+        
+    #Choice of colours
+    ColourList = array()
+    ColourList:pushString("red")
+    ColourList:pushVector4(vec4(255,100,100,255))
+    ColourList:pushString("blue")
+    ColourList:pushVector4(vec4(100,200,255,255))
+    ColourList:pushString("green")
+    ColourList:pushVector4(vec4(100,200,100,255))
+    ColourList:pushString("gold")
+    ColourList:pushVector4(vec4(255,200,0,255))
+    ColourList:pushString("pink")
+    ColourList:pushVector4(vec4(255,95,215,255))
+    ColourList:pushString("purple")
+    ColourList:pushVector4(vec4(170,80,215,255))
+    ColourList:pushString("white")
+    ColourList:pushVector4(vec4(200,200,200,255))
+    ColourList:pushString("invis")
+    ColourList:pushVector4(vec4(0,0,0,0))
+}
+
+if (Fairy == noentity()|Fairy:pos() == vec(0,0,0))
+{
+    Owner = owner()
+    Fairy:setAlpha(0)
+    HoloGo = 1
+} 
+else 
+{
+    if(HoloGo == 1) 
+    {
+        holoCreate(0, Fairy:pos())
+        holoParent(0, Fairy)
+        holoModel(0, "icosphere3")
+        holoMaterial(0, "models/props_combine/tpballglow")
+        holoScale(0, vec(0.4,0.4,0.4))
+        holoCreate(1, Fairy:pos())
+        holoParent(1, Fairy)
+        holoModel(1, "icosphere3")
+        holoMaterial(1, "models/props_combine/tpballglow")
+        holoScale(1, vec(0.8,0.8,0.8))
+
+        #Set Default Colour
+        Found = 0
+        for(I=1, ColourList:count(), 2)
+        {
+            if (!Found & DefaultColour == ColourList[I, string])
+            {
+                Fairy:setColor(vec(ColourList[I+1, vector4]), 0)
+                Fairy:setTrails(16, 0, 10, "trails/laser", Fairy:getColor(), ColourList[I+1, vector4]:w())
+                
+                holoColor(0, mix(Fairy:getColor(),vec(200,200,200),0.4),255)
+                holoColor(1, Fairy:getColor(),255)
+                
+                Found = 1
+            }
+        }
+        if(!Found)
+        {
+            hint("Invalid default colour", 45)
+        }
+
+        HoloGo = 0
+    }
+    holoAng(0, ang(0,0,0))
+    holoAng(1, ang(0,0,0))
+}
+
+if (Mode == 3)
+{
+    if(TargetDeaths != Target:deaths())
+    {
+        Mode = LastMode
+        if (Mode == 3)
+        {
+            Mode = 0
+        }
+    }
+}
+    
+if (Revenge & !isSinglePlayer() & findCanQuery())
+{
+    if (PlayerCount != numPlayers())
+    {
+        PlayerCount = numPlayers()
+        findExcludePlayer(owner())
+        findByClass("Player")
+        Players = findToArray()
+    }
+
+    if (Deaths != Owner:deaths())
+    {
+        for(I=0, Players:count())
+        {
+            if (Players[I, entity]:frags() != PlayerKills[I, number])
+            {
+                Target = Players[I, entity]
+                TargetDeaths = Target:deaths()
+                LastMode = Mode
+                Mode = 3 
+            }
+        }
+    }
+
+    Deaths = Owner:deaths()
+
+    for(I=0, Players:count())
+    {
+        PlayerKills[I, number] = Players[I, entity]:frags()
+    }
+}
+
+Command=Owner:lastSaid()
+if ((chatClk(owner()) | chatClk(Owner)) & Command:left(1)=="!") 
+{
+    Input = Command:explode(" ")
+    Command=Input[1, string]:sub(2,Input[1, string]:length())
+    Argument = Input[2, string]
+
+    hideChat(HideChat)
+
+    if(Command == "cmds")
+    {
+        hint("Inputs:",45)
+        hint("'!hidechat 1/0' sets hidechat to hide chat commands.",45)
+        hint("'!f' follows what you're looking at",45)
+        hint("'!f <Player>' gives the fairy to a friend",45)
+        hint("'!rad ' sets circle radius",45)
+        hint("'!colours' to see the available colors.",45)
+        hint("'!colour <Colour Name>' to change to the named colour", 45)
+        hint("'!stay' makes the fairy stay",45)
+        hint("'!spiral 1/0' turns on/off the spiral movement",45)
+        hint("'!revenge 1/0' turns on/off revenge mode", 45)
+        hint("'!kill <Player>' Kill target", 45)
+    }
+    elseif(Command=="f")
+    {
+        if(Mode == 1)
+        {
+            Mode = 0
+        }
+
+        if (Argument:length() > 0)
+        {
+            Owner = findPlayerByName(Argument)
+            if(!Owner)
+            {
+               Owner = owner()
+               hint("Invalid Target",5)
+            }
+            hint("Following player " + Owner:name(), 5)
+        }
+        else
+        {
+            if(Owner:aimEntity():type() == "prop_physics") 
+            {
+                PropTarget = Owner:aimEntity():model():replace(".mdl", ""):explode("/")
+                Owner = Owner:aimEntity()
+                hint("Following prop ''" + PropTarget[PropTarget:count(),string] + "'' owned by " + Owner:owner():name(), 5)
+            }
+            elseif(Owner:aimEntity():type() == "player") 
+            {
+                Owner = Owner:aimEntity()
+                hint("Following player " + Owner:name(), 5)
+            }
+            else
+            {
+                hint("Invalid Target",5)
+            }
+        }
+    }
+    elseif(Command == "rad")
+    {
+        if(Argument:toNumber() > 25)
+        {
+            hint("Sadly, radius can not be set any higher than 25.",5)
+        } 
+        else 
+        {
+            Radius = Argument:toNumber()/10
+            hint("Setting Radiusius to "+(Radius*10):toString()+", default is 10.",5)
+        }
+    }
+    elseif(Command == "hidechat")
+    {
+        if (Argument == "0")
+        {
+            HideChat = 0
+            hint("Showing Chat Inputs!",5)
+        }
+        else
+        {
+            HideChat = 1
+            hint("Hiding Chat Inputs!",5), hideChat(1)
+        }
+    }
+    elseif(Command == "stay")
+    {
+        Mode = 1
+        CurPos = Fairy:pos()
+        hint("Staying here.",5)
+    }
+    elseif(Command == "spiral")
+    {
+        if (Argument == "0")
+        {
+            Mode = 0
+            hint("Turning off Spiral",5)
+        }
+        else
+        {
+            Mode = 2
+            hint("Turning on spiral",5)
+        }
+    }
+    elseif(Command == "colour")
+    {
+        Found = 0
+        for(I=1, ColourList:count(), 2)
+        {
+            if (!Found & Argument == ColourList[I, string])
+            {
+                Fairy:setColor(vec(ColourList[I+1, vector4]), 0)
+                Fairy:setTrails(16, 0, 10, "trails/laser", Fairy:getColor(), ColourList[I+1, vector4]:w())
+                
+                holoColor(0, mix(Fairy:getColor(),vec(200,200,200),0.4),255)
+                holoColor(1, Fairy:getColor(),255)
+                
+                hint("Setting Colour to " + ColourList[I, string], 45)
+                
+                Found = 1
+            }
+        }
+        
+        if (!Found)
+        {
+            hint("Invalid colour, Input !colours to see available colours", 45)
+        }
+    }
+    elseif(Command == "colours")
+    {
+        hint("Colours:",45)
+        
+        for(I=1, ColourList:count(), 2)
+        {
+            hint(ColourList[I, string], 45)   
+        }        
+    }
+    elseif(Command == "revenge")
+    {
+        if(Argument == "0")
+        {
+            Revenge = 0
+            hint("Revenge mode off", 5)
+        }
+        else
+        {
+            Revenge = 1
+            hint("Revenge mode on", 5)
+        }
+    }
+    elseif(Command == "kill")
+    {
+        if (Argument:length() > 0)
+        {
+            Target = findPlayerByName(Argument)
+            
+            if (Target)
+            {
+                TargetDeaths = Target:deaths()
+                LastMode = Mode
+                Mode = 3 
+            }
+        }
+        else
+        {
+            hint("Please specify a player to kill", 5)
+        }
+    }
+}
+
+if(Mode == 0)
+{
+    FairyPos = Owner:pos()+vec(Owner:radius()*sin(curtime()*50)*Radius, Owner:radius()*cos(curtime()*50)*Radius, Owner:height()+20)
+    Fairy:setMass(1)
+    Fairy:applyForce(((FairyPos - Fairy:pos()) * 3 - Fairy:vel()) * Fairy:mass())
+}
+elseif(Mode == 1)
+{
+    FairyPos = CurPos+vec(Owner:radius()*sin(curtime()*50)*Radius, Owner:radius()*cos(curtime()*50)*Radius,0)
+    Fairy:setMass(1)
+    Fairy:applyForce(((FairyPos - Fairy:pos()) * 3 - Fairy:vel()) * Fairy:mass())
+}
+elseif(Mode == 2)
+{
+    FairyPos = Owner:pos()+vec(Owner:radius()*sin(curtime()*50)*Radius, Owner:radius()*cos(curtime()*50)*Radius, (Owner:radius()*cos(curtime()*10)*Radius)+Owner:height()+20)   
+    Fairy:setMass(1)
+    Fairy:applyForce(((FairyPos - Fairy:pos()) * 3 - Fairy:vel()) * Fairy:mass())
+}
+elseif(Mode == 3)
+{
+    FairyPos = Target:pos():setZ((Target:height()/2) + Target:pos():z())
+    Fairy:setMass(50000)
+    Fairy:applyForce(((FairyPos - Fairy:pos()) * 1) * Fairy:mass())
+}

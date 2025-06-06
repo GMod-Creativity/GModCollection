@@ -1,0 +1,126 @@
+@name Hob-Co Gatling Railgun
+@inputs Button
+@outputs X LastX Accel StateChanging Firing
+@persist Ary:array Go 
+@trigger 
+
+if(first()){
+    runOnLast(1)
+    findIncludePlayerProps(owner())
+    findByClass("sc_weapon_base")
+    Ary = findToArray()
+    holoCreate(1)
+    holoAng(1,ang(0))
+    holoPos(1,entity():pos()+vec(0,0,350))
+    holoParent(1,entity())
+    for(I=1,Ary:count()){
+        local Ent = Ary[I,entity]
+        local A = (360/Ary:count()) * I
+        local R = 200
+        Ent:setPos(entity():pos()+vec(0,0,350) + vec(0,sin(A)*R,cos(A)*R) )
+        Ent:setAng(ang(0,0,-A))
+        Ent:lsLink(entity(331))
+        Ent:freeze()
+        Ent:combatImmune(1)
+    }
+    function parent()
+    {
+        for(I=1,Ary:count()){
+            local Ent = Ary[I,entity]
+            Ent:parentTo(holoEntity(1))
+        }
+    }
+    
+    function spinup()
+    {
+        timer("ffsdivran",10)
+        local Arc = 360 / Ary:count()
+        Accel = clamp(Accel + 0.5,0,Arc)
+        holoAng(1,ang(0,0,holoEntity(1):angles():roll()+Accel))
+        if(Accel==Arc )#& inrange(holoEntity(1):angles():roll(),-10,10))
+        {
+            StateChanging = 0
+            Firing = 1
+            timer(100,1,"firing","firing()")
+        }else{
+            timer(100,1,"spinup","spinup()")
+        }
+    }
+    function stopfiring()
+    {
+        for(I=1,Ary:count())
+        {
+            local WL = Ary[I,entity]:wirelink()
+            WL["Fire",number] = 0
+        }
+    }
+    function spindown()
+    {
+        stopfiring()
+        timer("ffsdivran",10)
+        Firing = 0
+        local Arc = 360 / Ary:count()
+        Accel = clamp(Accel - 0.5,0,Arc)
+        holoAng(1,ang(0,0,holoEntity(1):angles():roll()+Accel))
+        if(Accel==0)
+        {
+            StateChanging = 0
+        }else{
+            timer(100,1,"spindown","spindown()")
+        }
+    }
+    function firing()
+    {
+        timer("ffsdivran",10)
+        if(Firing){timer(100,1,"firing","firing()")}
+        local Arc = 360 / Ary:count()
+        LastX = X
+        X++
+        if(X==21){X=1}
+        holoAng(1,ang(0,0,X*Arc))
+        
+        local E = Ary[X,entity]
+        local WL = E:wirelink()
+        E:setColor(vec(255,0,0))
+        WL["Fire",number] = 1
+        
+        local E = Ary[LastX,entity]
+        local WL = E:wirelink()
+        E:setColor(vec(255,255,255))
+        WL["Fire",number] = 0
+    }
+    
+    function go()
+    {
+        Go = 1
+    }
+    
+    timer(100,1,"parent","parent()")
+    timer(200,1,"go","go()")
+}
+
+if(Go)
+{
+    if(~Button)
+    {
+        if(!StateChanging)
+        {
+            StateChanging = 1
+            if(!Firing){
+                spinup()
+            }else{
+                spindown()
+            }
+        }
+    }
+}
+
+
+
+if(last())
+{
+    for(I=1,Ary:count())
+    {
+        Ary[I,entity]:deparent()
+    }
+}

@@ -1,0 +1,61 @@
+    --@name HoverChair
+--@author Hobnob
+--@shared
+--@include lib/pid.txt
+
+--Both Sides - Shared
+require("lib/pid.txt")
+
+if SERVER then
+    --ServerSide
+    entities.self():SBSetGravityOverride(true)
+    entities.self():EnableGravity(false)
+    Base = entities.self():IsWeldedTo()
+    Base:SBSetGravityOverride(false)
+    Base:EnableGravity(true)
+    Player= Base:GetClass() == "Vehicle" and Base:GetDriver() or nil
+    
+    --makin mah own apply ang force, with less crash
+    function applyAngForce(E,Ang)
+        local p = Ang.p
+        local y = Ang.y
+        local r = Ang.r
+        --pitch
+        E:ApplyForceOffset(Vector(0,0,p),E:LocalToWorld(Vector(1,0,0)))
+        E:ApplyForceOffset(Vector(0,0,-p),E:LocalToWorld(Vector(-1,0,0)))
+        --yaw
+        E:ApplyForceOffset(Vector(y,0,0),E:LocalToWorld(Vector(0,1,0)))
+        E:ApplyForceOffset(Vector(-y,0,0),E:LocalToWorld(Vector(0,-1,0)))
+        --roll
+        E:ApplyForceOffset(Vector(0,0,r),E:LocalToWorld(Vector(0,1,0)))
+        E:ApplyForceOffset(Vector(0,0,-r),E:LocalToWorld(Vector(0,-1,0)))
+    end
+    
+    --create angle pid's 
+    Pids = {} --P,I,D,Min,Max,Target
+    Pids.Pitch = PID(100,0,50,-1,1,0)
+    Pids.Yaw   = PID(100,0,50,-1,1,0)--------------------------------
+    Pids.Roll  = PID(100,0,50,-1,1,0)
+    Pids.Thrust= PID(10*50,5*50,5*50,-5000*50,5000*50,0)
+    Pids.X= PID(10*50,5*50,5*50,-5000*50,5000*50,0)
+    Pids.Y= PID(10*50,5*50,5*50,-5000*50,5000*50,0)
+    function Main()
+        --run the pid math
+        Pt = Pids.Pitch:Run(Base:GetAngles().p)
+        Yt = Pids.Yaw:Run(Base:GetAngles().y)
+        Rt = Pids.Roll:Run(Base:GetAngles().r)
+        Tt = Pids.Thrust:Run(Base:GetPos().z-11300)
+        Xt = Pids.X:Run(Base:GetPos().x+10100)
+        Yts = Pids.Y:Run(Base:GetPos().y+13000)
+        --ApplyAngForce
+        --applyAngForce(Base,Angle(0,0,1000))
+        Base:ApplyAngForce(Angle(Pt,Yt,Rt))
+        Base:ApplyForceCenter(Vector(Xt,Yts,Tt))
+    end
+    
+    hook.Add("think","thinku",function()
+        Main()
+    end)
+else
+    --ClientSide
+end

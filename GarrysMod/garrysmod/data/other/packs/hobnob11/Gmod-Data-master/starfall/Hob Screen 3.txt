@@ -1,0 +1,169 @@
+--@name Hob Screen 3
+--@author 
+--@shared
+
+if SERVER then
+    hook.Add("Think","Think",function()
+        if not net.CanSend() then return end
+        
+        local Tbl = {}
+        for k,v in pairs(find.ByClass("ship_core")) do
+            Tbl[v] = {
+                shield = v:GetShieldAmount(),
+                shieldmax = v:GetShieldMax(),
+                armour = v:GetArmorAmount(),
+                armourmax = v:GetArmorMax(),
+                hull = v:GetHullAmount(),
+                hullmax = v:GetHullMax(),
+                name = v:GetShipName(),
+                class = v:GetShipClass()
+            }
+        end
+        net.Start("Update Core Table")
+        net.WriteTable(Tbl)
+        net.Send()
+    end)
+else
+    if entities.player() == entities.owner() then
+        ShipCores = {}
+        hook.Add("net","HobNetMessage",function(name,len)
+            if not name == "Update Core Table" then return end
+            ShipCores = {}
+            ShipCores = net.ReadTable()
+        end)
+        
+        function DrawWedge(px,py,w,h,angle,size,col,uvenum) --1= right to left, 2 = from center outwards
+        	local vertices = {}
+        	local fidelity = 180
+        
+        	vertices[1] = { x = px, y = py, u = px, v = py }
+        	local ang = -math.rad(angle)
+        	local c = math.cos(ang)
+        	local s = math.sin(ang)
+        	for ii=0,fidelity do
+        		local i = ii*(size)/fidelity
+        		local radd = math.rad(i)
+        		local x = math.cos(radd)
+        		local y = math.sin(radd)
+            	local u = 0
+            	local v = 0
+        		if not uvenum or uvenum == 1 then 
+            		u = (x+1)/2
+            		v = (y+1)/2
+            	elseif uvenum == 2 then
+            	    u = 0
+            	    v = 1
+            	end
+        
+        		--radd = -rad(angle)
+        		local tempx = x * w * c - y * h * s + x
+        		y = x * w * s + y * h * c + y
+        		x = tempx
+        
+        		vertices[ii+2] = { x = x+px, y = y+py, u = u + px, v = v + py }
+        	end
+            surface.SetDrawColor( col )
+    	    if (vertices and #vertices>0) then
+    		    surface.DrawPoly( vertices )
+    	    end
+        end
+        function DrawArc( px, py, r, r2, size, angle, col, calcuvf)
+            local fidelity = 10
+            size = math.abs(size)
+            surface.SetDrawColor( col )
+            
+            local MaxX = 0
+            local MaxY = 0
+            if size >= 180 then 
+                MaxX = r*2
+            else 
+                MaxX = math.cos(math.rad(size))*r + r
+            end
+            if size < 90 then 
+                MaxY = math.sin(math.rad(size))*r
+            elseif size <= 180 then
+                MaxY = r
+            elseif size < 270 then 
+                MaxY = r + math.abs(math.sin(math.rad(size)))*r
+            else 
+                MaxY = r*2
+            end
+            local function defaultcalcuv(x,y,MaxX,MaxY)
+                print(MaxX/2 - x)
+                return math.Clamp(x / MaxX,0,1) , math.Clamp(y / MaxY,0,1)
+            end
+        
+            local calcuv = calcuvf or defaultcalcuv
+            
+            for i = 1, fidelity do
+                local a1 = math.rad(i*(size/fidelity))
+                local v1 = {}
+                v1.x = math.cos(a1) * r -- point c
+                v1.y = math.sin(a1) * r
+                v1.u, v1.v = calcuv(v1.x,v1.y,MaxX,MaxY)
+                v1.x = v1.x + px
+                v1.y = v1.y + py
+                
+                local a2 = math.rad((i-1)*(size/fidelity))
+                local v2 = {}
+                v2.x = math.cos(a2) * r -- point a
+                v2.y = math.sin(a2) * r
+                v2.u, v2.v = calcuv(v2.x,v2.y,MaxX,MaxY)
+                v2.x = v2.x + px
+                v2.y = v2.y + py
+                
+                local a3 = math.rad((i-1)*(size/fidelity))
+                local v3 = {}
+                v3.x = math.cos(a3) * r2 -- point b
+                v3.y = math.sin(a3) * r2
+                v3.u, v3.v = calcuv(v3.x,v3.y,MaxX,MaxY)
+                v3.x = v3.x + px
+                v3.y = v3.y + py
+
+                surface.DrawPoly( {v3,v2,v1} )
+            end
+            for i = 1, fidelity do
+                local a1 = math.rad(i*(size/fidelity))
+                local v1 = {}
+                v1.x = math.cos(a1) * r2 -- point d
+                v1.y = math.sin(a1) * r2
+                v1.u, v1.v = calcuv(v1.x,v1.y,MaxX,MaxY)
+                v1.x = v1.x + px
+                v1.y = v1.y + py
+                
+                local a2 = math.rad((i-1)*(size/fidelity)) -- point b
+                local v2 = {}
+                v2.x = math.cos(a2) * r2
+                v2.y = math.sin(a2) * r2
+                v2.u, v2.v = calcuv(v2.x,v2.y,MaxX,MaxY)
+                v2.x = v2.x + px
+                v2.y = v2.y + py
+                
+                local a3 = math.rad((i)*(size/fidelity)) -- point c
+                local v3 = {}
+                v3.x = math.cos(a3) * r
+                v3.y = math.sin(a3) * r
+                v3.u, v3.v = calcuv(v3.x,v3.y,MaxX,MaxY)
+                v3.x = v3.x + px
+                v3.y = v3.y + py
+                
+                surface.DrawPoly( {v1,v2,v3} )
+            end
+        end
+        
+        function halfuv(x,y,MaxX,MaxY)
+            print(MaxX,MaxY)
+            return -math.Clamp(((MaxX/2-x) / MaxX) ,0,1) , -math.Clamp((MaxY/2-y) / MaxY,0,1)
+        end
+        mat = Material("gui/gradient")
+    
+        hook.Add("HUDPaint","HobHud",function()
+            local Pos = {x=surface.ScreenW()/2, y=surface.ScreenH()-250}
+
+            surface.SetMaterial(mat)
+            DrawArc( Pos.x,Pos.y,130,80,90,0,Color(255,255,255))
+            surface.SetTexture(-1)
+            --DrawArc( Pos.x,Pos.y,129,80,180,0,Color(0,0,0))
+        end)
+    end
+end

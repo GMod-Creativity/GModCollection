@@ -1,5 +1,5 @@
-Author: Tze Ken
-Website: https://git.riftpixel.com/isaacntk
+- Author: Tze Ken
+- Website: https://git.riftpixel.com/isaacntk
 
 **gmod-data**
 - Description: Repository for storing my garry's mod creations, mainly for creations made using Wiremod and/or SpaceAge

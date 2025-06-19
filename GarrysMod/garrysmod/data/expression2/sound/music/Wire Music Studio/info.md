@@ -5,6 +5,8 @@
 - Source: https://web.archive.org/web/20110126173413/http://www.wiremod.com/forum/finished-contraptions/24530-wire-music-studio.html
 - Source Accessed (dd-mm-yyyy): 06-06-2025
 
+## Wire Music Studio
+
 This is a project that started as a simple holopiano and then slowly evolved into something awesomely fun. It's essentially a minimalistic remake of FL Studio's piano roll with EGP. The video explains it best:
 
 Interaction is pretty easy, left click to place a note in the edit area, play a key, or select an option. Right click to remove a placed note. E will move the playbar to the specified area. Chat commands are done for more complicated functions:

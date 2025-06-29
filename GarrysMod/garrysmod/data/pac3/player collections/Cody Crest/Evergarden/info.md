@@ -24,3 +24,7 @@ Also, to the 29 people that saw the first version, this is a reupload with impro
 
 https://steamcommunity.com/id/bricksiceweeb/
 Profile is only here for ownership clarification, please don't contact with questions
+
+### Credits
+
+- www.textures4photoshop.com

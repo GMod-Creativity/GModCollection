@@ -1,0 +1,193 @@
+@name BuildZone Final
+@inputs 
+@outputs 
+@persist Area [Bounds]:array Target:entity [Centre IdlePos TargPos]:vector
+@persist HI EI AI Name:string Whitelist:entity
+@persist
+@trigger 
+@model models/Roller.mdl
+
+#   BuildZone by Dave (STEAM_0:1:18771231)
+#   Version 1.2, last revision on 22/11/11
+#   Permission granted to redistribute.
+#   Permission granted to modify.
+#   Please give credit where credit is due.
+
+if (first() | duped())
+{
+    
+    entity():setMass(50000)
+    entity():setAlpha(0)
+    
+    Area = 512                              # Area of BuildZone
+    Centre = entity():pos()                 # Centre of BuildZone
+    IdlePos = Centre + vec(0,0,Area / 2)    # Sentry Idle Position
+    AI = 1                                  # Animation Frame Index
+    
+    #   Set initial positions of boundary vertices
+    Bounds[1,vector] = Centre + vec(Area,Area,0)
+    Bounds[2,vector] = Centre + vec(Area,Area,Area) # Top Corner
+    Bounds[3,vector] = Centre + vec(Area,-Area,0)
+    Bounds[4,vector] = Centre + vec(Area,-Area,Area)
+    Bounds[5,vector] = Centre + vec(-Area,-Area,0) # Bottom Corner
+    Bounds[6,vector] = Centre + vec(-Area,-Area,Area)
+    Bounds[7,vector] = Centre + vec(-Area,Area,0)
+    Bounds[8,vector] = Centre + vec(-Area,Area,Area)
+    
+    #   Create a hologram for each vertice
+    for (HI = 1, Bounds:count())
+    {
+        
+        holoCreate(HI,Bounds[HI,vector])
+        holoModel(HI,"icosphere3")
+        holoMaterial(HI,"models/alyx/emptool_glow")
+        holoColor(HI,vec(0,255,0))
+        findExcludeEntity(holoEntity(HI))
+        
+    }
+    
+    #   Create tracer hologram for 'forcefield' animation
+    holoCreate(9,Bounds[1,vector])
+    holoModel(9,"icosphere3")
+    holoMaterial(9,"models/alyx/emptool_glow")
+    holoColor(9,vec(0,255,0))
+    holoEntity(9):setTrails(32,16,255,"trails/laser",vec(0,255,0),255)
+    findExcludeEntity(holoEntity(9))
+    
+    findExcludeClass("*")
+    findIncludeClass("prop*")
+    findIncludeClass("npc_*")
+    findIncludeClass("player")
+    findExcludeClass("npc_barnacle_tongue_tip")
+    findExcludePlayer(owner())
+    findExcludePlayerProps(owner())
+    findExcludeEntity(entity())
+        
+    runOnTick(1)
+    runOnChat(1)
+    
+}
+
+findInBox(Bounds[2,vector],Bounds[5,vector])
+Target = findClosest(entity():pos())
+
+if (Target != noentity())
+{
+    
+    if (!owner():isSteamFriend(Target:owner())
+    ||  !Target:owner():isAdmin()
+    ||  !Target:owner():isSuperAdmin())
+    {
+        
+        TargPos = (-entity():pos() + Target:pos()) * 50000
+        
+    } else {
+    
+        findExcludePlayer(Target:owner())
+        findExcludePlayerProps(Target:owner())
+        
+        TargPos = (-entity():pos() + IdlePos) * 50000
+    
+    } 
+    
+    
+} else {
+
+    TargPos = (-entity():pos() + IdlePos) * 50000
+
+}
+
+entity():applyForce(TargPos + $TargPos * 5)
+
+timer("Step",3000)
+if (clk("Step"))
+{
+    
+    if (!AI || AI == Bounds:count()) { AI = 1 } else { AI++ }
+    holoPos(9,Bounds[AI,vector])
+    
+}
+
+#   Define chat commands
+if (chatClk(owner()))
+{
+    
+    #   Resize the area of the BuildZone
+    if (lastSpoke():lastSaid():lower():find("!setarea"))
+    {
+        
+        holoEntity(9):removeTrails()
+        
+        Area = lastSpoke():lastSaid():lower():explode(" "):string(2):toNumber()
+        IdlePos = Centre + vec(0,0,Area / 2)
+        
+        #   Reposition boundary vertices
+        Bounds[1,vector] = Centre + vec(Area,Area,0)
+        Bounds[2,vector] = Centre + vec(Area,Area,Area)
+        Bounds[3,vector] = Centre + vec(Area,-Area,0)
+        Bounds[4,vector] = Centre + vec(Area,-Area,Area)
+        Bounds[5,vector] = Centre + vec(-Area,-Area,0)
+        Bounds[6,vector] = Centre + vec(-Area,-Area,Area)
+        Bounds[7,vector] = Centre + vec(-Area,Area,0)
+        Bounds[8,vector] = Centre + vec(-Area,Area,Area)
+        
+        for (HI = 1, Bounds:count())
+        {
+            
+            #   Reposition associated holograms
+            holoPos(HI,Bounds[HI,vector])
+            
+        }
+        
+        # Redraw forcefield
+        AI = 1
+        holoPos(9,Bounds[1,vector])
+        holoEntity(9):setTrails(32,16,255,"trails/laser",vec(0,255,0),255)
+        
+    }
+    
+    #   Move the position of the BuildZone
+    if (lastSpoke():lastSaid():lower():find("!movezone"))
+    {
+        
+        holoEntity(9):removeTrails()
+        
+        Centre = owner():pos()
+        IdlePos = Centre + vec(0,0,Area / 2)
+        
+        #   Reposition boundary vertices
+        Bounds[1,vector] = Centre + vec(Area,Area,0)
+        Bounds[2,vector] = Centre + vec(Area,Area,Area)
+        Bounds[3,vector] = Centre + vec(Area,-Area,0)
+        Bounds[4,vector] = Centre + vec(Area,-Area,Area)
+        Bounds[5,vector] = Centre + vec(-Area,-Area,0)
+        Bounds[6,vector] = Centre + vec(-Area,-Area,Area)
+        Bounds[7,vector] = Centre + vec(-Area,Area,0)
+        Bounds[8,vector] = Centre + vec(-Area,Area,Area)
+        
+        for (HI = 1, Bounds:count())
+        {
+            
+            #   Reposition associated holograms
+            holoPos(HI,Bounds[HI,vector])
+            
+        }
+        
+        # Redraw forcefield
+        AI = 1
+        holoPos(9,Bounds[1,vector])
+        holoEntity(9):setTrails(32,16,255,"trails/laser",vec(0,255,0),255)
+        
+    }
+    
+    if (lastSpoke():lastSaid():lower():find("!whitelist"))
+    {
+        
+        Name = lastSpoke():lastSaid():lower():explode(" "):string(2)
+        Whitelist = findPlayerByName(Name)
+        findExcludePlayer(Whitelist)
+        findExcludePlayerProps(Whitelist)
+        
+    }
+    
+}

@@ -10,5 +10,11 @@
 **Pac3-Hosting-master**
 - Description: this is a repository for everything I host for pac3 outfits
 - Date (dd-mm-yyyy): 30-11-2016
-- Source: https://github.com/ultimatepac3/Pac3-Outfits
+- Source: https://github.com/ultimatepac3/Pac3-Hosting
+- Source Accessed (dd-mm-yyyy): 01-07-2025
+
+**Pac3-Exchange-master**
+- Description: repository to exchange pac files.
+- Date (dd-mm-yyyy): 22-05-2016
+- Source: https://github.com/ultimatepac3/Pac3-Exchange
 - Source Accessed (dd-mm-yyyy): 01-07-2025

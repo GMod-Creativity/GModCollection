@@ -1,0 +1,149 @@
+@name Handcuffs
+@persist [O E Prop]:entity Grabing HandcuffDistance BindDistance MaxDistance Multiply [PropModel Weapon]:string Proping Enable CD PP
+runOnTick(1)
+interval(10)
+O=owner()
+
+##By LogicLogger
+
+if(first()){
+    
+    propSpawnUndo(0)
+    
+    #SETTINGS#
+    HandcuffDistance = 1000
+    MaxDistance = 75
+    Multiply = 1.25
+    PP = 0
+    BindDistance = 1000
+    PropModel = "models/props_wasteland/prison_throwswitchlever001.mdl"
+    Weapon = "rp_keys" #Insert weapon name here
+    #SETTINGS#
+    
+    entity():setAlpha(0)
+    
+    function createHoloBone(Index,Position:vector,Scale:vector,Angle:angle,Colour:vector,Model:string,Material:string,Ent:entity,Bone:string){
+        holoCreate(Index)
+        holoPos(Index,Position)
+        holoScale(Index,Scale)
+        holoAng(Index,Angle)
+        holoColor(Index,Colour)
+        holoModel(Index,Model)
+        holoMaterial(Index,Material)
+        holoParentAttachment(Index,Ent,Bone)
+    }
+}
+
+KeyR = owner():keyPressed("mouse_5")
+KeyP = owner():keyPressed("t")
+if(changed(KeyR) & KeyR){Enable=!Enable hint("Enable: "+Enable,7)}
+if(changed(KeyP) & KeyP & Enable){PP=!PP hint("Postprocessing: "+PP,7)}
+
+if( O:aimEntity():isPlayer() & O:aimEntity():pos():distance(O:pos())<HandcuffDistance & O:weapon():type()==Weapon & changed(O:keyAttack2()) & O:keyAttack2() & !Grabing & !Proping & Enable ){
+    E=O:aimEntity()
+    createHoloBone(1,E:attachmentPos("anim_attachment_rh")+vec(0.7,0.7,5),vec(0.055,0.055,0.09),ang(vec(0,90,0)),vec(90),"models/hunter/tubes/tube2x2x025.mdl","sprops/textures/sprops_cfiber2",E,"anim_attachment_rh")
+    createHoloBone(2,E:attachmentPos("anim_attachment_lh")+vec(-0.2,-0.9,5),vec(0.055,0.055,0.09),ang(vec(0,90,0)),vec(90),"models/hunter/tubes/tube2x2x025.mdl","sprops/textures/sprops_cfiber2",E,"anim_attachment_lh")
+    timer("1",100)
+    Grabing = 1
+}
+
+if( O:weapon():type()==Weapon & changed(O:keyUse()) & O:keyUse() & !Grabing & !Proping & Enable ){
+    E=O
+    timer("OP",100)
+    Grabing = 1
+}
+
+if( !Prop & Grabing & O:keyAttack1() & !CD & O:aimPos():distance(O:pos())<BindDistance & Enable & propCanCreate() | clk("OP") & propCanCreate() ){
+    Prop=propSpawn(PropModel,1)
+    Prop:setPos(O:aimPos())
+    Prop:setAng(O:aimNormal():toAngle() +ang(90,0,0))
+    Prop:propManipulate(O:aimPos(),O:aimNormal():toAngle() +ang(90,0,0),1,0,0)
+    if(O:aimEntity()!=world()){timer("weld",500)}
+    Prop:noCollideAll(1)
+    CD=1
+    timer("CD",2500)
+    timer("prop",1)
+}
+
+if( clk("prop") ){
+#[beamClear(0)]#
+timer("1",1)
+}
+
+if(clk("1")){
+    if(E!=O&holoEntity(1):isValid()&holoEntity(2):isValid()){
+    beamMaterial(0, "cable/cable2")
+    beamPoint(0,1,holoEntity(1))
+    beamPoint(0,2,holoEntity(2))
+    beamSetOriginParent(1,holoEntity(1))
+    beamSetOriginParent(2,holoEntity(2))}
+    if(!Prop&E!=O&O:isValid()){
+    beamPoint(0,3,O)
+    beamSetOriginParent(3,O)}
+    
+    if(Prop&E!=O&Prop:isValid()){
+    beamPoint(0,3,Prop)
+    beamSetOriginParent(3,Prop)}
+    
+    if(E==O&Prop:isValid()&O:isValid()){
+    beamMaterial(0, "cable/cable2")
+    beamPoint(0,1,O)
+    beamPoint(0,2,Prop)
+    beamSetOriginParent(1,O)
+    beamSetOriginParent(2,Prop)
+    
+    if(!holoEntity(1):isValid()|!holoEntity(2):isValid()|!Prop:isValid()|!O:isValid()){timer("1",100)}
+}
+}
+
+if(clk("CD")){CD=0}
+
+if( Grabing & O:keyUse() & !CD & O:aimEntity() == Prop & O:pos():distance(Prop:pos()) < HandcuffDistance | E==O & O:keyUse() & Prop ){
+    E:pp("texturize", "0" )
+    beamClear(0)
+    if(holoEntity(1)){holoDelete(1)}
+    if(holoEntity(2)){holoDelete(2)}
+    E=noentity()
+    Prop:propDelete()
+    Grabing=0
+}
+
+if( E:pos():distance(O:pos())>MaxDistance & Grabing & !Prop ){
+    if(E!=O){
+    if(PP){E:pp("texturize","phoenix_storms/metalfloor_2-3")}
+    if(E:inVehicle()){E:vehicle():ejectPod()}
+    if(E:inNoclip()){E:playerNoclip(0)}
+    if(E:weapon():type()!=Weapon){E:plySelectWeapon(Weapon)}}
+    Pos=(O:pos()-E:pos())*Multiply
+    E:setVel(Pos)
+    Grabing = 1
+}
+
+if( E:pos():distance(Prop:pos())>MaxDistance & Grabing & Prop ){
+    if(E!=O){
+    if(PP){E:pp("texturize","phoenix_storms/metalfloor_2-3")}
+    if(E:inVehicle()){E:vehicle():ejectPod()}
+    if(E:inNoclip()){E:playerNoclip(0)}
+    if(E:weapon():type()!=Weapon){E:plySelectWeapon(Weapon)}}
+    Prop:weldTo(O:aimEntity(),1)
+    Pos=Prop:pos()-E:pos()
+    E:setVel(Pos)
+    Grabing = 1
+}
+
+if( E==O & E:pos():distance(Prop:pos())>MaxDistance & Grabing & Prop ){
+    Pos=(Prop:pos()-E:pos())/25
+    E:setVel(Pos)
+    Grabing = 1
+}
+
+if( !O:aimEntity():isPlayer() & !CD & O:weapon():type()==Weapon & O:keyAttack2() & Grabing & !Prop & Enable |
+    !E:isAlive() & Grabing ){
+    E:pp("texturize", "0" )
+    beamClear(0)
+    if(holoEntity(1)){holoDelete(1)}
+    if(holoEntity(2)){holoDelete(2)}
+    E=noentity()
+    Prop:propDelete()
+    Grabing=0
+}

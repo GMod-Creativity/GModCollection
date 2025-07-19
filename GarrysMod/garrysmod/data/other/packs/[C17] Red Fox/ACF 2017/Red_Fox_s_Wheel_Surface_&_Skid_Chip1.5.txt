@@ -1,0 +1,623 @@
+@name Red Fox's Wheel Surface & Skid Chip1.5
+@inputs [FL FR RL RR Prop1 Prop2]:entity
+@outputs Speed RollSpeedRL A
+@persist R:ranger SpeedPitch Volume Base:entity
+@persist [ConcreteSound DirtSound GrassSound SandSound WoodSound]:string
+@persist [ConcreteSkidSound DirtSkidSound GrassSkidSound]:string
+@persist ConcreteP GrassP DirtP SandP WoodP ConcretePM GrassPM DirtPM SandPM WoodPM
+@persist ConcreteSkidMultiplier GrassSkidMultiplier DirtSkidMultiplier RangeFront RangeRear
+@persist Rdb SkidDivFront SkidDivBack FrontSkidSpeed
+@persist Wheels:array
+
+if(duped() || dupefinished())
+{
+    reset()
+}
+
+interval(150)
+
+Speed = toUnit("km/h", Base:vel():length())
+
+
+
+if(first())
+{
+    #Prop ignore array, create a new entity input, link it then add it here so the ranger will ignore it    
+    Wheels[1, entity] = FL
+    Wheels[2, entity] = FR
+    Wheels[3, entity] = RL
+    Wheels[4, entity] = RR
+    Wheels[5, entity] = Prop1
+    Wheels[6, entity] = Prop2
+
+    ##########################################   
+    #Sounds
+    ConcreteSound = "acf_extra/vehiclefx/tires/road.wav"
+    DirtSound = "acf_extra/vehiclefx/tires/dirtroll.wav"
+    GrassSound = "acf_extra/vehiclefx/tires/grassroll.wav"
+    SandSound = "acf_extra/vehiclefx/tires/snowroll.wav"
+    WoodSound = "acf_extra/vehiclefx/tires/woodroll.wav"
+    
+    #Skid Sounds
+    ConcreteSkidSound = "acf_extra/vehiclefx/tires/skid2_dry_ex.wav"
+    DirtSkidSound = "acf_extra/vehiclefx/tires/dirtskid.wav"
+    GrassSkidSound = "acf_extra/vehiclefx/tires/skidgrass.wav"
+    
+    #The higher the more speed it requires to max up the volume
+    ConcreteP = 350
+    GrassP = 450
+    DirtP = 350
+    SandP = 350
+    WoodP = 150
+    
+    #Multiplier for the pitch(volume) same as above
+    ConcretePM = 2
+    GrassPM = 2
+    DirtPM = 2
+    SandPM = 1.5
+    WoodPM = 1
+    
+    ConcreteSkidMultiplier = 1.5
+    GrassSkidMultiplier = 1.5
+    DirtSkidMultiplier = 1.5
+    ##########################################
+    
+    Base = entity():isWeldedTo()
+    RangeFront = 32
+    RangeRear = 32
+    
+    #Speed it starts the skid sounds
+    FrontSkidSpeed = 1
+    RearSkidSpeed = 1
+    
+    #The higher the less frequent the skid sound
+    SkidDivFront = 60
+    SkidDivRear = 60
+    
+    Volume = 1
+    Rdb = 1 #Debug for the ranger
+    
+    if(Rdb)
+    {
+        holoCreate(1)
+        holoCreate(2)
+        holoCreate(3)
+        holoCreate(4)
+    }
+    
+    function debugholos()
+    {
+        rangerFilter(Wheels)
+        local Ranger1 = rangerOffset(RangeFront, FL:pos(), -Base:up())
+        rangerFilter(Wheels)
+        local Ranger2 = rangerOffset(RangeFront, FR:pos(), -Base:up())
+        rangerFilter(Wheels)
+        local Ranger3 = rangerOffset(RangeRear, RL:pos(), -Base:up())
+        rangerFilter(Wheels)    
+        local Ranger4 = rangerOffset(RangeRear, RR:pos(), -Base:up())
+        
+        holoPos(1, Ranger1:pos())
+        holoPos(2, Ranger2:pos())
+        holoPos(3, Ranger3:pos())
+        holoPos(4, Ranger4:pos())
+    }
+    
+    function soundsfl()
+    {
+        #Ranger stuff
+        rangerFilter(Wheels)
+        local FLR = rangerOffset(RangeFront, FL:pos(), -Base:up())
+        local HitworldFL = FLR:hitWorld()
+        local HitFL = FLR:hit()
+        local SkidFL = abs(toUnit("km/h", FL:velL():y()))
+        
+        
+        #hint(FLR:matType(),1)
+        #defines the materials    
+        
+        local Concrete = FLR:matType() == "concrete"
+        local Wood = FLR:matType() == "wood"
+        local Dirt = FLR:matType() == "dirt"
+        local Grass = FLR:matType() == "grass"
+        local Sand = FLR:matType() == "sand"
+        local Wood = FLR:matType() == "wood"
+        local None = FLR:matType() == ""   
+        local Changed = changed(FLR:matType())
+    
+        #Sound   
+        if(Changed)
+        {
+            if(None)
+            {
+                FL:soundPlay(1, 0, "")
+            }
+            elseif(Grass)
+            {
+                FL:soundPlay(1, 0, GrassSound)
+            }
+            elseif(Concrete)
+            {
+                FL:soundPlay(1, 0, ConcreteSound)
+            }
+            elseif(Dirt)
+            {
+                FL:soundPlay(1, 0, DirtSound)
+            }
+            elseif(Sand)
+            {
+                FL:soundPlay(1, 0, SandSound)
+            }
+            elseif(Wood)
+            {
+                FL:soundPlay(1, 0, WoodSound)
+            }
+        }
+        
+        #Skid
+        if(Changed)
+        {
+            if(None)
+            {
+                FL:soundPlay(2, 0, "")
+            }
+            elseif(Concrete)
+            {
+                FL:soundPlay(2, 0, ConcreteSkidSound)
+            }
+            elseif(Dirt)
+            {
+                FL:soundPlay(2, 0, DirtSkidSound)
+            }
+            elseif(Grass)
+            {
+                FL:soundPlay(2, 0, GrassSkidSound)
+            }
+        }
+        
+        #Volume and pitch multiplier stuff
+        if(Concrete)
+        {
+            SpeedPitch = (Speed / ConcreteP * ConcretePM)
+        }
+        elseif(Grass)
+        {
+            SpeedPitch = (Speed / GrassP * GrassPM)
+        }
+        elseif(Dirt)
+        {
+            SpeedPitch = (Speed / DirtP * DirtPM)
+        }
+        elseif(Sand)
+        {
+            SpeedPitch = (Speed / SandP * SandPM)
+        }
+        elseif(Wood)
+        {
+            SpeedPitch = (Speed / WoodP * WoodPM)
+        }
+        
+        soundVolume(1, SpeedPitch * Volume)    
+        
+        if(Concrete)
+        {
+            SkidMFL = (SkidFL / SkidDivFront) * ConcreteSkidMultiplier
+        }  
+        elseif(Grass)
+        {
+            SkidMFL = (SkidFL / SkidDivFront) * GrassSkidMultiplier
+        }
+        elseif(Dirt)
+        {
+            SkidMFL = (SkidFL / SkidDivFront) * DirtSkidMultiplier
+        }
+        
+        if(SkidFL >= FrontSkidSpeed)
+        {
+            soundVolume(2, SkidMFL)
+        }
+        else
+        {
+            soundVolume(2, 0)
+        }
+        
+        #Prevents playing if not one of the sounds from the tables
+        if(!Concrete && !Dirt && !Sand && !Grass && !Wood)
+        {
+            soundVolume(1, 0)
+        }
+        
+        if(!Concrete && !Dirt && !Grass)
+        {
+            soundVolume(2, 0)
+        }
+    }
+       
+   function soundsfr()
+    {
+        #Ranger stuff
+        rangerFilter(Wheels)
+        local FRR = rangerOffset(RangeFront, FR:pos(), -Base:up())
+        local HitworldFR = FRR:hitWorld()
+        local HitFR = FRR:hit()
+        local SkidFR = abs(toUnit("km/h", FR:velL():y()))
+               
+        
+        #defines the materials    
+        local Concrete = FRR:matType() == "concrete"
+        local Wood = FRR:matType() == "wood"
+        local Dirt = FRR:matType() == "dirt"
+        local Grass = FRR:matType() == "grass"
+        local Sand = FRR:matType() == "sand"
+        local Wood = FRR:matType() == "wood"
+        local None = FRR:matType() == ""
+        local Changed = changed(FRR:matType())
+    
+        #Sound    
+        if(Changed)
+        {
+            if(None)
+            {
+                FR:soundPlay(3, 0, "")
+            }elseif(Grass)
+            {
+                FR:soundPlay(3, 0, GrassSound)
+            }elseif(Concrete)
+            {
+                FR:soundPlay(3, 0, ConcreteSound)
+            }elseif(Dirt)
+            {
+                FR:soundPlay(3, 0, DirtSound)
+            }elseif(Sand)
+            {
+                FR:soundPlay(3, 0, SandSound)
+            }elseif(Wood)
+            {
+                FR:soundPlay(3, 0, WoodSound)
+            }
+        }
+        
+        #Skid
+        if(Changed)
+        {
+            if(None)
+            {
+                soundPlay(4, 0, "")
+            }
+            elseif(Concrete)
+            {
+                FR:soundPlay(4, 0, ConcreteSkidSound)
+            }
+            elseif(Dirt)
+            {
+                FR:soundPlay(4, 0, DirtSkidSound)
+            }
+            elseif(Grass)
+            {
+                FR:soundPlay(4, 0, GrassSkidSound)
+            }
+        }
+        
+        #Volume and pitch multiplier stuff
+        if(Concrete)
+        {
+            SpeedPitch = (Speed / ConcreteP * ConcretePM)
+        }  
+        elseif(Grass)
+        {
+            SpeedPitch = (Speed / GrassP * GrassPM)
+        }
+        elseif(Dirt)
+        {
+            SpeedPitch = (Speed / DirtP * DirtPM)
+        }
+        elseif(Sand)
+        {
+            SpeedPitch = (Speed/SandP*SandPM)
+        }
+        elseif(Wood)
+        {
+            SpeedPitch = (Speed/WoodP*WoodPM)
+        }
+        
+        soundVolume(3, SpeedPitch * Volume)    
+        
+        if(Concrete)
+        {
+            SkidMFR = (SkidFR / SkidDivFront) * ConcreteSkidMultiplier
+        }  
+        elseif(Grass)
+        {
+            SkidMFR = (SkidFR / SkidDivFront) * GrassSkidMultiplier
+        }
+        elseif(Dirt)
+        {
+            SkidMFR = (SkidFR / SkidDivFront) * DirtSkidMultiplier
+        }
+        if(SkidFR >= FrontSkidSpeed)
+        {
+            soundVolume(4, SkidMFR)
+        }
+        else
+        {
+            soundVolume(4, 0)
+        }
+        
+        #Prevents playing if not one of the sounds from the tables
+        if(!Concrete && !Dirt && !Sand && !Grass && !Wood)
+        {
+            soundVolume(3, 0)
+        }
+        
+        if(!Concrete && !Dirt && !Grass)
+        {
+            soundVolume(4, 0)
+        }
+    }
+    
+    function soundsrl()
+    {#Ranger stuff
+        rangerFilter(Wheels)
+        local RLR = rangerOffset(RangeRear, RL:pos(), -Base:up())
+        local HitworldRL = RLR:hitWorld()
+        local HitRL = RLR:hit()
+        local SkidRL = abs(toUnit("km/h", RL:velL():y()))
+       
+        
+        #defines the materials    
+        local Concrete = RLR:matType() == "concrete"
+        local Wood = RLR:matType() == "wood"
+        local Dirt = RLR:matType() == "dirt"
+        local Grass = RLR:matType() == "grass"
+        local Sand = RLR:matType() == "sand"
+        local Wood = RLR:matType() == "wood"
+        local None = RLR:matType() == ""
+        local Changed = changed(RLR:matType())
+    
+        #Sound 
+        if(Changed)
+        {
+            if(None)
+            {
+               RL:soundPlay(5, 0, "")
+            }
+            elseif(Grass)
+            {
+                RL:soundPlay(5, 0, GrassSound)
+            }
+            elseif(Concrete)
+            {
+                RL:soundPlay(5, 0, ConcreteSound)
+            }
+            elseif(Dirt)
+            {
+                RL:soundPlay(5, 0, DirtSound)
+            }
+            elseif(Sand)
+            {
+                RL:soundPlay(5, 0, SandSound)
+            }
+            elseif(Wood)
+            {
+                RL:soundPlay(5, 0, WoodSound)
+            }
+        }
+        
+        #Skid
+        if(Changed)
+        {
+            if(None)
+            {
+                soundPlay(6, 0, "")
+            }
+            elseif(Concrete)
+            {
+                RL:soundPlay(6, 0, ConcreteSkidSound)
+            }
+            elseif(Dirt)
+            {
+                RL:soundPlay(6, 0, DirtSkidSound)
+            }
+            elseif(Grass)
+            {
+                RL:soundPlay(6, 0, GrassSkidSound)
+            }
+        }
+        
+        #Volume and pitch multiplier styff
+        if(Concrete)
+        {
+            SpeedPitch = (Speed / ConcreteP * ConcretePM)
+        }  
+        elseif(Grass)
+        {
+            SpeedPitch = (Speed / GrassP * GrassPM)
+        }
+        elseif(Dirt)
+        {
+            SpeedPitch = (Speed / DirtP * DirtPM)
+        }
+        elseif(Sand)
+        {
+            SpeedPitch = (Speed/SandP*SandPM)
+        }
+        elseif(Wood)
+        {
+            SpeedPitch = (Speed/WoodP*WoodPM)
+        }
+        
+        soundVolume(5, SpeedPitch * Volume)    
+        
+        if(Concrete)
+        {
+            SkidMRL = (SkidRL / SkidDivBack) * ConcreteSkidMultiplier
+        }
+        elseif(Grass)
+        {
+            SkidMRL = (SkidRL / SkidDivBack) * GrassSkidMultiplier
+        }
+        elseif(Dirt)
+        {
+            SkidMRL = (SkidRL / SkidDivBack) * DirtSkidMultiplier
+        }
+        
+        if(SkidRL >= FrontSkidSpeed)
+        {
+            soundVolume(6, SkidMRL)
+        }
+        else
+        {
+            soundVolume(6, 0)
+        }
+        
+        #Prevents playing if not one of the sounds from the tables
+        if(!Concrete && !Dirt && !Sand && !Grass && !Wood){
+            soundVolume(5, 0)
+        }
+        
+        if(!Concrete && !Dirt && !Grass)
+        {
+            soundVolume(6, 0)
+        }
+    
+    }
+    
+    function soundsrr()
+    {
+        #Ranger stuff
+        rangerFilter(Wheels)
+        local RRR = rangerOffset(RangeRear,RR:pos(),-Base:up())
+        local HitworldRR=RRR:hitWorld()
+        local HitRR=RRR:hit()
+        local SkidRR = abs(toUnit("km/h",RR:velL():y()))
+       
+        #defines the materials    
+        local Concrete = RRR:matType()=="concrete"
+        local Wood = RRR:matType()=="wood"
+        local Dirt = RRR:matType()=="dirt"
+        local Grass = RRR:matType()=="grass"
+        local Sand = RRR:matType()=="sand"
+        local Wood = RRR:matType()=="wood"
+        local None = RRR:matType()==""
+        local Changed = changed(RRR:matType())
+    
+        #Sound  
+        if(Changed)
+        {
+            if(None)
+            {
+               RR:soundPlay(7, 0, "")
+            }
+            elseif(Grass)
+            {
+                RR:soundPlay(7, 0, GrassSound)
+            }
+            elseif(Concrete)
+            {
+                RR:soundPlay(7, 0, ConcreteSound)
+            }
+            elseif(Dirt)
+            {
+                RR:soundPlay(7, 0, DirtSound)
+            }
+            elseif(Sand)
+            {
+                RR:soundPlay(7, 0, SandSound)
+            }
+            elseif(Wood)
+            {
+                RR:soundPlay(7, 0, WoodSound)
+            }
+        }
+        
+        #Skid
+        if(Changed)
+        {
+            if(None)
+            {
+                soundPlay(8, 0, "")
+            }
+            elseif(Concrete)
+            {
+                RR:soundPlay(8, 0, ConcreteSkidSound)
+            }
+            elseif(Dirt)
+            {
+                RR:soundPlay(8, 0, DirtSkidSound)
+            }
+            elseif(Grass)
+            {
+                RR:soundPlay(8, 0, GrassSkidSound)
+            }
+        }
+        
+        #Volume and pitch multiplier styff
+        if(Concrete)
+        {
+            SpeedPitch = (Speed / ConcreteP * ConcretePM)
+        }  
+        elseif(Grass)
+        {
+            SpeedPitch = (Speed / GrassP * GrassPM)
+        }
+        elseif(Dirt)
+        {
+            SpeedPitch = (Speed / DirtP * DirtPM)
+        }
+        elseif(Sand)
+        {
+            SpeedPitch = (Speed / SandP * SandPM)
+        }
+        elseif(Wood)
+        {
+            SpeedPitch = (Speed / WoodP * WoodPM)
+        }
+        
+        soundVolume(7, SpeedPitch * Volume)    
+        
+        if(Concrete)
+        {
+            SkidMRR = (SkidRR / SkidDivBack) * ConcreteSkidMultiplier
+        }  
+        elseif(Grass)
+        {
+            SkidMRR = (SkidRR / SkidDivBack) * GrassSkidMultiplier
+        }
+        elseif(Dirt)
+        {
+            SkidMRR = (SkidRR / SkidDivBack) * DirtSkidMultiplier
+        }
+        
+        if(SkidRR >= FrontSkidSpeed)
+        {
+            soundVolume(8, SkidMRR)
+        }
+        else
+        {
+            soundVolume(8, 0)
+        }
+        
+        #Prevents playing if not one of the sounds from the tables
+        if(!Concrete && !Dirt && !Sand && !Grass && !Wood)
+        {
+            soundVolume(7, 0)
+        }
+        
+        if(!Concrete && !Dirt && !Grass)
+        {
+            soundVolume(8, 0)
+        }
+    }
+}
+
+
+
+if(Rdb)
+{
+    debugholos()
+}
+
+soundsfl()
+soundsfr()
+soundsrl()
+soundsrr()
+

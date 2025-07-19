@@ -1,0 +1,149 @@
+@name 3d holo coil v3
+@inputs [Base Wheel]:wirelink
+@outputs CoilLength
+@persist [E1 E2]:entity [V1 V2]:vector Dir:array
+@persist SpringSize Divider Height
+
+#CREDITS:
+#M0SKAU=Holograms
+#Outlaw=Functions
+
+
+if( ->Base & dupefinished() ){ reset() }
+
+if(first())
+{
+    setName("holoSprings")
+    ## Either set E1 and E2 here, or set them as inputs
+    E1 = Base:entity() ?: entity(1455)
+    V1 = vec(0, -0+0, 0)
+    E2 = Wheel:entity() ?: entity(1458)
+    V2 = vec(-0,-0,0)
+    
+    #print(E1:toLocal(E2:pos()))
+    
+    if( !E1 | !E2 )
+    {
+        hint( "You must first select 2 entities before you can place your coil", 4 )
+        exit()
+    }
+    
+    #runOnTick(1)
+    
+    E = entity()
+    
+    holoCreate(1)
+    holoModel(1,"hq_cylinder")
+    holoMaterial(1,"sprops/textures/sprops_rubber2")
+    #holoAlpha(1,0)
+    
+    holoCreate(2)
+    holoModel(2,"hq_cylinder")
+    holoMaterial(2,"sprops/textures/sprops_rubber")
+    holoParent(2,1)
+    #holoAlpha(2,0)
+    
+    # Set how many times it coils
+    ## With default holo spawn rate, your maximum is 13 due to 30 holos in 1 tick
+    CoilLength =10
+    
+    Scale =1
+    Tog = -1
+    Start = 2
+    
+    # This can change the side of the spring
+    ## Note changing this value will modify your springs reach
+    ### To fix this you need to modify the divider
+    SpringSize = 5
+    SpringSize*=Scale
+    
+    # The divider changes the reach of your holograms
+    ## the higher the divider for "CoilLength" is the further your reach is
+    Divider = (CoilLength/ (SpringSize/0.5-1) )
+    
+    for(I=1,CoilLength*2,2)
+    {
+        holoCreate(Start+I,E:toWorld(vec( Tog == -1 ? SpringSize/2-(SpringSize/16) : -SpringSize/2+(SpringSize/16),0,0)),(Scale*vec(1.5,1.5,1))/12,E:toWorld(ang(0,0,90)))
+        holoAlpha(Start+I,0)
+        holoModel(Start+I,"hq_cylinder")
+        if( I>1 )
+        {
+            holoParent(Start+I,Start+I-1)
+        }
+        else
+        {
+            holoParent(1,E1)
+        }
+        
+        holoCreate(Start+I+1,E:pos(),vec(1,1,1)*SpringSize/12,E:angles())
+        holoModel(Start+I+1,"hq_torus")
+        holoClipEnabled(Start+I+1,1)
+        holoClip(Start+I+1,vec(),vec(0,Tog,0),0)
+        holoColor(Start+I+1,vec(255,0,0))
+        holoMaterial(Start+I+1,"phoenix_storms/Indenttiles_1-2")
+        holoParent(Start+I+1,Start+I)
+        holoAlpha(Start+I+1,255)
+        
+        Tog = -Tog
+        Dir[I,number] = Tog
+    }
+    
+    function void createHyd(Num,Ent:entity)
+    {
+        if( Num == 1 )
+        {
+            V1 = V1
+            E1 = Ent
+            holoAlpha(1,255)
+        }
+        else
+        {
+            V2 = V2
+            E2 = Ent
+            Height = E1:toWorld(V1):distance(E2:toWorld(V2)) / 4
+            holoScale(2,vec(4,4,Height*2)/12)
+            holoAlpha(2,255)
+            holoPos(3,holoEntity(2):toWorld(vec(SpringSize/2-(SpringSize/16),0,-Height/1.25)))
+            holoParent(3,2)
+            for(I=1,CoilLength*2,2)
+            {
+                holoAlpha(I+1,255)
+            }
+        }
+    }
+    
+    ## if you wish to use pre-set vectors for your position, place them below
+    if( E1 & E2 )
+    {
+        for(I=1,2)
+        {
+            createHyd(I,array(E1,E2)[I,entity])
+        }
+        Step = 2
+    }
+    
+    CoilLength*=2
+}
+
+interval(20)
+
+Dirv = E2:toWorld(V2)-E1:toWorld(V1)
+Dist = round(Dirv:length(),2)
+
+if(changed(Dist))
+{
+    Pos = E1:toWorld(V1)
+    holoPos(1,Pos+Dirv:normalized()*clamp(Dist/2+2,0,300))
+    holoAng(1,Dirv:toAngle()+ang(90,0,0))
+    holoScale(1,vec(2,2,Dist-2)/12)
+    
+    holoPos(2,Pos+Dirv:normalized()*(Height/1.2))
+    #holoAng(2,Ang)
+    
+    H = max(4.5,Dist/Divider)
+    
+    for(I=1,CoilLength,2)
+    {
+        holoAng(2+I,holoEntity(2):toWorld(ang(H*Dir[I,number],0,90)))
+    }
+}

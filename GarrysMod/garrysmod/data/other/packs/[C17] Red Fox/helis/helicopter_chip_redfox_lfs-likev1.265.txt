@@ -1,0 +1,639 @@
+@name helicopter chip RedFox LFS-likev1.265
+@inputs [Cam Pod MainRotor TailRotor]:wirelink RangerHit Active
+@outputs PilotLink:array TargetAngles:angle EMass Strafe Tick Throttle Ops SpeedH Base:entity AimM Active EVel:vector VelX VelY VelZ Timer PitchExt TickRateMult
+@persist P1 P2 Mod Yaw MRB TRB Mass Lift Hurt Speed Timer Hover Invert Damage Toggle NewYaw NewPitch NewRoll AimingM TRLinked MRLinked SmoothedAD ConstraintTable:array
+@persist Injured InTimer Throttle Interval StrafeAlter LiftAlter AimingMethod HoloStartUp StartUpSpeed YawPlus Health RotorDeath RotorProblem
+@persist AirFriction SoundPitchMult CollisionSpeed TrueSensitivity CameraRotation Manuevarebility HoloRotorEnabled WaterLevel EngineDeath
+@persist MainRotorBlades TailRotorBlades [RotorSound RotorSound2 RotorMaterial]:string
+@persist [Array HintDriver AimingModes]:array AimingData:table [MainRotorAng TailRotorAng TargetAngles DeathAng]:angle [E MR TR Prop Model]:entity 
+@persist [Place Clamp RotorColor MainRotorPos TailRotorPos CameraPosition MainRotorSize TailRotorSize]:vector CamDistOutSide CamDistInside CamZOut CamInsideZ
+@persist PitchMult PitchMultDown PitchMultUp YawMult RollMult AutoRollDiv UpMult DownMult AimMult TickRateMult FOV BlurScale InertiaMult SideSpeedMult ForwardSpeedMult
+@persist MainRotorBladeAngle TailRotorBladeAngle
+@model models/sprops/rectangles/size_60/rect_60x132x3.mdl
+
+#this is based on verus heli e2, heavily modified by [C17] Red Fox
+
+if(Tick == 0.015)
+{
+    TickRateMult = 1
+}else
+{
+    TickRateMult = 2
+}
+
+if(first()|dupefinished()){
+###### setup #######
+#New Info to read on V1.2.2
+#The wirelinks MainRotor and TailRotor are for rotor survivability
+#This is for more realistic heli battles in acf or gdc
+#If you dont want that, just leave those 2 variables alone and DONT link them
+#They way they work if you do want them, is you link them to a prop,
+#and it will destroy the rotor If that prop is killed
+ 
+    #@model changes the model of the base prop   
+
+
+Tick = tickInterval()
+
+Interval = 20 #Increasing this will decrease ops, but you will need to increase the lift and other options
+              #Performance may also drop if it is too high
+#Flight Settings
+Manuevarebility = 7 * TickRateMult #this is how agile the helicopter is
+Lift = 0.275 * TickRateMult #This is how much default lift the heli has
+LiftAlter = 10 #This is how much pressing W or S affects the heli
+StrafeAlter = 1.5 #This is how much the helicopter will strafe
+AirFriction = 130 #This is how much friction there is for the heli
+StartUpSpeed = 0.35 #This is how fast it takes the heli to reach full throttle
+
+UpMult = 1.25 #how much it will go up when W is pressed
+DownMult = 0.6 #same as above but s
+
+#these are for fine tuning, normally you just leave them at 0
+InertiaMult = 10 #improves overall handling at the cost of speed in all axies, might reduce lift
+ForwardSpeedMult = 0.1 #improves forward or reverse speed with less pitch, at the cost of losing lift
+SideSpeedMult = 0 #same as above but sideways
+
+PitchMult = 1 #self explanatory
+YawMult = 1.25
+RollMult = 1.8
+
+AutoRollDiv = 1000 #dont really need to mess with this tbh
+AimMult = 1 #force multiplier in all the axis, for when you have something contrained with physics
+ 
+#Phyiscal damage settings
+Damage = 100000 #Determines weather the heli will acount for physical damage or not
+CollisionSpeed = 550 #This is how fast the heli has to be flying prior to a collision to hurt the motor
+ 
+#Camera settings
+CameraPosition = vec(0,0,0) #This is the position of the camera relative to the helicopter 
+CameraRotation = 0 #This is the position of the camera relative to the player's eye
+AimingModes = array(1,2) #This controls the order of the aiming modes by the alt button
+CamDistOutSide = 600 #distance for 3rd person                      
+CamZOut= 170 #how high it is
+CamDistInside = 0 #dont need to change this tbh                       
+CamInsideZ = 35 #head height in 1st person               
+ 
+#HoloRotor Settings
+HoloRotorEnabled = 1
+
+BlurScale = 16 #changes the size of the blurry blades holo
+ 
+MainRotorBlades = 3 #This is the number of blades on the main rotor
+MainRotorSize = vec(4,1.7,0.9) #This is the scale of the main rotor being length,width,height repsectively
+MainRotorPos = vec(0,0,95) #This is the position of the main rotor reliative to the e2
+MainRotorAng = ang(0,0,0) #This is the angle the main rotor will rotate on
+MainRotorBladeAngle = -7
+
+TailRotorBlades = 3 #This is the number of blades on the tail rotor
+TailRotorSize = vec(1,0.8,0.9) #This is the scale of the tail rotor being length,width,height repsectively
+TailRotorPos = vec(-350,0,39) #This is the position of the tail rotor reliative to the e2
+TailRotorAng = ang(0,0,90) #This is the angle the tail rotor will rotate on
+TailRotorBladeAngle = 7
+
+RotorColor = vec(50,50,50) #This is the color of the rotors in Red,Green,Blue format
+RotorMaterial = "sprops/textures/sprops_metal1" #This is the material of the rotors
+
+RotorSound = "acf_extra/airfx/cobratorots.wav" #This is the Sound of the rotors
+SoundPitchMult = 2.9 #This is how much the soundpitch is multiplied
+###### setup #######
+
+ Clamp = vec(Manuevarebility*RollMult,Manuevarebility*PitchMult,Manuevarebility * YawMult)
+
+ 
+ 
+# Codeing below
+# Do not alter unless you know what you are doing
+ 
+         interval(20)
+        
+    Base = entity()
+    E =             entity()
+    Array =          array()
+    EyeSensitivity = array()
+    WaterLevel =      -70000
+    AimingM =              0
+    MainRotorDeath =       0
+    TailRotorDeath =       0
+    TRLinked =   ->TailRotor
+    MRLinked =   ->MainRotor
+    MR =       MainRotor:entity()
+    TR =       TailRotor:entity()
+    
+    EMass =              E:mass()
+
+#gets the constrained entities mass and adds them to the total mass, works for auto leveling the lift force
+ConstraintTable = E:getConstraints()
+
+for(I=1, ConstraintTable:count())
+{
+    if(!ConstraintTable[I,entity]:isPlayerHolding()){
+    EMass+= ConstraintTable[I,entity]:mass()}
+} 
+ 
+ 
+ 
+ 
+    #Data goes in order as follows - array(AimingMode,HoloPos during parenting,CamPos during parenting
+AimingData = table(
+         array(1,vec(-CameraRotation,0,0),vec())
+        ,array(2,vec(),vec())
+       
+            )
+ 
+HintDriver = array(
+         "This is Red Fox's Helicopter Chip",
+        "Press F to Start the engine",
+        "Press W to go up, and S to go down",
+        "Hold ALT to switch aiming methods",
+        "Use the mouse to aim the helicopter",
+        "Speed is dependent on your pitch and roll",
+        "Shift to look around",
+        "Space to toggle hover mode"
+            )
+ 
+#####HoloSpawner######
+ 
+        }#Condition 1 end
+        elseif((HoloStartUp < (MainRotorBlades*2 + TailRotorBlades + 4)) & HoloRotorEnabled)
+        {#Condition 2 Start
+        interval(100)
+        HoloStartUp++
+        HSU = HoloStartUp + 2
+ 
+        if(HoloStartUp == 1)
+        {#Condition 2.1 Start
+            HRPos = E:toWorld(MainRotorPos - vec(0,0,MainRotorSize:y()*6))
+            HRScl = vec(MainRotorSize:y()*2,MainRotorSize:y()*2,MainRotorSize:y())
+            HRAng = E:toWorld(ang())
+            HRMod = "models/sprops/cylinders/size_1/cylinder_1_5x12.mdl"
+            HRParent = E
+            
+            holoCreate(HSU,HRPos,HRScl,HRAng,RotorColor,HRMod)
+            holoParent(3,E)
+        }#Condition 2.1 End
+        elseif(HoloStartUp == 2)
+        {#Condition 2.2 Start
+            HRPos = E:toWorld(TailRotorPos - vec(0,0,TailRotorSize:y()*6))
+            HRScl = vec(TailRotorSize:y()/2,TailRotorSize:y()/2,TailRotorSize:y())
+            HRAng = E:toWorld(ang())
+            HRMod = "hq_cylinder"
+            HRParent = E
+            
+            holoCreate(HSU,HRPos,HRScl,HRAng,RotorColor,HRMod)
+            holoParent(4,E)
+        }#Condition 2.2 End
+        elseif(HoloStartUp == 3)
+        {#Condition 2.3 Start
+            HRPos = E:toWorld(TailRotorPos)
+            HRScl = vec(12*TailRotorSize:x(),12*TailRotorSize:x(),0)
+            HRAng = E:toWorld(ang())
+            HRMod = "hq_cylinder"
+            HRParent = E
+            
+            holoCreate(HSU,HRPos,HRScl,HRAng,vec(255,255,255),  HRMod)
+            holoParent(5,4)
+            holoDisableShading(5,1)
+            holoAlpha(5,0)
+        }#Condition 2.3 End
+        elseif(HoloStartUp == 4)
+        {#Condition 2.4 Start
+          HRPos = E:toWorld(MainRotorPos)
+            HRScl = vec(1*BlurScale,0.1,1*BlurScale) #scale blur
+            HRAng = E:toWorld(ang(0,0,90))
+            HRMod = "models/sprops/geometry/superthin/discs/fdisc_36.mdl"
+            HRParent = E
+            
+            holoCreate(HSU,HRPos,HRScl,HRAng,vec(255,255,255),  HRMod)
+            holoParent(6,3)
+            holoClipEnabled(6,0)
+            holoDisableShading(6,1)
+            holoAlpha(6,0)
+        }#Condition 2.4 End
+        elseif((HoloStartUp > 4) & ((HoloStartUp - 4) <= MainRotorBlades))
+        {#Condition 2.5 Start
+            HRPos = E:toWorld(MainRotorPos)
+            HRScl = MainRotorSize
+            HRAng = E:toWorld(ang(0,(360 / MainRotorBlades)*HoloStartUp,MainRotorBladeAngle))
+            HRMod = "models/sprops/rectangles_thin/size_2/rect_12x144x1_5.mdl"
+            
+            holoCreate(HSU,HRPos,HRScl,HRAng,RotorColor,HRMod)
+            holoClipEnabled(HSU,1,1)
+            holoClip(HSU,1,vec(),vec(1,0,0),0)
+            holoParent(HSU,3)
+        }#Condition 2.5 End
+        elseif((HoloStartUp > (4 + MainRotorBlades)) & ((HoloStartUp - MainRotorBlades - 4) <= TailRotorBlades))
+        {#Condition 2.6 Start
+            HRPos = E:toWorld(TailRotorPos)
+            HRScl = TailRotorSize
+            HRAng = E:toWorld(ang(0,(360 / TailRotorBlades)*HoloStartUp,TailRotorBladeAngle))
+            HRMod = "models/sprops/rectangles_thin/size_2/rect_12x144x1_5.mdl"
+        
+            holoCreate(HSU,HRPos,HRScl,HRAng,RotorColor,HRMod)
+            holoClipEnabled(HSU,1,1)
+            holoClip(HSU,1,vec(),vec(1,0,0),0)
+            holoParent(HSU,4)
+        }#Condition 2.6 End
+        elseif((HoloStartUp > (4 + MainRotorBlades + TailRotorBlades)) & ((HoloStartUp - MainRotorBlades - TailRotorBlades - 4) <= MainRotorBlades))
+        {#Condition 2.7 Start
+
+            
+            holoCreate(HSU,HRPos,HRScl,HRAng,RotorColor,HRMod)
+            holoParent(HSU,3)
+            for(B = 2,5)
+            {
+            for(A = 1,5)
+            {holoClipEnabled(B,A,0)
+            }
+            }
+        }#Condition 2.7 End
+        
+        
+        holoMaterial(HoloStartUp + 2,RotorMaterial)
+        holoVisible(HSU,players(),1)
+        holoClipEnabled(HSU + 1,0)
+        
+        
+ 
+#####HoloSpawner######
+}#Condition 2 End
+else
+{#Condition 3 Start
+    
+interval(Interval)
+SpeedH=toUnit("km/h",E:vel():length())
+Ops = ops()
+W =           Pod["W",number]
+A =           Pod["A",number]
+S =           Pod["S",number]
+D =           Pod["D",number]
+Alt =       Pod["Alt",number]
+Shift =       Pod["Shift",number]
+Light =   Pod["Light",number]
+Space =   Pod["Space",number]
+Active = Pod["Active",number]
+Seat =   Pod["Entity",entity]
+EAng =             E:angles()
+EPos =                E:pos()
+EVel =                E:vel()
+
+VelX = E:velL():x()
+VelY = E:velL():y()
+VelZ = E:velL():z()
+
+ 
+if(changed(Active))
+{
+Cam["Activated",number] = Active
+    if(Active)
+    {
+    for(H = 1,HintDriver:count())
+    {
+    Seat:printDriver(HintDriver[H,string])
+    Pod["Hide Player",number] = ->PilotLink
+ 
+    }
+    if(HoloRotorEnabled)
+    {
+             holoEntity(3):soundPlay(1,0,RotorSound)
+    if(RotorSound ==  "NPC_AttackHelicopter.Rotors")
+    {RotorSound2 = "NPC_AttackHelicopter.RotorsLoud"
+           holoEntity(3):soundPlay(4,0,RotorSound2)}
+    }
+    else
+    {
+                         E:soundPlay(1,0,RotorSound)
+    if(RotorSound ==  "NPC_AttackHelicopter.Rotors")
+    {RotorSound2 = "NPC_AttackHelicopter.RotorsLoud"
+                       E:soundPlay(4,0,RotorSound2)}
+    }
+    soundPitch(1,0)
+    soundPitch(4,0)
+ 
+      holoMaterial(5,"phoenix_storms/airboat_blur02")
+      holoMaterial(6,"phoenix_storms/airboat_blur02")
+ 
+    }
+}
+else
+{
+ 
+if(Alt) 
+{
+    InTimer = clamp(InTimer + 1,0,18)
+}
+elseif(!Alt)
+{
+    InTimer = 0
+}
+ 
+ 
+AimingM = mod(AimingM + (changed(InTimer) & (InTimer == 18)),AimingModes:count())
+AimingMethod =   AimingModes[AimingM + 1,number]
+ 
+if(changed(Space) & Space)
+{
+    Hover = !Hover
+    HoverHeight = EPos:z()
+}
+ 
+
+    EyeAngles = Seat:toLocal(Seat:driver():eyeAngles())
+ 
+
+    if(!Hover & !RotorDeath)
+    {#Condition 3.2.2.1 Start
+        
+        #code for looking around
+        if(!Shift){
+            NewYaw = Seat:toLocal(Seat:driver():eyeAngles()):yaw()
+            NewPitch = Seat:toLocal(Seat:driver():eyeAngles()):pitch()
+            NewRoll = Seat:toLocal(Seat:driver():eyeAngles()):roll()
+        }
+        if(!changed(AimingMethod) & AimingMethod <= 2)
+        {                        
+               
+                if(!Shift)
+                {
+                    Strafe -= A * StrafeAlter
+                    Strafe += D * StrafeAlter        
+                  
+                    TargetAngles = ang(
+                    Seat:toLocal(Seat:driver():eyeAngles()):pitch(),
+                    Seat:toLocal(Seat:driver():eyeAngles()):yaw(),
+                    Seat:toLocal(Seat:driver():eyeAngles()):roll() +(-E:angVel():yaw() / AutoRollDiv) + (Strafe) )
+                }else
+                {
+                    Strafe -= A * StrafeAlter
+                    Strafe += D * StrafeAlter
+                    
+                    TargetAngles = ang(
+                    NewPitch,
+                    NewYaw,
+                    NewRoll + (Strafe) )
+                }
+        }
+    
+    }#Condition 3.2.2.1 End
+    elseif(Hover & !RotorDeath)
+    {#Condition 3.2.2.2 Start
+    Strafe = 0
+    VelL = E:velL()
+    TargetAngles = ang(
+        clamp(-(VelL:x() * abs(VelL:x())) / 2000, -25, 25),
+        NewYaw,
+        clamp((VelL:y() * abs(VelL:y())) / 2000, -25, 25))      
+    }
+    #Condition 3.2.2.2 End
+   elseif(RotorDeath)
+    {
+ 
+    TargetAngles = EAng - ang(0,0,0) 
+ 
+    Clamp = vec(Manuevarebility,Manuevarebility,50)
+    }
+ 
+if(AimingMethod <= 2) {HoloAng = Seat:toLocal(Seat:driver():eyeAngles())}
+
+ 
+holoAng(2,HoloAng)
+ 
+}
+
+
+if(changed(AimingMethod) | changed(Active) | clk("Purge"))
+{
+    CurData = AimingData[AimingMethod,array]
+ 
+    CamPos = E:toWorld(CameraPosition:setZ(CamZOut)) + vec(0,0,CameraPosition:z())
+ 
+    if(AimingMethod == 1) {HoloPos = CamPos Cam["Distance", number] = CamDistOutSide}
+    if(AimingMethod == 2) {if(->PilotLink){HoloPos = Seat:toWorld(vec(0,0,0)) 
+        + vec(0,0,0):rotate(Seat:toLocal(Seat:driver():eyeAngles()))}
+        else{HoloPos = Seat:toWorld(vec(0,10,CamInsideZ))} Cam["Distance", number] = CamDistInside}
+
+ AimM = AimingMethod
+    holoCreate(2,HoloPos,vec(),ang())
+    holoVisible(2,     players(),0)
+    holoParent(2,                E)
+ 
+    Cam["Position",vector] = HoloPos +  CurData[2,vector]
+    Cam["Angle",angle] =                 ang()
+    Cam["Parent",entity] =       entity()
+    
+
+ 
+    #Seat:hintDriver(CurData[4,string],5)
+ 
+  
+ 
+}
+#Condition 3.2.2 End
+ 
+ 
+#ApplyForce Code#
+ 
+ 
+if(!MainRotorDeath)
+{
+    
+
+Affect =         Throttle * Lift / 2 + 
+ (clamp((-EVel:z())*Hover / 500 + (W*UpMult) - (S*DownMult) - RotorDeath,-DownMult,UpMult))*LiftAlter
+ 
+Alter =          (vec(0,0,1):rotate(E:toWorld(ang())*ang(1.7,1,1.5))
+                                        - EVel*AirFriction*0.000002)
+                                        
+  #code to make sure it doesnt just flies when on ground
+    if(!RangerHit)
+    {
+        Throttle = 33
+    }
+    elseif(RangerHit&W)
+    {
+        #Throttle=15
+    }elseif(RangerHit&!W)
+    {
+        Strafe = 0
+        #Throttle=0
+        E:applyForce(vec(0,0,0))
+    }
+    
+if(Timer>=15&Throttle>=15)
+{
+    
+  #  E:applyForce(Alter * Affect * EMass)
+  #  E:applyForce(vec(0,0,Throttle * Lift * EMass) / 2)
+    if(!RangerHit)
+    {
+        E:applyForce( Alter * (Affect * EMass - EVel*AirFriction*0.000002) )
+        E:applyForce((-EVel*E:mass()*(AirFriction*0.000002))*InertiaMult)
+        
+        E:applyForce((E:forward()*E:mass()*(E:angles():pitch())*ForwardSpeedMult))
+        E:applyForce((E:right()*E:mass()*(E:angles():roll())*SideSpeedMult))
+    
+        
+        #E:applyForce(E:forward() + E:velL():x()*E:mass()*(AirFriction*0.000002)*15)
+        #E:applyForce(E:right() - E:velL():y()*E:mass()*(AirFriction*0.000002)*50)
+        #E:applyForce(E:up() + E:velL():z()*E:mass()*(AirFriction*0.000002)*50)
+        
+       # E:applyForce(E:right() * (EMass - EVel*AirFriction*0.000002)*5)
+       # E:applyForce((E:right()) * (E:mass()/5*Active) * (EVel:y()*AirFriction*0.000002))
+        E:applyForce((E:up()*Throttle * Lift * EMass) / 2)
+    }elseif(RangerHit)
+    {
+        if(W|S)
+        {
+            E:applyForce( Alter * (Affect * EMass - EVel*AirFriction*0.000002) )
+            E:applyForce((-EVel*E:mass()*(AirFriction*0.000002))*InertiaMult)
+            
+            E:applyForce((E:forward()*E:mass()*(E:angles():pitch())*ForwardSpeedMult))
+            E:applyForce((E:right()*E:mass()*(E:angles():roll())*SideSpeedMult))
+            E:applyForce((E:up()*Throttle * Lift * EMass) / 2)
+    
+        }
+    }
+}
+
+
+}
+if(Timer<=0){Throttle=0}
+if(RotorProblem){Toggle = 0 Throttle=0}
+#if(MainRotorDeath){Throttle=0}
+#ApplyForce Code#
+ 
+#Quaternion Aiming code#
+ 
+TarQ2 = quat(TargetAngles)
+CurQ2 = quat(E:toWorld(ang(0,0,0)))
+ 
+Q2 = TarQ2/CurQ2
+ 
+#something to make sure it keeps aiming where it is supposed to when in hover, or something
+if(!RangerHit)
+{
+    if(!Hover){
+    V2 = clamp(
+        E:toLocal(rotationVector(Q2) + EPos)*Active,-Clamp,Clamp)
+        E:applyTorque((200*V2 - 40*E:angVelVector()) 
+        *E:inertia()*(Throttle/33)*AimMult)
+        
+    }elseif(Hover){
+    V2 = clamp(
+        E:toLocal(rotationVector(Q2) + EPos),-Clamp,Clamp)
+        E:applyTorque((200*V2 - 40*E:angVelVector())
+        *E:inertia()*(Throttle/33)*AimMult)
+    }
+}
+#Quaternion Aiming Code#
+ 
+#Engine Control#
+    Water = E:isUnderWater()
+    if(changed(Water) & Water)
+    {WaterLevel = EPos:z()}
+     
+    UnderWater = (E:toWorld(MainRotorPos - vec(0,0,50)):z() < WaterLevel)
+    if(changed(Light) & Light)
+    {
+        Toggle = !Toggle
+        Speed = StartUpSpeed
+    }
+    elseif(changed(UnderWater) & UnderWater & Water)
+    {
+        Toggle = 0
+        Speed = 0.6
+    holoEntity(3):soundPlay(5,1,"/vehicles/jetski/jetski_no_gas_start.wav")
+    }
+#elseif(changed(Active) & !Active)
+#{Toggle = 0}
+ 
+ 
+Timer = clamp(Timer + (Toggle-!Toggle - RotorProblem) * Speed,0,33)
+if(changed(Timer))     {Throttle = (Timer ^ 2) / 33}
+P1 =           clamp(P1+(W-!W)*(Throttle>=30)/4,0,4)
+P2 =           clamp(P2+(S-!S)*(Throttle>=30)/4,0,2)
+Go =                                   (Timer+P1-P2)
+Mod =                             mod(Mod+Timer,360)
+ 
+#Engine Control#
+ 
+#Rotor Survivability#
+if(Damage > 0)
+{
+Array:insertNumber(1,EVel:length())
+if(Array:count()>7)
+{Array:pop()}
+ 
+ChangedSpeed = EVel:length() - Array[7,number]
+Physgun =              owner():weapon():type()
+ ==    "weapon_physgun" & owner():keyAttack1()
+LPrev = (ChangedSpeed< -(CollisionSpeed)) & !Physgun
+HPrev = (ChangedSpeed< -(CollisionSpeed*2)) & !Physgun
+ 
+if(changed(LPrev) & LPrev)
+{E:soundPlay(2,1,"ATV_impact_medium")}
+ 
+if(changed(HPrev) & HPrev)
+{
+    E:soundPlay(5,0,"/vehicles/digger_stopengine1.wav")
+    E:soundPlay(6,0,"ATV_impact_heavy")
+    RotorProblem = 3
+    Seat:soundPlay(8,0,"/npc/attack_helicopter/aheli_crash_alert2.wav")
+ 
+}
+ 
+if(MRLinked & changed(->MainRotor) & !->MainRotor)
+{
+    holoEntity(3):soundPlay(7,0,"Breakable.Metal")
+    Seat:soundPlay(8,0,"/npc/attack_helicopter/aheli_crash_alert2.wav")
+    RotorDeath = 1
+    RotorProblem = 6
+ 
+    for(D = 1,MainRotorBlades)
+    {
+    holoVisible(3,players(),0)
+    holoVisible(6,players(),0)
+    holoVisible(D + 6,players(),0)
+    holoVisible(D + 6 + TailRotorBlades + MainRotorBlades,players(),0)
+    }
+}
+if(TRLinked & changed(->TailRotor) & !->TailRotor)
+{
+    holoEntity(4):soundPlay(8,0,"Breakable.Metal")
+    RotorDeath = 1
+    Seat:soundPlay(8,0,"/npc/attack_helicopter/aheli_crash_alert2.wav")
+ 
+    for(G = 1,TailRotorBlades)
+    {
+    holoVisible(4,players(),0)
+    holoVisible(5,players(),0)
+    holoVisible(G + 6 + MainRotorBlades,players(),0)
+    }
+}
+ 
+}
+if(->PilotLink) {PilotLink = array(Active,Seat,Timer / 1.735 + P1 - P2,Seat:toLocal(Seat:driver():eyeAngles()),EAng - Seat:toLocal(Seat:driver():eyeAngles()) + ang(0,0,0),AimingMethod)}
+ 
+#Rotor Survivability#
+ 
+#if(changed(Go))
+#{
+soundPitch(1,Go*SoundPitchMult/1)
+soundPitch(4,Go*SoundPitchMult/1)
+#}
+
+
+PitchExt = (Go/33)
+ 
+holoAng(3,E:toWorld(MainRotorAng):rotateAroundAxis((vec(0,0,1):rotate(MainRotorAng)):rotate(E:angles()) , -Mod*3))
+holoAng(4,E:toWorld(TailRotorAng):rotateAroundAxis((vec(0,0,1):rotate(TailRotorAng)):rotate(E:angles()) ,Mod*3))
+ 
+if(changed(Throttle))
+{
+    holoAlpha(5,clamp(Throttle*7.73 - 50,0,255))
+    holoAlpha(6,clamp(Throttle*7.73 - 50,0,255))
+}
+ 
+}#Condition 3 End
+ 
+if(dupefinished())
+    {reset()}

@@ -1,0 +1,736 @@
+#[
+   E2 created and released by: [DB] Thomas, The Tank Commander
+
+   To use this HUD, link this e2 to an EGP HUD, Active on the Pod Controller, and 
+   an Entity Marker or an Advanced Entity Marker which is linked to the seat you 
+   are using.  Next, link all other entities to the e2.  ACF components can be
+   linked directly to the e2 while any props should use an Entity Marker or
+   Advanced Entity Marker in order for the props to remain linked after duping.
+   There is an output for zoom in the e2 which can be wired to a cam controller.
+   Colors and other HUD options can be changed to your liking below...
+
+     Linked Directly To E2:
+       - Engines
+       - Guns
+       - Gearbox
+       - Speedometer
+    
+    Requires Entity Marker/Advanced EM:
+       -Base Plate
+       -Turret Base
+       -Drive Wheels
+       -Pod
+       -Etc...
+    
+    v1.1
+    
+    - only supports up to 2 engines, 1 main gun, 1 secondary, and 2 fuel tanks
+]#
+
+
+@name Tank_DUH_HUD_v2K
+@inputs EGP:wirelink
+@inputs Active Speed Zoom WeldConstraint RVec:vector Solve Calc_On
+@inputs [Chair TankBase TurretBase MainGun MainGearBox Engine1 Engine2 Fuel1 Fuel2 RightDriveWheel LeftDriveWheel SecondaryGun]:entity
+@outputs Zoom PB Pos:vector
+@persist ScreenRes:vector2 C X Y PB PBm Col8:vector4 Num_Engine Gear Tank_Diagram Reload_Indicator Ammo_Counts Base_Ang Turret_Ang
+@persist Secondary_Ammo_Count Speedometer Fuel_Level Number_of_Fuel_Tanks RPM Parking_Brake RMH LMH EM FM1 FM2 Main_Gun_Reload_Sound:string
+@trigger Active
+
+if (changed(Active) & Active)
+{   
+    
+    EGP:egpClear() #Clears out HUD in case something in Fancy Shit changes or a new player with a different resolution uses the HUD. 
+    
+#==========================Colors and Other Fancy Shit==============================#
+    
+    #Fancy Shit (On/Off)#
+    
+    Tank_Diagram = 0 #Diagram of Tank Angles and HP of Certain Modules
+    Speedometer = 1 # Speed in KPH or MPH (See Next Line for Unit)
+    Zoom = 0 # Zoom Using This E2
+    RPM = 1 # Engine RPM's
+    Fuel_Level = 0 # Fuel Level Indicator
+    Parking_Brake = 0 # Shows if Weld Constraints for Wheels are Activated (if Had)
+    Ammo_Counts = 0 # Shows Amount of Each Ammo Type
+    Secondary_Ammo_Count = 1 # Shows Amount of Each Ammo Type
+    Reload_Indicator = 1 # Shows When the Gun Has Reloaded
+    Reload_Sound = 0 # Sound Gun Makes When Reloaded
+    Gear = 1 # Shows Current Gear of Main Gearbox
+    
+    #Fancy Shit Options (Must be Turned on Above)#
+    
+    Main_Gun_Reload_Sound = "huehue"
+    Main_Gun_Name = "120mm" # Needs Ammo Counts Enabled
+    Number_of_Fuel_Tanks = 1  # Only supports 1 or 2 currently
+    Secondary_Gun_Name = "Coaxial" # Secondary Gun Name (If Enabled Above)
+    Zoom_Amnt = 10 # Amount of Zoom when Zoom is Pressed ([Max] 0-90 [Min])
+    Speed_Unit = "KPH" # Use a Wire Speedometer (KPH, MPH, or Gmod units if desired)
+    Num_Engine = 1 # Number of Engines (1 or 2)
+    Tank_Type = 1 # 1 = Turreted Tank, 2 = TD
+    Tank_Name = "M4 Sherman" # Name of Tank in Diagram
+    Turret_Ang = 180 # Angle to Add to Turret for Diagram if the Turret is not Angled Correctly
+    Base_Ang = -90 # Angle to Add to Base for Diagram if the Base is not Angled Correctly
+    
+    #Colors are (RED,GREEN,BLUE,ALPHA)#
+    
+    Col1 = vec4(255,85,0,255)    # Center Crosshair, Line Decoration, and Fuel Needle Color
+    Col2 = vec4(0,0,0,255)       # Circle Color 1
+    Col3 = vec4(255,255,255,255) # Circle Color 2
+    Col4 = vec4(0,255,0,255)     # Center Crosshair Dot Color
+    Col5 = vec4(0,0,0,200)       # Tank Diagram Background Color
+    Col6 = vec4(255,255,255,255) # Tank Diagram Outline Color
+    Col8 = vec4(255,255,255,255) # Text Color
+    Shade = 0                   # Darkness of Screen (0-255 with 255 being black)
+    
+    #Position Changes (Add or subtract from current position if desired)#
+    
+    TDX = 0 # Tank Diagram +/- X position
+    TDY = 0 # Tank Diagram +/- Y position
+    SX  = 300 # Speedometer +/- X position
+    SY  = 0 # Speedometer +/- Y position
+    PBX = 0 # Parking Brake +/- X position
+    PBY = 0 # Parking Brake +/- Y position
+    ACX = 0 # Ammo Count +/- X position
+    ACY = 0 # Ammo Count +/- Y position
+    RTX = 0 # Reload Timer +/- X position
+    RTY = 0 # Reload Timer +/- Y position
+    
+#================================Actual HUD Shit====================================#
+    
+    #Auto-Resolution Detectotron 9000#
+    
+    ScreenRes = egpScrSize(Chair:driver() ?: owner())
+    X = ScreenRes:x()
+    Y = ScreenRes:y()
+    
+    #Shading Box#
+    
+    EGP:egpBox(500,vec2(X/2,Y/2),vec2(X,Y))
+    EGP:egpColor(500,vec4(0,0,0,Shade))
+    
+    #Crosshair#
+    
+    holoCreate(1,vec())
+    holoScaleUnits(1,vec())
+    holoAlpha(1,0)
+    
+    EGP:egpBox(1,vec2(),vec2())
+    EGP:egpCircleOutline(2,vec2(),vec2(5,5))
+    EGP:egpCircleOutline(200,vec2(),vec2(20,20))
+    EGP:egpParent(2,1)
+    EGP:egpParent(200,1)
+    EGP:egp3DTracker(1,holoEntity(1):pos())
+    EGP:egpParent(1,holoEntity(1))
+    EGP:egpColor(2,vec(255,0,0))
+    
+    EGP:egpColor(200,vec(255,255,255))
+    
+    EGP:egpLine(3,vec2(X/2,Y/2+7),vec2(X/2,Y/2-7))
+    EGP:egpLine(4,vec2(X/2+7,Y/2),vec2(X/2-7,Y/2))
+    
+    rangerFilter(MainGun)
+    rangerPersist(1)
+    rangerFilter(entity():getConstraints())
+    
+    #Decoration Lines#
+
+    EGP:egpLine(10,vec2(X/2+142,Y/2+5),vec2(X/2+142,Y/2-5))
+    EGP:egpColor(10,Col1)
+    EGP:egpLine(11,vec2(X/2-142,Y/2+5),vec2(X/2-142,Y/2-5))
+    EGP:egpColor(11,Col1)
+    EGP:egpLine(12,vec2(X/2+174,Y/2+5),vec2(X/2+174,Y/2-5))
+    EGP:egpColor(12,Col1)
+    EGP:egpLine(13,vec2(X/2-174,Y/2+5),vec2(X/2-174,Y/2-5))
+    EGP:egpColor(13,Col1)
+    EGP:egpLine(14,vec2(X/2+206,Y/2+5),vec2(X/2+206,Y/2-5))
+    EGP:egpColor(14,Col1)
+    EGP:egpLine(15,vec2(X/2-206,Y/2+5),vec2(X/2-206,Y/2-5))
+    EGP:egpColor(15,Col1)
+    EGP:egpLine(16,vec2(X/2+238,Y/2+5),vec2(X/2+238,Y/2-5))
+    EGP:egpColor(16,Col1)
+    EGP:egpLine(17,vec2(X/2-238,Y/2+5),vec2(X/2-238,Y/2-5))
+    EGP:egpColor(17,Col1)
+    EGP:egpLine(18,vec2(X/2+270,Y/2+5),vec2(X/2+270,Y/2-5))
+    EGP:egpColor(18,Col1)
+    EGP:egpLine(19,vec2(X/2-270,Y/2+5),vec2(X/2-270,Y/2-5))
+    EGP:egpColor(19,Col1)
+    EGP:egpLine(20,vec2(X/2+302,Y/2+5),vec2(X/2+302,Y/2-5))
+    EGP:egpColor(20,Col1)
+    EGP:egpLine(21,vec2(X/2-302,Y/2+5),vec2(X/2-302,Y/2-5))
+    EGP:egpColor(21,Col1)
+    EGP:egpLine(22,vec2(X/2+334,Y/2+5),vec2(X/2+334,Y/2-5))
+    EGP:egpColor(22,Col1)
+    EGP:egpLine(23,vec2(X/2-334,Y/2+5),vec2(X/2-334,Y/2-5))
+    EGP:egpColor(23,Col1)
+    EGP:egpLine(24,vec2(X/2+366,Y/2+5),vec2(X/2+366,Y/2-5))
+    EGP:egpColor(24,Col1)
+    EGP:egpLine(25,vec2(X/2-366,Y/2+5),vec2(X/2-366,Y/2-5))
+    EGP:egpColor(25,Col1)
+    EGP:egpLine(26,vec2(X/2+398,Y/2+5),vec2(X/2+398,Y/2-5))
+    EGP:egpColor(26,Col1)
+    EGP:egpLine(27,vec2(X/2-398,Y/2+5),vec2(X/2-398,Y/2-5))
+    EGP:egpColor(27,Col1)
+    EGP:egpLine(28,vec2(X/2+430,Y/2+5),vec2(X/2+430,Y/2-5))
+    EGP:egpColor(28,Col1)
+    EGP:egpLine(28,vec2(X/2-430,Y/2+5),vec2(X/2-430,Y/2-5))
+    EGP:egpColor(28,Col1)
+    
+    #Tank Diagram#
+    
+    if (Tank_Diagram)
+    {
+        LMH = LeftDriveWheel:acfPropHealthMax()
+        RMH = RightDriveWheel:acfPropHealthMax()
+        
+        if (Num_Engine == 2)
+        {
+            EM = (Engine1:acfPropHealthMax() + Engine1:acfPropHealthMax())/2
+        }
+        else
+        {
+            EM = Engine1:acfPropHealthMax()
+        }
+        
+        if (Tank_Type == 1 & Number_of_Fuel_Tanks == 2) # Turreted Tank and One Fuel Tank
+        {
+            FM1 = Fuel1:acfPropHealthMax()
+            FM2 = Fuel1:acfPropHealthMax()
+            
+            EGP:egpBox(29,vec2(X/2-(X/2-150)+TDX,Y/2+(Y/2-250)-TDY),vec2(200,300))
+            EGP:egpColor(29,Col5)
+            EGP:egpBoxOutline(30,vec2(X/2-(X/2-150)+TDX,Y/2+(Y/2-250)-TDY),vec2(200,300))
+            EGP:egpColor(30,Col6)
+            EGP:egpBoxOutline(31,vec2(X/2-(X/2-150)+TDX,Y/2+(Y/2-250)-TDY),vec2(50,100)) # Tank Base
+            EGP:egpColor(31,Col6)
+            EGP:egpBox(32,vec2(0,-37),vec2(20,20)) # Engine HP Box
+            EGP:egpColor(32,vec4(0,255,0,255))
+            EGP:egpParent(32,31)
+            EGP:egpBoxOutline(33,vec2(0,-37),vec2(20,20))
+            EGP:egpColor(33,Col6)
+            EGP:egpParent(33,31)
+            EGP:egpBox(41,vec2(30,5),vec2(12,105)) # Track HP Box
+            EGP:egpColor(41,vec4(0,255,0,255))
+            EGP:egpParent(41,31)
+            EGP:egpBoxOutline(37,vec2(30,5),vec2(12,105))
+            EGP:egpColor(37,Col6)
+            EGP:egpParent(37,31)
+            EGP:egpBox(42,vec2(-30,5),vec2(12,105)) # Track HP Box
+            EGP:egpColor(42,vec4(0,255,0,255))
+            EGP:egpParent(42,31)
+            EGP:egpBoxOutline(38,vec2(-30,5),vec2(12,105))
+            EGP:egpColor(38,Col6)
+            EGP:egpParent(38,31)
+            EGP:egpBoxOutline(39,vec2(0,40),vec2(40,20))
+            EGP:egpColor(39,Col6)
+            EGP:egpParent(39,31)
+            EGP:egpText(40,Tank_Name,vec2(-95,-145)) #Name of Tank
+            EGP:egpFont(40,"Lucida Console",12)
+            EGP:egpParent(40,30)
+            EGP:egpColor(40,Col8)
+            EGP:egpBox(43,vec2(17,-34),vec2(7,25)) # Fuel1 HP Box
+            EGP:egpColor(43,vec4(0,255,0,255))
+            EGP:egpParent(43,31)
+            EGP:egpBoxOutline(44,vec2(17,-34),vec2(7,25))
+            EGP:egpColor(44,Col6)
+            EGP:egpParent(44,31)
+            EGP:egpBox(45,vec2(-17,-34),vec2(7,25)) # Fuel2 HP Box
+            EGP:egpColor(45,vec4(0,255,0,255))
+            EGP:egpParent(45,31)
+            EGP:egpBoxOutline(46,vec2(-17,-34),vec2(7,25))
+            EGP:egpColor(46,Col6)
+            EGP:egpParent(46,31)
+            EGP:egpCircleOutline(34,vec2(X/2-(X/2-150)+TDX,Y/2+(Y/2-250)+TDY),vec2(20,20)) # Turret Base
+            EGP:egpColor(34,Col6)
+            EGP:egpBoxOutline(35,vec2(0,27),vec2(8,15))
+            EGP:egpColor(35,Col6)
+            EGP:egpParent(35,34)
+            EGP:egpBoxOutline(36,vec2(0,58),vec2(6,50))
+            EGP:egpColor(36,Col6)
+            EGP:egpParent(36,34)
+        }
+        elseif (Tank_Type == 1 & Number_of_Fuel_Tanks == 1) # Turreted Tank with One Fuel Tank
+        {
+            FM1 = Fuel1:acfPropHealthMax()
+            
+            EGP:egpBox(29,vec2(X/2-(X/2-150)+TDX,Y/2+(Y/2-250)-TDY),vec2(200,300))
+            EGP:egpColor(29,Col5)
+            EGP:egpBoxOutline(30,vec2(X/2-(X/2-150)+TDX,Y/2+(Y/2-250)-TDY),vec2(200,300))
+            EGP:egpColor(30,Col6)
+            EGP:egpBoxOutline(31,vec2(X/2-(X/2-150)+TDX,Y/2+(Y/2-250)-TDY),vec2(50,100)) # Tank Base
+            EGP:egpColor(31,Col6)
+            EGP:egpBox(32,vec2(0,-39),vec2(20,20)) # Engine HP Box
+            EGP:egpColor(32,vec4(0,255,0,255))
+            EGP:egpParent(32,31)
+            EGP:egpBoxOutline(33,vec2(0,-39),vec2(20,20))
+            EGP:egpColor(33,Col6)
+            EGP:egpParent(33,31)
+            EGP:egpBox(41,vec2(30,5),vec2(12,105)) # Track HP Box
+            EGP:egpColor(41,vec4(0,255,0,255))
+            EGP:egpParent(41,31)
+            EGP:egpBoxOutline(37,vec2(30,5),vec2(12,105))
+            EGP:egpColor(37,Col6)
+            EGP:egpParent(37,31)
+            EGP:egpBox(42,vec2(-30,5),vec2(12,105)) # Track HP Box
+            EGP:egpColor(42,vec4(0,255,0,255))
+            EGP:egpParent(42,31)
+            EGP:egpBoxOutline(38,vec2(-30,5),vec2(12,105))
+            EGP:egpColor(38,Col6)
+            EGP:egpParent(38,31)
+            EGP:egpBoxOutline(39,vec2(0,40),vec2(40,20))
+            EGP:egpColor(39,Col6)
+            EGP:egpParent(39,31)
+            EGP:egpText(40,Tank_Name,vec2(-95,-145)) #Name of Tank
+            EGP:egpFont(40,"Lucida Console",12)
+            EGP:egpParent(40,30)
+            EGP:egpColor(40,Col8)
+            EGP:egpBox(43,vec2(0,-25),vec2(26,6)) # Fuel1 HP Box
+            EGP:egpColor(43,vec4(0,255,0,255))
+            EGP:egpParent(43,31)
+            EGP:egpBoxOutline(44,vec2(0,-25),vec2(26,6))
+            EGP:egpColor(44,Col6)
+            EGP:egpParent(44,31)
+            EGP:egpCircleOutline(34,vec2(X/2-(X/2-150)+TDX,Y/2+(Y/2-250)+TDY),vec2(20,20)) # Turret Base
+            EGP:egpColor(34,Col6)
+            EGP:egpBoxOutline(35,vec2(0,27),vec2(8,15))
+            EGP:egpColor(35,Col6)
+            EGP:egpParent(35,34)
+            EGP:egpBoxOutline(36,vec2(0,58),vec2(6,50))
+            EGP:egpColor(36,Col6)
+            EGP:egpParent(36,34)
+        }
+    }
+    
+    #Speedometer#
+    
+    if (Speedometer)
+    {
+        EGP:egpText(47," " + Speed_Unit,vec2(X/2+175+SX,Y/2-60-SY))
+        EGP:egpFont(47,"Lucida Console",15)
+        EGP:egpColor(47,Col8)
+        EGP:egpText(60,"0",vec2(-20,0))
+        EGP:egpFont(60,"Lucida Console",15)
+        EGP:egpColor(60,Col8)
+        EGP:egpParent(60,47)
+    }
+    
+    #Ammo Counts#
+    
+    if (Ammo_Counts)
+    {
+        EGP:egpText(48,Main_Gun_Name +": ",vec2(X/2-75,Y-90))
+        EGP:egpFont(48,"Lucida Console",15)
+        EGP:egpColor(48,Col8)
+        EGP:egpText(49,"0",vec2(X/2+65,Y-90))
+        EGP:egpFont(49,"Lucida Console",15)
+        EGP:egpColor(49,Col8)
+    }
+    
+    #Parking Brake, changed to ballistics calc indicator#
+    
+    if (Parking_Brake)
+    {
+        EGP:egpText(57,"CALC ON",vec2(X/2+250,Y/2-60))
+        EGP:egpFont(57,"Lucida Console",12)
+        EGP:egpColor(57,vec4(255,0,0,255))
+    }
+    
+    #Reload Indicator#
+    
+    if (Reload_Indicator)
+    {
+        EGP:egpText(69,"Ready",vec2(X/2-200,Y/2-60))
+        EGP:egpFont(69,"Lucida Console",15)
+        EGP:egpColor(69,vec4(0,255,0,255))
+    }
+    
+    #Fuel Level#
+    
+    if (Fuel_Level)
+    {
+        EGP:egpCircle(66,vec2(X-200,Y-200),vec2(50,50))
+        EGP:egpColor(66,Col5)
+        EGP:egpCircleOutline(61,vec2(X-200,Y-200),vec2(50,50))
+        EGP:egpCircle(62,vec2(X-200,Y-200),vec2(5,5)) #Rotation Object
+        EGP:egpText(67,"F",vec2(25,15))
+        EGP:egpFont(67,"Lucida Console",16)
+        EGP:egpColor(67,vec4(0,255,0,255))
+        EGP:egpParent(67,66)
+        EGP:egpText(68,"E",vec2(-30,15))
+        EGP:egpFont(68,"Lucida Console",16)
+        EGP:egpColor(68,vec4(255,0,0,255))
+        EGP:egpParent(68,66)
+        EGP:egpLine(63,vec2(0,-5),vec2(0,-40))
+        EGP:egpColor(63,Col1)
+        EGP:egpParent(63,62)
+        EGP:egpLine(64,vec2(-5,0),vec2(0,-40))
+        EGP:egpColor(64,Col1)
+        EGP:egpParent(64,62)
+        EGP:egpLine(65,vec2(5,0),vec2(0,-40))
+        EGP:egpColor(65,Col1)
+        EGP:egpParent(65,62)
+        
+        if (Fuel_Level == 2)
+        {
+            C = (Fuel1:acfCapacity()+Fuel2:acfCapacity())/2
+        }
+        elseif (Fuel_Level)
+        {
+            C = Fuel1:acfCapacity()
+        }
+    }
+    
+    #RPM#
+    
+    if (RPM)
+    {
+        EGP:egpText(70," " + "  RPM",vec2(X/2+175,Y/2+60))
+        EGP:egpFont(70,"Lucida Console",15)
+        EGP:egpColor(70,Col8)
+        EGP:egpText(71,"0",vec2(X/2+155,Y/2+60))
+        EGP:egpFont(71,"Lucida Console",15)
+        EGP:egpColor(71,Col8)
+        
+        if (Num_Engine == 2)
+        {
+            PB = (Engine1:acfPowerbandMax()+Engine2:acfPowerbandMax())/2
+            PBm = (Engine1:acfPowerbandMin()+Engine2:acfPowerbandMin())/2
+        }
+        elseif (Num_Engine)
+        {
+            PB = Engine1:acfPowerbandMax()
+            PBm = Engine1:acfPowerbandMin()
+        }
+        
+    }
+    
+    #Gear#
+    
+    if (Gear)
+    {
+        EGP:egpText(72,"  " + "Gear",vec2(X/2-180,Y/2+60))
+        EGP:egpFont(72,"Lucida Console",15)
+        EGP:egpColor(72,Col8)
+        EGP:egpText(73,"1",vec2(X/2-190,Y/2+60))
+        EGP:egpFont(73,"Lucida Console",15)
+        EGP:egpColor(73,Col8)
+        
+        MainGearBox:acfShift(1)
+    }
+    
+    #Secondary Ammo Count#
+    
+    if (Secondary_Ammo_Count)
+    {
+        EGP:egpText(100,Secondary_Gun_Name +": ",vec2(X/2+150,Y-90))
+        EGP:egpFont(100,"Lucida Console",15)
+        EGP:egpColor(100,Col8)
+        EGP:egpText(101,"0",vec2(X/2+260,Y-90))
+        EGP:egpFont(101,"Lucida Console",15)
+        EGP:egpColor(101,Col8)
+    }
+}
+
+if (Active)
+{
+    interval(100)
+    
+    #Diagram#
+    if (Tank_Diagram)
+    {
+        #Angles
+        if (TankBase)
+        {
+            BA = round((TankBase:angles():yaw())/10)*10
+        }
+        
+        if (TurretBase)
+        {
+            TA = round((TurretBase:angles():yaw())/10)*10
+        }
+    
+        if (changed(BA))
+        {
+            EGP:egpAngle(31,BA + Base_Ang)
+        }
+    
+        if (changed(TA))
+        {
+            EGP:egpAngle(34,TA + Turret_Ang)
+        }
+        
+        #Wheel HP#
+        
+        if (RightDriveWheel)
+        {
+            RCH = RightDriveWheel:acfPropHealth()
+            
+            if (changed(RCH))
+            {
+                RHP = (RCH/RMH)*255
+                
+                EGP:egpColor(41,vec(255-RHP,RHP,0))
+            }
+        }
+        elseif (changed(RightDriveWheel))
+        {
+            EGP:egpColor(41,vec(0,0,0))
+        }
+        
+        if (LeftDriveWheel)
+        {
+            LCH = LeftDriveWheel:acfPropHealth()
+            
+            if (changed(LCH))
+            {
+                LHP = (LCH/LMH)*255
+                
+                EGP:egpColor(42,vec(255-LHP,LHP,0))
+            }
+        }
+        elseif (changed(LeftDriveWheel))
+        {
+            EGP:egpColor(42,vec(0,0,0))
+        }
+        
+        #Engine(s) HP#
+        if (Num_Engine == 2)
+        {
+            if (Engine1 | Engine2)
+            {
+                EC = (Engine1:acfPropHealth() + Engine1:acfPropHealth())/2
+                
+                if (changed(EC))
+                {
+                    EH = (EC/EM)*255
+                    
+                    EGP:egpColor(32,vec(255-EH,EH,0))
+                }
+            }
+            elseif (changed(Engine1) & changed(Engine2))
+            {
+                EGP:egpColor(32,vec(0,0,0))
+            }
+        }
+        else
+        {
+            if (Engine1)
+            {
+                EC = Engine1:acfPropHealth()
+                
+                if (changed(EC))
+                {
+                    EH = (EC/EM)*255
+                    
+                    EGP:egpColor(32,vec(255-EH,EH,0))
+                }
+            }
+            elseif (changed(Engine1))
+            {
+                EGP:egpColor(32,vec(0,0,0))
+            }
+        }
+        
+        #Fuel HP#
+        if (Number_of_Fuel_Tanks == 2)
+        {
+            if (Fuel1 | Fuel1)
+            {
+                FC1 = Fuel1:acfPropHealth()
+                FC2 = Fuel2:acfPropHealth()
+            
+                if (changed(FC1))
+                {
+                    FH1 = (FC1/FM1)*255
+                    
+                    EGP:egpColor(43,vec(255-FH1,FH1,0))
+                }
+                
+                if (changed(FC2))
+                {
+                    FH2 = (FC2/FM2)*255
+                    
+                    EGP:egpColor(45,vec(255-FH2,FH2,0))
+                }
+            }
+        }
+        else
+        {
+            FC1 = Fuel1:acfPropHealth()
+        }
+    }
+    
+    #Gear#
+    if (Gear)
+    {
+        if (MainGearBox)
+        {
+            G = MainGearBox:acfGear()
+        }
+    
+        if (changed(G))
+        {
+            EGP:egpSetText(73,""+G)
+        }
+    }
+    
+    #RPM#
+    if (RPM)
+    {
+        if (Num_Engine == 2)
+        {
+            if (Engine1 | Engine2)
+            {
+                A = round(((Engine1:acfRPM()+Engine2:acfRPM())/2)/50)*50
+            }
+            
+            if (changed(A))
+            {
+                EGP:egpSetText(71,""+round(A,2))
+            }
+        } 
+        elseif (Num_Engine)
+        {
+            if (Engine1)
+            {
+                A = round(Engine1:acfRPM()/50)*50
+            }
+        
+            if (changed(A))
+            {
+            EGP:egpSetText(71,""+round(A,2))
+            }
+        }
+        
+        if (A > PB)
+        {
+            EGP:egpColor(71,vec4(255,0,0,255))
+        }
+        elseif (A < PBm)
+        {
+            EGP:egpColor(71,vec4(0,255,0,255))
+        }
+        else
+        {
+            EGP:egpColor(71,Col8)
+        }
+    }
+    
+    #Fuel Level#
+    if (Fuel_Level)
+    {
+        if (Number_of_Fuel_Tanks == 2)
+        {
+            if (Fuel1 | Fuel2)
+            {
+                E = round(((Fuel1:acfFuel()+Fuel2:acfFuel())/2)/0.5)*0.5
+            }
+        }
+        elseif(Number_of_Fuel_Tanks)
+        {
+            if (Fuel1)
+            {
+                E = round(Fuel1:acfFuel()/0.5)*0.5
+            }
+        }
+        
+        if (changed(E))
+        {
+            Angle = E/C
+                      
+            EGP:egpAngle(62,130-(260*Angle))
+        }
+    }
+        
+    #Speedometer#
+    if (Speedometer)
+    {
+        G = round(Speed)
+        
+        if (changed(G))
+        {
+            EGP:egpSetText(60,""+G)
+        }
+    }
+    
+    #Main Ammo Count#
+    if (Ammo_Counts)
+    {
+        if (MainGun)
+        {
+            MainA = MainGun:acfAmmoCount()
+        }
+        
+        if (changed(MainA))
+        {
+            EGP:egpSetText(49,""+MainA)
+        }
+    }
+    
+    #Secondary Ammo Count#
+    if (Secondary_Ammo_Count)
+    {
+        if (SecondaryGun)
+        {
+            SC = SecondaryGun:acfAmmoCount()
+        }
+        
+        if (changed(SC))
+        {
+            EGP:egpSetText(101,""+SC)
+        }
+    }
+    
+    #Parking Brake#
+    if (Parking_Brake)
+    {
+        if (changed(Calc_On))
+        {
+            if (Calc_On)
+            {
+                EGP:egpColor(57,vec4(255,0,0,255))
+            }
+            else
+            {
+                EGP:egpColor(57,vec4(255,0,0,0))
+            }
+        }
+    }
+    
+    #Reload Indicator#
+    if (Reload_Indicator)
+    {
+        GunR = MainGun:acfReady()
+        
+        if (changed(GunR))
+        {
+            if (GunR)
+            {
+                EGP:egpSetText(69,"Ready")
+                EGP:egpColor(69,vec(0,255,0))
+                
+                MainGun:soundPlay(1,0,Main_Gun_Reload_Sound)
+            }
+            else
+            {
+                EGP:egpSetText(69,"Loading...")
+                EGP:egpColor(69,vec(255,0,0))
+                
+                soundStop(1)
+            }
+        }
+    }
+    
+    #Floating Crosshair#
+ if(Solve)
+{
+    Pos = RVec
+}
+if(!Solve)
+{
+    Pos = (rangerOffset(999999999999,MainGun:pos(),MainGun:forward())):pos()
+}
+    
+    
+    holoPos(1,rangerOffset(9999999999,MainGun:pos()+MainGun:forward()*100,MainGun:forward()):position())
+}

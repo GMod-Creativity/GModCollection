@@ -1,0 +1,155 @@
+@name Bike Lean 1.7
+@inputs [Pod]:wirelink [Spinner, Leaner, Base]:entity
+@outputs Angle SpeedEffectHigh CounterSteerHigh SpeedEffectLow CounterSteerLow Str
+@persist Lock SteeringSpeed CounterSteer
+@persist [Spinner, Leaner, Base]:entity Steerlock
+@persist [Off, Ang, Leanang, Lean, Filter]:angle CounterSteerWheel SpeedEffectWheel
+@persist Str Invert SpeedEffectMultiplierHigh CounterSteerMultiplierHigh SpeedEffectMultiplierLow CounterSteerMultiplierLow
+@persist HighSpeedSwitch Active Sway
+
+#Heres how to use this E2:
+#Link the Leaner to a 12x18x6 Sprops Cube
+#Link the Spinner to a 12x12x6 Sprops Cube
+#Link pod to pod controller and the base to the bike's base, a sprops rect
+
+#Now for the Ballsocket settings for the base, PAY VERY CLOSE ATTENTION TO THIS:
+#X -180, 180
+#Y -0.0001, 0.0001
+#Z -180, 180
+
+#VERY IMPORTANT: MAKE SURE YOU BALLSOCKET IN THE FOLLOWING ORDER, UNLESS YOU WANT TO FUCK UP:
+#From Leaner to the Bike Base <-- If you go base to leaner bad things will happen
+
+#The front and back wheels are the following settings:
+#Chassis to wheels
+#X -180,180
+#Y -0.0001, 0.0001
+#Z -0.0001, 0.0001
+
+#Wheels to chassis]
+#X -180,180
+#Y 0.0001, -0.0001
+#Z 0.0001, -0.0001
+
+#And the link in the following order
+#Front wheel goes from Spinner to Wheel then from wheel to spinner, use the settings above
+#The Back Wheel goes from Base to wheel and then wheel to base, settings same as above
+
+
+
+#If the wheel is turning wrongly, modify the Invert variable to either 1 or -1
+
+#If you wish to turn more, adjust the SpeedEffectMultipler and the same for Counter
+#The higher the more you will turn, the lower the less
+
+#When you want to save your bike make sure you reset the E2 first so the angles are 0, the you can use your physgun to snap its angles
+#Otherwise they will go something like 0.500 -0.257 and wont be flat, which im sure you wouldnt like to happen as that generates
+#Some problems afterwards when you want to ballsocket something or edit your bike
+
+
+if (first()|duped()|dupefinished())
+{
+    
+
+    Filter=ang(0,1,0)
+    Active=0
+    Angle=0.0001 #Just to make sure it initializes.. gotta fix
+    
+    SpeedEffect=30 #ignore
+    CounterSteer=30 #ignore
+    Lock=50 #How many degrees the base will max when turning
+    
+    
+    Steerlock=45         
+    SteeringSpeed=2
+    CounterSteerWheel=80 #The higher the faster the front wheel will turn
+    SpeedEffectWheel=900 #same as above
+    Sway=2.7 #How much the wheel angle will sway, the lower the more
+    
+    
+    Invert=-1
+    #The faster the more the base will turn, dont go too high
+    SpeedEffectMultiplierHigh=20
+    CounterSteerMultiplierHigh=20
+    
+    SpeedEffectMultiplierLow=13
+    CounterSteerMultiplierLow=13
+    
+    HighSpeedSwitch=40
+    
+    SpeedEffect = clamp(SpeedEffect,30,500000)
+    CounterSteer = clamp(CounterSteer,30,500000)
+
+    SpeedEffectLow = clamp(SpeedEffectLow,30,500000)
+    CounterSteerLow = clamp(CounterSteerLow,30,500000)
+
+    SpeedEffectHigh = clamp(SpeedEffectHigh,30,500000)
+    CounterSteerHigh = clamp(CounterSteerHigh,30,500000)
+
+}
+    
+    Active=Pod["Active",normal]
+    A=Pod["A",number]
+    D=Pod["D",number]
+
+
+interval(30)
+
+    Speed = toUnit("km/h",Base:vel():length())
+
+    SpeedEffectHigh=(Speed*SpeedEffectMultiplierHigh) 
+    CounterSteerHigh=(Speed*CounterSteerMultiplierHigh)
+
+    SpeedEffectLow=(Speed*SpeedEffectMultiplierLow)
+    CounterSteerLow=(Speed*CounterSteerMultiplierLow)
+
+
+
+
+if(Speed<=5&Angle>0){Angle-=1}
+    if(Speed<=5&Angle<0){Angle+=1}
+        else
+        {
+            if(Speed<HighSpeedSwitch)
+                {
+                    Angle += (D-A)*SteeringSpeed
+                    Angle += Base:angVel():yaw()/CounterSteerLow
+                    Angle = clamp(Angle,-Lock,Lock)
+                    Angle = Angle*(1-Speed/SpeedEffectLow)
+                }
+            if(Speed>HighSpeedSwitch)
+                {
+                    Angle += (D-A)*SteeringSpeed
+                    Angle += Base:angVel():yaw()/CounterSteerHigh
+                    Angle = clamp(Angle,-Lock,Lock)
+                    Angle = Angle*(1-Speed/SpeedEffectHigh)
+                }
+        }
+
+    Str+=(D-A)*SteeringSpeed
+    Str+=Base:angVel():yaw()/CounterSteerWheel
+    Str=clamp(Str,-Steerlock,Steerlock)
+    Str=Str*(1-Speed/SpeedEffectWheel)
+
+    Off=ang(-16*Invert,-Str*1,(Str/Sway)*Invert)
+    Ang=Base:toWorld(Off)
+    
+if(!Spinner:isPlayerHolding())
+    {
+        Spinner:setAng(Ang)
+        Spinner:propFreeze(1)
+    }
+
+if (!Base:isPlayerHolding()&&!Leaner:isPlayerHolding())
+    {
+        Lean=ang(0,0,(Angle)*Invert)
+        Leanang=Base:angles()*Filter+Lean
+        Leaner:setAng(Leanang)
+        Leaner:propFreeze(1)
+    }
+
+
+if (dupefinished()|duped())
+    {
+        reset()
+    }

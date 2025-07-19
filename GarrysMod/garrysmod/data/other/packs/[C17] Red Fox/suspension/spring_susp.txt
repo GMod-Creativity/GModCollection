@@ -1,0 +1,63 @@
+--@name Sim Spring Suspension
+--@author Cheezus
+--@server
+--@include lib/spring.txt
+
+-- Link front two wheels and then rear two wheels with adv e marker
+-- Only update suspension when vehicle is frozen
+
+local frontOffset = Vector(0, 0, 0) -- Position offset from wheel to place the end of the spring
+local frontConstant = 10000         -- Newtons per meter of displacement
+local frontDamping = 1000           -- Newtons per meter per second of displacement
+local frontMaxDamping = 10000       -- Maximum force (newtons) to apply for damping force
+
+-- Custom damping function example - uncomment to use this, it overrides damping & max damping above
+--[[
+local function frontCustomDamping(dispRate) -- Displacement rate is in m/s
+    local force = -dispRate * 1000 -- Apply a negative force of 1000 newtons for every 1m/s of suspension movement rate
+    
+    return force
+end
+--]]
+
+local rearOffset = Vector(0, 0, 100) -- 100 units above the wheel (as an example)
+local rearConstant = 10000
+local rearDamping = 1000
+local rearMaxDamping = 10000
+
+-- Custom damping function for rear - uncomment to use
+--[[
+local function rearCustomDamping(dispRate)
+    local force = -dispRate * 1000
+    
+    return force
+end
+--]]
+
+wire.adjustPorts({
+    Wheels = "array",
+    Base = "entity"
+})
+
+local wheels = wire.ports.Wheels
+local base = wire.ports.Base
+
+if #wheels == 0 or not isValid(base) then return end
+    
+local Spring = require("lib/spring.txt")
+
+for i, wheel in ipairs(wheels) do
+    if i < 3 then
+        local s = Spring:new(base, wheel, base:worldToLocal(wheel:getPos() + frontOffset))
+        s:setConstant(frontConstant)
+        s:setDamping(frontDamping)
+        s:setMaxDamping(frontMaxDamping)
+        s:setCustomDamping(frontCustomDamping)
+    else
+        local s = Spring:new(base, wheel, base:worldToLocal(wheel:getPos() + rearOffset))
+        s:setConstant(rearConstant)
+        s:setDamping(rearDamping)
+        s:setMaxDamping(rearMaxDamping)
+        s:setCustomDamping(rearCustomDamping)
+    end
+end

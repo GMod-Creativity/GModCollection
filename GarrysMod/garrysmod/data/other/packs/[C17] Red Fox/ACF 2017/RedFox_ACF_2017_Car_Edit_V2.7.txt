@@ -1,0 +1,413 @@
+@name RedFox ACF 2017 Car Edit V2.7
+@inputs [Pod Engine Engine1 Trans FDiff RDiff Cam ]:wirelink Sensor Shift Alt S [Base Driver]:entity
+@outputs Gear Throttle CamOn REL RES Horn BrakeL SpeedB GearMode
+@outputs GearC Light On Brake CT RPM Speed LightL
+@outputs Fuel LightA Ind Fov Brig
+@outputs [WLight ReverseWLight BrakeWLight]:vector
+@persist Throttle RPM Clutch Brake T M1 M2 Cnt Cnt2
+@persist W S R F Shift Space MWUp MWDn Active Alt
+@persist On Forward Reverse GUp GDn Start GC Count Cnt1
+@persist NumGears StartGear UseWireBrakeLight UseWireLight UseWireReverseLight BrakeWLightColor:vector WLightColor:vector ReverseWLightColor:vector
+@persist SpeedToChangeGears SpeedToBrake ParkingBrakeForce FrontBrakeForce RearBrakeForce HandBrakeForce
+@persist Phase1Brake Phase2Brake Phase3Brake Phase1Force Phase2Force Phase3Force
+@persist Phase1BrakeReverse Phase2BrakeReverse Phase3BrakeReverse Phase1RForce Phase2RForce Phase3RForce
+@persist FirstGear SecondGear ThirdGear ForthGear FifthGear SixthGear SeventhGear Use8Gears InverseBaseSpeed
+@persist ReverseGearNumber FirstGearNumber SecondGearNumber ThirdGearNumber ForthGearNumber FifthGearNumber SixthGearNumber SeventhGearNumber
+
+#Changelog 26/10/17
+#Added up to 8 gears for automatic
+#Support for wire lights and wire sprites
+#Option to select starting gear and reverse gear
+#Possibly more, cant remember
+
+
+
+##############################################
+##############################################
+#####                                   ######
+#####       [C17] Red Fox's Car E2      ######
+#####                                   ######
+##############################################
+##############################################
+
+if( duped() ){ reset() }
+
+if (first()) 
+{
+    Fuel = 1
+    InverseBaseSpeed=1 #If your car is braking when trying to go forward, you either use -1 or 1
+    
+    #Whether you use Wire Lights instead of Wire Sprites turn these on
+    UseWireLight=0
+    WLightColor=vec(155,0,0)
+    
+    UseWireBrakeLight=0
+    BrakeWLightColor=vec(255,0,0)
+    
+    UseWireReverseLight=0
+    ReverseWLightColor=vec(255,255,255)
+    
+    
+    CamOffset=vec(0,0,70) #Camera position Relative to input: Base
+    CamDist=220 #Camera distance away from CamOffset position
+    Position=Base:pos()+CamOffset
+    Cam["Position",vector]=Position    
+    Cam["Parent",entity]=Base
+    Cam["Distance",number]=CamDist
+    #Engine:entity():soundPlay(2,0,"acf_extra/vehiclefx/trans/gearwhine.wav")
+    #Base:soundPlay(5,0,"ambience/gas/steam2.wav")
+    #soundVolume(5,0)
+
+#####
+    FrontBrakeForce=2
+    RearBrakeForce=2.5
+    HandBrakeForce=1.5
+
+    SpeedToChangeGears=5 #used for when to reverse
+    SpeedToBrake=5 #speed to start -parking- brake
+    ParkingBrakeForce=1.5
+
+
+#Brake is speed, incremental speed, Phase1 = 40, Phase2 = 60 etc
+#for normal-non reverse-phase3brake(speed) should be the same as phase2, since anything HIGHER THAN phase2 will have phase3 as different brake force
+#Force is as the name implies
+
+#for reverse consider it incremental but reverse
+
+    Phase1Brake=40
+    Phase1Force=0.7
+
+    Phase2Brake=100
+    Phase2Force=0.30
+
+    Phase3Brake=100
+    Phase3Force=0.1
+
+    Phase1BrakeReverse=10
+    Phase1RForce=1
+
+    Phase2BrakeReverse=20
+    Phase2RForce=0.5
+
+    Phase3BrakeReverse=25
+    Phase3RForce=0.3    
+##########################
+    
+#Gears & Automatic GearConfigs
+#It is a little wonky, but it works
+#the gear values are the speed of which will be changed at, the RpmLimits are the RPM value need to change into that gear
+#With the exception of the first and second gears as well as the RpmLimits, everything should be pretty obvious
+#The first and second must be the same value since it works like this -if Firstgear<SecondGear Gear = 1-, however it might work with different values *not tested*
+    
+    NumGears = 5 #Number of gears the car has
+    Gear = 1 #The gear you start at
+    StartGear = 1 #Same as above, found issues in using the same variable which is why its not the same variable as above
+    
+    #Auto gear speed changing values
+    FirstGear=10
+    SecondGear=10
+    ThirdGear=20
+    ForthGear=34
+    FifthGear=40
+    SixthGear=47
+    SeventhGear=53
+
+    #The number of your gear in case you dont use sequential numbers
+    #These are for auto gear, for manual mode refer to StartGear variable
+    FirstGearNumber=1
+    SecondGearNumber=2
+    ThirdGearNumber=3
+    ForthGearNumber=4
+    FifthGearNumber=5
+    SixthGearNumber=0
+    SeventhGearNumber=0
+    
+    #The number of your reverse gear
+    ReverseGearNumber=6
+    
+    
+##################
+}
+
+    H=Driver:driver():keyPressed("h")
+    G=Driver:driver():keyPressed("g")
+    V=Driver:driver():keyPressed("v")
+
+
+    SpeedB=(Base:velL():x()/14.7)*InverseBaseSpeed #if its braking when going forward you either make it negative or positive
+
+    Speed=toUnit("km/h",Base:vel():length())
+    #[if(On){TransWhine      =Speed*3}
+    if(W) {TransWhineVol   = (Speed / 70)}
+    if(!W) {TransWhineVol   = (Speed / 150)}
+
+    soundPitch(2,TransWhine)
+    soundVolume(2,TransWhineVol)
+
+    if(changed(S)&!S)
+    {
+       Base:soundPlay(3,1,"acf_extra/vehiclefx/misc/air_07.wav")
+    }
+soundVolume(3,0.14)
+
+    if(changed(Space)&!Space)
+    {
+        Base:soundPlay(4,1,"acf_extra/vehiclefx/misc/air_04.wav")
+    }
+soundVolume(4,0.14)
+
+    if(S) {soundVolume(5, Speed / 150)}else{soundVolume(5,0)}
+]#
+    Active = Pod["Active",number]
+    W = Pod["W",number]
+    S = Pod["S",number]
+    R = Pod["R",number]
+    F = Pod["Light", number]
+    Shift = Pod["Shift",number]
+    Space = Pod["Space",number]
+    M1 = Pod["Mouse1",number]
+    M2 = Pod["Mouse2",number]
+    RPM = Engine["RPM",number]
+    Alt = Pod["Alt",number]
+    Idle = Active
+    Forward = W
+    ReverseS= Pod["S",number]
+    Clutch = changed(F) & F ? !Clutch : Clutch
+    Start = R
+    GUp = M1
+    GDn = M2
+
+
+
+############################!engine starter!#########################
+interval(100)
+    if(Sensor==1){T+=0.4}
+    if(T>=60){IndF=1}else{IndF=0}
+    if(T>=100){T=100 On=0}
+    if(Sensor==0){T-=0.2}
+    if(T<=0){T=0}
+
+    if(changed(G==0)& G==1)
+        {
+            Cnt1++
+        }
+        
+        if(Cnt1>1){Cnt1=0}
+        
+    if(changed(V==0)& V==1)
+        {
+            Cnt2++
+        }
+        
+        if(Cnt2>1){Cnt2=0}
+    
+        if(Cnt1==0){GearMode=0}
+        
+    else{GearMode=1}
+
+    if (changed(Start) & Start)
+    {
+        if(On)
+        {
+            soundStop("engine")
+           On = 0
+        }
+        else
+        {
+            soundStop("engine")
+            Engine:entity():soundPlay("engine",1,"acf_extra/vehiclefx/starters/starter6.wav")
+            timer("EngineOn",1300)
+        }
+
+    }
+
+    if( clk("EngineOn")&T<=30 )
+    {
+        soundStop("engine")
+        On = 1
+    }
+    if(GearMode==0){
+    if (changed(GUp) & GUp) { Gear = min(Gear+1,NumGears) }
+    if (changed(GDn) & GDn)
+    {
+        Gear = max(Gear-StartGear,1)
+    }
+
+    if (changed(Gear)) { GearC=1,GC=1, timer("clutch",250) }
+    if (clk("clutch")) { GC=0 }
+}
+elseif(GearMode==1)
+{
+    if (changed(Gear)) { GearC=1,GC=1, timer("clutch",150) }
+    if (clk("clutch")) { GC=0 }
+    
+    
+
+    if(Cnt2==1){Gear=Gear}
+    else{
+        
+        if(SpeedB<=FirstGear){Gear=FirstGearNumber}
+        if(SpeedB>=SecondGear&SpeedB<ThirdGear){Gear=SecondGearNumber}
+        if(SpeedB>=ThirdGear&SpeedB<ForthGear){Gear=ThirdGearNumber}
+        if(SpeedB>=ForthGear&SpeedB<FifthGear){Gear=ForthGearNumber}
+        if(SpeedB>=FifthGear&SpeedB<SixthGear){Gear=FifthGearNumber}
+        if(SpeedB>=SixthGear&SpeedB<SeventhGear&NumGears>5){Gear=SixthGearNumber}
+        if(SpeedB>=SeventhGear&NumGears>5){Gear=SeventhGearNumber}
+              
+    }
+    
+}
+    if(changed(Alt)& Alt)
+    {
+        Count++
+    }
+    if(changed(Cnt1==1)&Cnt1==0){Driver:printDriver("Manual Mode")}
+    if(changed(Cnt1==0)&Cnt1==1){Driver:printDriver("Auto Mode")}
+    
+    if(changed(Cnt2)){
+    if(GearMode==1)
+        {
+            if(changed(Cnt2==0)&Cnt2==1){Driver:printDriver("Holding Gear")}
+            if(changed(Cnt2==1)&Cnt2==0){Driver:printDriver("No longer holding gear")}
+        }
+    }
+    
+    if(changed(Active)&(Active))
+        {
+            Driver:printDriver("-Controls-")
+            Driver:printDriver("R to start and F to use Clutch | V to hold gear while on Auto Mode | H to use horn when available")
+            Driver:printDriver("W/A/S/D to control the car | Space is handbrake")
+            Driver:printDriver("Alt for headlights | Shift for 3rd or 1st person camera")
+            Driver:printDriver("G to change between Auto or Manual transmission")
+            Driver:printDriver("M1 and M2 to control gears")
+            Driver:printDriver("-Current Transmission Mode-")
+            
+            if(GearMode==0){Driver:printDriver("Manual Mode")}
+                elseif(GearMode==1){Driver:printDriver("Auto Mode")}
+        }
+
+    
+    if(Count==1)
+    {
+        Light=1
+        if(UseWireLight==0){LightL=1}
+            elseif(UseWireLight==1){WLight=WLightColor}
+        Fov=40 
+        Brig=1.5 
+        LightA=0
+    }
+    if(Count==2)
+    {
+        Light=0 
+        if(UseWireLight==0){LightL=1}
+            elseif(UseWireLight==1){WLight=WLightColor}
+        LightA=1 
+        Fov=70 
+        Brig=2.5
+    }
+    if(Count>2)
+    {
+        Count=0 
+        Light=0 
+        if(UseWireLight==0){LightL=0}
+            elseif(UseWireLight==1){WLight=vec(0,0,0)}
+        LightA=0
+    }
+    
+    if(Shift&~Shift){CamOn=!CamOn}
+
+    if(H){Horn=1}else{Horn=0}
+    if(Active==0&On==1){Brake=1.5}
+    if(Clutch|GC){GearC=1}else{GearC=0}
+############################
+    if(SpeedB<=SpeedToChangeGears&S)
+    {
+        Reverse = Trans["Gear",number] = ReverseGearNumber
+        RES=1
+        if(UseWireReverseLight==0){REL=1}
+            elseif(UseWireReverseLight==1){ReverseWLight=ReverseWLightColor}
+
+    }
+        elseif((SpeedB>SpeedToChangeGears*-1)&!S)
+        {
+            Trans["Gear",number] = Gear
+            RES=0
+            if(UseWireReverseLight==0){REL=0}
+            elseif(UseWireReverseLight==1){ReverseWLight=vec(0,0,0)}
+        }
+########
+    BT1 = FrontBrakeForce* Brake
+    BT = RearBrakeForce * Brake
+########
+
+    if(SpeedB>SpeedToChangeGears*-1&!S)
+    {
+        CT = Clutch | GC | !(W) & !(S)
+    }
+        elseif(SpeedB<SpeedToChangeGears)
+        {
+            CT = Clutch | GC | (W) | !(S)
+        }
+
+    if(W&SpeedB>SpeedToChangeGears*-1) 
+    {
+        Throttle = (100+Shift*25)*!GC*(Forward)
+    }
+            elseif(S&SpeedB<SpeedToChangeGears)
+        {
+            Throttle = (100+Shift*25)*!GC*(ReverseS)
+        }
+            else{Throttle=0}
+
+    if(SpeedB<0&Forward)
+    {
+        
+            if(SpeedB<Phase3BrakeReverse*-1){Brake=Phase3RForce}
+                elseif(SpeedB<Phase2BrakeReverse*-1){Brake=Phase2RForce}
+                    elseif(SpeedB<Phase1BrakeReverse*-1){Brake=Phase1RForce}
+                    elseif(SpeedB>Phase1BrakeReverse*-1){Brake=Phase1RForce}
+            if(UseWireBrakeLight==0){BrakeL=1}
+                elseif(UseWireBrakeLight==1){BrakeWLight=BrakeWLightColor}
+        
+    }
+        elseif(S&SpeedB>0)
+        {
+          
+                if(SpeedB<Phase1Brake){Brake=Phase1Force}
+                    elseif(SpeedB<Phase2Brake){Brake=Phase2Force}
+                        elseif(SpeedB>Phase3Brake){Brake=Phase3Force}
+                if(UseWireBrakeLight==0){BrakeL=1}
+                    elseif(UseWireBrakeLight==1){BrakeWLight=BrakeWLightColor}
+            
+        }
+            elseif(Space)
+            {
+                Brake=HandBrakeForce
+                BT1 = 0 * Brake
+                
+                if(UseWireBrakeLight==0){BrakeL=1}
+                    elseif(UseWireBrakeLight==1){BrakeWLight=BrakeWLightColor}
+            }
+                elseif(SpeedB>SpeedToBrake*-1&SpeedB<=SpeedToBrake&!W&!S)
+                {
+                    Brake = ParkingBrakeForce
+                    if(UseWireBrakeLight==0){BrakeL=0}
+                        elseif(UseWireBrakeLight==1){BrakeWLight=vec(0,0,0)}
+                }
+                    else
+                    {
+                        Brake=0
+                        if(UseWireBrakeLight==0){BrakeL=0}
+                            elseif(UseWireBrakeLight==1){BrakeWLight=vec(0,0,0)}
+                    }
+##########################################
+
+    Engine["Active",number] = On
+    Engine["Throttle",number] = Throttle
+    Engine1["Active",number] = On
+    Engine1["Throttle",number] = Throttle
+
+    FDiff["Brake",number] = BT1
+    RDiff["Brake",number] = BT
+    FDiff["Clutch",number] = CT
+    RDiff["Clutch",number] = CT 

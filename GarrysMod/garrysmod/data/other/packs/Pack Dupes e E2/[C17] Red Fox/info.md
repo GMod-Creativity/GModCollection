@@ -1,5 +1,7 @@
 - Author: [C17] Red Fox
 - Steam Profile: http://steamcommunity.com/profiles/76561197998433532
+- Github: https://github.com/nokillnando
+- Youtube: https://www.youtube.com/user/nokillnando
 
 Neccesary Addons:
 Wire
@@ -128,14 +130,14 @@ Optional:
 
 **Engine E2 etc** (E2 Engine Pack)
 - Date (dd-mm-yyyy): 14-12-2022
-- Edited Date (dd-mm-yyyy): 17-12-2022
+- Edited Date (dd-mm-yyyy): 10-03-2025
 - Source: https://steamcommunity.com/groups/construct17/discussions/0/3223871682619595496/
 - Source: https://drive.google.com/drive/folders/1d-QnjT9mPDztiiCiPb7mNSnQGcxGFN-f
 - Source Accessed (dd-mm-yyyy): 19-07-2025
 
 **TanksNew** (E2 Tanks Pack)
 - Date (dd-mm-yyyy): 14-12-2022
-- Edited Date (dd-mm-yyyy): 17-12-2022
+- Edited Date (dd-mm-yyyy): 05-03-2025
 - Source: https://steamcommunity.com/groups/construct17/discussions/0/3223871682619595496/
 - Source: https://drive.google.com/drive/folders/1f2W3mLRdS-bhN3OBvng8f1ziiytOv6zl
 - Source Accessed (dd-mm-yyyy): 19-07-2025
@@ -156,7 +158,7 @@ Optional:
 
 **suspension** (Starfall Lib)
 - Date (dd-mm-yyyy): 26-11-2023
-- Edited Date (dd-mm-yyyy): 26-11-2023
+- Edited Date (dd-mm-yyyy): 14-07-2025
 - Source: https://steamcommunity.com/groups/construct17/discussions/0/3223871682619595496/
 - Source: https://drive.google.com/drive/folders/1eeZlAAG6d5hZ-KzD8gqB2_G7Yd2RLWu1
 - Source Accessed (dd-mm-yyyy): 19-07-2025

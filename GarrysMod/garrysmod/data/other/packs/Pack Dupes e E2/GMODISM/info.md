@@ -1,6 +1,6 @@
 - Author: GMODISM
 - Reddit: https://www.reddit.com/r/GMODISM/
-- Steam Profile: 
+- Steam Profile: http://steamcommunity.com/profiles/76561198056037449
 - Youtube: https://www.youtube.com/Gmodism
 
 **ACF-CAR-S MODS**

@@ -1,0 +1,385 @@
+@name E2 Car Base by Naki V3.0
+@inputs [Base2 Seat SteeringWheel Thruster]:entity
+@inputs [S1 S2 S3 S4]:entity
+@persist Boost Base:entity Jump Inertia:angle [SusProps Rangers TractionMatOverwrites]:array Slide Steer FrontWheels BackWheels
+@persist RPM Gear FrontWheelL FrontWheelR BackWheelL BackWheelR LastAddFL LastAddFR LastAddRL LastAddRR
+@outputs RPM Gear FLTraction FRTraction RLTraction RRTraction Slide
+@outputs DriveForceMult GearMult RPMMult Velocity
+@model models/sprops/rectangles/size_7/rect_144x192x3.mdl
+if(dupefinished()){reset()}
+if(first()){
+    Base=entity()
+    Base:setAlpha(0)
+    Base:setMass(CarMass)
+    Base:propDrag(0)
+    noCollideAll(Base,0)
+    
+    Inertia = shiftL(ang(Base:inertia()))
+    
+    #include "E2_Car_Base_by_Naki_V3.0_Config_-_s14_5" 
+    
+    SusProps=array(S1,S2,S3,S4)
+    
+    local I = 5
+    local T = Base2
+    local E = Base
+    
+    holoCreate(I)
+    holoPos(I,T:toWorld(vec(0,0,0)))
+    holoAng(I,T:toWorld(ang(0,0,0)))
+    T:parentTo(holoEntity(I))
+    holoPos(I,E:toWorld(vec(0,0,-BasePlateHeightOffset)))
+    holoAng(I,E:toWorld(ang(0,0,0)))
+    holoParent(I,E)
+    holoScale(I,vec())
+    
+    
+    
+    for(I=1,4){
+        local I2 = I
+        
+        holoCreate(I2)
+        holoPos(I2,E:toWorld(PosData[I,vector]))
+        if(I2<3){
+            holoModel(I2,FrontWheelMDL)
+        }elseif(I2>2){
+            holoModel(I2,RearWheelMDL)
+        }
+        if(I2==1|I2==3){
+            holoAng(I2,E:toWorld(ang(0,0,0):rotateAroundAxis(vec(1,0,0),CamberFront)))
+            holoSkin(I2,2+WheelSkin)
+        }
+        if(I2==2|I2==4){
+            holoAng(I2,E:toWorld(ang(0,180,0):rotateAroundAxis(vec(1,0,0),-CamberBack)))
+            holoSkin(I2,0+WheelSkin)
+        }
+        holoParent(I2,E)
+        
+        holoColor(I2,WheelColor)
+        foreach(I3,V:vector2=WheelBodyGroups){
+            local BDID=V:x()
+            local BDVal=V:y()
+            holoBodygroup(I,BDID,BDVal)
+        }
+        holoScale(I2,vec(1,WheelWidth,1))
+        
+        local I2 = I+5
+        holoCreate(I2)
+        holoPos(I2,SusProps[I,entity]:toWorld(vec(0,0,0)))
+        holoAng(I2,SusProps[I,entity]:toWorld(ang(0,0,0)))
+        SusProps[I,entity]:parentTo(holoEntity(I2))
+        holoPos(I2,holoEntity(5):toWorld(SusData[I,vector]))
+        holoAng(I2,holoEntity(5):toWorld(ang(0,0,0)))
+        holoScale(I2,vec())
+        holoParent(I2,holoEntity(5))
+        
+        
+        local I2 = I+9
+        holoCreate(I2)
+        holoPos(I2,holoEntity(5):toWorld(SusData[I,vector]+vec(0,0,SusData[5,number])))
+        holoAng(I2,holoEntity(5):toWorld(ang(0,0,0)))
+        holoScale(I2,vec())
+        holoParent(I2,holoEntity(5))
+        
+        
+        local I2 = I+13
+        holoCreate(I2)
+        holoPos(I2,holoEntity(I+9):toWorld(vec(DriveAxelLength,0,0)))
+        holoAng(I2,holoEntity(I+9):toWorld(ang(90,0,0)))
+        holoScale(I2,vec(DriveAxelWidth,DriveAxelWidth,DriveAxelLength/12))
+        holoModel(I2,"models/sprops/cylinders/size_2/cylinder_3x24.mdl")
+        holoMaterial(I2,SuspensionMaterial)
+        holoParent(I2,holoEntity(I+9))
+        holoColor(I2,SuspensionColor)
+    }
+    
+    holoCreate(100)
+    holoPos(100,SteeringWheel:pos())
+    holoAng(100,SteeringWheel:angles())
+    SteeringWheel:parentTo(holoEntity(100))
+    holoAng(100,Base2:toWorld(ang(90,180,0)))
+    holoParent(100,Base2)
+    holoScale(100,vec())
+    
+    rangerHitEntities(1)
+    
+    foreach(I,E:entity=SusProps){
+        rangerFilter(E:children())
+    }
+    rangerFilter(SteeringWheel)
+    rangerFilter(SteeringWheel:children())
+    rangerFilter(Base2:children())
+    rangerFilter(SusProps)
+    rangerFilter(players())
+    rangerFilter(array(Base,Base2))
+    rangerFilter(Base:children())
+    rangerPersist(1)
+}
+interval(100)
+for(I=1,4){
+    Pos = Base:toWorld(PosData[I,vector]:setZ((BasePlateHeightOffset+RangerHeightOffset)))
+    Rangers[I,ranger]=rangerOffsetHull(200+(BasePlateHeightOffset+RangerHeightOffset),Pos,-Base:up(),vec(25,25,1))
+}
+foreach(I,R:ranger=Rangers){
+    switch(R:matType()){
+        
+        case "concrete",
+            TractionMatOverwrite=90
+        break
+        
+        case "tile",
+            TractionMatOverwrite=80
+        break
+        
+        case "wood",
+            TractionMatOverwrite=75
+        break
+        
+        case "dirt",
+            TractionMatOverwrite=75
+        break
+        
+        case "gravel",
+            TractionMatOverwrite=75
+        break
+        
+        case "sand",
+            TractionMatOverwrite=70
+        break
+        
+        case "metal",
+            TractionMatOverwrite=70
+        break
+        
+        case "grass",
+            TractionMatOverwrite=70
+        break
+        
+        case "plastic",
+            TractionMatOverwrite=65
+        break
+        
+        case "glass",
+            TractionMatOverwrite=45
+        break
+        
+        case "ice",
+            TractionMatOverwrite=35
+        break
+        
+        default,
+            TractionMatOverwrite=100
+        break
+    }
+    TractionMatOverwrites[I,number]=TractionMatOverwrite
+}
+FLTraction=(TractionMatOverwrites[1,number]/100)
+FRTraction=(TractionMatOverwrites[2,number]/100)
+RLTraction=(TractionMatOverwrites[3,number]/100)
+RRTraction=(TractionMatOverwrites[4,number]/100)
+
+TractionTotalMult=((TractionMatOverwrites[1,number]+TractionMatOverwrites[2,number]+TractionMatOverwrites[3,number]+TractionMatOverwrites[4,number])/4)/100
+Driver=Seat:driver()
+if(changed(Driver)){
+    if(Driver){
+        soundPlay("starter",0,StarterSound)
+        timer("enginesfx",450)
+    }else{
+        soundPlay("engine",0,"")
+    }
+}
+if(clk("enginesfx")&Driver){
+    soundPlay("engine",0,EngineSound)
+}
+
+W=Driver:keyForward()
+S=Driver:keyBack()
+A=Driver:keyLeft()
+D=Driver:keyRight()
+Space=Driver:keyJump()
+Fire=Driver:keyAttack1()
+Velocity=abs(Base:velL():setZ(0):length())/2.5/Speed*1.1/Gears*Gears
+if(!S){
+    Gear=round(clamp(Velocity,1,Gears))
+}else{
+    Gear=(Gears+1)
+}
+
+RPM+=(((IdleRPM/2)-(RPM/4))*(RPM<IdleRPM))-(100*(1-(W|S)))+(300*(1+(Slide/5))*(W|S)*(Gears-Velocity)/Gears)
+
+RPM=clamp(RPM,0,MaxRPM*Driver:isPlayer())
+
+if(changed(Gear)){
+    RPM=RPM-(1000*(((Gears+1)-clamp(Gear,1,Gears))/(Gears+1)))
+}
+soundPitch("engine",125*clamp(RPM/MaxRPM,0.35,1.5))
+soundVolume("engine",0.6)
+
+Ground_Distance=((Rangers[1,ranger]:distance()+Rangers[2,ranger]:distance()+Rangers[3,ranger]:distance()+Rangers[4,ranger]:distance())/4)-(BasePlateHeightOffset+RangerHeightOffset)
+HeightAdj=Base:up()*((((WheelSizeBack/2)+(BasePlateHeightOffset*2))-(Ground_Distance))*SuspensionStrength)
+Slide+=(abs(Base:velL():y())*(0.015*(1+(Space*3)-(abs(0.5-DriveType)*0.5)))*(TractionLoss/100)*(1-TractionTotalMult))*(1+(HP/300)*(1-DriveType))+(15*Space)
+Slide-=(((11)*(TractionGain/100)*(1-TractionTotalMult))/(1+(HP/300)))+(10*((W+S)==0))
+Slide=clamp(Slide,TractionLossMin,TractionLossMax)
+if(Driver){
+    if(Space){
+        Damp2=(Base:velL()*vec((0.7/clamp(abs(Base:vel():length())*0.015,1,4))*(HandbrakeStrength/100),(0.8/clamp((abs(Base:vel():length())*0.009)+(Slide*!Space),1,4))*(HandbrakeStrength/100),3/(1+(Base:velL():z()<=0))))
+    }else{
+        Damp2=Base:velL()*vec(0.16/(1+(W|S)),1/((1+(Slide/15))),3/(1+(Base:velL():z()<=0)))
+    }
+}else{
+    Damp2=Base:velL()*vec(0.68,0.8,3/(1+(Base:velL():z()<=0)))
+}
+
+GearMult=0.7+(clamp((Gear/Gears),0,1)*0.3)
+RPMMult=(clamp((RPM/MaxRPM),0.25,1))
+DriveForceMult=GearMult*RPMMult
+
+Damp=((-Base:forward()*Damp2:x()*(BrakeStrength/100))+(Base:right()*Damp2:y()*(BrakeStrength/100))+(-Base:up()*Damp2:z()*(SuspensionDamp/4)))
+
+Dir=Base:forward()*(W-S)*((Speed*DriveForceMult)/(2-TractionTotalMult))*!Space
+Downhill=Base:forward()*Base:angles():pitch()*(2/(1+(clamp(W+S,0,1)*2)))*!Space
+
+Steer+=(100/2)*(A-D)
+if(!A&!D){
+    if(Steer>0){
+        Steer-=100/2
+    }elseif(Steer<0){
+        Steer+=100/2
+    }
+}
+Steer=clamp(Steer,-100,100)
+
+On_Ground=Ground_Distance<GroundDistance/2
+OverSteer=-27*(clamp(Base:velL():y()*0.1,-1,1)*(Slide/100)*(0.1+(W|S)))*(1-DriveType)
+if(On_Ground){
+    Base:propGravity(0)
+    Base:applyForce((((abs(Base:velL():x()*0.1)<75)*Base:forward()*120*Boost)+Downhill+Dir+HeightAdj+(Damp))*Base:mass()*0.5)
+    Front=Rangers[1,ranger]:distance()+Rangers[2,ranger]:distance()
+    Back=Rangers[3,ranger]:distance()+Rangers[4,ranger]:distance()
+    FrontBack=((Front-Back)*2.7)
+    Left=Rangers[1,ranger]:distance()+Rangers[3,ranger]:distance()
+    Right=Rangers[2,ranger]:distance()+Rangers[4,ranger]:distance()
+    LeftRight=((Left-Right)*1.7)
+    FBLR=vec2(FrontBack*SuspensionStrength2:x(),LeftRight*SuspensionStrength2:y())
+    if(Driver){
+        if(Space){
+            if(abs(Base:vel():length()*0.01)>15){
+                AngDamp=(Base:angVel()*ang(4,(1/((1/((clamp(1-abs(Base:vel():length()*0.05),0.1,0.9)+(-0.5+((1-DriveType)*1.5)))*2))*2))*0.6,3))
+            }else{
+                AngDamp=Base:angVel()*ang(4,(1/(1+clamp(Slide/15,0,1)+(-0.5+((1-DriveType)*1.5))))*4,3)
+            }
+        }else{
+            AngDamp=Base:angVel()*ang(4,(1/(1+clamp(Slide/15,0,1)))*4,3)
+        }
+    }else{
+        AngDamp=Base:angVel()*ang(4,5,3)
+    }
+    Base:applyAngForce(((Base:toLocal(ang(clamp(FBLR:x(),-90,90),0,-clamp(FBLR:y(),-90,90))+ang((-25/(1+clamp(abs(Base:velL():x()*0.003),0,10))*(W-S)*!Space),
+    Base:angles():yaw()+(SteeringSpeed*clamp(Base:velL():x()*0.005*(0.8+(DriveType*0.5)),-1,1)*(A-D))+OverSteer,-clamp(Base:velL():y()*0.1,-25,25)))*4)-(AngDamp/(1+(0.5*Boost))))*
+    Base:mass()*10)
+}else{
+    Base:applyAngForce(((Base:toLocal(Base:angles()+ang((5*(W-S)*(abs(Ground_Distance)>15)),(A-D),0))*400)-(Base:angVel()*5))*Base:mass())
+    Base:propGravity(1)
+    Base:applyForce(((abs(Base:velL():x()*0.1)<75)*Base:forward()*120*Boost)*(Base:mass()*0.25))
+}
+FLD=(((WheelSizeBack/2)+BasePlateHeightOffset))-(Rangers[1,ranger]:distance()-(BasePlateHeightOffset+RangerHeightOffset))
+FRD=(((WheelSizeBack/2)+BasePlateHeightOffset))-(Rangers[2,ranger]:distance()-(BasePlateHeightOffset+RangerHeightOffset))
+RLD=(((WheelSizeBack/2)+BasePlateHeightOffset))-(Rangers[3,ranger]:distance()-(BasePlateHeightOffset+RangerHeightOffset))
+RRD=(((WheelSizeBack/2)+BasePlateHeightOffset))-(Rangers[4,ranger]:distance()-(BasePlateHeightOffset+RangerHeightOffset))
+FL=clamp(FLD,MovementHeightFront:x(),MovementHeightFront:y())
+FR=clamp(FRD,MovementHeightFront:x(),MovementHeightFront:y())
+RL=clamp(RLD,MovementHeightBack:x(),MovementHeightBack:y())
+RR=clamp(RRD,MovementHeightBack:x(),MovementHeightBack:y())
+holoPos(1,Base:toWorld(PosData[1,vector]+vec(0,0,FL)))
+holoPos(2,Base:toWorld(PosData[2,vector]+vec(0,0,FR)))
+holoPos(3,Base:toWorld(PosData[3,vector]+vec(0,0,RL)))
+holoPos(4,Base:toWorld(PosData[4,vector]+vec(0,0,RR)))
+
+FrontWheels=(Base:velL():x()/WheelSizeFront*_PI)*4
+BackWheels=(Base:velL():x()/WheelSizeBack*_PI)*4
+
+if(FLD>MovementHeightFront:x()){
+    LastAddFL=FrontWheels
+    FrontWheelL+=(FrontWheels*!Space)+((100*(W-S)*(Slide/15)))*(DriveType>0)
+}else{
+    if(LastAddFL>0){
+        LastAddFL-=LastAddFL/10
+    }elseif(LastAddFL<0){
+        LastAddFL-=LastAddFL/10
+    }
+    if((W-S)*!On_Ground*!Space){
+        LastAddFL+=(75*(W-S)*!On_Ground*!Space)*(DriveType>0)
+    }
+    FrontWheelL+=LastAddFL
+}
+
+if(FRD>MovementHeightFront:x()){
+    LastAddFR=FrontWheels
+    FrontWheelR+=(FrontWheels*!Space)+((100*(W-S)*(Slide/15)))*(DriveType>0)
+}else{
+    if(LastAddFR>0){
+        LastAddFR-=LastAddFR/10
+    }elseif(LastAddFR<0){
+        LastAddFR-=LastAddFR/10
+    }
+    if((W-S)*!On_Ground*!Space){
+        LastAddFR+=(75*(W-S)*!On_Ground*!Space)*(DriveType>0)
+    }
+    FrontWheelR+=LastAddFR
+}
+
+if(RLD>MovementHeightBack:x()){
+    LastAddRL=BackWheels+(100*(W-S)*!On_Ground*!Space)
+    BackWheelL+=(BackWheels*!Space)+((100*(W-S)*(Slide/15)))*(DriveType<1)
+}else{
+    if(LastAddRL>0){
+        LastAddRL-=LastAddRL/10
+    }elseif(LastAddRL<0){
+        LastAddRL-=LastAddRL/10
+    }
+    if(Space){
+        LastAddRL=0
+    }elseif((W-S)*!On_Ground*!Space){
+        LastAddRL+=(75*(W-S)*!On_Ground*!Space)*(DriveType<1)
+    }
+    BackWheelL+=LastAddRL
+}
+
+if(RRD>MovementHeightBack:x()){
+    LastAddRR=BackWheels+(100*(W-S)*!On_Ground*!Space)
+    BackWheelR+=(BackWheels*!Space)+((100*(W-S)*(Slide/15)))*(DriveType<1)
+}else{
+    if(LastAddRR>0){
+        LastAddRR-=LastAddRR/10
+    }elseif(LastAddRR<0){
+        LastAddRR-=LastAddRR/10
+    }
+    if(Space){
+        LastAddRR=0
+    }elseif((W-S)*!On_Ground*!Space){
+        LastAddRR+=(75*(W-S)*!On_Ground*!Space)*(DriveType<1)
+    }
+    BackWheelR+=LastAddRR
+}
+
+holoAng(1,Base:toWorld(ang(FrontWheelL,0,0):rotateAroundAxis(vec(0,0,1),clamp((SteeringMaxVisualAngle*(Steer/100))/(1+abs(Base:velL():x()*0.001*(SteeringSpeedHighSpeedLoss/100)))+(Base:velL():y()*0.02*(VisualSteeringAssistStrength/100)),-SteeringMaxVisualAngle,SteeringMaxVisualAngle)):rotateAroundAxis(vec(1,0,0),CamberBack)))
+holoAng(2,Base:toWorld(ang(-FrontWheelR,180,0):rotateAroundAxis(vec(0,0,1),clamp((SteeringMaxVisualAngle*(Steer/100))/(1+abs(Base:velL():x()*0.001*(SteeringSpeedHighSpeedLoss/100)))+(Base:velL():y()*0.02*(VisualSteeringAssistStrength/100)),-SteeringMaxVisualAngle,SteeringMaxVisualAngle)):rotateAroundAxis(vec(1,0,0),-CamberBack)))
+
+holoAng(3,Base:toWorld(ang(BackWheelL,0,0):rotateAroundAxis(vec(1,0,0),CamberBack)))
+holoAng(4,Base:toWorld(ang(-BackWheelR,180,0):rotateAroundAxis(vec(1,0,0),-CamberBack)))
+
+holoAng(100,Base2:toWorld(ang(90,180,0):rotateAroundAxis(vec(1,0,0),-SteeringWheelMaxAngle*(Steer/100))))
+
+holoAng(6,holoEntity(5):toWorld(holoEntity(5):toLocal(((holoEntity(1):pos()+(-Base2:up()*9))-holoEntity(10):pos()):toAngle()):setRoll(0)))
+holoAng(7,holoEntity(5):toWorld(holoEntity(5):toLocal(((holoEntity(2):pos()+(-Base2:up()*9))-holoEntity(11):pos()):toAngle()):setRoll(0)))
+holoAng(8,holoEntity(5):toWorld(holoEntity(5):toLocal(((holoEntity(3):pos()+(-Base2:up()*25))-holoEntity(12):pos()):toAngle()):setRoll(0)))
+holoAng(9,holoEntity(5):toWorld(holoEntity(5):toLocal(((holoEntity(4):pos()+(-Base2:up()*25))-holoEntity(13):pos()):toAngle()):setRoll(0)))
+
+holoAng(10,holoEntity(5):toWorld(holoEntity(5):toLocal((holoEntity(1):pos()-holoEntity(10):pos()):toAngle()):setRoll(0)))
+holoAng(11,holoEntity(5):toWorld(holoEntity(5):toLocal((holoEntity(2):pos()-holoEntity(11):pos()):toAngle()):setRoll(0)))
+holoAng(12,holoEntity(5):toWorld(holoEntity(5):toLocal((holoEntity(3):pos()-holoEntity(12):pos()):toAngle()):setRoll(0)))
+holoAng(13,holoEntity(5):toWorld(holoEntity(5):toLocal((holoEntity(4):pos()-holoEntity(13):pos()):toAngle()):setRoll(0)))
+
+
+
+

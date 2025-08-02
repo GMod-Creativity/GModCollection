@@ -177,3 +177,74 @@
 - Source: https://github.com/dstmnaki/e2-public-library
 - Source Accessed (dd-mm-yyyy): 02-08-2025
 
+**e2-ai-stuff-main**
+- Description:
+- Date (dd-mm-yyyy): 12-06-2023
+- Source: https://github.com/4naki/e2-ai-stuff
+- Source Accessed (dd-mm-yyyy): 02-08-2025
+
+**e2-car-base-main**
+- Description:
+- Date (dd-mm-yyyy): 06-03-2023
+- Source: https://github.com/4naki/e2-car-base
+- Source Accessed (dd-mm-yyyy): 02-08-2025
+
+**e2-tank-base-main**
+- Description:
+- Date (dd-mm-yyyy): 05-03-2023
+- Source: https://github.com/4naki/e2-tank-base
+- Source Accessed (dd-mm-yyyy): 02-08-2025
+
+**helicopter-base-main**
+- Description:
+- Date (dd-mm-yyyy): 24-02-2023
+- Source: https://github.com/4naki/helicopter-base
+- Source Accessed (dd-mm-yyyy): 02-08-2025
+
+**plane-base-main**
+- Description:
+- Date (dd-mm-yyyy): 16-10-2022
+- Source: https://github.com/4naki/plane-base
+- Source Accessed (dd-mm-yyyy): 02-08-2025
+
+**metal-gear-ray-main**
+- Description:
+- Date (dd-mm-yyyy): 01-10 2022
+- Source: https://github.com/4naki/metal-gear-ray
+- Source Accessed (dd-mm-yyyy): 02-08-2025
+
+**e2-server-main**
+- Description:
+- Date (dd-mm-yyyy): 17-08-2022
+- Source: https://github.com/4naki/e2-server
+- Source Accessed (dd-mm-yyyy): 02-08-2025
+
+**metal-gear-rex-main**
+- Description:
+- Date (dd-mm-yyyy): 14-08-2022
+- Source: https://github.com/4naki/metal-gear-rex
+- Source Accessed (dd-mm-yyyy): 02-08-2025
+
+**coding-stinky-main**
+- Description:
+- Date (dd-mm-yyyy): 31-05-2022
+- Source: https://github.com/4naki/coding-stinky
+- Source Accessed (dd-mm-yyyy): 02-08-2025
+
+**E2_examples-main**
+- Description:
+- Date (dd-mm-yyyy): 28-03-2022
+- Source: https://github.com/4naki/E2_examples
+- Source Accessed (dd-mm-yyyy): 02-08-2025
+
+**math-hell-main**
+- Description:
+- Date (dd-mm-yyyy): 02-11-2021
+- Source: https://github.com/4naki/math-hell
+- Source Accessed (dd-mm-yyyy): 02-08-2025
+
+**E2-Pets-by-Naki-main**
+- Description: all of my e2 pets will be here
+- Date (dd-mm-yyyy): Sep 26-09-2021
+- Source: https://github.com/4naki/E2-Pets-by-Naki
+- Source Accessed (dd-mm-yyyy): 02-08-2025

@@ -1,0 +1,311 @@
+@name Slime Pet
+@model models/sprops/cuboids/height12/size_1/cube_12x12x12.mdl
+@persist TorqueStabilization Ent:entity Ang:angle Yaw2 TorqueMult Name:string
+@persist Inertia:angle ScaleOffset Random TargetEnt:entity NewTarget:entity FindName:string CustomTarget Hat
+@persist [Jumping JumpTime] [JumpTarget JumpOrigin]:vector JumpApex Stop StopOverwrite Nearest Teleport
+@trigger none
+runOnChat(1)
+interval(60)
+
+if(first()){
+    timer("jump",100)
+    Ent=entity()
+    #Ent:propGravity(0)
+    TorqueStabilization = 25
+    TorqueMult = 100
+    Ang = ang(0)
+    ScaleOffset=1
+    Inertia = shiftL(ang(Ent:inertia()))
+    
+    Name="Pet"
+    
+    entity():setAlpha(0)
+    
+    #transparent outer part
+    holoCreate(1)
+    holoParent(1, entity())
+    holoPos(1, entity():toWorld(vec(0,0,0)))
+    holoAng(1, entity():toWorld(ang(0,90,0)))
+    holoAlpha(1, 75)
+    holoColor(1, vec(55,255,55))
+    holoScale(1, vec(1,1,1))
+    
+    #middle part
+    holoCreate(2)
+    holoParent(2, holoEntity(1))
+    holoPos(2, holoEntity(1):toWorld(vec(0,0,0)))
+    holoAng(2, holoEntity(1):toWorld(ang(0,0,0)))
+    holoAlpha(2, 255)
+    holoColor(2, vec(55,145,55))
+    holoScale(2, vec(1,1,1)*0.75)
+    
+    #eyes
+    holoCreate(3)
+    holoParent(3, holoEntity(1))
+    holoPos(3, holoEntity(1):toWorld(vec(3.5,3.5,1.4)))
+    holoAng(3, holoEntity(1):toWorld(ang(0,0,0)))
+    holoAlpha(3, 255)
+    holoColor(3, vec(55,90,55)*0.6)
+    holoScale(3, vec(1,1,1)*0.26)
+    
+    holoCreate(4)
+    holoParent(4, holoEntity(1))
+    holoPos(4, holoEntity(1):toWorld(vec(-3.5,3.5,1.4)))
+    holoAng(4, holoEntity(1):toWorld(ang(0,0,0)))
+    holoAlpha(4, 255)
+    holoColor(4, vec(55,90,55)*0.6)
+    holoScale(4, vec(1,1,1)*0.26)
+    
+    #mouth
+    holoCreate(5)
+    holoParent(5, holoEntity(1))
+    holoPos(5, holoEntity(1):toWorld(vec(-0.7,3.5,-2.3)))
+    holoAng(5, holoEntity(1):toWorld(ang(0,0,0)))
+    holoAlpha(5, 255)
+    holoColor(5, vec(55,90,55)*0.6)
+    holoScale(5, vec(0.6,1,0.6)*0.26)
+    
+    #hatBase
+    holoCreate(6)
+    holoParent(6, holoEntity(1))
+    holoPos(6, holoEntity(1):toWorld(vec(0,0,0)))
+    holoAng(6, holoEntity(1):toWorld(ang(0,0,0)))
+    holoAlpha(6, 0)
+    
+    #hatModel
+    holoCreate(7)
+    holoParent(7, holoEntity(6))
+    holoPos(7, holoEntity(1):toWorld(vec(0,0,-8.5)))
+    holoAng(7, holoEntity(1):toWorld(ang(0,0,0)))
+    holoModel(7, "models/food/burger.mdl")
+    holoAlpha(7, 255)
+    holoScale(7, vec(1,1,1))
+    
+    holoCreate(7)
+    holoParent(7, holoEntity(6))
+    holoPos(7, holoEntity(1):toWorld(vec(0,0,-8.5)))
+    holoAng(7, holoEntity(1):toWorld(ang(0,0,0)))
+    holoModel(7, "models/food/burger.mdl")
+    holoAlpha(7, 255)
+    holoScale(7, vec(1,1,1))
+    
+    Stop=0
+    StopOverwrite=0
+    
+    entity():propFreeze(0)
+    
+    #hint("Commands printed in chat!",3500)
+    #timer("help",100)
+}
+
+local Ranger = rangerOffset(100, Ent:pos(), vec(0, 0, -1))
+
+local Moving = max(Ent:vel():setZ(0):length(), 1)
+
+local Time = curtime()*200
+local CosT = cos(Time) / Moving
+local SinT = sin(Time) / Moving
+
+if(clk("jump")){
+    if(Nearest==0){
+        if(CustomTarget==0){
+            TargetEnt=owner()
+        }else{
+            TargetEnt=NewTarget
+        }
+    }else{
+        findByClass("player")
+        findSortByDistance(entity():pos())
+        TargetEnt=findResult(1)
+    }
+    if(Random==0){
+        timer("jump",1500)
+    }else{
+        timer("jump",1500+round(randint(-200,1000)))
+    }
+    if(Stop==0){
+    Yaw2=(entity():pos()-TargetEnt:pos()):toAngle():yaw()
+    local Ranger2=rangerOffset(125,Ent:toWorld(vec(-(75+randint(-5,15)),0,100)),vec(0,0,-1))
+    Aim=Ranger2:pos()
+    if (Ranger:hit()) {
+    if (!Jumping) {
+            JumpOrigin = Ent:pos()
+            JumpTarget = Aim + vec(0, 0, Ranger:distance()) + vec(0,0,25) #-- we want it to jump to its default hover height
+            JumpApex = JumpOrigin:distance(JumpTarget)*0.3 #-- add height to the jump, you can change the multiplier to suit your needs
+            
+            JumpTime = 0
+            Jumping = 1
+    }
+    }
+    }else{
+       Yaw2=(entity():pos()-entity():toWorld(vec(-75,0,0))):toAngle():yaw() 
+    }
+}
+if(Stop==0){
+if (Jumping) {
+    JumpTime = min(JumpTime + 0.1, 1) #-- you can change the increment value to change how fast the jump 'animation' plays
+
+    local JumpHeight = vec(0, 0, sin(JumpTime*180)*JumpApex)*1.4 #-- i like to use sin(T)*DesiredHeight for my jumping animations
+    local JumpVector = mix(JumpTarget, JumpOrigin, JumpTime) + JumpHeight
+
+    #Ent:propGravity(0)
+    Ent:applyForce(((JumpVector - Ent:pos())*3 - Ent:vel()) * Ent:mass())
+
+    #-- depending on the type of mech, you might not want the angle to change in the air
+    local Yaw =  Ent:angles():yaw() - bearing(Ent:pos(), Ent:angles(), Aim) / 5
+
+    Ent:applyAngForce((Ent:toLocal(ang(CosT*5, Yaw, 0))*300 - Ent:angVel()*30) * Inertia)
+
+    if (JumpTime == 0.5) {
+        Jumping = 0
+    }
+}elseif(changed(Jumping)&!Jumping){
+    #Ent:propGravity(600)
+    Ent:propSetVelocity(vec(0,0,0))
+}
+}
+CQ = quat(Ent)
+TQ = quat(Ang + ang(0,Yaw2,0))
+Q = TQ/CQ
+Torque = Ent:toLocal(rotationVector(Q)+Ent:pos())
+Ent:applyTorque((Torque*TorqueMult - Ent:angVelVector()*TorqueStabilization)*Ent:inertia())
+if(Stop==0){
+if(Jumping){
+    if(ScaleOffset<1.5){
+        ScaleOffset=ScaleOffset+0.1
+    }
+}else{
+    if(ScaleOffset>0.8){
+        ScaleOffset=ScaleOffset-0.025
+    }
+}
+holoPos(1, entity():toWorld(vec(0,0,-4+ScaleOffset*4.5)))
+holoPos(3, holoEntity(1):toWorld(vec(3.5,3.5,1.4+(-4+ScaleOffset*4.5)*0.5)))
+holoPos(4, holoEntity(1):toWorld(vec(-3.5,3.5,1.4+(-4+ScaleOffset*4.5)*0.5)))
+holoPos(5, holoEntity(1):toWorld(vec(-0.7,3.5,-2.3-(-4+ScaleOffset*4.5)*0.1)))
+
+holoPos(6, holoEntity(1):toWorld(vec(0,0,-4.5+(ScaleOffset*7))))
+
+holoScale(1, vec(1,1,ScaleOffset))
+holoScale(2, vec(1,1,ScaleOffset)*0.75)
+}else{
+    holoPos(1, entity():toWorld(vec(0,0,0)))
+    holoPos(3, holoEntity(1):toWorld(vec(3.5,3.5,1.4)))
+    holoPos(4, holoEntity(1):toWorld(vec(-3.5,3.5,1.4)))
+    holoPos(5, holoEntity(1):toWorld(vec(-0.7,3.5,-2.3)))
+    
+    holoPos(6, holoEntity(1):toWorld(vec(0,0,2)))
+    
+    holoScale(1, vec(1,1,1))
+    holoScale(2, vec(1,1,1)*0.75)
+    ScaleOffset=1
+}
+if(chatClk()){
+    if(lastSpoke()==TargetEnt){
+        if(TargetEnt:lastSaid()=="/follow"){
+            hideChat(1)
+            hint(Name+" is now following!",3500)
+            StopOverwrite=0
+        }
+        if(TargetEnt:lastSaid()=="/stay"){
+            hideChat(1)
+            hint(Name+" is no longer following!",3500)
+            StopOverwrite=1
+        }
+        if(TargetEnt:lastSaid()=="/rand"){
+            hideChat(1)
+            hint("Random time jump toggled!",3500)
+            Random=!Random
+        }
+    }
+    if(lastSpoke()==owner()){
+        if(owner():lastSaid()=="/nearest"){
+            hideChat(1)
+            hint(Name+" is now following nearest player!",3500)
+            Nearest=1
+            CustomTarget=0
+        }
+        if(owner():lastSaid()=="/me"){
+            hideChat(1)
+            hint(Name+" is now following You!",3500)
+            Nearest=0
+            CustomTarget=0
+            TargetEnt=owner()
+        }
+        if(owner():lastSaid()=="/commands"){
+            hideChat(1)
+            hint("Commands printed in chat!",3500)
+            timer("help",100)
+        }
+        if(owner():lastSaid()=="/toggletp"){
+            hideChat(1)
+            hint("Teleporting toggled!",3500)
+            Teleport=!Teleport
+        }
+        if(owner():lastSaid()=="/togglehat"){
+            hideChat(1)
+            hint("Hat Toggled!",3500)
+            Hat=!Hat
+        }
+        if(owner():lastSaid():explode(" ")[1,string]=="/name"){
+            hideChat(1)
+            if(owner():lastSaid():explode(" ")[2,string]){
+            Name=owner():lastSaid():explode(" ")[2,string]
+            hint("Name set to "+Name+".",3500)
+            }
+        }
+        if(owner():lastSaid():explode(" ")[1,string]=="/target"){
+            hideChat(1)
+            if(owner():lastSaid():explode(" ")[2,string]){
+            FindName=owner():lastSaid():explode(" ")[2,string]
+            findIncludeClass("player")
+            NewTarget=findPlayerByName(FindName)
+            TargetEnt=NewTarget
+            if(NewTarget:isPlayer()){
+                hint("Target set to "+NewTarget:name()+"!",3500)
+                CustomTarget=1
+            }else{
+                hint("Target not found, resetting to owner!",3500)
+                CustomTarget=0
+                TargetEnt=owner()
+            }
+            Nearest=0
+            }
+        }
+    }
+}
+
+if(Ent:pos():distance(TargetEnt:pos())<90){
+    Stop=1
+}else{
+    if(Teleport){
+        if(Stop==0){
+            if(Ent:pos():distance(TargetEnt:pos())>2000){
+                Ent:setPos(TargetEnt:pos()+vec(0,0,4))
+            }
+        }
+    }
+    Stop=StopOverwrite
+}
+if(clk("help")){
+    print("E2 Pet by Naki")
+    print("/follow --- Make pet follow you")
+    print("/stay --- Make pet stay where they are")
+    print("/rand --- Make jumping randomized")
+    print("/nearest --- Set Owner/Target to be nearest player it finds")
+    print("/me --- Set Owner/Target to be the owner of the E2/You")
+    print("/target NAME --- Set Owner/Target to be the person who's name you say")
+    print("/toggletp --- Toggle Teleport option, should pet teleport to the target if too far from it")
+    print("/togglehat --- Should hat be visible")
+    print("/name TEXT --- Set pet's name to TEXT")
+    print("/commands --- Print these commands")
+}
+if(changed(TargetEnt)&TargetEnt){
+    hint("Target: "+TargetEnt:name(),2000)
+}
+
+if(!Hat){
+    holoAlpha(7,255)
+}else{
+    holoAlpha(7,0)
+}

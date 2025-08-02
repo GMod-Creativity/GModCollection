@@ -1,0 +1,69 @@
+@name Metal Gear Rex - Missile Pod
+@inputs Fire Target:vector Base:entity
+@outputs Ready Name:string Shot
+@persist Recoil Entity:entity Array:array MuzzleVelocity SpawnOffset Ready Gravity Name:string Shot
+if(first()){
+    Name="130mm BGM-71"
+    
+    Entity=Base
+    
+    #initial launch velocity
+    MuzzleVelocity=2500
+    
+    #how high the missile spawns from the creation point
+    SpawnOffset=75
+    
+    Gravity=1
+    
+    Array=array()
+    
+    #ifdef propSpawnASync(number)
+    #endif
+}
+interval(100)
+if(changed(Fire)&Fire){
+    Shot=0
+    #ifdef propSpawnASync(number)
+    propSpawnASync(1)
+    #endif
+    soundStop("sfx")
+    Prop=propSpawn("models/props_phx/ww2bomb.mdl",Entity:toWorld(ang(-90+(randint(-1,1)*0.1),(randint(-1,1)*0.1),(randint(-1,1)*0.1))),0)
+    Prop:propDrag(0)
+    Prop:propGravity(Gravity)
+    Prop:setPos(Entity:toWorld(vec(0,0,SpawnOffset)))
+    Prop:setTrails(15,0,0.4,"trails/smoke",vec(255),255)
+    Prop:setAlpha(0)
+    Prop:setMass(10000)
+    Array:pushEntity(Prop)
+    Prop:propSetVelocity(Prop:forward()*MuzzleVelocity)
+    timer("fired",2500)
+}
+for(I=1,Array:count()){
+    E=Array[I,entity]  
+    E:propDraw(0)
+    E:propDrag(0)
+    E:applyForce(((-(E:pos()-(Target)):normalized())*E:mass()*1200)-((E:vel()*0.30)*(E:mass()*0.35))+vec(0,0,-E:mass()*clamp(250-E:pos():distance(Target),1,250)))
+    rangerFilter(E)
+    rangerFilter(Entity)
+    if(E:pos():distance(Entity:pos())>3500){
+        Ranger=rangerOffsetHull(150, E:pos(), E:vel() * 1,vec(25))
+        if(Ranger:hit()&Ranger:entity():model()!="models/props_phx/ww2bomb.mdl"|E:pos():distance(Target)<300){
+            Shot=1
+            E:propBreak()
+        }
+    }
+    if(!(E:isValid())){
+        Shot=1
+        Array:remove(I)
+    }
+}
+if(clk("fired")){
+    Shot=1
+    timer("reload",100)
+}
+if(clk("reload")){
+    Shot=0
+}
+if(dupefinished()){
+    reset()
+}

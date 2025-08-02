@@ -1,0 +1,616 @@
+@name RoboWarrior
+@inputs ZMIn ZMOut [CamAng]:angle CamAimPos:vector [Seat Base Pelvis LHip RHip LThigh RThigh LFoot RFoot]:entity
+@inputs [LFootLFToe LFootRFToe LFootLBToe LFootRBToe RFootLFToe RFootRFToe RFootLBToe RFootRBToe]:entity
+@inputs [Gun_Right Gun_Left Gun_Right_Ent Gun_Left_Ent]:entity
+@outputs Space ReloadExtra1 FireExtra1 Cam_Hold:angle ZMState CamFOV CamFilter:array Active CamDist TP [CamPos LFoot_Pos RFoot_Pos TargetPos]:vector FireLeft FireRight BoostPowerVal
+@persist TargetVal Target:entity TargetType XAng ZAng ThirdPerson Aimlock [CamAimPosF TargetPos]:vector Freelook ZMState AimMode YawCustom BaseFOV FOV:array CamFOV CamFilter:array Speed_Fix [Scale Offset FP_CamPos TP_CamPos RSave LSave]:vector Length_A Length_B Length_C Leg_Width Leg_Stand_Width Leg_Forward_Offset Run_Multiplier Run_Distance_Multiplier Height Step_Height Mass Step_Lerp Step Step_Distance Move_Speed Step_Speed Jump_Force On_Ground TP_CamDist TP [Cam_Hold]:angle Jump
+@persist StepHeightFix Edit Debug WalkOverWrite RunOverWrite LeftLegStepVal RightLegStepVal BoostPowerVal
+@persist GunPos:vector
+#@trigger none
+#with love, ClockEFFX, thanks for the original base, Naki
+
+if(first()|dupefinished()){
+    
+    Offset=vec(0,0,-15)
+    Height=125
+    Step_Distance=70
+    Jump_Force=350
+    Move_Speed=90
+    Speed_Fix=0.3
+    StepHeightFix=0.45
+    Run_Multiplier=0.6
+    Run_Distance_Multiplier=0.8
+    Step_Speed=0.072
+    Step_Height=100
+    Leg_Width=40
+    Leg_Stand_Width=50
+    Leg_Forward_Offset=5
+    Length_A=65
+    Length_B=95
+    FP_CamPos=vec(16,0,51)
+    TP_CamPos=vec(0,-20,90)
+    TP_CamDist=300
+    
+    BaseFOV=110
+    FOV[1,number]=0
+    FOV[2,number]=BaseFOV*0.6
+    FOV[3,number]=BaseFOV*0.2
+    BoostPowerVal=1
+    #Debug/Editing
+    Debug=0
+    WalkOverWrite=0
+    RunOverWrite=0
+    
+    Edit=0
+    
+    function number approach(Cur,Tar,R) 
+    {
+    if (Cur < Tar) {
+        return clamp(Cur + R,Cur,Tar)
+    }
+    elseif (Cur > Tar) {
+        return clamp(Cur - R,Tar,Cur)
+    }
+    return Tar
+    }
+        
+    function angle approachAngle(Cur:angle,Tar:angle,R) 
+    {
+    local DiffP = angnorm(Tar:pitch() - Cur:pitch())
+    local DiffY = angnorm(Tar:yaw() - Cur:yaw())
+    local DiffR = angnorm(Tar:roll() - Cur:roll())
+    if (DiffP > 180) { DiffP -= 360 }
+    if (DiffY > 180) { DiffY -= 360 }
+    if (DiffR > 180) { DiffR -= 360 }
+    return ang(
+                approach(Cur:pitch(),Cur:pitch()+DiffP,R),
+                approach(Cur:yaw(),Cur:yaw()+DiffY,R),
+                approach(Cur:roll(),Cur:roll()+DiffR,R)
+              )
+    }
+    
+    runOnPlayerConnect(1)
+    Mass=Base:mass()
+    rangerPersist(1)
+    rangerFilter(Base:getConnectedEntities())
+    CamFilter:pushEntity(Gun_Right_Ent)
+    CamFilter:pushEntity(Gun_Left_Ent)
+    foreach(I,E:entity=Base:getConstraints()){
+        CamFilter:pushEntity(E)
+    }
+    foreach(I,E:entity=Base:children()){
+        CamFilter:pushEntity(E)
+    }
+    rangerFilter(players())
+    CamPos=FP_CamPos
+    Base:propInertia(vec(3500,3500,3500))
+    #Base:propFreeze(1)
+    TP=0
+    
+    #-- skeleton
+    #pelvis
+    holoCreate(1,Pelvis:toWorld(vec(0,0,0)),vec(0),Pelvis:toWorld(ang(0,0,0)),vec(255),"cube")
+    local Children=Pelvis:children()
+    rangerFilter(Children)
+    Pelvis:parentTo(holoEntity(1))
+    holoPos(1,Base:toWorld(Offset))
+    holoAng(1,Base:toWorld(ang(0,0,0)))
+    holoParent(1,Base)
+    for(I=1,Children:count()){
+        Children[I,entity]:parentTo(Pelvis)
+    }
+    #l hip base
+    holoCreate(2,holoEntity(1):toWorld(vec(0,Leg_Width,0)),vec(0),holoEntity(1):toWorld(ang(0,0,0)),vec(255),"cube")
+    holoParent(2,1)
+    #l hip
+    holoCreate(3,LHip:toWorld(vec(0,0,0)),vec(0),LHip:toWorld(ang(0,0,0)),vec(255),"cube")
+    local Children=LHip:children()
+    rangerFilter(Children)
+    LHip:parentTo(holoEntity(3))
+    holoPos(3,holoEntity(2):toWorld(vec(0,0,0)))
+    holoAng(3,holoEntity(2):toWorld(ang(0,0,0)))
+    holoParent(3,2)
+    for(I=1,Children:count()){
+        Children[I,entity]:parentTo(LHip)
+    }
+    #l thigh
+    holoCreate(4,LThigh:toWorld(vec(0,0,0)),vec(0),LThigh:toWorld(ang(0,0,0)),vec(255),"cube")
+    local Children=LThigh:children()
+    rangerFilter(Children)
+    LThigh:parentTo(holoEntity(4))
+    holoPos(4,holoEntity(3):toWorld(vec(0,0,Length_A)))
+    holoAng(4,holoEntity(3):toWorld(ang(0,0,0)))
+    holoParent(4,3)
+    for(I=1,Children:count()){
+        Children[I,entity]:parentTo(LThigh)
+    }
+    #l foot
+    holoCreate(5,LFoot:toWorld(vec(0,0,0)),vec(0),LFoot:toWorld(ang(0,0,0)),vec(255),"cube")
+    local Children=LFoot:children()
+    rangerFilter(Children)
+    LFoot:parentTo(holoEntity(5))
+    holoPos(5,holoEntity(4):toWorld(vec(0,0,Length_B)))
+    holoAng(5,holoEntity(4):toWorld(ang(0,0,0)))
+    holoParent(5,4)
+    for(I=1,Children:count()){
+        Children[I,entity]:parentTo(LFoot)
+    }
+    
+    
+    
+    #left leg left front toe
+    holoCreate(13,LFootLFToe:toWorld(vec(0,0,0)),vec(0),LFootLFToe:toWorld(ang(0,0,0)),vec(255),"cube")
+    local Children=LFootLFToe:children()
+    rangerFilter(Children)
+    LFootLFToe:parentTo(holoEntity(13))
+    holoPos(13,holoEntity(5):toWorld(vec(25,25,0)*0.4))
+    holoAng(13,holoEntity(5):toWorld(ang(0,0,0)))
+    holoParent(13,5)
+    for(I=1,Children:count()){
+        Children[I,entity]:parentTo(LFootLFToe)
+    }
+    
+    #left leg right front toe
+    holoCreate(14,LFootRFToe:toWorld(vec(0,0,0)),vec(0),LFootRFToe:toWorld(ang(0,0,0)),vec(255),"cube")
+    local Children=LFootRFToe:children()
+    rangerFilter(Children)
+    LFootRFToe:parentTo(holoEntity(14))
+    holoPos(14,holoEntity(5):toWorld(vec(25,-25,0)*0.4))
+    holoAng(14,holoEntity(5):toWorld(ang(0,0,0)))
+    holoParent(14,5)
+    for(I=1,Children:count()){
+        Children[I,entity]:parentTo(LFootRFToe)
+    }
+    
+    #left leg left back toe
+    holoCreate(15,LFootLBToe:toWorld(vec(0,0,0)),vec(0),LFootLBToe:toWorld(ang(0,0,0)),vec(255),"cube")
+    local Children=LFootLBToe:children()
+    rangerFilter(Children)
+    LFootLBToe:parentTo(holoEntity(15))
+    holoPos(15,holoEntity(5):toWorld(vec(-25,20,0)*0.4))
+    holoAng(15,holoEntity(5):toWorld(ang(0,0,0)))
+    holoParent(15,5)
+    for(I=1,Children:count()){
+        Children[I,entity]:parentTo(LFootLBToe)
+    }
+    
+    #left leg right back toe
+    holoCreate(16,LFootRBToe:toWorld(vec(0,0,0)),vec(0),LFootRBToe:toWorld(ang(0,0,0)),vec(255),"cube")
+    local Children=LFootRBToe:children()
+    rangerFilter(Children)
+    LFootRBToe:parentTo(holoEntity(16))
+    holoPos(16,holoEntity(5):toWorld(vec(-25,-20,0)*0.4))
+    holoAng(16,holoEntity(5):toWorld(ang(0,0,0)))
+    holoParent(16,5)
+    for(I=1,Children:count()){
+        Children[I,entity]:parentTo(LFootRBToe)
+    }
+    
+    
+    
+    #r hip base
+    holoCreate(7,holoEntity(1):toWorld(vec(0,-Leg_Width,0)),vec(0),holoEntity(1):toWorld(ang(0,0,0)),vec(255),"cube")
+    holoParent(7,1)
+    #r hip
+    holoCreate(8,RHip:toWorld(vec(0,0,0)),vec(0),RHip:toWorld(ang(0,0,0)),vec(255),"cube")
+    local Children=RHip:children()
+    rangerFilter(Children)
+    RHip:parentTo(holoEntity(8))
+    holoPos(8,holoEntity(7):toWorld(vec(0,0,0)))
+    holoAng(8,holoEntity(7):toWorld(ang(0,0,0)))
+    holoParent(8,7)
+    for(I=1,Children:count()){
+        Children[I,entity]:parentTo(RHip)
+    }
+    #r thigh
+    holoCreate(9,RThigh:toWorld(vec(0,0,0)),vec(0),RThigh:toWorld(ang(0,0,0)),vec(255),"cube")
+    local Children=RThigh:children()
+    rangerFilter(Children)
+    RThigh:parentTo(holoEntity(9))
+    holoPos(9,holoEntity(8):toWorld(vec(0,0,Length_A)))
+    holoAng(9,holoEntity(8):toWorld(ang(0,0,0)))
+    holoParent(9,8)
+    for(I=1,Children:count()){
+        Children[I,entity]:parentTo(RThigh)
+    }
+    #r foot
+    holoCreate(10,RFoot:toWorld(vec(0,0,0)),vec(0),RFoot:toWorld(ang(0,0,0)),vec(255),"cube")
+    local Children=RFoot:children()
+    rangerFilter(Children)
+    RFoot:parentTo(holoEntity(10))
+    holoPos(10,holoEntity(9):toWorld(vec(0,0,Length_B)))
+    holoAng(10,holoEntity(9):toWorld(ang(0,0,0)))
+    holoParent(10,9)
+    for(I=1,Children:count()){
+        Children[I,entity]:parentTo(RFoot)
+    }
+    
+    
+    
+    #right leg left front toe
+    holoCreate(17,RFootLFToe:toWorld(vec(0,0,0)),vec(0),RFootLFToe:toWorld(ang(0,0,0)),vec(255),"cube")
+    local Children=RFootLFToe:children()
+    rangerFilter(Children)
+    RFootLFToe:parentTo(holoEntity(17))
+    holoPos(17,holoEntity(10):toWorld(vec(25,25,0)*0.4))
+    holoAng(17,holoEntity(10):toWorld(ang(0,0,0)))
+    holoParent(17,10)
+    for(I=1,Children:count()){
+        Children[I,entity]:parentTo(RFootLFToe)
+    }
+    
+    #right leg right front toe
+    holoCreate(18,RFootRFToe:toWorld(vec(0,0,0)),vec(0),RFootRFToe:toWorld(ang(0,0,0)),vec(255),"cube")
+    local Children=RFootRFToe:children()
+    rangerFilter(Children)
+    RFootRFToe:parentTo(holoEntity(18))
+    holoPos(18,holoEntity(10):toWorld(vec(25,-25,0)*0.4))
+    holoAng(18,holoEntity(10):toWorld(ang(0,0,0)))
+    holoParent(18,10)
+    for(I=1,Children:count()){
+        Children[I,entity]:parentTo(RFootRFToe)
+    }
+    
+    #right leg left back toe
+    holoCreate(19,RFootLBToe:toWorld(vec(0,0,0)),vec(0),RFootLBToe:toWorld(ang(0,0,0)),vec(255),"cube")
+    local Children=RFootLBToe:children()
+    rangerFilter(Children)
+    RFootLBToe:parentTo(holoEntity(19))
+    holoPos(19,holoEntity(10):toWorld(vec(-25,20,0)*0.4))
+    holoAng(19,holoEntity(10):toWorld(ang(0,0,0)))
+    holoParent(19,10)
+    for(I=1,Children:count()){
+        Children[I,entity]:parentTo(RFootLBToe)
+    }
+    
+    #right leg right back toe
+    holoCreate(20,RFootRBToe:toWorld(vec(0,0,0)),vec(0),RFootRBToe:toWorld(ang(0,0,0)),vec(255),"cube")
+    local Children=RFootRBToe:children()
+    rangerFilter(Children)
+    RFootRBToe:parentTo(holoEntity(20))
+    holoPos(20,holoEntity(10):toWorld(vec(-25,-20,0)*0.4))
+    holoAng(20,holoEntity(10):toWorld(ang(0,0,0)))
+    holoParent(20,10)
+    for(I=1,Children:count()){
+        Children[I,entity]:parentTo(RFootRBToe)
+    }
+    
+    
+    
+    #gun right
+    holoCreate(11,Gun_Right:toWorld(vec(0,0,0)),vec(0),Gun_Right:toWorld(ang(0,0,0)),vec(255),"cube")
+    local Children=Gun_Right:children()
+    rangerFilter(Children)
+    Gun_Right:parentTo(holoEntity(11))
+    holoPos(11,Base:toWorld(vec(-25.25,-60,45)))
+    holoAng(11,Base:toWorld(ang(0,0,0)))
+    holoParent(11,Base)
+    holoEntity(11):propFreeze(1)
+    for(I=1,Children:count()){
+        Children[I,entity]:parentTo(Gun_Right)
+    }
+    
+    #gun left
+    holoCreate(12,Gun_Left:toWorld(vec(0,0,0)),vec(0),Gun_Left:toWorld(ang(0,0,0)),vec(255),"cube")
+    local Children=Gun_Left:children()
+    rangerFilter(Children)
+    Gun_Left:parentTo(holoEntity(12))
+    holoPos(12,Base:toWorld(vec(-25.25,60,45)))
+    holoAng(12,Base:toWorld(ang(0,0,0)))
+    holoParent(12,Base)
+    holoEntity(12):propFreeze(1)
+    for(I=1,Children:count()){
+        Children[I,entity]:parentTo(Gun_Left)
+    }
+    
+    
+    
+    
+    #thanks shadowscion for his IK examples
+    function number icos(A, B, C) {
+        return acos((A^2 + B^2 - C^2) / (2*A*B))    
+    }
+    function two_seg_ik(NHipA, NHipB, NKnee, NFoot, LengthA, LengthB, Base:entity, Target:vector, Ground) {
+        local AxisWorld = Target - holoEntity(NHipA):pos()
+        local AxisLocal = Base:toLocalAxis(AxisWorld)
+
+        holoAng(NHipA, Base:toWorld(ang(0, 0, atan(AxisLocal:z(), AxisLocal:y()) + 90)))
+
+        local AxisLocal = holoEntity(NHipA):toLocalAxis(Target - holoEntity(NHipB):pos())
+        local Distance = min(AxisLocal:length(), LengthA + LengthB)
+
+        #holoAng(NHipB, holoEntity(NHipA):toWorld(ang(atan(-AxisLocal:x(), AxisLocal:z()) + icos(Distance, LengthA, LengthB), 180, 0))) #-- forward knee   
+        holoAng(NHipB, holoEntity(NHipA):toWorld(ang(atan(AxisLocal:x(), AxisLocal:z()) + icos(Distance, LengthA, LengthB), 0, 0))) #-- reverse knee
+        holoAng(NKnee, holoEntity(NHipB):toWorld(ang(icos(LengthB, LengthA, Distance) + 180, 0, 0)))
+        if(Ground){
+            holoAng(NFoot, Base:angles())
+        }else{
+            holoAng(NFoot,holoEntity(NKnee):toWorld(ang(180,0,0)))
+        }
+    }
+    Cam_Hold=Base:angles()
+    CamAimPosF=Base:toWorld(vec(9999,0,0))
+    timer("update",1)
+}elseif(playerConnectClk()){
+    rangerFilter(players())
+}elseif(clk("update")){
+    timer("update",50)
+    
+    W = Seat:driver():keyForward()
+    A = Seat:driver():keyLeft()
+    S = Seat:driver():keyBack()
+    D = Seat:driver():keyRight()
+    Shift = 1#(Seat:driver():keySprint()
+    Space = Seat:driver():keyJump()
+    Duck = Seat:driver():keyDuck()
+    R = Seat:driver():keyReload()
+    Alt = Seat:driver():keyWalk()
+    
+    AllPartsOK=Base&Pelvis&Seat&RHip&LHip&LFoot&RFoot&LThigh&RThigh
+    Active = Seat:driver():isPlayer()*AllPartsOK
+    
+    FireLeft = Seat:driver():keyAttack1()
+    FireRight = Seat:driver():keyAttack2()
+    Lock = Seat:driver():keyPressed("mouse_middle")
+    
+    if(changed(Alt)&Alt){
+        ThirdPerson=!ThirdPerson
+    }
+    
+    if(changed(Lock)&Lock){
+        Aimlock=!Aimlock
+    }
+    
+    if(changed(ZMState)|changed(ThirdPerson)){
+        CamFOV=FOV[clamp(ZMState+1,1,FOV:count()),number]
+        if(ZMState<0){
+            CamDist=(100*ThirdPerson)+((TP_CamDist/5)*(abs(ZMState)))
+        }else{
+            CamDist=(100*ThirdPerson)
+        }
+    }
+    
+    if(changed(ThirdPerson)){
+        if(ThirdPerson){
+            CamPos=TP_CamPos
+        }else{
+            CamPos=FP_CamPos
+        }
+    }
+    
+    Foot_Dist=((LFoot_Pos:distance(RFoot_Pos)-(Leg_Width*2))/500)*(LFoot_Pos:distance(RFoot_Pos)>Leg_Width*2)
+    Height_Adj=Height/clamp(1+((!Active*0.7)*!Edit)+((Duck*0.5)+(Foot_Dist)-clamp(Step_Lerp*(Base:vel():length()*0.0005),0,1)*0.1),0.5,3)
+    
+    if(changed(R)&R){
+        AimMode=!AimMode
+    }
+    local Ground_Ranger=rangerOffsetHull(((Height)*1.5),Base:toWorld(vec(0,0,0)),vec(0,0,-1),vec(Leg_Width/2,Leg_Width/2,0))
+    local Distance=Ground_Ranger:distance()+Offset:z()
+    On_Ground=Ground_Ranger:hit()*(!Space|BoostPowerVal==0)
+    local Movement_Direction=(((holoEntity(1):forward()*(W-S))+(holoEntity(1):right()*((D-A)*!AimMode)))*vec(1,1,0)):normalized()*(On_Ground|Space)
+    local Moving=abs(Movement_Direction:length())>0.1
+    if(!AimMode){
+        HoloBaseAng=approachAngle(holoEntity(1):angles(),(ang(0,-3*sin((Step_Lerp+0.5)*(Step-!Step)*Moving*180),-4*sin(Step_Lerp*(Step-!Step)*Moving*180))):rotateAroundAxis(vec(0,0,1),Base:angles():yaw()),7)
+        YawCustom=Base:angles():yaw()
+    }else{
+        if(!Active){
+            AimMode=0
+        }
+        YawCustom+=5*(A-D)
+        HoloBaseAng=approachAngle(holoEntity(1):angles(),(ang(0,0,-(2*(A-D)*!AimMode)-4*sin(Step_Lerp*(Step-!Step)*Moving*180))):setYaw(YawCustom-3*sin((Step_Lerp+0.5)*(Step-!Step)*Moving*180)),7)
+    }
+    
+    holoAng(1,HoloBaseAng)
+    #-- force stuff
+    
+    if(changed(On_Ground)){
+        Base:propGravity(!On_Ground)
+    }
+    if(On_Ground){
+        BoostPowerVal+=0.01*!Space
+    }else{
+        BoostPowerVal-=0.005*Space
+    }
+    BoostPowerVal=clamp(BoostPowerVal,0,1)
+    
+    if(changed(Space)){
+        if(Space){
+            Base:soundPlay("sfx",0,"^thrusters/Rocket02.wav")
+        }else{
+            soundStop("sfx")
+        }
+    }
+    soundPitch("sfx",clamp(10+BoostPowerVal*90,10,100))
+    if(!Space){
+        local Stand_Force=(vec(0,0,((Height_Adj)*1.1)-Distance)*4)*On_Ground
+        local Damping_Force=(-Base:vel()*vec(0.35,0.35,0.5)*vec((0.02+(On_Ground*0.9)),(0.02+(On_Ground*0.9)),(0.05+(On_Ground*0.95))))
+        local Move_Force=((Movement_Direction)*Move_Speed)*((1-Speed_Fix)+((Shift*Run_Multiplier)*2))
+        Base:applyForce(((Ground_Ranger:entity():vel()*vec(0.5,0.5,0.25))+Stand_Force+Damping_Force+Move_Force)*Mass)
+    }else{
+        local Damping_Force=(-Base:vel()*vec(0.35,0.35,0.5)*vec(0.3))
+        local Move_Force=((Movement_Direction)*Move_Speed/4)*((1-Speed_Fix)+((Shift*Run_Multiplier)*2))
+        Base:applyForce((vec(0,0,2+(90*BoostPowerVal))+Damping_Force+Move_Force)*Mass)
+    }
+    
+    #-- misc
+    if(!Aimlock&Active){
+        if(!Freelook){
+            Cam_Hold=CamAng
+            CamAimPosF=CamAimPos
+        }else{
+            CamAimPosF=Base:toWorld(vec(9999,0,0))
+        }
+    }else{
+        Cam_Hold2=(CamAimPosF-Base:toWorld(CamPos)):toAngle()
+        if(Cam_Hold2:pitch()>180){
+            Cam_Hold=Cam_Hold2-ang(360,0,0)
+        }else{
+            Cam_Hold=Cam_Hold2
+        }
+    }
+    local Upright_Force=Base:toLocal(ang((10*!Active*!Edit)+clamp((20*(XAng/100))+clamp(CamAng:pitch()*0.75,-25,35),-25,15),Cam_Hold:yaw(),1*sin((Step_Lerp+0.25)*(Step-!Step)*Moving*180)+clamp((16*(ZAng/100))+(-Base:velL():y()*(0.0032*((A|D)))),-15,15)))*50
+    local Ang_Damping_Force=(-Base:angVel())*10
+    
+    Base:applyAngForce((Upright_Force+Ang_Damping_Force)*Mass)
+    if(Moving){
+        if(changed(Step)){
+            Base:soundPlay("step_end"+Step,0.4,"npc/dog/dog_footstep"+randint(2,4)+".wav")
+            soundPitch("step_end"+Step,80)
+            soundVolume("step_end"+Step,0.5)
+        }
+    }
+    
+    #-- pelvis
+    Step_Lerp+=(Step_Speed)*(1+(Shift*Run_Multiplier))
+    if(Step_Lerp>1){
+        if(Moving&(!Space|(BoostPowerVal==0&On_Ground))){
+            Step_Lerp=0
+            Step=!Step
+        }
+    }
+    Step_Lerp=clamp(Step_Lerp,0,1)
+    #-- left leg
+    if(Step){
+        LStride=mix(-Movement_Direction*((Step_Distance*(1+(Shift*Run_Distance_Multiplier)))),Movement_Direction*((Step_Distance*(1+(Shift*Run_Distance_Multiplier)))),Step_Lerp)
+    }else{
+        LStride=bezier(-Movement_Direction*((Step_Distance*(1+(Shift*Run_Distance_Multiplier)))),
+        vec(0,0,(Height/4)+Step_Height)*Moving,
+        Movement_Direction*((Step_Distance*(1+(Shift*Run_Distance_Multiplier))))-vec(0,0,Step_Height*Moving*StepHeightFix),
+        Step_Lerp)
+        LSin=sin(Step_Lerp*180)*Moving
+    }
+    LHeight=vec(Leg_Forward_Offset*!Shift,Leg_Stand_Width,-(Height_Adj+(clamp(Step_Lerp*(Base:vel():length()*0.05),1,5)*2)))
+    if(!Edit){
+    if(On_Ground){
+        if(!Moving){
+            LFoot_Pos=holoEntity(1):toWorld(LHeight)+LStride
+            LSave=holoEntity(5):pos()
+        }else{
+            if(!Step){
+                LFoot_Pos=holoEntity(1):toWorld(LHeight)+LStride
+                LSave=holoEntity(5):pos()
+            }else{
+                LFoot_Pos=LSave
+            }
+        }
+    }else{
+        LSave=holoEntity(1):toWorld(LHeight)
+        LFoot_Pos=holoEntity(1):toWorld(LHeight*vec(3,0.65,0.5))
+    }
+    }else{
+        LFoot_Pos=holoEntity(1):toWorld(LHeight)
+    }
+    if(Active){
+        LFoot_Pos2=LFoot_Pos
+    }else{
+        LFoot_Pos2=holoEntity(1):toWorld(vec(60*!Edit,Leg_Stand_Width,-(Height_Adj+(clamp(Step_Lerp*(Base:vel():length()*0.05),1,5)*2))))
+    }
+    if(min(holoEntity(2):pos():distance(holoEntity(5):pos())<=((Length_A+Length_B)*0.95),Step)|!Moving){
+        LeftLegStepVal=1
+    }else{
+        LeftLegStepVal-=0.4
+    }
+    LeftLegStepVal=clamp(LeftLegStepVal,0,1)
+    two_seg_ik(2,3,4,5,Length_A,Length_B,holoEntity(1),LFoot_Pos2,LeftLegStepVal)#!Moving+(Step)*Moving)
+    
+    #-- right leg
+    if(Step){
+        RStride=bezier(-Movement_Direction*((Step_Distance*(1+(Shift*Run_Distance_Multiplier)))),
+        vec(0,0,(Height/4)+Step_Height)*Moving,
+        Movement_Direction*((Step_Distance*(1+(Shift*Run_Distance_Multiplier))))-vec(0,0,Step_Height*Moving*StepHeightFix),
+        Step_Lerp)
+        RSin=sin(Step_Lerp*180)*Moving
+    }else{
+        RStride=mix(-Movement_Direction*((Step_Distance*(1+(Shift*Run_Distance_Multiplier)))),Movement_Direction*((Step_Distance*(1+(Shift*Run_Distance_Multiplier)))),Step_Lerp)
+    }
+    RHeight=vec(Leg_Forward_Offset*!Shift,-Leg_Stand_Width,-(Height_Adj+(clamp(Step_Lerp*(Base:vel():length()*0.05),1,5)*2)))
+    if(!Edit){
+    if(On_Ground){
+        if(!Moving){
+            RFoot_Pos=holoEntity(1):toWorld(RHeight)+RStride
+            RSave=holoEntity(10):pos()
+        }else{
+            if(Step){
+                RFoot_Pos=holoEntity(1):toWorld(RHeight)+RStride
+                RSave=holoEntity(10):pos()
+            }else{
+                RFoot_Pos=RSave
+            }
+        }
+    }else{
+        RSave=holoEntity(1):toWorld(RHeight)
+        RFoot_Pos=holoEntity(1):toWorld(RHeight*vec(3,0.65,0.5))
+    }
+    }else{
+        RFoot_Pos=holoEntity(1):toWorld(RHeight)
+    }
+    if(Active){
+        RFoot_Pos2=RFoot_Pos
+    }else{
+        RFoot_Pos2=holoEntity(1):toWorld(vec(-50*!Edit,-Leg_Stand_Width,-(Height_Adj+(clamp(Step_Lerp*(Base:vel():length()*0.05),1,5)*2))))
+    }
+    if(min(holoEntity(7):pos():distance(holoEntity(10):pos())<=((Length_A+Length_B)*0.95),!Step)|!Moving){
+        RightLegStepVal=1
+    }else{
+        RightLegStepVal-=0.4
+    }
+    RightLegStepVal=clamp(RightLegStepVal,0,1)
+    two_seg_ik(7,8,9,10,Length_A,Length_B,holoEntity(1),RFoot_Pos2,RightLegStepVal)#!Moving+(!Step)*Moving)
+    
+    holoEntity(11):propFreeze(1)
+    holoEntity(12):propFreeze(1)
+    
+    AngLeft=approachAngle(holoEntity(12):angles(),((CamAimPosF-Gun_Left:pos()):toAngle()),5)
+    AngRight=approachAngle(holoEntity(11):angles(),((CamAimPosF-Gun_Right:pos()):toAngle()),5)
+    
+    holoAng(11,AngRight)
+    holoAng(12,AngLeft)
+    
+    holoAng(13,holoEntity(5):toWorld(ang(80*LSin,0,0):rotateAroundAxis(Base:up(),20)))
+    holoAng(14,holoEntity(5):toWorld(ang(80*LSin,0,0):rotateAroundAxis(Base:up(),-20)))
+    holoAng(15,holoEntity(5):toWorld(ang(-80*LSin,0,0):rotateAroundAxis(Base:up(),-10)))
+    holoAng(16,holoEntity(5):toWorld(ang(-80*LSin,0,0):rotateAroundAxis(Base:up(),10)))
+    
+    holoAng(17,holoEntity(10):toWorld(ang(80*RSin,0,0):rotateAroundAxis(Base:up(),20)))
+    holoAng(18,holoEntity(10):toWorld(ang(80*RSin,0,0):rotateAroundAxis(Base:up(),-20)))
+    holoAng(19,holoEntity(10):toWorld(ang(-80*RSin,0,0):rotateAroundAxis(Base:up(),-10)))
+    holoAng(20,holoEntity(10):toWorld(ang(-80*RSin,0,0):rotateAroundAxis(Base:up(),10)))
+    
+    if(!ThirdPerson){
+        if(ZMState<0){
+            ZMState=0
+        }
+    }
+    
+    if(XAng>0){
+        XAng-=10
+    }elseif(XAng<0){
+        XAng+=10
+    }
+    if(ZAng>0){
+        ZAng-=10
+    }elseif(ZAng<0){
+        ZAng+=10
+    }
+}
+if(changed(~ZMIn)&ZMIn){
+    if(ZMState<FOV:count()-1){
+        ZMState++
+    }
+}
+if(changed(Active)&Active){
+    if(Base:isFrozen()){
+        Base:propFreeze(0)
+    }
+}
+if(changed(~ZMOut)&ZMOut){
+    if(ThirdPerson){
+        if(ZMState>-5){
+            ZMState--
+        }
+    }else{
+        if(ZMState>0){
+            ZMState--
+        }
+    }
+}

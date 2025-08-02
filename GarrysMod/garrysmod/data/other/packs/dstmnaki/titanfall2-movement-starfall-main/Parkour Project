@@ -1,0 +1,208 @@
+--@name Parkour Project
+--@author Naki
+--@shared
+--@model models/hunter/plates/plate05x05.mdl
+
+if CLIENT then
+    
+    ----- CONFIG -----
+    
+    local canWallRun = true
+    local canSlide = true
+    
+    local showArms = true
+    
+    local hideElements = {
+        ["CHudHealth"]      = false,
+        ["CHudBattery"]     = false,
+        
+        ["CHudAmmo"]        = false,
+        
+        ["CHudCrosshair"]   = false,
+        ["CHudChat"]        = false,
+        ["CHudDeathNotice"] = false,
+    }
+    
+    ------ CODE ------
+
+
+    if player() ~= owner() then return end
+    enableHud(owner(), true)
+    
+    hook.add("HUDShouldDraw","",function(name)
+        if hideElements[name] then
+            return false
+        end
+    end)
+    
+    local myfont = render.createFont("Verdana", 30, 400, false, false, false, true, nil, false, false)
+    
+    hook.add("drawhud","",function()
+        local resox, resoy = render.getGameResolution()
+        render.setColor(Color(150,150,150,255))
+        render.setFont(myfont)
+        render.drawSimpleTextOutlined(resox/2, resoy - 50, math.round(owner():getVelocity():getLength()), 2, Color(0,0,0,255), 1, 1)
+    end)
+    
+    local zoomlast = 0
+    local lerpyderpy = 0
+    
+    local rolllast = 0
+    local lerpyderpy2 = 0
+    
+    local slidingct = 0
+    local blocksliding = false
+    local wallrunning = 0
+    local wallrunninglast = 0
+    
+    if showArms then
+        root = hologram.create(chip():getPos()+Vector(0,0,0), chip():localToWorldAngles(Angle(0,0,0)), "models/hunter/blocks/cube025x025x025.mdl", Vector(0))
+        handParent = hologram.create(root:localToWorld(Vector(0,0,0)), root:localToWorldAngles(Angle(45,90,90)), "models/hunter/blocks/cube025x025x025.mdl", Vector(0))
+        hand = hologram.create(handParent:localToWorld(Vector(7,-52,12)), handParent:localToWorldAngles(Angle(0,180,140)), owner():getModel(), Vector(1))
+        handParent:setParent(root)
+        hand:setParent(handParent)
+        hand:setClip(1, true, Vector(0,5,75), Vector(0,1,0.2), hand)
+        
+        handParentLeft = hologram.create(root:localToWorld(Vector(0,0,-5)), root:localToWorldAngles(Angle(-25,-10,-8)), "models/hunter/blocks/cube025x025x025.mdl", Vector(0))
+        handLeft = hologram.create(handParentLeft:localToWorld(Vector(-28,-22,-28)), handParentLeft:localToWorldAngles(Angle(-15,-45,-35)), owner():getModel(), Vector(1))
+        handParentLeft:setParent(root)
+        handLeft:setParent(handParentLeft)
+        handLeft:setClip(1, true, Vector(0,5,75), Vector(0,1,0.2), handLeft)
+        
+        handParentRight = hologram.create(root:localToWorld(Vector(0,0,-5)), root:localToWorldAngles(Angle(-25,10,8)), "models/hunter/blocks/cube025x025x025.mdl", Vector(0))
+        handRight = hologram.create(handParentRight:localToWorld(Vector(-28,22,-28)), handParentRight:localToWorldAngles(Angle(-15,45,35)), owner():getModel(), Vector(1))
+        handParentRight:setParent(root)
+        handRight:setParent(handParentRight)
+        handRight:setClip(1, true, Vector(0,-5,75), Vector(0,-1,0.2), handRight)
+    end
+    
+    local walkSpeed = 200
+    local runSpeed = 400
+    
+    local stepSide = 0
+    local swayLeft = 0
+    local swayRight = 0
+    
+    hook.add("PlayerFootstep", "", function(ply, pos, foot, snd, volume)
+        if ply != owner() then return end
+        stepSide = foot
+    end)
+    
+    hook.add("calcview", "", function()
+        
+        -- Estimate movement state
+        local vel2 = owner():getVelocity():getLength()
+        local maxSpeed = owner():isSprinting() and runSpeed or walkSpeed
+        local speedFrac = math.clamp(vel2 / maxSpeed, 0.01, 1)
+        
+        local sway = (5+15*(owner():isSprinting() and 1 or 0))*(stepSide == 0 and 1 or -1)*0.8
+        sway = sway*speedFrac*0.3
+        if stepSide == 0 then
+            swayLeft = swayLeft - 0.1*timer.frametime()*(50*math.clamp(vel2*0.0025,0,1))
+            swayRight = swayRight + 0.1*timer.frametime()*(50*math.clamp(vel2*0.0025,0,1))
+        else
+            swayRight = swayRight - 0.1*timer.frametime()*(50*math.clamp(vel2*0.0025,0,1))
+            swayLeft = swayLeft + 0.1*timer.frametime()*(50*math.clamp(vel2*0.0025,0,1))
+        end
+        
+        swayLeft = math.clamp(swayLeft*0.995,0,speedFrac)
+        swayRight = math.clamp(swayRight*0.995,0,speedFrac)
+        
+        local vel = owner():getVelocity()/53
+        
+        if owner():isCrouching() and owner():isOnGround() then
+            if (vel:getLength()*53>=200) and blocksliding != true and canSlide then
+                blocksliding = true
+                slidingct = timer.curtime()
+            end
+            wallruntry = 0
+            wallrun = 0
+        else
+            if canWallRun then
+                if input.isKeyDown(KEY.A) then
+                    wallruntry = -1
+                elseif input.isKeyDown(KEY.D) then
+                    wallruntry = 1
+                else
+                    wallruntry = 0
+                    wallrun = 0
+                end
+                if wallruntry != 0 then
+                    local tr = trace.line(owner():getPos()+Vector(0,0,15), owner():getPos()+Vector(0,0,15)+owner():getEyeAngles():getRight()*wallruntry*25, nil, nil, nil, false)
+                    if tr.Hit then
+                        wallrun = wallruntry
+                    else
+                        wallrun = 0
+                    end
+                end
+            else
+                wallruntry = 0
+                wallrun = 0
+            end
+            blocksliding = false
+            slidingct = timer.curtime()-10
+        end
+        local wallrunning = (wallrun != 0 and 1 or 0)
+        if wallrunning ~= wallrunninglast then
+            net.start("wallrun state")
+            net.writeBool(wallrunning == 1)
+            net.send()
+        end
+        wallrunninglast = wallrunning
+        if wallrunning == 0 then
+            if vel:getLength() > 0 and owner():getLocalVelocity().x > 0 or input.isKeyDown(KEY.D) or input.isKeyDown(KEY.A) then
+                local diff = (owner():getLocalVelocity() - owner():getAimVector()):getAngle().yaw
+                local diff2 = ((diff + 180) % 360) - 180*(input.isKeyDown(KEY.D) and -1 or (input.isKeyDown(KEY.A) and 2 or 1))
+                roll = math.clamp(diff2 * 1 * vel:getLength()*0.1*(owner():isOnGround() and 1 or 0) + 35*(1-math.clamp(-10+(timer.curtime()-slidingct)*15,0,1)) + (owner():isOnGround() and sway or 0), -15, 15) -- adjust multiplier and clamp to taste
+            else
+                roll = 0
+            end
+        else
+            roll = wallrun == 1 and -15 or 15
+        end
+        
+        lerpyderpy = math.lerp(0.04,zoomlast,player():getVelocity():getLength()*0.05)
+        zoomlast = lerpyderpy
+        
+        lerpyderpy2 = math.lerp(0.03,rolllast,roll)
+        rolllast = lerpyderpy2
+        
+        ang = Angle(player():getEyeAngles().pitch,player():getEyeAngles().yaw,rolllast)
+        
+        if showArms then
+            root:setPos(owner():getShootPos())
+            root:setAngles(owner():getEyeAngles())
+            handParent:setAngles(root:localToWorldAngles(Angle(-35,15,70)+Angle(65*(math.clamp(-5+(timer.curtime()-slidingct)*5,0,1)),0,0)))
+            
+            swayLeft2 = (owner():isOnGround() and swayLeft or 0)
+            swayRight2 = (owner():isOnGround() and swayRight or 0)
+            
+            handParentLeft:setAngles(root:localToWorldAngles(Angle(15-100*swayLeft2*speedFrac*(1+0.5*math.clamp(vel2*0.001,0,1)) - owner():getEyeAngles().pitch*0.5,-5,-10+rolllast)))
+            handParentRight:setAngles(root:localToWorldAngles(Angle(15-100*swayRight2*speedFrac*(1+0.5*math.clamp(vel2*0.001,0,1)) - owner():getEyeAngles().pitch*0.5,5,10+rolllast)))
+        end
+        
+        return {
+            origin = player():getShootPos(),
+            angles = ang,
+            fov = 100+math.clamp(zoomlast,0,25),
+            drawviewer = false,
+        }
+    end)
+else
+    local storepos = chip():getPos()
+    chip():setAngles(Angle(0,0,0))
+    local state = false
+    hook.add("Net","",function(name,len,ply)
+        if name == "wallrun state" then
+            state = net.readBool()
+        end
+    end)
+    hook.add("Think","",function()
+        if state == true then
+            chip():setPos(owner():getPos()+Vector(0,0,-2.25-15*math.clamp(1-owner():getVelocity():setZ(0):getLength()*0.01,0,1)))
+        else
+            chip():setPos(storepos)
+        end
+    end)
+end
+chip():setColor(Color(255,255,255,0))

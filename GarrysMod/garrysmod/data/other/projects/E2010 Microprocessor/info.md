@@ -1,0 +1,5 @@
+- Author: tlarson911
+- Steam Profile: http://steamcommunity.com/profiles/76561197988253631
+- Date (dd-mm-yyyy): 13-04-2010
+- Source: https://gmods.org/view/9044
+- Source Accessed (dd-mm-yyyy): 20-07-2025

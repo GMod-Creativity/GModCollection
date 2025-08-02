@@ -1,0 +1,229 @@
+--@name TF2 Huntsman
+--@author Naki
+--@shared
+
+if SERVER then
+    local TF2_FIX = "tf" --set this to "tf" if the server has tf2 mounted, game.isMounted is not working properly on servers atm 
+    local arrows={timer.curtime()}
+    local GET_DRAW_POWER = 0
+    
+    if game.isMounted(TF2_FIX) == true then
+        arrow=prop.create(chip():getPos()+Vector(0,0,0), Angle(0,0,0), "models/weapons/w_models/w_arrow.mdl", true)
+    else
+        arrow=prop.create(chip():getPos()+Vector(0,0,0), Angle(0,0,0), "models/sprops/rectangles_thin/size_0/rect_1_5x42x1_5.mdl", true)
+    end
+    arrow:setTrails(25, 0, 2, "trails/laser", Color(255,0,0,255), nil, false)
+    arrow:setMass(200)
+    arrow:setCollisionGroup(COLLISION_GROUP.PLAYER)
+    function collide(colData, collider)
+        if arrow:isFrozen() == false and colData.HitEntity:isPlayer() == false and colData.HitEntity:isNPC() == false then
+            arrow:enableMotion(false)
+        end
+    end
+    hook.add("think","remove arrows",function()
+        if arrow:isValid() then
+            arrow:addCollisionListener(collide, "collide")
+            
+        end
+        if timer.curtime() - arrows[1] > 1.5 then
+            if arrow:isValid() then
+                arrow:removeTrails()
+                arrow:enableMotion(false)
+                arrow:setPos(chip():getPos()+Vector(0,0,0))
+                arrow:setNoDraw(true)
+            end
+        end
+    end)
+    hook.add("PlayerDeath","",function(ply, inflictor, attacker)
+        if inflictor:getOwner() == owner() then
+            if inflictor:getModel() == "models/weapons/w_models/w_arrow.mdl" or inflictor:getModel() == "models/sprops/rectangles_thin/size_0/rect_1_5x42x1_5.mdl" then
+                net.start("kill")
+                net.writeFloat(1)
+                net.send()
+            end
+        end
+    end)
+    hook.add("OnNPCKilled","",function(npc, attacker, inflictor)
+        if inflictor:getOwner() == owner() then
+            if inflictor:getModel() == "models/weapons/w_models/w_arrow.mdl" or inflictor:getModel() == "models/sprops/rectangles_thin/size_0/rect_1_5x42x1_5.mdl" then
+                net.start("kill")
+                net.writeFloat(1)
+                net.send()
+            end
+        end
+    end)
+    hook.add("net", "", function(name, len, ply)
+        if name == "fire" then
+            local GET_DRAW_POWER = net.readFloat()
+            arrow:setTrails(25, 0, 2, "trails/laser", Color(255,0,0,255), nil, false)
+            arrow:setNoDraw(false)
+            arrow:setPos(owner():getShootPos()+owner():getEyeAngles():getForward()*60)
+            arrow:setAngles(owner():getEyeAngles())
+            arrow:enableMotion(true)
+            arrow:getPhysicsObject():setVelocity(arrow:getForward()*1000*GET_DRAW_POWER*(arrow:getMass()/24))
+            arrows={timer.curtime()}
+        end
+    end)
+else
+    if player() == owner() then
+        print("TF2 - Huntsman, made by Naki")
+        print("-Use hands (none) with this weapon, Mouse1 to charge, release to fire!")
+        print("-R to undraw")
+        local ATTACK_DOWN = false
+        local DRAW_POWER = 0
+        local FIRE_ANIM = 0
+        local EQUIP = 0
+        local killTime = 1
+        local makeModel = false
+        
+        local sounds = {"vo/taunts/sniper/sniper_taunt_admire_20.mp3",
+                "vo/taunts/sniper/sniper_taunt_admire_19.mp3",
+                "vo/taunts/sniper/sniper_taunt_admire_16.mp3",
+                "vo/taunts/sniper/sniper_taunt_admire_12.mp3",
+                "vo/taunts/sniper/sniper_taunt_admire_01.mp3"}
+        
+        net.receive("kill",function(len, ply)
+            killTime = 0
+            skullScore:setNoDraw(false)
+            arrowScore:setNoDraw(false)
+            if owner():getActiveWeapon():isValid() then
+                owner():getActiveWeapon():emitSound(sounds[math.round(math.rand(1,table.count(sounds)))],100,100,1,CHAN_WEAPON)
+            end
+        end)
+        
+        hook.add("calcview","drawviewmodel",function()
+            if owner():isAlive() then
+                if makeModel == false then
+                    viewmodel = hologram.create(Vector(), Angle(), "models/weapons/c_models/c_sniper_arms.mdl", Vector(0.75,-0.75,0.75))
+                    viewmodel:setParent(owner():getActiveWeapon())
+                    viewmodel:setRenderBounds(Vector(-200), Vector(200))
+                    viewmodelreal = hologram.create(Vector(), Angle(), "models/weapons/c_models/c_sniper_arms.mdl", Vector(0.75))
+                    viewmodelreal:setParent(viewmodel)
+                    viewmodelreal:setRenderBounds(Vector(-200), Vector(200))
+                    viewmodelreal:addEffects(EF.BONEMERGE)
+                    viewmodelreal:setCullMode(1)
+                    bow = hologram.create(Vector(), Angle(), "models/weapons/c_models/c_bow/c_bow.mdl", Vector(0.75))
+                    bow:setParent(viewmodel)
+                    bow:setRenderBounds(Vector(-200), Vector(200))
+                    bow:addEffects(EF.BONEMERGE)
+                    bow:setCullMode(1)
+                    
+                    killScoreParent = hologram.create(Vector(), Angle(), "models/props_junk/PopCan01a.mdl", Vector())
+                    killScoreParent:setParent(owner():getActiveWeapon())
+                    killScoreParent:setNoDraw(true)
+                    
+                    skullScore = hologram.create(killScoreParent:localToWorld(Vector(0,3.5,-0.4)), killScoreParent:localToWorldAngles(Angle(15,160,-15)), "models/Gibs/HGIBS.mdl", Vector(0.2))
+                    skullScore:setParent(killScoreParent)
+                    skullScore:setRenderBounds(Vector(-200), Vector(200))
+                    
+                    arrowScore = hologram.create(killScoreParent:localToWorld(Vector(0,-1,0)), killScoreParent:localToWorldAngles(Angle(5,95,45)), "models/weapons/w_models/w_arrow.mdl", Vector(0.2))
+                    arrowScore:setParent(killScoreParent)
+                    arrowScore:setRenderBounds(Vector(-200), Vector(200))
+                    
+                    makeModel = true
+                end
+            else
+                makeModel = false
+                if viewmodel:isValid() then
+                    viewmodel:remove()
+                end
+                if viewmodelreal:isValid() then
+                    viewmodelreal:remove()
+                end
+                if bow:isValid() then
+                    bow:remove()
+                end
+                if killScoreParent:isValid() then
+                    killScoreParent:remove()
+                end
+                if skullScore:isValid() then
+                    skullScore:remove()
+                end
+                if arrowScore:isValid() then
+                    arrowScore:remove()
+                end
+            end
+            if owner():isAlive() and owner():getActiveWeapon():isValid() then
+                if killScoreParent:isValid() and skullScore:isValid() and arrowScore:isValid() then
+                    killTime = killTime + 0.012*timer.frametime()*100*math.clamp(math.sin(math.rad(killTime*90)),0.1,1)
+                    killTime = math.clamp(killTime,0,1)
+                    if killTime >= 1 then
+                        skullScore:setNoDraw(true)
+                        arrowScore:setNoDraw(true)
+                    end
+                    local sin1=math.sin(math.rad(killTime*270))
+                    local sin2=math.sin(math.rad(-0.2+killTime*90))
+                    
+                    killScoreParent:setPos(owner():getShootPos()+owner():getEyeAngles():getForward()*7+owner():getEyeAngles():getUp()*(8-6*math.clamp(sin1*4,0,1)-7*math.clamp(sin1*(1-math.sin(math.rad(sin1*45))),0,1)))
+                    killScoreParent:setAngles(owner():getEyeAngles()+Angle(-25*sin2,15*sin2,0))
+                end
+                if viewmodel:isValid() and bow:isValid() then
+                    if owner():getActiveWeapon():getClass() == "none" then
+                        viewmodel:setNoDraw(false)
+                        viewmodelreal:setNoDraw(false)
+                        bow:setNoDraw(false)
+                        
+                        viewmodel:setPos(owner():getShootPos())
+                        viewmodel:setAngles(owner():getEyeAngles())
+                        if Return == true then
+                            ATTACK_DOWN=false
+                            DRAW_POWER=DRAW_POWER - 0.0125*timer.frametime()*100
+                            DRAW_POWER=math.clamp(DRAW_POWER,0,1)
+                            viewmodel:setAnimation("bw_charge", DRAW_POWER, 0)
+                            if DRAW_POWER == 0 then
+                                Return = false
+                            end
+                        else
+                            if input.isMouseDown(MOUSE.MOUSE1) and FIRE_ANIM == 0 then
+                                if Return != true then
+                                    if ATTACK_DOWN == false then
+                                        owner():getActiveWeapon():emitSound("Weapon_CompoundBow.SinglePull",100,100,1,CHAN_WEAPON)
+                                    end
+                                    if input.isKeyDown(KEY.R) then
+                                        Return = true
+                                    end
+                                    ATTACK_DOWN=true
+                                    DRAW_POWER=DRAW_POWER + 0.01*timer.frametime()*100
+                                    DRAW_POWER=math.clamp(DRAW_POWER,0,1)
+                                    viewmodel:setAnimation("bw_charge", DRAW_POWER, 0)
+                                end
+                            else
+                                if ATTACK_DOWN == true and DRAW_POWER > 0 then
+                                    owner():getActiveWeapon():emitSound("Weapon_CompoundBow.Single",100,100,1,CHAN_WEAPON)
+                                    net.start("fire")
+                                    net.writeFloat(DRAW_POWER)
+                                    net.send()
+                                end
+                                ATTACK_DOWN=false
+                                if DRAW_POWER == 0 then
+                                    if EQUIP < 1 then
+                                        EQUIP = EQUIP + 0.01*timer.frametime()*100
+                                        EQUIP = math.clamp(EQUIP,0,1)
+                                        viewmodel:setAnimation("bw_draw", EQUIP, 0)
+                                    else
+                                        viewmodel:setAnimation("bw_idle", nil, 1)
+                                    end
+                                else
+                                    FIRE_ANIM=FIRE_ANIM + 0.0075*timer.frametime()*100
+                                    FIRE_ANIM=math.clamp(FIRE_ANIM,0,1)
+                                    viewmodel:setAnimation("bw_fire", FIRE_ANIM, 0)
+                                    if FIRE_ANIM >= 1 then
+                                        DRAW_POWER=0
+                                        FIRE_ANIM=0
+                                    end
+                                end
+                            end
+                        end
+                        
+                    else
+                        viewmodel:setNoDraw(true)
+                        viewmodelreal:setNoDraw(true)
+                        bow:setNoDraw(true)
+                        EQUIP=0
+                    end
+                end
+            end
+        end)
+        enableHud(owner(),true)
+    end
+end

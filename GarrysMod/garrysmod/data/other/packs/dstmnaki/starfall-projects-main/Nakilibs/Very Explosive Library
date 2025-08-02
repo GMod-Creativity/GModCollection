@@ -1,0 +1,462 @@
+--@name Nakilibs/Very Explosive Library
+--@author Naki
+--@shared
+-- https://github.com/dstmnaki/starfall-projects/blob/main/Nakilibs/Very%20Explosive%20Library
+
+if SERVER then
+    -- CONFIG --
+    
+    
+    very_explosive_lib_notifs = false
+    
+    
+    -- CODE --
+    if hasPermission("game.blastDamage", owner()) then
+        if very_explosive_lib_notifs then
+            print("game.blastDamage permission request successful: permission granted!")
+        end
+        very_explosive_lib_hasPermission = true
+    else
+        if very_explosive_lib_notifs then
+            print("game.blastDamage permission request came back false: permission NOT granted!")
+        end
+        very_explosive_lib_hasPermission = false
+    end
+    
+    function very_explosive_lib_createExplosionSimple(position, size, damage)
+        game.blastDamage(position, size, damage)
+        game.blastDamage(position, size*1.5, damage/2.5)
+        game.blastDamage(position, size*2.5, damage/5)
+    end
+    
+    function very_explosive_lib_basicExplosion(position, size, damage, EFDATA)
+        if very_explosive_lib_hasPermission then
+            very_explosive_lib_createExplosionSimple(position, size, damage)
+        end
+        
+        EFDATA["position"] = position
+        net.start("very_explosive_lib_sendSphereSimpleToClient")
+        net.writeTable(EFDATA)
+        net.send()
+    end
+    
+    function very_explosive_lib_fireExplosion(position, size, damage, EFDATA)
+        if very_explosive_lib_hasPermission then
+            very_explosive_lib_createExplosionSimple(position, size, damage)
+        end
+        
+        EFDATA["position"] = position
+        net.start("very_explosive_lib_sendSphereFireToClient")
+        net.writeTable(EFDATA)
+        net.send()
+    end
+    
+    function very_explosive_lib_fatmanExplosion(position)
+        if very_explosive_lib_hasPermission then
+            very_explosive_lib_createExplosionSimple(position, 1500, 5000)
+        end
+        
+            
+        local EFDATA = {
+            angle = Angle(0, 0, 0),
+            size_start = Vector(750),
+            size_end = Vector(3500),
+            color_start = Color(255, 255, 255, 75),
+            color_end = Color(25, 25, 25, 0),
+            duration = 0.2
+        }
+        
+        EFDATA["position"] = position
+        net.start("very_explosive_lib_sendSphereFatmanToClient")
+        net.writeTable(EFDATA)
+        net.send()
+    end
+else -- CLIENT SIDE
+    
+    very_explosive_lib_EF_TEMP_TABLE = {}
+    very_explosive_lib_EF_TEMP_TABLE.SIMPLE_SPHERE = {}
+    very_explosive_lib_EF_TEMP_TABLE.DEBRIS = {}
+    very_explosive_lib_EF_TEMP_TABLE.EMITTERS = {}
+    very_explosive_lib_EF_TEMP_TABLE.SUNBEAMSIMPLE = {}
+    very_explosive_lib_EF_TEMP_TABLE.BURNMARK = {}
+    
+    very_explosive_lib_shake_amplitude = 0
+    very_explosive_lib_sfx = nil
+    
+    function very_explosive_lib_lerpVector4(t, from, to)
+        return Color(
+            math.lerp(t, from[1], to[1]),
+            math.lerp(t, from[2], to[2]),
+            math.lerp(t, from[3], to[3]),
+            math.lerp(t, from[4], to[4])
+        )
+    end
+    
+    function very_explosive_lib_lerpVector4Cubic(t, from, mid, mid2, to)
+        return Color(
+            math.bezierVectorCubic(t, Vector(from[1]), Vector(mid[1]), Vector(mid2[1]), Vector(to[1])).x,
+            math.bezierVectorCubic(t, Vector(from[2]), Vector(mid[2]), Vector(mid2[2]), Vector(to[2])).x,
+            math.bezierVectorCubic(t, Vector(from[3]), Vector(mid[3]), Vector(mid2[3]), Vector(to[3])).x,
+            math.bezierVectorCubic(t, Vector(from[4]), Vector(mid[4]), Vector(mid2[4]), Vector(to[4])).x
+        )
+    end
+    
+    function very_explosive_lib_EF_sphereSimple(EFDATA)
+        local pos = EFDATA.position or chip():getPos()
+        local ang = EFDATA.angle or Angle()
+        local size_start = EFDATA.size_start or Vector(250)
+        local size_end = EFDATA.size_end or Vector(1500)
+        local col_start = EFDATA.color_start or Color(255,255,255,75)
+        local col_end = EFDATA.color_end or Color(50,50,50,0)
+        local duration = EFDATA.duration or 0.2
+
+        local t0 = timer.curtime()
+        local holo = hologram.create(pos, ang, "models/starfall/holograms/sphere.mdl", size_start)
+        holo:setMaterial("models/debug/debugwhite")
+        holo:setColor(col_start)
+        holo:suppressEngineLighting(true)
+        
+        local expansionDistance = (size_end:getLength() - size_start:getLength())
+        local shockwaveSpeed = expansionDistance / duration
+        
+        local distance = pos:getDistance(eyePos())
+        
+        local distanceFrac = 1 / (1 + (distance / 3000)^2)
+        
+        local soundSpeed = 34300/3  -- Hammer units per second (343 m/s)
+        local delay = distance / soundSpeed
+        
+        local pitch = math.clamp(100 * (0.8 + 0.2 * distanceFrac), 80, 100)
+        
+        timer.simple(delay, function()
+            if very_explosive_lib_sfx != nil then very_explosive_lib_sfx:destroy() very_explosive_lib_sfx = nil end
+            local holoPlayer = hologram.create(eyePos()+(eyePos()-pos):getNormalized()*1000/(1+size_end:getLength()/1500)*(1-distanceFrac), Angle(), "models/starfall/holograms/sphere.mdl", Vector())
+            very_explosive_lib_sfx = sound.create(holoPlayer, EFDATA.sndname or "ambient/explosions/explode_4.wav", false)
+            very_explosive_lib_sfx:setVolume(distanceFrac)
+            very_explosive_lib_sfx:setPitch(pitch)
+            very_explosive_lib_sfx:play()
+            
+            very_explosive_lib_shake_amplitude = 25 * distanceFrac
+            timer.simple(3,function()
+                if very_explosive_lib_sfx != nil then
+                    very_explosive_lib_sfx:destroy()
+                    very_explosive_lib_sfx = nil
+                end
+            end)
+        end)
+        
+        table.insert(very_explosive_lib_EF_TEMP_TABLE.SIMPLE_SPHERE, 1, {
+            holo,
+            {size_start, size_end, col_start, col_end, t0, duration}
+        })
+    end
+    
+    function very_explosive_lib_EF_SunBeamSimple(EFDATA)
+        local pos = EFDATA.position or chip():getPos()
+        local size_start = EFDATA.size_start or Vector(500)
+        local size_end = EFDATA.size_end or Vector(1000)
+        local col_start = EFDATA.color_start or Color(255,255,255,255)
+        local duration = EFDATA.duration or 5
+        local mat = EFDATA.mat or "sprites/glow04_noz"
+
+        local t0 = timer.curtime()
+        table.insert(very_explosive_lib_EF_TEMP_TABLE.SUNBEAMSIMPLE, 1, {
+            pos, size_start, size_end, col_start, t0, duration, mat
+        })
+    end
+    
+    function very_explosive_lib_EF_BurnMark(EFDATA)
+        local pos = EFDATA.position or chip():getPos()
+        local size_start = EFDATA.size_start or Vector(500)
+        local col_start = EFDATA.color_start or Color(0,0,0,255)
+        local duration = EFDATA.duration or 5
+        local mat = EFDATA.mat or "decals/dark"
+
+        local t0 = timer.curtime()
+        table.insert(very_explosive_lib_EF_TEMP_TABLE.BURNMARK, 1, {
+            pos, size_start, col_start, t0, duration, mat
+        })
+    end
+    
+    function getDebrisMDL()
+        local This = {
+            "models/props_debris/broken_pile001a.mdl",
+            "models/props_debris/plaster_ceilingpile001a.mdl",
+            "models/props_debris/plaster_floorpile001a.mdl",
+            "models/props_debris/concrete_wallpile01a.mdl",
+            "models/props_debris/barricade_short01a.mdl"
+        }
+        return table.random(This)
+    end
+    function very_explosive_lib_EF_debrii(EFDEBDATA)
+        local origin = EFDEBDATA.position or Vector()
+        local count = math.random(7, 15)
+        local lifespan = EFDEBDATA.lifespan or 3
+        local model = EFDEBDATA.model or "models/hunter/blocks/cube025x025x025.mdl"
+        local size = EFDEBDATA.size or Vector(1, 1, 1)
+        local grav = EFDEBDATA.gravity or Vector(0, 0, -800)
+        local minVel = EFDEBDATA.min_velocity or 300
+        local maxVel = EFDEBDATA.max_velocity or 1200
+    
+        for i = 1, count do
+            local dir = Angle(-math.rand(25,60),math.rand(-360,360),0):getForward():getNormalized()
+            local vel = dir * math.random(minVel, maxVel)
+            local angVel = Angle(math.rand(-15,15),math.rand(-15,15),math.rand(-15,15)) * 10
+    
+            local holo = hologram.create(origin, Angle(), getDebrisMDL(), size)
+            holo:setColor(EFDEBDATA.color or Color(125, 125, 125))
+    
+            local spawnTime = timer.curtime()
+            table.insert(very_explosive_lib_EF_TEMP_TABLE.DEBRIS or {}, {
+                holo = holo,
+                pos = origin,
+                vel = vel,
+                ang = Angle(math.rand(-15,15),math.rand(-15,15),math.rand(-15,15)) * 10,
+                angVel = angVel,
+                grav = grav,
+                spawn = spawnTime
+            })
+        end
+    end
+    
+    function createSmokeCloud(position,sizeMult)
+        if particle.particleEmittersLeft() > 0 then
+            local emitter = particle.create( position, false )
+            
+            for i = 1, math.rand(5,10) do
+                local smoke = emitter:add( material.load( "particle/smokesprites_0001", "smooth" ), position+Vector(math.rand(-300,300),math.rand(-300,300),math.rand(25,200))*sizeMult, math.rand(125,250)*sizeMult, math.rand(500,800)*sizeMult, 0, 0, 150, 0, math.rand(2,5) )
+                smoke:setColor( Color( 125, 125, 125, 25 ) )
+                smoke:setCollide( true )
+                smoke:setAirResistance( 600 )
+                smoke:setVelocity(Vector(10))
+            end
+            table.insert(very_explosive_lib_EF_TEMP_TABLE.EMITTERS,1,{emitter,timer.curtime()})
+        end
+    end
+    function createFireCloud(position,sizeMult)
+        if particle.particleEmittersLeft() > 0 then
+            local emitter = particle.create( position, false )
+            
+            for i = 1, math.rand(5,10) do
+                local path = "particles/flamelet"..tostring(math.round(math.rand(1,5)))
+                local smoke = emitter:add( material.load( path, "smooth" ), position+Vector(math.rand(-300,300),math.rand(-300,300),math.rand(25,200))*sizeMult*0.3, math.rand(125,250)*sizeMult*0.3, math.rand(500,800)*sizeMult*0.3, 0, 0, 150, 0, math.rand(1,4) )
+                smoke:setColor( Color( 255, 255, 255, 175 ) )
+                smoke:setCollide( true )
+                smoke:setAirResistance( 600 )
+                smoke:setVelocity(Vector(0,0,200))
+            end
+            table.insert(very_explosive_lib_EF_TEMP_TABLE.EMITTERS,1,{emitter,timer.curtime()})
+        end
+    end
+    net.receive("very_explosive_lib_sendSphereSimpleToClient",function()
+        local effectData = net.readTable()
+        very_explosive_lib_EF_sphereSimple(effectData)
+        very_explosive_lib_EF_debrii({
+            position = effectData["position"]
+        })
+        createSmokeCloud(effectData["position"],(effectData["size_start"]:getLength()+effectData["size_end"]:getLength())/2/1500)
+        
+        local EFDATA2 = {
+            position = effectData["position"],
+            size_start = Vector(1500),
+            size_end = Vector(3500),
+            color_start = Color(255, 245, 225, 255),
+            duration = 0.5,
+            mat = material.load("sprites/glow04_noz")
+        }
+        
+        very_explosive_lib_EF_SunBeamSimple(EFDATA2)
+        
+        local EFDATA2 = {
+            position = effectData["position"],
+            size_start = Vector(500),
+            color_start = Color(0, 0, 0, 255),
+            duration = 5,
+            mat = material.load("decals/dark")
+        }
+        
+        very_explosive_lib_EF_BurnMark(EFDATA2)
+        --createFireCloud(effectData["position"],(effectData["size_start"]:getLength()+effectData["size_end"]:getLength())/2/1500)
+    end)
+    
+    net.receive("very_explosive_lib_sendSphereFireToClient",function()
+        local effectData = net.readTable()
+        very_explosive_lib_EF_sphereSimple(effectData)
+        very_explosive_lib_EF_debrii({
+            position = effectData["position"]
+        })
+        createSmokeCloud(effectData["position"],(effectData["size_start"]:getLength()+effectData["size_end"]:getLength())/2/1500)
+        
+        local EFDATA2 = {
+            position = effectData["position"],
+            size_start = Vector(1500),
+            size_end = Vector(3500),
+            color_start = Color(255, 245, 225, 255),
+            duration = 0.5,
+            mat = material.load("sprites/glow04_noz")
+        }
+        
+        very_explosive_lib_EF_SunBeamSimple(EFDATA2)
+        
+        local EFDATA2 = {
+            position = effectData["position"],
+            size_start = Vector(500),
+            color_start = Color(0, 0, 0, 255),
+            duration = 5,
+            mat = material.load("decals/dark")
+        }
+        
+        very_explosive_lib_EF_BurnMark(EFDATA2)
+        createFireCloud(effectData["position"],(effectData["size_start"]:getLength()+effectData["size_end"]:getLength())/2/1500)
+    end)
+    
+    net.receive("very_explosive_lib_sendSphereFatmanToClient",function()
+        local effectData = net.readTable()
+        effectData.sndname = "ambient/explosions/explode_5.wav"
+        local EFDATA2 = {
+            position = effectData["position"],
+            size_start = Vector(2500),
+            size_end = Vector(3500),
+            color_start = Color(255, 245, 225, 255),
+            duration = 4,
+            mat = material.load("sprites/glow04_noz")
+        }
+        
+        very_explosive_lib_EF_SunBeamSimple(EFDATA2)
+        
+        local EFDATA2 = {
+            position = effectData["position"],
+            size_start = Vector(500),
+            size_end = Vector(5000),
+            color_start = Color(255, 200, 125, 255),
+            duration = 4,
+            mat = material.load("sprites/orangeflare1")
+        }
+        
+        very_explosive_lib_EF_SunBeamSimple(EFDATA2)
+        
+        local EFDATA2 = {
+            position = effectData["position"],
+            size_start = Vector(1000),
+            color_start = Color(0, 0, 0, 255),
+            duration = 5,
+            mat = material.load("decals/dark")
+        }
+        
+        very_explosive_lib_EF_BurnMark(EFDATA2)
+        
+        very_explosive_lib_EF_sphereSimple(effectData)
+        very_explosive_lib_EF_debrii({
+            position = effectData["position"],
+            size = Vector(2),
+            gravity = Vector(0, 0, -800),
+            min_velocity = 700,
+            max_velocity = 2000
+        })
+        createSmokeCloud(effectData["position"],(effectData["size_start"]:getLength()+effectData["size_end"]:getLength())/2/1500)
+        createFireCloud(effectData["position"],(effectData["size_start"]:getLength()+effectData["size_end"]:getLength())/2/1500)
+    end)
+    
+    hook.add("think", "very_explosive_lib_client_think", function()
+        local SIMPLE_SPHERE = very_explosive_lib_EF_TEMP_TABLE.SIMPLE_SPHERE
+        for i = #SIMPLE_SPHERE, 1, -1 do
+            local holo, eff = SIMPLE_SPHERE[i][1], SIMPLE_SPHERE[i][2]
+            local t = math.clamp((timer.curtime() - eff[5]) / eff[6], 0, 1)
+
+            holo:setScale(math.lerpVector(t, eff[1], eff[2]))
+            holo:setColor(very_explosive_lib_lerpVector4(t, eff[3], eff[4]))
+
+            if t >= 1 then
+                holo:remove()
+                table.remove(SIMPLE_SPHERE, i)
+            end
+        end
+        
+        local DEBRIS = very_explosive_lib_EF_TEMP_TABLE.DEBRIS
+        for i = #DEBRIS, 1, -1 do
+            local d = DEBRIS[i]
+            local t = timer.curtime() - d.spawn
+            local newPos = d.pos + d.vel * t + d.grav * (t ^ 2) * 0.5
+            local newAng = d.ang + d.angVel * t
+        
+            d.holo:setPos(newPos)
+            d.holo:setAngles(newAng)
+        
+            if newPos.z < d.pos.z - 200 then
+                d.holo:remove()
+                table.remove(DEBRIS, i)
+            end
+        end
+        
+        local emitterT = very_explosive_lib_EF_TEMP_TABLE.EMITTERS
+        for i = #emitterT, 1, -1 do
+            local emitter = emitterT[i][1]
+            local t = timer.curtime()-emitterT[i][2]
+            if t >= 5 then
+                emitter:destroy()
+                table.remove(emitterT, i)
+            end
+        end
+        
+    end)
+    local mat = material.load("models/debug/debugwhite")
+    hook.add("postdrawtranslucentrenderables","",function()
+        if render.isHUDActive() then
+            local SUNBEAMSIMPLE = very_explosive_lib_EF_TEMP_TABLE.SUNBEAMSIMPLE
+            for i = #SUNBEAMSIMPLE, 1, -1 do
+                
+                local pos = SUNBEAMSIMPLE[i][1]
+                local size_start = SUNBEAMSIMPLE[i][2]
+                local size_end = SUNBEAMSIMPLE[i][3]
+                local col_start = SUNBEAMSIMPLE[i][4]
+                local col_end = Color(col_start.r,col_start.g,col_start.b,0)
+                local mat = SUNBEAMSIMPLE[i][7]
+                
+                local t = (timer.curtime() - SUNBEAMSIMPLE[i][5]) / SUNBEAMSIMPLE[i][6]
+                t = math.clamp(t, 0, 1)
+                
+                local size = math.lerpVector(t, size_start, size_end)
+                
+                local col = very_explosive_lib_lerpVector4Cubic(t, col_start, col_start, col_start, col_end)
+                
+                render.setColor(col)
+                render.setMaterial(mat)
+                
+                render.draw3DQuadEasy(pos, -player():getAimVector(), size.x, size.x, 0)
+                if t >= 1 then
+                    table.remove(SUNBEAMSIMPLE, i)
+                end
+            end
+            local BURNMARK = very_explosive_lib_EF_TEMP_TABLE.BURNMARK
+            for i = #BURNMARK, 1, -1 do
+                
+                local pos = BURNMARK[i][1]
+                local size_start = BURNMARK[i][2]
+                local col_start = BURNMARK[i][3]
+                local col_end = Color(col_start.r,col_start.g,col_start.b,0)
+                local mat = BURNMARK[i][6]
+                
+                local t = (timer.curtime() - BURNMARK[i][4]) / BURNMARK[i][5]
+                t = math.clamp(t, 0, 1)
+                
+                local col = very_explosive_lib_lerpVector4Cubic(t, col_start, col_start, col_start, col_end)
+                local size = math.bezierVectorCubic(t, size_start, size_start, size_start, Vector())
+                
+                render.setColor(col)
+                render.setMaterial(mat)
+                
+                render.draw3DQuadEasy(pos, Vector(0,0,1), size.x, size.x, 0)
+                if t >= 1 then
+                    table.remove(BURNMARK, i)
+                end
+            end
+            if very_explosive_lib_shake_amplitude > 0 then
+                render.screenShake(very_explosive_lib_shake_amplitude, 5, 0.5)
+                very_explosive_lib_shake_amplitude = very_explosive_lib_shake_amplitude / 1.05
+                if very_explosive_lib_shake_amplitude <= 0.01 then
+                    very_explosive_lib_shake_amplitude = 0
+                end
+            end
+        end
+    end)
+end

@@ -1,0 +1,107 @@
+@name Xenomorph Revamp Project - Vent
+@model models/sprops/cuboids/height36/size_1/cube_36x18x36.mdl
+#- Spawning code directives
+@persist [HT CT]:table [SpawnStatus CoreStatus]:string [HN CN I SpawnCounter]
+#- Hologram index directives
+@persist
+if(dupefinished()){reset()}
+if(first()){
+    setName("Vent")
+    entity():setAlpha(0)
+    noCollideAll(entity(),1)
+    
+    I++, HN++, HT[HN,table] = table(I, entity(), entity(), 0, vec(18/2, 0, 0), ang(-90, 0, 0), vec(36, 36, 36)/47, "models/props_phx/construct/metal_tube.mdl", "phoenix_storms/metal_plate", vec4(70, 70, 70, 255), 0)
+    
+    I++, HN++, HT[HN,table] = table(I, entity(), entity(), 0, vec(-26.5, 0, 0), ang(0, 0, 0), vec(0.05, 1, 1), "models/sprops/cuboids/height36/size_1/cube_36x18x36.mdl", "models/debug/debugwhite", vec4(0, 0, 0, 255), 0)
+    
+    for(I2=1,8){
+        I++, HN++, HT[HN,table] = table(I, entity(), entity(), 0, vec(-26.5*1.5+mix(vec(36),vec(36/2),I/8):x()*0.7, 0, 0), ang(0, 0, 0), vec(mix(vec(1),vec(0),I/8):x()*0.7, 1, 1), "models/sprops/cuboids/height36/size_1/cube_36x36x36.mdl", "models/debug/debugwhite", vec4(0, 0, 0, 75), 0)
+    }
+    function table:holo() {
+        local Index = This[1, number]
+        if (This[2,entity]:isValid()) { Entity = This[2,entity] } else { Entity = holoEntity(This[2,number]) }
+        if (This[3,entity]:isValid()) { Parent = This[3,entity] } else { Parent = holoEntity(This[3,number]) }
+        local Rescale = (This[7, vector] / (This[4, number] ? 12 : 1))
+
+        holoCreate(Index, Entity:toWorld(This[5, vector]), Rescale, Entity:toWorld(This[6, angle]), vec(255), This[8, string] ?: "cube")
+        holoParent(Index, Parent)
+
+        holoMaterial(Index, This[9, string])
+        holoColor(Index, This[10, vector4])
+        holoSkin(Index, This[11, number])
+    }
+
+    #- Clip a hologram from data array
+    function table:clip() {
+        holoClipEnabled(This[1, number], This[2, number], 1)
+        holoClip(This[1, number], This[2, number], This[3, vector], This[4, vector], 0)
+    }
+
+    #- Load the contraption
+    function loadContraption() {
+        switch (SpawnStatus) {
+            case "InitSpawn",
+                if (clk("Start")) {
+                    SpawnStatus = "LoadHolograms"
+                }
+            break
+
+            case "LoadHolograms",
+                while (perf() & holoCanCreate() &  SpawnCounter < HN) {
+                    SpawnCounter++
+                    HT[SpawnCounter, table]:holo()
+
+                    if (SpawnCounter >= HN) {
+                        SpawnStatus = CN > 0 ? "LoadClips" : "PrintStatus"
+                        SpawnCounter = 0
+                        break
+                    }
+                }
+            break
+
+            case "LoadClips",
+                while (perf() & SpawnCounter < CN) {
+                    SpawnCounter++
+                    CT[SpawnCounter, table]:clip()
+
+                    if (SpawnCounter >= CN) {
+                        SpawnStatus = "PrintStatus"
+                        SpawnCounter = 0
+                        break
+                    }
+                }
+            break
+
+            case "PrintStatus",
+                HT:clear()
+                CT:clear()
+
+                CoreStatus = "InitPostSpawn"
+                SpawnStatus = ""
+            break
+        }
+    }
+
+    CoreStatus = "InitSpawn"
+    SpawnStatus = "InitSpawn"
+    
+    runOnTick(1)
+    timer("Start", 500)
+}
+
+#- Credit to Shadowscion for the initial base hologram spawning code.
+
+elseif (CoreStatus == "InitSpawn") {
+    loadContraption()
+}
+elseif (CoreStatus == "InitPostSpawn") {
+    #- This is your "if (first())" section of the code.
+
+    CoreStatus = "RunThisCode"
+}
+elseif (CoreStatus == "RunThisCode") {
+    #- This is your "interval()" ran section of the code.
+
+    runOnTick(0)
+}
+

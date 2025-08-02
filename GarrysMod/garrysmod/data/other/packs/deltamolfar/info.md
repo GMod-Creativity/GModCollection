@@ -7,4 +7,4 @@
 - Description: Public Garry's Mod wiremod Expression 2 chips repo.
 - Date (dd-mm-yyyy): 27-10-2024
 - Source: https://github.com/deltamolfar/PublicE2
-- Source Accessed (dd-mm-yyyy): 05/06/2025
+- Source Accessed (dd-mm-yyyy): 05-06-2025

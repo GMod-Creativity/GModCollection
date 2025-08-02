@@ -1,0 +1,415 @@
+@name Ammo Storage Model Ver2.0 by Naki
+@inputs [Base Gun AmmoBox]:entity Fire
+@outputs Ready FireOut
+@persist [Config Bones Temp]:table Ready
+if(dupefinished()){reset()}
+if(first()){
+    Config=table()
+    Bones=table()
+    Temp=table()
+    #[-- Usage:
+        
+        Ammo Storage Model Ver1.0 by Naki
+        
+        A rough recreation of the reloading mechanism of the t-64 soviet tank
+        You can either leave the "Base" input unwired or wire it to what ever you want and then use the "position offset" value below to move the thing (altho i have not tried this yet, but it should work just fine)
+        
+        Wire "Gun" to your main gun
+        Wire "AmmoBox" to one of your ammo boxes (there is no multiple ammo types in this yet)
+        Wire "Fire" to your fire input for the gun
+        Wire "FireOut" to your gun
+        
+        You can use the output "Ready" to show when the loader has finished loading the gun and has stopped moving
+        
+        ---
+        
+        "max ammo" value defines the max amount of ammo you can have visually, do not exceed 15 as the rounds will clip into each other
+        
+        "no model" value will prevent the model from spawning, except the round itself, this is for optimization
+        "no model" value will prevent materials and colors from applying
+        
+        "material(1-3)" these are your material slots
+        "color(1-3)" these are your color slots
+        
+        "position offset" value defines the root offset from your base entity
+        
+        "shot model" value defines the round type
+        "shell model" value defines the casing that is used
+        
+        ---
+        
+        The height of the gun compared to the ammo will not matter, it will adjust itself accordingly
+        
+        ---
+        
+        Optionally if you know how to code you can try to figure out how to implement entity:acfGunReloadProgress(), sorry, i got lazy
+        
+    ]#
+    #-- CONFIG HERE!!!
+    
+    Config["max ammo",number]=15
+    
+    Config["no model",number]=0
+    Config["no materials",number]=0
+    
+    Config["material1",string]="models/props_lab/door_klab01"
+    Config["material2",string]="sprops/textures/sprops_metal3"
+    Config["material3",string]=""
+    Config["color1",vector]=vec(255)
+    Config["color2",vector]=vec(255)
+    Config["color3",vector]=vec(255)
+    
+    Config["position offset",vector]=vec(0,0,0)
+    
+    Config["shot model",string]="models/munitions/round_100mm_shot.mdl"
+    Config["shell model",string]="models/munitions/shell_casing.mdl"
+    
+    #-- CONFIG ENDS!!!
+    
+    Config["limit",number]=AmmoBox:isValid() ? clamp(AmmoBox:acfCapacity(),0,Config["max ammo",number]) : Config["max ammo",number]
+    
+    if(Config["no materials",number]==1){
+        Config["material1",string]=""
+        Config["material2",string]=""
+        Config["material3",string]=""
+        Config["color1",vector]=vec(255)
+        Config["color2",vector]=vec(255)
+        Config["color3",vector]=vec(255)
+    }
+    
+    local I = 1
+    local B = Base:isValid() ? Base : entity()
+    holoCreate(I)
+    holoPos(I,B:toWorld(Config["position offset",vector]))
+    holoAng(I,B:toWorld(ang()))
+    holoParent(I,B)
+    holoAlpha(I,0)
+    
+    function createAmmo(I2){
+        local I=100+I2*Config["limit",number]
+        local Index = I*Config["limit",number]
+        Bones["Shell_"+I2+"_Root",number] = Index
+        
+        local B2 = holoCreate(Index)
+        holoPos(Index,holoEntity(1):toWorld(vec()))
+        holoAng(Index,holoEntity(1):toWorld(ang(0,(360/Config["limit",number])*(I2-1),0)))
+        holoParent(Index,holoEntity(1))
+        holoScale(Index,vec())
+        
+        local Parent = B2
+        local Index = I*Config["limit",number]+1
+        Bones["Shell_"+I2+"_Joint1",number] = Index
+        holoCreate(Index)
+        holoPos(Index,Parent:toWorld(vec(40,0,15)))
+        holoAng(Index,Parent:toWorld(ang()))
+        holoParent(Index,Parent)
+        holoScale(Index,vec())
+        
+        if(!Config["no model",number]){
+        
+        
+        local Parent = holoEntity(Bones["Shell_"+I2+"_Joint1",number])
+        local Index = I*Config["limit",number]+2
+        holoCreate(Index)
+        holoPos(Index,Parent:toWorld(vec(0,0,0)))
+        holoAng(Index,Parent:toWorld(ang()))
+        holoParent(Index,Parent)
+        holoModel(Index,"models/props_c17/utilityconnecter005.mdl")
+        holoMaterial(Index,Config["material2",string])
+        holoScale(Index,vec(0.8,0.55,0.8))
+        holoColor(Index,Config["color2",vector])
+        
+        local Parent = holoEntity(Bones["Shell_"+I2+"_Joint1",number])
+        local Index = I*Config["limit",number]+3
+        holoCreate(Index)
+        holoPos(Index,Parent:toWorld(vec(-4,0,-15)))
+        holoAng(Index,Parent:toWorld(ang()))
+        holoParent(Index,Parent)
+        holoModel(Index,"models/sprops/cylinders/size_4/cylinder_9x12.mdl")
+        holoMaterial(Index,Config["material1",string])
+        holoScale(Index,vec(0.8,0.8,3))
+        holoClip(Index,vec(0,0,3),vec(1,0,0.3),0)
+        holoClipEnabled(Index,1)
+        holoColor(Index,Config["color1",vector])
+        
+        local Parent = holoEntity(Bones["Shell_"+I2+"_Joint1",number])
+        local Index = I*Config["limit",number]+4
+        holoCreate(Index)
+        holoPos(Index,Parent:toWorld(vec(-4,0,-15)))
+        holoAng(Index,Parent:toWorld(ang()))
+        holoParent(Index,Parent)
+        holoModel(Index,"models/sprops/cylinders/size_4/cylinder_9x12.mdl")
+        holoMaterial(Index,Config["material2",string])
+        holoScale(Index,vec(0.8,-0.8,3))
+        holoClip(Index,vec(0,0,3),vec(1,0,0.3),0)
+        holoClipEnabled(Index,1)
+        holoColor(Index,Config["color2",vector])
+        
+        
+        local Parent = holoEntity(Bones["Shell_"+I2+"_Joint1",number])
+        local Index = I*Config["limit",number]+5
+        local Parent2 = holoCreate(Index)
+        holoPos(Index,Parent:toWorld(vec(-1.25,0,-19.5)))
+        holoAng(Index,Parent:toWorld(ang(90,180,0)))
+        holoParent(Index,Parent)
+        holoModel(Index,"models/props_wasteland/light_spotlight02_base.mdl")
+        holoMaterial(Index,Config["material3",string])
+        holoScale(Index,vec(1,0.9,1.2))
+        holoColor(Index,Config["color3",vector])
+        
+        
+        #joint rings
+        local Index = I*Config["limit",number]+6
+        local Parent = holoEntity(Bones["Shell_"+I2+"_Joint1",number])
+        holoCreate(Index)
+        holoPos(Index,Parent:toWorld(vec(-7,-4,-22)))
+        holoAng(Index,Parent:toWorld(ang(0,0,90)))
+        holoParent(Index,Parent)
+        holoModel(Index,"models/sprops/cylinders/size_4/cylinder_9x3.mdl")
+        holoMaterial(Index,Config["material2",string])
+        holoScale(Index,vec(0.45,0.45,0.45))
+        holoColor(Index,Config["color2",vector])
+        
+        local Index = I*Config["limit",number]+7
+        local Parent = holoEntity(Bones["Shell_"+I2+"_Joint1",number])
+        holoCreate(Index)
+        holoPos(Index,Parent:toWorld(vec(-7,4,-22)))
+        holoAng(Index,Parent:toWorld(ang(0,0,90)))
+        holoParent(Index,Parent)
+        holoModel(Index,"models/sprops/cylinders/size_4/cylinder_9x3.mdl")
+        holoMaterial(Index,Config["material2",string])
+        holoScale(Index,vec(0.45,0.45,0.45))
+        holoColor(Index,Config["color2",vector])
+        }
+        #joint 2
+        local Parent = holoEntity(Bones["Shell_"+I2+"_Joint1",number])
+        local Index = I*Config["limit",number]+8
+        Bones["Shell_"+I2+"_Joint2",number] = Index
+        holoCreate(Index)
+        holoPos(Index,Parent:toWorld(vec(-7,0,-22)))
+        holoAng(Index,Parent:toWorld(ang(90,0,0)))
+        holoParent(Index,Parent)
+        holoScale(Index,vec())
+        
+        if(!Config["no model",number]){
+        local Parent = holoEntity(Bones["Shell_"+I2+"_Joint2",number])
+        local Index = I*Config["limit",number]+9
+        local Parent2 = holoCreate(Index)
+        holoPos(Index,Parent:toWorld(vec(7-1.25,0,-1)))
+        holoAng(Index,Parent:toWorld(ang(90,180,0)))
+        holoParent(Index,Parent)
+        holoModel(Index,"models/props_wasteland/light_spotlight02_base.mdl")
+        holoMaterial(Index,Config["material3",string])
+        holoScale(Index,vec(1,0.8,1.2))
+        holoColor(Index,Config["color3",vector])
+        
+        
+        local Parent = holoEntity(Bones["Shell_"+I2+"_Joint2",number])
+        local Index = I*Config["limit",number]+10
+        holoCreate(Index)
+        holoPos(Index,Parent:toWorld(vec(7-4,0,-8)))
+        holoAng(Index,Parent:toWorld(ang(0,0,90)))
+        holoParent(Index,Parent)
+        holoModel(Index,"models/sprops/misc/tubes_superthin/size_4/tube_72.mdl")
+        holoMaterial(Index,Config["material1",string])
+        holoScale(Index,vec(0.152,0.2,0.152))
+        holoClip(Index,vec(0,0,0),vec(1,0,0),0)
+        holoClipEnabled(Index,1)
+        holoColor(Index,Config["color1",vector])
+        
+        local Parent = holoEntity(Bones["Shell_"+I2+"_Joint2",number])
+        local Index = I*Config["limit",number]+11
+        holoCreate(Index)
+        holoPos(Index,Parent:toWorld(vec(7-4,0,-12)))
+        holoAng(Index,Parent:toWorld(ang(0,0,90)))
+        holoParent(Index,Parent)
+        holoModel(Index,"models/sprops/geometry/fring_42.mdl")
+        holoMaterial(Index,Config["material2",string])
+        holoScale(Index,vec(0.2,0.6,0.2))
+        holoColor(Index,Config["color2",vector])
+        }
+        local Parent = holoEntity(Bones["Shell_"+I2+"_Joint1",number])
+        local Index = I*Config["limit",number]+12
+        Bones["Shell_"+I2+"_Shell",number] = Index
+        holoCreate(Index)
+        holoPos(Index,Parent:toWorld(vec(-4,0,1)))
+        holoAng(Index,Parent:toWorld(ang(180,0,0)))
+        holoParent(Index,Parent)
+        holoModel(Index,Config["shell model",string])
+        
+        local Parent = holoEntity(Bones["Shell_"+I2+"_Joint2",number])
+        local Index = I*Config["limit",number]+13
+        Bones["Shell_"+I2+"_Shot",number] = Index
+        holoCreate(Index)
+        holoPos(Index,Parent:toWorld(vec(7-4,0,-1)))
+        holoAng(Index,Parent:toWorld(ang(90,0,0)))
+        holoParent(Index,Parent)
+        holoModel(Index,Config["shot model",string])
+        Temp["total",number]=Temp["total",number]+13
+    }
+    timer("createAmmo",100)
+}elseif(clk("createAmmo")){
+    Success=holoRemainingSpawns()>=13
+    if(Success){
+        Temp["index",number]=Temp["index",number]+1
+        if(Temp["index",number]>Config["limit",number]){
+            timer("createRail",25)
+        }else{
+            timer("createAmmo",25)
+            createAmmo(Temp["index",number])
+        }
+    }else{
+        timer("createAmmo",100)
+    }
+}elseif(clk("createRail")){
+    Success=holoRemainingSpawns()>=5
+    if(Success){
+        local Start=vec(-bezier(vec(0),vec(20),vec(0),0):x(),0,0)+mix(vec(40,0,(holoEntity(Bones["Shell_"+Config["limit",number]+"_Joint1",number]):parent():toLocal(Gun:pos())):z()-4),vec(40,0,15),0)
+        local Mid=vec(-bezier(vec(0),vec(20),vec(0),0.5):x(),0,0)+mix(vec(40,0,(holoEntity(Bones["Shell_"+Config["limit",number]+"_Joint1",number]):parent():toLocal(Gun:pos())):z()-4),vec(40,0,15),0.5)
+        local End=vec(-bezier(vec(0),vec(20),vec(0),1):x(),0,0)+mix(vec(40,0,(holoEntity(Bones["Shell_"+Config["limit",number]+"_Joint1",number]):parent():toLocal(Gun:pos())):z()-4),vec(40,0,15),1)
+        
+        
+        local I = 2
+        local B = Base:isValid() ? Base : entity()
+        holoCreate(I)
+        holoPos(I,B:toWorld(Config["position offset",vector]))
+        holoAng(I,B:toWorld(ang()))
+        holoParent(I,B)
+        holoAlpha(I,0)
+        
+        
+        local I = I+1
+        local E = holoEntity(2)
+        holoCreate(I)
+        holoPos(I,E:toWorld(mix(Start,Mid,0.5)+vec(0,4.25,0)-(Start-Mid):toAngle():forward()*1))
+        holoAng(I,E:toWorld(ang((Start-Mid):toAngle():pitch(),0,0)))
+        holoParent(I,E)
+        holoModel(I,"models/sprops/cuboids/height06/size_1/cube_6x6x6.mdl")
+        holoScale(I,vec(Start:distance(Mid)*0.9,1,2.5)/6)
+        holoMaterial(I,Config["material2",string])
+        holoColor(I,Config["color2",vector])
+        
+        local I = I+1
+        local E = holoEntity(2)
+        holoCreate(I)
+        holoPos(I,E:toWorld(mix(Start,Mid,0.5)+vec(0,-4.25,0)-(Start-Mid):toAngle():forward()*1))
+        holoAng(I,E:toWorld(ang((Start-Mid):toAngle():pitch(),0,0)))
+        holoParent(I,E)
+        holoModel(I,"models/sprops/cuboids/height06/size_1/cube_6x6x6.mdl")
+        holoScale(I,vec(Start:distance(Mid)*0.9,1,2.5)/6)
+        holoMaterial(I,Config["material2",string])
+        holoColor(I,Config["color2",vector])
+        
+        local I = I+1
+        local E = holoEntity(2)
+        holoCreate(I)
+        holoPos(I,E:toWorld(mix(Mid,End,0.5)+vec(0,4.25,0)))
+        holoAng(I,E:toWorld(ang((Mid-End):toAngle():pitch(),180,0)))
+        holoParent(I,E)
+        holoModel(I,"models/sprops/cuboids/height06/size_1/cube_6x6x6.mdl")
+        holoScale(I,vec(Mid:distance(End)+0.75,1,2.5)/6)
+        holoMaterial(I,Config["material2",string])
+        holoColor(I,Config["color2",vector])
+        
+        local I = I+1
+        local E = holoEntity(2)
+        holoCreate(I)
+        holoPos(I,E:toWorld(mix(Mid,End,0.5)+vec(0,-4.25,0)))
+        holoAng(I,E:toWorld(ang((Mid-End):toAngle():pitch(),180,0)))
+        holoParent(I,E)
+        holoModel(I,"models/sprops/cuboids/height06/size_1/cube_6x6x6.mdl")
+        holoScale(I,vec(Mid:distance(End)+0.75,1,2.5)/6)
+        holoMaterial(I,Config["material2",string])
+        holoColor(I,Config["color2",vector])
+        Temp["total",number]=Temp["total",number]+5
+        timer("ammoDone",25)
+    }else{
+        timer("createRail",100)
+    }
+}elseif(clk("ammoDone")){
+    timer("runcode",100)
+    print("Done spawning "+Temp["total",number]+" holos")
+    Temp=table()
+    Temp["Ready",number]=1
+    function number approach(Cur,Tar,R) {
+        if (Cur < Tar) {
+            return clamp(Cur + R,Cur,Tar)
+        }elseif (Cur > Tar) {
+            return clamp(Cur - R,Tar,Cur)
+        }
+        return Tar
+    }
+    function vector straightBezier(V1:vector ,V2:vector ,V3:vector ,M ){
+        return (M < 0.5) ? mix(V2,V1,M*2) : mix(V3,V2,(M-0.5)*2)
+    }
+    
+}elseif(clk("runcode")){
+    timer("runcode",100)
+    #for(I=1,Config["limit",number]){
+        local I = Config["limit",number]-AmmoBox:acfRounds()
+        local Joint1 = Bones["Shell_"+I+"_Joint1",number]
+        local Joint2 = Bones["Shell_"+I+"_Joint2",number]
+        local Shell = Bones["Shell_"+I+"_Shell",number]
+        local Shot = Bones["Shell_"+I+"_Shot",number]
+        holoAlpha(Bones["Shell_"+(I+1)+"_Shell",number],255)
+        holoAlpha(Bones["Shell_"+(I+1)+"_Shot",number],255)
+        
+        if(changed(Gun:acfReady())&!Gun:acfReady()){
+            Temp["reloadProgress",number]=Temp["reloadProgress2",number]=Temp["Loaded",number]=Temp["Ready",number]=Temp["isOnTarget",number]=Temp["goFaster",number]=0
+            holoEntity(1):soundPlay("rotate",0,"acf_extra/tankfx/turretelectric2.wav")
+            holoEntity(1):soundPlay("lift",0,"acf_extra/turret/cannon_turn_loop_1.wav")
+        }
+        Lift=!Temp["hold",number]*Temp["isOnTarget",number]*!Temp["Ready",number]
+        soundVolume("lift",100*Lift)
+        if(Temp["Ready",number]==0){
+            if(Lift){
+                Temp["reloadProgress",number]=Temp["reloadProgress",number]+(0.02+0.01*Temp["goFaster",number])
+            }
+            if((Temp["reloadProgress",number]>=0.5)&!Temp["Loaded",number]&!Temp["hold",number]){
+                Temp["hold",number]=1
+                holoEntity(1):soundPlay("insert",0,"acf_extra/tankfx/gnomefather/autoloader1.wav")
+            }
+            if((Temp["reloadProgress",number]>=1)&!Temp["Ready",number]){
+                Temp["Ready",number]=1
+                soundStop("close")
+            }
+            if(Temp["hold",number]){
+                Temp["reloadProgress2",number]=Temp["reloadProgress2",number]+0.05
+                if(Temp["reloadProgress2",number]>=1){
+                    Temp["Loaded",number]=1
+                    Temp["hold",number]=0
+                    Temp["reloadProgress2",number]=0
+                    Temp["goFaster",number]=1
+                    holoEntity(1):soundPlay("close",0,"acf_extra/tankfx/gnomefather/reload7.wav")
+                }
+                if(Temp["reloadProgress2",number]>=0.5){
+                    holoAlpha(Shell,0)
+                    holoAlpha(Shot,0)
+                }
+            }
+        }
+        Ready=Temp["Ready",number]*Gun:acfReady()
+        FireOut=Fire*Ready
+        Temp["targetAng",number]=approach(Temp["targetAng",number],(360/Config["limit",number])*clamp(I-1,0,Config["limit",number]),5)
+        Temp["isOnTarget",number]=(abs(Temp["targetAng",number])-abs((360/Config["limit",number])*clamp(I-1,0,Config["limit",number])))==0
+        
+        soundVolume("rotate",100*!Temp["isOnTarget",number])
+        
+        holoAng(1,holoEntity(1):parent():toWorld(ang(0,360-Temp["targetAng",number],0)))
+        
+        local Progress2 = clamp(-1+sin((Temp["reloadProgress",number])*180)*2,0,1)
+        local Progress3 = clamp(sin((Temp["reloadProgress",number])*180)*1.5,0,1)*(1-Progress2)
+        local Progress4 = clamp(sin((Temp["reloadProgress",number])*180)*2,0,1)
+        local Progress = clamp((-0.5+sin((Temp["reloadProgress",number])*180)*2)*0.7,-clamp(Progress4,0,0.2),1)
+        local Progress5 = clamp(-0.25+sin((Temp["reloadProgress2",number])*180)*1.35,0,1)
+        
+        holoPos(Joint1,holoEntity(Joint1):parent():toWorld(vec(straightBezier(vec(0),vec(-10),vec(0),Progress4):x(),0,0)+mix(vec(40,0,(holoEntity(Joint1):parent():toLocal(Gun:pos())):z()-4),vec(40,0,15),Progress4)))
+        holoAng(Joint1,holoEntity(Joint1):parent():toWorld(ang(90*Progress,0,0)))
+        
+        holoAng(Joint2,holoEntity(Joint2):parent():toWorld(ang(90-90*Progress2+90*Progress3,0,0)))
+        
+        holoPos(Shell,holoEntity(Shell):parent():toWorld(vec(-4,0,1)+vec(0,0,-75*Progress5)))
+        holoPos(Shot,holoEntity(Shot):parent():toWorld(vec(7-4,0,-1)+vec(0,0,-75*Progress5)))
+        
+    #}
+}

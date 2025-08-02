@@ -1,0 +1,57 @@
+@name Naki's Stargates V8.0 - DHD
+@inputs TextEntry:string Dial
+@persist Address:string TargetEnt:entity Open
+@outputs Address:string TargetEnt:entity Open
+if(dupefinished()){reset()}
+if(first()){
+    dsJoinGroup("stargate-naki")
+    dsSetScope(2)
+    runOnSignal("stargate-naki",2,1)
+    #include "glyph_repository"
+    #entity():setAlpha(0)
+    function clearData(){
+        Address=""
+        Open=0
+    }
+}
+interval(100)
+if(!TargetEnt){
+    findExcludeEntity(entity())
+    findIncludeClass(entity():type())
+    findIncludeModel("models/sprops/geometry/fdisc_132.mdl")
+    findInSphere(entity():pos(),600)
+    findSortByDistance(entity():pos())
+    TargetEnt=findResult(1)
+}
+if(TargetEnt){
+    if(TargetEnt:pos():distance(entity():pos())>600){
+        TargetEnt=noentity()
+    }else{
+        if(changed(Dial)&Dial){
+            if(Open){
+                #dsSend(Address+"_close","stargate-naki",table(entity(),Address))
+                dsSend(TargetEnt:id()+"_close","stargate-naki",table(entity(),Address))
+                clearData()
+            }else{
+                dsSend(TargetEnt:id()+"_getaddress","stargate-naki",table(entity(),Address))
+                #clearData()
+            }
+            
+        }
+        if(changed(TextEntry)&TextEntry){
+            Address=TextEntry
+        }
+    }
+}else{
+    Address=""
+}
+if(dsClk()){
+    switch(dsClkName()){
+        case entity():id()+"_return",
+            Open=dsGetTable()[2,number]
+            if(!Open){
+                clearData()
+            }
+        break
+    }
+}

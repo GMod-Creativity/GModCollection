@@ -1,0 +1,257 @@
+--@name Predator chat System
+--@author Naki
+--@shared
+
+--[[
+https://steamcommunity.com/sharedfiles/filedetails/?id=3491940716
+https://github.com/dstmnaki/starfall-projects/blob/main/yautja%20language%20letters.zip
+]]--
+
+-- Server sending
+if SERVER then
+    local hud = prop.createComponent(chip():getPos()+Vector(0,0,10), Angle(0), "starfall_hud", "models/props_combine/breenglobe.mdl", true)
+    hud:linkComponent(chip())
+    
+    local returnPlayers = {}
+    
+    function findPlayers()
+        returnPlayers = find.allPlayers()
+    end
+    
+    hook.add("PlayerInitialSpawn", "", function(ply, transition)
+        findPlayers()
+    end)
+    hook.add("PlayerDisconnect", "", function(networkid, name, player, reason, isbot)
+        findPlayers()
+    end)
+    findPlayers()
+    hook.add("PlayerSay", "MessageRelay", function(ply, text, teamChat)
+        if ply:isHUDActive() then
+            if text:sub(1, 3) == ".a " then
+                local msg = text:sub(4)
+                for _, target in pairs(returnPlayers) do
+                    if target != nil then
+                        if isValid(target) and target:isHUDActive() then
+                            net.start("sendToClient")
+                            net.writeTable({ply, msg})
+                            net.send(target, false)
+                        end
+                    end
+                end
+                if ply == owner() then return false end
+            elseif text:sub(1, 3) == ".t " then
+                local args = string.explode(" ", text, nil)
+                local target = find.playersByName(args[2])[1]
+                if target != nil then
+                    if target:isHUDActive() then
+                        local msg = table.concat(args, " ", 3)
+                        net.start("sendToClient")
+                        net.writeTable({ply, msg})
+                        net.send({ply,target}, false)
+                    end
+                end
+                if ply == owner() then return false end
+            end
+        end
+    end)
+    net.receive("notifyMembers", function()
+        local ent = net.readEntity()
+        for _, target in pairs(returnPlayers) do
+            if target:isHUDActive() then
+                if ent != target then
+                    net.start("sendToClient")
+                    net.writeTable({ent, " has joined the chat"})
+                    net.send(target, false)
+                else
+                    net.start("sendBackToJoined")
+                    net.writeString("Welcome, ")
+                    net.send(ent, false)
+                end
+            end
+        end
+    end)
+end
+
+function runEverything(HudActive,useAssets)
+    if CLIENT and HudActive then
+        net.start("notifyMembers")
+        net.writeEntity(player())
+        net.send()
+        local chatbuffer = {}
+        local lastVocals = ""
+        local lastText = ""
+        local textAddTime, textAddCT = 0, 0
+        local textRemoveTime, textRemoveCT = 0, 0
+        local textTransitionTime, textTransitionCT = 0, 0
+        local textCount = 0
+        local textFinished = false
+        local textRemoval = false
+        local textEX = {}
+
+        local CustomFont = render.createFont("TargetID", 30, 400, false, false, true, false, 0, false, false)
+        local w, h = render.getGameResolution()
+
+        local symbols = {}
+        for i = 0, 25 do
+            if useAssets then
+                symbols[i] = material.createFromImage(string.format("naki/%03d.png", i), "noclamp smooth")
+            else
+                symbols[i] = material.load("models/debug/debugwhite")
+            end
+            
+        end
+
+        local charMap = {}
+        do
+            local alpha = "abcdefghijklmnopqrstuvwxyz"
+            for i = 1, #alpha do
+                charMap[alpha:sub(i,i)] = symbols[i-1]
+            end
+        end
+
+        function GetSymbol(char)
+            if not char then return nil end
+            local mat = charMap[string.lower(char)]
+            return mat or nil
+        end
+
+        function randspeechsnd()
+            local pool = {
+                "cpthazama/avp/predator/speech/p04_hc_01_pe.ogg",
+                "cpthazama/avp/predator/speech/p04_hc_02_pe.ogg",
+                "cpthazama/avp/predator/speech/p04_junglealiens_pe.ogg",
+                "cpthazama/avp/predator/speech/p04_plz_01_pe.ogg",
+                "cpthazama/avp/predator/speech/p04_plz_02_pe.ogg",
+                "cpthazama/avp/predator/speech/p04_plz_03_pe.ogg",
+                "cpthazama/avp/predator/speech/p04_plz_04_pe.ogg",
+            }
+            local available = table.copy(pool)
+            table.removeByValue(available, lastVocals)
+
+            lastVocals = table.random(available)
+            
+            return lastVocals
+        end
+
+        hook.add("net", "ClientReceive", function(name, len, _)
+            if name == "sendToClient" then
+                local data = net.readTable()
+                local ply = data[1]
+                local message = data[2]
+                if ply != nil then
+                    if ply != player() then
+                        table.insert(chatbuffer, ply:getName() .. ": " ..message)
+                    else
+                        table.insert(chatbuffer, "You: " ..message)
+                    end
+                    
+                else
+                    table.insert(chatbuffer, message)
+                end
+            end
+            if name == "sendBackToJoined" then
+                local data = net.readString()
+                local msg = data..player():getName()
+                table.insert(chatbuffer, msg)
+            end
+        end)
+        
+        local holo = hologram.create(chip():getPos(), Angle(0,0,0), "models/hunter/blocks/cube025x025x025.mdl", Vector(0,0,0))
+        
+        hook.add("drawhud", "RenderChat", function()
+            if #chatbuffer == 0 then return end
+            local text = chatbuffer[1]
+            if text ~= lastText then
+                textEX = string.explode("", text, nil)
+                textCount = #textEX
+                textAddTime = 0
+                textAddCT = 0
+                textRemoveTime = 0
+                textRemoveCT = 0
+                textTransitionTime = 0
+                textTransitionCT = 0
+                textFinished = false
+                textRemoval = false
+                holo:setPos(player():getPos())
+                holo:emitSound(randspeechsnd(), 100, 100, 1, CHAN_WEAPON)
+            end
+            lastText = text
+
+            render.setFont(CustomFont)
+            render.setColor(Color(255,125,0))
+            if textRemoval then
+                if timer.curtime() - textRemoveCT >= 0.035 then
+                    textRemoveCT = timer.curtime()
+                    textRemoveTime = textRemoveTime + 1
+                end
+                if textRemoveTime >= textCount + 1 then
+                    table.remove(chatbuffer, 1)
+                    lastText = ""
+                end
+                render.drawText(w/2 + render.getTextSize(text)*0.5, h - h*0.21, text:sub(textRemoveTime, textCount), TEXT_ALIGN.RIGHT)
+            else
+                if textFinished then
+                    if timer.curtime() - textTransitionCT >= 1 then
+                        textTransitionCT = timer.curtime()
+                        textTransitionTime = textTransitionTime + 1
+                    end
+                    if textTransitionTime >= 2 then
+                        textRemoval = true
+                    end
+                else
+                    if timer.curtime() - textAddCT >= 0.035 then
+                        textAddCT = timer.curtime()
+                        textAddTime = textAddTime + 1
+                        if textAddTime >= textCount + 1 then
+                            textFinished = true
+                            textTransitionCT = timer.curtime()
+                        end
+                    end
+                end
+                render.drawText(w/2 - render.getTextSize(text)*0.5, h - h*0.21, text:sub(1, math.clamp(textAddTime, 0, textCount)), TEXT_ALIGN.LEFT)
+                if useAssets then
+                    for i = textAddTime, textCount do
+                        local sym = GetSymbol(textEX[i])
+                        if sym != nil then
+                            render.setMaterial(sym)
+                            local offset = render.getTextSize(text)*(i/textCount + 0.2)
+                            render.drawTexturedRectRotated(w/2 - render.getTextSize(text)*0.7 + offset, h - h*0.21 + 20, 50, 50, 0)
+                        end
+                    end
+                end
+            end
+        end)
+    end
+end
+
+if CLIENT then
+    if player() == owner() then
+        enableHud(owner(), true)
+        hasAVPSNPCS = file.existsInGame("materials/hud/cpthazama/avp/icons/human.png")
+        hasSymbols = file.existsInGame("materials/naki/000.png")
+        runEverything(true,hasAVPSNPCS and hasSymbols)
+    end
+end
+
+hook.add("HUDConnected", "", function(ent, ply)
+    if CLIENT and ply == player() and ply != owner() then
+        if hasPermission("file.existsInGame",ply) then
+            hasAVPSNPCS = file.existsInGame("materials/hud/cpthazama/avp/icons/human.png")
+            hasSymbols = file.existsInGame("materials/naki/000.png")
+            
+            runEverything(true,hasAVPSNPCS and hasSymbols)
+        else
+            setupPermissionRequest({"file.existsInGame"}, "checks for avp snpcs for sounds, my symbols for translator symbols")
+            sendPermissionRequest()
+        end
+    end
+end)
+
+hook.add("PermissionRequest", "", function()
+    if permissionRequestSatisfied() then
+        hasAVPSNPCS = file.existsInGame("materials/hud/cpthazama/avp/icons/human.png")
+        hasSymbols = file.existsInGame("materials/naki/000.png")
+        
+        runEverything(true,hasAVPSNPCS and hasSymbols)
+    end
+end)

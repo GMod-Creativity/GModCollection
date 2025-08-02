@@ -1,0 +1,226 @@
+--@name Fatman Launcher
+--@author Naki
+--@shared
+--@include Nakilibs/Very_Explosive_Library.txt
+
+require("Nakilibs/Very_Explosive_Library.txt")
+
+if SERVER then
+    local hud = prop.createComponent(chip():getPos(), Angle(0,0,0), "starfall_hud", "models/props_combine/breenglobe.mdl", true)
+    hud:linkComponent(chip())
+    
+    local isDown = false
+    local yaw = 0
+    local missileFindStatus = "ready"
+    local pos = chip():getPos()
+    local missiles = {}
+    local iteration = 0
+    local block = false
+    local CT = 0
+    
+    
+    local effect_table = {
+        sndname = "ambient/explosions/explode_5.wav"
+    }
+    
+    hook.add("think","",function()
+        if owner():getActiveWeapon():isValid() and owner():keyDown(IN_KEY.ATTACK) and owner():getActiveWeapon():getClass() == "none" then
+            if isDown != true and block != true then
+                isDown = true
+                block = true
+                net.start("sendFiredState")
+                net.writeBool(true)
+                net.send(owner())
+                timer.simple(0.1, function()
+                    local This = hologram.create(owner():getEyePos()+owner():getEyeAngles():getRight()*10,owner():getEyeAngles(),"models/props_junk/PropaneCanister001a.mdl",Vector(0,0,0))
+                    local BOMBASTIC = hologram.create(This:getPos(),This:localToWorldAngles(Angle(90,0,0)),"models/props_junk/PropaneCanister001a.mdl",Vector(1,1,1))
+                    BOMBASTIC:setParent(This)
+                    This:setTrails(75, 0, 1, "trails/laser", Color(125,125,125,75), nil, nil)
+                    table.insert(missiles,1,{This,BOMBASTIC})
+                    SND = sound.create(This, "^thrusters/Hover02.wav", false)
+                    SND:setSoundLevel(500)
+                    SND:play()
+                    CT = timer.curtime()
+                end)
+            end
+        else
+            isDown = false
+        end
+        for i = #missiles, 1, -1 do
+            
+            local missile = missiles[i][1]
+            local BOMBASTIC = missiles[i][2]
+            local dir = math.lerpAngle(0.0025,missile:getForward():getAngle(),Angle(90,missile:getForward():getAngle().yaw,0)):getForward()
+            if SND != nil then
+                SND:setPitch(100/((1+timer.curtime()-CT)*0.2))
+            end
+            local tr = trace.line(missile:getPos(),missile:getPos()+math.lerpAngle(-math.clamp(missile:getForward():getAngle().pitch/90,-1,0),dir:getAngle(),Vector(0,0,-1):getAngle()):getForward()*30,owner(),nil,nil,nil)
+            missile:setPos(tr.HitPos)
+            missile:setAngles(dir:getAngle():rotateAroundAxis(dir,10+missile:getAngles().roll))
+            if tr.Hit then
+                very_explosive_lib_fatmanExplosion(tr.HitPos-missile:getForward()*15, 500, 5000, effect_table)
+                missile:remove()
+                BOMBASTIC:remove()
+                table.remove(missiles,i)
+                block = false
+                if SND != nil then
+                    SND:destroy()
+                    SND = nil
+                end
+                net.start("sendFiredState")
+                net.writeBool(false)
+                net.send(owner())
+            end
+        end
+    end)
+else
+    
+    if player() == owner() then
+        enableHud(owner(), true)
+        local modelDone = false
+        local FIRED = false
+        local FIREDCT = timer.curtime()
+        local LOADED = false
+        
+        function createModel()
+            swepParent = hologram.create(chip():localToWorld(Vector(0,0,25)),Angle(0,0,0), "models/hunter/blocks/cube025x025x025.mdl")
+            swepParent:setScale(Vector())
+            swepParent:setParent(chip())
+            
+            swepParent:setParent(owner():getActiveWeapon())
+            
+            local default_parent = swepParent
+            local pos_offset = Vector()
+            
+            Holos = {}
+            BOMB_MDL = nil
+            STORED_POS = Vector()
+            
+            function CreateHolograms(holo_data)
+                local parentPos = default_parent:getPos()
+                for i,v in pairs(holo_data) do
+                    local holo = hologram.create(parentPos+pos_offset+v.Position,v.Angle,v.Model,v.Scale)
+                    holo:setMaterial(v.Material)
+                    if type(v.Color) ~= "color" then v.Color = Color(v.Color.r,v.Color.g,v.Color.b,v.Color.a) end
+                    holo:setColor(v.Color)
+                    for i,v in pairs(v.Clips) do
+                        holo:setClip(i,true,v.Origin,v.Normal,holo)
+                    end
+                    if v.Parent then holo:setParent(Holos[v.Parent]) holo:setLocalPos(v.Position) holo:setLocalAngles(v.Angle) else holo:setParent(default_parent) end
+                    if v.Index ~= "" then Holos[v.Index] = holo else Holos[i] = holo end
+                end
+                BOMB_MDL = Holos["BOMBASTIC"]
+                HINGE = Holos["HINGE"]
+                return true
+            end
+            function JumbleHolos(holos,holo_data)
+                for _,v in pairs(holos) do
+                    v:setPos(Vector()) v:setAngles(Angle()) v:setScale(Vector(1)) v:setMaterial("maxofs2d/models/cube_tool") v:setColor(Color(255,255,255,255)) v:setParent(nil)
+                end
+                timer.simple(1,function()
+                    for i,v in pairs(holo_data) do
+                        local holo = holos[i]
+                        if v.Index ~= "" then holo = holos[v.Index] end
+                        holo:setPos(default_parent:getPos()+v.Position) holo:setAngles(v.Angle) holo:setScale(v.Scale) holo:setMaterial(v.Material) holo:setColor(v.Color)
+                        if v.Parent ~= nil then
+                            holo:setParent(holos[v.Parent]) holo:setLocalPos(v.Position) holo:setLocalAngles(v.Angle)
+                        else
+                            holo:setParent(default_parent)
+                        end
+                    end
+                end)
+            end
+            
+            
+            CreationTable = {}
+            CreationTable = von.deserialize(string.sub(file.readInGame("data/starfall/nakilibs/fatman_mdl.txt"),3,nil))
+            CreateHolograms(CreationTable)
+        end
+        net.receive("sendFiredState",function()
+            if BOMB_MDL != nil then
+                LOADED = false
+                FIRED = net.readBool()
+                FIREDCT = timer.curtime()
+                if not FIRED then
+                    BOMB_MDL:setNoDraw(false)
+                    if SND_Slide != nil then
+                        SND_Slide:destroy()
+                        SND_Slide = nil
+                    end
+                    SND_Slide = sound.create(BOMB_MDL, "physics/metal/canister_scrape_smooth_loop1.wav", false)
+                    SND_Slide:setSoundLevel(100)
+                    SND_Slide:play()
+                    timer.simple(0.5,function()
+                        SND_Slide:destroy()
+                        SND_Slide = nil
+                    end)
+                else
+                    if SND_Launch != nil then
+                        SND_Launch:destroy()
+                        SND_Launch = nil
+                    end
+                    SND_Launch = sound.create(BOMB_MDL, "npc/dog/dog_pneumatic1.wav", false)
+                    SND_Launch:setSoundLevel(100)
+                    SND_Launch:play()
+                    timer.simple(1,function()
+                        if SND_Launch != nil then
+                            SND_Launch:destroy()
+                            SND_Launch = nil
+                        end
+                    end)
+                end
+            end
+        end)
+        hook.add("calcview","",function()
+            if owner():isAlive() and player() == owner() then
+                if owner():getActiveWeapon():isValid() then
+                    if modelDone != true then
+                        createModel()
+                        modelDone=true
+                    else
+                        swepParent:setPos(owner():getShootPos())
+                        swepParent:setAngles(owner():getEyeAngles())
+                        
+                        if BOMB_MDL != nil then
+                            if STORED_POS == Vector() then
+                                STORED_POS = swepParent:worldToLocal(BOMB_MDL:getPos())
+                                STORED_ANG = swepParent:worldToLocalAngles(HINGE:getAngles())
+                            else
+                                if FIRED then
+                                    T = (timer.curtime()-FIREDCT)/0.1
+                                    BOMB_MDL:setPos(swepParent:localToWorld(STORED_POS+Vector(50*T,0,0)))
+                                    HINGE:setAngles(swepParent:localToWorldAngles(STORED_ANG))
+                                    if T >= 1 then
+                                        BOMB_MDL:setNoDraw(true)
+                                    end
+                                else
+                                    T = math.clamp((timer.curtime()-FIREDCT)/0.65,0,1)
+                                    BOMB_MDL:setPos(swepParent:localToWorld(STORED_POS+Vector(20-20*math.clamp(T*1.5,0,1),0,0)))
+                                    HINGE:setAngles(swepParent:localToWorldAngles(STORED_ANG:rotateAroundAxis(Vector(1,0,0),-45*math.clamp(math.sin(math.rad(T*180))*1.2,0,1))))
+                                    if T >= 1 and LOADED != true then
+                                        LOADED = true
+                                        if SND_Loaded != nil then
+                                            SND_Loaded:destroy()
+                                            SND_Loaded = nil
+                                        end
+                                        SND_Loaded = sound.create(BOMB_MDL, "physics/metal/metal_barrel_impact_soft2.wav", false)
+                                        SND_Loaded:setSoundLevel(100)
+                                        SND_Loaded:play()
+                                        timer.simple(1,function()
+                                            if SND_Loaded != nil then
+                                                SND_Loaded:destroy()
+                                                SND_Loaded = nil
+                                            end
+                                        end)
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            else
+                modelDone = false
+            end
+        end)
+    end
+end

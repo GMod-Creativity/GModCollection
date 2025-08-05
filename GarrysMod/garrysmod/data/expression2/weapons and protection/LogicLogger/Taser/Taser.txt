@@ -1,0 +1,90 @@
+@name Taser
+@persist [P R]:entity WL:table AntiPidr Weapon:string
+interval(500)
+noDuplications()
+runOnKeys(owner(), 1)
+
+##By LogicLogger
+
+if(first())
+{
+    entity():setColor(255,123,0,0)
+    
+    P=noentity()
+    entity():setMaterial("models/debug/debugwhite")
+    R=noentity()
+    Weapon = "weapon_pistol"
+    AntiPidr=0
+    WhiteListOn=0
+    WL = table( #Allowing to protect players from tasering (SteamID required)
+    "" = 1, #
+    )
+}
+if(owner():keyAttack1() && owner():weapon():type() == Weapon)
+{
+    owner():weapon():setMaterial("models/debug/debugwhite")
+    owner():weapon():setColor(vec(255,255,0))
+    if(owner():aimEntity():isPlayer() && owner():pos():distance(owner():aimEntity():pos()) < 15000 && !R)
+    {
+        P = owner():aimEntity()
+        if(P != noentity() & (!WL[P:steamID(),number]+!WhiteListOn))
+        {
+            R = P:playerRagdoll()
+            owner():weapon():effectSpawn("TeslaZap", owner():aimPos(), 25)
+            R:soundPlay(3,0,"ambient.electrical_zap_2")
+            P:pp("toytown","1" )
+            P:pp("toytown_passes", "35" )
+            P:pp("toytown_size", "1" )
+            timer("beating",random(1500,2500))
+            timer("shock",random(500,750))
+        }
+    }
+    if(owner():aimEntity():isVehicle() && owner():pos():distance(owner():aimEntity():pos()) < 15000 && !R)
+    {
+        P = owner():aimEntity():driver()
+        if(P != noentity() & (!WL[P:steamID(),number]+!WhiteListOn))
+        {
+            R = P:playerRagdoll()
+            owner():weapon():effectSpawn("TeslaZap", owner():aimPos(), 25)
+            R:soundPlay(3,0,"ambient.electrical_zap_2")
+            P:pp("toytown","1" )
+            P:pp("toytown_passes", "35" )
+            P:pp("toytown_size", "1" )
+            timer("beating",random(1500,2500))
+            timer("shock",random(500,750))
+        }
+    }
+}
+
+if(clk("shock")&R){
+    soundStop(2,0)
+    R:effectSpawn("TeslaHitboxes",R:toWorld(vec(0,0,35)),75)
+    R:soundPlay(2, 0, "RagdollBoogie.Zap")
+    timer("shock",random(500,750))
+}
+
+if(clk("beating") & R){
+    R:soundPlay(1,0,"plaza.citizen_beating")
+    timer("beating",random(1500,2500))
+}
+
+if(changed(R) & R)
+{
+    if(AntiPidr){R:applyForce(owner():forward()*150000*150000 + owner():up()*500000*500000)}else{R:applyForce(owner():forward()*100*100 + owner():up()*75*75)}
+    if(AntiPidr){timer("rag",750)}else{timer("rag",10000)}
+}
+ 
+if(clk("rag"))
+{
+    P:playerRagdoll()
+    P:playerFreeze()
+    if(AntiPidr){timer("unfreeze",0)}else{timer("unfreeze",1250)}
+}
+
+if(clk("unfreeze")){
+    P:playerUnFreeze()
+    P:pp("toytown","0" )
+    P:pp("toytown_passes", "0" )
+    P:pp("toytown_size", "0" )
+    P=noentity()
+}

@@ -1,0 +1,80 @@
+@name VR Hand Collisions
+@persist [PLY Prop1 Prop2 Prop3]:entity Inertia:angle
+@outputs GrabLeftOKD GrabRightOKD GrabLeftOK GrabRightOK
+if(first()){
+PLY=owner()#findPlayerByName("naki")
+vrSetPlayer(PLY)
+
+propSpawnUndo(0)
+Prop1=propSpawn("models/sprops/misc/fittings/cubinder_1_5_to_1_5.mdl",PLY:pos()+vec(0,0,PLY:height()/2),0)
+Prop2=propSpawn("models/sprops/misc/fittings/cubinder_1_5_to_1_5.mdl",PLY:pos()+vec(0,0,PLY:height()/2),0)
+#Prop3=propSpawn("models/weapons/w_crowbar.mdl",PLY:pos()+vec(0,0,PLY:height()/2),0)
+#Inertia = shiftL(ang(Prop3:inertia()))
+
+Prop1:setNoCollideAll(1)
+Prop2:setNoCollideAll(1)
+#Prop3:setNoCollideAll(1)
+
+Prop1:setMass(100)
+Prop2:setMass(100)
+#Prop3:setMass(150)
+
+Prop1:propGravity(0)
+Prop2:propGravity(0)
+#Prop3:propGravity(0)
+
+Prop1:setAlpha(0)
+Prop2:setAlpha(0)
+#Prop3:setAlpha(0)
+}
+interval(100)
+
+rangerFilter(array(PLY,Prop1,Prop2,Prop3))
+rangerPersist(1)
+WeaponOKClimb=PLY:weapon():type()=="none"
+WeaponOKCrowbar=PLY:weapon():type()=="weapon_crowbar"
+if(changed(WeaponOKCrowbar)){
+    Prop3:setAlpha(255*WeaponOKCrowbar)
+}
+GrabLeftOKR=rangerOffset(25,Prop1:pos(),vrLeftHandAng():right())
+GrabRightOKR=rangerOffset(25,Prop2:pos(),-vrRightHandAng():right())
+GrabLeftOK=GrabLeftOKR:hit()
+GrabRightOK=GrabRightOKR:hit()
+GrabLeftOKD=GrabLeftOKR:distance()
+GrabRightOKD=GrabRightOKR:distance()
+
+event tick(){
+
+Prop1:applyForce((((PLY:pos()+vrLeftHandPos()+vrLeftHandAng():forward()*4)-Prop1:pos())*25-Prop1:vel())*Prop1:mass())
+Prop2:applyForce((((PLY:pos()+vrRightHandPos()+vrRightHandAng():forward()*4)-Prop2:pos())*25-Prop2:vel())*Prop2:mass())
+Prop3:applyForce((((PLY:pos()+vrRightHandPos()+vrRightHandAng():forward()*4)-Prop3:pos())*25-Prop3:vel())*Prop3:mass())
+#Prop3:applyAngForce((Prop3:toLocal(vrRightHandAng())-Prop3:angVel())*Inertia*Prop3:mass())
+
+Prop1:setNoCollideAll(Prop1:pos():setZ(0):distance(PLY:pos():setZ(0))<25|vrLeftGrab())
+Prop2:setNoCollideAll(Prop2:pos():setZ(0):distance(PLY:pos():setZ(0))<25|vrRightGrab()|!WeaponOKClimb)
+#Prop3:setNoCollideAll(Prop3:pos():setZ(0):distance(PLY:pos():setZ(0))<25|!WeaponOKCrowbar)
+
+if(changed(vrLeftGrab()&GrabLeftOK*WeaponOKClimb)){
+    Prop1:propFreeze(vrLeftGrab())
+    if(PLY:isOnGround()){
+        PLY:plySetPos(PLY:pos()+vec(0,0,3))
+    }
+}
+if(changed(vrRightGrab()&GrabRightOK*WeaponOKClimb)){
+    Prop2:propFreeze(vrRightGrab())
+    if(PLY:isOnGround()){
+        PLY:plySetPos(PLY:pos()+vec(0,0,3))
+    }
+}
+LeftForce=(clamp(Prop1:pos()-(PLY:pos()+vrLeftHandPos()+vrLeftHandAng():forward()*4),-vec(25),vec(25))*3-PLY:vel()*0.9)
+RightForce=(clamp(Prop2:pos()-(PLY:pos()+vrRightHandPos()+vrRightHandAng():forward()*4),-vec(25),vec(25))*3-PLY:vel()*0.9)
+if(vrLeftGrab()&!vrRightGrab()&GrabLeftOK*WeaponOKClimb){
+    PLY:plyApplyForce(vec(0,0,20)+LeftForce)
+}
+if(vrRightGrab()&!vrLeftGrab()&GrabRightOK*WeaponOKClimb){
+    PLY:plyApplyForce(vec(0,0,20)+RightForce)
+}
+if(vrLeftGrab()&vrRightGrab()&GrabLeftOK&GrabRightOK*WeaponOKClimb){
+    PLY:plyApplyForce(vec(0,0,20)+mix(LeftForce,RightForce,0.5))
+}
+}

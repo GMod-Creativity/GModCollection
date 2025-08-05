@@ -1,0 +1,247 @@
+------------------------------------------------------------------------------------------------
+
+###    README THIS IS IMPORTANT    ###
+
+THIS IS THE DEVKIT FOR THE SLASHBLADE E2 IF YOU ARE LOOKING FOR THE NORMAL E2 LOOK OVER HERE
+https://github.com/dstmnaki/slashblade-e2-port
+
+------------------------------------------------------------------------------------------------
+###Introductions
+
+You have to understand that this devkit is a piece of junk, it works as i need it to work just like valve's hammer, it's not perfect but it works and does what it is supposed to do, now that that is out of the way lets get down to bussiness.
+
+This is a devkit for my slashblade project, it's capable of editing, creating, loading and saving animations and frames themselfs for the purpose of creating combo/transition animations
+
+------------------------------------------------------------------------------------------------
+###Controls
+
+Controls:
+Mouse1 (Hold) - Rotate bone by looking up or down
+Mouse2 - Toggle parent rotation (local to self or local to parent)
+R - Change axis
+Space (while not in noclip) - Play animation
+Arrow Left & Right - Cycle frames
+Arrow Up & Down - Cycle bone selection
+
+Commands:
+.angle
+  -set <value value value> - set angle on all axises
+    -x <value> - set angle on x axis local to parent
+    -y <value> - set angle on y axis local to parent
+    -z <value> - set angle on z axis local to parent
+    -local
+      -x <value> - set angle on x axis local to self
+      -y <value> - set angle on y axis local to self
+      -z <value> - set angle on z axis local to self
+  -get - prints current angles local to parent
+  -copy - copies angles local to parent
+  -paste - pastes angles local to parent
+.reset - resets angles (sets to tpose)
+.save <EMPTY/file name> - saves animation with specified file name or to current animation name
+.frame
+  -add - adds a new frame in front of current frame (OVERWRITES NEXT FRAME IF THERE IS DATA, i forgot how to shift the values in the table forward to add a frame in between frames...sorry)
+  -remove - removes current frame
+  -store - writes current angles into the frame for the animation
+  -save <file name> - saves current frame into a file
+  -load <file name> - loads frame from a file, overwrites current angles but does not write into frame
+  -copy - copies angles to "e2 clipboard" data will be forgotten if e2 is reset or deleted
+  -paste - pastes angles from "e2 clipboard"
+  -length <value> - sets iteration count for the frame (how many times the e2 has to run for the frame to reach it's end)
+.speed - sets the animation speed multiplier (divided by 100 so use a value from 0-100 not 0-1)
+.frames - sets the length of all frames in current animation
+.load <file name> - loads specified animation
+.new <EMPTY/file name> - creates a new animation with specified name or if left empty, no name (set it when you save the file)
+
+------------------------------------------------------------------------------------------------
+###Adding animations to the devkit
+
+Adding new animations to the animation library:
+After saving the animation you have to add it to 4 different places, 3 in the editor and 1 in the anim_lib e2
+First, around line 203 is where the default animation loader stores the animation values
+format is as follows:
+
+case "ANIM_ANIMATION_NAME",
+    AnimationData=ANIM_ANIMATION_NAME
+break
+
+You can copy this same format to around line 704 where animation loading using commands is written in,
+Next copy the same format without the AnimationData... to around line 776
+
+
+case "ANIM_ANIMATION_NAME",
+    
+break
+
+This is where the save check is stored, this prevents you from creating a new file over an existing file, once all that is done, you can add the file to the anim_lib file
+Format is as follows
+
+#include "e2shared/slashblade_project/dev/animation_library/anims/anim_animation_name"
+
+now sometimes the e2 writer starts bitching so you have to remove the first table from the animation, i still haven't figured out what causes this but if your animation data looks like this remove the first table
+Example:
+
+@persist ANIM_IDLE_01:table
+ANIM_IDLE_01=table(table(
+ang(0,27,0),
+ang(42,35,-42),
+ang(-6,-88,-22),
+ang(15,7,-15),
+ang(-7,16,13),
+ang(0,103,46),
+ang(31,60,13),
+ang(3,-9,19),
+ang(2,-9,14),
+4,
+60)
+table(
+ang(0,27,0),
+ang(42,35,-42),
+ang(-6,-88,-22),
+ang(15,7,-15),
+ang(-7,16,13),
+ang(0,103,46),
+ang(31,60,13),
+ang(3,-9,19),
+ang(2,-9,14),
+4,
+60))
+
+see how on line 79 of this readme there is no "," if that is the case remove the first table, it's most likely from another animation you were editing before, this is how the animation should look like if it's correct
+Example:
+
+@persist ANIM_IDLE_01:table
+ANIM_IDLE_01=table(table(
+ang(0,27,0),
+ang(42,35,-42),
+ang(-6,-88,-22),
+ang(15,7,-15),
+ang(-7,16,13),
+ang(0,103,46),
+ang(31,60,13),
+ang(3,-9,19),
+ang(2,-9,14),
+4,
+60),
+table(
+ang(0,27,0),
+ang(42,35,-42),
+ang(-6,-88,-22),
+ang(15,7,-15),
+ang(-7,16,13),
+ang(0,103,46),
+ang(31,60,13),
+ang(3,-9,19),
+ang(2,-9,14),
+4,
+60))
+
+now about the format of the animations if you need to know
+@persist ANIM_ANIMATION_NAME:table (type table)
+ANIM_ANIMATION_NAME=table(
+frame_number=table(
+bone1_angles
+bone2_angles
+bone3_angles
+bone4_angles
+bone5_angles
+bone6_angles
+bone7_angles
+bone8_angles
+bone9_angles
+frame_length
+animation_speed_multiplier
+))
+
+------------------------------------------------------------------------------------------------
+###Adding an animation to the core e2
+
+first copy the animation file over to this location
+"e2shared/slashblade_project/anims/"
+
+add the animation to the animation library used in the core e2
+#include "e2shared/slashblade_project/anims/anim_animation_name"
+
+now when you are ready to add the animation to your core e2 depending on what type of animation it is, 
+sheathing animation, special animation, combo animation (another animation can transition to this) or a starting animation (another animation can transition from this)
+here is how to add the animation to the list of available animations
+
+go to around line 157 to "Animations=table()" if the line is not that, you can also just search for it using control + f
+you want to add a new entry with the following format:
+
+Animations["/animation_type/_/animation_name/",table]=ANIM_ANIMATION_NAME
+
+/animation_type/ can be anything really, it's just there to make it easier to read, i use atk_ as attack_ and the /animation_name/ also doesn't have to match the ANIM_ANIMATION_NAME name
+i also like to add _sheath to the end if it's a sheathing animation, make it something specific that you can remember, you can also create multiple entires with the same animation data for different transitions
+
+------------------------------------------------------------------------------------------------
+###Defining an attack (starting animation or a special animation)
+
+to add an animation as a starting animation for a combo, or a special animation, look to line 352 "function void attack()" this is what defines the attack function,
+add a new entry to the list based on what inputs and other stuff need to be for the attack to play
+there is really no format here but i recommend running these variables
+Frame=0 (or 1 doesn't matter, it gets clamped to 1 anyways)
+FrameTime=0 (sets the frame transition to the start)
+Sheath=0 (sets the sheathing timer to 0, when it reaches 1 it will attempt to sheath the sword, if a sheathing animation for your animation is defined)
+DamageFrame=<0 to disable/value> (sets the frame where you deal damage, set to 0 if you don't want to deal damage using the normal animation framework)
+Cooldown=<value> (sets the cooldown for attacks, prevents you from attacking until this reaches 0)
+                  
+OPTIONAL STUFF
+damageAreaSphere(table(position,size:number,damage))
+damageAreaBox(table(position,box_scale:vector,damage))
+                  
+VIABLE CHECK EXAMPLES
+AnimationData==Animations["animation_name",table] (for checking if the animation matches this or that, useful for checking if the player is idle)
+W or S or A or D (checking for movement button)
+Dodge (is player pressing space? sorry for not making it be space...i regret my actions)
+Shift (is player pressing shift?)
+SummonedSwordButton (is player pressing E)
+owner():isOnGround() (is player on ground?)
+       
+------------------------------------------------------------------------------------------------
+###Defining an attack (combo animation/transition animation)
+
+to add an animation as a combo/transition animation look to around line 269 "function void nextAnim()" this is what defines what animation plays next when doing a combo attack
+add a new entry with the following format:
+       
+case Animations["current_animation",table]:toString(),
+  Frame=1
+  FrameTime=0
+  Sheath=0
+  AnimationData=Animations["next_animation",table]
+  DamageFrame=<value> (what frame you want to deal damage)
+  DamageData=table(position,size:number,damage) (for sphere damage)
+  DamageData=table(position,box_scale:vector,damage) (for box damage)
+  ApplyForce=UpwardForce*!owner():isOnGround() (this keeps you in air when you attack)
+  owner():emitSound("weapons/shovel/shovel_fire.wav",50,100) (default attack sound)
+break
+
+------------------------------------------------------------------------------------------------
+###Defining a sheathing animation
+
+go to around line 317 "function void sheathAnim()" and add a new entry with the following format:
+
+case Animations["current_animation",table]:toString(),
+  AnimationData=Animations["sheathing_animation",table]
+break
+
+------------------------------------------------------------------------------------------------
+###List of custom functions (if you need to know)
+
+function void judgementCutSpawn() (used to create the effect, sets the position and angles of the orb to where you look at)
+function void judgementCutCreateOrb(Count) (creates a new orb, this is run at the start when pasting the e2 down)
+
+function void damageAreaSphere(DamageData:table) (findInSphere damage system, used in basic attacks)
+function void damageAreaBox(DamageData:table) (findInBox damage system, used in movement based attacks, i.e upper cut when you need to deal damage to enemies that are above you when starting the animation etc)
+
+function void nextAnim() (plays next animation in a combo, transition animation)
+function void sheathAnim() (plays a sheathing animation from a defined list)
+function void attack() (used to trigger all attacks in the code, first it will check if the current animation has a combo animation/next animation and if it does it plays that, if not it will check if the button combinations are correct,
+if yes it will play a specified attack
+
+function void summonedSword(Position:vector,ExtraData:table) (spawns a summoned sword, currently there are 10 that you can spawn at once, to cut down on holo count etc, always aims where you aim, ExtraData:table is currently unused, but
+in the future it may be used to create different types of attacks with the summoned swords
+                                                      
+------------------------------------------------------------------------------------------------
+###Final words
+
+Uh yeah that's about it, this should cover you for everything you need, if you got any questions, you should be able to do pull requests etc here, or you can comment on the workshop page or in youtube, anywhere you can get a hold of me

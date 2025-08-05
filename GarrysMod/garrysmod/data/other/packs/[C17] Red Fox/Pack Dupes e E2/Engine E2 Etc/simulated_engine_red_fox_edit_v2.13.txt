@@ -1,0 +1,899 @@
+@name Simulated_Engine Red Fox Edit v2.13
+@inputs [POD, Chassis, Engine, FuelTank]:wirelink [FL FR RL RR]:entity
+@outputs [Engine_Active, Engine_RPM, Engine_Throttle, Engine_Torque, Brake, Flywheel_PowerInertia, Engine_Ignition, Gearbox_Gear, Gearbox_Clutch, Turbo_Boost, Turbo_PSI, Fuel_Capacity, Fuel_Liters, Flywheel_RPM]:number
+@persist [C, E, S, T]:entity Flywheel:array TickMult BrakeTickMult
+@outputs Speed SpeedN InverseBaseSpeed BrakeR BrakeF Tick TickNumber
+@outputs InReverse Braking GearMode
+@persist [Engine_IdleRev, Engine_RevLimiter, Engine_Bore, Engine_Stroke, Engine_Cylinders, Engine_Airflow, Engine_Configuration, Engine_Displacement, Engine_PeakTorque, Engine_Redline, Engine_Mass, Engine_FlywheelMass, Engine_Idle]:number [Engine_TorqueTable]:array
+@persist [Fuel_Enabled, Fuel_Capacity, Fuel_Air_Ratio, Fuel_Density, Air_Density]:number
+@persist [Gearbox_FinalDrive, Gearbox_Delay, Gearbox_LockValue, Gearbox_ClutchSpeed]:number
+@persist [Gearbox_Ratios, ReverseGearRatios, GearSpeeds, ReverseGearSpeeds]:array
+@persist [Turbo, Turbo_Exp, Turbo_Inertia, Turbo_FlowScale, Turbo_DragScale, Turbo_PSIMax, Turbo_AirPressure, Turbo_MaxFlow, Turbo_MaxRPM]:number
+@persist [Engine_SoundOn, Engine_SoundOff]:string Drivetrain HandbrakePower StoppedPhaseBrakeSpeed ReverseWSonReverse
+@trigger none
+ 
+@persist [Gearbox_Ratio, Gearbox_Gear, Gearbox_Lock, Gearbox_Clutch]:number ClassicAuto GearMode
+@persist [Throttle_Delay, Clutch_Delay]:number UseClutchLerpInManual
+@persist InReverse AutoGear SpeedToReverse Min_Gear_Time Min_Reverse_Gear_Time ClutchLerp ClutchLerpReverse
+@persist [Fuel_Liters]:number BrakeFeedB BrakeFeedBMult BrakeMult
+@persist [Brake, Engine_IdleThrottle, Engine_Ignition, Engine_PowerCut, Engine_Volume, Flywheel_PowerInertia]:number
+@persist [Turbo_RPM]:number Tick ChassisAccFeed ChassisAccFeedMult StoppedBrakeMult HandbrakePowerMult
+@persist StoppedBrake FirstPhaseBrakeF FirstPhaseBrakeR FirstPhaseBrakeSpeed SecondPhaseBrakeF SecondPhaseBrakeR SecondPhaseBrakeSpeed ThirdPhaseBrakeF ThirdPhaseBrakeR ThirdPhaseBrakeSpeed
+
+Flywheel[1,entity] = FL
+Flywheel[2,entity] = FR
+Flywheel[3,entity] = RL
+Flywheel[4,entity] = RR
+
+ 
+if (duped() | dupefinished()) {reset()} else {runOnTick(1)}
+
+Speed=toUnit("km/h",Chassis:entity():vel():length())
+SpeedN=-toUnit("km/h",Chassis:entity():velL():x()) #something to fix a certain behaviour in reverse when going downhill
+Tick = tickInterval()
+
+
+################################################################################################################################
+#[
+Changelog:
+
+V2.13
+Classical auto gear behaviour option (PRND12)
+
+V2.12
+
+Fixed some bugs
+Added primitive multiple Reverse gearbox gears
+
+To do:
+Find more bugs and fix them
+Improve Auto gear behaviour
+
+
+]#
+
+################################################################################################################################
+
+if (first()) {
+   
+    Version = 2.13
+    
+    Drivetrain = 1 #0 AWD, 1 RWD, 2 FWD
+    
+    #InverseBaseSpeed = 1
+    
+   
+    HandbrakePowerMult = 6
+    BrakeMult = 1
+    
+    AutoGear = 1
+    ClassicAuto = 1 #Classic P R N D 1 2 auto
+    ReverseWSonReverse = 1 #Just in case you prefer this way, only works with ClassicAuto
+    SpeedToReverse = 2
+    Min_Gear_Time = 250 # Minimum time in milliseconds to stay in gear before changing, is it really reliable?
+    Min_Reverse_Gear_Time = 150 #same as above but for reverse
+    UseClutchLerpInManual = 1
+    ClutchLerp = 0.4
+    ClutchLerpReverse = 0.5
+    
+    FirstPhaseBrakeSpeed = 10
+    SecondPhaseBrakeSpeed = 60
+    ThirdPhaseBrakeSpeed = 100
+    
+    StoppedBrakeMult = 10
+    StoppedPhaseBrakeSpeed = 5
+
+    
+    FirstPhaseBrakeR = 0.7
+    FirstPhaseBrakeF = 0.9
+    
+    SecondPhaseBrakeR = 0.15
+    SecondPhaseBrakeF = 0.4
+    
+    ThirdPhaseBrakeR = 0.05
+    ThirdPhaseBrakeF = 0.3
+    
+    ChassisAccFeedMult = 39.37
+    BrakeFeedBMult = -1
+
+ if(Tick >= 0.030)
+    {
+        TickMult = 1
+        BrakeTickMult = BrakeMult
+        ChassisAccFeed = ChassisAccFeedMult/2
+        BrakeFeedB = BrakeFeedBMult
+        TickNumber = 33
+        HandbrakePower = HandbrakePowerMult/2
+        StoppedBrake = StoppedBrakeMult/2
+    }
+    else
+    {
+        TickMult = 2/4
+        BrakeTickMult = BrakeMult/4
+        ChassisAccFeed = ChassisAccFeedMult/4
+        BrakeFeedB = BrakeFeedBMult
+        TickNumber = 66
+        HandbrakePower = HandbrakePowerMult
+        StoppedBrake = StoppedBrakeMult
+    }
+    
+    
+    Engine_Bore = 81
+    Engine_Stroke = 80.5
+    Engine_Cylinders = 2
+    Engine_Airflow = 110
+    Engine_Idle = 800
+    Engine_IdleRev = 0.1
+    Engine_RevLimiter = 1
+    Engine_TorqueTable = array(0.55, 0.66, 1.04, 1.52, 1.6)
+    Engine_FlywheelMass = 5
+    Engine_Configuration = 0
+    Engine_Configurations = table(
+        0 = "Inline-",
+        1 = "V"
+    ) 
+    Gearbox_Ratios = array(
+        
+        3.77,
+        2.09,
+        1.47,
+        1.10,
+        0.85,
+        0.77,
+        0.66
+
+    )
+    
+    #Just treat the last speed as a high value, the true last value for the last gear is always one gear speed less
+    #FOR AUTO
+    GearSpeeds = array(
+        29,
+        55,
+        78,
+        103,
+        126,
+        140,
+        160
+    
+    )
+    
+    ReverseGearRatios = array(
+        -5.80
+        
+    )
+    
+    #Same as GearSpeeds, if theres only a single gear, just put a high value
+    ReverseGearSpeeds = array(
+        15
+
+    ) 
+ 
+
+    #Gearbox_Ratios[-1, number] = -5.727
+    Gearbox_FinalDrive = -12.235
+    Gearbox_Delay = 50
+    Gearbox_ClutchSpeed = 1
+    Gearbox_LockValue = 0.05
+   
+    Fuel_Enabled = 0
+    Fuel_Air_Ratio = 1 / 12.5
+    Fuel_Density = 0.72 # 0.72 | 0.745 ( Petrol | Diesel )
+    Air_Density = 0.0012
+   
+    Engine_Displacement = round((Engine_Cylinders * pi() * Engine_Bore ^ 2 * Engine_Stroke / 4000000), 1)
+    Engine_PeakTorque = round((Engine_Stroke / Engine_Bore * Engine_Displacement * Engine_Airflow) * (Engine_Stroke  / Engine_Bore), 2)
+    Engine_PeakTorque *= 1.6
+    
+    Engine_Redline = round((Engine_Bore / Engine_Stroke / Engine_Cylinders * Engine_Airflow * 2000 / 6), 0)
+    Engine_Redline *= (Engine_Bore / Engine_Stroke)
+    Engine_Redline -= Engine_Redline % 100
+    Engine_Redline = 7000 # Override original value
+    
+    Engine_Mass = round((floor(Engine_Displacement * 45 + Engine_Cylinders * 4 + clamp(Engine_Configuration, 0, 1) * 10)), 0)
+    Engine_Mass += Engine_FlywheelMass
+    Engine_Mass += (Gearbox_Ratios:count() * 8.66)
+   
+    Turbo = 0
+    Turbo_Exp = 1
+    Turbo_Inertia = 0.035
+    Turbo_FlowScale = 100
+    Turbo_DragScale = 0.01
+    Turbo_PSIMax = 20
+    Turbo_AirPressure = 18.4
+    Turbo_MaxFlow = Engine_Redline * ((Turbo_PSIMax + Turbo_AirPressure) / Turbo_AirPressure)
+    Turbo_MaxRPM = 7000
+ 
+    C = Chassis:entity()
+   
+    
+    E = Engine:entity()
+        #E:setMass(Engine_Mass)
+        E:propInertia(maxVec(vec(Engine_Mass, Engine_Mass, 2), vec(40, 40, 2)))
+   
+    T = FuelTank:entity()
+    Fuel_Capacity = T:boxSize():length()
+    Fuel_Liters = Fuel_Capacity
+   
+    foreach (K, V:entity = Flywheel) {
+        #V:setMass(Engine_Mass)
+        #V:propInertia(maxVec(vec(Engine_Mass, Engine_Mass, 2), vec(40, 40, 2)))
+       # V:propGravity(0)
+    }
+    
+    local Engine_HP = (Engine_PeakTorque * Engine_Redline) / 10000
+    
+    setName(
+        "Simulated Engine" + "\n"
+        + Engine_Configurations[Engine_Configuration, string] + Engine_Cylinders + "\n"
+        + "Displacement: " + Engine_Displacement + " L\n"
+        + "Peak Torque: " + Engine_PeakTorque + " nm\n"
+        + "Redline: " + Engine_Redline + "\n"
+        + "Flywheel Mass: " + Engine_FlywheelMass * 0.1 + " kg\n"
+        + "HP: " + Engine_HP +"\n" 
+        +"ACF Replacement" +"\n"
+        + "Version: " + Version
+    )
+ 
+    Engine_SoundOn = "acf_engines/l6_dieselsmall.wav"
+    Engine_SoundOff = "acf_engines/v12_dieselsmall.wav"
+ 
+    function void loadSounds() {
+        E:soundPlay("On", 0, Engine_SoundOn:lower())
+        E:soundPlay("Off", 0, Engine_SoundOff:lower())
+        if (Turbo) {
+            E:soundPlay("Turbo", 0, "acf_engines/turbine_small.wav")
+        }
+    }
+   
+    loadSounds()
+   
+    runOnLast(1)
+}
+
+#Used to get engine direction of which affects wheel rotation
+#If something is not behaving correctly this is probably why
+#Seriously, get these directions correctly, youll regret it if you dont
+
+#default for cylinder
+
+#up()
+#right()
+#forward()
+
+    EngineDirection = E:up()
+    ChassisFeedDirection = E:right()
+    ChassisFeedForwardDirection = E:forward()
+    
+##############################################################
+ 
+    POD_Active = POD:number("Active")
+ 
+if (changed(POD_Active) | POD_Active) {
+
+
+    #if it works it aint stupid, better than changing whole parts of the code
+    if(AutoGear&ClassicAuto&ReverseWSonReverse&GearMode==1)
+    {
+        Key_W = POD:number("S")
+        Key_S = POD:number("W")
+    }else
+    {
+        Key_W = POD:number("W")
+        Key_S = POD:number("S")
+    }    
+    Key_M1 = POD:number("Mouse1")
+    Key_M2 = POD:number("Mouse2")
+    Key_F = POD:number("Light")
+    Key_R = POD:number("R")
+    Key_Sp = POD:number("Alt")
+    Key_Sh = POD:number("Space")
+    Key_Alt = POD:number("Shift")
+    Key_Z = POD:number("Zoom")
+
+   
+    #[if (changed(Key_Z) && Key_Z) {
+        Gearbox_Lock = !Gearbox_Lock    
+    }]#
+   
+   
+    if (changed(Key_F)) {
+        if (Engine_Ignition == 1 && Engine_Active == 0) {
+            Engine_Ignition = 2
+        }
+       
+        if (Engine_Ignition == 2 & !Key_F) {
+            Engine_Ignition = 1
+        }
+    }
+   
+    if (changed(Key_F) & Key_F) {
+        if (Engine_Ignition == 0) {
+            Engine_Ignition = 1
+        }
+   
+        if (Engine_Ignition == 1 && Engine_Active == 1) {
+            Engine_Ignition = 0
+        }
+    }
+   
+    Engine_Ignition = min(Engine_Ignition, (Engine_Active ? 1 : 2))
+   
+    if (changed(Engine_Ignition)) {
+        if (Engine_Ignition == 2) {
+            E:soundPlay("Start", 0, "acf_extra/vehiclefx/starters/starter2.wav")
+            soundVolume("Start", 0.5)
+        } else {
+            soundStop("Start")
+        }
+    }
+ 
+    soundPitch("Start", max(Engine_RPM / Engine_Idle, 0.35) * 200)
+    if(!AutoGear)
+    {
+        Gearbox_Gear += (changed(Key_M1) & Key_M1) - (changed(Key_M2) & Key_M2)
+        Gearbox_Gear *= !(changed(Key_R) & Key_R)
+        if(Gearbox_Gear>=0)
+        {
+            Gearbox_Gear = clamp(Gearbox_Gear, 0, Gearbox_Ratios:count())
+        }elseif(Gearbox_Gear<=1)
+        {
+            Gearbox_Gear = clamp(Gearbox_Gear, -ReverseGearRatios:count(), 0)
+        }
+       
+        if(Gearbox_Gear<=-1)
+        {
+            InReverse = 1
+        }else{InReverse = 0}
+    }
+    
+    if(AutoGear&ClassicAuto)
+    {
+        GearMode += (changed(Key_M1) & Key_M1) - (changed(Key_M2) & Key_M2)
+        #GearMode *= !(changed(Key_R) & Key_R)
+        if(Speed>=StoppedPhaseBrakeSpeed&Key_M2)
+        {
+            GearMode = clamp(GearMode, 2, 5)     
+        }else{GearMode = clamp(GearMode, 0, 5)}
+    }
+    if (changed(Gearbox_Gear)) {
+        if(!AutoGear)
+        {
+            if (Gearbox_Ratios[Gearbox_Gear, number]&!InReverse) {
+                Gearbox_Ratio = Gearbox_Ratios[Gearbox_Gear, number] * Gearbox_FinalDrive
+            }
+            if(Gearbox_Gear<=-1)
+            {
+                Gearbox_Ratio = ReverseGearRatios[Gearbox_Gear * -1, number] * Gearbox_FinalDrive
+            }
+        }
+       
+        C:soundPlay("Gear_Change", 0, "physics/plaster/ceiling_tile_impact_hard3.wav")
+            soundPitch("Gear_Change", 60)
+            soundVolume("Gear_Change", 0.3)
+ 
+        timer("Gear_Change", Gearbox_Delay)
+           
+        Throttle_Delay = 1
+        Clutch_Delay = 1
+       
+        foreach (K, V:entity = Flywheel) {
+            local Mass = max(Engine_Mass * Gearbox_Ratio, Engine_Mass)
+            #V:setMass(Mass)
+            #V:propInertia(maxVec(vec(Mass, Mass, 2), vec(40, 40, 2)))
+        }
+    }
+if(!AutoGear)
+{   
+    Brake += (Key_S - Brake) * 0.155
+    Brake *= Key_S
+}else
+{
+    if(ClassicAuto&GearMode==0){Brake = 1 Braking = 1 InReverse = 0}
+    elseif (ClassicAuto&(Gearbox_Gear >= 0 && Key_S&GearMode==2)) 
+    {
+        
+        if(SpeedN>SpeedToReverse)
+        {
+            Braking = 1
+        }
+        Brake += (1 - Brake) * 0.155  # Smooth increase of Brake
+        Brake *= Key_S  # Ensures Brake is applied only if Key_S is pressed
+        
+        Gearbox_Clutch = 1
+ 
+        
+    }
+    elseif (Gearbox_Gear >= 1 && Key_S) 
+    {
+        
+        if(SpeedN>SpeedToReverse)
+        {
+            Braking = 1
+        }
+        Brake += (1 - Brake) * 0.155  # Smooth increase of Brake
+        Brake *= Key_S  # Ensures Brake is applied only if Key_S is pressed
+        
+        if(!Key_Sh || Key_Sh && Key_Sp)
+        {
+            Gearbox_Clutch = 1
+        }
+        
+    } elseif (InReverse && Key_W) {
+        
+        if(SpeedN<SpeedToReverse*-1)
+        {
+            Braking = 1
+        }
+        Brake += (1 - Brake) * 0.155  # Smooth increase of Brake
+        Brake *= Key_W  # Ensures Brake is applied only if Key_W is pressed
+    } else
+    {
+        Braking = 0
+        Brake = 0
+    }
+    
+    
+if(Key_S&InReverse&!Key_W){Brake=0}
+#if(InReverse&Key_W){Gearbox_Gear = 0}
+
+}
+
+}
+ 
+if (!Key_Sp&AutoGear) {
+
+# Handle gear change logic
+if (!InReverse&!Braking||(ClassicAuto&GearMode==3)) {
+    
+        
+        if (Gearbox_Gear >= 1 & Key_S) {
+            Gearbox_Gear = Gearbox_Gear
+            Gearbox_Clutch = 1
+            Engine_Throttle = 0
+        }
+    
+    if(Key_W&InReverse&SpeedN>=SpeedToReverse || ClassicAuto&(GearMode == 0 | GearMode >= 2))
+    {
+        InReverse = 0
+    }
+    if((Key_S & Speed<=SpeedToReverse)&!ClassicAuto | (Key_S & SpeedN<=SpeedToReverse)&!ClassicAuto |ClassicAuto&GearMode == 1)
+        {
+            InReverse = 1
+        }elseif(SpeedN<-1&!InReverse)
+        {
+           InReverse = 1
+        } 
+    
+    # Forward gears logic
+    for (I = 1, GearSpeeds:count()) {
+        if (Speed <= GearSpeeds[I, number]&!InReverse) {
+            # Check if the gear change is needed
+            if (Gearbox_Gear != I) {
+                # Start or update the gear change timer
+                if (!clk("Gear_Timer") || Gearbox_Gear == I) {
+                    timer("Gear_Timer", Min_Gear_Time)
+                }
+
+                # If the timer is done and the gear has changed
+                if (clk("Gear_Timer")) {
+                    #PreviousGear = Gearbox_Gear
+                    Gearbox_Gear = I
+                    # Set the gear ratio
+                    
+                    # Print debug message (optional)
+                    #print("Gear changed to: ", Gearbox_Gear)
+                    # Start a new timer for the gear change delay
+                    timer("Gear_Change", Gearbox_Delay)
+                }
+            }
+            break
+        }
+    }
+    Gearbox_Ratio = Gearbox_Ratios[Gearbox_Gear, number] * Gearbox_FinalDrive
+    
+} elseif(InReverse&!Braking|(ClassicAuto&GearMode==1)) {
+
+        # Reverse gear logic
+        if (Gearbox_Gear >= 1 & Key_S) {
+            Gearbox_Gear = Gearbox_Gear
+            Gearbox_Clutch = 1
+            Engine_Throttle = 0
+        }
+        
+        if(Key_S & Speed<=SpeedToReverse | Key_S & SpeedN<=SpeedToReverse | (ClassicAuto&GearMode == 1))
+        {
+            InReverse = 1
+        }elseif(SpeedN>=0&InReverse)
+        {
+           InReverse = 0
+        }
+    # Update the reverse gear timer to ensure the minimum time
+    if (!clk("Reverse_Gear_Timer")) {
+        timer("Reverse_Gear_Timer", Min_Reverse_Gear_Time)
+    }
+    
+    # Check if reverse gear needs to be changed
+    for (I = 1, ReverseGearSpeeds:count()) {
+        if (Speed <= ReverseGearSpeeds[I, number] & InReverse) {
+            # Only change reverse gear if the minimum time has elapsed
+            if (clk("Reverse_Gear_Timer")) {
+                Gearbox_Gear = -(I)  # Set to reverse gear with index
+               # InReverse = 1
+                # Set the reverse gear ratio
+                
+                # Print debug message (optional)
+                #print("Reverse gear changed to: ", Gearbox_Gear)
+                # Start a new timer for the gear change delay
+                timer("Reverse_Change", Gearbox_Delay)
+                break
+            }
+        }
+    }
+    
+    Gearbox_Ratio = ReverseGearRatios[Gearbox_Gear * -1, number] * Gearbox_FinalDrive
+
+    }
+}
+if(AutoGear&ClassicAuto&(GearMode==2|GearMode==0)){Gearbox_Gear = 0}
+if(AutoGear&ClassicAuto&(GearMode==4)){Gearbox_Gear = 1}
+if(AutoGear&ClassicAuto&(GearMode==5)){Gearbox_Gear = 2}
+
+if ((AutoGear) & (Key_W && Speed <= SpeedToReverse && !Key_S)&ClassicAuto&((GearMode>=3)&!(GearMode==1))) {
+    Gearbox_Gear = 1
+    if(!Braking)
+    {
+        InReverse = 0  # Reset reverse engaged flag
+    }
+    #Gearbox_Ratio = Gearbox_Ratios[Gearbox_Gear, number] * Gearbox_FinalDrive
+}
+
+if (clk("Beep")) {
+    soundStop("Beep")
+   
+    C:soundPlay("Beep", 1, "buttons/bell1.wav")
+    soundVolume("Beep", 0.2)
+    soundPitch("Beep", 200)
+}
+if(!AutoGear)
+{
+    if(Speed<=StoppedPhaseBrakeSpeed&Key_S|POD_Active==0)
+    {
+        BrakeR = StoppedBrake
+        BrakeF = StoppedBrake
+        Brake=1
+    }
+    elseif(Speed>=ThirdPhaseBrakeSpeed)
+    {
+        BrakeR = ThirdPhaseBrakeR
+        BrakeF = ThirdPhaseBrakeF
+    }
+    elseif(Speed>=SecondPhaseBrakeSpeed)
+    {
+        BrakeR = SecondPhaseBrakeR
+        BrakeF = SecondPhaseBrakeF
+    }
+    elseif(Speed>=FirstPhaseBrakeSpeed)
+    {
+        BrakeR = FirstPhaseBrakeR
+        BrakeF = FirstPhaseBrakeF
+    }
+if (Key_Sh&Speed>=SpeedToReverse) {
+    BrakeF = 0
+    BrakeR = HandbrakePower
+    Brake = 1
+}elseif(Key_Sh&Speed <= SpeedToReverse)
+{
+    BrakeR = StoppedBrake
+    BrakeF = StoppedBrake
+    Brake = 1
+}
+}else
+{
+StoppedBrake = StoppedBrakeMult
+
+# Apply handbrake logic
+if ((Speed <= StoppedPhaseBrakeSpeed) && (!Key_W && !Key_S) || POD_Active == 0) {
+    BrakeR = StoppedBrake
+    BrakeF = StoppedBrake
+    Brake = 1
+}elseif(Speed>=ThirdPhaseBrakeSpeed)
+    {
+        BrakeR = ThirdPhaseBrakeR
+        BrakeF = ThirdPhaseBrakeF
+    }
+    elseif(Speed>=SecondPhaseBrakeSpeed)
+    {
+        BrakeR = SecondPhaseBrakeR
+        BrakeF = SecondPhaseBrakeF
+    }
+    elseif(Speed>=FirstPhaseBrakeSpeed)
+    {
+        BrakeR = FirstPhaseBrakeR
+        BrakeF = FirstPhaseBrakeF
+    }
+if (Key_Sh&Speed>=SpeedToReverse) {
+    BrakeF = 0
+    BrakeR = HandbrakePower
+    Brake = 1
+}elseif(Key_Sh&Speed <= SpeedToReverse)
+{
+    BrakeR = StoppedBrake
+    BrakeF = StoppedBrake
+    Brake = 1
+}
+
+
+}
+
+ 
+ 
+Engine_Active = (Engine_RPM > 350) * sign(Engine_Ignition)
+if (Engine_Ignition & !Engine_Active) {timer("Beep", 1200)}
+if (changed(Engine_Active) & Engine_Active) {loadSounds(), stoptimer("Beep")}
+if (!Engine_Active & (Engine_Ignition == 2) & (Gearbox_Clutch == 1)) {Engine_RPM += 25}
+ 
+Chassis_Feedback = vec()
+Flywheels_RPM = array()
+ 
+#[foreach (K, V:entity = Flywheel) {
+    Flywheels_RPM[K, number] = V:angVelVector():dot(V:toLocalAxis(E:up())) / 6
+}]#
+    Flywheels_RPM[1,number] = FL:angVelVector():dot(FL:toLocalAxis(EngineDirection)) / 8
+    Flywheels_RPM[2,number] = FR:angVelVector():dot(FR:toLocalAxis(EngineDirection)) / 8
+    Flywheels_RPM[3,number] = RL:angVelVector():dot(RL:toLocalAxis(EngineDirection)) / 8
+    Flywheels_RPM[4,number] = RR:angVelVector():dot(RR:toLocalAxis(EngineDirection)) / 8
+    if (Key_S|(Key_W&InReverse&AutoGear)|(Speed<=StoppedPhaseBrakeSpeed&&(!Key_W&&!Key_S))|Key_Sh|POD_Active==0|(ClassicAuto&GearMode==0)) {
+        local ForceFL = 500 * (Flywheels_RPM[1, number]) * Brake *BrakeTickMult
+        local ForceFR = 500 * (Flywheels_RPM[2, number]) * Brake *BrakeTickMult
+        local ForceRL = 500 * (Flywheels_RPM[3, number]) * Brake *BrakeTickMult
+        local ForceRR = 500 * (Flywheels_RPM[4, number]) * Brake *BrakeTickMult        
+        FL:applyTorque(FL:toLocalAxis(-EngineDirection) * ForceFL * BrakeF)
+        FR:applyTorque(FR:toLocalAxis(-EngineDirection) * ForceFR * BrakeF)
+        RL:applyTorque(RL:toLocalAxis(-EngineDirection) * ForceRL * BrakeR)
+        RR:applyTorque(RR:toLocalAxis(-EngineDirection) * ForceRR * BrakeR)
+        
+        Chassis_Feedback += (ForceFL + ForceFR + ForceRL + ForceRR)/4 * BrakeFeedB
+    }
+
+ 
+#if (Chassis_Feedback) {C:applyTorque(Chassis_Feedback * C:toLocalAxis(E:up()))}
+if (Chassis_Feedback) {C:applyAngForce(ang(-Chassis_Feedback:x(),0,0))} #should hopefully fix a bug
+
+if(Drivetrain==1||Drivetrain==2)
+{ 
+    Flywheel_RPM = Flywheels_RPM:average()/2
+}else
+{
+    Flywheel_RPM = Flywheels_RPM:average()
+}
+Gearbox_Clutch -= Gearbox_Clutch * Gearbox_ClutchSpeed
+if(!AutoGear)
+{
+    if (!Gearbox_Gear | Clutch_Delay | Key_Sp) {Gearbox_Clutch = 1}
+}else
+{
+    if (!Gearbox_Gear || Clutch_Delay || Key_Sp || !(Key_W || Key_S)&Speed<=5||(ClassicAuto&GearMode==2))
+    {  
+        Gearbox_Clutch = 1
+    
+    }elseif((Brake) && Key_Sh&&InReverse || Key_Sh &&Key_Sp)
+    
+        {  
+             Gearbox_Clutch = 1
+        }elseif(((Brake) && (Key_W || Key_S)&&!Key_Sh))
+        {
+            Gearbox_Clutch = 1
+        }
+        elseif (Key_Sh)
+        {
+            Gearbox_Clutch = max(Gearbox_Clutch, 0.25)
+        }
+        if(Key_S&InReverse)
+        {
+            #Gearbox_Clutch = 0
+        }
+
+}
+if(!AutoGear)
+{
+    if(Key_S)
+    {
+        if(Key_S && Key_F)
+        {
+            Gearbox_Clutch=1
+        }else{Gearbox_Clutch=1}
+    }
+}else
+{
+   if(Key_S)
+    {
+        if(Key_S && Key_F)
+        {
+            Gearbox_Clutch=1
+        }
+    } 
+}
+if (Key_Sh) {Gearbox_Clutch = max(Gearbox_Clutch, 0.25)}
+
+if(AutoGear)
+{
+    if(!InReverse)
+    {
+        Gearbox_Clutch = max(Gearbox_Clutch, ClutchLerp - (Engine_RPM / Engine_Redline), 0)
+    }else
+    {
+        Gearbox_Clutch = max(Gearbox_Clutch, ClutchLerpReverse - (Engine_RPM / Engine_Redline), 0)
+    }
+}
+if(UseClutchLerpInManual & !AutoGear)
+{
+    Gearbox_Clutch = max(Gearbox_Clutch, ClutchLerp - (Engine_RPM / Engine_Redline), 0)
+}
+ 
+Engine_RealRPM = (Engine_RPM * Gearbox_Clutch) + ((Flywheel_RPM * Gearbox_Ratio) * (1 - Gearbox_Clutch))
+ 
+
+
+if(AutoGear)
+{
+    if(Key_S & Brake & !InReverse)
+    {
+        Engine_Throttle = 0
+    }elseif(Key_W & InReverse)
+    {
+        Engine_Throttle = 0
+    }
+    else
+    {
+        Engine_Throttle = ((Key_W || Key_S) ? (Key_Alt ? 1 : 0.50) : 0)
+    }
+}else
+{
+    Engine_Throttle = (Key_W ? (Key_Alt ? 1 : 0.50) : 0)
+} 
+
+ 
+Engine_IdleThrottle += ((min(Engine_RPM, Engine_RealRPM) < Engine_Idle) ? Engine_IdleRev : -Engine_IdleRev)
+Engine_IdleThrottle = clamp(Engine_IdleThrottle, 0, 0.5) * Engine_Active
+ 
+Engine_Throttle = max(Engine_Throttle, Engine_IdleThrottle)
+ 
+if (Fuel_Enabled) {
+    Fuel_Liters -= ((((Engine_Displacement * (Engine_RPM/2)) * Air_Density * Fuel_Air_Ratio)/Fuel_Density)/(65*60) * max(Engine_Throttle, 0.01)) * Engine_Active
+    Fuel_Liters = clamp(Fuel_Liters, 0, T:boxSize():length())
+    Engine_Active *= (Fuel_Liters > 0)
+    T:setMass(round((Fuel_Liters * Fuel_Density) + (T:boxSize():length() * 0.1), 1))
+}
+ 
+Engine_Throttle *= Engine_Active
+Engine_Throttle *= !Throttle_Delay
+ 
+# Manage engine power cut
+Engine_PowerCut += ((Engine_RealRPM > Engine_Redline) ? 1 : -1)
+Engine_PowerCut = clamp(Engine_PowerCut, 0, 1) * round(Engine_Throttle)
+ 
+if (clk("Gear_Change")) {Throttle_Delay = 0, Clutch_Delay = 0}
+ 
+Factor = clamp((Engine_RPM / Engine_Redline), 0, 1)
+Engine_Torque = (5 * (1 - Factor) ^ 4 * Factor * Engine_TorqueTable[1, number]) + (10 * (1 - Factor) ^ 3 * Factor ^ 2 * Engine_TorqueTable[2, number]) + (10 * (1 - Factor) ^ 2 * Factor ^ 3 * Engine_TorqueTable[3, number]) + (5 * (1 - Factor) * Factor ^ 4 * Engine_TorqueTable[4, number]) + (Factor ^ 5 * Engine_TorqueTable[5, number])
+Engine_Torque = clamp(Engine_Torque, 0, 1)
+ 
+if (Turbo) {
+    Turbo_PSI = Turbo_PSIMax * Turbo_RPM / Turbo_MaxRPM
+ 
+    Turbo_Boost = (Turbo_PSI + Turbo_AirPressure) / Turbo_AirPressure
+ 
+    Turbo_Flow = max(Engine_RPM, 1) * Turbo_Boost / Turbo_MaxFlow
+ 
+    Turbo_Drag = (Turbo_MaxFlow * Turbo_DragScale) * (Turbo_RPM / Turbo_MaxRPM) * (1 - Engine_Throttle) / Turbo_Inertia
+ 
+    Turbo_RPM = clamp(Turbo_RPM + (Turbo_FlowScale * (Turbo_Flow ^ Turbo_Exp)) / Turbo_Inertia - Turbo_Drag, 1, Turbo_MaxRPM)
+   
+    soundVolume("Turbo", (Turbo_Flow / 2 - 0.25))
+    soundPitch("Turbo", 75 + 50 * Turbo_RPM / Turbo_MaxRPM)
+   
+    if (changed(Engine_Throttle) & !Engine_Throttle) {
+        soundStop("BOV")
+       
+        E:soundPlay("BOV", 1, "acf_extra/vehiclefx/boost/turbo_hiss1.wav")
+            soundVolume("BOV", max((Turbo_RPM / Turbo_MaxRPM) - 0.5, 0))
+            soundPitch("BOV", 85 + 25 * (Turbo_RPM / Turbo_MaxRPM))
+    }
+   
+    Engine_Torque *= (Turbo_Boost / 1.25)
+}
+ 
+Flywheel_PowerInertia += ((Engine_PeakTorque * Engine_Torque) - Flywheel_PowerInertia) / Engine_FlywheelMass
+Flywheel_PowerInertia = max(Flywheel_PowerInertia, (Engine_PeakTorque * Engine_Torque))
+ 
+if (Gearbox_Clutch < 1) {
+    Engine_Inertia = clamp(Engine_RealRPM, 0, Engine_Redline) - (Flywheel_RPM * Gearbox_Ratio)
+    Engine_Inertia *= (1 - Gearbox_Clutch)
+    Engine_Inertia /= Engine_Redline
+   
+    Engine_Throttle -= ((0.285 * (Engine_RealRPM / Engine_Redline)) * (Engine_Throttle <= 0))
+ 
+    Flywheel_Power = Flywheel_PowerInertia
+    Flywheel_Power *= Gearbox_Ratio
+    Flywheel_Power *= (1 - Gearbox_Clutch)
+   
+    Flywheel_Power *= min(clamp(Engine_Throttle, -1, ((1 - Engine_PowerCut) ^ 2)) + Engine_Inertia, 1)
+    Flywheel_Power *= clamp(1 - (((Engine_RealRPM / Engine_RPM) - 1) * Engine_Throttle), -1, 1) ^ Engine_FlywheelMass
+    
+    if(Engine_PowerCut || !Engine_Active)
+    {
+        Flywheel_Power = 0
+    }
+     
+    if (Flywheel_Power) {
+        #[foreach (K, V:entity = Flywheel) {
+            V:applyOffsetForce(E:right() *TickMult * (Flywheel_Power / Flywheel:count()), V:pos() - (E:forward() * 39.37))
+            V:applyOffsetForce(E:right() *TickMult * -(Flywheel_Power / Flywheel:count()), V:pos() + (E:forward() * 39.37))
+        }]#
+        
+        Flywheel[1, number] 
+        Flywheel[2, number] 
+        Flywheel[3, number] 
+        Flywheel[4, number] 
+        
+        if(Drivetrain==2)
+        {
+            FL:applyTorque(FL:toLocalAxis(EngineDirection) *TickMult * (Flywheel_Power / Flywheel:count()) * 39.37 * 2)
+            
+            FR:applyTorque(FR:toLocalAxis(EngineDirection) *TickMult * (Flywheel_Power / Flywheel:count()) * 39.37 * 2)
+            
+       }
+        elseif(Drivetrain==1)
+        {
+            RL:applyTorque(RL:toLocalAxis(EngineDirection) *TickMult * (Flywheel_Power / Flywheel:count()) * 39.37 * 2)
+            
+            RR:applyTorque(RR:toLocalAxis(EngineDirection) *TickMult * (Flywheel_Power / Flywheel:count()) * 39.37 * 2)
+          
+        }else
+        {
+         
+            FL:applyTorque(FL:toLocalAxis(EngineDirection) *TickMult * (Flywheel_Power / Flywheel:count()) * 39.37 * 2)
+            
+            FR:applyTorque(FR:toLocalAxis(EngineDirection) *TickMult * (Flywheel_Power / Flywheel:count()) * 39.37 * 2)
+
+            RL:applyTorque(RL:toLocalAxis(EngineDirection) *TickMult * (Flywheel_Power / Flywheel:count()) * 39.37 * 2)
+
+            RR:applyTorque(RR:toLocalAxis(EngineDirection) *TickMult * (Flywheel_Power / Flywheel:count()) * 39.37 * 2)
+            
+        }
+ 
+        # Apply chassis forces
+        C:applyOffsetForce(ChassisFeedDirection * -Flywheel_Power, E:pos() - (ChassisFeedForwardDirection * ChassisAccFeed))
+        C:applyOffsetForce(ChassisFeedDirection * Flywheel_Power, E:pos() + (ChassisFeedForwardDirection * ChassisAccFeed))
+    }
+   
+    Gearbox_Feedback = (Flywheel_RPM * Gearbox_Ratio) - Engine_RPM
+    Gearbox_Feedback /= Engine_FlywheelMass
+}
+ 
+Gearbox_Feedback *= (1 - Gearbox_Clutch)
+ 
+Engine_Feedback = (sign(Engine_Throttle) * Engine_Redline - Engine_RPM) * (sign(Engine_Throttle) ? (abs(Engine_Throttle * Engine_Torque)) : (Engine_Active ? 0.03 : 0.13)) / 4
+Engine_Feedback *= Gearbox_Clutch
+ 
+Engine_RPM += min(Gearbox_Feedback + Engine_Feedback, (Engine_Redline - Engine_RPM) / (Engine_FlywheelMass * (Engine_Stroke / Engine_Bore)))
+if (Engine_RPM > (Engine_Redline * 0.95) && Engine_RevLimiter) {Engine_RPM = Engine_Redline * 0.9}
+Engine_RPM = min(Engine_RPM, Engine_Redline)
+Engine_RPM *= random(0.995, 1.005)
+ 
+ 
+EngThr = abs(Engine_Throttle)
+
+Engine_Volume += (max(EngThr ^ 1.25, (Engine_RPM / 9000) * 0.25) - Engine_Volume) * 0.2
+Engine_Volume = clamp(Engine_Volume,0,5) 
+
+soundPitch("On", (Engine_RPM / 9000) * 155 + (50 * Engine_Active))
+soundVolume("On", Engine_Volume * 0.75)
+ 
+soundPitch("Off", (Engine_RPM / 9000) * 155 + (50 * Engine_Active))
+soundVolume("Off", ((1 - Engine_Volume) ^ 1.5) * 0.25)
+
+
+S:propFreeze(1)
+S:setAng(E:angles())
+

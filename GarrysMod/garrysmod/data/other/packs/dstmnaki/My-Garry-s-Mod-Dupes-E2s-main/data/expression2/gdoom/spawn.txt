@@ -1,0 +1,838 @@
+@name GDoom/Spawn
+@inputs [Camera EGP]:wirelink [Seat]:entity
+@persist [MOVEMODE MOVETYPE]:string [TIME_DELTA TIME_CURRENT] [PLAYER]:entity [DIR_UP ViewPos]:vector [ViewAng]:angle [CONTROLLER]:entity Health Armor Val XTest ValTest BunnyHopAddSpeed
+@persist [LCtrl] [Weapons Ammo HasWeapons]:table PickupWeaponID AmmoType AmmoAddAmount
+@persist [POSITION VELOCITY GRAVITY]:vector [DIR_MOVE DIR_LOOK]:vector [BBOX_MIN BBOX_MAX]:vector [BBOX_RAD]
+@persist [HIT_BELOW HIT_ABOVE HIT_BBOX]
+@persist [HEIGHT_STAND HEIGHT_CROUCH HEIGHT_JUMP HEIGHT_CURRENT] [K_GRAVITY]
+@trigger none
+@model models/maxofs2d/hover_plate.mdl
+@persist [Channel]:string Ready Weapon
+@persist Godmode PitchUnlock
+@outputs Weapon
+if(dupefinished()){reset()}
+if (first()) {
+    Channel="GDoom-"+owner():steamID()
+    Name=owner():name()
+    dsSetScope(2)
+    dsJoinGroup(Channel)
+    runOnSignal(Channel,2,1)
+    setName("Doomguy")
+    Weapon=Ready=1
+    function number vector:isInCone(Origin:vector,Dir:angle,ConeAng,Dist){
+        local TargPos = This
+        local Dang = bearing(Origin,Dir,TargPos)
+        local Fang = elevation(Origin,Dir,TargPos)
+        local Tdist = TargPos:distance(Origin)
+        if(abs(Fang)<=ConeAng && abs( Dang ) <= ConeAng && Tdist <= Dist){
+            return 1
+        }else{
+            return 0 
+        }
+    }
+    Health=100
+    Armor=0
+    
+    Color1=vec(110)
+    Color2=vec(90)
+    Color3=vec(25)
+    
+    ResoX=egpScrW(owner())
+    ResoY=egpScrH(owner())
+    Reso=vec2(ResoX/2,ResoY/2)
+    EGP:egpClear()
+    EGP:egpBox(1,Reso+vec2(1100,0),vec2(900,ResoY))
+    EGP:egpColor(1,vec())
+    EGP:egpBox(2,Reso+vec2(-1100,0),vec2(900,ResoY))
+    EGP:egpColor(2,vec())
+    EGP:egpBox(3,Reso+vec2(0,475),vec2(1300,170))
+    EGP:egpColor(3,Color1)
+    EGP:egpBox(4,Reso+vec2(0,393),vec2(1300,5))
+    EGP:egpColor(4,Color1*1.12)
+    EGP:egpBox(5,Reso+vec2(0,475),vec2(160,170))
+    EGP:egpColor(5,Color1*1.25)
+    EGP:egpBox(6,Reso+vec2(0,475),vec2(150,160))
+    EGP:egpColor(6,Color3)
+    
+    EGP:egpBox(7,Reso+vec2(-450,475),vec2(5,170))
+    EGP:egpColor(7,(Color1+Color2)/2)
+    EGP:egpAlpha(7,200)
+    EGP:egpBox(8,Reso+vec2(-220,475),vec2(5,170))
+    EGP:egpColor(8,(Color1+Color2)/2)
+    EGP:egpAlpha(8,200)
+    
+    EGP:egpBox(9,Reso+vec2(320,475),vec2(50,170))
+    EGP:egpColor(9,(Color1+Color2)/2.25)
+    EGP:egpBox(10,Reso+vec2(320,465),vec2(40,40))
+    EGP:egpColor(10,Color1)
+    EGP:egpBox(11,Reso+vec2(320,465+48),vec2(40,40))
+    EGP:egpColor(11,Color1)
+    EGP:egpBox(12,Reso+vec2(320,465-48),vec2(40,40))
+    EGP:egpColor(12,Color1)
+    
+    EGP:egpBox(13,Reso+vec2(0,540),vec2(1300,5))
+    EGP:egpColor(13,(Color1+Color3)/3)
+    EGP:egpAlpha(13,200)
+    
+    EGP:egpText(14,"AMMO",Reso+vec2(-540,502))
+    EGP:egpSize(14,35)
+    EGP:egpAlign(14,1,1)
+    EGP:egpColor(14,Color1*1.5)
+    
+    EGP:egpText(15,"HEALTH",Reso+vec2(-335,502))
+    EGP:egpSize(15,35)
+    EGP:egpAlign(15,1,1)
+    EGP:egpColor(15,Color1*1.5)
+    
+    EGP:egpText(16,"ARMOR",Reso+vec2(185,502))
+    EGP:egpSize(16,35)
+    EGP:egpAlign(16,1,1)
+    EGP:egpColor(16,Color1*1.5)
+    
+    
+    EGP:egpText(17,"50",Reso+vec2(-465,470))
+    EGP:egpSize(17,80)
+    EGP:egpAlign(17,2,2)
+    EGP:egpColor(17,vec(175,15,15)*1.25)
+    
+    EGP:egpText(18,"100%",Reso+vec2(-225,470))
+    EGP:egpSize(18,80)
+    EGP:egpAlign(18,2,2)
+    EGP:egpColor(18,vec(175,15,15)*1.25)
+    
+    EGP:egpText(19,"0%",Reso+vec2(290,470))
+    EGP:egpSize(19,80)
+    EGP:egpAlign(19,2,2)
+    EGP:egpColor(19,vec(175,15,15)*1.25)
+    
+    EGP:egpText(20,"",vec2(310,-8))
+    EGP:egpSize(20,40)
+    EGP:egpAlign(20,0,0)
+    EGP:egpColor(20,vec(175,15,15)*1.25)
+    
+    # SETUP -> CONFIG
+    HEIGHT_STAND  = 72          # height at top (head for bipeds) when standing
+    HEIGHT_CROUCH = 0          # height at top (head for bipeds) when crouching,set to 0 to disable crouching
+    HEIGHT_JUMP   = 80         # height at top (head for bipeds) at apex of jump,set to 0 to disable jumping
+    RADIUS        = 18          # radius of bbox collider
+    K_GRAVITY     = -950        # accleration of gravity (gmod units per second)
+
+    MOVETYPE = "CAMERA_LOOK"    # camera control scheme: "CAMERA_MOVE" or "CAMERA_LOOK"
+
+
+    # SETUP -> BBOX
+    function recalc_bbox(Radius,Height) {
+        HEIGHT_CURRENT = Height
+        BBOX_RAD = Radius
+        BBOX_MIN = vec(-Radius,-Radius,-Height*0.5)
+        BBOX_MAX = vec(Radius,Radius,0)
+    }
+
+    recalc_bbox(RADIUS,HEIGHT_STAND)
+
+    CONTROLLER = holoCreate(1,entity():pos() + vec(0,0,HEIGHT_CURRENT),vec())
+    POSITION   = CONTROLLER:pos()
+    MOVEMODE   = "GROUND"
+    holoCreate(2)
+    holoPos(2,holoEntity(1):toWorld(vec(0,0,-8)))
+    holoAng(2,holoEntity(1):angles())
+    holoParent(2,1)
+    holoScale(2,vec())
+    
+    holoCreate(3)
+    holoPos(3,holoEntity(2):toWorld(vec(15,0,0)))
+    holoAng(3,holoEntity(2):toWorld(ang(0,180,0)))
+    holoParent(3,2)
+    holoScale(3,vec())
+    
+    holoCreate(4)
+    holoPos(4,holoEntity(3):toWorld(vec(0,0,0)))
+    holoAng(4,holoEntity(3):toWorld(ang(0,180,0)))
+    holoParent(4,3)
+    dsSend("Item_SendEntity",Channel,holoEntity(2))
+    
+    Weapons[1,string]="models/weapons/v_pistol.mdl"
+    Weapons[2,string]="models/weapons/v_shotgun.mdl"
+    Weapons[3,string]="models/rotarycannon/kw/20mmrac.mdl"
+    Weapons[4,string]="models/props_combine/combine_light002a.mdl"
+    Weapons[5,string]="models/weapons/w_rocket_launcher.mdl"
+    Weapons[6,string]="models/props_combine/breenlight.mdl"
+    holoModel(4,Weapons[1,string])
+    holoBodygroup(4,1,0)
+    holoBodygroup(4,2,0)
+    ViewPos=vec(-15,6.15,1)
+    ViewAng=ang(0,-2,-1)
+    
+    Ammo[1,table]=table("Pistol",50,200)
+    Ammo[2,table]=table("Shotgun",8,50)
+    Ammo[3,table]=table("Chaingun",20,200)
+    Ammo[4,table]=table("Plasma Rifle",40,300)
+    Ammo[5,table]=table("Rocket Launcher",2,50)
+    Ammo[6,table]=table("BFG9000",40,300)
+    
+    HasWeapons[1,number]=1
+    HasWeapons[2,number]=0
+    HasWeapons[3,number]=0
+    HasWeapons[4,number]=0
+    HasWeapons[5,number]=0
+    HasWeapons[6,number]=0
+    
+    
+    # SETUP -> CAMERA
+    Camera["Activated",number] = 1
+    Camera["Position",vector] = vec()
+    Camera["Distance",number] = 0
+    Camera["Parent",entity] = holoEntity(2)
+    Camera["Angle",angle] = holoEntity(2):toWorld(ang(0,0,0))
+
+    # SETUP -> SIM
+    DIR_UP = vec(0,0,1)
+    TIME_CURRENT = curtime()
+
+    entity():setMaterial("beer/wiremod/gate_e2")
+    timer("main",500)
+    timer("timer",100)
+}
+interval(100)
+Driver=Seat:driver()
+Active=Driver:isPlayer()
+W=Driver:keyForward()
+S=Driver:keyBack()
+A=Driver:keyLeft()
+D=Driver:keyRight()
+Shift=Driver:keySprint()
+Space=Driver:keyJump()
+Control=Driver:keyDuck()
+Mouse1=Driver:keyAttack1()
+Mouse2=Driver:keyAttack2()
+R=Driver:keyReload()
+Slot1=Driver:keyPressed("1")
+Slot2=Driver:keyPressed("2")
+Slot3=Driver:keyPressed("3")
+Slot4=Driver:keyPressed("4")
+Slot5=Driver:keyPressed("5")
+Slot6=Driver:keyPressed("6")
+Slot7=Driver:keyPressed("7")
+
+if(clk("main")){
+    SwitchWeapon=Slot1|Slot2|Slot3|Slot4|Slot5|Slot6|Slot7
+    if(changed(SwitchWeapon)){
+        if(SwitchWeapon){
+            if(Slot1){
+                if(HasWeapons[1,number]==1){
+                    Weapon=1
+                    ViewPos=vec(-15,6.15,1)
+                    ViewAng=ang(0,-2,-1)
+                }
+            }elseif(Slot2){
+                if(HasWeapons[2,number]==1){
+                    Weapon=2
+                    ViewPos=vec(-20,9,-2)
+                    ViewAng=ang(0,0,0)
+                }
+            }elseif(Slot3){
+                if(HasWeapons[3,number]==1){
+                    Weapon=3
+                    ViewPos=vec(-25,0,-9)
+                    ViewAng=ang(0,0,180)
+                }
+            }elseif(Slot4){
+                if(HasWeapons[4,number]==1){
+                    Weapon=4
+                    ViewPos=vec(50,0,-18)
+                    ViewAng=ang(90,0,0)
+                }
+            }elseif(Slot5){
+                if(HasWeapons[5,number]==1){
+                    Weapon=5
+                    ViewPos=vec(25,-1,-15)
+                    ViewAng=ang(0,180,0)
+                }
+            }elseif(Slot6){
+                if(HasWeapons[6,number]==1){
+                    Weapon=6
+                    ViewPos=vec(13,0,-10)
+                    ViewAng=ang(-90,180,0)
+                }
+            }elseif(Slot7){
+                if(HasWeapons[7,number]==1){
+                    Weapon=7
+                    ViewPos=vec(0,0,0)
+                    ViewAng=ang(0,0,0)
+                }
+            }
+            holoModel(4,Weapons[Weapon,string])
+            if(Weapon==3){
+                holoBodygroup(4,1,4)
+                holoBodygroup(4,2,2)
+            }
+            if(HasWeapons[Weapon,number]==1){
+                Data=Ammo[Weapon,table]
+                CurrentAmmo=Data[2,number]
+                MaxAmmo=Data[3,number]
+                Name=Data[1,string]
+                EGP:egpSetText(17,CurrentAmmo:toString())
+            }
+            stoptimer("resetnotif")
+            timer("resetnotif",3000)
+        }
+    }
+    # SIM
+    timer("main",60)
+    
+    TIME_DELTA = curtime() - TIME_CURRENT
+    TIME_CURRENT = curtime()
+
+
+    # GROUND MOVEMODE
+    if (MOVEMODE == "GROUND") {
+        #[
+            COLLISION -> LINEAR
+                - REFLECT BBOX HITPOS ALONG BBOX HITNORMAL
+                - CORRECT VELOCITY FOR THIS REFLECTION
+
+            FLAGS -> HIT_BBOX:1
+        ]#
+        local Trace_BBox = rangerOffsetHull(POSITION,POSITION + VELOCITY,BBOX_MIN,BBOX_MAX)
+        if (Trace_BBox:hit()) {
+            local CheckPos = POSITION + VELOCITY
+            local CheckHit = Trace_BBox:position()
+            local CheckDir = Trace_BBox:hitNormal():setZ(0)*1.05
+
+            Trace_BBox = rangerOffsetHull(CheckHit,CheckPos - CheckDir*(CheckPos - CheckHit):dot(CheckDir),BBOX_MIN,BBOX_MAX)
+
+            VELOCITY = (Trace_BBox:position() - POSITION):setZ(0)
+            HIT_BBOX = 1
+        }
+        else {
+            HIT_BBOX = 0
+        }
+
+
+        #[
+            COLLISION -> LINEAR
+                - ADD VELOCITY TO POSITION
+        ]#
+        POSITION += VELOCITY
+
+
+        #[
+            COLLISION -> VERTICAL
+                - TRACE IN DIRECTION OF VERTICAL MOVEMENT
+        ]#
+        local Dir_Z = sign(GRAVITY[3]) ?: -1
+        local Trace_Z = rangerOffset(9999999,POSITION,vec(0,0,Dir_Z))
+
+
+        #[
+            COLLISION -> VERTICAL -> SLOPE
+                - DETECT DOWNWARD SLOPES USING DOT PRODUCT
+                - CORRECT HEIGHT TO STICK TO THEM INSTEAD OF FLYING OFF
+
+            FLAGS -> HIT_BELOW:2
+        ]#
+        if (HIT_BELOW == 1) {
+            local Dot_Z = VELOCITY:normalized():dot(Trace_Z:hitNormal())
+            if (Dot_Z) {
+                if (Trace_Z:distance() < HEIGHT_CURRENT*1.5) {
+                    POSITION[3] = Trace_Z:position()[3] + HEIGHT_CURRENT
+                    HIT_BELOW = 2
+                }
+            }
+        }
+
+
+        #[
+            COLLISION -> VERTICAL -> BELOW
+                - ADD GRAVITY AND CORRECT HEIGHT
+
+            FLAGS -> HIT_BELOW:1
+        ]#
+        if (Dir_Z == -1) {
+            POSITION = POSITION + GRAVITY*TIME_DELTA + vec(0,0,0.5*K_GRAVITY*TIME_DELTA*TIME_DELTA)
+
+            local Hit_Z = Trace_Z:position()[3] + HEIGHT_CURRENT
+            if (POSITION[3] <= Hit_Z) {
+                POSITION[3] = Hit_Z
+                GRAVITY[3] = 0
+                HIT_BELOW = 1
+            }
+            else {
+                HIT_BELOW = 0
+            }
+        }
+
+
+        #[
+            COLLISION -> VERTICAL -> ABOVE
+                - ADD GRAVITY AND CORRECT HEIGHT
+
+            FLAGS -> HIT_ABOVE:1
+        ]#
+        if (Dir_Z == 1) {
+            POSITION = POSITION + GRAVITY*TIME_DELTA + vec(0,0,0.5*K_GRAVITY*TIME_DELTA*TIME_DELTA)
+
+            local Hit_Z = Trace_Z:position()[3]
+            if (POSITION[3] >= Hit_Z) {
+                POSITION[3] = Hit_Z
+                GRAVITY[3] = 0
+                HIT_ABOVE = 1
+            }
+            else {
+                HIT_ABOVE = 0
+            }
+        }
+
+
+        # PLAYER -> EYE
+        PLAYER = Seat:driver()
+        DIR_LOOK = Seat:toLocalAxis(PLAYER:eye())
+
+
+        # PLAYER -> MOVEMENT DIRECTION
+        if (W|A|S|D) {
+            DIR_MOVE = (W - S)*DIR_LOOK:setZ(0) ?: DIR_LOOK:setZ(0)*0.05
+            if (A|D) {
+                DIR_MOVE += (D - A)*DIR_LOOK:setZ(0):cross(DIR_UP)
+            }
+        }
+        DIR_MOVE=DIR_MOVE:normalized()*ValTest
+        
+        # PLAYER -> CROUCH
+        #[
+        if (HEIGHT_CROUCH) {
+            if (changed(Control)) {
+                local HitHeight = Control ? HEIGHT_CROUCH : HEIGHT_STAND
+                local HitCheck = rangerOffsetHull(HitHeight,POSITION,DIR_UP,vec(-BBOX_RAD*2,BBOX_RAD*2,0)):distance()
+                #local HitCheck = rangerOffset(HitHeight,POSITION,DIR_UP):distance()
+
+                if (HitCheck == HitHeight) {
+                    recalc_bbox(BBOX_RAD,HitHeight)
+                    if (HIT_BELOW) {
+                        POSITION[3] = Trace_Z:position()[3] + HEIGHT_CURRENT
+                    }
+                }
+            }
+        }
+        ]#
+
+        # CONTROLLER -> VELOCITY AND GRAVITY
+        if (HIT_BELOW) {
+            BunnyHopAddSpeed-=25
+            SPEED_MOVE = (W|A|S|D|ValTest)*(350+clamp(BunnyHopAddSpeed,0,200))*TIME_DELTA
+            VELOCITY   = DIR_MOVE*SPEED_MOVE
+            if (HEIGHT_JUMP & Space) {
+                BunnyHopAddSpeed+=100
+                GRAVITY = vec(0,0,sqrt(-2*K_GRAVITY*HEIGHT_JUMP))
+                HIT_BBOX = HIT_ABOVE = HIT_BELOW = 0
+            }
+            BunnyHopAddSpeed=clamp(BunnyHopAddSpeed,0,200)
+        }
+        else {
+            SPEED_MOVE = (W|A|S|D)*(400+clamp(BunnyHopAddSpeed,0,200))*TIME_DELTA
+            VELOCITY   = DIR_MOVE*SPEED_MOVE
+            GRAVITY += vec(0,0,K_GRAVITY*TIME_DELTA)
+            Val=0
+        }
+        
+        # OUTPUT
+        holoPos(1,POSITION)
+        Moving=(W|A|S|D)
+        XTest+=0.25*((HIT_BELOW&Moving)-(!Moving))
+        XTest=clamp(XTest,0,1)
+        ValTest = XTest * XTest * (3.0 - 2.0 * XTest)
+        if(VELOCITY:length()>0){
+            Val+=(0.08*ValTest)
+        }else{
+            Val=0
+        }
+        SinTest=sin(3.75*Val*180)*clamp(VELOCITY:length()/15,0,1)
+        SinTest2=sin((3.75)*Val*90)*clamp(VELOCITY:length()/15,0,1)
+        
+        holoPos(2,holoEntity(1):toWorld(vec(0,5*SinTest2,-8+(4*SinTest))))
+        holoPos(3,holoEntity(2):toWorld(vec(ViewPos:x(),ViewPos:y()-(0.4*SinTest2),ViewPos:z()+(0.4*SinTest))))
+        holoAng(3,holoEntity(2):toWorld(ang(ViewAng:pitch(),ViewAng:yaw()+180,ViewAng:roll())))
+        holoAng(1,ang(0,PLAYER:eyeAngles():yaw()+180,0))
+        holoAng(2,holoEntity(1):toWorld(ang(PLAYER:eyeAngles():pitch()*PitchUnlock,0,0)))
+        if (changed(R) & R) {
+            #MOVETYPE = (MOVETYPE == "CAMERA_LOOK") ? "CAMERA_MOVE" : "CAMERA_LOOK"
+        }
+    }
+
+    # FLIGHT MOVEMODE
+    if (MOVEMODE == "FLIGHT") {
+#[        PLAYER = Seat:driver()
+        DIR_LOOK = Seat:toLocalAxis(PLAYER:eye())
+        DIR_MOVE = DIR_LOOK
+
+        VELOCITY = DIR_MOVE*600*TIME_DELTA
+        POSITION += VELOCITY
+
+        Roll = clamp( VELOCITY:normalized():dot(CONTROLLER:right()) * 100,-45,45)
+
+        holoPos(1,POSITION)
+        holoAng(1,DIR_LOOK:toAngle():setRoll(Roll))  ]#
+    }
+    findIncludeClass("prop_*")
+    findIncludeClass("gmod_wire_*")
+    findExcludeEntities(array(holoEntity(1),holoEntity(2),holoEntity(3),holoEntity(4),entity(),EGP:entity(),Camera:entity(),Seat))
+    findInSphere(holoEntity(2):pos(),2000)
+    findSortByDistance(holoEntity(2):pos())
+    findClipToPlayerProps(owner())
+    findClipToModel("models/hunter/blocks/cube05x05x05.mdl")
+    AIArray=findToArray()
+    if(AIArray[1,entity]:isValid()){
+        E=AIArray[1,entity]
+        rangerFilter(E)
+        if(rangerOffsetHull(1000,holoEntity(2):pos(),(holoEntity(2):pos()-E:pos()):toAngle():forward(),vec(5)):distance()>holoEntity(2):pos():distance(E:pos())){
+            local TargPos = E:pos()
+            local Dang = bearing(holoEntity(2):pos(),holoEntity(2):forward():toAngle(),TargPos)
+            local Fang = elevation(holoEntity(2):pos(),holoEntity(2):forward():toAngle(),TargPos)
+            local Tdist = TargPos:distance(holoEntity(2):pos())
+            if(abs(Fang)<=45 && abs( Dang ) <= 15 && Tdist <= 800){
+                TargetEnemy=E
+            }else{
+                TargetEnemy=noentity()
+            }
+        }
+    }
+    if(TargetEnemy){
+        E=TargetEnemy
+        rangerFilter(E)
+        if(rangerOffsetHull(1000,holoEntity(2):pos(),(holoEntity(2):pos()-E:pos()):toAngle():forward(),vec(5)):distance()>holoEntity(2):pos():distance(E:pos())){
+            local TargPos = E:pos()
+            local Dang = bearing(holoEntity(2):pos(),holoEntity(2):forward():toAngle(),TargPos)
+            local Fang = elevation(holoEntity(2):pos(),holoEntity(2):forward():toAngle(),TargPos)
+            local Tdist = TargPos:distance(holoEntity(2):pos())
+            if(abs(Fang)<=45 && abs( Dang ) <= 15 && Tdist <= 800){
+                TargetEnemy=E
+            }else{
+                TargetEnemy=noentity()
+            }
+        }
+    }
+    if(TargetEnemy:isValid()){
+        
+    }else{
+        
+    }
+    
+    findIncludeClass("prop_*")
+    findIncludeClass("gmod_wire_*")
+    findExcludeEntities(array(holoEntity(1),holoEntity(2),holoEntity(3),holoEntity(4),entity(),EGP:entity(),Camera:entity(),Seat))
+    findInSphere(holoEntity(2):toWorld(vec(20,0,0)),50)
+    findSortByDistance(holoEntity(2):pos())
+    findClipToPlayerProps(owner())
+    findClipToModel("models/hunter/plates/plate025x025.mdl")
+    AIArray=findToArray()
+    if(AIArray[1,entity]:isValid()){
+        E=AIArray[1,entity]
+        rangerFilter(E)
+        if(rangerOffsetHull(1000,holoEntity(2):pos(),(holoEntity(2):pos()-E:pos()):toAngle():forward(),vec(5)):distance()>holoEntity(2):pos():distance(E:pos())){
+            local TargPos = E:pos()
+            local Dang = bearing(holoEntity(2):pos(),holoEntity(2):forward():toAngle(),TargPos)
+            local Fang = elevation(holoEntity(2):pos(),holoEntity(2):forward():toAngle(),TargPos)
+            local Tdist = TargPos:distance(holoEntity(2):pos())
+            if(abs(Fang)<=45 && abs( Dang ) <= 15 && Tdist <= 800){
+                ButtonEntity=E
+            }else{
+                ButtonEntity=noentity()
+            }
+        }
+    }
+    if(changed(R)&R){
+        if(ButtonEntity:isValid()){
+            dsSend(ButtonEntity:id()+"_Interact",Channel,entity())
+        }else{
+            local Ranger=rangerOffset(100,holoEntity(2):pos(),holoEntity(2):forward())
+            if(Ranger:distance()<50){
+                #ifdef entity:emitSound(string)
+                    holoEntity(2):emitSound("*vo/npc/Barney/ba_pain07.wav",1,80)
+                #else
+                    holoEntity(2):soundPlay("",0,"*vo/npc/Barney/ba_pain07.wav")
+                #endif
+            }
+        }
+    }
+}
+event chat(Player:entity, Message:string,_) {
+    if(Player==PLAYER){
+        switch(Message:upper()){
+            case"IDDQD",
+                Godmode=!Godmode
+                EGP:egpSetText(20,("degreelessness mode "+(Godmode ? "on" : "off")):upper())
+                stoptimer("resetnotif")
+                timer("resetnotif",3000)
+            break
+            
+            case"IDKFA",
+                EGP:egpSetText(20,("very happy ammo added"):upper())
+                for(I=1,6){
+                    HasWeapons[I,number]=1
+                    Ammo[I,table][2,number]=Ammo[I,table][3,number]
+                }
+                Data=Ammo[Weapon==0 ? 1 : Weapon,table]
+                CurrentAmmo=Data[2,number]
+                MaxAmmo=Data[3,number]
+                Name=Data[1,string]
+                EGP:egpSetText(17,CurrentAmmo:toString())
+                Health=100
+                Armor=200
+                stoptimer("resetnotif")
+                timer("resetnotif",3000)
+            break
+            
+            case"LOKUP",
+                PitchUnlock=!PitchUnlock
+                EGP:egpSetText(20,("pitch "+(PitchUnlock ? "unlocked" : "locked")):upper())
+                for(I=1,6){
+                    HasWeapons[I,number]=1
+                    Ammo[I,table][2,number]=Ammo[I,table][3,number]
+                }
+                Data=Ammo[Weapon==0 ? 1 : Weapon,table]
+                CurrentAmmo=Data[2,number]
+                MaxAmmo=Data[3,number]
+                Name=Data[1,string]
+                EGP:egpSetText(17,CurrentAmmo:toString())
+                Health=100
+                Armor=200
+                stoptimer("resetnotif")
+                timer("resetnotif",3000)
+            break
+        }
+    }
+    
+}
+if(clk("resetnotif")){
+    EGP:egpSetText(20,"")
+}
+if(dsClk()){
+    if(dsClkName()=="weapon_pickup"){
+        
+        GetDSData=dsGetTable()
+        PickupWeaponID=GetDSData[2,number]
+        if(PickupWeaponID==1){
+            if(HasWeapons[1,number]==1){
+                AmmoType=1
+                AmmoAddAmount=10
+                timer("addammo",10)
+            }else{
+                HasWeapons[1,number]=1
+                Data=Ammo[1,table]
+                Name=Data[1,string]
+            }
+        }elseif(PickupWeaponID==2){
+            if(HasWeapons[2,number]==1){
+                AmmoType=2
+                AmmoAddAmount=4
+                timer("addammo",10)
+            }else{
+                HasWeapons[2,number]=1
+                Data=Ammo[2,table]
+                Name=Data[1,string]
+            }
+        }elseif(PickupWeaponID==3){
+            if(HasWeapons[3,number]==1){
+                AmmoType=3
+                AmmoAddAmount=10
+                timer("addammo",10)
+            }else{
+                HasWeapons[3,number]=1
+                Data=Ammo[3,table]
+                Name=Data[1,string]
+            }
+        }elseif(PickupWeaponID==4){
+            if(HasWeapons[4,number]==1){
+                AmmoType=4
+                AmmoAddAmount=20
+                timer("addammo",10)
+            }else{
+                HasWeapons[4,number]=1
+                Data=Ammo[4,table]
+                Name=Data[1,string]
+            }
+        }elseif(PickupWeaponID==5){
+            if(HasWeapons[5,number]==1){
+                AmmoType=5
+                AmmoAddAmount=1
+                timer("addammo",10)
+            }else{
+                HasWeapons[5,number]=1
+                Data=Ammo[5,table]
+                Name=Data[1,string]
+            }
+        }elseif(PickupWeaponID==6){
+            if(HasWeapons[6,number]==1){
+                AmmoType=6
+                AmmoAddAmount=20
+                timer("addammo",10)
+            }else{
+                HasWeapons[6,number]=1
+                Data=Ammo[6,table]
+                Name=Data[1,string]
+            }
+        }
+        EGP:egpSetText(20,("Picked up "+Name+"."):upper())
+        stoptimer("resetnotif")
+        timer("resetnotif",3000)
+    }
+}
+if(clk("addammo")){
+    Data=Ammo[AmmoType,table]
+    Name=Data[1,string]
+    CurrentAmmo=Data[2,number]
+    MaxAmmo=Data[3,number]
+    if(CurrentAmmo<MaxAmmo){
+        CurrentAmmo=CurrentAmmo+AmmoAddAmount
+        Ammo[AmmoType,table][2,number]=CurrentAmmo
+    }
+    EGP:egpSetText(20,("Picked up "+Name+" Ammo."):upper())
+    
+    EGP:egpSetText(17,CurrentAmmo:toString())
+}
+event removed(_){
+    dsLeaveGroup(Channel)
+}
+if(changed(Health)){
+    EGP:egpSetText(18,Health:toString()+"%")
+}
+if(changed(Armor)){
+    EGP:egpSetText(19,Armor:toString()+"%")
+}
+if(clk("Ready")){
+    Ready=1
+}
+if(clk("timer")){
+    timer("timer",100)
+    if(Weapon==2){
+        if(Mouse1&Ready){
+            Ready=0
+            Data=Ammo[Weapon,table]
+            Name=Data[1,string]
+            CurrentAmmo=Data[2,number]
+            MaxAmmo=Data[3,number]
+            timer("Ready",1000)
+            if(CurrentAmmo>0){
+                CurrentAmmo=CurrentAmmo-1
+                Ammo[Weapon,table][2,number]=CurrentAmmo
+                EGP:egpSetText(17,CurrentAmmo:toString())
+                particleSetDuration(0.1)
+                particleSetStartSize(5)
+                particleSetEndSize(1)
+                particleSetStartAlpha(255)
+                particleSetEndAlpha(0)
+                particleSetMaterial("particle/fire")
+                particleSetColor(vec(255,255,125))
+                
+                particleCollision(1)
+                particleBounce(0)
+                
+                if(particleCanCreate()){
+                    particleSetPosition(holoEntity(2):toWorld(vec(15,0,-5)))
+                    particleGravity(vec())
+                    particleSetVelocity((holoEntity(2):forward()+(holoEntity(2):right()*randint(-10,10)/500)+(holoEntity(2):up()*randint(-10,10)/500))*5000)
+                    particleCreate()
+                    particleSetVelocity((holoEntity(2):forward()+(holoEntity(2):right()*randint(-10,10)/500)+(holoEntity(2):up()*randint(-10,10)/500))*5000)
+                    particleCreate()
+                    particleSetVelocity((holoEntity(2):forward()+(holoEntity(2):right()*randint(-10,10)/500)+(holoEntity(2):up()*randint(-10,10)/500))*5000)
+                    particleCreate()
+                    particleSetVelocity((holoEntity(2):forward()+(holoEntity(2):right()*randint(-10,10)/500)+(holoEntity(2):up()*randint(-10,10)/500))*5000)
+                    particleCreate()
+                }
+            }
+        }
+    }elseif(Weapon==1){
+        if(changed(Mouse1)&Mouse1&Ready){
+            Ready=0
+            Data=Ammo[Weapon,table]
+            Name=Data[1,string]
+            CurrentAmmo=Data[2,number]
+            MaxAmmo=Data[3,number]
+            timer("Ready",200)
+            if(CurrentAmmo>0){
+                CurrentAmmo=CurrentAmmo-1
+                Ammo[Weapon,table][2,number]=CurrentAmmo
+                EGP:egpSetText(17,CurrentAmmo:toString())
+                particleSetDuration(0.1)
+                particleSetStartSize(3)
+                particleSetEndSize(1)
+                particleSetStartAlpha(255)
+                particleSetEndAlpha(0)
+                particleSetMaterial("particle/fire")
+                particleSetColor(vec(255,255,125))
+                
+                particleCollision(1)
+                particleBounce(0)
+                
+                if(particleCanCreate()){
+                    particleSetPosition(holoEntity(2):toWorld(vec(15,0,-5)))
+                    particleGravity(vec())
+                    particleSetVelocity(holoEntity(2):forward()*5000)
+                    particleCreate()
+                }
+            }
+        }
+    }elseif(Weapon==3){
+        if(Mouse1&Ready){
+            Ready=0
+            Data=Ammo[Weapon,table]
+            Name=Data[1,string]
+            CurrentAmmo=Data[2,number]
+            MaxAmmo=Data[3,number]
+            timer("Ready",150)
+            if(CurrentAmmo>0){
+                CurrentAmmo=CurrentAmmo-1
+                Ammo[Weapon,table][2,number]=CurrentAmmo
+                EGP:egpSetText(17,CurrentAmmo:toString())
+                particleSetDuration(0.1)
+                particleSetStartSize(5)
+                particleSetEndSize(1)
+                particleSetStartAlpha(255)
+                particleSetEndAlpha(0)
+                particleSetMaterial("particle/fire")
+                particleSetColor(vec(255,255,125))
+                
+                particleCollision(1)
+                particleBounce(0)
+                
+                if(particleCanCreate()){
+                    particleSetPosition(holoEntity(2):toWorld(vec(15,0,-5)))
+                    particleGravity(vec())
+                    particleSetVelocity((holoEntity(2):forward()+(holoEntity(2):right()*randint(-10,10)/500)+(holoEntity(2):up()*randint(-10,10)/800))*8000)
+                    particleCreate()
+                }
+            }
+        }
+    }elseif(Weapon==4){
+        if(Mouse1&Ready){
+            Ready=0
+            Data=Ammo[Weapon,table]
+            Name=Data[1,string]
+            CurrentAmmo=Data[2,number]
+            MaxAmmo=Data[3,number]
+            timer("Ready",100)
+            if(CurrentAmmo>0){
+                CurrentAmmo=CurrentAmmo-1
+                Ammo[Weapon,table][2,number]=CurrentAmmo
+                EGP:egpSetText(17,CurrentAmmo:toString())
+                particleSetDuration(2)
+                particleSetStartSize(35)
+                particleSetEndSize(30)
+                particleSetStartAlpha(255)
+                particleSetEndAlpha(0)
+                particleSetMaterial("particle/fire")
+                particleSetColor(vec(0,125,255))
+                
+                particleCollision(1)
+                particleBounce(0)
+                
+                if(particleCanCreate()){
+                    particleSetPosition(holoEntity(2):toWorld(vec(15,0,-5)))
+                    particleGravity(vec())
+                    particleSetVelocity((holoEntity(2):forward())*3000)
+                    particleCreate()
+                }
+            }
+        }
+    }
+}

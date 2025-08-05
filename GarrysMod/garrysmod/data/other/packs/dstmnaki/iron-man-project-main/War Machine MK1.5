@@ -1,0 +1,939 @@
+@name Project War Machine
+@inputs EGP:wirelink CamAng:vector [Turret1 Turret2 PelvisParent Spine1Parent Spine2Parent HeadParent Left_UpperArmParent Right_UpperArmParent Left_ForeArmParent Right_ForeArmParent Left_HandParent Right_HandParent Left_ThighParent Right_ThighParent Left_CalfParent Right_CalfParent Left_FootParent Right_FootParent Plasma_PistolParent Heavy_BolterParent]:entity
+@persist MOVEW MOVES MOVEA MOVED MOVEZ Turning MoveVal MOVEMAX ShiftVal [RFoot LFoot LHand RHand LeftLegFly RightLegFly]:vector Step WalkRate Yaw [Ranger2 Ranger3]:ranger M2Val M2Val2 EditMode
+@persist [Base Seat PodController]:entity DriverTargets:array Length1_Arm Length2_Arm Length1_Leg Length2_Leg On_Ground2 [LocalEyes PelvisAng LocalEyes3]:angle HasJumpPack
+@persist [HT CT Bones Flames Animation BoneParents]:table [SpawnStatus CoreStatus]:string [HN CN I SpawnCounter] DriverStore:entity Pistolfirerate ZoomLevel  Scale ThrustColor:vector4 ThrustColor2:vector
+@persist [Turret1 Turret2]:entity MovementBlock Boosting Landed BoostData:table Nodes DistBelt CamParent:entity CamPos:vector CamDist CamFOV StartedBoosting StartPos:vector M2Val3 M2Val3Increase Flying BoostingTest
+@model models/hunter/misc/sphere075x075.mdl
+@outputs MoveL:vector
+if(dupefinished()){reset()}
+if(first()){
+    Flames=table()
+    propSpawnUndo(0)
+    Base=entity()
+    Base:propFreeze(1)
+    Base:propDraw(0)
+    Base:setMass(213)
+    Base:propPhysicalMaterial("canister")
+    noCollideAll(Base,0)
+    Base:makeSpherical(6+6/2)
+    Base:propInertia(vec(100))
+    
+    Seat = seatSpawn("models/nova/airboat_seat.mdl",1)
+    
+    noCollideAll(Seat,1)
+    rangerFilter(array(Seat,Base))
+    rangerPersist(1)
+    
+    DriverTargets = array(owner())#,findPlayerByName("snakes"))
+    
+    ShowBones=0
+    ShowBonesAll=0
+    EditMode=0
+    Scale=0.75
+    Length1_Arm=14
+    Length2_Arm=13
+    Length1_Leg=17
+    Length2_Leg=18
+    
+    ThrustColor=vec4(80,235,210,200)
+    ThrustColor2=vec(80,235,210)
+    
+    S=I=1, HN++, HT[HN,array] = array(I, noentity(), noentity(), 0, vec(0, 0, 0), ang(0, 0, 0), ShowBones*ShowBonesAll, "models/sprops/geometry/sphere_3.mdl"),Bones["Root",number]=I
+    I++, HN++, HT[HN,array] = array(I, Bones["Root",number], Seat, 0, vec(0, 0, 0), ang(0, 0, 0), ShowBones*ShowBonesAll, "models/sprops/geometry/sphere_3.mdl"),Bones["CamParent",number]=I
+    I++, HN++, HT[HN,array] = array(I, Bones["Root",number], PelvisParent, 0, vec(0, 0, 0), ang(0, 0, 0), ShowBones, "models/sprops/geometry/sphere_3.mdl"),Bones["Pelvis",number]=I
+    I++, HN++, HT[HN,array] = array(I, Bones["Pelvis",number], Spine1Parent, 0, vec(0, 0, 8)*Scale, ang(0, 0, 0), ShowBones, "models/sprops/geometry/sphere_3.mdl"),Bones["Spine1",number]=I
+    I++, HN++, HT[HN,array] = array(I, Bones["Spine1",number], Spine2Parent, 0, vec(0, 0, 12)*Scale, ang(0, 0, 0), ShowBones, "models/sprops/geometry/sphere_3.mdl"),Bones["Spine2",number]=I
+    I++, HN++, HT[HN,array] = array(I, Bones["Spine2",number], HeadParent, 0, vec(1.5, 0, 17.5)*Scale, ang(0, 0, 0), ShowBones, "models/sprops/geometry/sphere_3.mdl"),Bones["Head",number]=I
+    
+    I++, HN++, HT[HN,array] = array(I, Bones["Spine2",number], noentity(), 0, vec(-1, 12, 9)*Scale, ang(0, 0, 0), ShowBones, "models/sprops/geometry/sphere_3.mdl"),Bones["Left_Shoulder",number]=I
+    I++, HN++, HT[HN,array] = array(I, Bones["Spine2",number], noentity(), 0, vec(-1, -12, 9)*Scale, ang(0, 0, 0), ShowBones, "models/sprops/geometry/sphere_3.mdl"),Bones["Right_Shoulder",number]=I
+    
+    I++, HN++, HT[HN,array] = array(I, Bones["Spine2",number], Left_UpperArmParent, 0, vec(-1, 12, 9)*Scale, ang(180, 0, -90), ShowBones, "models/sprops/geometry/sphere_3.mdl"),Bones["Left_UpperArm",number]=I
+    I++, HN++, HT[HN,array] = array(I, Bones["Spine2",number], Right_UpperArmParent, 0, vec(-1, -12, 9)*Scale, ang(180, 0, 90), ShowBones, "models/sprops/geometry/sphere_3.mdl"),Bones["Right_UpperArm",number]=I
+    
+    I++, HN++, HT[HN,array] = array(I, Bones["Left_UpperArm",number], Left_ForeArmParent, 0, vec(0, 0, Length1_Arm), ang(0, 0, 0), ShowBones, "models/sprops/geometry/sphere_3.mdl"),Bones["Left_ForeArm",number]=I
+    I++, HN++, HT[HN,array] = array(I, Bones["Right_UpperArm",number], Right_ForeArmParent, 0, vec(0, 0, Length1_Arm), ang(0, 0, 0), ShowBones, "models/sprops/geometry/sphere_3.mdl"),Bones["Right_ForeArm",number]=I
+    
+    I++, HN++, HT[HN,array] = array(I, Bones["Left_ForeArm",number], noentity(), 0, vec(0, 0, Length2_Arm), ang(0, 0, 0), ShowBones*ShowBonesAll, "models/sprops/geometry/sphere_3.mdl"),Bones["Left_Hand",number]=I
+    I++, HN++, HT[HN,array] = array(I, Bones["Right_ForeArm",number], noentity(), 0, vec(0, 0, Length2_Arm), ang(0, 0, 0), ShowBones*ShowBonesAll, "models/sprops/geometry/sphere_3.mdl"),Bones["Right_Hand",number]=I
+    
+    I++, HN++, HT[HN,array] = array(I, Bones["Left_ForeArm",number], Left_HandParent, 0, vec(0, 0, Length2_Arm), ang(0, 0, 0), ShowBones, "models/sprops/geometry/sphere_3.mdl"),Bones["Left_Hand_Real",number]=I
+    I++, HN++, HT[HN,array] = array(I, Bones["Right_ForeArm",number], Right_HandParent, 0, vec(0, 0, Length2_Arm), ang(0, 0, 0), ShowBones, "models/sprops/geometry/sphere_3.mdl"),Bones["Right_Hand_Real",number]=I
+    
+    I++, HN++, HT[HN,array] = array(I, Bones["Left_ForeArm",number], Turret1, 0, vec(0, 0, Length2_Arm), ang(0, 0, 0), ShowBones, "models/sprops/geometry/sphere_3.mdl"),Bones["TurretLeft",number]=I
+    I++, HN++, HT[HN,array] = array(I, Bones["Right_ForeArm",number], Turret2, 0, vec(0, 0, Length2_Arm), ang(0, 0, 0), ShowBones, "models/sprops/geometry/sphere_3.mdl"),Bones["TurretRight",number]=I
+    
+    
+    I++, HN++, HT[HN,array] = array(I, Bones["Pelvis",number], noentity(), 0, vec(1, 5.5, -0.5)*Scale, ang(0, 0, 0), ShowBones, "models/sprops/geometry/sphere_3.mdl"),Bones["Left_LegHelper",number]=I
+    I++, HN++, HT[HN,array] = array(I, Bones["Pelvis",number], noentity(), 0, vec(1, -5.5, -0.5)*Scale, ang(0, 0, 0), ShowBones, "models/sprops/geometry/sphere_3.mdl"),Bones["Right_LegHelper",number]=I
+    
+    I++, HN++, HT[HN,array] = array(I, Bones["Pelvis",number], Left_ThighParent, 0, vec(1, 5.5, -0.5)*Scale, ang(0, 0, 180), ShowBones, "models/sprops/geometry/sphere_3.mdl"),Bones["Left_Thigh",number]=I
+    I++, HN++, HT[HN,array] = array(I, Bones["Pelvis",number], Right_ThighParent, 0, vec(1, -5.5, -0.5)*Scale, ang(0, 0, 180), ShowBones, "models/sprops/geometry/sphere_3.mdl"),Bones["Right_Thigh",number]=I
+    
+    I++, HN++, HT[HN,array] = array(I, Bones["Left_Thigh",number], Left_CalfParent, 0, vec(0, 0, Length1_Leg), ang(0, 0, 0), ShowBones, "models/sprops/geometry/sphere_3.mdl"),Bones["Left_Calf",number]=I
+    I++, HN++, HT[HN,array] = array(I, Bones["Right_Thigh",number], Right_CalfParent, 0, vec(0, 0, Length1_Leg), ang(0, 0, 0), ShowBones, "models/sprops/geometry/sphere_3.mdl"),Bones["Right_Calf",number]=I
+    
+    I++, HN++, HT[HN,array] = array(I, Bones["Left_Calf",number], Left_FootParent, 0, vec(0, 0, Length2_Leg), ang(0, 0, 180), ShowBones, "models/sprops/geometry/sphere_3.mdl"),Bones["Left_Foot",number]=I
+    I++, HN++, HT[HN,array] = array(I, Bones["Right_Calf",number], Right_FootParent, 0, vec(0, 0, Length2_Leg), ang(0, 0, 180), ShowBones, "models/sprops/geometry/sphere_3.mdl"),Bones["Right_Foot",number]=I
+    
+    foreach(I:number,R:array=HT){
+        E=R[3,entity]
+        if(E!=noentity()){
+            E:deparent()
+        }
+    }
+    
+    local Parent = Bones["Right_UpperArm",number]
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0, 0, 0), ang(90, 0, 0), vec(0.3, -0.3, 0.3), "models/Combine_Helicopter/helicopter_bomb01.mdl", "sprops/sprops_grid_12x12", vec4(80, 80, 80, 255), 0)
+	    CN++, CT[CN,table] = table(I, 1, vec(-1.5, 0, 0), vec(0.9659, -0.2588, 0))
+    CN++, CT[CN,table] = table(I, 2, vec(-1.5, 0, 0), vec(0.5, -0.866, 0))
+
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0, 0, 0), ang(90, 0, 0), vec(0.495, 0.495, 0.7425), "models/sprops/cylinders/size_3/cylinder_6x12.mdl", "", vec4(255, 255, 255, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(-0.2, 0, 3.9), ang(-3, 0, 0), vec(0.6975, 0.5967, 0.31), "models/sprops/cylinders/size_4/cylinder_9x3.mdl", "", vec4(255, 255, 255, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0, 0, 6), ang(180, 0, 0), vec(0.275, 0.2475, 0.275), "models/sprops/misc/domes/size_2/dome_24x30.mdl", "", vec4(80, 80, 80, 255), 0)
+	    CN++, CT[CN,table] = table(I, 1, vec(0, 0, 0), vec(-0.8192, 0, 0.5736))
+
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0.05, 0, 6), ang(0, 180, 180), vec(0.275, 0.2475, 0.275), "models/sprops/misc/domes/size_2/dome_24x30.mdl", "", vec4(255, 255, 255, 255), 0)
+	    CN++, CT[CN,table] = table(I, 1, vec(0, 0, 0), vec(0.8192, 0, -0.5736))
+
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0, 0, 0), ang(90, 0, 0), vec(0.3, 0.3, 0.3), "models/Combine_Helicopter/helicopter_bomb01.mdl", "sprops/sprops_grid_12x12", vec4(80, 80, 80, 255), 0)
+	    CN++, CT[CN,table] = table(I, 1, vec(-1.5, 0, 0), vec(0.9659, -0.2588, 0))
+    CN++, CT[CN,table] = table(I, 2, vec(-1.5, 0, 0), vec(0.5, -0.866, 0))
+
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(-0.4, 0, 6), ang(0, 0, 0), vec(0.6975, 0.651, 0.31), "models/sprops/cylinders/size_4/cylinder_9x3.mdl", "", vec4(255, 255, 255, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0, 0, 6.01), ang(0, 0, 0), vec(0.275, 0.2475, 0.33), "models/sprops/misc/domes/size_2/dome_24x30.mdl", "", vec4(80, 80, 80, 255), 0)
+	    CN++, CT[CN,table] = table(I, 1, vec(0, 0, 0), vec(0.866, 0, 0.5))
+
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0.05, 0, 6), ang(0, 0, 0), vec(0.275, 0.2475, 0.33), "models/sprops/misc/domes/size_2/dome_24x30.mdl", "", vec4(255, 255, 255, 255), 0)
+	    CN++, CT[CN,table] = table(I, 1, vec(0, 0, 0), vec(-0.866, 0, -0.5))
+    
+    
+    local Parent = Bones["Right_ForeArm",number]
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0, 0, 7), ang(0, 90, 90), vec(0.5775, 4.2525, 0.5775), "models/sprops/geometry/fhex_12.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(4.2, 0, 2), ang(-90, 180, 0), vec(0.375, 0.375, 0.375), "models/rotarycannon/kw/20mmrac.mdl", "", vec4(125, 125, 125, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0, -3.3, 7), ang(90, 0, 90), vec(1, 1, 0.4), "models/sprops/geometry/hhex_12.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+    
+    local Parent = Bones["Right_Hand_Real",number]
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0, -1.6, 0.7), ang(90, 0, 90), vec(0.5, 1.3, 0.3), "models/sprops/geometry/hhex_12.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0, 0.5, 5.6), ang(0, 0, 0), vec(0.325, 0.325, 0.585), "models/sprops/misc/fittings/cred_9_6_tall.mdl", "models/debug/debugwhite", vec4(225, 255, 0, 255), 1), Flames:pushNumber(I)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0, 0.5, 0), ang(90, 90, 0), vec(0.05, 0.1, 0.1), "models/props_combine/headcrabcannister01a.mdl", "sprops/sprops_grid_12x12", vec4(80, 80, 80, 255), 0)
+    
+    
+    local Parent = Bones["Left_UpperArm",number]
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0, 0, 0), ang(90, 180, 0), vec(0.3, -0.3, 0.3), "models/Combine_Helicopter/helicopter_bomb01.mdl", "sprops/sprops_grid_12x12", vec4(80, 80, 80, 255), 0)
+	    CN++, CT[CN,table] = table(I, 1, vec(-1.5, 0, 0), vec(0.9659, -0.2588, 0))
+    CN++, CT[CN,table] = table(I, 2, vec(-1.5, 0, 0), vec(0.5, -0.866, 0))
+
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0, 0, 0), ang(90, 0, 0), vec(0.495, 0.495, 0.7425), "models/sprops/cylinders/size_3/cylinder_6x12.mdl", "", vec4(255, 255, 255, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(-0.2, 0, 3.9), ang(-3, 0, 0), vec(0.6975, 0.5967, 0.31), "models/sprops/cylinders/size_4/cylinder_9x3.mdl", "", vec4(255, 255, 255, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0, 0, 6), ang(180, 0, 0), vec(0.275, 0.2475, 0.275), "models/sprops/misc/domes/size_2/dome_24x30.mdl", "", vec4(80, 80, 80, 255), 0)
+	    CN++, CT[CN,table] = table(I, 1, vec(0, 0, 0), vec(-0.8192, 0, 0.5736))
+
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0.05, 0, 6), ang(0, 180, 180), vec(0.275, 0.2475, 0.275), "models/sprops/misc/domes/size_2/dome_24x30.mdl", "", vec4(255, 255, 255, 255), 0)
+	    CN++, CT[CN,table] = table(I, 1, vec(0, 0, 0), vec(0.8192, 0, -0.5736))
+
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0, 0, 0), ang(90, 180, 0), vec(0.3, 0.3, 0.3), "models/Combine_Helicopter/helicopter_bomb01.mdl", "sprops/sprops_grid_12x12", vec4(80, 80, 80, 255), 0)
+	    CN++, CT[CN,table] = table(I, 1, vec(-1.5, 0, 0), vec(0.9659, -0.2588, 0))
+    CN++, CT[CN,table] = table(I, 2, vec(-1.5, 0, 0), vec(0.5, -0.866, 0))
+
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(-0.4, 0, 6), ang(0, 0, 0), vec(0.6975, 0.651, 0.31), "models/sprops/cylinders/size_4/cylinder_9x3.mdl", "", vec4(255, 255, 255, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0, 0, 6.01), ang(0, 0, 0), vec(0.275, 0.2475, 0.33), "models/sprops/misc/domes/size_2/dome_24x30.mdl", "", vec4(80, 80, 80, 255), 0)
+	    CN++, CT[CN,table] = table(I, 1, vec(0, 0, 0), vec(0.866, 0, 0.5))
+
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0.05, 0, 6), ang(0, 0, 0), vec(0.275, 0.2475, 0.33), "models/sprops/misc/domes/size_2/dome_24x30.mdl", "", vec4(255, 255, 255, 255), 0)
+	    CN++, CT[CN,table] = table(I, 1, vec(0, 0, 0), vec(-0.866, 0, -0.5))
+    
+    
+    local Parent = Bones["Left_ForeArm",number]
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0, 0, 7), ang(0, 90, 90), vec(0.5775, 4.2525, 0.5775), "models/sprops/geometry/fhex_12.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(4.2, 0, 2), ang(-90, 180, 0), vec(0.375, 0.375, 0.375), "models/rotarycannon/kw/20mmrac.mdl", "", vec4(125, 125, 125, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0, 3.3, 7), ang(90, 0, -90), vec(1, 1, 0.4), "models/sprops/geometry/hhex_12.mdl", "", vec4(80, 80, 80, 255), 0)
+    
+    
+    local Parent = Bones["Left_Hand_Real",number]
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0, 1.6, 0.7), ang(90, 0, -90), vec(0.5, 1.3, 0.3), "models/sprops/geometry/hhex_12.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0, -0.5, 5.6), ang(0, 0, 0), vec(0.325, 0.325, 0.585), "models/sprops/misc/fittings/cred_9_6_tall.mdl", "models/debug/debugwhite", vec4(225, 255, 0, 255), 1), Flames:pushNumber(I)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0, -0.5, 0), ang(90, -90, 0), vec(0.05, 0.1, 0.1), "models/props_combine/headcrabcannister01a.mdl", "sprops/sprops_grid_12x12", vec4(80, 80, 80, 255), 0)
+    
+    
+    local Parent = Bones["Spine2",number]
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(4.1, 0, 7.7), ang(0, 90, -228.5), vec(0.9, 0.5, 1.2), "models/sprops/geometry/hhex_18.mdl", "", vec4(80, 80, 80, 255), 0)
+	    CN++, CT[CN,table] = table(I, 1, vec(0, 0, 1.7), vec(0, 0, -1))
+
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(5.6426, 0, 5.3929), ang(0, 90, 0), vec(0.3, 0.06, 0.3), "models/sprops/geometry/sphere_9.mdl", "models/debug/debugwhite", vec4(255, 115, 60, 255), 1)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(3.2959, -4.3667, 1.2093), ang(19.1736, 46.7452, 10.4874), vec(0.425, 0.425, 0.425), "models/sprops/geometry/qhex_30.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(-2.8, 0, 5.4), ang(50, -180, 0), vec(1.3, 2.1125, 1.1375), "models/sprops/geometry/qhex_18.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(1.6274, -5, 8.047), ang(-80, -30, -150), vec(1.4625, 1.4625, 1.3), "models/sprops/geometry/qhex_18.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(-3.5, 0, 4.8), ang(50, -180, 0), vec(1.3, 1.3, 1.1375), "models/sprops/geometry/qhex_18.mdl", "", vec4(255, 255, 255, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(1.6274, 5, 8.047), ang(-80, 30, 150), vec(1.4625, 1.4625, 1.3), "models/sprops/geometry/qhex_18.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(5, 0, 2.5), ang(0, 90, -180), vec(0.6, 0.5, 1.2), "models/sprops/geometry/hhex_18.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0, 0, 0), ang(0, 0, 0), vec(1.275, 1.275, 0.8925), "models/sprops/geometry/sphere_9.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(5.6426, 0, 5.3929), ang(0, 90, 0), vec(0.125, 0.125, 0.125), "models/sprops/geometry/fring_24.mdl", "sprops/sprops_grid_12x12", vec4(255, 255, 255, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(-3.1, 5, 4.7), ang(50, -180, 0), vec(1.4625, 1.4625, 1.3), "models/sprops/geometry/qhex_18.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(-3.1, -5, 4.7), ang(50, -180, 0), vec(1.4625, 1.4625, 1.3), "models/sprops/geometry/qhex_18.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(3.2959, 4.367, 1.2093), ang(19.1736, -46.745, -10.487), vec(0.425, 0.425, 0.425), "models/sprops/geometry/qhex_30.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0, 0, 6.5), ang(0, 0, 0), vec(0.9, 0.6, 1.5), "models/sprops/geometry/sphere_12.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+
+    local Parent = Bones["Spine1",number]
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0, 3.303, 3.7), ang(0, 180, 95), vec(0.35, 0.8, 0.4), "models/sprops/misc/tubes_thin/size_2/t_h_tube_24x12.mdl", "sprops/sprops_grid_12x12", vec4(255, 255, 255, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(3.5, 0, 4.4), ang(0, 90, 190), vec(0.5, 0.8, 1), "models/sprops/geometry/hhex_12.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(3.4, 0, 2.6), ang(0, 90, 190), vec(0.5, 0.8, 0.7), "models/sprops/geometry/hhex_12.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0, -3.303, 3.7), ang(0, 0, 95), vec(0.35, 0.8, 0.4), "models/sprops/misc/tubes_thin/size_2/t_h_tube_24x12.mdl", "sprops/sprops_grid_12x12", vec4(255, 255, 255, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(3.3, 0, 0.5), ang(0, 90, 190), vec(0.6, 0.8, 0.7), "models/sprops/geometry/hhex_12.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(-3.7, 0, 2.6), ang(0, 90, 180), vec(0.35, 0.8, 1.7), "models/sprops/geometry/hhex_12.mdl", "", vec4(255, 255, 255, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0, 0, 0), ang(0, 0, 0), vec(0.76, 1, 0.8), "models/sprops/geometry/sphere_12.mdl", "", vec4(80, 80, 80, 255), 0)
+    
+    
+    local Parent = Bones["Pelvis",number]
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0, 0, 3), ang(0, 0, 0), vec(0.76, 1.045, 0.95), "models/sprops/geometry/sphere_12.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+
+    local Parent = Bones["Left_Thigh",number]
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0, 0, 0), ang(0, 0, 90), vec(0.25, 0.25, 0.25), "models/Combine_Helicopter/helicopter_bomb01.mdl", "sprops/sprops_grid_12x12", vec4(80, 80, 80, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0, 0, 14.018), ang(-90, 180, 0), vec(1, 1.2, 1), "models/sprops/geometry/qhex_18.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0, 0, 5.214), ang(0, 90, 90), vec(0.63, 3.57, 0.77), "models/sprops/geometry/fhex_12.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(-2.1, 0, 11.3), ang(252.7, 0, 0), vec(1.3, 1.56, 1.3), "models/sprops/geometry/qring_12.mdl", "", vec4(255, 255, 255, 255), 0)
+	
+
+    local Parent = Bones["Right_Thigh",number]
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0, 0, 0), ang(0, 0, 90), vec(0.25, 0.25, 0.25), "models/Combine_Helicopter/helicopter_bomb01.mdl", "sprops/sprops_grid_12x12", vec4(80, 80, 80, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0, 0, 14.018), ang(-90, 180, 0), vec(1, 1.2, 1), "models/sprops/geometry/qhex_18.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0, 0, 5.214), ang(0, 90, 90), vec(0.63, 3.57, 0.77), "models/sprops/geometry/fhex_12.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(-2.1, 0, 11.3), ang(252.7, 0, 0), vec(1.3, 1.56, 1.3), "models/sprops/geometry/qring_12.mdl", "", vec4(255, 255, 255, 255), 0)
+    
+    
+    local Parent = Bones["Left_Calf",number]
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0.7, 0, 5), ang(-79.918, 0, 0), vec(1.5, 1, 0.7), "models/sprops/geometry/qring_24.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(-2.9839, 0, 3.2532), ang(11.4267, 0, 0), vec(0.9, 0.9, 1), "models/sprops/misc/domes/size_0/dome_6x18.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(-2.884, 0, 13.753), ang(-4.173, 0, -180), vec(1.2, 1, 0.7), "models/sprops/misc/domes/size_0/dome_6x12.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(-0.884, 0, -2.647), ang(2.327, 0, 0), vec(0.8, 0.6, 1.3), "models/sprops/misc/domes/size_0/dome_6x18.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(-2.9839, 0, 3.2532), ang(11.4267, 0, -180), vec(0.9, 0.9, 0.7), "models/sprops/misc/domes/size_0/dome_6x12.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+
+    local Parent = Bones["Right_Calf",number]
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0.7, 0, 5), ang(-79.918, 0, 0), vec(1.5, 1, 0.7), "models/sprops/geometry/qring_24.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(-2.9839, 0, 3.2532), ang(11.4267, 0, 0), vec(0.9, 0.9, 1), "models/sprops/misc/domes/size_0/dome_6x18.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(-2.884, 0, 13.753), ang(-4.173, 0, -180), vec(1.2, 1, 0.7), "models/sprops/misc/domes/size_0/dome_6x12.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(-0.884, 0, -2.647), ang(2.327, 0, 0), vec(0.8, 0.6, 1.3), "models/sprops/misc/domes/size_0/dome_6x18.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(-2.9839, 0, 3.2532), ang(11.4267, 0, -180), vec(0.9, 0.9, 0.7), "models/sprops/misc/domes/size_0/dome_6x12.mdl", "", vec4(80, 80, 80, 255), 0)
+    
+    local Size = 1.5
+    local Parent = Bones["Left_Foot",number]
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0, 0, -9.8)*Size, ang(180, 0, 0), vec(0.455, 0.455, 1.3)*Size, "models/sprops/misc/fittings/cred_9_6_tall.mdl", "models/debug/debugwhite", vec4(225, 255, 0, 127.5), 1), Flames:pushNumber(I)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(2.8229, -0.0005, -0.9467)*Size, ang(95, 0, 0), vec(0.2275, 0.312, 0.4225)*Size, "models/sprops/misc/fittings/cred_12_9_tall.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(-1.527, -0.0005, -1.447)*Size, ang(0, 90, 90), vec(0.4724, 0.3736, 2.679)*Size, "models/sprops/geometry/hhex_12.mdl", "", vec4(80, 80, 80, 255), 0)
+	    CN++, CT[CN,table] = table(I, 1, vec(0, 0, 1.5)*Size, vec(0, 0, 1))
+
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0, 0, -0.8)*Size, ang(0, 0, 0), vec(0.36, 0.36, 0.21)*Size, "models/sprops/misc/fittings/cred_12_9_tall.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0, 0, 0)*Size, ang(0, 0, 0), vec(0.275, 1.32, 0.275)*Size, "models/sprops/geometry/fhex_12.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+
+    local Parent = Bones["Right_Foot",number]
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0, 0, -9.8)*Size, ang(180, 0, 0), vec(0.455, 0.455, 1.3)*Size, "models/sprops/misc/fittings/cred_9_6_tall.mdl", "models/debug/debugwhite", vec4(225, 255, 0, 127.5), 1), Flames:pushNumber(I)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(2.8229, -0.0005, -0.9467)*Size, ang(95, 0, 0), vec(0.2275, 0.312, 0.4225)*Size, "models/sprops/misc/fittings/cred_12_9_tall.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(-1.527, -0.0005, -1.447)*Size, ang(0, 90, 90), vec(0.4724, 0.3736, 2.679)*Size, "models/sprops/geometry/hhex_12.mdl", "", vec4(80, 80, 80, 255), 0)
+	    CN++, CT[CN,table] = table(I, 1, vec(0, 0, 1.5)*Size, vec(0, 0, 1))
+
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0, 0, -0.8)*Size, ang(0, 0, 0), vec(0.36, 0.36, 0.21)*Size, "models/sprops/misc/fittings/cred_12_9_tall.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0, 0, 0)*Size, ang(0, 0, 0), vec(0.275, 1.32, 0.275)*Size, "models/sprops/geometry/fhex_12.mdl", "", vec4(80, 80, 80, 255), 0)
+    
+    
+    local Parent = Bones["Head",number]
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0.1, 3.6, 4.2), ang(0, 0, -90), vec(0.4, 0.4, 0.16), "models/sprops/misc/fittings/cred_12_6_short.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0.3789, 0, 4.0066), ang(31.1, 180, 180), vec(0.72, 0.576, 0.504), "models/sprops/misc/domes/size_1/dome_12x12.mdl", "", vec4(255, 255, 255, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0.1, -3.6, 4.2), ang(0, 0, 90), vec(0.4, 0.4, 0.16), "models/sprops/misc/fittings/cred_12_6_short.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(-0.12, 0, 4.64), ang(156.5, 0, 0), vec(0.72, 0.648, 0.648), "models/sprops/misc/domes/size_1/dome_12x12.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0.3789, 0, 4.0066), ang(31.1, 180, 180), vec(0.6768, 0.432, 0.576), "models/sprops/misc/domes/size_1/dome_12x12.mdl", "", vec4(255, 255, 255, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(3.1, 0, 6.7), ang(46.4, 0, 0), vec(0.52, 0.32, 0.16), "models/sprops/misc/fittings/cred_12_6_short.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(3.1, 0, -0.3), ang(43.5, 0, 0), vec(0.325, 0.32, 0.335), "models/sprops/misc/fittings/cred_12_9_short.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(0, 0, 4.4), ang(0, 0, 0), vec(0.725, 0.6525, 0.725), "models/sprops/geometry/sphere_12.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+    I++, HN++, HT[HN,table] = table(I, Parent, noentity(), 0, vec(3, 0, 0.4), ang(-16.2, 0, 0), vec(0.4, 0.3, 0.185), "models/sprops/misc/fittings/cred_12_9_short.mdl", "", vec4(80, 80, 80, 255), 0)
+	
+    findIncludePlayerProps(owner())
+    findInSphere(Base:pos(),150)
+    rangerFilter(findToArray())
+    function vector bezier4( T, [P1 P2 P3 P4]:vector ) {
+        return P1 * ( 1 - T ) ^ 3 + P2 * 3 * T * ( 1 - T ) ^ 2 + P3 * 3 * T ^ 2 * ( 1 - T ) + P4 * T ^ 3
+    }
+    function array:holo() {
+        local Index = This[1, number]
+        
+        holoCreate(Index, (This[2,entity]:isValid() ? This[2,entity] : (holoEntity(This[2,number]):isValid() ? holoEntity(This[2,number]) : entity())):toWorld(This[5, vector]), (This[7, number] ? vec(This[7, number]) : This[7, vector]), (This[2,entity]:isValid() ? This[2,entity] : (holoEntity(This[2,number]):isValid() ? holoEntity(This[2,number]) : entity())):toWorld(This[6, angle]))
+        holoParent(Index, This[2,entity]:isValid() ? This[2,entity] : (holoEntity(This[2,number]):isValid() ? holoEntity(This[2,number]) : entity()))
+        holoModel(Index, This:exists(8) ? This[8, string] : "cube")
+        holoMaterial(Index, This:exists(9) ? This[9, string] : "")
+        if(This:exists(10)){
+            if(This[10, vector]!=vec()){
+                holoColor(Index, This[10, vector])
+            }elseif(This[10, vector4]!=vec4()){
+                holoColor(Index, This[10, vector4])
+            }else{
+                holoColor(Index, vec(255))
+            }
+        }else{
+            holoColor(Index, vec(255))
+        }
+        if(This[3,entity]:isValid() && This[3,entity] != noentity()){
+            holoPos(Index,This[3,entity]:pos())
+            holoAng(Index,This[3,entity]:angles())
+            This[3,entity]:parentTo(holoEntity(Index))
+            #This[3,entity]:setAlpha(255)
+            holoPos(Index,(This[2,entity]:isValid() ? This[2,entity] : (holoEntity(This[2,number]):isValid() ? holoEntity(This[2,number]) : entity())):toWorld(This[5, vector]))
+            holoAng(Index,(This[2,entity]:isValid() ? This[2,entity] : (holoEntity(This[2,number]):isValid() ? holoEntity(This[2,number]) : entity())):toWorld(This[6, angle]))
+        }
+        holoDisableShading(Index, This:exists(11) ? This[11, number] : 0)
+    }
+    
+    function table:holo() {
+        local Index = This[1, number]
+        holoCreate(Index, (This[2,entity]:isValid() ? This[2,entity] : (holoEntity(This[2,number]):isValid() ? holoEntity(This[2,number]) : entity())):toWorld(This[5, vector]), (This[7, number] ? vec(This[7, number]) : This[7, vector]), (This[2,entity]:isValid() ? This[2,entity] : (holoEntity(This[2,number]):isValid() ? holoEntity(This[2,number]) : entity())):toWorld(This[6, angle]))
+        holoParent(Index, This[2,entity]:isValid() ? This[2,entity] : (holoEntity(This[2,number]):isValid() ? holoEntity(This[2,number]) : entity()))
+        holoModel(Index, This:exists(8) ? This[8, string] : "cube")
+        holoMaterial(Index, This:exists(9) ? This[9, string] : "")
+        if(This:exists(10)){
+            if(This[10, vector]!=vec()){
+                holoColor(Index, This[10, vector])
+            }elseif(This[10, vector4]!=vec4()){
+                holoColor(Index, This[10, vector4])
+            }else{
+                holoColor(Index, vec(255))
+            }
+        }else{
+            holoColor(Index, vec(255))
+        }
+        
+        holoDisableShading(Index, This:exists(11) ? This[11, number] : 0)
+    }
+
+    #- Clip a hologram from data array
+    function array:clip() {
+        holoClipEnabled(This[1, number], This[2, number], 1)
+        holoClip(This[1, number], This[2, number], This[3, vector], This[4, vector], 0)
+    }
+    function table:clip() {
+        holoClipEnabled(This[1, number], This[2, number], 1)
+        holoClip(This[1, number], This[2, number], This[3, vector], This[4, vector], 0)
+    }
+    #- Load the contraption
+    function loadContraption() {
+        switch (SpawnStatus) {
+            case "InitSpawn",
+                if (clk("Start")) {
+                    SpawnStatus = "LoadHolograms"
+                }
+            break
+
+            case "LoadHolograms",
+                while (perf() & holoCanCreate() & (holoRemainingSpawns() > 5) &  SpawnCounter < HN) {
+                    SpawnCounter++
+                    HT[SpawnCounter, array]:holo()
+                    HT[SpawnCounter, table]:holo()
+                    if (SpawnCounter >= HN) {
+                        SpawnStatus = CN > 0 ? "LoadClips" : "PrintStatus"
+                        SpawnCounter = 0
+                        break
+                    }
+                }
+            break
+
+            case "LoadClips",
+                while (perf() & SpawnCounter < CN) {
+                    SpawnCounter++
+                    CT[SpawnCounter, array]:clip()
+                    CT[SpawnCounter, table]:clip()
+
+                    if (SpawnCounter >= CN) {
+                        SpawnStatus = "PrintStatus"
+                        SpawnCounter = 0
+                        break
+                    }
+                }
+            break
+
+            case "PrintStatus",
+                printColor( vec(222,37,188), "Holo Loader 3.0: ", vec(255,255,255), "Loaded " + HN + " holograms and " + CN + " clips." )
+
+                HT:clear()
+                CT:clear()
+
+                CoreStatus = "InitPostSpawn"
+                SpawnStatus = ""
+            break
+        }
+    }
+    
+    function number icos(A, B, C) {
+        return acos((A^2 + B^2 - C^2) / (2*A*B))    
+    }
+    function leg_ik(LeftRight,Rotation,Target:vector,StepLift){
+        local Base=Bones[LeftRight ? "Right_LegHelper" : "Left_LegHelper",number]
+        local NHip=Bones[LeftRight ? "Right_Thigh" : "Left_Thigh",number]
+        local NKnee=Bones[LeftRight ? "Right_Calf" : "Left_Calf",number]
+        local NFoot=Bones[LeftRight ? "Right_Foot" : "Left_Foot",number]
+        
+        holoAng(Base, holoEntity(Bones["Pelvis",number]):toWorld(ang(0,Rotation,0)))
+        
+        local Origin = holoEntity(NHip):pos()
+        local AxisLocal = holoEntity(Base):toLocalAxis(Target - Origin)
+
+        local AxisAngle = AxisLocal:toAngle():setRoll(-bearing(Target, holoEntity(Base):angles(), Origin)) #-- forward knee
+        
+        local LengthC = min(AxisLocal:length(), Length1_Leg + Length2_Leg)
+        local AxisQuat = quat(AxisAngle) * qRotation(vec(0, 1, 0), 90 + icos(LengthC, Length1_Leg, Length2_Leg))
+        
+        holoAng(NHip, holoEntity(Base):toWorld(AxisQuat:toAngle()))
+        holoAng(NKnee, holoEntity(NHip):toWorld(ang(icos(Length2_Leg, Length1_Leg, LengthC) + 180, 0, 0)))
+        if(Flying){
+            holoAng(NFoot, holoEntity(NKnee):toWorld(ang(0,0,180)))
+        }else{
+            holoAng(NFoot, slerp(quat(ang(0,holoEntity(Base):angles():yaw(),0)),quat(holoEntity(NKnee):toWorld(ang(0,0,180))),StepLift*MoveVal):toAngle())
+        }
+    }
+    function arm_ik(LeftRight,Rotation,Target:vector,AngleData:table){
+        local Base=Bones[LeftRight ? "Right_Shoulder" : "Left_Shoulder",number]
+        local NHip=Bones[LeftRight ? "Right_UpperArm" : "Left_UpperArm",number]
+        local NKnee=Bones[LeftRight ? "Right_ForeArm" : "Left_ForeArm",number]
+        local NFoot=Bones[LeftRight ? "Right_Hand" : "Left_Hand",number]
+        local NFoot2=Bones[LeftRight ? "Right_Hand_Real" : "Left_Hand_Real",number]
+        
+        holoAng(Base, holoEntity(Bones["Spine2",number]):toWorld(ang(0,Rotation,0)))
+        
+        local Origin = holoEntity(NHip):pos()
+        local AxisLocal = holoEntity(Base):toLocalAxis(Target - Origin)
+
+        local AxisAngle = AxisLocal:toAngle():setRoll(-bearing(Origin, holoEntity(Base):angles(), Target)) #-- forward knee
+        
+        local LengthC = min(AxisLocal:length(), Length1_Arm + Length2_Arm)
+        local AxisQuat = quat(AxisAngle) * qRotation(vec(0, 1, 0), 90 + icos(LengthC, Length1_Arm, Length2_Arm))
+        
+        holoAng(NHip, holoEntity(Base):toWorld(AxisQuat:toAngle()))
+        holoAng(NKnee, holoEntity(NHip):toWorld(ang(icos(Length2_Arm, Length1_Arm, LengthC) + 180, 0, 0)))
+        local Mix=AngleData[2,number]
+        holoAng(NFoot, slerp(quat(holoEntity(Bones["Spine2",number]):toWorld(ang(160,0,0))),quat(AngleData[1,angle]),clamp(Mix,0,1)):toAngle())
+        
+        local HandAng = holoEntity(NFoot):angles()
+        local HandAngLocal = holoEntity(NKnee):toLocal(holoEntity(NFoot):angles())
+        
+        holoAng(NFoot2, holoEntity(NKnee):toWorld(ang(0,HandAngLocal:yaw()*!Flying,0)))
+        
+    }
+    
+    runOnTick(1)
+    timer("Start", 500)
+    CoreStatus = "InitSpawn"
+    SpawnStatus = "InitSpawn"
+    #ifdef entity:linkToPod(entity)
+        PodController=spawnPodController(entity():pos()+vec(0,0,250),ang(),1,Seat)
+        PodController:propDraw(0)
+    #endif
+}elseif (CoreStatus == "InitSpawn") {
+    loadContraption()
+}elseif (CoreStatus == "InitPostSpawn") {
+    #- This is your "if (first())" section of the code.
+    if(!EditMode){
+        Base:propFreeze(0)
+        #ifdef entity:linkToPod(entity)
+            PodController:linkToPod(Seat)
+            PodControllerW=PodController:wirelink()
+            PodControllerW["Crosshairs",number]=1
+        #endif
+        Animation["current_weapon",string]="none"
+        Landed=1
+        timer("int",50)
+    }
+    
+    BoostData["unblockMovement",number]=1
+    
+    CamParent=holoEntity(Bones["CamParent",number])
+    holoUnparent(Bones["Root",number])
+    holoUnparent(Bones["CamParent",number])
+    runOnTick(0)
+    
+    CoreStatus = "CodeRun"
+    foreach(I:number,ID:number=Flames){
+        holoAlpha(ID,175*Flying)
+    }
+}elseif(clk("int")){
+    timer("int",50)
+    Driver=Seat:driver()
+    
+    BaseVel=Base:vel()#Base:forward()*80#Base:vel()
+    SP = Driver:keySprint()*On_Ground2*!Driver:keyPressed("s")
+    M1 = Driver:keyAttack1()
+    M2 = Driver:keyAttack2()
+    W2 = Driver:keyPressed("w")*(On_Ground2|Flying)
+    S2 = Driver:keyPressed("s")*(On_Ground2|Flying)
+    A2 = Driver:keyPressed("a")*(On_Ground2|Flying)
+    D2 = Driver:keyPressed("d")*(On_Ground2|Flying)
+    UP = Driver:keyJump()
+    SL = 0#Driver:keyWalk()
+    DN = Driver:keyWalk()
+    M2Val += (M2*2-1)*0.25
+    M2Val = clamp(M2Val,0,1)
+    Fire=(M2Val==1)&M1
+    Turret1W=Turret1:wirelink()
+    Turret2W=Turret2:wirelink()
+    Turret1W["Fire",number]=Fire
+    Turret2W["Fire",number]=Fire
+    
+    if(Driver:isValid()){
+        LocalEyes3 = SL ? LocalEyes : Driver:eyeAngles()
+    }
+    LocalEyes = slerp(quat(LocalEyes),quat(LocalEyes3),0.32):toAngle()
+    if(Base:isFrozen()&Driver:isPlayer()){
+        Base:propFreeze(0)
+    }
+    
+    Ground_Ranger=rangerOffsetHull((Length1_Leg+Length2_Leg)+15+13*!Boosting,Base:pos(),vec(0,0,-1),vec(25/3.15,25/3.15,5))
+    
+    On_Ground=(Ground_Ranger:distance()<=((Length1_Leg+Length2_Leg)+6))
+    On_Ground2=(((holoEntity(Bones["Pelvis",number]):toWorld(vec(0,0,-42))-(holoEntity(Bones["Root",number]):pos())):z()>-4)*Ground_Ranger:hit()|On_Ground|Flying)*Landed
+    if(On_Ground&DN&Flying){
+        Landed=1
+        Flying=0
+        ShiftVal=0
+        BoostingTest=0
+    }
+    if(changed(UP)&UP){
+        Flying=1
+        if(!Flying){
+            ShiftVal=0
+        }
+    }
+    if(changed(Flying)){
+        foreach(I:number,ID:number=Flames){
+            holoAlpha(ID,75*Flying)
+        }
+        if(Flying){
+            if(SP){
+                holoEntity(Bones["CamParent",number]):soundPlay("boost",0,"^thrusters/Rocket04.wav")
+                BoostingTest=1
+            }
+            holoEntity(Bones["CamParent",number]):soundPlay("jets",0,"^thrusters/Rocket00.wav")
+        }else{
+            soundVolume("jets",0)
+        }
+    }
+    if(changed(BoostingTest)){
+        if(BoostingTest){
+            holoEntity(Bones["Left_Hand_Real",number]):setTrails(5,0,0.7,"trails/smoke",vec(255),35,1,1)
+            holoEntity(Bones["Right_Hand_Real",number]):setTrails(5,0,0.7,"trails/smoke",vec(255),35,1,1)
+            holoEntity(Bones["Right_Foot",number]):setTrails(8,0,0.7,"trails/smoke",vec(255),35,1,1)
+            holoEntity(Bones["Left_Foot",number]):setTrails(8,0,0.7,"trails/smoke",vec(255),35,1,1)
+        }else{
+            holoEntity(Bones["Left_Hand_Real",number]):removeTrails()
+            holoEntity(Bones["Right_Hand_Real",number]):removeTrails()
+            holoEntity(Bones["Left_Foot",number]):removeTrails()
+            holoEntity(Bones["Right_Foot",number]):removeTrails()
+        }
+    }
+    W=W2
+    S=S2
+    A=A2
+    D=D2
+    
+    MOVEW += 0.1*(W-!W)
+    MOVEW=clamp(MOVEW,0,1)
+    
+    MOVES += 0.1*(S-!S)
+    MOVES=clamp(MOVES,0,1)
+    
+    MOVEA += 0.1*(A-!A)
+    MOVEA=clamp(MOVEA,0,1/(1+ShiftVal*Flying))
+    
+    MOVED += 0.1*(D-!D)
+    MOVED=clamp(MOVED,0,1/(1+ShiftVal*Flying))
+    
+    MOVEZ += 0.1*(UP-DN)
+    MOVEZ=clamp(MOVEZ,-0.3,1)
+    MOVEZ/=1+1.5*!(UP|DN)
+    
+    Moving=W|S|A|D
+    
+    MoveVal += 0.1*(Moving-!Moving)
+    MoveVal=clamp(MoveVal,0,1)
+    
+    ShiftVal += (0.1-0.05*Flying)*(SP-!SP)
+    ShiftVal=clamp(ShiftVal,0,MOVEW)
+    
+    if(changed(SP)|(changed(ShiftVal)&ShiftVal==0)|(changed(W)&W&SP)){
+        if(SP&Flying&W){
+            holoEntity(Bones["CamParent",number]):soundPlay("boost",0,"^thrusters/Rocket04.wav")
+            BoostingTest=1
+        }else{
+            soundVolume("boost",0)
+            BoostingTest=0
+        }
+    }
+    soundPitch("jets",100+Base:vel():length()*0.08)
+    soundPitch("boost",100+Base:angVelVector():length()*2)
+    soundVolume("jets",1/(1+ShiftVal)*Flying)
+    
+    if(Moving){
+        if(SP){
+            MOVEMAX += 0.15
+        }
+        elseif(SL){
+            MOVEMAX += 0.05
+        }
+        else{
+            MOVEMAX += 0.1
+        }
+    }else{
+        MOVEMAX -= 0.1
+    }
+    MOVEMAX=clamp(MOVEMAX,0,1)
+    if(Ground_Ranger:hit()|Flying){
+        MOVEX = clamp(abs(MOVEW-MOVES)/sqrt(abs(MOVEW-MOVES)+abs(MOVED-MOVEA)),0,1)*sign(MOVEW-MOVES)*MOVEMAX
+        MOVEY = clamp(abs(MOVED-MOVEA)/sqrt(abs(MOVEW-MOVES)+abs(MOVED-MOVEA)),0,1)*sign(MOVED-MOVEA)*MOVEMAX
+    }
+    else{
+        MOVEX = 0
+        MOVEY = 0
+    }
+    
+    if(isnan(MOVEX)|isnan(MOVEY)){
+        MOVEX = 0
+        MOVEY = 0
+    }
+    
+    Base:propGravity(!On_Ground*!Flying)
+    
+    
+    if(changed(Driver)){
+        if(Driver){
+            Driver:setMaterial("null")
+            DriverStore=Driver
+        }else{
+            DriverStore:setMaterial("")
+        }
+    }
+    
+    if(!Seat:driver():isValid()){
+        #ifdef entity:plySetPos(vector)
+            foreach(I,E:entity=DriverTargets){
+                if(changed(E:keyPressed("m"))&E:keyPressed("m")){
+                    E:plyEnterVehicle(Seat)
+                }
+            }
+        #else
+            if(changed(owner():keyPressed("m"))&owner():keyPressed("m")){
+                Seat:use()
+            }
+        #endif
+    }
+    Seat:setAlpha(100*!Seat:driver():isValid())
+    
+    Dir=vec(W-S,A-D,0):normalized()
+    Dir2=LocalEyes:forward()
+    if(Flying){
+        Yaw=LocalEyes:yaw()
+    }else{
+        if(Dir:length()>0.1|(abs(holoEntity(Bones["Pelvis",number]):toLocal(LocalEyes):yaw())>125)){
+            Yaw=LocalEyes:yaw()
+        }
+    }
+    
+    Dir3=slerp(quat(ang(0,Dir2:toAngle(vec(0,0,1)):yaw(),0)),quat(ang(0,Yaw,0)),0.2):toAngle():forward():toAngle(vec(0,0,1))
+    Dir4=Base:toLocal(Dir2:toAngle())
+    
+    holoPos(Bones["Root",number],Ground_Ranger:position()+vec(0,0,49.5)-vec(0,0,BaseVel:z()*tickInterval()*15/2)*On_Ground)
+    
+    HeightForce=vec(0,0,clamp((Length1_Leg+Length2_Leg) - Ground_Ranger:distance(),-(Length1_Leg+Length2_Leg)-6,(Length1_Leg+Length2_Leg)+6)*15)
+    MoveForce=vec(MOVEX,-MOVEY,0):rotateAroundAxis(vec(0,0,1),LocalEyes:yaw())*(0.4+ShiftVal*0.4)*MOVEMAX*MoveVal*(1-sin(ShiftVal*180)*0.4*SP)*(M2*(1-ShiftVal) ? 0.6 : 1)
+    DampForce=-(Base:toWorld(Base:velL())-Base:pos())
+   if(Flying){
+        Base:applyForce(((LocalEyes:forward()*MOVEX+LocalEyes:right()*MOVEY+vec(0,0,1)*(MOVEZ*0.5))*(400+(650*ShiftVal))+DampForce*0.3)*Base:mass()*0.5)
+        Base:applyAngForce((Base:toLocal(ang(LocalEyes:pitch()*ShiftVal,LocalEyes:yaw(),15*MOVEY))*5-Base:angVel()*0.8)*Base:mass()*18)
+    }else{
+        Base:applyForce((Ground_Ranger:entity():vel()+HeightForce+MoveForce*BoostData["unblockMovement",number]*(250+(150*ShiftVal))+DampForce)*Base:mass()*On_Ground)
+        Base:applyAngForce((Base:toLocal(ang(0,LocalEyes:yaw(),0))*5-Base:angVel()*0.8)*Base:mass()*18)
+    }
+    
+    Vel=((BaseVel/100)-(Ground_Ranger:entity():vel()/100))*0.3
+    Add=(0.4+(Vel:setZ(0):length()*0.45))*(0.25-(0.05*ShiftVal))
+    WalkRate+=Add
+    WalkRate=clamp(WalkRate,0,!Flying)*On_Ground2
+    Sin=sin(WalkRate*180)*MoveVal
+    Sin2=sin((0.1+WalkRate)*180)*MoveVal
+    Sin3=bezier(vec(),vec(1),vec(),WalkRate):x()*(Step-!Step)*MoveVal
+        Sin4=sin(WalkRate*180)*MoveVal
+    Cos=cos(WalkRate*90)*MoveVal
+    Cos2=cos((0.5+WalkRate)*180)*MoveVal
+    Distance=55+(20*ShiftVal)
+    
+    AimPos=Driver:isValid()*!SL ? rangerOffset(99999,Driver:shootPos()+Driver:eye()*100,Driver:eye()):pos() : rangerOffset(99999,Driver:shootPos()+Driver:eye()*100,Driver:eye()):pos()
+    if(Flying){
+        if(Moving&SP){
+            Animation["state",string]="move_air"
+        }else{
+            Animation["state",string]="air_idle"
+        }
+    }else{
+        if(Moving){
+            if(SP){
+                Animation["state",string]="run"
+            }else{
+                Animation["state",string]="walk"
+            }
+        }else{
+            Animation["state",string]="idle"
+        }
+    }
+    if(changed(Animation["state",string])){
+        Animation["PelvisAngLast",angle]=Animation["PelvisAngNext",angle]
+        Animation["PelvisOffsetLast",vector]=Animation["PelvisOffsetNext",vector]
+        Animation["Spine1AngLast",angle]=Animation["Spine1AngNext",angle]
+        Animation["Spine2AngLast",angle]=Animation["Spine2AngNext",angle]
+        Animation["HeadAngLast",angle]=Animation["HeadAngNext",angle]
+        Animation["MixAnim",number]=0
+    }
+    MoveL=Base:velL()*0.01
+    switch(Animation["state",string]){
+        case "idle",
+            switch(Animation["current_weapon",string]){
+                case "none",
+                    Animation["PelvisAngNext",angle]=ang(0,Yaw,0)
+                    Animation["PelvisOffsetNext",vector]=vec(0,0,0)
+                    Animation["Spine1AngNext",angle]=ang(0,0,0)
+                    Animation["Spine2AngNext",angle]=ang(0,0,0)
+                    Animation["HeadAngNext",angle]=ang(0,0,0)
+                    
+                    LeftArmTarget=holoEntity(Bones["Pelvis",number]):toWorld(vec(2+10*ShiftVal*(1-sin(WalkRate*180))+8*Sin4*(!Step-Step)*ShiftVal*Scale,16*Scale,-5+1*(1+ShiftVal*2)+5*ShiftVal+2*Sin*(1+ShiftVal)*Scale):rotateAroundAxis(vec(0,0,1),holoEntity(Bones["Pelvis",number]):toLocal(LocalEyes):yaw()*0.5+35*Sin3))
+                    RightArmTarget=holoEntity(Bones["Pelvis",number]):toWorld(vec(2+10*ShiftVal*(1-sin(WalkRate*180))+8*Sin4*(Step-!Step)*ShiftVal*Scale,-16*Scale,-5+1*(1+ShiftVal*2)+5*ShiftVal+2*Sin*(1+ShiftVal)*Scale):rotateAroundAxis(vec(0,0,1),holoEntity(Bones["Pelvis",number]):toLocal(LocalEyes):yaw()*0.5+35*Sin3))
+                    
+                    RollArmLeft=25
+                    RollArmRight=25
+                break
+            }
+        break
+        case "air_idle",
+            switch(Animation["current_weapon",string]){
+                case "none",
+                    Animation["PelvisAngNext",angle]=ang(45*MOVEX-(MoveL:x()-MOVEX*(16+20*ShiftVal))*6,Yaw,35*MOVEY+Base:velL():y()*0.035*(1-abs(MOVEY)))*(1-ShiftVal)+ang(90+LocalEyes:pitch(),Yaw,0)*(ShiftVal)+ang(5*sin((systime()+0.1)*3.28*90),0,-5*sin((systime()+0.1)*2.15*90))*0.2
+                    Animation["PelvisOffsetNext",vector]=vec(5*sin(systime()*3.28*0.5*90),-5*sin(systime()*2.15*0.5*90),0)*0.1
+                    Animation["Spine1AngNext",angle]=ang(0,0,0)
+                    Animation["Spine2AngNext",angle]=ang(0,0,0)
+                    Animation["HeadAngNext",angle]=ang(0,0,0)*(1-ShiftVal)+ang(0,0,0)*(ShiftVal)
+                    
+                    LeftArmTarget=holoEntity(Bones["Pelvis",number]):toWorld(vec((MoveL:x()-MOVEX*(15+20*ShiftVal))*2*Scale,18-clamp(MoveL:y()-MOVEY*15,-50,5)*(1-ShiftVal)*Scale,-38+10*clamp(abs(MoveL:x())-abs(MOVEX*(5+35*ShiftVal)),0,5)*Scale))
+                    RightArmTarget=holoEntity(Bones["Pelvis",number]):toWorld(vec((MoveL:x()-MOVEX*(15+20*ShiftVal))*2*Scale,-18-clamp(MoveL:y()-MOVEY*15,-5,50)*(1-ShiftVal)*Scale,-38+10*clamp(abs(MoveL:x())-abs(MOVEX*(5+35*ShiftVal)),0,5)*Scale))
+                    
+                    RollArmLeft=0
+                    RollArmRight=0
+                    
+                    LeftLegFly=holoEntity(Bones["Pelvis",number]):toWorld(vec(0,5-15*MOVEY*ShiftVal-clamp(MoveL:y()-MOVEY*15,-50,5)*(1-ShiftVal)*Scale,-75*Scale):rotate(Base:toLocal(LocalEyes):rotateAroundAxis(vec(1,0,0),25*MOVEY*ShiftVal)*ShiftVal+ang(abs(Base:toLocal(LocalEyes):yaw()),0,0)*ShiftVal))
+                    RightLegFly=holoEntity(Bones["Pelvis",number]):toWorld(vec(0,-5-15*MOVEY*ShiftVal-clamp(MoveL:y()-MOVEY*15,-5,50)*(1-ShiftVal)*Scale,-75*Scale):rotate(Base:toLocal(LocalEyes):rotateAroundAxis(vec(1,0,0),25*MOVEY*ShiftVal)*ShiftVal+ang(abs(Base:toLocal(LocalEyes):yaw()),0,0)*ShiftVal))
+                break
+            }
+        break
+        case "move_air",
+            switch(Animation["current_weapon",string]){
+                case "none",
+                    Animation["PelvisAngNext",angle]=ang(45*MOVEX-(MoveL:x()-MOVEX*(16+20*ShiftVal))*6,Yaw,35*MOVEY+Base:velL():y()*0.035*(1-abs(MOVEY)))*(1-ShiftVal)+ang(90+LocalEyes:pitch()-45*MOVEZ,Yaw,0)*(ShiftVal)
+                    Animation["PelvisOffsetNext",vector]=vec(0,0,0)
+                    Animation["Spine1AngNext",angle]=ang(0,0,0)
+                    Animation["Spine2AngNext",angle]=ang(0,0,0)
+                    Animation["HeadAngNext",angle]=ang(0,0,0)*(1-ShiftVal)+ang(0,0,0)*(ShiftVal)
+                    
+                    LeftArmTarget=holoEntity(Bones["Pelvis",number]):toWorld(vec((MoveL:x()-MOVEX*(15+20*ShiftVal))*2*Scale,10-clamp(MoveL:y()-MOVEY*(15),-35,3)*(1-ShiftVal)*Scale,-42+10*clamp(abs(MoveL:x())-abs(MOVEX*(5+35*ShiftVal)),0,5)*Scale))
+                    RightArmTarget=holoEntity(Bones["Pelvis",number]):toWorld(vec((MoveL:x()-MOVEX*(15+20*ShiftVal))*2*Scale,-10-clamp(MoveL:y()-MOVEY*(15),-3,35)*(1-ShiftVal)*Scale,-42+10*clamp(abs(MoveL:x())-abs(MOVEX*(5+35*ShiftVal)),0,5)*Scale))
+                    
+                    RollArmLeft=0
+                    RollArmRight=0
+                    
+                    LeftLegFly=holoEntity(Bones["Pelvis",number]):toWorld(vec(-20*Scale,5-15*MOVEY*ShiftVal-clamp(MoveL:y()-MOVEY*15,-50,5)*(1-ShiftVal)*Scale,-75*Scale):rotate(Base:toLocal(LocalEyes):rotateAroundAxis(vec(1,0,0),25*MOVEY*ShiftVal)*ShiftVal+ang(abs(Base:toLocal(LocalEyes):yaw()),0,0)*ShiftVal))
+                    RightLegFly=holoEntity(Bones["Pelvis",number]):toWorld(vec(-20*Scale,-5-15*MOVEY*ShiftVal-clamp(MoveL:y()-MOVEY*15,-5,50)*(1-ShiftVal)*Scale,-75*Scale):rotate(Base:toLocal(LocalEyes):rotateAroundAxis(vec(1,0,0),25*MOVEY*ShiftVal)*ShiftVal+ang(abs(Base:toLocal(LocalEyes):yaw()),0,0)*ShiftVal))
+                break
+            }
+        break
+        case "walk",
+            switch(Animation["current_weapon",string]){
+                case "none",
+                    Animation["PelvisAngNext",angle]=ang(0,Yaw,0)
+                    Animation["PelvisOffsetNext",vector]=vec(0,0,0)
+                    Animation["Spine1AngNext",angle]=ang(5,0,5*Sin2*(Step-!Step)-6*(MOVEA-MOVED))
+                    Animation["Spine2AngNext",angle]=ang(15,0,4*Sin*(Step-!Step)-12*(MOVEA-MOVED))
+                    Animation["HeadAngNext",angle]=ang(5,0,0)
+                    
+                    LeftArmTarget=holoEntity(Bones["Pelvis",number]):toWorld(vec(2+10*ShiftVal*(1-sin(WalkRate*180))+8*Sin4*(!Step-Step)*ShiftVal*Scale,15*Scale,-4+1*(1+ShiftVal*2)+5*ShiftVal+2*Sin*(1+ShiftVal)*Scale):rotateAroundAxis(vec(0,0,1),holoEntity(Bones["Pelvis",number]):toLocal(LocalEyes):yaw()*0.5+35*Sin3))
+                    RightArmTarget=holoEntity(Bones["Pelvis",number]):toWorld(vec(2+10*ShiftVal*(1-sin(WalkRate*180))+8*Sin4*(Step-!Step)*ShiftVal*Scale,-15*Scale,-4+1*(1+ShiftVal*2)+5*ShiftVal+2*Sin*(1+ShiftVal)*Scale):rotateAroundAxis(vec(0,0,1),holoEntity(Bones["Pelvis",number]):toLocal(LocalEyes):yaw()*0.5+35*Sin3))
+                    
+                    RollArmLeft=25*Scale
+                    RollArmRight=25*Scale
+                break
+            }
+        break
+        case "run",
+            switch(Animation["current_weapon",string]){
+                case "none",
+                    Animation["PelvisAngNext",angle]=ang(0,Yaw,0)
+                    Animation["PelvisOffsetNext",vector]=vec(0,0,0)
+                    Animation["Spine1AngNext",angle]=ang(5,0,12*Sin2*(Step-!Step)-15*(MOVEA-MOVED))
+                    Animation["Spine2AngNext",angle]=ang(35,0,8*Sin*(Step-!Step)-19*(MOVEA-MOVED))
+                    Animation["HeadAngNext",angle]=ang(-5,0,0)
+                    
+                    LeftArmTarget=holoEntity(Bones["Pelvis",number]):toWorld(vec(2+10*ShiftVal*(1-sin(WalkRate*180))+8*Sin4*(!Step-Step)*ShiftVal*Scale,16*Scale,-2+1*(1+ShiftVal*2)+5*ShiftVal+1*Sin*(1+ShiftVal)*Scale):rotateAroundAxis(vec(0,0,1),holoEntity(Bones["Pelvis",number]):toLocal(LocalEyes):yaw()*0.5+35*Sin3))
+                    RightArmTarget=holoEntity(Bones["Pelvis",number]):toWorld(vec(2+10*ShiftVal*(1-sin(WalkRate*180))+8*Sin4*(Step-!Step)*ShiftVal*Scale,-16*Scale,-2+1*(1+ShiftVal*2)+5*ShiftVal+1*Sin*(1+ShiftVal)*Scale):rotateAroundAxis(vec(0,0,1),holoEntity(Bones["Pelvis",number]):toLocal(LocalEyes):yaw()*0.5+35*Sin3))
+                    
+                    RollArmLeft=25*Scale
+                    RollArmRight=25*Scale
+                break
+            }
+        break
+    }
+    Animation["MixAnim",number]=Animation["MixAnim",number]+1/4*MoveVal
+    Animation["MixAnim",number]=clamp(Animation["MixAnim",number],0,1)
+    PelvisAng=slerp(quat(Animation["PelvisAngNext",angle]),quat(Animation["PelvisAngLast",angle]),1-Animation["MixAnim",number]):toAngle()
+    PelvisOffset=mix(Animation["PelvisOffsetNext",vector],Animation["PelvisOffsetLast",vector],1-Animation["MixAnim",number])
+    Spine1Ang=slerp(quat(Animation["Spine1AngNext",angle]),quat(Animation["Spine1AngLast",angle]),1-Animation["MixAnim",number]):toAngle()
+    Spine2Ang=slerp(quat(Animation["Spine2AngNext",angle]),quat(Animation["Spine2AngLast",angle]),1-Animation["MixAnim",number]):toAngle()
+    HeadAng=slerp(quat(Animation["HeadAngNext",angle]),quat(Animation["HeadAngLast",angle]),1-Animation["MixAnim",number]):toAngle()
+    if(Animation["MixAnim",number]>=1){
+        Animation["PelvisAngLast",angle]=Animation["PelvisAngNext",angle]
+        Animation["PelvisOffsetLast",vector]=Animation["PelvisOffsetNext",vector]
+        Animation["Spine1AngLast",angle]=Animation["Spine1AngNext",angle]
+        Animation["Spine2AngLast",angle]=Animation["Spine2AngNext",angle]
+        Animation["HeadAngLast",angle]=Animation["HeadAngNext",angle]
+    }
+    Vel2=Base:vel()*0.01
+    
+    if(Landed){
+        Ranger2=rangerOffsetHull(100,holoEntity(Bones["Pelvis",number]):toWorld(vec(2,7-3*MoveVal*Scale,0))+mix(Vel:normalized()*clamp(Vel:length()*1.1,0,0.7)*Distance*On_Ground2,-Vel:normalized()*clamp(Vel:length()*1.1,0,0.7)*Distance*On_Ground2,WalkRate*Step+((1-WalkRate)*!Step)),vec(0,0,-1),vec(8,8,4))
+        Ranger3=rangerOffsetHull(100,holoEntity(Bones["Pelvis",number]):toWorld(vec(-2,-7+3*MoveVal*Scale,0))+mix(Vel:normalized()*clamp(Vel:length()*1.1,0,0.7)*Distance*On_Ground2,-Vel:normalized()*clamp(Vel:length()*1.1,0,0.7)*Distance*On_Ground2,WalkRate*!Step+((1-WalkRate)*Step)),vec(0,0,-1),vec(8,8,4))
+        LeftLeg=Ranger2:pos()
+        RightLeg=Ranger3:pos()
+    }else{
+        LeftLeg=holoEntity(Bones["Pelvis",number]):toWorld(vec(0,9*Scale,0))+Vel2:setZ(0)-holoEntity(Bones["Pelvis",number]):up()*(Length1_Leg+Length2_Leg)*0.7
+        RightLeg=holoEntity(Bones["Pelvis",number]):toWorld(vec(0,-9*Scale,0))+Vel2:setZ(0)-holoEntity(Bones["Pelvis",number]):up()*(Length1_Leg+Length2_Leg)*0.7
+    }
+    if(Ranger2:entity():owner()==owner()){
+        rangerFilter(Ranger2:entity())
+        rangerPersist(1)
+    }
+    if(Ranger3:entity():owner()==owner()){
+        rangerFilter(Ranger3:entity())
+        rangerPersist(1)
+    }
+    holoAng(Bones["Root",number],ang(0,-75*MOVEY*ShiftVal,0):rotateAroundAxis(LocalEyes:forward(),35*MOVEY*ShiftVal*Flying))
+    holoAng(Bones["Pelvis",number],holoEntity(Bones["Root",number]):toWorld(ang(PelvisAng:pitch(),PelvisAng:yaw(),PelvisAng:roll()):rotateAroundAxis(LocalEyes:forward(),-clamp(Base:toLocal(LocalEyes):yaw()*7,-90,90)*ShiftVal+25*MOVEY*ShiftVal)*Flying+(ang(0,PelvisAng:yaw()+5*Cos2*(Step-!Step),-(10/(5-(ShiftVal*4)))*On_Ground2*clamp(toLocalAng(vec(),LocalEyes,vec(),ang(0,holoEntity(Bones["Pelvis",number]):angles():yaw(),0)):yaw()*0.1,-1,1)*MoveVal+(5*MOVEY*(1+ShiftVal))-0.2*Sin*(Step-!Step))*!Flying*ang(On_Ground2,1,On_Ground2)):rotateAroundAxis(ang(0,LocalEyes:yaw(),0):forward(),-5*clamp(MOVEA-MOVED,-1,1)*(1+ShiftVal)*On_Ground2):rotateAroundAxis(ang(0,LocalEyes:yaw(),0):right(),-12*clamp(MOVEW-MOVES,-0.5,1)*(1+ShiftVal)*On_Ground2)*!Flying))
+    holoPos(Bones["Pelvis",number],holoEntity(Bones["Root",number]):toWorld(vec(PelvisOffset:x(),PelvisOffset:y(),0)*Flying+vec(PelvisOffset:x(),PelvisOffset:y(),Length1_Leg+Length2_Leg)*Landed+vec(0,0.2*Sin*(Step-!Step),-3*MoveVal+2*Sin*(1+ShiftVal*2)):rotateAroundAxis(vec(0,0,1),Yaw)*!Flying*Landed)+Vel:normalized()*Vel:length()*12*Landed)
+    holoAng(Bones["Spine1",number],slerp(quat(Base:toWorld(ang(Spine1Ang:pitch()+Dir4:pitch()*0.2*(1-ShiftVal)*!Flying,Dir4:yaw()+Spine1Ang:yaw(),Spine1Ang:roll())*ang(On_Ground2,1,On_Ground2))),quat(holoEntity(Bones["Pelvis",number]):angles()),0.6+0.2*ShiftVal):toAngle())
+    holoAng(Bones["Spine2",number],slerp(quat(Base:toWorld(ang(Spine2Ang:pitch()+Dir4:pitch()*0.4*(1-ShiftVal)*!Flying,Dir4:yaw()+Spine2Ang:yaw(),Spine2Ang:roll())*ang(On_Ground2,1,On_Ground2))),quat(holoEntity(Bones["Pelvis",number]):angles()),0.3+0.4*ShiftVal):toAngle())
+    holoAng(Bones["Head",number],slerp(quat(Base:toWorld(ang(HeadAng:pitch()+LocalEyes:pitch()*0.5,Dir4:yaw()+HeadAng:yaw(),HeadAng:roll()))),quat(holoEntity(Bones["Pelvis",number]):angles()),0.4*ShiftVal):toAngle())
+    if(WalkRate>=1){
+        WalkRate=0
+        Step=!Step
+        if(MoveVal>0.1){
+            if(ShiftVal>0.5){
+                soundPlay("Step_"+Step,0,"physics/concrete/boulder_impact_hard3.wav")
+            }else{
+                soundPlay("Step_"+Step,0,"physics/body/body_medium_impact_soft3.wav")
+            }
+            soundPitch("Step_"+Step,50+30*clamp(Vel:length(),0,1))
+        }
+    }
+    arm_ik(0,-RollArmLeft,mix(holoEntity(Bones["Left_UpperArm",number]):pos()+(AimPos-holoEntity(Bones["Left_UpperArm",number]):pos()):normalized()*(Length1_Arm+Length2_Arm),LeftArmTarget,M2Val),table(ang(),0))
+    arm_ik(1,RollArmRight,mix(holoEntity(Bones["Right_UpperArm",number]):pos()+(AimPos-holoEntity(Bones["Right_UpperArm",number]):pos()):normalized()*(Length1_Arm+Length2_Arm),RightArmTarget,M2Val),table(ang(),0))
+    if(!Flying){
+        holoPos(Bones["Root",number],mix(LeftLeg,RightLeg,0.5))
+    }else{
+        holoPos(Bones["Root",number],Base:pos())
+    }
+    if(Flying){
+        leg_ik(0,5,LeftLegFly,0)
+        leg_ik(1,-5,RightLegFly,0)
+    }else{
+        leg_ik(0,5*Scale,LeftLeg+vec(0,0,(20+(5*ShiftVal))*sin(WalkRate*180)*Step)*clamp(Vel:length(),0,1)*!Flying,sin(WalkRate*180)*Step*!Flying)
+        leg_ik(1,-5*Scale,RightLeg+vec(0,0,(20+(5*ShiftVal))*sin(WalkRate*180)*!Step)*clamp(Vel:length(),0,1)*!Flying,sin(WalkRate*180)*!Step*!Flying)
+        
+    }
+    
+    
+ 
+    #ifdef entity:podThirdPerson(number)
+        Seat:podThirdPerson(0)
+        Seat:podThirdPersonDist(0)
+    #endif
+    holoPos(Bones["CamParent",number],holoEntity(Bones["Root",number]):toWorld(vec(0,0,85))+LocalEyes:right()*15-LocalEyes:forward()*(80+Base:vel():length()*0.03*ShiftVal*Flying)+Base:vel()*0.015+vec(0,0,-32))
+    holoAng(Bones["CamParent",number],ang():rotateAroundAxis(LocalEyes:forward(),-clamp(Base:toLocal(LocalEyes):yaw()*0.75,-35,35))*Flying*ShiftVal)
+    #Seat:setAng(ang())
+}
+event removed(_){
+    DriverStore:setMaterial("")
+}
+if(duped()){
+    foreach(I:number,E:entity=BoneParents){
+        E:deparent()
+    }
+}
+if(clk("CanFire")){
+    CanFire=1
+}
+if(changed(players():count())){
+    rangerFilter(players())
+    rangerPersist(1)
+}

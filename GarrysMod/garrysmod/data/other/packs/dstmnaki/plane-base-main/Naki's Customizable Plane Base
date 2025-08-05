@@ -1,0 +1,407 @@
+@name Naki's Customizable Plane Base
+@inputs [Base Seat Rotor W_F W_R_L W_R_R SetAng]:entity CamAng:angle
+@outputs Throttle JoyX JoyY Yaw Power RPMOut CamPos:vector CamDistance CamParent:entity
+@persist MouseAim Throttle Active Power Val Val2 RPM TP CamParent:entity ValAng DevBranch
+@trigger none
+
+#ifdef httpRequest(string)
+@persist [Version Link]:string Block
+#endif
+if(first()){
+    #ifdef httpRequest(string)
+        Link = "https://github.com/4naki/plane-base/blob/main/Naki's%20Customizable%20Plane%20Base"
+        VersionCheckLink = "https://raw.githubusercontent.com/4naki/plane-base/main/version"
+        Version = "1.2"
+        
+        #Used for development only!
+        DevBranch=0
+        
+        runOnHTTP(1)
+        if(Link!=""){
+        }else{
+            print("Link is empty!")
+            Block=1
+        }
+        if(VersionCheckLink!=""){
+            httpRequest(VersionCheckLink)
+        }else{
+            print("VersionCheckLink is empty!")
+            Block=1
+        }
+    #else
+        print("HTTP Core Not Found!")
+    #endif
+}
+#ifdef httpRequest(string)
+    if(httpClk()){
+        if(httpSuccess()&!Block){
+            ReturnData=httpUrlDecode(httpData())
+            
+            print("["+entity():getName()+"]")
+            
+            local V = Version:toNumber()
+            local RD = ReturnData:toNumber()
+            
+            if(V!=RD){
+                if(V>RD){
+                    if(DevBranch){
+                        print("Running Development Branch version: "+Version)
+                    }else{
+                        print("Running version ahead of current release! version: "+Version)
+                    }
+                }else{
+                    print("Update available! Running version: "+Version)
+                    print("Latest version: "+ReturnData)
+                    print("Link: "+Link)
+                }
+            }else{
+                print("Up to date! Running version: "+Version)
+            }
+        }
+    }
+#endif
+
+if(first()){
+    
+    if(Base:isValid()&Seat:isValid()&Rotor:isValid()){
+    
+    #[ -- Setup and Controls --
+        
+        Naki's Customizable Plane Base
+        
+        Github (My profile): https://github.com/4naki
+        Github (This code): https://github.com/4naki/plane-base
+        
+        Steam (Can change): https://steamcommunity.com/id/Nakkivatti/
+        Steam (Permanent, ID): http://steamcommunity.com/profiles/76561198255904264
+        
+        Youtube: https://www.youtube.com/channel/UCz7XiAeqo4WPyNljkKe-UJQ
+        
+        
+        Pre setup:
+        
+        Save 1 file from my github repository "This code" linked above
+        
+        "Plane Base - Config"
+        
+        This needs to be on your local drive, in a folder "garry's mod/garry's mod/data/expression2"
+        
+        You can just copy the code into this editor and save it through here.
+        
+        Ignore "version" that's what my version check code checks
+        
+        
+        Setup:
+        
+        1. Spawn a base plate you like, highly recommend using SProps plates
+        
+        2. Spawn a seat and 1 prop, recommend using SProps blocks
+        
+        3. Place this e2 onto the base plate, doesn't matter where or which way the e2 points,
+        just make sure the front of the base plate faces forwards, you can check this using stacker tool
+        
+        4. Wire "Base" to the base plate, "Seat" to your seat, "Rotor" to your rotor prop
+        
+        5. Multiparent your model to the base plate with these settings
+        
+        Multiparent settings:
+        
+        Remove Constraints: Optional
+        No Collide: Uncheck
+        Weld: Uncheck
+        
+        Disable Collisions: Check
+        Set Weight: Check
+        Disable Shadows: Check
+        
+        (Top 3 unchecked, bottom 3 checked)
+        
+        6. You can reload your e2, in case you used Prop2Mesh/P2M respawn your whole build with the stuff you have now parented,
+        note you can multiparent your rotor models to the rotor props
+        
+        7. Done
+        
+        
+        Controls: 
+        
+        WS - Pitch
+        AD - Roll
+        Mouse1 and Mouse2 - Yaw
+        Shift - Accelerate
+        Space - Slow down
+        R - Toggle engine
+        G - Toggle Mouse controls
+        
+        In case you want to change any of these buttons, lines 114 to 127
+        
+        
+        Options/Settings are in the "config" file listed below
+        
+        
+        Cam Controller Settings
+        
+        Spawn a pod controller with settings specified below and a pod controller
+        
+        CamController Options:
+        
+        Coordinates local to parent: Check
+        Client side movement: Check
+        Draw player: uncheck
+        
+        rest are optional.
+        
+        Wire "Active" from cam controller to pod controller "Active"
+        Wire "CamPos" from cam controller to this E2's "CamPos"
+        Wire "Distance" from cam controller to this E2's "CamDistance"
+        Wire "Parent" from cam controller to this E2's "CamParent"
+        
+    ]#
+    
+    #[-- Config -- ]#
+    #include "GTA_SA_Dodo_Config"
+    
+    #-- Code starts here
+    
+    setName(PlaneName)
+    
+    Base:setMass(BaseWeight)
+    
+    Base:propDrag(0)
+    Base:propInertia(vec(0,0,0))
+    
+    
+    holoCreate(1,Rotor:toWorld(vec(0,0,0)),vec(0),Rotor:toWorld(ang(0,0,0)),vec(255),"cube")
+    local Children=Rotor:children()
+    Rotor:parentTo(holoEntity(1))
+    holoPos(1,Base:toWorld(RotorPos))
+    holoAng(1,Base:toWorld(ang(15,0,0)))
+    holoParent(1,Base)
+    for(I=1,Children:count()){
+        Children[I,entity]:parentTo(Rotor)
+    }
+    #def (0.312660,0.437675,0.312660)
+    foreach(I,E:entity=array(W_F,W_R_L,W_R_R)){
+        E:propInertia(vec(0.6,0.6,0.5))
+        E:propDrag(0)
+    }
+    
+    timer("int",50)
+    timer("ang",25)
+    
+    print(PlaneName+": Ready!")
+    }else{
+        print("Error: Missing props!")
+    }
+}elseif(clk("int")){
+    timer("int",50)
+    Pilot=Seat:driver()
+    
+    #-- Buttons/Controls
+    MouseAimButton=Pilot:keyPressed("g")*Active
+    
+    if(changed(MouseAimButton)&MouseAimButton){
+        MouseAim=!MouseAim
+        if(MouseAim){
+            Seat:hintDriver("Mouse Controls: On",7)
+        }else{
+            Seat:hintDriver("Mouse Controls: Off",7)
+        }
+    }
+    if(!MouseAim){
+    }else{
+    }
+    FirePrimary=Pilot:keyAttack1()*Active
+    FireSecondary=Pilot:keyAttack2()*Active
+    OutputX=((Pilot:keyForward()-Pilot:keyBack())*25)*Active
+    OutputY=((Pilot:keyRight()-Pilot:keyLeft())*25)*Active
+    OutputZ=(Pilot:keySprint()-Pilot:keyJump())*Active
+    
+    ThirdPersonButton=Pilot:keyDuck()*Active
+    Start=Pilot:keyReload()
+    RotorBrakeButton=Pilot:keyWalk()
+    AutoHoverButton=Pilot:keyPressed("f")
+    
+    #-- Code continues
+    
+    if(TP){
+        CamPos=CamPosTP
+        CamDistance=CamDistanceTP
+        CamParent=Base
+    }else{
+        CamPos=CamPosFP
+        CamDistance=CamDistanceFP
+        CamParent=Seat
+    }
+    
+    if(changed(Pilot)){
+        if(Pilot){
+            Active=1
+        }else{
+            Active=0
+        }
+    }
+    if(changed(ThirdPersonButton)&ThirdPersonButton){
+        TP=!TP
+    }
+    if(changed(Start)&Start){
+        Power=!Power
+        if(Power){
+            Seat:hintDriver("Power: On",7)
+        }else{
+            Seat:hintDriver("Power: Off",7)
+        }
+    }
+    if(abs(OutputX)>2){
+        if(OutputX<45){
+            if(OutputX>-45){
+                JoyX=OutputX
+            }else{
+                JoyX=-PitchSpeed
+            }
+        }else{
+            JoyX=PitchSpeed
+        }
+    }else{
+        JoyX=0
+    }
+    if(abs(OutputY)>2){
+        if(OutputY<45){
+            if(OutputY>-45){
+                JoyY=OutputY
+            }else{
+                JoyY=-RollSpeed
+            }
+        }else{
+            JoyY=RollSpeed
+        }
+    }else{
+        JoyY=0
+    }
+    
+    if(abs(OutputZ)>0.1){
+        if(OutputZ>0){
+            JoyZ=MaxThrottle
+        }elseif(OutputZ<0){
+            JoyZ=MinThrottle
+        }
+    }else{
+        JoyZ=DefaultThrottle
+    }
+    
+    Throttle=JoyZ
+    
+    if(FirePrimary){
+        Yaw=YawSpeed
+    }elseif(FireSecondary){
+        Yaw=-YawSpeed
+    }else{
+        Yaw=0
+    }
+    
+    XVel=clamp(Base:velL():x()*0.65,-55,55)
+    YVel=clamp(Base:velL():y()*0.65,-55,55)
+    
+    XVel2=XVel*(abs(XVel*0.65)>10)
+    YVel2=YVel*(abs(YVel*0.65)>10)
+    
+    if(!MouseAim){
+        Tilt=ang(0+JoyX*1.5,Yaw*0.4,JoyY*1)*2
+        if(JoyX!=0|JoyY!=0|Yaw!=0){
+            Ang=(Tilt)*125*clamp(Base:velL():x()*0.01,0,1)
+        }
+    }else{
+        Tilt=ang(0+JoyX*0.375,Yaw*0.3,JoyY*0.75)+(Base:toLocal(CamAng*ang(1,Power&Active,0))*ang(1,Power&Active,0))
+        Ang=((ang(0,0,1))+Tilt)*300*clamp(-1+(Base:velL():x()*0.01),0,1)
+    }
+    
+    Damping=(-((Base:forward()*Base:velL():x()*0.002*abs(OutputZ))+(-Base:right()*Base:velL():y()*0.1)+(Base:up()*Base:velL():z()*0.1))*0.1)*VelDampingMult*clamp(-3+(Base:velL():x()*0.01),0,1)
+    Damping2=(Base:angVel()*AngDamping*1)*AngDampingMult
+    
+    Base:applyForce((((Damping+((Base:forward()*RPM/100)*(ThrustMult/100))*(Throttle/100)))*(Base:mass()*(50))))
+    Base:applyAngForce((((Ang*TurnSpeedMult)-Damping2)*((Base:mass()/25)*(RPM/100))))
+    
+    
+    Base:propGravity(100*clamp(2-(Base:velL():x()*0.00025),0,1))
+    
+    W_F:propGravity(100*clamp(1-(-0.25+(Base:velL():x()*0.002)),0,1))
+    W_F:setMass(Front_Wheel_Weight*clamp(1-(-0.25+(Base:velL():x()*0.00055)),0.25,1))
+    foreach(I,E:entity=array(W_R_L,W_R_R)){
+        E:propGravity(100*clamp(1-(-0.25+(Base:velL():x()*0.002)),0,1))
+        E:setMass(Rear_Wheel_Weight*clamp(1-(-0.25+(Base:velL():x()*0.00055)),0.25,1))
+    }
+    if(changed(Power)){
+        if(Power){
+            Base:soundPlay("rotor",0,RotorFX)
+            Base:soundPlay("power",0,EngineStartFX)
+            Base:soundPlay("switch",0,PowerSwitchFX)
+        }
+    }
+    soundPitch("rotor",25+(RPM/100)*95)
+    soundVolume("rotor",0+RPM/100)
+    
+    if(Power){
+        if(RPM<DefaultRPM){
+            RPM+=RPMRaiseAmount
+        }
+        if(Throttle){
+            if((-25+Throttle)/150>0){
+                if(RPM<MaxRPM){
+                    RPM+=(-25+Throttle)/150
+                }
+            }else{
+                RPM+=(-25+Throttle)/150
+            }
+        }else{
+            if(RPM>DefaultRPM){
+                RPM-=RPMLowerAmount
+            }
+        }
+    }else{
+        if(RPM>0){
+            RPM-=0.1+((RPMLowerAmount-0.1))
+        }
+        if(RPM<0){
+            RPM=0
+        }
+    }
+    Val+=RPM
+    holoAng(1,Base:toWorld(ang(0,0,Val)))
+    
+    RPMOut=RealRPM*(RPM/100)
+}
+
+if(clk("ang")){
+    timer("ang",25)
+    if(abs(ValAng) <= 100){
+        if(Yaw){
+            ValAng += 100/13*(Yaw/YawSpeed)
+        }else{
+            if(ValAng > 0){
+                ValAng -= 100/13
+            }
+            if(ValAng < 0){
+                ValAng += 100/13
+            }
+        }
+    }
+    
+    if(ValAng > 100){
+        ValAng = 100
+    }
+    
+    if(ValAng < -100){
+        ValAng = -100
+    }
+    
+    TurnValFinal = clamp(clamp(25-(Base:velL():x()*0.015),(25/100)*25,25) * (ValAng / 100), -25, 25)
+    
+    if(!SetAng:isPlayerHolding()){
+        SetAng:setAng(Base:toWorld(ang(0,25,0)*(TurnValFinal/25)))
+        if(!SetAng:isFrozen()){
+            SetAng:propFreeze(1)
+        }
+    }
+}
+if(dupefinished()){
+    reset()
+}

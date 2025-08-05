@@ -1,0 +1,76 @@
+@name Bikefucker
+@inputs [Pod, Entity, Spinner, Spinner2, Leaner]:wirelink
+@outputs Active Throttle Brake
+@inputs [Base]:wirelink
+@outputs Angle
+@persist Lock SteeringSpeed SpeedEffect CounterSteer Setang:entity
+@persist [ENtity, SPinner, SPinner2, LEaner]:entity
+@persist [Off, Ang, Leanang, Lean, Filter]:angle
+@persist Str
+@trigger none
+interval(30)
+if (first())
+{
+    ENtity=Entity:entity()
+    SPinner=Spinner:entity()
+    LEaner=Leaner:entity()
+    SPinner2=Spinner2:entity()
+    Off=ang(0,0,25)
+    Lean=ang(0,0,0)
+    Filter=ang(0,1,1)
+    Active=0
+    
+    Lock=45 
+    SpeedEffect=1700                    
+    SteeringSpeed=2
+    CounterSteer=50
+}
+if (dupefinished())
+{
+    reset()
+}
+
+A=Pod["A",number]
+D=Pod["D",number]   
+#steering angle itself
+Speed = toUnit("km/h",Base:entity():vel():length())
+Angle += (D-A)*SteeringSpeed
+Angle += Base:entity():angVel():yaw()/CounterSteer
+Angle = clamp(Angle,-Lock,Lock)
+Angle = Angle*(1-Speed/SpeedEffect)
+Active=Pod["Active",normal]
+if (Pod["A",normal])
+{
+    if (Str>-30)
+    {
+        Str-=1
+    }
+}
+elseif (Pod["D",normal])
+{
+    if (Str<30)
+    {
+        Str+=1
+    }
+}
+elseif (Str!=0)
+{
+    Str-=sign(Str)
+}
+
+Off=ang(Str/3,-Str,25)
+Ang=ENtity:toWorld(Off)
+SPinner:setAng(Ang)
+SPinner:propFreeze(1)
+SPinner2:setAng(Ang)
+SPinner2:propFreeze(1)
+
+Lean=ang(Angle,0,0)
+Leanang=ENtity:angles()*Filter+Lean
+LEaner:setAng(Leanang)
+LEaner:propFreeze(1)
+
+Throttle=Pod["W",normal]*100
+Brake=Pod["S",normal]*30
+if(Speed<=5&Angle>0){Angle-=1}
+if(Speed<=5&Angle<0){Angle+=1}

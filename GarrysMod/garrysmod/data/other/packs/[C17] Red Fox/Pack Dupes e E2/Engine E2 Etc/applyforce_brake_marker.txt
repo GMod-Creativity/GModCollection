@@ -1,0 +1,181 @@
+@name ApplyForce Brake Fixed
+@inputs [POD, Chassis]:wirelink Gear [FrontWheels BackWheels]:wirelink
+@outputs [Brake, Flywheel_RPM]:number
+@persist [C, E]:entity Flywheel:array BrakeTickMult
+@outputs Speed InverseBaseSpeed BrakeR BrakeF Tick TickNumber Chassis_Feedback:vector Chassis_Feedback1:vector Chassis_Feedback2:vector
+
+@persist HandbrakePower Key_S Key_HandBrake CustomBrakingForReverse ReverseGear
+@trigger none 
+@persist BrakeFeedB BrakeFeedBMult BrakeMult
+@persist Tick ChassisAccFeed StoppedBrakeMult HandbrakePowerMult
+@persist StoppedBrake FirstPhaseBrakeF FirstPhaseBrakeR FirstPhaseBrakeSpeed 
+@persist SecondPhaseBrakeF SecondPhaseBrakeR SecondPhaseBrakeSpeed 
+@persist ThirdPhaseBrakeF ThirdPhaseBrakeR ThirdPhaseBrakeSpeed
+
+
+ 
+if (duped() | dupefinished()) {reset()} else {interval(33)}
+
+Speed=(Chassis:entity():velL():x()/14.7)*InverseBaseSpeed
+
+
+
+
+if (first()|duped()|dupefinished()) {
+    
+    
+   
+  Tick = tickInterval()  
+
+  
+    InverseBaseSpeed = 1 #Make use that the speed is positive when going forward, its either 1 or -1
+    
+    CustomBrakingForReverse = 1 #Use this if your reverse gear is automatic as in reverse gear when in certain speed    
+    ReverseGear = 6 #Self Explanatory
+   
+    HandbrakePowerMult = 2
+    BrakeMult = 30
+    
+    FirstPhaseBrakeSpeed = 10
+    SecondPhaseBrakeSpeed = 20
+    ThirdPhaseBrakeSpeed = 60
+    
+    StoppedBrakeMult = 2
+
+    
+    FirstPhaseBrakeR = 0.7
+    FirstPhaseBrakeF = 0.9
+    
+    SecondPhaseBrakeR = 0.15
+    SecondPhaseBrakeF = 0.4
+    
+    ThirdPhaseBrakeR = 0.05
+    ThirdPhaseBrakeF = 0.3
+    
+  
+    BrakeFeedBMult = 1
+    
+    #I dont recommend editing these
+
+ if(Tick >= 0.030)
+    {
+        BrakeTickMult = BrakeMult        
+        BrakeFeedB = BrakeFeedBMult
+        TickNumber = 33
+        HandbrakePower = HandbrakePowerMult/2
+        StoppedBrake = StoppedBrakeMult/2
+    }
+    if(Tick >= 0.015)
+    {       
+        BrakeTickMult = BrakeMult/4      
+        BrakeFeedB = BrakeFeedBMult
+        TickNumber = 66
+        HandbrakePower = HandbrakePowerMult
+        StoppedBrake = StoppedBrakeMult
+    }
+    ###
+    
+    
+ 
+    C = Chassis:entity()
+      
+    
+    E = Chassis:entity()
+      #  E:setMass(Engine_Mass)
+        #E:propInertia(maxVec(vec(Engine_Mass, Engine_Mass, 2), vec(40, 40, 2)))
+
+   
+   
+   
+    runOnLast(1)
+}
+ 
+POD_Active = POD:number("Active")
+ 
+if (changed(POD_Active) | POD_Active) {
+    if(Speed<0&Gear==ReverseGear&CustomBrakingForReverse)
+    {
+    Key_S = POD:number("W")
+}else{Key_S = POD:number("S")}
+
+    Key_HandBrake = POD:number("Space")
+  
+    Brake += (Key_S - Brake) * 0.155
+    Brake *= Key_S
+}
+ 
+
+
+if(Speed<=FirstPhaseBrakeSpeed&Key_S|POD_Active==0)
+{
+    BrakeR = StoppedBrake
+    BrakeF = StoppedBrake
+    Brake=1
+}
+elseif(Speed>=ThirdPhaseBrakeSpeed)
+{
+    BrakeR = ThirdPhaseBrakeR
+    BrakeF = ThirdPhaseBrakeF
+}
+elseif(Speed>=SecondPhaseBrakeSpeed)
+{
+    BrakeR = SecondPhaseBrakeR
+    BrakeF = SecondPhaseBrakeF
+}
+elseif(Speed>=FirstPhaseBrakeSpeed)
+{
+    BrakeR = FirstPhaseBrakeR
+    BrakeF = FirstPhaseBrakeF
+}
+if(Key_HandBrake)
+{
+    
+    BrakeF = 0
+    BrakeR = HandbrakePower
+    Brake = 1
+}
+
+
+ 
+Chassis_Feedback = vec()
+Chassis_Feedback1 = vec()
+Chassis_Feedback2 = vec()
+
+FrontWheels_RPM = array()
+BackWheels_RPM = array()
+ 
+foreach(K,V:entity = FrontWheels["Entities", array])
+{
+    FrontWheels_RPM[K,number] = V:angVelVector():dot(V:toLocalAxis(E:right())) / 8    
+    if (Key_S|Key_HandBrake|POD_Active==0)
+    {
+        local Force = 500 * (FrontWheels_RPM[K,number]) * Brake *BrakeTickMult
+        V:applyTorque(V:toLocalAxis(-E:right()) * Force * BrakeF)
+        Chassis_Feedback1 += (Force)/2 * BrakeFeedB
+    }
+}
+   
+    
+foreach(K,V:entity = BackWheels["Entities", array])
+{
+    BackWheels_RPM[K,number] = V:angVelVector():dot(V:toLocalAxis(E:right())) / 8
+    if (Key_S|Key_HandBrake|POD_Active==0)
+    {
+        local Force = 500 * (BackWheels_RPM[K,number]) * Brake *BrakeTickMult
+        V:applyTorque(V:toLocalAxis(-E:right()) * Force * BrakeR)
+        Chassis_Feedback2 += (Force)/2 * BrakeFeedB    
+    }
+}
+
+
+
+if (Key_S|Key_HandBrake|POD_Active==0)
+{
+   Chassis_Feedback += (Chassis_Feedback1 + Chassis_Feedback2)/4 * BrakeFeedB 
+}
+     Flywheel_RPM = FrontWheels_RPM:average() + BackWheels_RPM:average()
+
+if (Chassis_Feedback) {C:applyAngForce(ang(-Chassis_Feedback:x(),0,0))} #should hopefully fix a bug
+ 
+
+

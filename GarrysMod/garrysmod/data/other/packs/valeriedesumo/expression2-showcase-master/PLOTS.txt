@@ -1,0 +1,146 @@
+@name PLOTS
+@inputs User1 User2 User3 CorrectReset IncorrectReset
+@outputs Light1:vector Light2:vector Light3:vector Spotlight1 Spotlight2 Spotlight3
+@outputs TextDisplay:string FGColour:vector BGColour:vector
+@outputs MainSpeakersSFX:string MainSpeakersPlay MainSpeakersStop
+@outputs SpeakerSFX:string Speaker1Play Speaker1Stop Speaker2Play Speaker2Stop Speaker3Play Speaker3Stop 
+@persist Triggered Flash CurFlashTime FlashSwitch CurSpeakersTime
+@persist User1Name:string User2Name:string User3Name:string User1Disable User2Disable User3Disable CurUser
+@trigger all
+
+#   #   #   #   #   #   #   #   #   #   #
+#   To-do
+#   ---
+#   5-second buzz in
+#   Disable buzz-in during Incorrect
+#   Questions Random-Appear Intro
+#   Category Show
+#   Questions Show, Eliminate
+#   Questions Value
+#   User Scores
+#   Manual Score Adjust
+#   Daily Double
+#   2nd Question Round
+#   Final Jeopardy
+#   Celebrate
+#
+#   Get music, sfx
+#   #   #   #   #   #   #   #   #   #   #
+
+interval(200)
+
+#INIT
+if(first()) {
+    Light1 = vec(40,40,40)
+    Light2 = vec(40,40,40)
+    Light3 = vec(40,40,40)
+    Spotlight1 = 1
+    Spotlight2 = 1
+    Spotlight3 = 1
+    User1Name = "User1"
+    User2Name = "User2"
+    User3Name = "User3"
+    SpeakerSFX = "hl1/fvox/bell.wav"
+}
+Users = array(User1,User2,User3)
+UsersDisable = array(User1Disable,User2Disable,User3Disable)
+MainSpeakersPlay = 0
+
+#Flash
+if(curtime() < CurFlashTime + 2.5) {
+    if(FlashSwitch) {
+        FGColour = vec(180,230,180)
+        BGColour = vec(6,12,90)
+    } else {
+        FGColour = vec(230,230,255)
+        BGColour = vec(6,12,140)
+    }
+    FlashSwitch = !FlashSwitch
+} else {
+    FGColour = vec(230,230,255)
+    BGColour = vec(6,12,140)
+}
+
+#Reset
+if((CorrectReset | IncorrectReset) & Triggered) {
+    Light1 = vec(40,40,40)
+    Light2 = vec(40,40,40)
+    Light3 = vec(40,40,40)
+    Spotlight1 = 1
+    Spotlight2 = 1
+    Spotlight3 = 1
+    CurFlashTime = curtime()
+    Triggered = 0
+    if(CorrectReset) {
+        MainSpeakersSFX = "buttons/bell1.wav"
+        TextDisplay = "CORRECT!"
+        User1Disable = 0
+        User2Disable = 0
+        User3Disable = 0
+    } else {
+        MainSpeakersSFX = "buttons/weapon_cant_buy.wav"
+        TextDisplay = "INCORRECT!"
+        if(CurUser == 1) {
+            User1Disable = 1
+        } elseif(CurUser == 2) {
+            User2Disable = 1
+        } elseif(CurUser == 3) {
+            User3Disable = 1
+        }
+    }
+    MainSpeakersPlay = 1
+    MainSpeakersStop = 0
+    CurSpeakersTime = curtime()
+    Speaker1Play = 0
+    Speaker2Play = 0
+    Speaker3Play = 0
+    Speaker1Stop = 1
+    Speaker2Stop = 1
+    Speaker3Stop = 1
+    CurTextTime = curtime()
+#User buzzed in
+} elseif((Users:sum() != 0) & !Triggered) {
+    Triggered = 1
+    if(User1 & !User1Disable) {
+        Light1 = vec(180,180,180)
+        Speaker1Play = 1
+        Speaker1Stop = 0
+        Spotlight1 = 2
+        Spotlight2 = 0
+        Spotlight3 = 0
+        CurUser = 1
+        TextDisplay = User1Name + " has buzzed in!"
+    } elseif(User2 & !User2Disable) {
+        Light2 = vec(180,180,180)
+        Speaker2Play = 1
+        Speaker2Stop = 0
+        Spotlight1 = 0
+        Spotlight2 = 2
+        Spotlight3 = 0
+        CurUser = 2
+        TextDisplay = User2Name + " has buzzed in!"
+    } elseif(User3 & !User3Disable) {
+        Light3 = vec(180,180,180)
+        Speaker3Play = 1
+        Speaker3Stop = 0
+        Spotlight1 = 0
+        Spotlight2 = 0
+        Spotlight3 = 2
+        CurUser = 3
+        TextDisplay = User3Name + " has buzzed in!"
+    }
+}
+
+#All Incorrect
+if(UsersDisable:sum() == UsersDisable:count()) {
+    User1Disable = 0
+    User2Disable = 0
+    User3Disable = 0
+}
+
+
+
+#Speaker Timer
+if(curtime() > CurSpeakersTime + 2) {
+    MainSpeakersStop = !MainSpeakersPlay
+}

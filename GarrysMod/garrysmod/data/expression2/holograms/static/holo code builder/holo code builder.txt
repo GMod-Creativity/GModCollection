@@ -1,0 +1,316 @@
+@name e2 holo code builder
+@strict
+if(first()){
+    DoingSomething=0
+    Scale=1
+    SearchArea=0
+    Parent=array()
+    Entity=array()
+    Alpha=array()
+    Material=array()
+    H=0
+    LMB=0
+    RMB=0
+    Use=0
+    Shift=0
+    R=0
+    PageUp=0
+    PageDown=0
+    entity():soundPlay(1,3,"garrysmod/save_load2.wav")
+    
+    holoCreate(1)
+    holoModel(1,"models/sprops/geometry/sphere_144.mdl")
+    holoMaterial(1,"models/debug/debugwhite")
+    holoColor(1,vec(0,255,0))
+    holoAlpha(1,0)
+    if(owner():weapon():toString():explode("[")[3,string]!="weapon_crowbar]"){
+        hint("select crowbar to begin",3)
+    }
+}
+function void undoEntry(Ent:entity){
+    if(Ent:isValid()){
+        if(Ent:getAlpha()==50){
+            if(Ent:getMaterial()=="passtime/neons/neon_green_solid"){
+                if(Entity:indexOf(Ent)!=0){
+                    Ent:setAlpha(Alpha[Entity:indexOf(Ent),number])
+                    Ent:setMaterial(Material[Entity:indexOf(Ent),string])
+                    Entity:remove(Entity:indexOf(Ent))
+                    Alpha:remove(Entity:indexOf(Ent))
+                    Material:remove(Entity:indexOf(Ent))
+                }
+            }
+            elseif(Ent:getMaterial()=="passtime/neons/neon_red_solid"){
+                    Ent:setAlpha(Parent[2,number])
+                    Ent:setMaterial(Parent[3,string])
+                    Parent=array()
+            }
+        }
+    }
+}
+function void undoAll(){
+    if(Entity:count()>0){
+        timer(0.1,Entity:count(),function(){
+            undoEntry(Entity[Entity:count(),entity])
+        })
+        undoEntry(Parent[1,entity])
+    }
+}    
+function void areaRemove(){
+    if(DoingSomething==0){
+        DoingSomething=1
+        findExcludeClass("player")
+        findExcludeClass("weapon")
+        findInSphere(holoPos(1),72*Scale)
+        timer(0.5,1,function(){
+            timer(0.05,findToArray():count(),function(){
+                local A=findToArray()[findToArray():count(),entity]
+                if(A:isValid()&&A:toString():explode("[")[3,string]=="prop_physics]"){
+                    if(A:getMaterial()=="passtime/neons/neon_green_solid"){
+                        undoEntry(A)
+                        if(A:getMaterial()=="passtime/neons/neon_red_solid"){
+                            undoEntry(Parent[1,entity])
+                        }
+                    }   
+                }
+            findClipFromEntity(findToArray()[findToArray():count(),entity])       
+            })
+        })
+    }
+    DoingSomething=0
+}    
+function void areaScan(){
+    if(DoingSomething==0){
+        DoingSomething=1
+        findExcludeClass("player")
+        findExcludeClass("weapon")
+        findInSphere(holoPos(1),72*Scale)
+        timer(0.5,1,function(){
+            timer(0.05,findToArray():count(),function(){
+                local A=findToArray():count()
+                if(findToArray()[A,entity]:isValid()&&findToArray()[A,entity]:toString():explode("[")[3,string]=="prop_physics]"){
+                    if(findToArray()[A,entity]:getMaterial()!="passtime/neons/neon_green_solid"){
+                        if(findToArray()[A,entity]:getMaterial()=="passtime/neons/neon_red_solid"){
+                            undoEntry(findToArray()[A,entity])
+                        }
+                        Entity=Entity:add(array(findToArray()[A,entity]))
+                        Alpha=Alpha:add(array(findToArray()[A,entity]:getAlpha()))
+                        Material=Material:add(array(findToArray()[A,entity]:getMaterial()))
+    
+                        if(findToArray()[A,entity]:owner()==owner()){
+                            findToArray()[A,entity]:setMaterial("passtime/neons/neon_green_solid")
+                            findToArray()[A,entity]:setAlpha(50)
+                        }
+                    }   
+                }
+            findClipFromEntity(findToArray()[A,entity])       
+            })
+        })
+    }
+    DoingSomething=0
+}
+function void individualScan(){
+    local A=owner():aimEntity()
+    if(A:isValid()){
+        if(A:getMaterial()!="passtime/neons/neon_green_solid"){
+            if(A:getMaterial()=="passtime/neons/neon_red_solid"){
+                undoEntry(A)
+            }
+            Entity=Entity:add(array(A))
+            Alpha=Alpha:add(array(A:getAlpha()))
+            Material=Material:add(array(A:getMaterial()))
+
+            owner():aimEntity():setMaterial("passtime/neons/neon_green_solid")
+            owner():aimEntity():setAlpha(50)
+        }
+    }
+}
+function void getParent(){
+    local A=owner():aimEntity()  
+    if(A:isValid()&&!Parent:exists(1)){
+        if(A:getMaterial()=="passtime/neons/neon_green_solid"){
+            undoEntry(A)
+        }
+        Parent=array(A,A:getAlpha(),A:getMaterial())
+
+
+        A:setMaterial("passtime/neons/neon_red_solid")
+        A:setAlpha(50)
+    }
+}
+function void save(S:string){
+    hint("saving...",3)
+    if(Entity:count()>80){
+        print("Warning! Due to e2's 80 holograms per tick limit, some of the holograms will not show.
+The code will still be written and you can get around the tick limit by using timers.")
+    }
+    fileWrite(S,"@name "+S+"\n@persist A")
+    if(!Parent[1,entity]:isValid()){
+        if(timerExists("a")){
+            timerResume("a")
+        }
+        else{
+            timer("a",0.01,0,function(){
+            if(fileWriteQueued()==0){
+                fileAppend(S,"
+A="+Entity:count()+"
+holoCreate(A)
+holoModel(A,"+toChar(34)+Entity[Entity:count(),entity]:model()+toChar(34)+")
+holoPos(A,entity():toWorld("+toString(entity():toLocal(Entity[Entity:count(),entity]:pos()))+"))
+holoAng(A,entity():toWorld("+toString(entity():toLocal(Entity[Entity:count(),entity]:angles()))+"))
+holoColor(A,"+Entity[Entity:count(),entity]:getColor()+")
+holoAlpha(A,"+Alpha[Entity:count(),number]+")
+holoMaterial(A,"+toChar(34)+Material[Entity:count(),string]+toChar(34)+")
+holoParent(A,entity())\n")
+                    undoEntry(Entity[Entity:count(),entity])
+                    if(Entity:count()==0){
+                        timerPause("a")
+                        owner():soundPlay(1,5,"garrysmod/save_load4.wav")
+                        hint("Saved as "+S+" in GarrysMod"+toChar(92)+"garrysmod"+toChar(92)+"data"+toChar(92)+"e2files"+toChar(92),3)
+                    }
+                }
+            })
+        }
+    }
+    else{
+        fileAppend(S,"
+ParentN="+(Entity:count()+1)+"
+holoCreate(ParentN)
+holoModel(ParentN,"+toChar(34)+Parent[1,entity]:model()+toChar(34)+")
+holoPos(ParentN,entity():toWorld("+toString(entity():toLocal(Parent[1,entity]:pos()))+"))
+holoAng(ParentN,entity():toWorld("+toString(entity():toLocal(Parent[1,entity]:angles()))+"))
+holoColor(ParentN,"+toString(Parent[1,entity]:getColor())+")
+holoAlpha(ParentN,"+Parent[2,number]+")
+holoMaterial(ParentN,"+toChar(34)+Parent[3,string]+toChar(34)+")
+holoParent(ParentN,entity())\n")
+        if(timerExists("b")){
+            timerResume("b")
+        }
+        else{
+            timer("b",0.01,0,function(){
+                if(fileWriteQueued()==0){
+                    fileAppend(S,"
+A="+Entity:count()+"
+holoCreate(A)
+holoModel(A,"+toChar(34)+Entity[Entity:count(),entity]:model()+toChar(34)+")
+holoPos(A,holoEntity(ParentN):toWorld("+toString(Parent[1,entity]:toLocal(Entity[Entity:count(),entity]:pos()))+"))
+holoAng(A,holoEntity(ParentN):toWorld("+toString(Parent[1,entity]:toLocal(Entity[Entity:count(),entity]:angles()))+"))
+holoColor(A,"+Entity[Entity:count(),entity]:getColor()+")
+holoAlpha(A,"+Alpha[Entity:count(),number]+")
+holoMaterial(A,"+toChar(34)+Material[Entity:count(),string]+toChar(34)+")
+holoParent(A,holoEntity(ParentN))\n")
+                undoEntry(Entity[Entity:count(),entity])
+                }
+                if(Entity:count()==0){
+                    timerPause("b")
+                    owner():soundPlay(1,5,"garrysmod/save_load4.wav")
+                    hint("Saved as "+S+" in GarrysMod"+toChar(92)+"garrysmod"+toChar(92)+"data"+toChar(92)+"e2files"+toChar(92),3)
+                    undoEntry(Parent[1,entity])
+                }
+           })
+        }
+    }
+}       
+event keyPressed(Player:entity,Key:string,Down:number,KeyBind:string){
+    if(Player==owner()&&owner():weapon():toString():explode("[")[3,string]=="weapon_crowbar]"&&SearchArea==0){
+        if(Key=="e"){
+            Use=Down
+        }            
+        if(Key=="pageup"){
+            PageUp=Down
+        }          
+        if(Key=="pagedown"){
+            PageDown=Down
+        }                 
+        if(Key=="mouse_left"){
+            LMB=Down
+        }          
+        if(Key=="mouse_right"){
+            RMB=Down
+        }          
+        if(Key=="r"){
+            R=Down
+        }
+        if(Key=="lshift"){
+            Shift=Down
+        }
+        if(Use&&!Shift){
+            if(LMB){
+                areaScan()
+            }
+            elseif(RMB){
+                areaRemove()
+            }
+            if(RMB||LMB){
+                if(timerExists("loop")){
+                    timerPause("loop")
+                }
+            }
+            else{
+                holoAlpha(1,50)
+                if(timerExists("loop")){
+                    timerResume("loop")
+                }
+                else{
+                    timer("loop",0.1,0,function(){
+                        holoPos(1,owner():aimPos())
+                        holoScale(1,vec(Scale,Scale,Scale))
+                        holoAlpha(1,50)
+                    })
+                }
+            }
+            if(PageUp&&Scale<10){
+                Scale=Scale+0.5
+            }
+            if(PageDown&&Scale>0.5){
+                Scale=Scale-0.5
+            } 
+        }       
+        else{  
+            holoAlpha(1,0)
+            if(timerExists("loop")){
+                timerPause("loop")
+            }
+        }   
+        if(!Use&&!Shift){            
+            if(LMB){
+                individualScan()
+            }
+            elseif(RMB){
+                undoEntry(owner():aimEntity())
+            }
+            elseif(R){
+                undoAll()
+            }
+        }
+        if(Shift&&!Use){
+            if(LMB){
+                getParent()
+            }
+        }
+    }
+}
+event weaponSwitched(Player:entity, OldWeapon:entity, NewWeapon:entity) {
+    if(Player==owner()){
+        if(NewWeapon:toString():explode("[")[3,string]=="weapon_crowbar]"&&H==0){
+            H=1
+            hint("LEFT SHIFT + LMB = select a parent entity",7)
+            hint("R = deselect all",7)
+            hint("E + RMB = radius remove entities",7)
+            hint("E + LMB = radius select",7)
+            hint("RMB = remove entity",7)
+            hint("LMB = select entity",7)
+            timer(7,function(){
+                hint("once you are done, type '/save <your file name>' to save",7)
+            })
+        }
+    }
+}
+event chat(Player:entity,Message:string,Team:number){
+    if(Player==owner()){
+        if(Message:explode(" ")[1,string]=="/save"&&entity():creationTime()<curtime()){
+            hideChat(1)
+            save(Message:explode(" ")[2,string]+".txt")
+        }
+    }
+}
+#Coded by Leftef

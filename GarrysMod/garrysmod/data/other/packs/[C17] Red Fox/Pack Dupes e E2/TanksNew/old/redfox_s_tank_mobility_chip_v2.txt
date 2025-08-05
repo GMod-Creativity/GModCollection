@@ -1,0 +1,468 @@
+@name RedFox's Tank mobility chip V2
+@inputs [Pod MainTransmission GearBoxLeft GearBoxRight Engine1 Engine2 Engine3]:wirelink [Base]:entity
+@outputs Throttle WL TransGear Ops Speed Door WLL WLR
+@persist LowSpeedBrake MedSpeedBrake HighSpeedBrake
+@persist LowSpeedClutch MedSpeedClutch HighSpeedClutch
+@persist LowSpeed MedSpeed BrakeDiv
+@persist NoThrottleBrake UsePivot PivotClutch
+@persist W A S D R Alt Space Shift Active OffThrottle Start On FullStopBrake PivotSpeed UseWLSteer WLSteerSpeed
+@persist TrackPitch TPitch TreadVolume TreadPitch
+@outputs GearBoxLeftClutch GearboxLeftBrake
+@outputs GearBoxRightClutch GearboxRightBrake
+@outputs GearBoxLeftGear GearBoxRightGear
+
+Ops=ops()
+
+
+if(first()|duped()|dupefinished())
+{    
+    On=0
+    
+    OffThrottle=30 #pretty much idle throtle
+    
+    BrakeDiv=5 #the less the more it will brake when you off the throttle 
+    FullStopBrake=7
+    NoThrottleBrake=0.5
+    LowSpeedBrake=10
+    MedSpeedBrake=5
+    HighSpeedBrake=2
+    
+    UseWLSteer = 1
+    WLSteerSpeed = 15 #Speed at which rigid brakes work (weld latch)
+    
+    LowSpeedClutch=0.3
+    MedSpeedClutch=0.5
+    HighSpeedClutch=1
+    PivotClutch=0.5
+    
+    PivotSpeed=5 #Must be less than WLSteerSpeed
+    
+    LowSpeed=20 #anything less than 15
+    MedSpeed=30 #med speed is anything between low and med and high is anything after med
+	
+    UsePivot=1  #pivot steering
+    
+    Base:soundPlay(1,0,"acf_extra/tankfx/treadsmedium.wav")
+	
+}
+
+interval(50)
+
+TreadPitch                  = 4         #Multiplier for treadpitch, used with speed.
+TreadVolume =    (Speed+15) / 18         #Above, but volume.
+
+
+W=Pod["W",number]
+S=Pod["S",number]
+A=Pod["A",number]
+D=Pod["D",number]
+Shift=Pod["Shift",number]
+R = Pod["R",number]
+Alt=Pod["Alt",number]
+Space=Pod["Space",number]
+Active=Pod["Active",number]
+Start = R
+
+Engine1["Active",number] = On
+Engine1["Throttle",number] = Throttle
+
+Engine2["Active",number] = On
+Engine2["Throttle",number] = Throttle
+
+Engine3["Active",number] = On
+Engine3["Throttle",number] = Throttle
+#############################################
+MainTransmission["Gear",number] = TransGear
+
+GearBoxLeft["Gear",number] = GearBoxLeftGear
+GearBoxRight["Gear",number] = GearBoxRightGear
+
+GearBoxLeft["Right Clutch",number] = GearBoxLeftClutch
+GearBoxLeft["Left Clutch",number] = GearBoxLeftClutch
+
+GearBoxLeft["Right Brake",number]= GearboxLeftBrake
+GearBoxLeft["Left Brake",number]= GearboxLeftBrake
+
+GearBoxRight["Right Clutch",number] = GearBoxRightClutch
+GearBoxRight["Left Clutch",number] = GearBoxRightClutch
+
+GearBoxRight["Right Brake",number] = GearboxRightBrake
+GearBoxRight["Left Brake",number] = GearboxRightBrake
+
+##Code stuff some of these lines might give you eye cancer, especially if you are a good programmer, beware##
+
+Speed=toUnit("km/h",Base:vel():length())
+
+if (changed(Start) & Start)
+{
+	if(On)
+	{
+		soundStop("engine")
+		On = 0
+	}
+	else
+	{
+		soundStop("engine")
+		Engine1:entity():soundPlay("engine1",1,"acf_extra/vehiclefx/starters/starter5.wav")
+		timer("EngineOn",1800)
+		timer("EngineOn1",500)
+	}
+	
+}
+
+if( clk("EngineOn1"))
+{
+	soundStop("engine")
+	On = 1
+}
+
+if(Alt){Door=!Door}
+
+if(!W&!S&!A&!D)
+{    
+	Throttle=OffThrottle
+}
+else
+{
+	Throttle=(W|S|A|D)*100
+}
+
+TransGear=1+S
+
+
+if(Speed<=FullStopBrake)
+{
+	if(!W&!S&!A&!D)
+	{
+		GearboxLeftBrake=0       
+		GearboxRightBrake=0		
+	}
+	
+	if(A&Alt)
+	{
+		WL=1
+	}
+	elseif(A&!Alt)
+	{
+		WL=0
+	}
+	elseif(D&Alt)
+	{
+		WL=1
+	}
+	elseif(D&!Alt)
+	{
+		WL=0
+	}
+	elseif(W&Alt)
+	{
+		WL=1
+	}
+	elseif(W&!Alt)
+	{
+		WL=0
+	}
+	elseif(S&Alt)
+	{
+		WL=1
+	}
+	elseif(S&!Alt)
+	{
+		WL=0
+	}
+	else
+	{
+		WL=1
+	}
+	
+}
+elseif(Shift&&Space)
+{
+	WL=1
+	
+	GearboxLeftBrake=0
+	GearboxRightBrake=0	
+}
+elseif(!Active)
+{
+	WL=1
+}
+elseif(Space)
+{
+	GearboxLeftBrake=Speed/BrakeDiv            
+	GearboxRightBrake=Speed/BrakeDiv
+}            
+else
+{
+	WL=0
+	
+	GearboxLeftBrake=0            
+	GearboxRightBrake=0	
+}
+
+if(!W&!S&!A&!D)
+{    
+	GearBoxLeftClutch=1        
+	GearBoxRightClutch=1	
+}
+else
+{
+	GearBoxLeftClutch=Pod["Alt",number]       
+	GearBoxRightClutch=Pod["Alt",number]	
+}
+
+
+if(Speed>MedSpeed&A)
+{
+	GearboxLeftBrake=A*HighSpeedBrake            
+	GearBoxLeftClutch=HighSpeedClutch	
+}
+
+if(Speed>MedSpeed&D)
+{        
+	GearboxRightBrake=D*HighSpeedBrake            
+	GearBoxRightClutch=HighSpeedClutch	
+}
+
+if(Speed>=5&!W&!S&&!A&!D&!Space)
+{
+	GearboxLeftBrake=NoThrottleBrake
+	GearboxRightBrake=NoThrottleBrake
+}
+elseif(Speed<LowSpeed&W&!A)
+{
+	GearboxLeftBrake=0
+	GearboxRightBrake=0
+}
+elseif(!Space)
+{
+	#GearboxLeftLBrake=0
+	#GearboxRightLBrake=0
+}
+
+if(Speed>=5&!W&!S&&!A&!D&!Space)
+{
+	GearboxLeftBrake=NoThrottleBrake
+	GearboxRightBrake=NoThrottleBrake
+}                
+elseif(Speed<LowSpeed&W&!D)
+{
+	GearboxLeftBrake=0
+	GearboxRightBrake=0
+}
+elseif(!Space)
+{
+	#GearboxLeftRBrake=0
+	#GearboxRightRBrake=0
+}
+
+
+
+if(Speed<=PivotSpeed&UsePivot)
+{
+	if(D&!Alt)
+	{
+		GearBoxLeftGear=1
+		GearBoxRightGear=2
+	}
+	if(A&!Alt)
+	{
+		GearBoxLeftGear=2
+		GearBoxRightGear=1
+	}   
+}
+
+if(!A&!D&!Alt)
+{
+	GearBoxLeftGear=1
+	GearBoxRightGear=1
+}
+
+if(Speed>LowSpeed&Speed<=MedSpeed&A)
+{
+	if(!Alt)
+	{
+		GearBoxLeftClutch=1
+		GearBoxRightClutch=A
+	}
+	
+	if(!Alt)
+	{
+		GearBoxLeftClutch=1
+		GearBoxRightClutch=MedSpeedClutch
+	}
+	
+	GearboxLeftBrake=A*MedSpeedBrake
+	GearboxRightBrake=0
+}
+
+if(Speed>LowSpeed&Speed<=MedSpeed&D)
+{
+	if(!Alt)
+	{
+		GearBoxLeftClutch=D
+		GearBoxRightClutch=1
+	}
+	
+	if(!Alt)
+	{
+		GearBoxLeftClutch=MedSpeedClutch
+		GearBoxRightClutch=1
+	}
+	
+	GearboxLeftBrake=0
+	GearboxRightBrake=D*MedSpeedBrake
+}
+
+#[ if(Speed<=LowSpeed&!Alt)
+{
+	if(UsePivot&Speed<=LowSpeed)
+	{   
+		#GearBoxLeftLClutch=0
+		#GearBoxRightLClutch=0
+	}   
+	elseif(!Alt)
+	{
+		GearBoxLeftClutch=A
+		GearBoxRightClutch=A
+	}
+	
+	if(UsePivot&Speed<=PivotSpeed)
+	{      
+		GearboxLeftBrake=0
+		GearboxRightBrake=0
+	}
+	else
+	{
+		if((W|S&A)|(!W|!S&A))
+		{
+			GearboxLeftBrake=A*LowSpeedBrake
+			# GearboxRightBrake=0
+		}
+		else
+		{
+			#GearboxLeftBrake=0
+			#GearboxRightBrake=0
+		}
+		
+	}
+	
+	if(!Alt)
+	{
+		if(UsePivot&Speed<=PivotSpeed)
+		{
+			GearBoxLeftClutch=PivotClutch
+			GearBoxRightClutch=PivotClutch
+			
+		}
+		else
+		{
+			GearBoxLeftClutch=1
+			GearBoxRightClutch=LowSpeedClutch
+		}
+	}                 
+	
+}]#
+
+if(Speed<=LowSpeed&!Alt)
+{
+	
+	if(UsePivot&Speed<=LowSpeed)
+	{   
+		#GearBoxLeftRClutch=0
+		#GearBoxRightRClutch=0
+	}   
+	elseif(!Alt&!W&!S)
+	{
+		GearBoxLeftClutch=1
+		GearBoxRightClutch=1
+	}
+	
+	if(UsePivot&Speed<=PivotSpeed)
+	{      
+		GearboxLeftBrake=0
+		GearboxRightBrake=0
+	}
+	else
+	{
+		if(!Space)
+		{
+			if(D)
+			{
+				
+				GearboxLeftBrake=0
+				GearboxRightBrake=D*LowSpeedBrake
+				
+			}elseif(A)
+			{
+				
+				GearboxLeftBrake=A*LowSpeedBrake
+				GearboxRightBrake=0
+				
+			}else
+			{
+				GearboxLeftBrake=0
+				GearboxRightBrake=0
+			}
+			#[
+			if((W|S)|(!W|!S))
+			{
+				if(D)
+				{        
+					GearboxLeftBrake=0
+					GearboxRightBrake=D*LowSpeedBrake       
+				}elseif(A)
+				{
+					GearboxLeftBrake=A*LowSpeedBrake
+					GearboxRightBrake=0
+				}
+			}
+			
+		]#
+		
+	}
+}
+
+if(!Alt)
+{
+	if(UsePivot&Speed<=PivotSpeed)
+	{
+		if((!W|!S)&(A|D))
+		{
+			GearBoxLeftClutch=PivotClutch
+			GearBoxRightClutch=PivotClutch
+		}
+		
+		}else{
+		
+		if(A)
+		{
+			GearBoxLeftClutch=1
+			GearBoxRightClutch=LowSpeedClutch
+		}elseif(D)
+		{
+			GearBoxLeftClutch=LowSpeedClutch
+			GearBoxRightClutch=1
+		}
+	}
+}
+}
+
+if(UseWLSteer&Speed<=WLSteerSpeed)
+{
+    if(UsePivot==0)
+    {
+        if(A){WLL=1}else{WLL=0} 
+        if(D){WLR=1}else{WLR=0}
+    }elseif(UsePivot&Speed>PivotSpeed)
+    {
+        if(A){WLL=1}else{WLL=0} 
+        if(D){WLR=1}else{WLR=0}
+    }else{WLL = 0 WLR = 0}
+}else {WLL = 0 WLR = 0}
+
+TPitch = (Speed)*TreadPitch
+TrackPitch = clamp(TPitch,TrackPitch-20,TrackPitch+20)
+
+soundPitch(1,TrackPitch) 
+soundVolume(1,TreadVolume)

@@ -1,0 +1,122 @@
+--@name Nakilibs/Very Explosive Missiles (Tool to test out explosions, Edit & Create them)
+--@author Naki
+--@shared
+--@include Nakilibs/Very_Explosive_Library.txt
+
+require("Nakilibs/Very_Explosive_Library.txt")
+
+if CLIENT then
+    if hasPermission("enablehud",player()) then
+        enableHud(player(), true)
+    end
+else
+    local hud = prop.createComponent(chip():getPos(), Angle(0,0,0), "starfall_hud", "models/props_combine/breenglobe.mdl", true)
+    hud:linkComponent(chip())
+    
+    local isDown = false
+    local isDownR = false
+    local yaw = 0
+    local missileFindStatus = "ready"
+    local pos = chip():getPos()
+    local missiles = {}
+    local iteration = 0
+    local MODE = 0
+    print("Fire mode: "..select(MODE+1,"Default Bomb","Fire Bomb","Mini-Nuke"))
+    
+    function createBomb(position,type,velocity)
+        local This = hologram.create(position,velocity:getAngle(),"models/props_phx/ww2bomb.mdl",Vector(1,1,1))
+        table.insert(missiles,1,{This,type,velocity})
+    end
+    
+    local effect_table_bombastic = {
+        angle = Angle(0, 0, 0),
+        size_start = Vector(250),
+        size_end = Vector(2000),
+        color_start = Color(255, 255, 255, 75),
+        color_end = Color(25, 25, 25, 0),
+        duration = 0.2,
+        sndname = "ambient/explosions/explode_4.wav"
+    }
+    local effect_table_firebomb = {
+        angle = Angle(0, 0, 0),
+        size_start = Vector(250),
+        size_end = Vector(2000),
+        color_start = Color(255, 255, 255, 75),
+        color_end = Color(25, 25, 25, 0),
+        duration = 0.2,
+        sndname = "ambient/explosions/explode_8.wav"
+    }
+    local effect_table_mininuke = {
+        angle = Angle(0, 0, 0),
+        size_start = Vector(250),
+        size_end = Vector(2000),
+        color_start = Color(255, 255, 255, 75),
+        color_end = Color(25, 25, 25, 0),
+        duration = 0.2,
+        sndname = "ambient/explosions/explode_5.wav"
+    }
+    
+    hook.add("think","",function()
+        if owner():keyDown(IN_KEY.ATTACK) and owner():getActiveWeapon():getClass() == "none" then
+            if isDown != true and missileFindStatus != "searching" then
+                isDown = true
+                yaw = math.rand(-360,360)
+                SPREAD = 500
+                pos = owner():getEyeTrace().HitPos+Vector(math.rand(-SPREAD,SPREAD),math.rand(-SPREAD,SPREAD),0):rotateAroundAxis(Vector(0,0,1),math.rand(-360,360))
+                missileFindStatus = "searching"
+            end
+        else
+            isDown = false
+        end
+        if owner():keyDown(IN_KEY.RELOAD) and owner():getActiveWeapon():getClass() == "none" then
+            if isDownR != true then
+                isDownR = true
+                MODE = MODE + 1
+                if MODE >= 3 then
+                    MODE = 0
+                end
+                print("Fire mode: "..select(MODE+1,"Default Bomb","Fire Bomb","Mini-Nuke"))
+            end
+        else
+            isDownR = false
+        end
+        if missileFindStatus == "searching" then
+            iteration = iteration + 1
+            local tr = trace.line(pos+Vector(0,0,25), pos+Vector(0,0,25)+Angle(-80,yaw,0):getForward()*50000, nil, nil, nil, nil)
+            if tr.Hit then
+                if tr.HitSky then
+                    createBomb(tr.HitPos,MODE,Angle(80,yaw+180,0):getForward()*100)
+                    missileFindStatus = "ready"
+                    iteration = 0
+                else
+                    yaw = math.rand(-360,360)
+                end
+            else
+                yaw = math.rand(-360,360)
+            end
+            if iteration >= 50 then
+                missileFindStatus = "ready"
+                iteration = 0
+            end
+        end
+        for i = #missiles, 1, -1 do
+            local missile = missiles[i][1]
+            local vel = missiles[i][3]
+            local type = missiles[i][2]
+            local tr = trace.line(missile:getPos(),missile:getPos()+vel,nil,nil,nil,nil)
+            missile:setPos(tr.HitPos)
+            
+            if tr.Hit then
+                if type == 0 then
+                    very_explosive_lib_basicExplosion(tr.HitPos-missile:getForward()*15, 500, 5000, effect_table_bombastic)
+                elseif type == 1 then
+                    very_explosive_lib_fireExplosion(tr.HitPos-missile:getForward()*15, 500, 5000, effect_table_firebomb)
+                elseif type == 2 then
+                    very_explosive_lib_fatmanExplosion(tr.HitPos-missile:getForward()*15, 500, 5000, effect_table_mininuke)
+                end
+                missile:remove()
+                table.remove(missiles,i)
+            end
+        end
+    end)
+end

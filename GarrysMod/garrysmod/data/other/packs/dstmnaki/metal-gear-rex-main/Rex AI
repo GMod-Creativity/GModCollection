@@ -1,0 +1,178 @@
+@name Rex AI
+@inputs Base:entity
+@outputs W S Shift EyeAngles:angle Crouch Open
+@persist RefreshRate Move TargetPos:vector Follow Here UseAimPos TargetOverwrite:vector Crouch Run
+@persist Open TargetPLY:entity StopDistance WalkDistance AimRadius AimRange TooClose CamControllerMode Mouse2Aim CanJump Distance
+@trigger none
+runOnChat(1)
+runOnKeys(owner(),1)
+if(first()){
+    
+    hint("Type .help to get started!",5)
+    hint("AI E2 By Naki!",5)
+    
+    TargetPLY = owner()
+    
+    StopDistance=750
+    TooClose=350
+    
+    WalkDistance=StopDistance*1.35
+    
+    RefreshRate=100
+    
+    CamControllerMode=1
+    CanJump=0
+    
+    UseAimPos=0
+}
+
+LS=owner():lastSaid():explode(" ")
+LS2=owner():lastSaid():explode("")
+
+if(chatClk(owner())){
+    if(LS2[1,string]=="."){
+        hideChat(1)
+    }
+    if(LS[1,string]==".follow"){
+        if(!Follow){
+            hint("Following",4)
+        }else{
+            hint("Already following",4)
+        }
+        Follow=1
+        UseAimPos=0
+    }
+    if(LS[1,string]==".open"){
+        hint("Cockpit Open.",4)
+        Open=1
+    }
+    if(LS[1,string]==".close"){
+        hint("Cockpit Closed.",4)
+        Open=0
+    }
+    if(LS[1,string]==".stay"){
+        UseAimPos=0
+        Follow=0
+        Here=0
+        hint("Staying at current location",4)
+    }
+    if(LS[1,string]==".faceme"){
+        TargetOverwrite=TargetPLY:pos()+vec(0,0,TargetPLY:height()/2)
+        EyeAngles=(TargetOverwrite-Base:pos()):toAngle()
+        hint("Facing at your direction.",4)
+    }
+    if(LS[1,string]==".crouch"){
+        if(!Crouch){
+            hint("Crouching",4)
+        }else{
+            hint("Already crouching",4)
+        }
+        Crouch=1
+        Run=0
+    }
+    if(LS[1,string]==".duck"){
+        if(!Crouch){
+            hint("Crouching",4)
+        }else{
+            hint("Already crouching",4)
+        }
+        Crouch=1
+        Run=0
+    }
+    if(LS[1,string]==".stand"){
+        if(Crouch){
+            hint("Standing",4)
+        }else{
+            hint("Already standing",4)
+        }
+        Crouch=0
+    }
+    if(LS[1,string]==".run"){
+        Run=1
+        Crouch=0
+    }
+    if(LS[1,string]==".walk"){
+        Run=0
+    }
+    if(LS[1,string]==".aimpos"){
+        UseAimPos=!UseAimPos
+        Follow=0
+        Here=0
+        TargetOverwrite=Base:toWorld(vec(StopDistance,0,0))
+        hint("I will move to targetted location",4)
+    }
+    if(LS[1,string]==".here"){
+        Follow=0
+        Here=1
+        TargetOverwrite=owner():pos()+vec(0,0,owner():height()/2)
+        
+        if(!Crouch){
+            hint("Coming to your location",4)
+        }else{
+            hint("Already coming to your location",4)
+        }
+    }
+    if(LS[1,string]==".help"){
+        hint("Commands written into console!",5)
+        print(_HUD_PRINTCONSOLE,".follow - makes the ai follow you")
+        print(_HUD_PRINTCONSOLE,".stay - makes the ai stay where it is")
+        print(_HUD_PRINTCONSOLE,".here - makes the ai move to your current location and stop")
+        print(_HUD_PRINTCONSOLE,".aimpos - makes the ai move to your aimpos with mouse1")
+        print(_HUD_PRINTCONSOLE,".crouch - makes the ai crouch")
+        print(_HUD_PRINTCONSOLE,".duck - makes the ai crouch")
+        print(_HUD_PRINTCONSOLE,".stand - makes the ai stand/stop crouching")
+        print(_HUD_PRINTCONSOLE,".run - makes the ai run")
+        print(_HUD_PRINTCONSOLE,".walk - makes the ai walk")
+    }
+}
+
+interval(RefreshRate)
+
+Distance=round((TargetOverwrite*vec(1,1,0)):distance(Base:pos()*vec(1,1,0)))
+if(Follow){
+    Move=1
+}elseif(Here){
+    Move=1
+}else{
+    Move=0
+}
+
+if(Distance>StopDistance){
+    W=1*Move
+    S=0
+}elseif(Distance<TooClose){
+    Here=1
+    W=0
+    S=1*Move
+}else{
+    Here=0
+    W=0
+    S=0
+}
+if(Distance>WalkDistance+StopDistance){
+    Shift=1*Run
+}else{
+    Shift=0
+}
+if(UseAimPos==1|Follow==1|Here==1){
+    if(!Follow){
+        if(UseAimPos){
+            if(changed(owner():keyAttack1())&owner():keyAttack1()){
+                Here=1
+                hint("Moving to location",4)
+                TargetOverwrite=owner():aimPos()+vec(0,0,owner():height()/2)
+            }
+        }
+    }elseif(!Here){
+        TargetOverwrite=TargetPLY:pos()+vec(0,0,TargetPLY:height()/2)
+    }
+    #Acts like cam controller camAng()
+    if((TargetOverwrite-Base:pos()):toAngle():pitch()<180.1){
+        EyeAngles=(TargetOverwrite-Base:pos()):toAngle()
+    }else{
+        EyeAngles=ang((TargetOverwrite-Base:pos()):toAngle():pitch()-360,(TargetOverwrite-Base:pos()):toAngle():yaw(),0)
+    }
+}
+if(dupefinished()){
+    reset()
+}

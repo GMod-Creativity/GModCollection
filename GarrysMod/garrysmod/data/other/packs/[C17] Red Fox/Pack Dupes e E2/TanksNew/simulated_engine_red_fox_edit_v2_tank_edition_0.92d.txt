@@ -1,0 +1,1151 @@
+@name Simulated_Engine Red Fox Edit v2 Tank Edition 0.92D
+
+@inputs [POD, Chassis, Engine, FuelTank]:wirelink [SprocketL, SprocketR, Gearbox, LeftDiff, RightDiff]:entity
+
+@outputs [Engine_Active, Engine_RPM, Engine_Throttle, Engine_Torque, Brake, Flywheel_PowerInertia, Engine_Ignition, Gearbox_Gear, Gearbox_Clutch, Turbo_Boost, Turbo_PSI, Fuel_Capacity, Fuel_Liters, Flywheel_RPM]:number
+@outputs Ops:number Flywheel_Power Engine_Inertia Engine_RealRPM Gearbox_Ratio
+@persist [C, E, S, T]:entity Flywheel:array TickMult BrakeTickMult
+@outputs Speed SpeedN InverseBaseSpeed BrakeM Tick TickNumber ReverseEngaged BrakeL BrakeR WeldLatchL WeldLatchR
+
+# Engine Parameters
+@persist [Engine_IdleRev, Engine_RevLimiter, Engine_Bore, Engine_Stroke, Engine_Cylinders, Engine_Airflow, Engine_Configuration, Engine_Displacement, Engine_PeakTorque, Engine_Redline, Engine_Mass, Engine_FlywheelMass, Engine_Idle]:number 
+@persist [Engine_TorqueTable]:array AllowToAutoSetEngineMass:number MassFactor
+
+# Fuel Parameters
+@persist [Fuel_Enabled, Fuel_Capacity, Fuel_Air_Ratio, Fuel_Density, Air_Density]:number 
+@persist [SpeedToReverse]:number
+
+# Gearbox Parameters
+@persist [Gearbox_FinalDrive, Gearbox_Delay, Gearbox_LockValue, Gearbox_ClutchSpeed]:number 
+@persist [Gearbox_Ratios, GearSpeeds, ReverseGearRatios, ReverseGearSpeeds]:array
+@persist [Gearbox_Ratio, Gearbox_Gear, Gearbox_Lock, Gearbox_Clutch]:number 
+@persist [UseBrakeOnPivot, ClutchLerp, ClutchLerpReverse]:number
+@persist [Throttle_Delay, Clutch_Delay]:number 
+@persist [Min_Gear_Time Min_Reverse_Gear_Time]:number
+@persist [LeftTurnStability RightTurnStability]:number
+
+
+# Turbo Parameters
+@persist [Turbo, Turbo_Exp, Turbo_Inertia, Turbo_FlowScale, Turbo_DragScale, Turbo_PSIMax, Turbo_AirPressure, Turbo_MaxFlow, Turbo_MaxRPM]:number
+@persist [Turbo_RPM]:number
+
+# Brake Parameters
+@persist [Brake, Engine_IdleThrottle, Engine_Ignition, Engine_PowerCut, Engine_Volume, Flywheel_PowerInertia]:number
+@persist [BrakeFeed, BrakeFeedMult, BrakeMult, FirstPhaseBrakeInput, SecondPhaseBrakeInput, ThirdPhaseBrakeInput, ReverseBrakeInput]:number
+@persist [StoppedBrake, FirstPhaseBrake, FirstPhaseBrakeSpeed, SecondPhaseBrake, SecondPhaseBrakeSpeed, ThirdPhaseBrake, ThirdPhaseBrakeSpeed]:number
+
+# Chassis and Steering Parameters
+@persist [TrackPitch, TreadPitch, TPitch, PivotStoppedBrakeMult, NormalBrake]:number
+@persist [PivotThrottle, Engine_MinIdleThrottle, UsePivot, PivotSpeed, PivotClutch, LeftClutch, RightClutch, GoLeft, GoRight, UseWLSteer, WLSteerSpeed, WLReverseSpeed]:number
+
+# Miscellaneous
+@persist [HandbrakePower, PivotTorqueMultLeft, PivotTorqueMultRight]:number
+@persist [EngineDirection, ChassisFeedDirection, ChassisFeedForwardDirection]:vector
+@persist [TotalMass]:number
+@persist [ChassisAccFeed, ChassisAccFeedMult, StoppedBrakeMult, HandbrakePowerMult]:number
+@persist [Engine_SoundOn, Engine_SoundOff]:string
+@persist Version:string CoastSpeedThreshold CoastSpeedThresholdDiv SpeedToFullStop InversePivot
+
+#SO MANY PERSISTS REEE
+
+Flywheel[1,entity] = SprocketL
+Flywheel[2,entity] = SprocketR
+
+
+ 
+if (duped() | dupefinished()) {reset()} else {runOnTick(1)}
+SpeedN=toUnit("km/h",Chassis:entity():velL():x()) #something to fix a certain behaviour in reverse when going downhill
+#make sure this is always the right direction
+
+Speed=toUnit("km/h",Chassis:entity():vel():length())
+Tick = tickInterval()
+Ops = ops()
+
+#This is meant to be a replacement to ACF Mobility, not weapons
+#At its fundamental level it should function close to ACF itself
+#You NEED Engine, Gearbox and the Differentials linked for it to work
+#They CAN be ANY model you desire, as long as you use the correct engine direction
+
+#If your gearbox is gone, no power will be transmitted to the diffs, but you will still be able to brake / turn when in speed
+#If diffs are gone, no steering or brake (only Weld Latch, if sprockets still exist that is), each for its respective side
+#If engine is gone, simply no power
+
+#Make sure you adjust the ENGINE directions, its further down the first() code block
+#Seriously, bad things happen if you dont
+#Depending on the settings, your tank might feel heavy or realistic even
+#If it acts wierd, this is the most likely reason
+
+#The Movement style is similar to my ACF Mobility E2
+#If you prefer ACF, just use that instead
+
+#Controls
+# W A S D
+# F to turn it on
+# Shift to rev
+# Space to use "handbrake", also useful when climbing
+# Alt to hold gear
+# Shift + Space to use Weld Latch for full brakes
+
+if (first()) {
+    
+   
+    Version = "0.92D"
+    
+    TotalMass = 11300 #just something based on total acf weight, affects engine perf
+    #InverseBaseSpeed = 1
+    
+    Engine_MinIdleThrottle = 0.5 #the minium throttle the engine will use regardless of setting, as a way to not stall
+    
+    #If for some reason you need to adjust the force on pivot
+    PivotTorqueMultLeft = 1
+    PivotTorqueMultRight = 1
+    
+    #Pivot / Neutral steering stuff    
+    UsePivot = 1
+    UseBrakeOnPivot = 1 #Pivot stabilization or sorts
+    PivotSpeed = 10
+    PivotClutch = 0.3
+    PivotThrottle = 1 #see Engine_MinIdleThrottle as it will otherwise stall
+    
+    ClutchLerp = 0.5 #the higher the value, the longer the clutch will take to go to 0 based on the rpm / engine load,
+    #it is a bit problematic at higher redlines sometimes, think of it as clutch load if torque isnt enough
+    #note that if you notice a gearbox slip it is probably due to this, since most likely your engine config doesnt
+    #have enough torque for the gear ratio youre trying, which then it will try to compensate with clutch
+    ClutchLerpReverse = 0.5
+    
+    # Define a coast speed threshold
+    CoastSpeedThreshold = 5  #At what max speed does the clutch keeps disengaged 
+    CoastSpeedThresholdDiv = 15 #At what speed the clutch(0 to 1) starts engaging for coasting, anything above it keeps engaged
+    #for engine braking and what not
+
+    #Use Weld Latch, I really recommend this
+    UseWLSteer = 1
+    WLSteerSpeed = 10 #Speed at which rigid brakes work (weld latch)
+    WLReverseSpeed = 15 #same but for reverse
+    SpeedToFullStop = 5
+    
+    #Brake when using Space
+    HandbrakePowerMult = 5
+    
+    #Overall Brake Multiplier
+    BrakeMult = 1
+    
+    #Brake Speed
+    FirstPhaseBrakeSpeed = 10
+    SecondPhaseBrakeSpeed = 20
+    ThirdPhaseBrakeSpeed = 35
+
+    SpeedToReverse = 2 #What speed to start reverse
+    
+    #Brake multiplier when stopped    
+    StoppedBrakeMult = 10   
+    PivotStoppedBrakeMult = 20 #When pressing Space for a more fine / slow pivot
+    
+    #Brake Amount, for turning, if its too high, your wheels might spazz, so beware
+    FirstPhaseBrake = 30
+    SecondPhaseBrake = 20    
+    ThirdPhaseBrake = 7
+    
+    #When pressing W / S, very much the same thing as handbrake, not sure why i added this but its here none the less
+    NormalBrake = 10
+    
+    #Brake Input L/R fine tune, dont go too high
+    ReverseBrakeInput = 1
+    FirstPhaseBrakeInput = 1 
+    SecondPhaseBrakeInput = 1 
+    ThirdPhaseBrakeInput = 1
+    
+    #How much power will go to the wheels when turning L/R, use this if your tank is sliding too much when turning
+    #Dont set the value too high or you wont turn at all or lose too much speed
+    LeftTurnStability = 1
+    RightTurnStability = 1
+    
+    ChassisAccFeedMult = 39.37 #how much it tilts due to accel
+    BrakeFeedMult = 1 #same as above but brake
+    
+    Min_Gear_Time = 250 # Minimum time in milliseconds to stay in gear before changing
+    Min_Reverse_Gear_Time = 250 #same as above but for reverse
+    
+    AllowToAutoSetEngineMass = 1 #Makes it so the E2 sets the engine mass according to its own rules
+    #Otherwise just set your own, doesnt apply to gearbox and differentials, these dont have their own weight set by the E2
+    
+    #below are the engine variables
+    #There are more settings a bit lower outside this code section as well
+
+ if(Tick >= 0.030)
+    {
+        TickMult = 1
+        BrakeTickMult = BrakeMult
+        ChassisAccFeed = ChassisAccFeedMult/2
+        BrakeFeed = BrakeFeedMult
+        TickNumber = 33
+        HandbrakePower = HandbrakePowerMult/2
+        StoppedBrake = StoppedBrakeMult/2
+    }
+    else
+    {
+        TickMult = 2/4
+        BrakeTickMult = BrakeMult/4
+        ChassisAccFeed = ChassisAccFeedMult/4
+        BrakeFeed = BrakeFeedMult
+        TickNumber = 66
+        HandbrakePower = HandbrakePowerMult
+        StoppedBrake = StoppedBrakeMult
+    }
+    
+    
+    Engine_Bore = 102
+    Engine_Stroke = 119
+    Engine_Cylinders = 6
+    Engine_Airflow = 85
+    Engine_Idle = 700
+    Engine_IdleRev = 0.1
+    Engine_RevLimiter = 1
+    Engine_TorqueTable = array(0.52, 0.75, 1.5, 0.73, 0.62)
+    Engine_FlywheelMass = 15 #good to refine acceleration / de
+    Engine_Configuration = 0
+    Engine_Configurations = table(
+        0 = "Inline-",
+        1 = "V"
+    ) 
+    
+    
+    #Unlimited Gear Works
+    
+    Gearbox_Ratios = array(
+        
+        6.5,
+        4.2,
+        2.70,
+        1.7,
+        1.1,
+        0.75,
+        0.5
+
+    )
+    
+    #Just treat the last speed as a high value, the true last value for the last gear is always one gear speed less
+    GearSpeeds = array(
+        8,
+        13,
+        19,
+        30,
+        47,
+        65,
+        81
+
+    
+    )
+    # Define reverse gear ratios and speeds
+    ReverseGearRatios = array(        
+        -6.5,
+        -4.2,
+        -2.70,
+        -1.7,
+        -1.1,
+        -0.75,
+        -0.5
+
+
+    )
+    #Same as GearSpeeds, if theres only a single gear, just put a high value
+    ReverseGearSpeeds = array(
+        8,
+        13,
+        19,
+        30,
+        47,
+        65,
+        81
+
+
+    )    
+
+ 
+
+    #Gearbox_Ratios[-1, number] = -8.527
+    
+    Gearbox_FinalDrive = -6.85
+    Gearbox_Delay = 100
+    Gearbox_ClutchSpeed = 1
+    Gearbox_LockValue = 0.00
+   
+    #While it has fuel feature, its not really used, as far as i am aware there isnt a way
+    #to easily refuel other than restart the e2
+
+    Fuel_Enabled = 0
+    Fuel_Air_Ratio = 1 / 12.5
+    Fuel_Density = 0.72 # 0.72 | 0.745 ( Petrol | Diesel )
+    Air_Density = 0.0012
+    
+   
+    Engine_Displacement = round((Engine_Cylinders * pi() * Engine_Bore ^ 2 * Engine_Stroke / 4000000), 1)
+    Engine_PeakTorque = round((Engine_Stroke / Engine_Bore * Engine_Displacement * Engine_Airflow) * (Engine_Stroke  / Engine_Bore), 2)
+    Engine_PeakTorque *= 1
+    
+    Engine_Redline = round((Engine_Bore / Engine_Stroke / Engine_Cylinders * Engine_Airflow * 2000 / 6), 0)
+    Engine_Redline *= (Engine_Bore / Engine_Stroke)
+    Engine_Redline -= Engine_Redline % 100
+    Engine_Redline = 3500 # Override original value
+    
+    Engine_Mass = round((floor(Engine_Displacement * 45 + Engine_Cylinders * 4 + clamp(Engine_Configuration, 0, 1) * 10)), 0)
+    Engine_Mass += Engine_FlywheelMass
+    Engine_Mass += (Gearbox_Ratios:count() * 8.66)
+    
+    E = Engine:entity()
+    if(AllowToAutoSetEngineMass)
+    {
+        E:setMass(Engine_Mass)
+        E:propInertia(maxVec(vec(Engine_Mass, Engine_Mass, 2), vec(40, 40, 2)))
+    }
+   
+    Turbo = 0
+    Turbo_Exp = 1
+    Turbo_Inertia = 0.035
+    Turbo_FlowScale = 100
+    Turbo_DragScale = 0.01
+    Turbo_PSIMax = 20
+    Turbo_AirPressure = 18.4
+    Turbo_MaxFlow = Engine_Redline * ((Turbo_PSIMax + Turbo_AirPressure) / Turbo_AirPressure)
+    Turbo_MaxRPM = 7000
+ 
+    C = Chassis:entity()
+   
+
+    #Tank threads sounds
+    C:soundPlay("Tracks",0,"acf_extra/tankfx/treadsmedium.wav")
+
+   
+    T = FuelTank:entity()
+    Fuel_Capacity = T:boxSize():length()
+    Fuel_Liters = Fuel_Capacity
+   
+    foreach (K, V:entity = Flywheel) {
+        #V:setMass(Engine_Mass)
+        #V:propInertia(maxVec(vec(Engine_Mass, Engine_Mass, 2), vec(40, 40, 2)))
+       # V:propGravity(0)
+    }
+    
+    local Engine_HP = (Engine_PeakTorque * Engine_Redline) / 10000
+    
+    #print("Calculated Engine HP: " + Engine_HP)
+ 
+    setName(
+        "Simulated Engine" + "\n"
+        + Engine_Configurations[Engine_Configuration, string] + Engine_Cylinders + "\n"
+        + "Displacement: " + Engine_Displacement + " L\n"
+        + "Peak Torque: " + Engine_PeakTorque + " nm\n"
+        + "Redline: " + Engine_Redline + "\n"
+        + "Flywheel Mass: " + Engine_FlywheelMass * 0.1 + " kg\n"
+        + "HP: " + Engine_HP +"\n" 
+        +"ACF Replacement" +"\n"
+        + "Version: " + Version
+    )
+ 
+    Engine_SoundOn = "acf_extra/vehiclefx/engines/challenger2_2.wav"
+    Engine_SoundOff = "acf_engines/hugev10medium.wav"
+ 
+    function void loadSounds() {
+        E:soundPlay("On", 0, Engine_SoundOn:lower())
+        E:soundPlay("Off", 0, Engine_SoundOff:lower())
+        if (Turbo) {
+            E:soundPlay("Turbo", 0, "acf_engines/turbine_small.wav")
+        }
+    }
+   
+    loadSounds()
+   
+    runOnLast(1)
+}
+
+#Used to get engine direction of which affects wheel rotation
+#If something is not behaving correctly this is probably why
+#Seriously, get these directions correctly, youll regret it if you dont
+
+#default for cylinder
+
+#up()
+#right()
+#forward()
+
+    EngineDirection = -E:right()
+    ChassisFeedDirection = E:forward()
+    ChassisFeedForwardDirection = E:forward()
+    
+##############################################################
+    
+    TreadPitch                  = 2         #Multiplier for treadpitch, used with speed.
+    TreadVolume =    (Speed+15) / 18  
+    TPitch = (Speed)*TreadPitch
+    TrackPitch = clamp(TPitch,TrackPitch-20,TrackPitch+20)
+
+soundPitch("Tracks",TrackPitch) 
+soundVolume("Tracks",TreadVolume)
+
+#Anything you should edit ends here, if you want to dig deeper in the e2, go on below this
+
+##################################
+    
+POD_Active = POD["Active",number]
+ 
+if (changed(POD_Active) | POD_Active) {
+    Key_W = POD["W", number]
+    Key_S = POD["S", number]
+    Key_A = POD["A", number]
+    Key_D = POD["D", number]
+    Key_M1 = POD["Mouse1", number]
+    Key_M2 = POD["Mouse2", number]
+    Key_F = POD["Light", number]
+    Key_R = POD["R", number]
+    Key_Sp = POD["Shift", number]
+    Key_Sh = POD["Space", number]
+    Key_Alt = POD["Alt", number]
+    Key_Z = POD["Zoom", number]
+
+    #[if (changed(Key_Z) && Key_Z) {
+        Gearbox_Lock = !Gearbox_Lock    
+    }]#
+
+    if (changed(Key_F)) {
+        if (Engine_Ignition == 1 && Engine_Active == 0) {
+            Engine_Ignition = 2
+        }
+        if (Engine_Ignition == 2 & !Key_F) {
+            Engine_Ignition = 1
+        }
+    }
+
+    if (changed(Key_F) & Key_F) {
+        if (Engine_Ignition == 0) {
+            Engine_Ignition = 1
+        }
+        if (Engine_Ignition == 1 && Engine_Active == 1) {
+            Engine_Ignition = 0
+        }
+    }
+
+    Engine_Ignition = min(Engine_Ignition, (Engine_Active ? 1 : 2))
+
+    if (changed(Engine_Ignition)) {
+        if (Engine_Ignition == 2) {
+            E:soundPlay("Start", 0, "acf_extra/vehiclefx/starters/starter2.wav")
+            soundVolume("Start", 0.5)
+        } else {
+            soundStop("Start")
+        }
+    }
+
+    soundPitch("Start", max(Engine_RPM / Engine_Idle, 0.35) * 200)
+
+    # Gearbox_Gear += (changed(Key_M1) & Key_M1) - (changed(Key_M2) & Key_M2)
+    # Gearbox_Gear *= !(changed(Key_R) & Key_R)
+    #Gearbox_Gear = clamp(Gearbox_Gear, Gearbox_Ratios:minIndex(), Gearbox_Ratios:count())
+
+    if (changed(Gearbox_Gear)) {
+        #if (Gearbox_Ratios[Gearbox_Gear, number]) {
+       #     Gearbox_Ratio = Gearbox_Ratios[Gearbox_Gear, number] * Gearbox_FinalDrive
+       # }
+
+        C:soundPlay("Gear_Change", 0, "physics/plaster/ceiling_tile_impact_hard3.wav")
+        soundPitch("Gear_Change", 60)
+        soundVolume("Gear_Change", 0.3)
+
+        timer("Gear_Change", Gearbox_Delay)
+
+        Throttle_Delay = 1
+        Clutch_Delay = 1
+
+        foreach (K, V:entity = Flywheel) {
+            local Mass = max(Engine_Mass * Gearbox_Ratio, Engine_Mass)
+            # V:setMass(Mass)
+            # V:propInertia(maxVec(vec(Mass, Mass, 2), vec(40, 40, 2)))
+        }
+    }
+}
+
+# Default gear setup
+#Gearbox_Gear = 1  # Default to the first gear
+#ReverseEngaged = 0
+#Gearbox_Clutch = 0
+
+if (!Key_Alt) {
+
+# Handle gear change logic
+if (!ReverseEngaged) {
+    
+        if (Gearbox_Gear >= 1 && Key_S) {
+            #Gearbox_Gear = Gearbox_Gear
+            Gearbox_Clutch = 1
+            Engine_Throttle = 0
+        }
+            if(Key_S & Speed<=SpeedToReverse || Key_S & SpeedN<=SpeedToReverse)
+        {
+            ReverseEngaged = 1
+        }
+    
+  
+    # Forward gears logic
+    for (I = 1, GearSpeeds:count()) {
+        if (Speed <= GearSpeeds[I, number]) {
+            # Check if the gear change is needed
+            if (Gearbox_Gear != I) {
+                # Start or update the gear change timer
+                if (!clk("Gear_Timer") || Gearbox_Gear == I) {
+                    timer("Gear_Timer", Min_Gear_Time)
+                }
+
+                # If the timer is done and the gear has changed
+                if (clk("Gear_Timer")) {
+                    #PreviousGear = Gearbox_Gear
+                    Gearbox_Gear = I
+                    # Set the gear ratio
+                    
+                    # Print debug message (optional)
+                    #print("Gear changed to: ", Gearbox_Gear)
+                    # Start a new timer for the gear change delay
+                    timer("Gear_Change", Gearbox_Delay)
+                }
+            }
+            break
+        }
+    }
+    Gearbox_Ratio = Gearbox_Ratios[Gearbox_Gear, number] * Gearbox_FinalDrive
+    
+} elseif(ReverseEngaged) {
+      if(Key_W&ReverseEngaged&SpeedN>=SpeedToReverse)
+    {
+        ReverseEngaged = 0
+    }
+    
+
+        # Reverse gear logic
+        if (Gearbox_Gear >= 1 & Key_S) {
+            #Gearbox_Gear = Gearbox_Gear
+            Gearbox_Clutch = 1
+            Engine_Throttle = 0
+        }
+        
+
+    # Update the reverse gear timer to ensure the minimum time
+    if (!clk("Reverse_Gear_Timer")) {
+        timer("Reverse_Gear_Timer", Min_Reverse_Gear_Time)
+    }
+    
+    # Check if reverse gear needs to be changed
+    for (I = 1, ReverseGearSpeeds:count()) {
+        if (Speed <= ReverseGearSpeeds[I, number] & ReverseEngaged) {
+            # Only change reverse gear if the minimum time has elapsed
+            if (clk("Reverse_Gear_Timer")) {
+                Gearbox_Gear = -(I)  # Set to reverse gear with index
+               # ReverseEngaged = 1
+                # Set the reverse gear ratio
+                
+                # Print debug message (optional)
+                #print("Reverse gear changed to: ", Gearbox_Gear)
+                # Start a new timer for the gear change delay
+                timer("Reverse_Change", Gearbox_Delay)
+                break
+            }
+        }
+    }
+    
+    Gearbox_Ratio = ReverseGearRatios[Gearbox_Gear * -1, number] * Gearbox_FinalDrive
+
+    }
+}
+
+# Shift to forward gear when 'W' is pressed and speed is below threshold
+if (Key_W && Speed <= SpeedToReverse && !Key_S) {
+    Gearbox_Gear = 1
+    ReverseEngaged = 0  # Reset reverse engaged flag
+    #Gearbox_Ratio = Gearbox_Ratios[Gearbox_Gear, number] * Gearbox_FinalDrive
+}
+
+ 
+if (clk("Beep")) {
+    soundStop("Beep")
+   
+    C:soundPlay("Beep", 1, "buttons/bell1.wav")
+    soundVolume("Beep", 0.2)
+    soundPitch("Beep", 200)
+}
+
+
+# Define brake conditions based on speed and gear
+#[
+if (Speed <= FirstPhaseBrakeSpeed && Gearbox_Gear != -1) {
+    BrakeM = FirstPhaseBrake
+}]#
+
+if (Speed >= ThirdPhaseBrakeSpeed)
+    {   
+        if(Key_A || Key_D)
+        { 
+            BrakeM = ThirdPhaseBrake
+        }else {BrakeM = NormalBrake}
+        BrakeL = Key_A ? ThirdPhaseBrakeInput : 0
+        BrakeR = Key_D ? ThirdPhaseBrakeInput : 0    
+    } elseif (Speed >= SecondPhaseBrakeSpeed) 
+        {
+            if(Key_A || Key_D)
+            { 
+                BrakeM = SecondPhaseBrake
+            }else {BrakeM = NormalBrake}
+            BrakeL = Key_A ? SecondPhaseBrakeInput : 0
+            BrakeR = Key_D ? SecondPhaseBrakeInput : 0
+               
+        } elseif (Speed >= FirstPhaseBrakeSpeed || Speed <= FirstPhaseBrakeSpeed)
+            {
+                if((Key_A || Key_D))
+                { 
+                    BrakeM = FirstPhaseBrake
+                }else {BrakeM = NormalBrake}
+                BrakeL = Key_A ? FirstPhaseBrakeInput : 0
+                BrakeR = Key_D ? FirstPhaseBrakeInput : 0   
+            }
+            
+            if(ReverseEngaged)
+            {
+                BrakeL = Key_A ? ReverseBrakeInput : 0
+                BrakeR = Key_D ? ReverseBrakeInput : 0                 
+            }
+
+
+# Update brake states based on key inputs
+
+   # BrakeL = Key_A ? 0.5 : 0
+   # BrakeR = Key_D ? 0.5 : 0
+if (Speed <= FirstPhaseBrakeSpeed && (!Key_W && !Key_S) & (!Key_A && !Key_D) || POD_Active == 0) {
+    BrakeM = StoppedBrake
+    Brake = 1
+} elseif ((Key_Sh & UsePivot==0)|(Key_Sh & UsePivot==1 & Speed > PivotSpeed)) {
+    BrakeM = HandbrakePower
+    Brake = 1
+} elseif(Speed<=PivotSpeed&UseBrakeOnPivot&UsePivot&(Key_A||Key_D)&!(Key_W||Key_S)) {
+    BrakeM = PivotStoppedBrakeMult
+    Brake = 1
+} elseif (!ReverseEngaged && Key_S) {
+    Brake += (1 - Brake) * 0.155  # Smooth increase of Brake
+    Brake *= Key_S  # Ensures Brake is applied only if Key_S is pressed
+    Gearbox_Clutch = 1  # Always engage clutch when braking
+    Engine_Throttle = 0  # Always zero throttle when braking
+} elseif (ReverseEngaged && Key_W) {
+    Brake += (1 - Brake) * 0.155  # Smooth increase of Brake
+    Brake *= Key_W  # Ensures Brake is applied only if Key_W is pressed
+    Gearbox_Clutch = 1  # Always engage clutch when braking
+    Engine_Throttle = 0  # Always zero throttle when braking
+} else {
+    Brake = 0
+}
+
+if(Key_S&ReverseEngaged&!Key_W){Brake=0}
+if(ReverseEngaged&Key_W){Gearbox_Gear = 0}
+if(!ReverseEngaged&Key_S){Gearbox_Gear = 0}
+ 
+ 
+Engine_Active = (Engine_RPM > 350) * sign(Engine_Ignition)
+
+if (Engine_Ignition && !Engine_Active) {
+    timer("Beep", 1200)
+}
+
+if (changed(Engine_Active) && Engine_Active) {
+    loadSounds()
+    stoptimer("Beep")
+}
+
+if (!Engine_Active && (Engine_Ignition == 2) && (Gearbox_Clutch == 1)) {
+    Engine_RPM += 25
+}
+
+Chassis_Feedback = vec()
+Flywheels_RPM = array()
+
+# Calculate flywheel RPM
+Flywheels_RPM[1, number] = SprocketL:angVelVector():dot(SprocketL:toLocalAxis(EngineDirection)) / 8
+Flywheels_RPM[2, number] = SprocketR:angVelVector():dot(SprocketR:toLocalAxis(EngineDirection)) / 8
+
+# Calculate force based on RPM and braking
+
+
+# Determine if braking is required
+if ((Key_S && !ReverseEngaged) | 
+    (Key_W && ReverseEngaged) | 
+    ((!Key_W && !Key_A && !Key_D && !Key_S) && Speed <= FirstPhaseBrakeSpeed) | 
+    Key_Sh | 
+    POD_Active == 0 | Speed<=PivotSpeed&UseBrakeOnPivot&UsePivot&(Key_A||Key_D)) {
+    
+    if(UsePivot&UseBrakeOnPivot)
+    {
+        BrakeL = Key_A ? 1 : 0
+        BrakeR = Key_D ? 1 : 0
+    }
+    
+    
+    local ForceFL = 500 * Flywheels_RPM[1, number] * Brake * BrakeTickMult
+    local ForceFR = 500 * Flywheels_RPM[2, number] * Brake * BrakeTickMult
+    
+    if(LeftDiff:isValid())
+    {
+        SprocketL:applyTorque(SprocketL:toLocalAxis(-EngineDirection) * ForceFL * BrakeM)
+    }
+    if(RightDiff:isValid())
+    {
+        SprocketR:applyTorque(SprocketR:toLocalAxis(-EngineDirection) * ForceFR * BrakeM)
+    }
+    Chassis_Feedback += (ForceFL + ForceFR) / 2 * BrakeFeed
+}
+
+# Apply steering forces
+if (Key_A) {  # Forward gear and turning left
+    local ForceFL = 500 * Flywheels_RPM[1, number] * BrakeL * BrakeTickMult
+    
+    if(LeftDiff:isValid())
+    {
+        SprocketL:applyTorque(SprocketL:toLocalAxis(-EngineDirection) * ForceFL * BrakeM)
+    }
+}
+
+if (Key_D) {  # Forward gear and turning right
+    local ForceFR = 500 * Flywheels_RPM[2, number] * BrakeR * BrakeTickMult
+    
+    if(RightDiff:isValid())
+    {
+        SprocketR:applyTorque(SprocketR:toLocalAxis(-EngineDirection) * ForceFR * BrakeM)
+    }
+}
+
+
+ 
+# Apply torque to the chassis if there is feedback
+if (Chassis_Feedback) {
+    C:applyAngForce(ang(-Chassis_Feedback:x(), 0, 0))  # Should hopefully fix a bug
+}
+
+# Calculate the average RPM of the flywheels
+Flywheel_RPM = Flywheels_RPM:average()
+
+# Update Gearbox Clutch
+Gearbox_Clutch -= Gearbox_Clutch * Gearbox_ClutchSpeed
+
+# Adjust Gearbox Clutch based on engine activity and RPM
+if (Engine_Active == 0 && Engine_RPM < 600) {
+    Gearbox_Clutch = 1
+}
+
+# Adjust Gearbox Clutch based on 'Shift' key and engine RPM
+
+
+# Set Gearbox Clutch based on various conditions
+if (!Gearbox_Gear || Clutch_Delay || Key_Sp || !(Key_W || Key_S || Key_A || Key_D) && Speed < CoastSpeedThreshold) {  
+    # Only fully engage clutch when stopped or below coast threshold
+    Gearbox_Clutch = 1
+} elseif (!(Key_W || Key_S || Key_A || Key_D) && Speed >= CoastSpeedThreshold) {
+    # Proportional clutch engagement based on speed
+    CoastClutchFactor = clamp(1 - ((Speed - CoastSpeedThreshold) / CoastSpeedThresholdDiv), 0, 1)
+    Gearbox_Clutch = CoastClutchFactor
+} elseif ((Brake) && Key_Sh && ReverseEngaged || Key_Sh && Key_Sp || Key_Sp && (Key_A || Key_D)) {  
+    Gearbox_Clutch = 1
+} elseif (((Brake) && (Key_W || Key_S) && !Key_Sh) && (!UsePivot || !UseBrakeOnPivot)) {
+    Gearbox_Clutch = 1
+} elseif (Key_Sh) {
+    Gearbox_Clutch = max(Gearbox_Clutch, 0.25)
+}
+
+if(!ReverseEngaged)
+{
+    Gearbox_Clutch = max(Gearbox_Clutch, ClutchLerp - (Engine_RPM / Engine_Redline), 0)
+}elseif(ReverseEngaged)
+{
+    Gearbox_Clutch = max(Gearbox_Clutch, ClutchLerpReverse - (Engine_RPM / Engine_Redline), 0)
+}
+# Handle pivot mode
+if (UsePivot && Speed <= PivotSpeed && (Key_A || Key_D)) {
+    if ((!Key_W && !Key_S) && !Key_Sp&&(!Key_A || !Key_D)) {
+        Gearbox_Clutch = PivotClutch
+    }
+}
+
+# Calculate real RPM of the engine
+Engine_RealRPM = (Engine_RPM * Gearbox_Clutch) + ((Flywheel_RPM * Gearbox_Ratio) * (1 - Gearbox_Clutch))
+
+# Determine engine throttle based on key inputs and pivot mode
+if (Speed <= PivotSpeed && UsePivot) {
+    if ((Key_A || Key_D) && 
+        ((!Key_W && !Key_A) || (!Key_W && !Key_D)) && 
+        ((!Key_S && !Key_A) || (!Key_S && !Key_D))) {
+        
+        Engine_Throttle = (Key_W || Key_A || Key_S || Key_D) ? PivotThrottle : 0
+    } else {
+    if (Key_S && !ReverseEngaged) {
+        Engine_Throttle = 0
+        Gearbox_Clutch = 1
+    } elseif (Key_W && ReverseEngaged) {
+        Engine_Throttle = 0
+        Gearbox_Clutch = 1
+    } else {
+        if(Gearbox_Gear)
+        {
+            Engine_Throttle = (Key_W || Key_A || Key_S || Key_D) ? 1 : 0
+        }
+    }
+}
+} else {
+    
+    if(Key_S & Brake & !ReverseEngaged)
+    {
+        Engine_Throttle = 0
+    }elseif(Key_W & ReverseEngaged)
+    {
+        Engine_Throttle = 0
+    }elseif(Key_S&!ReverseEngaged&Gearbox_Gear>=0)
+    {
+       Engine_Throttle = 0 
+    }
+    else
+    {
+        if(Gearbox_Gear)
+        {
+            Engine_Throttle = (Key_W || Key_A || Key_S || Key_D) ? 1 : 0
+        }
+    }
+        
+}
+
+ 
+# Adjust engine idle throttle based on RPM
+Engine_IdleThrottle += ((min(Engine_RPM, Engine_RealRPM) < Engine_Idle) ? Engine_IdleRev : -Engine_IdleRev)
+Engine_IdleThrottle = clamp(Engine_IdleThrottle, 0, Engine_MinIdleThrottle) * Engine_Active
+
+# Set engine throttle
+Engine_Throttle = max(Engine_Throttle, Engine_IdleThrottle)
+
+# Manage fuel consumption
+if (Fuel_Enabled) {
+    local Fuel_Consumption = ((((Engine_Displacement * (Engine_RPM / 2)) * Air_Density * Fuel_Air_Ratio) / Fuel_Density) / (65 * 60)) * max(Engine_Throttle, 0.01)
+    Fuel_Liters -= Fuel_Consumption * Engine_Active
+    
+    Fuel_Liters = clamp(Fuel_Liters, 0, T:boxSize():length())
+    Engine_Active *= (Fuel_Liters > 0)
+    
+    local Mass = round((Fuel_Liters * Fuel_Density) + (T:boxSize():length() * 0.1), 1)
+    T:setMass(Mass)
+}
+
+ 
+# Adjust engine throttle based on engine active status and throttle delay
+Engine_Throttle *= Engine_Active
+Engine_Throttle *= !Throttle_Delay
+
+# Manage engine power cut
+Engine_PowerCut += ((Engine_RealRPM > Engine_Redline) ? 1 : -1)
+Engine_PowerCut = clamp(Engine_PowerCut, 0, 1) * round(Engine_Throttle)
+
+# Handle gear change clock
+if (clk("Gear_Change")) {
+    Throttle_Delay = 0
+    Clutch_Delay = 0
+}
+
+# Calculate engine torque factor
+local Factor = clamp((Engine_RPM / Engine_Redline), 0, 1)
+
+# Calculate engine torque using a polynomial interpolation
+Engine_Torque = (5 * (1 - Factor) ^ 4 * Factor * Engine_TorqueTable[1, number]) +
+                (10 * (1 - Factor) ^ 3 * Factor ^ 2 * Engine_TorqueTable[2, number]) +
+                (10 * (1 - Factor) ^ 2 * Factor ^ 3 * Engine_TorqueTable[3, number]) +
+                (5 * (1 - Factor) * Factor ^ 4 * Engine_TorqueTable[4, number]) +
+                (Factor ^ 5 * Engine_TorqueTable[5, number])
+
+# Clamp the engine torque to the range [0, 1]
+Engine_Torque = clamp(Engine_Torque, 0, 1)
+
+ 
+if (Turbo) {
+    # Calculate turbo PSI and boost
+    Turbo_PSI = Turbo_PSIMax * Turbo_RPM / Turbo_MaxRPM
+    Turbo_Boost = (Turbo_PSI + Turbo_AirPressure) / Turbo_AirPressure
+
+    # Calculate turbo flow
+    Turbo_Flow = max(Engine_RPM, 1) * Turbo_Boost / Turbo_MaxFlow
+
+    # Calculate turbo drag
+    Turbo_Drag = (Turbo_MaxFlow * Turbo_DragScale) * (Turbo_RPM / Turbo_MaxRPM) * (1 - Engine_Throttle) / Turbo_Inertia
+
+    # Update turbo RPM
+    Turbo_RPM = clamp(
+        Turbo_RPM + (Turbo_FlowScale * (Turbo_Flow ^ Turbo_Exp)) / Turbo_Inertia - Turbo_Drag,
+        1,
+        Turbo_MaxRPM
+    )
+
+    # Update turbo sound properties
+    soundVolume("Turbo", (Turbo_Flow / 2 - 0.25))
+    soundPitch("Turbo", 75 + 50 * Turbo_RPM / Turbo_MaxRPM)
+
+    # Handle sound effect for BOV (Blow-Off Valve)
+    if (changed(Engine_Throttle) & !Engine_Throttle) {
+        soundStop("BOV")
+
+        E:soundPlay("BOV", 1, "acf_extra/vehiclefx/boost/turbo_hiss1.wav")
+        soundVolume("BOV", max((Turbo_RPM / Turbo_MaxRPM) - 0.5, 0))
+        soundPitch("BOV", 85 + 25 * (Turbo_RPM / Turbo_MaxRPM))
+    }
+
+    # Adjust engine torque based on turbo boost
+    Engine_Torque *= (Turbo_Boost / 1.25)
+}
+if(!Gearbox:isValid())
+{
+    Gearbox_Clutch = 1   
+}
+Flywheel_PowerInertia += ((Engine_PeakTorque * Engine_Torque) - Flywheel_PowerInertia) / Engine_FlywheelMass
+
+local MassFactor = max(TotalMass, 10000) / 10000
+Flywheel_PowerInertia = max(Flywheel_PowerInertia, (Engine_PeakTorque * Engine_Torque)) / MassFactor
+
+ 
+if (Gearbox_Clutch < 1) {
+    # Calculate engine inertia
+    Engine_Inertia = clamp(Engine_RealRPM, 0, Engine_Redline) - (Flywheel_RPM * Gearbox_Ratio)
+    Engine_Inertia *= (1 - Gearbox_Clutch)
+    Engine_Inertia /= Engine_Redline
+
+    # Adjust throttle
+    Engine_Throttle -= ((0.285 * (Engine_RealRPM / Engine_Redline)) * (Engine_Throttle <= 0))
+
+    # Calculate flywheel power
+    Flywheel_Power = Flywheel_PowerInertia
+    Flywheel_Power *= Gearbox_Ratio
+    Flywheel_Power *= (1 - Gearbox_Clutch)
+
+    Flywheel_PowerInertia *= min(clamp(Engine_Throttle, -1, ((1 - Engine_PowerCut) ^ 2)) + Engine_Inertia, 1)
+    
+    Flywheel_Power *= clamp(1 - (((Engine_RealRPM / Engine_RPM) - 1) * Engine_Throttle), -1, 1) ^ Engine_FlywheelMass
+    if(Engine_PowerCut || !Engine_Active)
+    {
+        Flywheel_Power = 0
+    }
+
+    if (Flywheel_Power) {
+        # Flywheel configuration
+        Flywheel[1, number]
+        Flywheel[2, number]
+
+        # Pivot steering logic
+        if (UsePivot && Speed <= PivotSpeed) {
+            # Gearbox clutch for pivot steering
+            # Gearbox_Clutch = PivotClutch
+            if(Gearbox_Gear<0){InversePivot = -1}else{InversePivot = 1}
+            # Initialize variables
+            WeldLatchL = 0
+            WeldLatchR = 0
+            GoLeft = 0
+            GoRight = 0
+
+            if (Key_W && Key_A) {
+                if (UseWLSteer && Speed <= WLSteerSpeed) {
+                    WeldLatchL = 1
+                    GoLeft = 0
+                }else
+                {
+                    GoLeft = LeftTurnStability  
+                }
+                GoRight = 1
+                
+                # print("L")
+            } elseif (Key_W && Key_D) {
+                if (UseWLSteer && Speed <= WLSteerSpeed) {
+                    WeldLatchR = 1
+                    GoRight = 0
+                }else
+                {
+                    GoRight = RightTurnStability 
+                }
+                
+                GoLeft = 1
+                # print("R")
+            } elseif (Key_S && Key_A) {
+                if (UseWLSteer && Speed <=WLReverseSpeed) {
+                    WeldLatchL = 1
+                }
+                GoLeft = 0
+                GoRight = 1
+            } elseif (Key_S && Key_D) {
+                if (UseWLSteer && Speed <= WLReverseSpeed) {
+                    WeldLatchR = 1
+                }
+                GoRight = 0
+                GoLeft = 1
+            } elseif (Key_A) {
+                GoLeft = -1 * PivotTorqueMultLeft * InversePivot
+                GoRight = 1 * PivotTorqueMultRight * InversePivot
+            } elseif (Key_D) {
+                GoRight = -1 * PivotTorqueMultLeft * InversePivot
+                GoLeft = 1 * PivotTorqueMultRight * InversePivot
+            } elseif (Key_W || Key_S) {
+                GoRight = 1
+                GoLeft = 1
+            } else {
+                WeldLatchL = 0
+                WeldLatchR = 0
+                GoRight = 0
+                GoLeft = 0
+            }
+
+            # Apply torques to sprockets
+            if(Gearbox:isValid())
+            {
+                if(LeftDiff:isValid())
+                {
+                    SprocketL:applyTorque((SprocketL:toLocalAxis(EngineDirection) * TickMult * (Flywheel_Power / Flywheel:count()) * 39.37 * 2 * GoLeft))
+                }
+                
+                if(RightDiff:isValid())
+                { 
+                    SprocketR:applyTorque((SprocketR:toLocalAxis(EngineDirection) * TickMult * (Flywheel_Power / Flywheel:count()) * 39.37 * 2 * GoRight))
+                }
+            }
+            
+        } else {
+WeldLatchL = 0
+WeldLatchR = 0
+GoLeft = 0
+GoRight = 0
+
+# Forward and Left Steering (W + A or A)
+if (Key_S && Key_A) {
+    if (UseWLSteer && Speed <= WLReverseSpeed) {
+        WeldLatchL = 1  # Activate left weld latch if reversing and speed are within range
+    }
+    GoLeft = 0  # No left movement in reverse
+    GoRight = 1  # Apply GoRight when reversing
+
+# Reverse and Right Steering (S + D)
+} elseif (Key_S && Key_D) {
+    if (UseWLSteer && Speed <= WLReverseSpeed) {
+        WeldLatchR = 1  # Activate right weld latch if reversing and speed are within range
+    }
+    GoRight = 0  # No right movement in reverse
+    GoLeft = 1  # Apply GoLeft when reversing
+
+# If only A is pressed (left steering)
+}elseif (Key_W && Key_A || Key_A) {
+    if (UseWLSteer && Speed <= WLSteerSpeed) {
+        WeldLatchL = 1  # Activate left weld latch if steering and speed are within range
+        GoLeft = 0  # Disable GoLeft when using WLSteer
+    } else {
+        GoLeft = LeftTurnStability  # Apply left turn stability if WLSteer is not active
+    }
+    GoRight = 1  # Always apply GoRight while steering left
+
+# Forward and Right Steering (W + D or D)
+} elseif (Key_W && Key_D || Key_D) {
+    if (UseWLSteer && Speed <= WLSteerSpeed) {
+        WeldLatchR = 1  # Activate right weld latch if steering and speed are within range
+        GoRight = 0  # Disable GoRight when using WLSteer
+    } else {
+        GoRight = RightTurnStability  # Apply right turn stability if WLSteer is not active
+    }
+    GoLeft = 1  # Always apply GoLeft while steering right
+
+# Reverse and Left Steering (S + A)
+}elseif (Key_W || Key_S) {
+    GoRight = 1  # Move right (apply stability)
+    GoLeft = 1   # Move left (apply stability)
+
+# Default case: No keys pressed
+} else {
+    WeldLatchL = 0  # Reset weld latch left
+    WeldLatchR = 0  # Reset weld latch right
+    GoRight = 0     # Stop right movement
+    GoLeft = 0      # Stop left movement
+}
+
+
+            # Apply torques to sprockets
+            if(Gearbox:isValid())
+            {
+                if(LeftDiff:isValid())
+                {
+                    SprocketL:applyTorque((SprocketL:toLocalAxis(EngineDirection) * TickMult * (Flywheel_Power / Flywheel:count()) * 39.37 * 2 * GoLeft))
+                }
+                
+                if(RightDiff:isValid())
+                { 
+                    SprocketR:applyTorque((SprocketR:toLocalAxis(EngineDirection) * TickMult * (Flywheel_Power / Flywheel:count()) * 39.37 * 2 * GoRight))
+                }
+            }
+        }
+
+        # Apply chassis forces
+        C:applyOffsetForce(ChassisFeedDirection * -Flywheel_Power, E:pos() - (ChassisFeedForwardDirection * ChassisAccFeed))
+        C:applyOffsetForce(ChassisFeedDirection * Flywheel_Power, E:pos() + (ChassisFeedForwardDirection * ChassisAccFeed))
+    }
+
+    # Calculate gearbox feedback
+    Gearbox_Feedback = (Flywheel_RPM * Gearbox_Ratio) - Engine_RPM
+    Gearbox_Feedback /= Engine_FlywheelMass
+}
+
+if (Key_Sp && Key_Sh | POD_Active == 0 | !(Key_W|Key_S|Key_A|Key_D)&Speed<=SpeedToFullStop ) {
+    WeldLatchL = 1
+    WeldLatchR = 1
+} elseif (!Key_W && !Key_S && !Key_A && !Key_D) {
+    WeldLatchL = 0
+    WeldLatchR = 0
+}
+
+
+
+# Apply gearbox feedback
+Gearbox_Feedback *= (1 - Gearbox_Clutch)
+
+# Calculate engine feedback
+Engine_Feedback = (sign(Engine_Throttle) * Engine_Redline - Engine_RPM) * 
+    (sign(Engine_Throttle) ? (abs(Engine_Throttle * Engine_Torque)) : 
+    (Engine_Active ? 0.03 : 0.13)) / 4
+Engine_Feedback *= Gearbox_Clutch
+
+# Update engine RPM
+Engine_RPM += min(Gearbox_Feedback + Engine_Feedback, 
+    (Engine_Redline - Engine_RPM) / (Engine_FlywheelMass * (Engine_Stroke / Engine_Bore)))
+if (Engine_RPM > (Engine_Redline * 0.95) && Engine_RevLimiter) {
+    Engine_RPM = Engine_Redline * 0.9
+}
+Engine_RPM = min(Engine_RPM, Engine_Redline)
+Engine_RPM *= random(0.995, 1.005)
+
+# Calculate engine throttle and volume
+EngThr = abs(Engine_Throttle)
+
+Engine_Volume += (max(EngThr ^ 1.25, (Engine_RPM / 9000) * 0.25) - Engine_Volume) * 0.2
+Engine_Volume = clamp(Engine_Volume, 0, 5)
+
+# Set sound pitch and volume
+soundPitch("On", (Engine_RPM / 9000) * 155 + (50 * Engine_Active))
+soundVolume("On", Engine_Volume * 0.55)
+
+soundPitch("Off", (Engine_RPM / 9000) * 155 + (50 * Engine_Active))
+soundVolume("Off", ((1 - Engine_Volume) ^ 1.5) * 0.25)
+
+if(!Engine:entity():isValid())
+{
+    Engine_Ignition = 0
+    Engine_Active = 0  
+    
+    soundVolume("On", 0)
+    soundVolume("Off", 0) 
+    
+    soundPitch("On", 0)
+    soundPitch("Off", 0)
+    
+    soundStop("On")
+    soundStop("Off")
+}
+
+# Prop freezing and setting angle
+#S:propFreeze(1)
+#S:setAng(E:angles())
+
+

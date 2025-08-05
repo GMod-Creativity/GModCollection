@@ -1,0 +1,117 @@
+@name Miniature_Spaceships/Customizable Miniature Space Ship Base by Naki
+@inputs [Base Seat]:entity CamAng:angle
+@persist [Config JDData]:table CamAngHold:angle AccVal X Y Z Dir:vector HyperSpace JumpCharge Roll MouseControl
+@persist CamPos:vector CamDist CamActive CamFOV
+@outputs CamPos:vector CamDist CamActive CamFOV
+
+@outputs JumpCharge
+if(first()){
+    #-     Config List     -#
+    #include "Miniature_Spaceships/configs/fighterbase"
+    ##include "Miniature_Spaceships/configs/light-cruiser"
+    ##include "Miniature_Spaceships/configs/medium-warship"
+    ##include "Miniature_Spaceships/configs/heavy-battlecruiser"
+    ##include "Miniature_Spaceships/configs/interstellar-heavy-cruiser"
+    ##include "Miniature_Spaceships/configs/intergalactic-heavy-cruiser"
+    
+    
+    setName(ConfigData["name",string])
+    
+    Base:propDrag(0)
+    
+    CamPos=vec(0,0,15)
+    CamDist=100
+    CamFOV=80
+    
+    Config["Speed",number]=ConfigData["speed",number]
+    Config["Acceleration",number]=ConfigData["acceleration",number]
+    Config["RotationSpeed",number]=ConfigData["maneuvering-speed",number]
+    
+    Config["HP",number]=ConfigData["health",number]
+    Config["AP",number]=ConfigData["shield",number]
+    Config["APeff",number]=ConfigData["shield-efficiency",number]
+    
+    JDData["Speed",number]=ConfigData["jump-drive-speed",number]=100
+    JDData["RechargeSpeed",number]=ConfigData["jump-drive-charge-amount-per-second",number]
+    JDData["DepleteSpeed",number]=ConfigData["jump-drive-deplete-amount-per-second",number]
+    
+    Config["Weapon-Data",table]=ConfigData["weapon-config",table]
+    
+    Base:setPos(entity():pos()+vec(0,0,15))
+    Base:setAng(entity():angles())
+    
+    JumpCharge=25
+}
+
+Driver=Seat:driver()
+
+if(changed(Driver:isPlayer())){
+    CamActive=Driver:isPlayer()
+}
+
+W=Driver:keyForward()
+S=Driver:keyBack()
+
+
+PitchUp=Driver:keyPressed("up")
+PitchDown=Driver:keyPressed("down")
+YawLeft=Driver:keyPressed("left")
+YawRight=Driver:keyPressed("right")
+A=Driver:keyLeft()
+D=Driver:keyRight()
+
+R=Driver:keyReload()
+F=Driver:keyPressed("f")
+Shift=Driver:keySprint()
+Space=Driver:keyJump()
+
+M1=Driver:keyAttack1()
+M2=Driver:keyAttack2()
+
+Moving=W|S|Shift|Space
+
+X=(W-S)*1
+Z=(Space-Shift)*0.5
+X2=Base:forward()*X
+Z2=Base:up()*Z
+AccVal+=(0.01/10*Config["Acceleration",number])*((Moving-!Moving)+HyperSpace)
+AccVal=clamp(AccVal,0,1)
+
+if(changed(R)&R){
+    HyperSpace=(!HyperSpace)*(JumpCharge>25)
+}
+if(changed(F)&F){
+    MouseControl=!MouseControl
+}
+
+if(HyperSpace&(JumpCharge>0)){
+    JumpCharge-=JDData["DepleteSpeed",number]/10
+    Vel=Base:forward()*JDData["Speed",number]*AccVal*2
+}else{
+    JumpCharge+=JDData["RechargeSpeed",number]/10
+    HyperSpace=0
+    JumpAng=Base:angles()
+    if(Moving){
+        CamAngHold=MouseControl ? CamAng : ang(CamAngHold:pitch()-(PitchUp-PitchDown),CamAngHold:yaw()-(YawRight-YawLeft),0)
+        Dir=(X2+Z2)
+    }else{
+        CamAngHold=ang(CamAngHold:pitch()-(PitchUp-PitchDown),CamAngHold:yaw()-(YawRight-YawLeft),0)
+    }
+    Roll+=(D-A)*2
+    Vel=Dir*Config["Speed",number]*AccVal
+}
+JumpCharge=clamp(JumpCharge,0,100)
+
+interval(100)
+
+Damp=Base:vel()*0.15
+
+Force=Vel-Damp
+Base:applyForce(Force*Base:mass())
+
+Ang=Base:toLocal(ang(CamAngHold:pitch(),CamAngHold:yaw(),Roll))
+Ang2=ang(clamp(Ang:pitch(),-25,25),clamp(Ang:yaw(),-25,25),clamp(Ang:roll(),-25,25))/10*(Config["RotationSpeed",number])
+AngForce=Ang2-(Base:angVel()*5)
+
+Base:applyAngForce(AngForce)
+Base:propGravity(0)

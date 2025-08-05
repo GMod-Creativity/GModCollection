@@ -1,0 +1,167 @@
+@name Private Chat Rooms
+@persist [RoomName]:string Ready Mode Data:table [NC NC2 CC CC2]:vector SS
+if(first()){
+    RoomName = "Pogchat"
+    
+    dsJoinGroup(RoomName)
+    runOnSignal(RoomName,2,1)
+    dsSetScope(2)
+    runOnChat(1)
+    runOnLast(1)
+    
+    NC=teamColor(owner():team())
+    NC2=NC
+    
+    CC=vec(255)
+    CC2=CC
+    
+    dsSend("room_check",RoomName,array(RoomName,entity()))
+    timer("start",1000)
+}
+if(dsClk()){
+    switch(dsClkName()){
+        case "room_check",
+        local GetDomainName = dsGetArray()[1,string]
+        if(dsGetSender():isValid()){
+            if(GetDomainName == RoomName){
+                dsSend(RoomName + "_room_exists", RoomName,"")
+            }
+        }
+        break
+        
+        case RoomName + "_room_exists",
+        hint("Joined "+RoomName+"!", 7)
+        dsSend(RoomName + "_msg_get2",RoomName, table(vec(0,255,255),owner():name()," has joined the chat."))
+        stoptimer("start")
+        Ready = 1
+        break
+    }
+    
+    #data signal stuff
+    if(dsClkName()==RoomName + "_msg_get"){
+        Data=dsGetTable()
+        timer("print",500)
+    }
+    if(dsClkName()==RoomName + "_msg_get2"){
+        Data=dsGetTable()
+        Color=Data[1,vector]
+        Name=Data[2,string]
+        LastSaid=Data[3,string]
+        
+        printColor(vec(0,255,0),"["+RoomName+"] ",Color,Name,LastSaid)
+    }
+}
+
+local Clk = clkName()
+switch(Clk){
+    case "start",
+    if(!Ready){
+        hint("Created and joined room with name "+RoomName+"!", 7)
+        Ready=1
+    }
+    break
+    
+    case "print",
+    Color=Data[1,vector]
+    Name=Data[2,string]
+    if(SS==1){
+        LastSaid=Data[3,string]:reverse()
+    }elseif(SS==2){
+        Rand=randint(0,10)
+        if(Rand>3.3&Rand<6.6){
+            LastSaid="Cheese"
+        }else{
+            LastSaid=Data[3,string]
+        }
+    }else{
+        LastSaid=Data[3,string]
+    }
+    
+    printColor(vec(0,255,0),"["+RoomName+"] ",Color,Name,vec(255),": ",CC2,LastSaid)
+    break
+}
+
+if(Ready){
+    if(chatClk(owner())){
+        hideChat(Mode|owner():lastSaid():explode("")[1,string]==".")
+        LS = owner():lastSaid():explode(" ")
+        switch(LS[1,string]){
+            case ".p",
+            hint("Chat mode set to Private.",7)
+            Mode=1
+            hideChat(1)
+            break
+            
+            case ".g",
+            hint("Chat mode set to Global.",7)
+            Mode=0
+            hideChat(1)
+            break
+            
+            case ".ss",
+            SS=randint(1,4)
+            print(SS)
+            owner():soundPlay(1,0,"buttons/button"+randint(1,24)+".wav")
+            hideChat(1)
+            break
+            
+            case ".ssoff",
+            SM=0
+            hideChat(1)
+            break
+            
+            case ".nc",
+            if(LS:count()==4){
+                hint("Chat name color set to "+vec(LS[2,string]:toNumber(),LS[3,string]:toNumber(),LS[4,string]:toNumber()),7)
+                NC2=vec(LS[2,string]:toNumber(),LS[3,string]:toNumber(),LS[4,string]:toNumber())
+            }elseif(LS[2,string]=="reset"){
+                NC2=NC
+            }
+            hideChat(1)
+            break
+            
+            case ".cc",
+            if(LS:count()==4){
+                hint("Chat text color set to "+vec(LS[2,string]:toNumber(),LS[3,string]:toNumber(),LS[4,string]:toNumber()),7)
+                CC2=vec(LS[2,string]:toNumber(),LS[3,string]:toNumber(),LS[4,string]:toNumber())
+            }elseif(LS[2,string]=="reset"){
+                CC2=CC
+            }
+            hideChat(1)
+            break
+        }
+        if(Mode){
+            if(LS[1,string]!=".p"&LS[1,string]!=".g"&LS[1,string]!=".ss"&LS[1,string]!=".ssoff"&LS[1,string]!=".cc"&LS[1,string]!=".nc"){
+                if(SS==2){
+                    Rand2=randint(0,10)
+                    if(Rand2>3.3&Rand2<6.6){
+                        Say="Cheese"
+                    }else{
+                        Say=owner():lastSaid()
+                    }
+                }elseif(SS==3){
+                    Rand2=randint(0,10)
+                    if(Rand2>3.3&Rand2<6.6){
+                        Say=Data[3,string]
+                    }else{
+                        Say=owner():lastSaid()
+                    }
+                }elseif(SS==4){
+                    Rand2=randint(2,8)
+                    if(Rand2>3.3&Rand2<6.6){
+                        owner():soundPlay(1,0,"buttons/button"+randint(1,24)+".wav")
+                    }
+                }else{
+                    Say=owner():lastSaid()
+                }
+                dsSend(RoomName + "_msg_get",RoomName, table(NC2,owner():name(),Say))
+                printColor(vec(0,255,0),"["+RoomName+"] ",NC2,owner():name(),vec(255),": ",CC2,owner():lastSaid())
+            }
+        }
+    }
+}
+
+if(last()){
+    dsSend(RoomName + "_msg_get2",RoomName, table(vec(0,255,255),owner():name()," has left the chat."))
+    dsLeaveGroup(RoomName)
+}

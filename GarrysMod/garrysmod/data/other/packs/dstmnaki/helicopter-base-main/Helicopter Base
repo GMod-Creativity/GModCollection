@@ -1,0 +1,683 @@
+@name Naki's Customizable Helicopter Base
+@inputs [LandingPad Base Seat Rotor TailRotor]:entity CamAng:angle
+@outputs Throttle JoyX JoyY Yaw Power RPMOut RotorBrake CamPos:vector CamDistance CamParent:entity AH [CamAng4 AngMiniguns]:angle LightOn DoorOpen
+@persist MouseAim Throttle Active Power Val Val2 RPM RotorBrake AH TP CamParent:entity DevBranch A LightOn DoorOpen
+@trigger none
+@persist TargetEnt:entity [Target Target2]:vector TargetUseAimPos Land
+#ifdef httpRequest(string)
+@persist [Version Link]:string Block
+#endif
+if(first()){
+    #ifdef httpRequest(string)
+        Link = "https://github.com/4naki/helicopter-base/blob/main/Helicopter%20Base"
+        VersionCheckLink = "https://raw.githubusercontent.com/4naki/helicopter-base/main/Version"
+        Version = "3.0"
+        
+        #Used for development only!
+        DevBranch=0
+        
+        runOnHTTP(1)
+        if(Link!=""){
+        }else{
+            print("Link is empty!")
+            Block=1
+        }
+        if(VersionCheckLink!=""){
+            httpRequest(VersionCheckLink)
+        }else{
+            print("VersionCheckLink is empty!")
+            Block=1
+        }
+    #else
+        print("HTTP Core Not Found!")
+    #endif
+}
+#ifdef httpRequest(string)
+    if(httpClk()){
+        if(httpSuccess()&!Block){
+            ReturnData=httpUrlDecode(httpData())
+            
+            print("["+entity():getName()+"]")
+            
+            local V = Version:toNumber()
+            local RD = ReturnData:toNumber()
+            
+            if(V!=RD){
+                if(V>RD){
+                    if(DevBranch){
+                        print("Running Development Branch version: "+Version)
+                    }else{
+                        print("Running version ahead of current release! version: "+Version)
+                    }
+                }else{
+                    print("Update available! Running version: "+Version)
+                    print("Latest version: "+ReturnData)
+                    print("Link: "+Link)
+                }
+            }else{
+                print("Up to date! Running version: "+Version)
+            }
+        }
+    }
+#endif
+
+if(chatClk(owner())){
+    local LS = owner():lastSaid()
+    local LS2=LS:explode(" ")
+    hideChat(LS:explode("")[1,string]==".")
+    
+    switch(LS2[1,string]){
+        case ".target",
+            if(LS2:count()>=2){
+                switch(LS2[2,string]){
+                    case "owner",
+                        TargetEnt=owner()
+                        TargetUseAimPos=0
+                        hint("Target set to "+TargetEnt:name(),7)
+                    break
+                    
+                    case "aimpos",
+                        TargetUseAimPos=!TargetUseAimPos
+                        if(TargetUseAimPos){
+                            hint("Select target area with mouse: Enabled",7)
+                        }else{
+                            hint("Select target area with mouse: Disabled",7)
+                        }
+                    break
+                    
+                    case "player",
+                        if(LS2:count()==3){
+                            TargetUseAimPos=0
+                            TargetFind=findPlayerByName(LS2[3,string])
+                            if(TargetFind!=noentity()){
+                                TargetEnt=TargetFind
+                                hint("Target set to "+TargetEnt:name(),7)
+                            }else{
+                                hint("Could not find target entity.",7)
+                            }
+                        }
+                    break
+                }
+            }
+        break
+        
+        case ".land",
+            if(!Land){
+                timer("landstart",100)
+            }
+        break
+        
+        case ".takeoff",
+            if(!Land&!Power){
+                timer("takeoff",100)
+            }
+        break
+        
+        case ".dooropen",
+            timer("doorOpen",100)
+        break
+        
+        case ".doorclose",
+            timer("doorClose",100)
+        break
+        
+        case ".ai",
+            AI_On=!AI_On
+            Active=AI_On
+            holoAlpha(5,255*AI_On)
+            if(AI_On){
+                hint("AI: Enabled",7)
+            }else{
+                hint("AI: Disabled",7)
+            }
+        break
+    }
+}
+interval(50)
+if(first()){
+    
+    runOnChat(1)
+    
+    #[ -- Setup and Controls --
+        
+        Naki's Customizable Helicopter Base
+        
+        Github (My profile): https://github.com/4naki
+        Github (This code): https://github.com/4naki/helicopter-base/tree/main
+        
+        Steam (Can change): https://steamcommunity.com/id/Nakkivatti/
+        Steam (Permanent, ID): http://steamcommunity.com/profiles/76561198255904264
+        
+        Youtube: https://www.youtube.com/channel/UCz7XiAeqo4WPyNljkKe-UJQ
+        
+        
+        Pre setup:
+        
+        Save 1 file from my github repository "This code" linked above
+        
+        "Helicopter Base - Config"
+        
+        This needs to be on your local drive, in a folder "garry's mod/garry's mod/data/expression2"
+        
+        You can just copy the code into this editor and save it through here.
+        
+        Ignore "version" that's what my version check code checks
+        
+        
+        Setup:
+        
+        1. Spawn a base plate you like, highly recommend using SProps plates
+        
+        2. Spawn a seat and 2 props, 1 each rotor, recommend using SProps blocks
+        
+        3. Place this e2 onto the base plate, doesn't matter where or which way the e2 points,
+        just make sure the front of the base plate faces forwards, you can check this using stacker tool
+        
+        4. Wire "Base" to the base plate, "Seat" to your seat, "Rotor" to your rotor prop and "TailRotor" to your tail rotor prop
+        
+        5. Multiparent your model to the base plate with these settings
+        
+        Multiparent settings:
+        
+        Remove Constraints: Optional
+        No Collide: Uncheck
+        Weld: Uncheck
+        
+        Disable Collisions: Check
+        Set Weight: Check
+        Disable Shadows: Check
+        
+        (Top 3 unchecked, bottom 3 checked)
+        
+        6. You can reload your e2, in case you used Prop2Mesh/P2M respawn your whole build with the stuff you have now parented,
+        note you can multiparent your rotor models to the rotor props
+        
+        7. Done
+        
+        
+        Controls: 
+        
+        WASD - Tilt
+        Mouse1 and Mouse2 - Yaw
+        Shift - Go down/descend
+        Space - Go up/ascend
+        R - Toggle engine
+        F - Toggle Auto Hover
+        G - Toggle Aim controls
+        Alt - Toggle Rotor Brake (Slows down the rotors when you turn off the engine,
+        otherwise you can turn off your engine in air and stay in air for a while, test it)
+        
+        In case you want to change any of these buttons, lines 114 to 127
+        
+        
+        Options/Settings are in the "config" file listed below
+        
+        
+        Cam Controller Settings
+        
+        Spawn a pod controller with settings specified below and a pod controller
+        
+        CamController Options:
+        
+        Coordinates local to parent: Check
+        Client side movement: Check
+        Draw player: uncheck
+        
+        rest are optional.
+        
+        Wire "Active" from cam controller to pod controller "Active"
+        Wire "CamPos" from cam controller to this E2's "CamPos"
+        Wire "Distance" from cam controller to this E2's "CamDistance"
+        Wire "Parent" from cam controller to this E2's "CamParent"
+        
+        Chat commands:
+        
+        .ai toggle ai following commands
+        .target <owner/aimpos/player> <player name>
+        .land
+        .takeoff
+        .dooropen
+        .doorclose
+    ]#
+    
+    #[-- Config -- ]#
+    #include "Bell_UH-1_Huey_Config"
+    
+    #-- Code starts here
+    
+    setName(HelicopterName)
+    
+    Base:setMass(BaseWeight)
+    LandingPad:setMass(150)
+    
+    Base:propDrag(0)
+    Base:propInertia(vec(0,0,0))
+    
+    LandingPad:propDrag(0)
+    LandingPad:propInertia(vec(0,0,0))
+    
+    holoCreate(1,Rotor:toWorld(vec(0,0,0)),vec(0),Rotor:toWorld(ang(0,0,0)),vec(255),"cube")
+    local Children=Rotor:children()
+    Rotor:parentTo(holoEntity(1))
+    holoPos(1,Base:toWorld(RotorPos))
+    holoAng(1,Base:toWorld(ang(15,0,0)))
+    holoParent(1,Base)
+    for(I=1,Children:count()){
+        Children[I,entity]:parentTo(Rotor)
+    }
+    
+    holoCreate(5)
+    holoPos(5,Base:toWorld(TailRotorPos))
+    holoAng(5,Base:toWorld(ang(0,0,0)))
+    holoParent(5,Base)
+    holoAlpha(5,0)
+    
+    holoCreate(2,TailRotor:toWorld(vec(0,0,0)),vec(0),TailRotor:toWorld(ang(0,0,0)),vec(255),"cube")
+    local Children=TailRotor:children()
+    TailRotor:parentTo(holoEntity(2))
+    holoPos(2,Base:toWorld(TailRotorPos))
+    holoAng(2,holoEntity(5):toWorld(ang(0,0,0)))
+    holoParent(2,Base)
+    for(I=2,Children:count()){
+        Children[I,entity]:parentTo(TailRotor)
+    }
+    
+    holoCreate(3)
+    holoPos(3,Seat:toWorld(vec(0,25,15)))
+    holoAng(3,Base:angles())
+    holoParent(3,Base)
+    holoAlpha(3,0)
+    holoScale(3,vec(0.5))
+    
+    holoCreate(4)
+    holoPos(4,Seat:toWorld(vec(0,25,25)))
+    holoAng(4,Base:angles())
+    holoParent(4,Base)
+    holoAlpha(4,0)
+    holoScale(4,vec(0.5))
+    
+    rangerFilter(array(Base,LandingPad))
+    rangerFilter(Base:children())
+    rangerPersist(1)
+    
+    
+    holoCreate(5)
+    holoPos(5,Seat:toWorld(vec(0,0,2.5)))
+    holoAng(5,Seat:toWorld(ang(0,90,0)))
+    holoParent(5,Seat)
+    
+    holoModel(5,"models/player/urban.mdl")
+    holoAnim(5,"sit")
+    holoAlpha(5,255*AI_On)
+    
+    if(AI_On){
+        #Power=1
+        #Active=1
+    }
+    Target2=Base:pos()
+    Target=Target2+(vec(Stop_Distance*0.7,0,0):rotate(ang(0,A,0)))
+}
+Pilot=Seat:driver()
+
+#-- Buttons/Controls
+
+if(!AI_On){
+    MouseAimButton=Pilot:keyPressed("g")*Active
+    if(changed(MouseAimButton)&MouseAimButton){
+        MouseAim=!MouseAim
+        if(MouseAim){
+            Seat:hintDriver("Mouse Controls: On",7)
+        }else{
+            Seat:hintDriver("Mouse Controls: Off",7)
+        }
+    }
+    if(!MouseAim){
+    }else{
+    }
+    
+FirePrimary=Pilot:keyAttack1()*Active
+FireSecondary=Pilot:keyAttack2()*Active
+OutputX=((Pilot:keyForward()-Pilot:keyBack())*25)*Active
+OutputY=((Pilot:keyRight()-Pilot:keyLeft())*25)*Active
+OutputZ=-(Pilot:keySprint()-Pilot:keyJump())*Active
+
+ThirdPersonButton=Pilot:keyDuck()*Active
+Start=Pilot:keyReload()
+RotorBrakeButton=Pilot:keyWalk()
+AutoHoverButton=Pilot:keyPressed("f")
+
+CamAng3=CamAng
+
+if(TP){
+    CamPos=CamPosTP
+    CamDistance=CamDistanceTP
+    CamParent=Base
+}else{
+    CamPos=CamPosFP
+    CamDistance=CamDistanceFP
+    CamParent=Seat
+}
+
+if(changed(Pilot)){
+    if(Pilot){
+        Active=1
+    }else{
+        Active=0
+    }
+}
+if(changed(ThirdPersonButton)&ThirdPersonButton){
+    TP=!TP
+}
+if(changed(Start)&Start){
+    Power=!Power
+    if(Power){
+        Seat:hintDriver("Power: On",7)
+    }else{
+        Seat:hintDriver("Power: Off",7)
+    }
+}
+
+if(changed(AutoHoverButton)&AutoHoverButton){
+    AH=!AH
+    if(AH){
+        Seat:hintDriver("Auto Hover: On",7)
+    }else{
+        Seat:hintDriver("Auto Hover: Off",7)
+    }
+}
+if(changed(RotorBrakeButton)&RotorBrakeButton){
+    RotorBrake=!RotorBrake
+    if(RotorBrake){
+        Seat:hintDriver("Rotor Brake: On",7)
+    }else{
+        Seat:hintDriver("Rotor Brake: Off",7)
+    }
+}
+
+if(changed(Seat:driver():keyPressed("h"))&Seat:driver():keyPressed("h")){
+    LightOn=!LightOn
+    if(LightOn){
+        Seat:hintDriver("Spotlight: On",7)
+    }else{
+        Seat:hintDriver("Spotlight: Off",7)
+    }
+}
+
+if(changed(Seat:driver():keyPressed("t"))&Seat:driver():keyPressed("t")){
+    DoorOpen=!DoorOpen
+    if(DoorOpen){
+        Seat:hintDriver("Doors: Open",7)
+    }else{
+        Seat:hintDriver("Doors: Closed",7)
+    }
+}
+
+CamAng4=CamAng
+AngMiniguns=ang(clamp(CamParent:toLocal(CamAng4):pitch(),-15,25),clamp(CamParent:toLocal(CamAng4):yaw(),-10,10),0)*Active
+
+}else{
+
+A+=0.5
+Target=Target2+(vec((Stop_Distance*0.7)*!Land,0,0):rotate(ang(0,A,0)))
+
+TargetAng=(Target-Base:pos()):toAngle()
+
+Ranger=rangerOffsetHull(9999,Base:pos()+vec(0,0,0),vec(0,0,-1),vec(5))
+RangerDist=Ranger:distance()
+RangerDistMax=Height_Max2+clamp((Target*vec(0,0,1)):distance(Base:pos()*vec(0,0,1)),0,9999)
+RangerDistMin=Height_Min2
+
+
+if(Ranger:distance()<Height_Max2&Ranger:distance()>Height_Min2){
+    Space2=clamp(W2+S2,0,1)*1.5
+    Shift2=0
+}else{
+    Space2=(Ranger:distance()<Height_Min2)
+    Shift2=(Ranger:distance()>Height_Max2)
+}
+
+PitchAI=1.8*(W2-S2)*(Ranger:distance()>Height_Too_Low)
+YawAI=TargetAng:yaw()
+
+W2=(Base:pos()*vec(1,1,0)):distance((Target*vec(1,1,0)))>Stop_Distance
+S2=(Base:pos()*vec(1,1,0)):distance((Target*vec(1,1,0)))<Too_Close_Distance
+
+FirePrimary=Pilot:keyAttack1()
+FireSecondary=Pilot:keyAttack2()
+OutputY=((clamp((Base:velL():y()*0.005),-1,1))*25)
+if(!Land){
+    
+    OutputZ=-(Shift2-Space2)*Power
+    OutputX=((W2-S2)*17)*(Ranger:distance()>Height_Too_Low)
+}else{
+    
+    local TooClose=(Base:pos()*vec(1,1,0)):distance((Target*vec(1,1,0)))>Stop_Distance
+    local TooFar=(Base:pos()*vec(1,1,0)):distance((Target*vec(1,1,0)))<Too_Close_Distance
+    DistOK=(TooClose==0&TooFar==0)
+    if(DistOK){
+        OutputX=-((clamp(Base:velL():x()*0.01,-1,1))*25)*(Ranger:distance()>Height_Too_Low)
+        if(RangerDist>Height_Too_Low*0.75){
+            if(RangerDist<Height_Too_Low*1.5){
+                OutputZ=-0.16
+            }else{
+                OutputZ=-0.2
+            }
+        }else{
+            OutputZ=-0.16
+            timer("shutdown",100)
+        }
+    }else{
+        OutputX=((W2-S2)*17)*(Ranger:distance()>Height_Too_Low)
+        OutputZ=-(Shift2-Space2)
+    }
+}
+AH=1
+RotorBrake=1
+LightOn=Power
+
+MouseAim=1
+if(DistOK){
+    CamAng3=ang(0,Base:angles():yaw(),0)
+}else{
+    CamAng3=ang(PitchAI,YawAI,0)
+}
+
+CamAng4=((((Target-(vec(Stop_Distance*0.7,0,0):rotate(ang(0,A,0))))-vec(0,0,RangerDist-clamp((Target*vec(0,0,1)):distance(Base:pos()*vec(0,0,1)),0,9999)))+vec(165*sin(A*360),165*sin(A*360),0))-Base:pos()):toAngle()*!Land
+Ang2=Base:toLocal(CamAng4)
+AngMiniguns=ang(clamp(Ang2:pitch(),-15,25),clamp(Ang2:yaw(),-10,10),0)*Active*!Land
+
+
+if(clk("landstart")){
+    Land=1
+    hint("Landing to target area.",7)
+}elseif(clk("takeoff")){
+    Land=0
+    Power=1
+    Active=1
+    timer("doorClose",100)
+}elseif(clk("shutdown")){
+    Land=0
+    Power=0
+    Active=0
+    timer("doorOpen",100)
+}
+if(clk("doorOpen")){
+    DoorOpen=1
+    hint("Side doors open.",7)
+}
+if(clk("doorClose")){
+    DoorOpen=0
+    hint("Side doors closed.",7)
+}
+if(TargetUseAimPos){
+    if(changed(owner():keyAttack1())&owner():keyAttack1()){
+        Target2=owner():aimPos()
+    }
+}else{
+    if(!Land){
+        Target2=TargetEnt:pos()
+    }
+}
+}
+Seat:lockPod(AI_On)
+
+if(abs(OutputX)>2){
+    if(OutputX<45){
+        if(OutputX>-45){
+            JoyX=OutputX
+        }else{
+            JoyX=-PitchSpeed
+        }
+    }else{
+        JoyX=PitchSpeed
+    }
+}else{
+    JoyX=0
+}
+if(abs(OutputY)>2){
+    if(OutputY<45){
+        if(OutputY>-45){
+            JoyY=OutputY
+        }else{
+            JoyY=-RollSpeed
+        }
+    }else{
+        JoyY=RollSpeed
+    }
+}else{
+    JoyY=0
+}
+
+if(abs(OutputZ)>0.1){
+    if(OutputZ>0){
+        JoyZ=MaxThrottle
+    }elseif(OutputZ<0){
+        JoyZ=MinThrottle
+    }
+}else{
+    JoyZ=DefaultThrottle
+}
+
+Throttle=JoyZ
+
+if(FirePrimary){
+    Yaw=YawSpeed
+}elseif(FireSecondary){
+    Yaw=-YawSpeed
+}else{
+    Yaw=0
+}
+
+Autohover=-ang(Base:angles():pitch(),0,Base:angles():roll())*AH
+
+XVel=clamp(Base:velL():x()*0.65,-55,55)
+YVel=clamp(Base:velL():y()*0.65,-55,55)
+
+XVel2=XVel*(abs(XVel*0.65)>10)
+YVel2=YVel*(abs(YVel*0.65)>10)
+
+if(!MouseAim){
+    Recover=(ang(-XVel2,0,YVel2*2)*0.2)*AH
+    Tilt=ang(0+JoyX*1,Yaw*2,JoyY*1)*2
+    if(JoyX!=0|JoyY!=0|Yaw!=0){
+        Ang=(Autohover+Tilt)*125
+    }else{
+        Ang=(Autohover+Recover)*100
+    }
+}else{
+    Tilt=ang(0+JoyX*0.375,Yaw*1,JoyY*0.75)+(Base:toLocal(CamAng3*ang(1,Power&Active,0))*ang(1,Power&Active,0))
+    Ang=((Autohover*ang(0,0,1))+Tilt)*500
+}
+
+Damping=(-((Base:forward()*Base:velL():x()*0.001)+(-Base:right()*Base:velL():y()*0.003)+(Base:up()*Base:velL():z()*0.02))*0.1)*VelDampingMult
+Damping2=(Base:angVel()*AngDamping*2)*AngDampingMult
+
+Vel=(Base:velL()/5)
+if(Vel:x()<45){
+    if(Vel:x()>-45){
+        BaseX=Vel:x()
+    }else{
+        BaseX=-45
+    }
+}else{
+    BaseX=45
+}
+if(Vel:y()<45){
+    if(Vel:y()>-45){
+        BaseY=Vel:y()
+    }else{
+        BaseY=-45
+    }
+}else{
+    BaseY=45
+}
+
+AutoStop=(ang(-BaseX,0,BaseY)/25)*AH
+Tilt2=ang(JoyX+TiltOffset,0,JoyY/15)*0.35
+ThrottleMult=0.5+(Throttle/95)
+
+holoAng(3,Base:toWorld((AutoStop+Tilt2)*ThrottleMult))
+holoAng(4,Base:toWorld((ang(JoyX,0,JoyY)*0.1)))
+
+Base:applyForce((((Damping+holoEntity(3):up()*RPM/100)*(Throttle/100))*(Base:mass()*(52+AssistLift)))/(1))
+Base:applyAngForce((((Ang*TurnSpeedMult)-Damping2)*((Base:mass()/25)*(RPM/100)))/(1))
+if(!Power){
+    if(RotorBrake){
+        LandingPad:setMass(150)
+    }else{
+        LandingPad:setMass(150*((100-RPM)/100))
+    }
+}else{
+    LandingPad:setMass(150*((100-RPM)/100))
+}
+if(changed(Power)){
+    if(Power){
+        Base:soundPlay("rotor",0,RotorFX)
+        Base:soundPlay("power",0,EngineStartFX)
+        Base:soundPlay("switch",0,PowerSwitchFX)
+        Base:soundPlay("wind",0,WindFX)
+    }else{
+        
+    }
+}
+soundPitch("rotor",25+(RPM/100)*95)
+soundVolume("rotor",0+RPM/100)
+
+soundPitch("wind",25+(RPM/100)*100)
+soundVolume("wind",(RPM/100)*0.2)
+if(Power){
+    if(RPM<DefaultRPM){
+        RPM+=RPMRaiseAmount
+    }
+    if(Throttle){
+        if((-25+Throttle)/150>0){
+            if(RPM<MaxRPM){
+                RPM+=(-25+Throttle)/150
+            }
+        }else{
+            RPM+=(-25+Throttle)/150
+        }
+    }else{
+        if(RPM>DefaultRPM){
+            RPM-=RPMLowerAmount
+        }
+    }
+}else{
+    if(RPM>0){
+        RPM-=0.1+((RPMLowerAmount-0.1)*RotorBrake)
+    }
+    if(RPM<0){
+        RPM=0
+    }
+}
+Val+=RPM
+Val2+=RPM/(1.8+((Pilot:keyAttack1()-Pilot:keyAttack2())*0.75))
+holoAng(1,holoEntity(4):toWorld(ang(0,Val,0)))
+holoAng(2,holoEntity(5):toWorld(ang(Val2,0,0)))
+
+RPMOut=RealRPM*(RPM/100)
+
+if(dupefinished()){
+    reset()
+}
+

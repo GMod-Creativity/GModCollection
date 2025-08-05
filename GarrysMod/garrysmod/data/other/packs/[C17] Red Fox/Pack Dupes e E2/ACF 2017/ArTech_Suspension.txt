@@ -1,0 +1,209 @@
+@name ArTech Suspension
+@outputs Left:array Right:array Ent:entity
+@persist DRVWheel Width Left:array Right:array Lefts Rights Constant Dampening RelDampening LDone LCount RDone RCount RD LD Selecting Ent:entity Base:entity Go Spawning Q
+@trigger 
+
+#Version 3.3.5
+
+if(first()){
+    
+    #Credits to Dakota for making the suspension code. All I did was make it more user friendly
+    
+    
+    runOnTick(1)
+    runOnChat(1)
+    DRVWheel = 1 #which wheel *from the back forward* is the drive wheel
+    
+    Constant = 50000
+    Dampening = 5000
+    RelDampening = 100
+    
+    RCount = 1 #how many elastics per wheel on the right side
+    LCount = 1 #how many elastics per wheel on the left side
+    
+    
+    RDone = 0
+    LDone = 0
+
+    Left=array()
+    Right=array()
+    Lefts = 0
+    Rights = 0
+    
+    holoCreate(1)
+    holoColor(1,vec(255,0,0))
+    holoAlpha(1,0)
+    
+    print("Use the grav gun and right click on your base plate. Use >start after you have selected it.")
+    function number array:hasValue( Entity:entity ) {
+        for(I=1,This:count()) {
+            if (This[I,entity] == Entity) {
+                return 1
+            }
+        }
+        return 0
+    }
+    
+    function number array:returnIndex( Entity:entity){
+        for(I=1,This:count()) {
+            if (This[I,entity] == Entity) {
+                return I
+            }
+        }
+        return 0
+    }
+}
+Ent = owner():aimEntity()
+if(changed(owner():keyAttack2())&owner():keyAttack2()&Ent:isValid() & Selecting == 0 & owner():weapon():type() == "weapon_physcannon"){
+    holoUnparent(1)
+    holoAlpha(1,255)
+    holoPos(1,Ent:pos())
+    holoAng(1,Ent:angles())
+    holoModel(1,Ent:model())
+    holoParent(1,Ent)
+    
+    Base = Ent
+}
+if(chatClk(owner())&owner():lastSaid():explode(""):string(1)==">"){
+    hideChat(1)
+    
+    if(owner():lastSaid():explode(" "):string(1):lower()==">start"){
+        Selecting = 1
+        holoColor(1,vec(0,255,0))
+        print("Begin selecting your wheels. Start selecting wheels from front to back.")
+        print("Left click for left side, right click for right side")
+    }
+    if(owner():lastSaid():explode(" "):string(1):lower()==">end"){
+        if(lastSaid():explode(" "):string(2):toNumber():toString() != lastSaid():explode(" "):string(2)){
+            print("Please define suspension thickness! (Say >end [THICKNESS])")
+        }
+        else{
+            Selecting = 0
+            Width = owner():lastSaid():explode(" "):string(2):toNumber()
+            Spawning = 1
+            print(Spawning)
+        }
+    }
+}
+if(Selecting==1){
+    if(owner():weapon():type() == "weapon_physcannon"){
+        if(changed(owner():keyAttack1())&owner():keyAttack1()&!Left:hasValue(Ent)&Ent:isValid()){
+            Lefts += 1 
+            Left[Lefts,entity] = Ent
+            Ent:setColor(vec(0,0,255))
+            print("Added "+toString(Ent)+" to the left side! Total: "+Lefts)
+        }
+        if(changed(owner():keyAttack2())&owner():keyAttack2()&!Right:hasValue(Ent)&Ent:isValid()){
+            Rights += 1 
+            Right[Rights,entity] = Ent
+            Ent:setColor(vec(255,0,0))
+            print("Added "+toString(Ent)+" to the right side! Total: "+Rights)
+        }
+        if(changed(owner():keyReload())&owner():keyReload()&Ent:isValid()){
+            if(Left:hasValue(Ent)){
+                Left:removeEntity(Left:returnIndex(Ent))
+                Ent:setColor(vec(255,255,255))
+                Lefts--
+            }
+            elseif(Right:hasValue(Ent)){
+                Right:removeEntity(Right:returnIndex(Ent))
+                Ent:setColor(vec(255,255,255))
+                Rights--
+            }
+        }
+    }
+}
+if(Spawning == 1){
+    if(Q <= Lefts&propCanCreate()){
+        Q++
+        POS = Left[Q,entity]:pos()
+        ANG = Left[Q,entity]:angles()
+        MODEL = Left[Q,entity]:model()
+        MAT = Left[Q,entity]:getMaterial()
+        Left[Q,entity]:propDelete()
+        Left[Q,entity]=propSpawn(MODEL,POS,ANG,1)
+        Left[Q,entity]:setMaterial(MAT)
+    }
+    if(Q == Lefts){
+        Spawning = 2
+        print(Spawning)
+        Q = 0
+    }
+}
+elseif(Spawning == 2){
+    if(Q <= Rights&propCanCreate()){
+        Q++
+        POS = Right[Q,entity]:pos()
+        ANG = Right[Q,entity]:angles()
+        MODEL = Right[Q,entity]:model()
+        MAT = Right[Q,entity]:getMaterial()
+        Right[Q,entity]:propDelete()
+        Right[Q,entity]=propSpawn(MODEL,POS,ANG,1)
+        Right[Q,entity]:setMaterial(MAT)
+    }
+    if(Q == Rights){
+        Spawning = 0
+        Go = 1
+    }
+}
+
+if(changed(Go)&Go){
+    LeftPos = -(Left[1,entity]:massCenter() - Left[Left:count(),entity]:massCenter())
+    RightPos = -(Right[1,entity]:massCenter() - Right[Right:count(),entity]:massCenter())
+    ToLeftPos = -(Right[1,entity]:massCenter() - Left[Left:count(),entity]:massCenter())
+    ToRightPos = -(Left[1,entity]:massCenter() - Right[Right:count(),entity]:massCenter())
+        
+    for(I=1,Lefts){
+        Left[I,entity]:advballsocketTo(Base,Left[I,entity]:boxCenter(),(Left[I,entity]:massCenter()-Base:massCenter()):rotate(-Base:angles()),vec(-180,-0.1,-0.1),vec(180,0.1,0.1),vec(0,0,0),0,0,1,0)
+        Left[I,entity]:advballsocketTo(Left[DRVWheel,entity],Left[I,entity]:boxCenter(),Left[I,entity]:boxCenter(),vec(-0.1,-0.1,-0.1),vec(0.1,0.1,0.1),vec(0,0,0),0,0,1,0)
+        Left[I,entity]:ropeTo(Base,Left[I,entity]:boxCenter(),(LeftPos + Left[I,entity]:massCenter()-Base:massCenter()):rotate(-Base:angles()),0,0,Width,"",1)
+        Left[I,entity]:ropeTo(Base,Left[I,entity]:boxCenter(),(ToRightPos + Left[I,entity]:massCenter()-Base:massCenter()):rotate(-Base:angles()),0,0,Width,"",1)
+        #noCollide(Left[I,entity],Base)
+        
+        for(J=1,LCount){
+            Left[I,entity]:elasticTo(Base,Left[I,entity]:boxCenter(),(Left[I,entity]:massCenter()-Base:massCenter()):rotate(-Base:angles()),Constant,Dampening,RelDampening,"",0,1)
+        }
+        #Left[I,entity]:makeSpherical(Left[I,entity]:boxSize():z()/2)
+        if(I==Left:count()){
+            LD = 1
+            print("Left Done")
+        }
+        else{
+            #noCollide(Left[I,entity],Left[I+1,entity])
+        }
+        
+    }
+    
+    for(I=1,Rights){
+        Right[I,entity]:advballsocketTo(Base,Right[I,entity]:boxCenter(),(Right[I,entity]:massCenter()-Base:massCenter()):rotate(-Base:angles()),vec(-180,-0.1,-0.1),vec(180,0.1,0.1),vec(0,0,0),0,0,1,0)
+        Right[I,entity]:advballsocketTo(Right[DRVWheel,entity],Right[I,entity]:boxCenter(),Right[I,entity]:boxCenter(),vec(-0.1,-0.1,-0.1),vec(0.1,0.1,0.1),vec(0,0,0),0,0,1,0)
+        Right[I,entity]:ropeTo(Base,Right[I,entity]:boxCenter(),(RightPos + Right[I,entity]:massCenter()-Base:massCenter()):rotate(-Base:angles()),0,0,Width,"",1)
+        Right[I,entity]:ropeTo(Base,Right[I,entity]:boxCenter(),(ToLeftPos + Right[I,entity]:massCenter()-Base:massCenter()):rotate(-Base:angles()),0,0,Width,"",1)
+        #noCollide(Right[I,entity],Base)
+        
+        for(J=1,RCount){
+            Right[I,entity]:elasticTo(Base,Right[I,entity]:boxCenter(),(Right[I,entity]:massCenter()-Base:massCenter()):rotate(-Base:angles()),Constant,Dampening,RelDampening,"",0,1)
+        }
+        #Right[I,entity]:makeSpherical(Right[I,entity]:boxSize():z()/2)
+        
+        if(I==Right:count()){
+            RD = 1
+            print("Right Done")
+        }
+        else{
+            #noCollide(Right[I,entity],Right[I+1,entity])
+        }
+    }
+}
+if(changed(RD)&RD == 1 & LD == 1|changed(LD)&LD == 1 & RD == 1){
+    print("Make sure to redo the following:\nMake Spherical\nNo-Collide\nACF Armor/HP/Weight")
+    Selection = 0
+    Go = 0
+    holoAlpha(1,0)
+    holoColor(1,vec(255,0,0))
+    
+    Left:clear()
+    Right:clear()
+    Lefts = 0
+    Rights = 0
+}

@@ -1,3 +1,4 @@
-Author: DJ_F
-Date: before 2018
-Title: Mech BY DJ_F
+- Author: DJ_F
+- Date: before 2018
+- Title: Mech BY DJ_F
+- Source: Meta Construct, advanced duplicator 1: public folder

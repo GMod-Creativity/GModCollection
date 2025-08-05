@@ -1,0 +1,188 @@
+--@name NPC BASE
+--@author Naki
+--@shared
+
+
+if SERVER then
+
+
+-- CONFIG --
+
+
+-- This value should be half of your maximum amount of bots
+local MAX_BOTS = 25
+
+-- random value, higher number, lower chance
+local FAST_SPAWN_CHANCE=3
+
+local SPEED_FAST=280
+local SPEED_SLOW=180
+
+local HEALTH_FAST=15
+local HEALTH_SLOW=10
+
+local NOCOLLIDE=true
+
+local DAMAGE_FAST=50
+local DAMAGE_SLOW=25
+
+local SPAWN_RADIUS_NEW={2000,3000}
+local SPAWN_RADIUS_REINFORCEMENT={1000,2000}
+local DELETE_RANGE=4000
+
+local DETECT_RANGE=700
+local HEARING_RANGE=2500
+local CANHEARSHOTS=true
+
+
+local OMNIPOTENCE=false
+
+
+-- EXPERIMENTAL
+local DAMAGEPERMS_EQUALS_WHITELIST=false
+
+-- Sounds
+local IDLE_SOUND="npc/fast_zombie/idle3.wav"
+local IDLE_INTERVAL=0.5
+
+
+-- CODE --
+
+
+local bots = {}
+local tempBot
+
+local playersCanDamage = {owner()}--,find.playerBySteamID("STEAM_0:0:484456086")}--find.playersByName("greg", nil, nil)[1],
+
+timer.create("Spawner", 0.25, 0, function()
+    if table.count(bots) < MAX_BOTS then
+        
+        local randPlayer = playersCanDamage[math.round(math.rand(1,table.count(playersCanDamage)))]
+        
+        local nav = navmesh.getNavArea(randPlayer:getPos()+Vector(math.rand(SPAWN_RADIUS_NEW[1],SPAWN_RADIUS_NEW[2]),0,0):rotateAroundAxis(Vector(0,0,1),math.rand(-360,360)), 2500)
+        if nav != nil then
+            local spawn = nav:getRandomPoint()
+            
+            local isFast = math.round(math.rand(0,FAST_SPAWN_CHANCE)) == FAST_SPAWN_CHANCE
+            
+            if isFast then
+                model = "models/player/zombie_fast.mdl"
+                speed = SPEED_FAST
+                health = HEALTH_FAST
+            else
+                model = "models/player/zombie_classic.mdl"
+                speed = SPEED_SLOW
+                health = HEALTH_SLOW
+            end
+            
+            tempBot = nextbot.create(spawn, model )
+            
+            table.insert(bots, tempBot )
+            
+            tempBot:setNocollideAll(NOCOLLIDE)
+            tempBot:setRunAct(1779)
+            tempBot:setIdleAct(1777)
+            tempBot:setMoveSpeed(speed)
+            tempBot:setHealth(health)
+            tempBot:setDeathDropHeight(1)
+            tempBot:setClimbAllowed(true)
+            tempBot:setStepHeight(25)
+            tempBot:setDeceleration(800)
+            tempBot:setAcceleration(800)
+            tempBot:setMaxYawRate(300)
+            if OMNIPOTENCE then
+                tempBot:setGotoPos(randPlayer:getPos())
+            end
+        end
+    end
+end)
+if DAMAGEPERMS_EQUALS_WHITELIST == true then
+timer.create("find", 1, 0, function()
+    for index = 1,table.count(find.allPlayers()) do
+        if hasPermission("entities.applyDamage", find.allPlayers()[index]) then
+            table.insert(playersCanDamage, find.allPlayers()[index] )
+        end
+    end
+end)
+end
+timer.create("sounds", IDLE_INTERVAL, 0, function()
+    for i = 1, MAX_BOTS do
+        if isValid(bots[i]) then
+            bots[i]:emitSound(IDLE_SOUND, 60, 100, 1, CHAN_AUTO)
+        end
+    end
+end)
+hook.add("PostEntityFireBullets","hearing",function(ent, data)
+    for i = 1, MAX_BOTS do
+        if isValid(bots[i]) then
+            if ( bots[i]:getPos() - ent:getPos() ):getLength() < HEARING_RANGE and ( bots[i]:getPos() - ent:getPos() ):getLength() > DETECT_RANGE then
+                bots[i]:setGotoPos( ent:getPos() )
+            end
+        end
+    end
+end)
+timer.create("Follow", 0.25, 0, function()
+    
+    for i = 1, MAX_BOTS do
+        if isValid(bots[i]) then
+            
+            local target = find.sortByClosest(playersCanDamage, bots[i]:getPos(), false)[1]
+            local gotoPos = target:getPos()
+            
+            if target:isAlive() == true and ( OMNIPOTENCE == true or ( bots[i]:getPos() - gotoPos ):getLength() < DETECT_RANGE ) then bots[i]:setGotoPos( gotoPos ) end
+            
+            if ( bots[i]:getPos() - gotoPos ):getLength() < 100 then
+                bots[i]:removeGotoPos()
+                if bots[i]:getModel() == "models/player/zombie_fast.mdl" then
+                    damage = DAMAGE_FAST
+                else
+                    damage = DAMAGE_SLOW
+                end
+                target:applyDamage(damage, bots[i], nil, DAMAGE.SLASH, nil)
+            end
+            if target:isAlive() == false then
+                bots[i]:removeGotoPos()
+            end
+            if bots[i]:getHealth() <= 0 or ( bots[i]:getPos() - gotoPos ):getLength() > DELETE_RANGE then
+                if nextbot.canSpawn() == true then
+                    local pos = bots[i]:getPos()
+                    bots[i]:remove()
+                    table.remove(bots,i)
+                    local nav = navmesh.getNavArea(pos+Vector(math.rand(SPAWN_RADIUS_REINFORCEMENT[1],SPAWN_RADIUS_REINFORCEMENT[2]),0,0):rotateAroundAxis(Vector(0,0,1),math.rand(-360,360)), 2500)
+                    if nav != nil then
+                        local spawn = nav:getRandomPoint()
+                        
+                        local isFast = math.round(math.rand(0,FAST_SPAWN_CHANCE)) == FAST_SPAWN_CHANCE
+                        
+                        if isFast then
+                            model = "models/player/zombie_fast.mdl"
+                            speed = SPEED_FAST
+                            health = HEALTH_FAST
+                        else
+                            model = "models/player/zombie_classic.mdl"
+                            speed = SPEED_SLOW
+                            health = HEALTH_SLOW
+                        end
+                        
+                        tempBot = nextbot.create(spawn, model )
+                        
+                        table.insert(bots, tempBot )
+                        
+                        tempBot:setNocollideAll(NOCOLLIDE)
+                        tempBot:setRunAct(1779)
+                        tempBot:setIdleAct(1777)
+                        tempBot:setMoveSpeed(speed)
+                        tempBot:setHealth(health)
+                        tempBot:setDeathDropHeight(1)
+                        tempBot:setClimbAllowed(true)
+                        tempBot:setStepHeight(25)
+                        tempBot:setDeceleration(800)
+                        tempBot:setAcceleration(800)
+                        tempBot:setMaxYawRate(300)
+                    end
+                end
+            end
+        end
+    end
+end)
+end

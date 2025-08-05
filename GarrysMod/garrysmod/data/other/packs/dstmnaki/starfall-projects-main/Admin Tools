@@ -1,0 +1,580 @@
+--@author Naki
+--@shared
+
+if SERVER then
+    local GOD = false
+    hook.add("net","",function(name,len,ply)
+        if name == "sendgod" then
+            GOD = net.readBool()
+        end
+    end)
+    hook.add("EntityTakeDamage", "", function(target, attacker, inflictor, amount, type, position, force)
+        if GOD and target == owner() then
+            return true
+        end
+    end)
+else
+if player() ~= owner() then return end
+enableHud(owner(),true)
+
+
+local flipMenu = true
+local menuHeightOffset = 0
+
+local x, y = render.getGameResolution()
+
+local x2 = ((flipMenu == true) and 250 or x)
+local y2 = menuHeightOffset
+
+local menuColor1 = "isrgb"
+local menuColor2 = Color(75,75,75)
+local menuColor3 = Color(125,125,125)
+
+local boxColorOn = Color(0,255,255)
+local boxColorOff = Color(50,50,50)
+
+local toggles = {}
+
+local stillDown = {}
+local wh_menu_toggle = {}
+wh_menu_toggle[1] = Vector(x2-200-25,y2 + 57.5,0)
+wh_menu_toggle[2] = Vector(x2-200-25+200,y2 + 57.5+20,0)
+
+local wh_box = {}
+wh_box[1] = Vector(x2-200-35-150*((flipMenu == true) and -1.5 or 1),y2 + 57.5,0)
+wh_box[2] = Vector(x2-200-35-150*((flipMenu == true) and -1.5 or 1)+150,y2 + 57.5+20,0)
+
+local wh_name = {}
+wh_name[1] = Vector(x2-200-35-150*((flipMenu == true) and -1.5 or 1),y2 + 57.5+22.5,0)
+wh_name[2] = Vector(x2-200-35-150*((flipMenu == true) and -1.5 or 1)+150,y2 + 57.5+22.5+20,0)
+
+local wh_line = {}
+wh_line[1] = Vector(x2-200-35-150*((flipMenu == true) and -1.5 or 1),y2 + 57.5+22.5+20+2.5,0)
+wh_line[2] = Vector(x2-200-35-150*((flipMenu == true) and -1.5 or 1)+150,y2 + 57.5+22.5+20+3.5+20,0)
+
+
+local fc_menu_toggle = {}
+fc_menu_toggle[1] = Vector(x2-200-25,y2 + 57.5+20+2.5,0)
+fc_menu_toggle[2] = Vector(x2-200-25+200,y2 + 57.5+20+2.5+20,0)
+
+local crosshair_toggle = {}
+crosshair_toggle[1] = Vector(x2-200-25,y2 + 57.5+40+6,0)
+crosshair_toggle[2] = Vector(x2-200-25+200,y2 + 57.5+40+6+20,0)
+
+local zoom_toggle = {}
+zoom_toggle[1] = Vector(x2-200-25,y2 + 57.5+60+9,0)
+zoom_toggle[2] = Vector(x2-200-25+200,y2 + 57.5+60+9+20,0)
+
+
+local world_light_toggle = {}
+world_light_toggle[1] = Vector(x2-200-25,y2 + 57.5+80+12,0)
+world_light_toggle[2] = Vector(x2-200-25+200,y2 + 57.5+80+12+20,0)
+
+local flash_light_toggle = {}
+flash_light_toggle[1] = Vector(x2-200-25,y2 + 57.5+100+15,0)
+flash_light_toggle[2] = Vector(x2-200-25+200,y2 + 57.5+100+15+20,0)
+
+
+local aim_line_toggle = {}
+aim_line_toggle[1] = Vector(x2-200-25,y2 + 57.5+120+17.5,0)
+aim_line_toggle[2] = Vector(x2-200-25+200,y2 + 57.5+120+17.5+20,0)
+
+local remove_fog_toggle = {}
+remove_fog_toggle[1] = Vector(x2-200-25,y2 + 57.5+140+21,0)
+remove_fog_toggle[2] = Vector(x2-200-25+200,y2 + 57.5+140+21+20,0)
+
+
+local print_youtube = {}
+print_youtube[1] = Vector(x2-200-25,y2 + 25,0)
+print_youtube[2] = Vector(x2-200-25+200,y2 + 25+25,0)
+
+
+local settings = {}
+
+local points = 15
+local circleSize = 5
+local speed = 250
+local distanceConnect = 250
+
+local positions = {}
+local directions = {}
+
+local centerTransform = Matrix()
+centerTransform:setTranslation(Vector(x, y, 0)/2)
+
+for i = 1, points do
+    positions[i]=Vector(math.random(-x,x),math.random(-y,y),0)/2
+    directions[i]=Vector(math.random(-100,100)/100,-5,0):getNormalized()
+end
+
+local Players = {}
+
+function Find() 
+    Players = find.allPlayers()
+end
+
+Find()
+
+timer.create("findTimer", 10, 0, function()
+    Find()
+end)
+
+hook.add("PlayerDisconnected", "discon", Find)
+hook.add("PlayerSpawn", "firstspawn", Find)
+
+if menuColor1 != "isrgb" then
+    menuColor1Real = menuColor1
+end
+
+local function setupFog(scale)
+    render.setFogMode(1)
+    render.setFogColor(Color(255))
+    
+    -- thickens the fog when you get closer to the chip
+    render.setFogDensity(0)
+    render.setFogStart(0)
+    render.setFogEnd(0)
+end
+function removeFog(boolean)
+    if boolean == true then
+        hook.add("SetupWorldFog", "removeFog", setupFog)
+        hook.add("SetupSkyboxFog", "removeFog", setupFog)
+    else
+        hook.remove("SetupWorldFog", "removeFog")
+        hook.remove("SetupSkyboxFog", "removeFog")
+    end
+end
+
+hook.add("drawhud","drawstuff",function()
+    local rgbColor = Color(math.sin(timer.curtime() * 5) * 127 + 128, math.sin(timer.curtime() * 5 + 2) * 127 + 128, math.sin(timer.curtime() * 5 + 4) * 127 + 128)
+    if menuColor1 == "isrgb" then
+        menuColor1Real = rgbColor
+    end
+    
+    for _, Player in pairs(Players) do
+        if not Player:isValid() then
+            Find()
+            break
+        end
+        
+        if Player == owner() or Player == player() then
+            continue
+        end
+        local color = Player:isAdmin() and rgbColor or team.getColor(Player:getTeam())
+        if settings["wh"] then
+        local mins, maxs = Player:obbMins(), Player:obbMaxs()
+        local corners = {
+            Player:localToWorld(mins),
+            Player:localToWorld(Vector(mins.x, maxs.y, mins.z)),
+            Player:localToWorld(Vector(maxs.x, maxs.y, mins.z)),
+            Player:localToWorld(Vector(maxs.x, mins.y, mins.z)),
+            Player:localToWorld(Vector(mins.x, mins.y, maxs.z)),
+            Player:localToWorld(Vector(mins.x, maxs.y, maxs.z)),
+            Player:localToWorld(Vector(maxs.x, maxs.y, maxs.z)),
+            Player:localToWorld(Vector(maxs.x, mins.y, maxs.z)),
+        }
+
+        local screenCorners = {}
+        for _, corner in ipairs(corners) do
+            local screenPos = corner:toScreen()
+            if screenPos.visible then
+                table.insert(screenCorners, screenPos)
+            end
+        end
+
+        -- Draw 3D wireframe box with color logic
+        render.setColor(color)
+
+        local function drawLine(c1, c2)
+            render.drawLine(c1.x, c1.y, c2.x, c2.y)
+        end
+        if settings["box"] then
+            -- Draw edges of the bounding box
+            if #screenCorners >= 8 then
+                -- Draw the front face
+                drawLine(screenCorners[1], screenCorners[2])
+                drawLine(screenCorners[2], screenCorners[3])
+                drawLine(screenCorners[3], screenCorners[4])
+                drawLine(screenCorners[4], screenCorners[1])
+                drawLine(screenCorners[5], screenCorners[6])
+                drawLine(screenCorners[6], screenCorners[7])
+                drawLine(screenCorners[7], screenCorners[8])
+                drawLine(screenCorners[8], screenCorners[5])
+                drawLine(screenCorners[1], screenCorners[5])
+                drawLine(screenCorners[2], screenCorners[6])
+                drawLine(screenCorners[3], screenCorners[7])
+                drawLine(screenCorners[4], screenCorners[8])
+            end
+        end
+        local Dis = player():obbCenterW():getDistance(Player:getPos())
+        local Cords = (Player:getPos() + Vector(0, 0, Player:obbSize().z)):toScreen()
+        
+        local baseOffset = 6000
+        
+        if settings["name"] then
+            render.setColor(color)
+            render.drawText(Cords["x"], Cords["y"] - 1000 / Dis^0.5, Player:getName(), 1)
+        end
+        if settings["line"] then
+            render.setColor(color)
+            render.drawLine(Cords["x"], Cords["y"], x/2, y/2)
+        end
+        end
+        local Cords2 = Player:getShootPos():toScreen()
+        local Cords3 = Player:getEyeTrace().HitPos:toScreen()
+        
+        if settings["aimline"] then
+            render.setColor(color)
+            render.drawLine(Cords2["x"], Cords2["y"], Cords3["x"], Cords3["y"])
+        end
+    end
+    if delta == nil then delta = timer.curtime() end
+    local dt=timer.curtime()-delta
+    
+    render.pushMatrix(centerTransform)
+    
+    if settings["menu"] then
+        render.setColor(Color(0,0,0,75))
+        render.drawRect(-x/2,-y/2,x,y)
+        render.setColor(Color((timer.curtime()*10+180)%360-180, 1, 1):hsvToRGB())
+        for i = 1, points do
+            local direction = directions[i]
+            local position = positions[i]
+            local velocity = position + direction * speed * dt
+            
+            render.drawFilledCircle(velocity.x, velocity.y, circleSize)
+            for i2 = 1, points do
+                local position2 = positions[i2]
+                local velocity2 = position2 + direction * speed * dt
+            
+                if position:getDistance(position2) <= distanceConnect then
+                    render.drawLine(velocity.x,velocity.y,velocity2.x,velocity2.y)
+                end
+            end
+            positions[i]=velocity
+            
+            if math.abs(position.x) > (x+distanceConnect)/2 or math.abs(position.y) > (y+distanceConnect)/2 then
+                positions[i]=Vector(math.random(-x,x),y,0)/2
+                directions[i]=Vector(math.random(-100,100)/100,-5,0):getNormalized()
+            end
+            
+        end
+    end
+    render.popMatrix()
+    render.selectRenderTarget()
+    delta=timer.curtime()
+    render.setColor(Color(255,255,255))
+    if settings["menu"] then
+        render.setColor(menuColor1Real)
+        render.drawRect(x2-200-25,y2 + 25,200,25)
+        
+        render.setColor(menuColor2)
+        render.drawRect(x2-200-25,y2 + 50,200,57.5+120)
+        
+        render.setColor(menuColor3)
+        render.drawRect(x2-200-25,y2 + 52.5,200,2.5)
+        
+        local boxColorWH = settings["wh"] == true and boxColorOn or boxColorOff
+        
+        render.setColor(boxColorWH)
+        render.drawRect(x2-200-25,y2 + 57.5,200,20)
+        
+        
+        render.setColor(Color(255,255,255))
+        render.drawText(x2-200-25+100,y2 + 57.5,"PLAYER ESP",1)
+        
+        if settings["whmenu"] then
+            render.setColor(menuColor2)
+            render.drawRect(x2-200-35-150*((flipMenu == true) and -1.5 or 1),y2 + 57.5,150,60+6)
+            
+            local boxColor = settings["box"] == true and boxColorOn or boxColorOff
+            render.setColor(boxColor)
+            render.drawRect(x2-200-35-150*((flipMenu == true) and -1.5 or 1),y2 + 57.5,150,20)
+            
+            local boxColor = settings["name"] == true and boxColorOn or boxColorOff
+            render.setColor(boxColor)
+            render.drawRect(x2-200-35-150*((flipMenu == true) and -1.5 or 1),y2 + 57.5+22.5,150,20)
+            
+            local boxColor = settings["line"] == true and boxColorOn or boxColorOff
+            render.setColor(boxColor)
+            render.drawRect(x2-200-35-150*((flipMenu == true) and -1.5 or 1),y2 + 57.5+22.5+20+3.5,150,20)
+            
+            
+            render.setColor(Color(255,255,255))
+            render.drawText(x2-200-35-150*((flipMenu == true) and -1.5 or 1)+75,y2 + 57.5,"BOX",1)
+            
+            render.setColor(Color(255,255,255))
+            render.drawText(x2-200-35-150*((flipMenu == true) and -1.5 or 1)+75,y2 + 57.5+22.5,"NAME",1)
+            
+            render.setColor(Color(255,255,255))
+            render.drawText(x2-200-35-150*((flipMenu == true) and -1.5 or 1)+75,y2 + 57.5+22.5+20+3.5,"LINE",1)
+        end
+        local boxColor = settings["aimline"] == true and boxColorOn or boxColorOff
+        
+        render.setColor(boxColor)
+        render.drawRect(x2-200-25,y2 + 57.5+20+2.5,200,20)
+        
+        render.setColor(Color(255,255,255))
+        render.drawText(x2-200-25+100,y2 + 57.5+20+4,"AIM LINE",1)
+        
+        local boxColor = settings["crosshair"] == true and boxColorOn or boxColorOff
+        
+        render.setColor(boxColor)
+        render.drawRect(x2-200-25,y2 + 57.5+40+6,200,20)
+        
+        render.setColor(Color(255,255,255))
+        render.drawText(x2-200-25+100,y2 + 57.5+40+7.5,"CROSSHAIR",1)
+        
+        local boxColor = settings["zoom"] == true and boxColorOn or boxColorOff
+        
+        render.setColor(boxColor)
+        render.drawRect(x2-200-25,y2 + 57.5+60+9,200,20)
+        
+        render.setColor(Color(255,255,255))
+        render.drawText(x2-200-25+100,y2 + 57.5+60+9,"ZOOM",1)
+        
+        local boxColor = settings["worldlight"] == true and boxColorOn or boxColorOff
+        
+        render.setColor(boxColor)
+        render.drawRect(x2-200-25,y2 + 57.5+80+12,200,20)
+        
+        render.setColor(Color(255,255,255))
+        render.drawText(x2-200-25+100,y2 + 57.5+80+12,"GOD",1)
+        
+        local boxColor = settings["flashlight"] == true and boxColorOn or boxColorOff
+        
+        render.setColor(boxColor)
+        render.drawRect(x2-200-25,y2 + 57.5+100+15,200,20)
+        
+        render.setColor(Color(255,255,255))
+        render.drawText(x2-200-25+100,y2 + 57.5+100+15,"FLASHLIGHT",1)
+        
+        local boxColor = settings["freecam"] == true and boxColorOn or boxColorOff
+        
+        render.setColor(boxColor)
+        render.drawRect(x2-200-25,y2 + 57.5+120+17.5,200,20)
+        
+        render.setColor(Color(255,255,255))
+        render.drawText(x2-200-25+100,y2 + 57.5+120+18,"FREECAM",1)
+        
+        local boxColor = settings["nofog"] == true and boxColorOn or boxColorOff
+        
+        render.setColor(boxColor)
+        render.drawRect(x2-200-25,y2 + 57.5+140+21,200,20)
+        
+        render.setColor(Color(255,255,255))
+        render.drawText(x2-200-25+100,y2 + 57.5+140+21,"NO FOG",1)
+        
+        render.setColor(Color(255,255,255))
+        render.drawText(x2-200-25+100,y2 + 30,"CHEAT MENU BY DSTMNAKI",1)
+    end
+    if settings["freecam"] then
+        render.setColor(Color(255,255,255))
+        render.drawText(x/2,y-100,"FREECAM",1)
+    end
+    if settings["crosshair"] then
+        render.setColor(Color(255,255,255))
+        render.drawLine(x/2+5,y/2,x/2-5,y/2)
+        render.drawLine(x/2,y/2+5,x/2,y/2-5)
+    end
+    if settings["openedMenu"] != true then
+        render.setColor(Color(255,255,255))
+        render.drawText(x/2,y-100,"Press 0 to open the menu",1)
+    end
+    
+    if table.count(toggles) > 0 and settings["menu"] != true then
+        for i = 1, table.count(toggles) do
+            local rgbColor = Color(math.sin((-timer.curtime()+0.1*i) * 5) * 127 + 128, math.sin((-timer.curtime()+0.1*i) * 5 + 2) * 127 + 128, math.sin((-timer.curtime()+0.1*i) * 5 + 4) * 127 + 128)
+            render.setColor(rgbColor)
+            render.drawText(x-10,10+20*(i-1),toggles[i],TEXT_ALIGN.RIGHT)
+        end
+    end
+end)
+function inRange(inputPos,box_data)
+    local trueorfalse = false
+    local vec1 = inputPos
+    local vec2 = box_data[1]
+    local vec3 = box_data[2]
+    if vec1.x >= vec2.x and vec1.x <= vec3.x then
+        if vec1.y >= vec2.y and vec1.y <= vec3.y then
+            trueorfalse = true
+        end
+    end
+    return trueorfalse
+end
+hook.add("calcview", "", function()
+    
+    if input.isKeyDown(KEY.KEY0) == true then
+        if stillDown["menu"] != true then
+            stillDown["menu"] = true
+            settings["openedMenu"] = true
+            settings["menu"]=!settings["menu"]
+            input.enableCursor(settings["menu"])
+            for i = 1, points do
+                positions[i]=Vector(math.random(-x,x),math.random(-y,y),0)/2
+                directions[i]=Vector(math.random(-100,100)/100,-5,0):getNormalized()
+            end
+        end
+    else
+        stillDown["menu"] = false
+    end
+    if input.isMouseDown(MOUSE.MOUSE1) == true then
+        if stillDown["click"] != true and settings["menu"] == true then
+            stillDown["click"] = true
+            
+            local x, y = input.getCursorPos()
+            local cursorpos = Vector(x,y,0)
+            if inRange(cursorpos,wh_menu_toggle) then
+                settings["whmenu"]=!settings["whmenu"]
+            end
+            if inRange(cursorpos,aim_line_toggle) then
+                if input.canLockControls() then
+                    settings["freecam"]=!settings["freecam"]
+                    if settings["freecam"] then
+                        table.insert(toggles, math.min(math.clamp(table.count(toggles)+1,1,6),6), "FREECAM")
+                    else
+                        table.removeByValue(toggles, "FREECAM")
+                    end
+                    input.lockControls(settings["freecam"])
+                else
+                    print("LockControls is on cooldown, try again later")
+                end
+            end
+            if settings["whmenu"] then
+                if inRange(cursorpos,wh_box) then
+                    settings["box"]=!settings["box"]
+                end
+                if inRange(cursorpos,wh_name) then
+                    settings["name"]=!settings["name"]
+                end
+                if inRange(cursorpos,wh_line) then
+                    settings["line"]=!settings["line"]
+                end
+            end
+            if inRange(cursorpos,crosshair_toggle) then
+                settings["crosshair"]=!settings["crosshair"]
+                hook.add("HUDShouldDraw","",function(name)
+                    if name == "CHudCrosshair" then
+                        return !settings["crosshair"]
+                    end
+                end)
+                if settings["crosshair"] then
+                    table.insert(toggles, math.min(math.clamp(table.count(toggles)+1,1,3),3), "CROSSHAIR")
+                else
+                    table.removeByValue(toggles, "CROSSHAIR")
+                end
+            end
+            if inRange(cursorpos,zoom_toggle) then
+                settings["zoom"]=!settings["zoom"]
+                if settings["zoomMessageFirst"] != true then
+                    settings["zoomMessageFirst"] = true
+                    print("Press mouse3 to zoom!")
+                end
+                if settings["zoom"] then
+                    table.insert(toggles, math.min(math.clamp(table.count(toggles)+1,1,4),4), "ZOOM")
+                else
+                    table.removeByValue(toggles, "ZOOM")
+                end
+            end
+            if inRange(cursorpos,world_light_toggle) then
+                settings["worldlight"]=!settings["worldlight"]
+                if settings["worldlight"] then
+                    table.insert(toggles, math.min(math.clamp(table.count(toggles)+1,1,5),5), "GOD")
+                else
+                    table.removeByValue(toggles, "GOD")
+                end
+                net.start("sendgod")
+                net.writeBool(settings["worldlight"])
+                net.send()
+            end
+            if inRange(cursorpos,flash_light_toggle) then
+                settings["flashlight"]=!settings["flashlight"]
+                if settings["flashlight"] then
+                    table.insert(toggles, math.min(math.clamp(table.count(toggles)+1,1,6),6), "FLASH LIGHT")
+                    flashlight = light.create(owner():getPos(), 300, 4, Color(255,255,255))
+                else
+                    table.removeByValue(toggles, "FLASH LIGHT")
+                    flashlight:destroy()
+                end
+            end
+            if inRange(cursorpos,fc_menu_toggle) then
+                settings["aimline"]=!settings["aimline"]
+                if settings["aimline"] then
+                    table.insert(toggles, math.min(math.clamp(table.count(toggles)+1,1,2),2), "AIM LINE")
+                else
+                    table.removeByValue(toggles, "AIM LINE")
+                end
+            end
+            if inRange(cursorpos,remove_fog_toggle) then
+                settings["nofog"]=!settings["nofog"]
+                removeFog(settings["nofog"])
+                if settings["nofog"] then
+                    table.insert(toggles, math.min(math.clamp(table.count(toggles)+1,1,7),7), "NO FOG")
+                else
+                    table.removeByValue(toggles, "NO FOG")
+                end
+            end
+            if inRange(cursorpos,print_youtube) then
+                print("Cheat Menu by DSTMNaki")
+                print("https://www.youtube.com/@dstmnaki")
+            end
+        end
+    else
+        stillDown["click"] = false
+    end
+    settings["whlast"] = settings["wh"]
+    settings["wh"]=settings["box"] == true or settings["name"] == true or settings["line"] == true
+    if settings["whlast"] != settings["wh"] then
+        if settings["wh"] then
+            table.insert(toggles, 1, "PLAYER ESP")
+        else
+            table.removeByValue(toggles, "PLAYER ESP")
+        end
+    end
+    if input.getCursorVisible() == false and settings["menu"] == true then
+        settings["menu"]=false
+    end
+    
+    if flashlight != nil and settings["flashlight"] then
+        flashlight:setPos(owner():getEyeTrace().HitPos-owner():getEyeAngles():getForward()*5)
+        flashlight:draw()
+    end
+    
+    local angles = owner():getEyeAngles()
+    local w = input.isKeyDown(KEY.W) and 1 or 0
+    local s = input.isKeyDown(KEY.S) and 1 or 0
+    local a = input.isKeyDown(KEY.A) and 1 or 0
+    local d = input.isKeyDown(KEY.D) and 1 or 0
+    local control = input.isKeyDown(KEY.LCONTROL) and 1 or 0
+    local space = input.isKeyDown(KEY.SPACE) and 1 or 0
+    local shift = input.isKeyDown(KEY.SHIFT) and 1 or 0
+    local dir = Vector(w-s,a-d,space-control):rotateAroundAxis(Vector(0,1,0),angles.p):rotateAroundAxis(Vector(0,0,1),angles.y)
+    
+    if delta2 == nil then delta2 = timer.curtime() end
+    local dt2=timer.curtime()-delta2
+    campos = (settings["freecam"] == true) and campos + dir*200*(1+shift)*2*dt2 or owner():getShootPos()
+    delta2=timer.curtime()
+    if settings["freecam"] then
+        if not input.isControlLocked() then
+            settings["freecam"] = false
+            table.removeByValue(toggles, "FREECAM")
+        end
+    end
+    if not owner():inVehicle() then
+        if settings["zoom"] then
+            return {
+                origin = campos,
+                angles = player():getEyeAngles(),
+                fov = 100-80*(input.isMouseDown(MOUSE.MOUSE3) and 1 or 0),
+                drawviewer = false,
+            }
+        else
+            return {
+                origin = campos,
+                angles = player():getEyeAngles(),
+                drawviewer = false,
+            }
+        end
+    end
+end)
+end

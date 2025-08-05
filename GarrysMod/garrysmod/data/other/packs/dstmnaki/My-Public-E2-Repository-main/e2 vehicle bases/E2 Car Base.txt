@@ -1,0 +1,497 @@
+@name E2 Car Base by Naki
+@inputs [Seat SteeringWheel Thruster Thruster2 Turret_Base Turret]:entity AimPos:vector
+@inputs [S1 S2 S3 S4]:entity
+@persist Boost Base:entity Jump BasePlateHeightOffset RangerHeightOffset Inertia:angle [SusProps SusData WheelData PosData Rangers]:array [MovementHeightFront MovementHeightBack]:vector2 Slide Steer FrontWheels BackWheels TargetEnt:entity
+@persist Find:array Lights FrontWheelL FrontWheelR BackWheelL BackWheelR LastAddFL LastAddFR LastAddRL LastAddRR FrontWheelSize RearWheelSize FourWheelTurning Speed Acceleration JumpHeight WheelHeightCheckOffset BoostTime BoostStrength Bodyroll BodyrollPitch
+@outputs Fire TargetEnt:entity Lights
+@model models/sprops/rectangles/size_7/rect_144x192x3.mdl
+@trigger none
+if(dupefinished()){reset()}
+if(first()){
+    
+    Base=entity()
+    Base:setAlpha(0)
+    Base:setMass(1000)
+    Base:propDrag(0)
+    noCollideAll(Base,0)
+    
+    Inertia = shiftL(ang(Base:inertia()))
+    
+    BasePlateHeightOffset = 5
+    RangerHeightOffset = 15
+    
+    Speed=55
+    Acceleration=80
+    
+    BoostTime=250
+    BoostStrength=1000
+    
+    JumpHeight=180
+    
+    Bodyroll=45
+    BodyrollPitch=15
+    
+    FourWheelTurning=1
+    
+    WheelHeightCheckOffset=5
+    WheelData=array(
+    55,58,0,-5,10,
+    
+    -55,58,0,-5,10
+    )
+    WD=WheelData
+    PosData=array(
+    vec(WD[1,number],WD[2,number],WD[3,number]-BasePlateHeightOffset),
+    vec(WD[1,number],-WD[2,number],WD[3,number]-BasePlateHeightOffset),
+    vec(WD[6,number],WD[7,number],WD[8,number]-BasePlateHeightOffset),
+    vec(WD[6,number],-WD[7,number],WD[8,number]-BasePlateHeightOffset))
+    
+    SusData=array(
+    vec(WD[1,number],WD[2,number]-32,WD[3,number]-9+42),
+    vec(WD[1,number],-WD[2,number]+32,WD[3,number]-9+42),
+    vec(WD[6,number],WD[7,number]-32,WD[8,number]-9+42),
+    vec(WD[6,number],-WD[7,number]+32,WD[8,number]-9+42))
+    
+    
+    MovementHeightFront=vec2(WheelData[4,number]-BasePlateHeightOffset,WheelData[5,number]-BasePlateHeightOffset)
+    MovementHeightBack=vec2(WheelData[9,number]-BasePlateHeightOffset,WheelData[10,number]-BasePlateHeightOffset)
+    
+    
+    FrontWheelSize=60
+    RearWheelSize=60
+    FrontWheelMDL="models/sprops/trans/wheel_big_g/big_wheel"+FrontWheelSize+".mdl"
+    RearWheelMDL="models/sprops/trans/wheel_big_g/big_wheel"+RearWheelSize+".mdl"
+    
+    
+    SusProps=array(S1,S2,S3,S4)
+    
+    
+    function number mix(N1:number,N2:number,M:number){
+        return mix(vec(N1),vec(N2),M):x()
+    }
+    
+    function number vector:isInCone(Origin:vector,Dir:vector,ConeAng,Dist){
+        local TargPos = This
+        local Dang = bearing(Origin,Dir:toAngle(),TargPos)
+        local Fang = elevation(Origin,Dir:toAngle(),TargPos)
+        local Tdist = TargPos:distance(Origin)
+        if(abs(Fang)<=ConeAng && abs( Dang ) <= ConeAng && Tdist <= Dist){
+            return 1
+        }else{
+            return 0 
+        }
+    }
+    
+    local E = Base
+    
+    for(I=1,4){
+        local I2 = I
+        
+        holoCreate(I2)
+        holoPos(I2,E:toWorld(PosData[I,vector]))
+        holoAng(I2,E:toWorld(ang(0,0,0)))
+        holoParent(I2,E)
+        if(I2<3){
+            holoModel(I2,FrontWheelMDL)
+        }elseif(I2>2){
+            holoModel(I2,RearWheelMDL)
+        }
+        holoColor(I2,((vec(200, 155, 60)*0.65)+(vec(255)*0.2))*0.8)
+        holoScale(I2,vec(1.2,0.9,0.9))
+        holoBodygroup(I2,1,15)
+        
+        local I2 = I+5
+        holoCreate(I2)
+        if(I==1|I==3){
+            
+            if(I==3){
+                holoPos(I2,Base:toWorld(SusData[I,vector]+vec(0,-5,-SusData[I,vector]:z()-9)))
+            }else{
+                holoPos(I2,Base:toWorld(SusData[I,vector]+vec(0,-5,-SusData[I,vector]:z()-9)))
+            }
+        }else{
+            if(I==4){
+                holoPos(I2,Base:toWorld(SusData[I,vector]+vec(0,5,-SusData[I,vector]:z()-9)))
+            }else{
+                holoPos(I2,Base:toWorld(SusData[I,vector]+vec(0,5,-SusData[I,vector]:z()-9)))
+            }
+        }
+        holoAng(I2,Base:toWorld(ang(0,0,0)))
+        holoScale(I2,vec())
+        holoParent(I2,Base)
+        
+        
+        local I2 = I+13
+        holoCreate(I2)
+        holoPos(I2,SusProps[I,entity]:toWorld(vec(0,0,0)))
+        holoAng(I2,SusProps[I,entity]:toWorld(ang(0,0,0)))
+        SusProps[I,entity]:parentTo(holoEntity(I2))
+        holoPos(I2,holoEntity(I+5):toWorld(vec(12*1.5,0,0)))
+        holoAng(I2,holoEntity(I+5):toWorld(ang(90,0,0)))
+        holoScale(I2,vec(1.5,1.5,1.5))
+        holoModel(I2,"models/sprops/cylinders/size_2/cylinder_3x24.mdl")
+        holoMaterial(I2,"phoenix_storms/metalbox2")
+        holoParent(I2,holoEntity(I+5))
+        holoColor(I2,(vec(166, 137, 71)*0.7)+(vec(255)*0.3))
+    }
+    holoBodygroup(1,0,0)
+    holoBodygroup(2,0,1)
+    holoBodygroup(3,0,0)
+    holoBodygroup(4,0,1)
+    
+    holoCreate(100)
+    holoPos(100,SteeringWheel:pos())
+    holoAng(100,SteeringWheel:angles())
+    SteeringWheel:parentTo(holoEntity(100))
+    holoAng(100,Base:toWorld(ang(90,180,0)))
+    holoParent(100,Base)
+    holoScale(100,vec())
+    
+    if(Thruster:isValid()){
+        holoCreate(101)
+        holoPos(101,Thruster:toWorld(vec(0,0,3)))
+        holoAng(101,Thruster:toWorld(ang(0,-90,0)))
+        holoParent(101,Thruster)
+        holoModel(101,"models/sprops/misc/cones/size_2/cone_24x36.mdl")
+        holoMaterial(101,"models/props_combine/tpballglow")
+        holoScale(101,vec(1,1,6)*0.2)
+        holoColor(101,vec(125,107,16))
+        holoDisableShading(101,1)
+        
+        holoCreate(102)
+        holoPos(102,Thruster:toWorld(vec(0,0,3)))
+        holoAng(102,Thruster:toWorld(ang(0,-90,0)))
+        holoParent(102,Thruster)
+        holoModel(102,"models/sprops/misc/cones/size_2/cone_24x36.mdl")
+        holoMaterial(102,"models/props_combine/tpballglow")
+        holoScale(102,vec(1,1,6)*0.12)
+        holoColor(102,vec(125,107,16)*1.6)
+        holoDisableShading(102,1)
+    }
+    
+    if(Thruster2:isValid()){
+        holoCreate(103)
+        holoPos(103,Thruster2:toWorld(vec(0,0,3)))
+        holoAng(103,Thruster2:toWorld(ang(0,-90,0)))
+        holoParent(103,Thruster2)
+        holoModel(103,"models/sprops/misc/cones/size_2/cone_24x36.mdl")
+        holoMaterial(103,"models/props_combine/tpballglow")
+        holoScale(103,vec(1,1,6)*0.2)
+        holoColor(103,vec(125,107,16))
+        holoDisableShading(103,1)
+        
+        holoCreate(104)
+        holoPos(104,Thruster2:toWorld(vec(0,0,3)))
+        holoAng(104,Thruster2:toWorld(ang(0,-90,0)))
+        holoParent(104,Thruster2)
+        holoModel(104,"models/sprops/misc/cones/size_2/cone_24x36.mdl")
+        holoMaterial(104,"models/props_combine/tpballglow")
+        holoScale(104,vec(1,1,6)*0.12)
+        holoColor(104,vec(125,107,16)*1.6)
+        holoDisableShading(104,1)
+        
+    }
+    holoCreate(105)
+    holoPos(105,Turret_Base:toWorld(vec(0,0,0)))
+    holoAng(105,Turret_Base:toWorld(ang(-90,0,90)))
+    Turret_Base:parentTo(holoEntity(105))
+    holoAng(105,Base:toWorld(ang(0,0,0)))
+    holoParent(105,Base)
+    holoScale(105,vec())
+    
+    holoCreate(106)
+    holoPos(106,Turret:toWorld(vec(0,0,0)))
+    holoAng(106,Turret:toWorld(ang(0,90,0)))
+    Turret:parentTo(holoEntity(106))
+    holoAng(106,holoEntity(105):toWorld(ang(0,0,0)))
+    holoParent(106,holoEntity(105))
+    holoScale(106,vec())
+    
+        
+    
+    for(I=101,104){
+        holoAlpha(I,0)
+    }
+    
+    rangerHitEntities(1)
+    
+    rangerFilter(SteeringWheel)
+    #rangerFilter(SteeringWheel:children())
+    rangerFilter(SusProps)
+    rangerFilter(players())
+    rangerFilter(Base)
+    rangerFilter(Base:children())
+    rangerPersist(1)
+}
+interval(100)
+for(I=1,4){
+    Pos = Base:toWorld(PosData[I,vector]:setZ((BasePlateHeightOffset+RangerHeightOffset)))
+    Rangers[I,ranger]=rangerOffsetHull(200+(BasePlateHeightOffset+RangerHeightOffset),Pos,-Base:up(),vec(25,25,1))
+}
+Driver=Seat:driver()
+if(changed(Driver)){
+    if(Driver){
+        soundPlay("starter",0,"acf_extra/vehiclefx/starters/s_rangerstart.wav")
+        timer("enginesfx",450)
+    }else{
+        soundPlay("engine",0,"")
+    }
+}
+if(clk("enginesfx")&Driver){
+    soundPlay("engine",0,"acf_extra/vehiclefx/engines/hmmwv.wav")
+}
+
+W=Driver:keyForward()
+S=Driver:keyBack()
+A=Driver:keyLeft()
+D=Driver:keyRight()
+Space=Driver:keyJump()
+Fire=Driver:keyAttack1()
+Mouse2=Driver:keyAttack2()
+LightToggle=Driver:keyPressed("f")
+if(changed(LightToggle)&LightToggle){
+    Lights=!Lights
+}
+if(changed(Fire)){
+    if(Fire){
+        soundPlay("gunsfx",0,"npc/combine_gunship/gunship_fire_loop1.wav")
+    }else{
+        soundPlay("gunsfx",0,"")
+    }
+}
+soundPitch("engine",55+clamp(abs((Base:velL():x()*0.1)+(35*(W|S)*(1+(Space*2)))),0,100))
+soundVolume("engine",0.6)
+
+Ground_Distance=((Rangers[1,ranger]:distance()+Rangers[2,ranger]:distance()+Rangers[3,ranger]:distance()+Rangers[4,ranger]:distance())/4)-(BasePlateHeightOffset+RangerHeightOffset)
+HeightAdj=Base:up()*(((((max(FrontWheelSize,RearWheelSize)*1.1)/2)+(BasePlateHeightOffset*2))-(Ground_Distance))*15)
+Slide+=abs(Base:velL():y())*(0.008*(1+(Space*1)))
+Slide-=1.9
+Slide=clamp(Slide,0,15)
+if(Driver){
+    if(Space){
+        Damp2=Base:velL()*vec(0.7/clamp(abs(Base:vel():length())*0.015,1,4),0.8/clamp((abs(Base:vel():length())*0.009)+(Slide*!Space),1,4),1)
+    }else{
+        Damp2=Base:velL()*vec(0.16/(1+(W|S)),1/(1+(Slide/15)),1)
+    }
+}else{
+    Damp2=Base:velL()*vec(0.68,0.8,1)
+}
+
+Damp=(-Base:forward()*Damp2:x())+(Base:right()*Damp2:y())+(-Base:up()*Damp2:z()*2)
+
+Dir=Base:forward()*(W-S)*Acceleration*!Space
+Downhill=Base:forward()*Base:angles():pitch()*(3/(1+(clamp(W+S,0,1)*2)))*!Space*Driver:isPlayer()
+
+Steer+=(100/2)*(A-D)
+if(!A&!D){
+    if(Steer>0){
+        Steer-=100/2
+    }elseif(Steer<0){
+        Steer+=100/2
+    }
+}
+Steer=clamp(Steer,-100,100)
+
+On_Ground=Ground_Distance<min(FrontWheelSize,RearWheelSize)
+if(changed(Driver:keySprint())&Driver:keySprint()&On_Ground){
+    Jump=1
+    Base:soundPlay("jumpsfx",0,"npc/dog/dog_pneumatic2.wav")
+    timer("unjump",200)
+}
+if(changed(Driver:keyReload())&Driver:keyReload()&!Boost){
+    Boost=1
+    timer("unboost",BoostTime)
+}
+if(changed(Boost)){
+    if(Boost){
+        Base:soundPlay("boostsfx",0,"Phx.Afterburner3")
+    }else{
+        Base:soundPlay("boostsfx",0,"npc/dog/dog_pneumatic1.wav")
+    }
+    for(I=101,104){
+        holoAlpha(I,255*Boost)
+    }
+}
+if(!Jump){
+    if(On_Ground){
+        Base:propGravity(0)
+        Base:applyForce((((abs(Base:velL():x()*0.1)<(Speed+(25*Boost)))*Base:forward()*BoostStrength*Boost)+Downhill+Dir+HeightAdj+(Damp))*Base:mass()*0.5)
+        Front=Rangers[1,ranger]:distance()+Rangers[2,ranger]:distance()
+        Back=Rangers[3,ranger]:distance()+Rangers[4,ranger]:distance()
+        FrontBack=((Front-Back)*1)
+        Left=Rangers[1,ranger]:distance()+Rangers[3,ranger]:distance()
+        Right=Rangers[2,ranger]:distance()+Rangers[4,ranger]:distance()
+        LeftRight=((Left-Right)*1)
+        FBLR=vec2(FrontBack,LeftRight)
+        if(Driver){
+            if(Space){
+                if(abs(Base:vel():length()*0.01)>15){
+                    AngDamp=(Base:angVel()*ang(4,(1/((1/(clamp(1-abs(Base:vel():length()*0.05),0.1,0.9)*2))*2))*0.6,3))
+                }else{
+                    AngDamp=Base:angVel()*ang(4,(1/(1+clamp(Slide/15,0,1)))*4,3)
+                }
+            }else{
+                AngDamp=Base:angVel()*ang(4,(1/(1+clamp(Slide/15,0,1)))*4,3)
+            }
+        }else{
+            AngDamp=Base:angVel()*ang(4,5,3)
+        }
+        Base:applyAngForce(((Base:toLocal(ang(FBLR:x(),0,-FBLR:y())+ang((-BodyrollPitch/(1+clamp(abs(Base:velL():x()*0.003),0,10))*(W-S)),
+        Base:angles():yaw()+(60*clamp(Base:velL():x()*0.005,-1,1)*(A-D)),-clamp(Base:velL():y()*0.1,-Bodyroll,Bodyroll)))*4)-(AngDamp/(1+(0.5*Boost))))*
+        Base:mass()*10)
+    }else{
+        Base:applyAngForce(((Base:toLocal(Base:angles()+ang(0,(A-D),0))*400)-(Base:angVel()*5))*Base:mass())
+        Base:propGravity(1)
+        Base:applyForce(((abs(Base:velL():x()*0.1)<(Speed+(25*Boost)))*Base:forward()*BoostStrength*Boost)*(Base:mass()*0.25))
+    }
+}else{
+    Base:propSetVelocityInstant(Base:vel()+(Base:up()*JumpHeight))
+    Base:propGravity(1)
+    Base:applyForce(((abs(Base:velL():x()*0.1)<(Speed+(25*Boost)))*Base:forward()*BoostStrength*Boost)*(Base:mass()*0.25))
+}
+if(clk("unjump")){
+    Jump=0
+}
+
+if(clk("unboost")){
+    Boost=0
+}
+FLD=(((FrontWheelSize/2)+BasePlateHeightOffset))-(Rangers[1,ranger]:distance()-(BasePlateHeightOffset+RangerHeightOffset))
+FRD=(((FrontWheelSize/2)+BasePlateHeightOffset))-(Rangers[2,ranger]:distance()-(BasePlateHeightOffset+RangerHeightOffset))
+RLD=(((RearWheelSize/2)+BasePlateHeightOffset))-(Rangers[3,ranger]:distance()-(BasePlateHeightOffset+RangerHeightOffset))
+RRD=(((RearWheelSize/2)+BasePlateHeightOffset))-(Rangers[4,ranger]:distance()-(BasePlateHeightOffset+RangerHeightOffset))
+FL=clamp(FLD,MovementHeightFront:x(),MovementHeightFront:y())
+FR=clamp(FRD,MovementHeightFront:x(),MovementHeightFront:y())
+RL=clamp(RLD,MovementHeightBack:x(),MovementHeightBack:y())
+RR=clamp(RRD,MovementHeightBack:x(),MovementHeightBack:y())
+holoPos(1,Base:toWorld(PosData[1,vector]+vec(0,0,FL)))
+holoPos(2,Base:toWorld(PosData[2,vector]+vec(0,0,FR)))
+holoPos(3,Base:toWorld(PosData[3,vector]+vec(0,0,RL)))
+holoPos(4,Base:toWorld(PosData[4,vector]+vec(0,0,RR)))
+
+FrontWheels=(Base:velL():x()/FrontWheelSize*_PI)*4
+BackWheels=(Base:velL():x()/RearWheelSize*_PI)*4
+
+if((FLD+WheelHeightCheckOffset)>MovementHeightFront:x()){
+    LastAddFL=FrontWheels
+    FrontWheelL+=FrontWheels
+}else{
+    if(LastAddFL>0){
+        LastAddFL-=LastAddFL/10
+    }elseif(LastAddFL<0){
+        LastAddFL-=LastAddFL/10
+    }
+    FrontWheelL+=LastAddFL
+}
+
+if((FRD+WheelHeightCheckOffset)>MovementHeightFront:x()){
+    LastAddFR=FrontWheels
+    FrontWheelR+=FrontWheels
+}else{
+    if(LastAddFR>0){
+        LastAddFR-=LastAddFR/10
+    }elseif(LastAddFR<0){
+        LastAddFR-=LastAddFR/10
+    }
+    FrontWheelR+=LastAddFR
+}
+
+if((RLD+WheelHeightCheckOffset)>MovementHeightBack:x()){
+    LastAddRL=BackWheels+(100*(W-S)*!On_Ground*!Space)
+    BackWheelL+=(BackWheels*!Space)+(100*(W-S)*(Slide/15))
+}else{
+    if(LastAddRL>0){
+        LastAddRL-=LastAddRL/10
+    }elseif(LastAddRL<0){
+        LastAddRL-=LastAddRL/10
+    }
+    if(Space){
+        LastAddRL=0
+    }elseif((W-S)*!On_Ground*!Space){
+        LastAddRL+=(75*(W-S)*!On_Ground*!Space)
+    }
+    BackWheelL+=LastAddRL
+}
+
+if((RRD+WheelHeightCheckOffset)>MovementHeightBack:x()){
+    LastAddRR=BackWheels+(100*(W-S)*!On_Ground*!Space)
+    BackWheelR+=(BackWheels*!Space)+(100*(W-S)*(Slide/15))
+}else{
+    if(LastAddRR>0){
+        LastAddRR-=LastAddRR/10
+    }elseif(LastAddRR<0){
+        LastAddRR-=LastAddRR/10
+    }
+    if(Space){
+        LastAddRR=0
+    }elseif((W-S)*!On_Ground*!Space){
+        LastAddRR+=(75*(W-S)*!On_Ground*!Space)
+    }
+    BackWheelR+=LastAddRR
+}
+
+holoAng(1,Base:toWorld(ang(0,0,FrontWheelL):rotateAroundAxis(vec(0,0,1),90+clamp((32*(Steer/100))/(1+abs(Base:velL():x()*0.001))+(Base:velL():y()*0.02),-32,32)/(1+FourWheelTurning))))
+holoAng(2,Base:toWorld(ang(0,0,-FrontWheelR):rotateAroundAxis(vec(0,0,1),-90+clamp((32*(Steer/100))/(1+abs(Base:velL():x()*0.001))+(Base:velL():y()*0.02),-32,32)/(1+FourWheelTurning))))
+
+holoAng(3,Base:toWorld(ang(0,0,BackWheelL):rotateAroundAxis(vec(0,0,1),90-clamp((32*FourWheelTurning*(Steer/100))/(1+abs(Base:velL():x()*0.001))+(Base:velL():y()*0.02),-32,32)/2)))
+holoAng(4,Base:toWorld(ang(0,0,-BackWheelR):rotateAroundAxis(vec(0,0,1),-90-clamp((32*FourWheelTurning*(Steer/100))/(1+abs(Base:velL():x()*0.001))+(Base:velL():y()*0.02),-32,32)/2)))
+
+holoAng(100,Base:toWorld(ang(90,180,0):rotateAroundAxis(vec(1,0,0),-22*(Steer/100))))
+
+#[
+holoAng(6,Base:toWorld(ang(0,90,0)))
+holoAng(7,Base:toWorld(ang(0,-90,0)))
+holoAng(8,Base:toWorld(ang(0,90,0)))
+holoAng(9,Base:toWorld(ang(0,-90,0)))
+]#
+
+holoAng(6,Base:toWorld(Base:toLocal((holoEntity(1):pos()-holoEntity(6):pos()):toAngle()):setRoll(0)))
+holoAng(7,Base:toWorld(Base:toLocal((holoEntity(2):pos()-holoEntity(7):pos()):toAngle()):setRoll(0)))
+holoAng(8,Base:toWorld(Base:toLocal((holoEntity(3):pos()-holoEntity(8):pos()):toAngle()):setRoll(0)))
+holoAng(9,Base:toWorld(Base:toLocal((holoEntity(4):pos()-holoEntity(9):pos()):toAngle()):setRoll(0)))
+
+if(Mouse2){
+    if(!TargetEnt){
+        timer("find",500)
+        if(clk("find")){
+            findClearBlackList()
+            findClearWhiteList()
+            findExcludeEntity(Base)
+            findExcludeEntities(Base:children())
+            findIncludeClass("npc_*")
+            findIncludeClass(owner():type())
+            findIncludeClass("acf_*")
+            findIncludeClass("*_sakarias_*")
+            
+            findExcludeEntity(Driver)
+            findInCone(holoEntity(106):pos(),(Base:toLocal(Driver:eyeAngles())+Base:angles()):forward(),3000,25)
+            findSortByDistance(holoEntity(106):pos())
+            Find=findToArray()
+        }
+        foreach(I,E:entity=Find){
+            if((E!=owner())&((E:isNPC() | E:isPlayer()) ? E:isAlive() : 1)){
+                if((E:pos()+vec(0,0,E:height()/2)):isInCone(holoEntity(106):pos(),(Base:toLocal(Driver:eyeAngles())+Base:angles()):forward(),10,3000)){
+                    TargetEnt=E
+                }
+            }
+        }
+    }else{
+        if((!(TargetEnt:pos()+vec(0,0,TargetEnt:height()/2)):isInCone(holoEntity(106):pos(),(Base:toLocal(Driver:eyeAngles())+Base:angles()):forward(),15,5000))|((TargetEnt:isNPC() | TargetEnt:isPlayer()) ? !TargetEnt:isAlive() : 0)){
+            TargetEnt=noentity()
+        }
+    }
+}else{
+    TargetEnt=noentity()
+    Find=array()
+}
+if(Driver){
+    if(TargetEnt){
+        CamAngLocal=Base:toLocal(((TargetEnt:pos()+vec(0,0,TargetEnt:height()/2))-holoEntity(106):pos()):toAngle())
+    }else{
+        CamAngLocal=Base:toLocal((AimPos-holoEntity(106):pos()):toAngle())
+    }
+}else{
+    CamAngLocal=ang(0,0,0)
+}
+holoAng(105,Base:toWorld(ang(0,CamAngLocal:yaw(),0)))
+holoAng(106,holoEntity(105):toWorld(ang(clamp(CamAngLocal:pitch(),-35,10),0,0)))

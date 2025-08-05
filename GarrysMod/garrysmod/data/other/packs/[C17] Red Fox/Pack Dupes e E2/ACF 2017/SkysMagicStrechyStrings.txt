@@ -1,0 +1,169 @@
+@name Sky's Magic Stretchy Strings V0.05
+@inputs T:array Base:wirelink
+@persist B:entity T:array [ L, C, D, RD, Tire_Mass, Tire_Height, Constraints_Per_Tire ]:number [ Prefix ]:string
+
+if( first() | dupefinished() )
+{
+    
+    Prefix = "."
+    
+    L = 0
+    
+    C = 10000
+    D = 100
+    
+    RD = 100 # This setting only is changed when the E2 is first loaded!
+    
+    # These settings only get set when the e2 first loads!
+    
+    Tire_Mass = 100
+    Tire_Height = 0
+    Constraints_Per_Tire = 1
+    
+    B = Base:entity()
+    enableConstraintUndo( 0 )
+    
+    function warning( S:string )
+    {
+        printColor( vec( 255, 0, 0 ), "WARNING: ", vec( 255 ), S )
+    }
+    function success( S:string )
+    {
+        printColor( vec( 0, 255, 0 ), "Success! ", vec( 255 ), S )
+    }
+     
+    function makeHydro( Ln:number, Con:number, Dm:number, Rd:number, Fr:number )
+    {
+        local Tires = 0
+        
+        if( Fr )
+        {
+            B:setAng( ang( 0, B:angles()[2], 0 ) )
+            B:removeConstraints( "Elastic" )
+            B:removeConstraints( "Hydraulic" )
+            B:propFreeze( 1 )
+            
+            for( I = 1, T:count() )
+            {
+                E = T:entity( I )
+                E:setPos( vec( E:pos()[1], E:pos()[2], B:pos()[3] - Tire_Height ) )
+            }
+        }
+        
+        for( I = 1, T:count() )
+        {
+            E = T:entity( I )
+            
+            E:setMass( Tire_Mass )
+            
+            if( Fr )
+            {
+                E:propFreeze( 1 )
+            }
+            
+            Constraints_Per_Tire = clamp( Constraints_Per_Tire , 1, 5 )
+            
+            for( J = 1, Constraints_Per_Tire )
+            {
+                local Index = ( ( I + J ) * E:id() )
+                
+                Tires++
+                
+                if( Fr )
+                {
+                    hydraulic( Index, B, B:toLocal( E:pos() ), E, vec(), Con, Dm, Rd, "rope", 0, 0 )
+                    B:setLength( Index, Ln )
+                }
+                else
+                {
+                    B:setConstant( Index, Con, Dm )
+                    B:setLength( Index, Ln )
+                }
+            }
+        }
+        
+        if( Tires >= T:count() )
+        {
+            success( "Suspension set! " + Tires + " constraints set." )
+        }
+        else
+        {
+            warning( "An error has occurred. Try refreshing your e2." )
+        }
+    }
+      
+    if( !->Base )
+    {
+        warning( "Base plate not wired!" )
+        exit()
+    }
+    if( !->T | !T:count() )
+    {
+        warning( "Tire(s) not wired!" )
+        exit()
+    }
+    
+    makeHydro( L, C, D, RD, 1 )
+    
+    runOnLast( 1 )
+    runOnChat( 1 )
+    
+}
+
+if( chatClk( owner() ) )
+{
+    Ch = owner():lastSaid():lower()
+    
+    if( Ch:sub( 1, 1 ) == Prefix )
+    {
+        hideChat( 1 )
+        
+        Ch = Ch:sub( 2 )
+        Command = Ch:sub( 1, 1 )
+        Value = Ch:sub( 3 ):toNumber()
+        
+        if( Command == "c" )
+        {
+            C = Value
+            
+            success( "Constant set to " + Value )
+            
+            makeHydro( L, C, D, RD, 0 )
+        }
+        elseif( Command == "d" )
+        {
+            D = Value
+            
+            success( "Damping set to " + Value )
+            
+            makeHydro( L, C, D, RD, 0 )
+        }
+        elseif( Command == "l" )
+        {
+            L = Value
+            
+            success( "Length set to " + Value )
+            
+            makeHydro( L, C, D, RD, 0 )
+        }
+        else
+        {
+            warning( "Unknown command" )
+        }
+    }
+}
+
+if( last() )
+{
+    for( I = 1, T:count() )
+    {
+        E = T:entity( I )
+        
+        for( J = 1, 5 )
+        {
+            local Index = ( ( I + J ) * E:id() )
+            
+            removeConstraint( Index )   
+        }
+    }
+}

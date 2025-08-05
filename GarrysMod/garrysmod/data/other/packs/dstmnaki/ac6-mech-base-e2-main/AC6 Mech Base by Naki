@@ -1,0 +1,384 @@
+@name AC6 Mech Base by Naki
+@inputs [BaseEnt Seat Emitter1 Emitter2]:entity CamController:wirelink GunBackLeftReady GunBackRightReady
+@persist Roll Mouse1Val BoostPowerVal CanBoost BoostDir:vector MovingSpeedBuildUp BoostDirVal SuperBoost Boosting StepTime Step BoostingVal BoostingVal2 SuperBoostingVal CanSuperBoost FoldVal FoldVal2 ReloadValLeft ReloadValRight On_Ground ForwardBackward LeftRight
+@persist W A S D Shift Space Control CamAng:angle Mouse1 Mouse2 Mouse3 Mouse4
+@outputs BoostPowerVal BoostersOn SparksGO Direction:vector
+@persist [HT CT]:table [SpawnStatus CoreStatus]:string [HN CN I SpawnCounter] DeparentUs:array Bones:table
+if(dupefinished()){reset()}
+if(first()){
+    EditMode = 0
+    ShowBones = 1
+    BaseEnt:setMass(2500)
+    rangerHitEntities(!EditMode)
+    rangerPersist(1)
+    
+    ##include "AC6_Config_03_Aaliyah"
+    ##include "AC6_Config_Accept_Mech"
+    #include "AC6_Config_HoloBase_Template"
+    ##include "AC6_Config_03_Aaliyah_Stun_Needle_Launchers"
+    
+    I++, HN++, HT[HN,array] = array(I, Bones["left_foot",number], Emitter1, 0, vec(0,0,-FootHeight), ang(0, 0, 0), vec(ShowBones), ""),Bones["left_emitter_parent",number]=I
+    I++, HN++, HT[HN,array] = array(I, Bones["right_foot",number], Emitter2, 0, vec(0,0,-FootHeight), ang(0, 0, 0), vec(ShowBones), ""),Bones["right_emitter_parent",number]=I
+    for(I2=1,I){
+        holoCreate(I2) #This fixes holoparent problems hopefully
+    }
+    
+    holoCreate(1000)
+    holoParent(1000,BaseEnt)
+    holoAlpha(1000,0)
+    
+    function array:holo() {
+        local Index = This[1, number]
+        Entity = This[2,entity]:isValid() ? This[2,entity] : (holoEntity(This[2,number]):isValid() ? holoEntity(This[2,number]) : entity())
+        
+        if(holoEntity(Index):isValid()){
+            holoPos(Index, Entity:toWorld(This[5, vector]))
+            holoAng(Index, Entity:toWorld(This[6, angle]))
+            holoScale(Index, This[7, vector])
+            holoModel(Index, This[8, string] ?: "cube")
+        }else{
+            holoCreate(Index, Entity:toWorld(This[5, vector]), This[7, vector], Entity:toWorld(This[6, angle]), vec(255), This[8, string] ?: "cube")
+        }
+        holoParent(Index, Entity)
+        if(This:exists(9)){
+            holoMaterial(Index, This[9, string])
+            holoColor(Index, This[10, vector4])
+            holoSkin(Index, This[11, number])
+            holoDisableShading(Index, This[12, number])
+        }
+        if(This[3,entity]:isValid() && This[3,entity] != noentity()){
+            holoPos(Index,This[3,entity]:pos())
+            holoAng(Index,This[3,entity]:angles())
+            This[3,entity]:parentTo(holoEntity(Index))
+            This[3,entity]:setAlpha(0)
+            holoPos(Index,Entity:toWorld(This[5, vector]))
+            holoAng(Index,Entity:toWorld(This[6, angle]))
+            DeparentUs:pushEntity(This[3,entity])
+        }
+    }
+    #- Clip a hologram from data array
+    function array:clip() {
+        holoClipEnabled(This[1, number], This[2, number], 1)
+        holoClip(This[1, number], This[2, number], This[3, vector], This[4, vector], 0)
+    }
+
+    #- Load the contraption
+    function loadContraption() {
+        switch (SpawnStatus) {
+            case "InitSpawn",
+                if (clk("Start")) {
+                    SpawnStatus = "LoadHolograms"
+                }
+            break
+
+            case "LoadHolograms",
+                while (perf() & holoCanCreate() &  SpawnCounter < HN) {
+                    SpawnCounter++
+                    HT[SpawnCounter, array]:holo()
+
+                    if (SpawnCounter >= HN) {
+                        SpawnStatus = CN > 0 ? "LoadClips" : "PrintStatus"
+                        SpawnCounter = 0
+                        break
+                    }
+                }
+            break
+
+            case "LoadClips",
+                while (perf() & SpawnCounter < CN) {
+                    SpawnCounter++
+                    CT[SpawnCounter, array]:clip()
+
+                    if (SpawnCounter >= CN) {
+                        SpawnStatus = "PrintStatus"
+                        SpawnCounter = 0
+                        break
+                    }
+                }
+            break
+
+            case "PrintStatus",
+                printColor( vec(222,37,188), "Holo Loader 2.0: ", vec(255,255,255), "Loaded " + HN + " holograms and " + CN + " clips." )
+
+                HT:clear()
+                CT:clear()
+
+                CoreStatus = "InitPostSpawn"
+                SpawnStatus = ""
+            break
+        }
+    }
+    function number icos(A, B, C) {
+        return acos((A^2 + B^2 - C^2) / (2*A*B))    
+    }
+    function two_seg_ik(NHipA, NHipB, NKnee, NFoot, LengthA, LengthB, Base:entity, Target:vector, Void) {
+        local AxisWorld = Target - holoEntity(NHipA):pos()
+        local AxisLocal = Base:toLocalAxis(AxisWorld)
+
+        holoAng(NHipA, Base:toWorld(ang(0, 0, atan(AxisLocal:z(), AxisLocal:y()) + 90)))
+
+        local AxisLocal = holoEntity(NHipA):toLocalAxis(Target - holoEntity(NHipB):pos())
+        local Distance = min(AxisLocal:length(), LengthA + LengthB)
+
+        holoAng(NHipB, holoEntity(NHipA):toWorld(ang(atan(-AxisLocal:x(), AxisLocal:z()) + icos(Distance, LengthA, LengthB), 180, 0))) #-- forward knee   
+        #holoAng(NHipB, holoEntity(NHipA):toWorld(ang(atan(AxisLocal:x(), AxisLocal:z()) + icos(Distance, LengthA, LengthB), 0, 0))) #-- reverse knee
+        holoAng(NKnee, holoEntity(NHipB):toWorld(ang(icos(LengthB, LengthA, Distance) + 180, 0, 0)))
+        holoAng(NFoot, Base:toWorld(ang(ForwardBackward*25,0,-LeftRight*15)*((!On_Ground)|SuperBoost)))
+    }
+    
+    CamController["Position",vector]=vec(0,0,175)
+    CamController["Distance",number]=800
+    CamController["Parent",entity]=BaseEnt
+    BoostPowerVal=CanBoost=CanSuperBoost=1
+    
+    CoreStatus = "InitSpawn"
+    SpawnStatus = "InitSpawn"
+    
+    findIncludePlayerProps(owner())
+    findInSphere(BaseEnt:pos(),2500)
+    Array=findToArray()
+    CamController["FilterEntities",array]=Array
+    rangerFilter(Array)
+    rangerHitWater(1)
+    rangerPersist(1)
+    runOnTick(1)
+    timer("Start", 500)
+    
+}elseif (CoreStatus == "InitSpawn") {
+    loadContraption()
+}elseif (CoreStatus == "InitPostSpawn") {
+    #- This is your "if (first())" section of the code.
+    
+    runOnTick(0)
+    timer("int",50)
+    CoreStatus = "CodeRun"
+    BaseEnt:soundPlay("groundsfx",0,"physics/metal/metal_box_scrape_smooth_loop1.wav")
+}elseif(clk("int")){
+    timer("int",50)
+    Pilot=Seat:driver(),CamController["Activated",number]=Active=Pilot:isPlayer()
+    W=Pilot:keyForward()|SuperBoost
+    S=Pilot:keyBack()
+    A=Pilot:keyLeft()
+    D=Pilot:keyRight()
+    Shift=Pilot:keySprint()
+    Space=Pilot:keyJump()*(BoostPowerVal>0)
+    Control=Pilot:keyDuck()
+    Mouse1=Pilot:keyAttack1()
+    Mouse2=Pilot:keyAttack2()
+    
+    Mouse3=Pilot:keyPressed("1")
+    Mouse4=Pilot:keyPressed("4")
+    
+    #PlayerAim = CamController["Trace",ranger]:position()#rangerOffset(32768,Player:shootPos(),Seat:toLocalAxis(Player:eye())):position()
+    CamAng=CamController["CamAng",angle]*Active#(PlayerAim - entity():pos()):toAngle()*Active#CamController["CamAng",angle]
+    
+    Moving=W|S|A|D|Space
+    
+    MovingSpeedBuildUp+=0.05*(Moving-!Moving)
+    MovingSpeedBuildUp=clamp(MovingSpeedBuildUp,0,1)
+    Ground_Ranger=rangerOffsetHull(((Height)*1.5),BaseEnt:toWorld(vec(0,0,0)),vec(0,0,-1),vec(75,75,0))
+    Distance=Ground_Ranger:distance()
+    On_Ground=Ground_Ranger:hit()
+    WaterRanger=rangerOffset(50,Ground_Ranger:pos()+vec(0,0,25),vec(0,0,-1))
+    holoPos(1000,WaterRanger:pos())
+    IsOnWater=holoEntity(1000):isUnderWater()
+    if(!Boosting){
+        Boosting=IsOnWater
+    }
+    
+    Movement_Direction=((ang(0,BaseEnt:angles():yaw(),0):forward()*(W-S))+(ang(0,BaseEnt:angles():yaw(),0):right()*((D-A))):normalized()+vec(0,0,1)*Space+(BaseEnt:vel():normalized())*MovingSpeedBuildUp*On_Ground)
+    if(changed(On_Ground)){
+        BaseEnt:propGravity(!On_Ground)
+    }
+    soundVolume("groundsfx",750*On_Ground*clamp(BaseEnt:vel():length()*0.01,0,1)*BoostingVal2*!IsOnWater)
+    soundPitch("groundsfx",40+60*On_Ground*clamp(BaseEnt:vel():length()*0.01,0,1)*BoostingVal2*!IsOnWater)
+    
+    if(On_Ground&!SuperBoost){
+        BoostPowerVal+=0.02*!Space
+    }else{
+        if(SuperBoost){
+            BoostPowerVal-=0.01
+        }else{
+            BoostPowerVal+=0.01*(!Space-Space)
+        }
+    }
+    
+    BoostPowerVal=clamp(BoostPowerVal,0,1)
+    if(BoostPowerVal==0){
+        SuperBoost=0
+    }
+    Stand_Force=vec(0,0,clamp(Height-Distance,-(Boosting ? 250 : 75),Boosting ? 250 : 75))*((Boosting ? 10 : 8)/(1+!On_Ground))*!Space
+    Damping_Force=BaseEnt:toWorld(-BaseEnt:velL()*vec(0.4+(1*(1-BoostingVal2)),0.4+(1*(1-BoostingVal2)),1)/(1+(!On_Ground|SuperBoost)*1))-BaseEnt:pos()
+    Move_Force=((Movement_Direction)*(Boosting ? Move_Speed : Walk_Speed)*3)
+    if(changed(Shift)&Shift&CanBoost&!SuperBoost&(BoostPowerVal>=0.33)){
+        if(Moving){
+            BoostDir=vec(W-S,A-D,0):normalized()
+            CanBoost=0
+            MovingSpeedBuildUp=1
+            timer("unboost",300)
+            BoostDirVal=1
+            BaseEnt:propSetVelocityInstant(vec()-BaseEnt:vel()*0.5)
+            BaseEnt:propSetVelocity(vec()-BaseEnt:vel()*0.5)
+            BoostPowerVal-=0.33
+            BaseEnt:emitSound("npc/waste_scanner/grenade_fire.wav",100,100)
+            Boosting=1
+        }
+    }
+    if(changed(Control)){
+        if(Control&(BoostPowerVal>=0.2)&CanSuperBoost){
+            SuperBoost=1
+            CanSuperBoost=0
+            MovingSpeedBuildUp=1
+            BaseEnt:propSetVelocityInstant(vec()-BaseEnt:vel()*0.9)
+            BaseEnt:propSetVelocity(vec()-BaseEnt:vel()*0.9)
+            BoostPowerVal-=0.15
+            Boosting=1
+        }else{
+            SuperBoost=0
+            timer("canSuperBoost",1000)
+        }
+    }
+    if(changed(Space)&Space&On_Ground){
+        BaseEnt:propSetVelocity(BaseEnt:vel()+vec(0,0,750))
+    }
+    VelCheck=BaseEnt:vel():length()
+    if((VelCheck<250)&!Moving&!SuperBoost&!Space&On_Ground&!IsOnWater){
+        Boosting=0
+    }
+    if(changed(Space)&Space&On_Ground){
+        Boosting=1
+        BaseEnt:soundPlay("jumpsfx",0,"npc/dog/dog_pneumatic1.wav")
+    }
+    if(changed(SuperBoost)){
+        if(SuperBoost){
+            BaseEnt:emitSound("npc/waste_scanner/grenade_fire.wav",100,100)
+            BaseEnt:soundPlay("boostsfx",0,"^thrusters/Rocket02.wav")
+            soundVolume("boostsfx",750)
+        }else{
+            BaseEnt:soundPlay("boostsfx",0,"npc/combine_gunship/attack_stop2.wav")
+            soundVolume("boostsfx",750)
+        }
+    }
+    BoostingVal2+=0.25*(Boosting-!Boosting)
+    BoostingVal2=clamp(BoostingVal2,0,1)
+    
+    BoostDirVal /= 1.5
+    BoostVal=BoostDir:rotateAroundAxis(vec(0,0,1),CamAng:yaw())*(1+BoostDirVal)
+    Ang_Damping_Force=-BaseEnt:angVel()*1
+    if(SuperBoost){
+        if(((changed(A)&A)|(changed(D)&D))&(BoostPowerVal>=0.33)){
+            BoostDir=vec(0,A-D,0):normalized()
+            CanBoost=0
+            MovingSpeedBuildUp=1
+            timer("unboost",300)
+            BoostDirVal=1
+            BoostPowerVal-=0.33
+            BaseEnt:emitSound("npc/waste_scanner/grenade_fire.wav",100,100)
+            Boosting=1
+        }
+        BaseEnt:applyForce((BoostVal*(Boost_Speed*1.5)+BaseEnt:forward()*700+Stand_Force*On_Ground+Damping_Force)*BaseEnt:mass())
+        BaseEnt:applyAngForce((BaseEnt:toLocal(ang(CamAng:pitch()*!On_Ground,CamAng:yaw(),-5*clamp(BaseEnt:angVel():yaw()*0.01,-1,1)*!On_Ground))*5+Ang_Damping_Force)*BaseEnt:mass())
+    }else{
+        BaseEnt:applyForce((BoostVal*(Boost_Speed*1.5)+Stand_Force+Damping_Force+Move_Force)*BaseEnt:mass())
+        BaseEnt:applyAngForce((BaseEnt:toLocal(ang(0,CamAng:yaw(),0))*5+Ang_Damping_Force)*BaseEnt:mass())
+    }
+    
+    #-- misc
+    
+    ForwardBackward=((clamp(BaseEnt:velL():x()*0.0005,-1,1))*(1+BoostDirVal*0.25))*MovingSpeedBuildUp*!SuperBoost*Boosting
+    LeftRight=((clamp(BaseEnt:velL():y()*0.0005,-1,1)+(Roll/6))*(1-BoostDirVal))*MovingSpeedBuildUp*!SuperBoost*Boosting
+    Roll+=clamp(BaseEnt:toLocal(CamAng):yaw(),-35,35)/4
+    Roll=(clamp(Roll,-35,35)*MovingSpeedBuildUp*Boosting)*(1-BoostDirVal)
+    Roll/=1.5
+    
+    
+    if(SuperBoost){
+        ForwardBackward=SuperBoostingVal
+    }
+    StepTime+=BaseEnt:vel():length()*0.00025*!Boosting
+    StepTime=clamp(StepTime,0,1)
+    if(StepTime>=1){
+        StepTime=0
+        Step=!Step
+    }
+    if(changed(Step)){
+        BaseEnt:soundPlay("step"+Step,0,"ambient/levels/outland/ol03_lift01_weightimpact.wav")
+        soundVolume("step"+Step,250)
+    }
+    soundVolume("step"+Step,125*On_Ground*clamp(BaseEnt:vel():length()*0.01,0,1)*!Boosting)
+    soundPitch("step"+Step,40+60*On_Ground*clamp(BaseEnt:vel():length()*0.01,0,1)*!Boosting)
+    
+    StepSin=sin(StepTime*180)*MovingSpeedBuildUp
+    StepCos=cos(StepTime*180)*MovingSpeedBuildUp
+    holoPos(Bones["torso",number],BaseEnt:toWorld(vec(0,0,(Height-Distance)*0.5)+vec(75*ForwardBackward*!Boosting,5*StepCos*(Step-!Step),32+8*StepSin)+vec(35*ForwardBackward*(1-BoostDirVal),35*LeftRight*(1-BoostDirVal),0)+125*BoostDir*BoostDirVal*!SuperBoost))
+    holoAng(Bones["pelvis",number],BaseEnt:toWorld(ang(15*SuperBoostingVal*1.5,20*(1+!Boosting)*LeftRight*(MovingSpeedBuildUp),clamp(-Roll-15*LeftRight*Boosting,-15,15)*(MovingSpeedBuildUp))))
+    holoAng(Bones["torso",number],BaseEnt:toWorld(ang(15*ForwardBackward*(MovingSpeedBuildUp),25*LeftRight*(MovingSpeedBuildUp+BoostDirVal)*!SuperBoost,clamp(-Roll-10*LeftRight,-20,20)*(MovingSpeedBuildUp+BoostDirVal))))
+    
+    HeadAng=holoEntity(Bones["torso",number]):toLocal(CamAng)
+    
+    holoAng(Bones["head",number],holoEntity(Bones["torso",number]):toWorld(ang(clamp(HeadAng:pitch(),-45,45),clamp(HeadAng:yaw(),-70,70),0)))
+    
+    BoostingVal+=0.25*(Boosting-!Boosting)
+    BoostingVal=clamp(BoostingVal,0,1)
+    
+    SuperBoostingVal+=0.25*(SuperBoost-!SuperBoost)
+    SuperBoostingVal=clamp(SuperBoostingVal,0,1)
+    
+    FootDistance=clamp(Distance-23,0,(Length1+Length2)*(1-BoostDirVal*0.5))
+    Vel=BaseEnt:velL():setZ(0)
+    two_seg_ik(Bones["LeftRotationParentID",number],Bones["left_thigh",number], Bones["left_calf",number], Bones["left_foot",number], Length1, Length2, BaseEnt, holoEntity(Bones["pelvis",number]):toWorld(vec(-75*ForwardBackward*!Boosting,-5*StepCos*(Step-!Step),0)*!Boosting+
+    mix(mix(bezier(Vel,mix(Vel,-Vel,0.5)+vec(0,0,Height)*clamp(MovingSpeedBuildUp*2,0,1),-Vel,1-StepTime),mix(-Vel,Vel,StepTime),Step):rotateAroundAxis(vec(0,0,1),5*(1+!Boosting)*(D-A))*0.25+vec(0,-115,-FootDistance),
+    -55*BoostDir*BoostDirVal-vec(35*ForwardBackward*(1-BoostDirVal),35*LeftRight*(1-BoostDirVal),0)*2+vec(-15*SuperBoostingVal,-115,-FootDistance/(1+(SuperBoostingVal*0.1))):rotate(-ang(0,5*LeftRight*(MovingSpeedBuildUp),clamp(Roll*!SuperBoost-15*LeftRight,-15,15)*(MovingSpeedBuildUp))),
+    1-BoostingVal)),-6)
+    
+    two_seg_ik(Bones["RightRotationParentID",number],Bones["right_thigh",number], Bones["right_calf",number], Bones["right_foot",number], Length1, Length2, BaseEnt, holoEntity(Bones["pelvis",number]):toWorld(vec(-75*ForwardBackward*!Boosting,-5*StepCos*(Step-!Step),0)*!Boosting+
+    mix(mix(bezier(Vel,mix(Vel,-Vel,0.5)+vec(0,0,Height)*clamp(MovingSpeedBuildUp*2,0,1),-Vel,1-StepTime),mix(-Vel,Vel,StepTime),!Step):rotateAroundAxis(vec(0,0,1),5*(1+!Boosting)*(D-A))*0.25+vec(0,115,-FootDistance),
+    -55*BoostDir*BoostDirVal-vec(35*ForwardBackward*(1-BoostDirVal),35*LeftRight*(1-BoostDirVal),0)*2+vec(-15*SuperBoostingVal,115,-FootDistance/(1+(SuperBoostingVal*0.1))):rotate(-ang(0,5*LeftRight*(MovingSpeedBuildUp),clamp(Roll*!SuperBoost-15*LeftRight,-15,15)*(MovingSpeedBuildUp))),
+    1-BoostingVal)),6)
+    
+    if(Active){
+        FoldVal2-=0.05
+        if(FoldVal2<=0){
+            FoldVal-=0.05
+        }
+    }else{
+        FoldVal+=0.05
+        if(FoldVal>=1){
+            FoldVal2+=0.05
+        }
+    }
+    FoldVal=clamp(FoldVal,0,1)
+    FoldVal2=clamp(FoldVal2,0,1)
+    
+    ReloadValLeft+=0.2*(!GunBackLeftReady - GunBackLeftReady)
+    ReloadValLeft=clamp(ReloadValLeft,0,1)*(1-FoldVal)
+    
+    ReloadValRight+=0.2*(!GunBackLeftReady - GunBackLeftReady)
+    ReloadValRight=clamp(ReloadValRight,0,1)*(1-FoldVal)
+    
+    think()
+    
+    BoostersOn=Boosting
+    SparksGO=On_Ground&!SuperBoost&Boosting&((BaseEnt:vel():length()*0.1)>25)*!IsOnWater*(BoostDir:length()==0)
+    Direction=-BaseEnt:vel()
+}
+if(clk("unboost")){
+    BoostDir=vec(0,0,0)
+    CanBoost=1
+    MovingSpeedBuildUp=0.75
+}
+if(clk("canSuperBoost")){
+    CanSuperBoost=1
+}
+event removed(Resetting:number) {
+    foreach(I,E:entity=DeparentUs){
+        E:deparent()
+    }
+}
+if(duped()){
+    foreach(I,E:entity=DeparentUs){
+        E:deparent()
+    }
+}
+#Stun Needle Launcher Sound
+#npc/env_headcrabcanister/launch.wav

@@ -1,0 +1,293 @@
+@name E2 Bike Base by Naki
+@inputs [Seat]:entity
+@inputs [FrontStruts FrontAxel RearStruts]:entity
+@persist Base:entity BasePlateHeightOffset RangerHeightOffset Inertia2:angle [SusData WheelData PosData Rangers]:array [MovementHeightFront MovementHeightBack]:vector2 Steer FrontWheels BackWheels Slide
+@persist Lights FrontWheel BackWheel LastAddF LastAddR FrontWheelSize RearWheelSize Speed Acceleration WheelHeightCheckOffset BodyrollPitch FrontAngle FixFrontPos ShiftVal
+@outputs Lights
+@model models/sprops/rectangles/size_2_5/rect_18x60x3.mdl
+@trigger none
+if(dupefinished()){reset()}
+if(first()){
+    
+    Base=entity()
+    Base:setAlpha(0)
+    Base:setMass(1000)
+    Base:propDrag(0)
+    noCollideAll(Base,0)
+    
+    Inertia = shiftL(ang(Base:inertia()))
+    Inertia2Vec=vec(Inertia:pitch(),Inertia:yaw(),Inertia:roll()):normalized()
+    Inertia2=ang(Inertia2Vec:x(),Inertia2Vec:y(),Inertia2Vec:z())
+    
+    BasePlateHeightOffset = 7
+    RangerHeightOffset = 5
+    
+    Speed=120
+    Acceleration=80
+    
+    FrontAngle=25
+    FixFrontPos=(-7.5)/90*(FrontAngle/2)
+    BodyrollPitch=6
+    
+    WheelHeightCheckOffset=5
+    WheelData=array(
+    25,0,-3,3,
+    
+    -25,0,-5,5
+    )
+    WD=WheelData
+    PosData=array(
+    vec(WD[1,number],0,WD[2,number]-BasePlateHeightOffset),
+    vec(WD[5,number],0,WD[6,number]-BasePlateHeightOffset)
+    )
+    
+    MovementHeightFront=vec2(WheelData[3,number]-BasePlateHeightOffset,WheelData[4,number]-BasePlateHeightOffset)
+    MovementHeightBack=vec2(WheelData[7,number]-BasePlateHeightOffset,WheelData[8,number]-BasePlateHeightOffset)
+    
+    
+    FrontWheelSize=25
+    RearWheelSize=25
+    FrontWheelMDL="models/sprops/trans/miscwheels/thin_moto"+FrontWheelSize+".mdl"
+    RearWheelMDL="models/sprops/trans/miscwheels/thin_moto"+RearWheelSize+".mdl"
+    
+    function number mix(N1:number,N2:number,M:number){
+        return mix(vec(N1),vec(N2),M):x()
+    }
+    
+    function number vector:isInCone(Origin:vector,Dir:vector,ConeAng,Dist){
+        local TargPos = This
+        local Dang = bearing(Origin,Dir:toAngle(),TargPos)
+        local Fang = elevation(Origin,Dir:toAngle(),TargPos)
+        local Tdist = TargPos:distance(Origin)
+        if(abs(Fang)<=ConeAng && abs( Dang ) <= ConeAng && Tdist <= Dist){
+            return 1
+        }else{
+            return 0 
+        }
+    }
+    
+    
+    local I = 1
+    local E = Base
+    holoCreate(I)
+    holoPos(I,E:toWorld(PosData[1,vector]))
+    holoAng(I,E:toWorld(ang(0,0,0)))
+    holoParent(I,E)
+    holoModel(I,FrontWheelMDL)
+    holoScale(I,vec(1))
+    
+    local I = 2
+    local E = Base
+    holoCreate(I)
+    holoPos(I,E:toWorld(PosData[2,vector]))
+    holoAng(I,E:toWorld(ang(0,0,0)))
+    holoParent(I,E)
+    holoModel(I,RearWheelMDL)
+    holoScale(I,vec(1))
+    
+    local I = 3
+    local E = Base
+    local T = FrontStruts
+    holoCreate(I)
+    holoPos(I,T:pos())
+    holoAng(I,T:angles())
+    T:parentTo(holoEntity(I))
+    holoPos(I,E:toWorld(PosData[1,vector]+vec(0,0,15):rotateAroundAxis(vec(0,1,0),-FrontAngle)))
+    holoAng(I,E:toWorld(ang(-FrontAngle,0,0)))
+    holoParent(I,E)
+    holoScale(I,vec())
+    if((T?:entity()):children():count()>0){
+        rangerFilter((T?:entity()):children())
+    }
+    
+    local I = 4
+    local E = Base
+    local T = RearStruts
+    holoCreate(I)
+    holoPos(I,T:pos())
+    holoAng(I,T:angles())
+    T:parentTo(holoEntity(I))
+    holoPos(I,E:toWorld(vec(-6,0,-14)))
+    holoAng(I,E:toWorld(ang(0,0,0)))
+    holoParent(I,E)
+    holoScale(I,vec())
+    if((T?:entity()):children():count()>0){
+        rangerFilter((T?:entity()):children())
+    }
+    
+    local I = 5
+    local E = Base
+    local T = FrontAxel
+    holoCreate(I)
+    holoPos(I,T:pos())
+    holoAng(I,T:toWorld(ang(0,0,90)))
+    T:parentTo(holoEntity(I))
+    holoPos(I,E:toWorld(PosData[1,vector]+vec(0,0,15):rotateAroundAxis(vec(0,1,0),-FrontAngle)))
+    holoAng(I,E:toWorld(ang(-FrontAngle,0,0)))
+    holoParent(I,E)
+    holoScale(I,vec())
+    if((T?:entity()):children():count()>0){
+        rangerFilter((T?:entity()):children())
+    }
+    
+    #holoBodygroup(1,0,0)
+    #holoBodygroup(2,0,1)
+    
+    rangerHitEntities(1)
+    findIncludePlayerProps(owner())
+    findInSphere(Base:pos(),500)
+    rangerFilter(findToArray())
+    rangerFilter(array(FrontStruts?:entity(),FrontAxel?:entity(),RearStruts?:entity()))
+    rangerFilter(players())
+    rangerFilter(Base?:entity())
+    if((Base?:entity()):children():count()>0){
+        rangerFilter((Base?:entity()):children())
+    }
+    rangerPersist(1)
+}
+interval(100)
+local Pos = Base:toWorld(PosData[1,vector]:setZ((RangerHeightOffset)))
+Rangers[1,ranger]=rangerOffsetHull(200+(BasePlateHeightOffset+RangerHeightOffset),Pos,-Base:up(),vec(15,15,1))
+local Pos = Base:toWorld(PosData[5,vector]:setZ((RangerHeightOffset)))
+Rangers[2,ranger]=rangerOffsetHull(200+(BasePlateHeightOffset+RangerHeightOffset),Pos,-Base:toWorld(ang(-Base:angles():pitch()*ShiftVal,0,0)):up(),vec(15,15,1))
+
+local Pos = Base:toWorld(vec(0,-15,+RangerHeightOffset))
+Rangers[3,ranger]=rangerOffsetHull(200+(BasePlateHeightOffset+RangerHeightOffset),Pos,-Base:up(),vec(5,5,1))
+local Pos = Base:toWorld(vec(0,15,+RangerHeightOffset))
+Rangers[4,ranger]=rangerOffsetHull(200+(BasePlateHeightOffset+RangerHeightOffset),Pos,-Base:up(),vec(5,5,1))
+
+Driver=Seat:driver()
+if(changed(Driver)){
+    if(Driver){
+        soundPlay("starter",0,"acf_extra/vehiclefx/engines/coh/moto_end.wav")
+        timer("enginesfx",450)
+        Seat:lockPod(1)
+    }else{
+        soundPlay("engine",0,"")
+        timer("unlock",500)
+    }
+}
+if(clk("unlock")){
+    Seat:lockPod(0)
+}
+if(clk("enginesfx")&Driver){
+    soundPlay("engine",0,"acf_engines/i1_medium.wav")
+}
+
+W=Driver:keyForward()
+S=Driver:keyBack()
+A=Driver:keyLeft()
+D=Driver:keyRight()
+
+Shift=Driver:keySprint()
+ShiftVal+=(Shift ? 0.5 : 0.2)*(Shift-!Shift)
+ShiftVal=clamp(ShiftVal,0,1)*(Base:velL():x() > 1 ? clamp(Base:velL():x()*0.1,0,1) : 0)
+
+Space=Driver:keyJump()
+LightToggle=Driver:keyPressed("f")
+if(changed(LightToggle)&LightToggle){
+    Lights=!Lights
+}
+soundPitch("engine",55+clamp(abs((Base:velL():x()*0.1)+(35*(W|S)*(1+(Space*2)))),0,100))
+soundVolume("engine",0.6)
+
+if(ShiftVal){
+    Ground_Distance=(Rangers[2,ranger]:distance())-(BasePlateHeightOffset+RangerHeightOffset)
+}else{
+    Ground_Distance=(((Rangers[1,ranger]:distance())+Rangers[2,ranger]:distance()+Rangers[3,ranger]:distance()+Rangers[4,ranger]:distance())/4)-(BasePlateHeightOffset+RangerHeightOffset)
+}
+HeightAdj=Base:up()*(((((max(FrontWheelSize,RearWheelSize))/2)+(BasePlateHeightOffset))-Ground_Distance)*15)
+Slide+=abs(Base:velL():y())*(0.008*(1+(Space*1.5)))
+Slide-=2.5
+Slide=clamp(Slide,0,15)
+if(Driver){
+    if(Space){
+        Damp2=Base:velL()*vec(0.7/clamp(abs(Base:vel():length())*0.015,1,4),0.8/clamp((abs(Base:vel():length())*0.009)+(Slide*!Space),1,4),1)
+    }else{
+        Damp2=Base:velL()*vec(0.16/(1+(W|S)),1/(1+(Slide/15)),1)
+    }
+}else{
+    Damp2=Base:velL()*vec(0.68,0.8,1)
+}
+
+Damp=(-Base:forward()*Damp2:x())+(Base:right()*Damp2:y())+(-Base:up()*Damp2:z()*2)
+
+Dir=Base:toWorld(ang(clamp((BodyrollPitch/1+(Base:velL():x()*0.1))*(W-S),-BodyrollPitch,BodyrollPitch)+(-Base:angles():pitch()*ShiftVal),0,0)):forward()*(W-S)*Acceleration*!Space
+Downhill=Base:toWorld(ang(clamp((BodyrollPitch/1+(Base:velL():x()*0.1))*(W-S),-BodyrollPitch,BodyrollPitch)+(-Base:angles():pitch()*ShiftVal),0,0)):forward()*Base:angles():pitch()*(3/(1+(clamp(W+S,0,1)*2)))*!Space*Driver:isPlayer()
+
+Steer+=(100/2)*(A-D)
+if(!A&!D){
+    if(Steer>0){
+        Steer-=100/2
+    }elseif(Steer<0){
+        Steer+=100/2
+    }
+}
+Steer=clamp(Steer,-100,100)
+
+Ground_Distance2=(min(FrontWheelSize,RearWheelSize)*(1.1+ShiftVal))
+On_Ground=Ground_Distance<Ground_Distance2
+AngDamp=Base:angVel()*ang(3,2/(1+clamp(Slide/5,0,2)),1)
+if(On_Ground){
+    Base:propGravity(0)
+    SteerTest=Base:right()*clamp(25*(1+abs(Base:velL():x()*0.003)),-25,25)*(D-A)*clamp(abs(Base:velL():x()*0.003),0,1)
+    Base:applyForce((SteerTest+Downhill+Dir+HeightAdj+Damp)*Base:mass()*0.5)
+    Front=Rangers[1,ranger]:distance()
+    Back=Rangers[2,ranger]:distance()
+    FrontBack=((Front-Back)*2)
+    Left=Rangers[3,ranger]:distance()
+    Right=Rangers[4,ranger]:distance()
+    LeftRight=((Left-Right)*2)
+    FBLR=vec2(FrontBack,LeftRight)
+    Base:applyAngForce(((Base:toLocal(ang((Base:angles():pitch()*!ShiftVal)+clamp(FBLR:x()*3.5*!ShiftVal,-65,65)+(-25/(1+(abs(Base:vel():length())*0.0025))*(Base:velL():x() > 1 ? clamp(Base:velL():x()*0.1,0,1) : 0)*Shift)+clamp(-(BodyrollPitch/1+(Base:velL():x()*0.1))*(W-S),-BodyrollPitch,BodyrollPitch),
+    Base:angles():yaw()+(15*clamp(Base:velL():x()*0.005,-1,1)*(A-D)),clamp(FBLR:y()*1,-55,55)+clamp(15*(1+abs(Base:velL():x()*0.003)),-15,15)*(D-A)))*ang(20,25,20))-(AngDamp*ang(3,6,15)*0.5))*Inertia2*Base:mass()*1)
+}else{
+    Base:applyAngForce(((Base:toLocal(ang((Base:angles():pitch()*0.5),Base:angles():yaw(),0))*ang(10,25,25)*2)-(AngDamp*ang(6,6,15)*0.5))*Inertia2*Base:mass()*1)
+    Base:propGravity(1)
+}
+FD=(((FrontWheelSize/2)+BasePlateHeightOffset+RangerHeightOffset))-(Rangers[1,ranger]:distance())
+RD=(((RearWheelSize/2)+BasePlateHeightOffset+RangerHeightOffset))-(Rangers[2,ranger]:distance())
+FL=clamp(FD,MovementHeightFront:x(),MovementHeightFront:y())
+RL=clamp(RD,MovementHeightBack:x(),MovementHeightBack:y())
+holoPos(1,Base:toWorld(PosData[1,vector]+vec(0,0,FL):rotateAroundAxis(vec(0,1,0),-FrontAngle)+vec(0,0,FixFrontPos)))
+holoPos(2,Base:toWorld(PosData[2,vector]+vec(0,0,RL)))
+holoPos(5,Base:toWorld(PosData[1,vector]+vec(0,0,FL):rotateAroundAxis(vec(0,1,0),-FrontAngle)+vec(0,0,FixFrontPos)))
+
+FrontWheels=(Base:velL():x()/FrontWheelSize*_PI)*4
+BackWheels=(Base:velL():x()/RearWheelSize*_PI)*4
+
+if((FD+WheelHeightCheckOffset)>MovementHeightFront:x()){
+    LastAddF=FrontWheels
+    FrontWheel+=FrontWheels
+}else{
+    if(LastAddF>0){
+        LastAddF-=LastAddF/25
+    }elseif(LastAddF<0){
+        LastAddF-=LastAddF/25
+    }
+    FrontWheel+=LastAddF
+}
+GroundCheck=(ShiftVal>0)&On_Ground
+if(((RD+WheelHeightCheckOffset)>MovementHeightBack:x())|GroundCheck){
+    LastAddR=BackWheels+(100*(W-S)*!On_Ground*!Space)
+    BackWheel+=(BackWheels*!Space)+(100*(W-S)*(Slide/15))
+}else{
+    if(LastAddR>0){
+        LastAddR-=LastAddR/25
+    }elseif(LastAddR<0){
+        LastAddR-=LastAddR/25
+    }
+    if(Space){
+        LastAddR=0
+    }elseif((W-S)*!On_Ground*!Space){
+        LastAddR+=(75*(W-S)*!On_Ground*!Space)
+    }
+    BackWheel+=LastAddR
+}
+
+
+holoAng(1,Base:toWorld(ang(FrontWheel,0,0):rotateAroundAxis(vec(0,0,1),clamp((25*(Steer/100))/(1+abs(Base:velL():x()*0.005))+(Base:velL():y()*0.02),-25,25)):rotateAroundAxis(vec(0,1,0),-FrontAngle)))
+holoAng(5,Base:toWorld(ang(0,0,0):rotateAroundAxis(vec(0,0,1),clamp((25*(Steer/100))/(1+abs(Base:velL():x()*0.005))+(Base:velL():y()*0.02),-25,25)):rotateAroundAxis(vec(0,1,0),-FrontAngle)))
+holoAng(2,Base:toWorld(ang(BackWheel,0,0)))
+holoAng(3,Base:toWorld(ang(0,clamp((25*(Steer/100))/(1+abs(Base:velL():x()*0.005))+(Base:velL():y()*0.02),-25,25),0):rotateAroundAxis(vec(0,1,0),-FrontAngle)))
+holoAng(4,Base:toWorld(Base:toLocal((holoEntity(2):pos()-holoEntity(4):pos()):toAngle()):setRoll(0)))

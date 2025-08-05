@@ -1,0 +1,57 @@
+@name Advanced Setang Right
+@inputs [Base Pod]:wirelink
+@outputs Angle AngleL AngleR
+@persist Camber Lock SteeringSpeed SpeedEffect CounterSteer Caster Ackermann
+@model models/sprops/rectangles/size_2/rect_12x12x3.mdl
+@trigger none
+Left=entity()
+interval(30)
+
+
+if(first()|dupefinished()){
+    Camber=0 #hydraulic lenght at which the camber is zero
+    Lock=45 #steering lock/max angle
+           #affects SpeedEffect
+    SpeedEffect=1000 #how much effect speed has on the steering
+                   #higher value means smaller effect 
+                  #smaller value means higher effect
+    SteeringSpeed=2 #steering speed 
+                   #more is faster
+                  #less is slower
+    CounterSteer=40 #countersteer force
+                   #more makes it less
+                  #less makes it more                
+    Caster=2000 #caster angle amount
+            #more makes it less
+           #less makes it more
+    Ackermann=1.2 #Ackermann steering geometry force
+      
+                    
+    }
+    
+    A=Pod["A",number]
+    D=Pod["D",number]   
+#steering angle itself
+	#If its turning backwards but a on the -Base:entity():velL()
+	
+Speed=toUnit("km/h",Base:entity():velL():x())
+Angle += (D-A)*SteeringSpeed
+if(Speed>0){
+Angle += Base:entity():angVel():yaw()/CounterSteer
+}elseif(Speed<0){Angle -= Base:entity():angVel():yaw()/CounterSteer}
+Angle = clamp(Angle,-Lock,Lock)
+Angle = Angle*(1-Speed/SpeedEffect)
+
+#ackermann steering angle
+ # Angle<0 makes the inner    |   Angle>0 makes the outer
+ # Angle>0 wheel steer more   |   Angle<0 wheel steer more
+if(Angle<0){AngleL=Angle*Ackermann} else{AngleL=Angle}
+if(Angle>0){AngleR=Angle*Ackermann} else{AngleR=Angle}
+
+#application of steering angle on the plates
+
+if (!Left:isPlayerHolding()){
+    Left:setAng(Base:entity():toWorld(ang(0,-AngleL,-(Camber)-AngleL/Caster)))
+    Left:propFreeze(1)
+}
+

@@ -1,0 +1,490 @@
+@name The Ultimate Turret E2 by Naki V6.0
+@inputs [Base Gun TurretBase ChairDriver ChairGunner ACFGun ACFGunSecondary Ammo1 Ammo2 DriverFirstPersonParent GunnerFirstPersonParent ThirdPersonParent]:entity [CamDriver CamGunner EGPDriver EGPGunner]:wirelink
+@persist Interval RotationForce DampingForce AimMode GunLockRelease [Turret_Lock_Release_Button Switch_Aim_Mode_Button Switch_Gun_Button Gun_Tracking_Button Switch_View_Button Switch_Ammo_Button]:string
+@persist Elevation Depression TurretElevation TurretDepression TurretTraverse [Inertia LocalAng2]:angle Pitch DragFunction DeltaFunction Lim:vector TurningSpeed
+@persist Time Flip FireMode InfiniteAmmo [Reso1 Reso2]:vector2 AmmoSwitch LastSpeed PositionDriver PositionGunner TrackGun
+@outputs FireMain FireSecondary AimPos:vector InfiniteAmmo
+@outputs Unload Reload ActiveAP ActiveHE A D
+@persist Unload Reload
+#|-----------------|
+#|Code made by Naki|
+#|Do not distribute|
+#|-----------------|
+
+if(dupefinished()){reset()}
+if(first()){
+    #Just to hide the name of the e2 when used, prevents admins from stealing this, at least it has worked before as they seem to have no interest in public e2s
+    Names=array("setang turret","GenericGyro5","hgg5","GG5","Turret Hud Combo V2","Turret Hud Combo V4","Turret Hud Combo V5","Turret Hud Combo V6","eztankturret","eztankturret_white","clock_turret")
+    setName(Names[randint(1,Names:count()),string])
+    
+    #-- Settings
+    Interval=100
+    
+    #Degrees/second
+    TurningSpeed=20
+    
+    TurretElevation=20
+    TurretDepression=-9
+    TurretTraverse=90
+    #above 180 makes it spin freely
+    
+    Turret_Lock_Release_Button = "g"
+    Switch_Aim_Mode_Button = "f"
+    Switch_Gun_Button = "r"
+    Gun_Tracking_Button = "t"
+    Switch_View_Button = "v"
+    Switch_Ammo_Button = "lcontrol"
+    
+    #used with refill
+    InfiniteAmmo=0
+    
+    #-- Code
+    
+    Lim = vec(0,TurretElevation,TurretDepression)
+    Inertia = shiftL(ang(Gun:inertia()))
+    
+    Base=entity():parent() ? entity():parent() : entity():isWeldedTo()
+    
+    holoCreate(1)
+    holoPos(1,TurretBase:pos())
+    holoAng(1,TurretBase:angles())
+    TurretBase:parentTo(holoEntity(1))
+    holoAng(1,Base:angles())
+    holoParent(1,Base)
+    holoAlpha(1,0)
+    
+    holoCreate(2)
+    holoPos(2,Gun:pos())
+    holoAng(2,Gun:angles())
+    Gun:parentTo(holoEntity(2))
+    holoAng(2,holoEntity(1):angles())
+    holoParent(2,1)
+    holoAlpha(2,0)
+    
+    function number approach(Cur,Tar,R) 
+    {
+    if (Cur < Tar) {
+        return clamp(Cur + R,Cur,Tar)
+    }
+    elseif (Cur > Tar) {
+        return clamp(Cur - R,Tar,Cur)
+    }
+    return Tar
+    }
+        
+    function angle approachAngle(Cur:angle,Tar:angle,R) 
+    {
+    local DiffP = angnorm(Tar:pitch() - Cur:pitch())
+    local DiffY = angnorm(Tar:yaw() - Cur:yaw())
+    local DiffR = angnorm(Tar:roll() - Cur:roll())
+    if (DiffP > 180) { DiffP -= 360 }
+    if (DiffY > 180) { DiffY -= 360 }
+    if (DiffR > 180) { DiffR -= 360 }
+    return ang(
+                approach(Cur:pitch(),Cur:pitch()+DiffP,R),
+                approach(Cur:yaw(),Cur:yaw()+DiffY,R),
+                approach(Cur:roll(),Cur:roll()+DiffR,R)
+              )
+    }
+    
+    CamDriver["Parent",entity]=DriverFirstPersonParent
+    CamDriver["Distance",number]=0
+    
+    CamGunner["Parent",entity]=GunnerFirstPersonParent
+    CamGunner["Distance",number]=0
+    
+    findIncludePlayerProps(owner())
+    findInSphere(Base:pos(),1500)
+    Array=findToArray()
+    Array:pushEntity(ACFGun)
+    rangerFilter(Array)
+    ACFGun:propDrag(0)
+    ACFGun:propGravity(1)
+    
+    holoCreate(3)
+    holoParent(3,2)
+    holoScale(3,vec())
+    
+    CamDriver["FilterEntities",array]=Array
+    CamGunner["FilterEntities",array]=Array
+    
+    timer("int",Interval)
+    holoEntity(2):soundPlay("sfx",0,"acf_extra/turret/cannon_turn_loop_1.wav")
+}
+if(changed(ChairDriver:driver())){
+    CamDriver["Activated",number]=ChairDriver:driver():isPlayer()
+    ChairDriver:printDriver("The Ultimate Turret E2 by Naki V1.0")
+    ChairDriver:printDriver(Turret_Lock_Release_Button:upper()+" - Turret Lock Release")
+    ChairDriver:printDriver(Switch_Aim_Mode_Button:upper()+" - Switch Aim Mode")
+    ChairDriver:printDriver(Gun_Tracking_Button:upper()+" - Toggle Gun Tracking")
+    ChairDriver:printDriver(Switch_View_Button:upper()+" - Switch View")
+    ChairDriver:printDriver(Switch_Ammo_Button:upper()+" - Switch Ammo")
+    
+    EGPDriver:egpClear()
+    
+    Reso=vec2(egpScrW(ChairDriver:driver()),egpScrH(ChairDriver:driver()))/2
+    EGPDriver:egpLine(1,vec2(10,0)+Reso,vec2(5,0)+Reso)
+    EGPDriver:egpLine(2,vec2(-10,0)+Reso,vec2(-5,0)+Reso)
+    EGPDriver:egpLine(3,vec2(0,10)+Reso,vec2(0,5)+Reso)
+    EGPDriver:egpLine(4,vec2(0,-10)+Reso,vec2(0,-5)+Reso)
+    
+    EGPDriver:egpLine(5,vec2(25,25)+Reso,vec2(15,25)+Reso)
+    EGPDriver:egpLine(6,vec2(25,-25)+Reso,vec2(15,-25)+Reso)
+    EGPDriver:egpLine(7,vec2(-25,25)+Reso,vec2(-15,25)+Reso)
+    EGPDriver:egpLine(8,vec2(-25,-25)+Reso,vec2(-15,-25)+Reso)
+    
+    EGPDriver:egpLine(9,vec2(25,25)+Reso,vec2(25,15)+Reso)
+    EGPDriver:egpLine(10,vec2(25,-25)+Reso,vec2(25,-15)+Reso)
+    EGPDriver:egpLine(11,vec2(-25,25)+Reso,vec2(-25,15)+Reso)
+    EGPDriver:egpLine(12,vec2(-25,-25)+Reso,vec2(-25,-15)+Reso)
+    
+    EGPDriver:egp3DTracker(13,vec())
+    EGPDriver:egpParent(13,holoEntity(3))
+    EGPDriver:egpBoxOutline(14,vec2(),vec2(24))
+    EGPDriver:egpParent(14,13)
+    
+    PosTop=vec2(-Reso:x()/1.25,-25)+Reso
+    PosBottom=vec2(-Reso:x()/1.25,25)+Reso
+    EGPDriver:egpBox(15,PosTop,vec2(175,35))
+    EGPDriver:egpBox(16,PosBottom,vec2(175,35))
+    
+    EGPDriver:egpColor(15,vec(15))
+    EGPDriver:egpAlpha(15,125)
+    EGPDriver:egpColor(16,vec(15))
+    EGPDriver:egpAlpha(16,125)
+    
+    Offset1=vec2(15,0)
+    
+    EGPDriver:egpBox(17,PosTop+Offset1+vec2(-15,0),vec2(20,20))
+    
+    EGPDriver:egpTriangle(18,PosTop+Offset1+vec2(10,0),PosTop+Offset1+vec2(-5,-10),PosTop+Offset1+vec2(-5,10))
+    
+    EGPDriver:egpBox(19,PosTop+Offset1+vec2(15,0),vec2(45,10))
+    
+    EGPDriver:egpTriangle(20,PosTop+Offset1+vec2(48,0),PosTop+Offset1+vec2(35,-9),PosTop+Offset1+vec2(35,9))
+    
+    EGPDriver:egpTriangle(21,PosTop+Offset1+vec2(55,0),PosTop+Offset1+vec2(40,-5),PosTop+Offset1+vec2(40,5))
+    
+    Offset2=vec2(15,0)
+    
+    
+    EGPDriver:egpTriangle(22,PosBottom+Offset2+vec2(-25,0),PosBottom+Offset2+vec2(-23,-10),PosBottom+Offset2+vec2(-23,10))
+    
+    EGPDriver:egpBox(23,PosBottom+Offset2+vec2(-8,0),vec2(29,20))
+    
+    EGPDriver:egpTriangle(24,PosBottom+Offset2+vec2(15,0),PosBottom+Offset2+vec2(5,-10),PosBottom+Offset2+vec2(5,10))
+    
+    EGPDriver:egpRoundedBox(25,PosBottom+Offset2+vec2(25,0),vec2(60,10))
+    
+    EGPDriver:egpBox(26,PosBottom+Offset2+vec2(39,0),vec2(6,20))
+    EGPDriver:egpTriangle(27,PosBottom+Offset2+vec2(48,0),PosBottom+Offset2+vec2(42,-10),PosBottom+Offset2+vec2(42,10))
+    
+    if(InfiniteAmmo){
+        EGPDriver:egpText(28,"8",PosTop+vec2(-15,0))
+        EGPDriver:egpAngle(28,90)
+        EGPDriver:egpAlign(28,1,2)
+        EGPDriver:egpSize(28,40)
+        
+        EGPDriver:egpText(29,"8",PosBottom+vec2(-15,0))
+        EGPDriver:egpAngle(29,90)
+        EGPDriver:egpAlign(29,1,2)
+        EGPDriver:egpSize(29,40)
+    }else{
+        EGPDriver:egpText(28,"---",PosTop+vec2(-15,0))
+        EGPDriver:egpAlign(28,2,1)
+        EGPDriver:egpSize(28,30)
+        
+        EGPDriver:egpText(29,"---",PosBottom+vec2(-15,0))
+        EGPDriver:egpAlign(29,2,1)
+        EGPDriver:egpSize(29,30)
+    }
+    
+    for(I=1,29){
+        if(I>=17|I<15){
+            EGPDriver:egpColor(I,clamp(vec(300,125,45)*0.85,vec(0),vec(255)))
+        }
+        if(I>4&I<15){
+            EGPDriver:egpSize(I,2)
+        }
+    }
+    
+    EGPDriver:egpBox(30,PosTop,vec2(175,35))
+    EGPDriver:egpBox(31,PosBottom,vec2(175,35))
+    
+    EGPDriver:egpColor(30,vec(175,0,0))
+    EGPDriver:egpAlpha(30,175)
+    EGPDriver:egpColor(31,vec(175,0,0))
+    EGPDriver:egpAlpha(31,175)
+    
+    Reso1=vec2(egpScrW(ChairDriver:driver()),egpScrH(ChairDriver:driver()))/2
+}
+if(changed(ChairGunner:driver())){
+    CamGunner["Activated",number]=ChairGunner:driver():isPlayer()
+    ChairGunner:printDriver("The Ultimate Turret E2 by Naki V1.0")
+    ChairGunner:printDriver(Turret_Lock_Release_Button:upper()+" - Turret Lock Release")
+    ChairGunner:printDriver(Switch_Aim_Mode_Button:upper()+" - Switch Aim Mode")
+    ChairGunner:printDriver(Gun_Tracking_Button:upper()+" - Toggle Gun Tracking")
+    ChairGunner:printDriver(Switch_View_Button:upper()+" - Switch View")
+    ChairGunner:printDriver(Switch_Ammo_Button:upper()+" - Switch Ammo")
+    
+    EGPGunner:egpClear()
+    
+    Reso=vec2(egpScrW(ChairGunner:driver()),egpScrH(ChairGunner:driver()))/2
+    EGPGunner:egpLine(1,vec2(10,0)+Reso,vec2(5,0)+Reso)
+    EGPGunner:egpLine(2,vec2(-10,0)+Reso,vec2(-5,0)+Reso)
+    EGPGunner:egpLine(3,vec2(0,10)+Reso,vec2(0,5)+Reso)
+    EGPGunner:egpLine(4,vec2(0,-10)+Reso,vec2(0,-5)+Reso)
+    
+    EGPGunner:egpLine(5,vec2(25,25)+Reso,vec2(15,25)+Reso)
+    EGPGunner:egpLine(6,vec2(25,-25)+Reso,vec2(15,-25)+Reso)
+    EGPGunner:egpLine(7,vec2(-25,25)+Reso,vec2(-15,25)+Reso)
+    EGPGunner:egpLine(8,vec2(-25,-25)+Reso,vec2(-15,-25)+Reso)
+    
+    EGPGunner:egpLine(9,vec2(25,25)+Reso,vec2(25,15)+Reso)
+    EGPGunner:egpLine(10,vec2(25,-25)+Reso,vec2(25,-15)+Reso)
+    EGPGunner:egpLine(11,vec2(-25,25)+Reso,vec2(-25,15)+Reso)
+    EGPGunner:egpLine(12,vec2(-25,-25)+Reso,vec2(-25,-15)+Reso)
+    
+    EGPGunner:egp3DTracker(13,vec())
+    EGPGunner:egpParent(13,holoEntity(3))
+    EGPGunner:egpBoxOutline(14,vec2(),vec2(24))
+    EGPGunner:egpParent(14,13)
+    
+    PosTop=vec2(-Reso:x()/1.25,-25)+Reso
+    PosBottom=vec2(-Reso:x()/1.25,25)+Reso
+    EGPGunner:egpBox(15,PosTop,vec2(175,35))
+    EGPGunner:egpBox(16,PosBottom,vec2(175,35))
+    
+    EGPGunner:egpColor(15,vec(15))
+    EGPGunner:egpAlpha(15,125)
+    EGPGunner:egpColor(16,vec(15))
+    EGPGunner:egpAlpha(16,125)
+    
+    Offset1=vec2(15,0)
+    
+    EGPGunner:egpBox(17,PosTop+Offset1+vec2(-15,0),vec2(20,20))
+    
+    EGPGunner:egpTriangle(18,PosTop+Offset1+vec2(10,0),PosTop+Offset1+vec2(-5,-10),PosTop+Offset1+vec2(-5,10))
+    
+    EGPGunner:egpBox(19,PosTop+Offset1+vec2(15,0),vec2(45,10))
+    
+    EGPGunner:egpTriangle(20,PosTop+Offset1+vec2(48,0),PosTop+Offset1+vec2(35,-9),PosTop+Offset1+vec2(35,9))
+    
+    EGPGunner:egpTriangle(21,PosTop+Offset1+vec2(55,0),PosTop+Offset1+vec2(40,-5),PosTop+Offset1+vec2(40,5))
+    
+    Offset2=vec2(15,0)
+    
+    
+    EGPGunner:egpTriangle(22,PosBottom+Offset2+vec2(-25,0),PosBottom+Offset2+vec2(-23,-10),PosBottom+Offset2+vec2(-23,10))
+    
+    EGPGunner:egpBox(23,PosBottom+Offset2+vec2(-8,0),vec2(29,20))
+    
+    EGPGunner:egpTriangle(24,PosBottom+Offset2+vec2(15,0),PosBottom+Offset2+vec2(5,-10),PosBottom+Offset2+vec2(5,10))
+    
+    EGPGunner:egpRoundedBox(25,PosBottom+Offset2+vec2(25,0),vec2(60,10))
+    
+    EGPGunner:egpBox(26,PosBottom+Offset2+vec2(39,0),vec2(6,20))
+    EGPGunner:egpTriangle(27,PosBottom+Offset2+vec2(48,0),PosBottom+Offset2+vec2(42,-10),PosBottom+Offset2+vec2(42,10))
+    
+    if(InfiniteAmmo){
+        EGPGunner:egpText(28,"8",PosTop+vec2(-15,0))
+        EGPGunner:egpAngle(28,90)
+        EGPGunner:egpAlign(28,1,2)
+        EGPGunner:egpSize(28,40)
+        
+        EGPGunner:egpText(29,"8",PosBottom+vec2(-15,0))
+        EGPGunner:egpAngle(29,90)
+        EGPGunner:egpAlign(29,1,2)
+        EGPGunner:egpSize(29,40)
+    }else{
+        EGPGunner:egpText(28,"---",PosTop+vec2(-15,0))
+        EGPGunner:egpAlign(28,2,1)
+        EGPGunner:egpSize(28,30)
+        
+        EGPGunner:egpText(29,"---",PosBottom+vec2(-15,0))
+        EGPGunner:egpAlign(29,2,1)
+        EGPGunner:egpSize(29,30)
+    }
+    
+    
+    for(I=1,29){
+        if(I>=17|I<15){
+            EGPGunner:egpColor(I,clamp(vec(300,125,45)*0.85,vec(0),vec(255)))
+        }
+        if(I>4&I<15){
+            EGPGunner:egpSize(I,2)
+        }
+    }
+    
+    EGPGunner:egpBox(30,PosTop,vec2(175,35))
+    EGPGunner:egpBox(31,PosBottom,vec2(175,35))
+    
+    EGPGunner:egpColor(30,vec(175,0,0))
+    EGPGunner:egpAlpha(30,175)
+    EGPGunner:egpColor(31,vec(175,0,0))
+    EGPGunner:egpAlpha(31,175)
+    
+    Reso2=vec2(egpScrW(ChairGunner:driver()),egpScrH(ChairGunner:driver()))/2
+}
+if(changed(ChairDriver:driver()|ChairGunner:driver())){
+    if(!ChairDriver:driver()&!ChairGunner:driver()){
+        AimMode=GunLockRelease=0
+        FireMode=0
+    }else{
+        User = ChairGunner:driver() ? ChairGunner:driver() : ChairDriver:driver()
+    }
+}
+if(clk("int")){
+    timer("int",Interval)
+    
+    User = ChairGunner:driver() ? ChairGunner:driver() : ChairDriver:driver()
+    if(User:vehicle()==ChairDriver){
+        CamUser=CamDriver
+    }else{
+        CamUser=CamGunner
+    }
+    if(changed(ChairDriver:driver():keyPressed(Switch_View_Button))&ChairDriver:driver():keyPressed(Switch_View_Button)){
+        PositionDriver=!PositionDriver
+        CamDriver["Parent",entity] = PositionDriver ? ThirdPersonParent : DriverFirstPersonParent
+    }
+    if(changed(ChairGunner:driver():keyPressed("v"))&ChairGunner:driver():keyPressed("v")){
+        PositionGunner=!PositionGunner
+        CamGunner["Parent",entity] = PositionGunner ? ThirdPersonParent : GunnerFirstPersonParent
+    }
+    if(changed(ChairDriver:driver():keyAttack2())){
+        CamDriver["FOV",number]=ChairDriver:driver():keyAttack2() ? 10 : 100
+    }
+    if(changed(ChairGunner:driver():keyAttack2())){
+        CamGunner["FOV",number]=ChairGunner:driver():keyAttack2() ? 10 : 100
+    }
+    if(changed(ChairDriver:driver():keyPressed(Gun_Tracking_Button))&ChairDriver:driver():keyPressed(Gun_Tracking_Button)){
+        TrackGun=!TrackGun
+        ChairDriver:hintDriver("Gun Tracking: "+(TrackGun ? "Enabled" : "Disabled"),7)
+    }
+    
+    AmmoSwitchButton=User:keyDuck()
+    
+    if(changed(AmmoSwitchButton)&AmmoSwitchButton){
+        AmmoSwitch=!AmmoSwitch
+    }
+    
+    if(changed(AmmoSwitch)){
+        User:vehicle():hintDriver("Next Round: "+(!AmmoSwitch ? Ammo1:acfRoundType() : Ammo2:acfRoundType()),7)
+        Unload=1
+        timer("unload",50)
+    }
+    if(clk("unload")){
+        Unload=0
+        timer("reload",50)
+    }
+    if(clk("reload")){
+        Reload=1
+        timer("ready",50)
+    }
+    if(clk("ready")){
+        Reload=0
+    }
+    ActiveAP=!AmmoSwitch
+    ActiveHE=AmmoSwitch
+    
+    LockButton=User:keyPressed(Turret_Lock_Release_Button:lower())
+    SwitchButton=User:keyPressed(Switch_Aim_Mode_Button:lower())
+    SwitchButton2=User:keyPressed(Switch_Gun_Button:lower())
+    if(changed(LockButton)&LockButton){
+        GunLockRelease=!GunLockRelease
+        User:vehicle():hintDriver("Turret Lock: "+(GunLockRelease ? "Off" : "On"),7)
+    }
+    
+    if(changed(SwitchButton)&SwitchButton&ACFGun:isValid()){
+        AimMode=!AimMode
+        User:vehicle():hintDriver("Aiming mode: "+(AimMode ? "HitPos" : "CamAng"),7)
+    }
+    
+    if(changed(SwitchButton2)&SwitchButton2){
+        FireMode=!FireMode
+        User:vehicle():hintDriver("Firing Mode: "+(FireMode ? ACFGun:acfNameShort() : ACFGunSecondary:acfNameShort()),7)
+    }
+    
+    D = (ACFGun:acfCaliber()^2)*pi()/90
+    G = gravity()*0.01905
+    MuzzleVelocity = ACFGun:acfMuzzleVel()*0.76
+    MuzzleWeight = ACFGun:acfProjectileMass()*1000
+    if(MuzzleVelocity == 0||MuzzleWeight == 0){
+        MuzzleVelocity = 200
+        MuzzleWeight = 1000
+    }
+    
+    K_D = MuzzleWeight/D
+    LocPos = (CamUser["HitPos",vector] - Gun:pos())*0.01905
+    P = vec2(LocPos):length()
+    LowLim = atan(LocPos:z(),P)
+    Elevation = ((clamp(acos(P/(K_D*MuzzleVelocity)),0,90)+LowLim)/2)*!Lim:x() + Lim:y()*Lim:x()
+    Depression = LowLim*!Lim:x() + Lim:z()*Lim:x()
+    CTP = 180/MuzzleVelocity
+    if(P < K_D*MuzzleVelocity*cos(Pitch)){
+        DragFunction = G*K_D^2*ln(1-P/(K_D*MuzzleVelocity*cos(Pitch))) + P*tan(Pitch) + P*K_D*G/(MuzzleVelocity*cos(Pitch)) - LocPos:z()
+    }
+    
+    DeltaFunction = clamp(abs($DragFunction/clamp(abs($Pitch),0.0000001,10)),0.0000001,1000000)
+    Pitch = clamp(Pitch - CTP*DragFunction/DeltaFunction,Depression,Elevation)
+
+    GunAng = ang(-Pitch,LocPos:toAngle():yaw(),0)
+    
+    DesiredAngle=GunLockRelease ? (AimMode ? GunAng : (CamUser["HitPos",vector] - Gun:pos()):toAngle()) : Base:angles()
+    LocalAng=Base:toLocal(DesiredAngle)
+    LocalAng2=approachAngle(LocalAng2,LocalAng,TurningSpeed/5)
+    
+    holoAng(1,Base:toWorld(ang(0,TurretTraverse>180 ? LocalAng2:yaw() : clamp(LocalAng2:yaw(),-TurretTraverse,TurretTraverse),0)))
+    holoAng(2,holoEntity(1):toWorld(ang(clamp(LocalAng2:pitch(),-TurretElevation,TurretDepression),0,0)))
+    if(TrackGun){
+        A=Base:toLocal(holoEntity(2):angles()):yaw()>5
+        D=Base:toLocal(holoEntity(2):angles()):yaw()<-5
+    }else{
+        A=0
+        D=0
+    }
+    TurretSpeedPitch=abs(holoEntity(1):toLocal(holoEntity(2):angles()):pitch())
+    TurretSpeedYaw=abs(Base:toLocal(holoEntity(1):angles()):yaw())
+    TurretSpeed=max(TurretSpeedPitch,TurretSpeedYaw)
+    Test=TurretSpeed-LastSpeed
+    soundVolume("sfx",100*clamp(abs(~Test)*(abs(~Test)>0.05),0,1))
+    LastSpeed=TurretSpeed
+    
+    Ranger=rangerOffset(99999,holoEntity(2):toWorld(vec(125,0,0)),holoEntity(2):forward())
+    if(Ranger:entity():owner()==owner()){
+        rangerFilter(Ranger:entity())
+        Ranger=rangerOffset(99999,holoEntity(2):toWorld(vec(125,0,0)),holoEntity(2):forward())
+    }
+    FireSecondary=User:keyAttack1()&(FireMode==1)
+    FireMain=User:keyAttack1()&(FireMode==0)
+    holoPos(3,Ranger:pos())
+    AimPos=holoEntity(3):pos()
+    Ammo=ACFGun:acfAmmoCount()
+    AmmoSecondary=ACFGunSecondary:acfAmmoCount()
+    
+    if(!InfiniteAmmo){
+        EGPDriver:egpSetText(28,Ammo==0 ? "---" : Ammo:toString())
+        EGPDriver:egpSetText(29,AmmoSecondary==0 ? "---" : AmmoSecondary:toString())
+        EGPGunner:egpSetText(28,Ammo==0 ? "---" : Ammo:toString())
+        EGPGunner:egpSetText(29,AmmoSecondary==0 ? "---" : AmmoSecondary:toString())
+    }
+    LoadTime1=ACFGun:isValid() ? (Ammo==0 ? 1 : ACFGun:acfReloadProgress()) : 1
+    MissileLoadTime=ACFGunSecondary:isValid() ? (AmmoSecondary==0 ? 1 : ACFGunSecondary:acfReloadProgress()) : 1
+    EGPDriver:egpPos(30,vec2((-Reso1:x()/1.25)-(175/2*LoadTime1),-25)+Reso1)
+    EGPDriver:egpSize(30,vec2(175*(1-LoadTime1),35))
+    
+    EGPDriver:egpPos(31,vec2((-Reso1:x()/1.25)-(175/2*MissileLoadTime),25)+Reso1)
+    EGPDriver:egpSize(31,vec2(175*(1-MissileLoadTime),35))
+    
+    EGPGunner:egpPos(30,vec2((-Reso2:x()/1.25)-(175/2*LoadTime1),-25)+Reso2)
+    EGPGunner:egpSize(30,vec2(175*(1-LoadTime1),35))
+    
+    EGPGunner:egpPos(31,vec2((-Reso2:x()/1.25)-(175/2*MissileLoadTime),25)+Reso2)
+    EGPGunner:egpSize(31,vec2(175*(1-MissileLoadTime),35))
+    
+}
+
+if(duped()){
+    TurretBase:deparent()
+    Gun:deparent()
+}

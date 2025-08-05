@@ -1,0 +1,286 @@
+@name Public Fading Door
+@outputs DoorEnable UserReport:string
+@persist Players:array UserAdd:array UserRemove:array OwnerAdd:array OwnerRemove:array
+@persist CurTime CurTextTimer
+
+interval(500)
+runOnChat(1)
+
+#User-configured
+Owner = "Valerie"
+ChipNum = ""
+DoorDistance = 130
+AddUserDoor = "!adduser" + ChipNum
+RemoveUserDoor = "!removeuser" + ChipNum
+ShowUsers = "!showusers" + ChipNum
+AddOwnerDoor = "!addowner" + ChipNum
+RemoveOwnerDoor = "!removeowner" + ChipNum
+ShowOwners = "!showowners" + ChipNum
+SFXYes = "buttons/blip1.wav"
+SFXNo = "buttons/blip2.wav"
+
+#INIT
+UserList = array(Owner:upper())
+OwnerList = array(Owner:upper())
+ChipPos = entity():pos()
+LastSaid = lastSaid():upper()
+
+if((curtime() >= CurTime + 5) | (CurTime == 0)) {
+    CurTime = curtime()
+    foreach(Index,CurPlayer:entity = players()) {
+        Players[Index,string] = CurPlayer:name():upper()
+    }
+}
+UserList = UserList:add(UserAdd)
+foreach(Index1,CurUser:string = UserList) {
+    foreach(Index2,CurRemove:string = UserRemove) {
+        if((CurUser == CurRemove) | (findPlayerByName(CurRemove):name() == "")) {
+            UserList:remove(Index1)
+        }
+    }
+}
+OwnerList = OwnerList:add(OwnerAdd)
+foreach(Index1,CurRemove:string = OwnerRemove) {
+    foreach(Index2,CurOwner:string = OwnerList) {
+        if((CurRemove == CurOwner)  | (findPlayerByName(CurRemove):name() == "")) {
+            OwnerList:remove(Index2)
+        }
+    }
+}
+OwnerSpoke = 0
+if(chatClk()) {
+    foreach(Index,CurOwner:string = OwnerList) {
+        if((lastSpoke():name():upper():find(CurOwner)) & (lastSpoke():pos():distance(ChipPos) < 1000)) {
+            OwnerSpoke = 1
+            break
+        }
+    }
+}
+
+#UserReport
+if(curtime() >= (CurTextTimer + 15)) {
+    CurTextTimer = 0
+    UserReport = "Standby"
+}
+
+#DoorEnable
+DoorEnable = 0
+foreach(Index,CurUser:string = UserList) {
+    if(findPlayerByName(CurUser):pos():distance(ChipPos) < 150) {
+        DoorEnable = 1
+        UserReport = "Door is open"
+        CurTextTimer = curtime() - 15
+        break
+    } else {
+        DoorEnable = 0
+    }
+}
+
+#AddUserDoor
+if(OwnerSpoke & (LastSaid:sub(1,AddUserDoor:length() + 1) == AddUserDoor:upper() + " ")) {
+    Found = 0
+    Indexed = 0
+    UserToAllow = ""
+    CurTextTimer = curtime()
+    foreach(Index,CurPlayer:string = Players) {
+        if(CurPlayer:find(LastSaid:sub(AddUserDoor:length() + 2))) {
+            Found++
+            UserToAllow = CurPlayer
+        }
+    }
+    if(!Found) {
+        soundPlay(1,0,SFXNo)
+        UserReport = "Player does not exist"
+    } elseif (Found > 1) {
+        soundPlay(1,0,SFXNo)
+        UserReport = "More than one player matched"
+    } else {
+        foreach(Index,CurUser:string = UserList) {
+            if(UserToAllow == CurUser) {
+                Indexed = 1
+                soundPlay(1,0,SFXNo)
+                UserReport = UserToAllow + " is already Allowed"
+                break
+            }
+        }
+        if(!Indexed) {
+            UserAdd = UserAdd:add(array(UserToAllow))
+            soundPlay(1,0,SFXYes)
+            UserReport = UserToAllow + " has been Allowed"
+            foreach(Index,CurRemove:string = UserRemove) {
+                if(CurRemove == UserToAllow){
+                    UserRemove:remove(Index)
+                    break
+                }
+            }
+        }
+    }
+}
+
+#RemoveUserDoor
+if(OwnerSpoke & LastSaid:sub(1,RemoveUserDoor:length() + 1) == RemoveUserDoor:upper() + " ") {
+    Indexed = 0
+    Found = 0
+    UserToRemove = ""
+    CurTextTimer = curtime()
+    foreach(Index,CurPlayer:string = Players) {
+        if(CurPlayer:find(LastSaid:sub(RemoveUserDoor:length() + 2))) {
+            Found++
+            UserToRemove = CurPlayer
+        }
+    }
+    if(!Found) {
+        soundPlay(1,0,SFXNo)
+        UserReport = "Player does not exist"
+    } elseif (Found > 1) {
+        soundPlay(1,0,SFXNo)
+        UserReport = "More than one player matched"
+    } else {
+        foreach(Index,CurRemove:string = UserRemove) {
+            if(UserToRemove == CurRemove) {
+                Indexed = 1
+                soundPlay(1,0,SFXNo)
+                UserReport = UserToRemove + " is already not Allowed"
+                break
+            }
+        }
+        if(!Indexed) {
+            UserRemove = UserRemove:add(array(UserToRemove))
+            soundPlay(1,0,SFXYes)
+            UserReport = UserToRemove + " has been Removed"
+            foreach(Index,CurAdd:string = UserAdd) {
+                if(CurAdd == UserToRemove){
+                    UserAdd:remove(Index)
+                    break
+                }
+            }
+        }
+    }
+}
+
+#AddOwnerDoor
+if(OwnerSpoke & LastSaid:sub(1,AddOwnerDoor:length() + 1) == AddOwnerDoor:upper() + " ") {
+    Found = 0
+    Indexed = 0
+    OwnerToAllow = ""
+    CurTextTimer = curtime()
+    foreach(Index,CurPlayer:string = Players) {
+        if(CurPlayer:find(LastSaid:sub(AddOwnerDoor:length() + 2))) {
+            Found++
+            OwnerToAllow = CurPlayer
+        }
+    }
+    if(!Found) {
+        soundPlay(1,0,SFXNo)
+        UserReport = "Player does not exist"
+    } elseif (Found > 1) {
+        soundPlay(1,0,SFXNo)
+        UserReport = "More than one player matched"
+    } else {
+        foreach(Index,CurOwner:string = OwnerList) {
+            if(OwnerToAllow == CurOwner) {
+                Indexed = 1
+                soundPlay(1,0,SFXNo)
+                UserReport = OwnerToAllow + " is already an Owner"
+                break
+            }
+        }
+        if(!Indexed) {
+            OwnerAdd = OwnerAdd:add(array(OwnerToAllow))
+            soundPlay(1,0,SFXYes)
+            UserReport = OwnerToAllow + " has been made an Owner"
+            foreach(Index,CurRemove:string = OwnerRemove) {
+                if(CurRemove == OwnerToAllow){
+                    OwnerRemove:remove(Index)
+                    break
+                }
+            }
+        }
+    }
+}
+
+#RemoveOwnerDoor
+if(OwnerSpoke & LastSaid:sub(1,RemoveOwnerDoor:length() + 1) == RemoveOwnerDoor:upper() + " ") {
+    CurTextTimer = curtime()
+    if(OwnerList:count() == 1) {
+        soundPlay(1,0,SFXNo)
+        UserReport = "You are the last owner"
+    } else {
+        Indexed = 0
+        Found = 0
+        OwnerToRemove = ""
+        foreach(Index,CurPlayer:string = Players) {
+            if(CurPlayer:find(LastSaid:sub(RemoveOwnerDoor:length() + 2))) {
+                Found++
+                OwnerToRemove = CurPlayer
+            }
+        }
+        if(!Found) {
+            soundPlay(1,0,SFXNo)
+            UserReport = "Player does not exist"
+        } elseif (Found > 1) {
+            soundPlay(1,0,SFXNo)
+            UserReport = "More than one player matched"
+        } else {
+            foreach(Index,CurRemove:string = OwnerRemove) {
+                if(OwnerToRemove == CurRemove) {
+                    Indexed = 1
+                    soundPlay(1,0,SFXNo)
+                    UserReport = OwnerToRemove + " is already not an Owner"
+                    break
+                }
+            }
+            if(!Indexed) {
+                OwnerRemove = OwnerRemove:add(array(OwnerToRemove))
+                soundPlay(1,0,SFXYes)
+                UserReport = OwnerToRemove + " has been Removed"
+                foreach(Index,CurAdd:string = OwnerAdd) {
+                    if(CurAdd == OwnerToRemove){
+                        OwnerAdd:remove(Index)
+                        break
+                    }
+                }
+            }
+        }
+    }
+}
+
+#ShowUsers
+if(OwnerSpoke & (LastSaid == ShowUsers:upper())) {
+    soundPlay(1,0,SFXYes)
+    CurTextTimer = curtime()
+    if(UserList:count() == 0) {
+        UserReport = "No users are allowed"
+    } else {
+        UserReport = "Allowed users are: "
+        First = 1
+        foreach(Index, CurUser:string = UserList) {
+            if(First) {
+                UserReport += CurUser
+                First = 0
+            } else {
+                UserReport += ", " + CurUser
+            }
+        }
+    }
+}
+
+#ShowOwners
+if(OwnerSpoke & (LastSaid == ShowOwners:upper())) {
+    soundPlay(1,0,SFXYes)
+    CurTextTimer = curtime()
+    if(OwnerList:count() == 0) {
+        UserReport = "There are no owners... Something went wrong"
+    } else {
+        UserReport = "Allowed owners are: "
+        First = 1
+        foreach(Index, CurOwner:string = OwnerList) {
+            if(First) {
+                UserReport += CurOwner
+                First = 0
+            } else {
+                UserReport += ", " + CurOwner
+            }
+        }
+    }
+}

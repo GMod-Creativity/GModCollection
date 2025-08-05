@@ -1,0 +1,136 @@
+@name Naki's Epic E2 Network - Client
+@persist Errors:array ErrorID PingVal [ServerNameSave Ping_Info]:string ALL:array TOT
+#Product by Lertz & Naki
+
+if(first()){
+    dsJoinGroup("naki's e2 network")
+    runOnSignal("naki's e2 network",2,1)
+    runOnChat(1)
+    dsSetScope(2)
+    
+    Errors[400,string] = "400 - Bad Request."
+    Errors[401,string] = "401 - Unauthorized."
+    Errors[403,string] = "403 - Forbidden."
+    Errors[404,string] = "404 - Not found."
+    Errors[405,string] = "405 - Method Not Allowed."
+    Errors[406,string] = "406 - Not Accepted."
+    Errors[408,string] = "408 - Request Timeout."
+    
+    Errors[500,string] = "500 - Internal Server Error."
+    Errors[501,string] = "501 - Not Implemented."
+    Errors[502,string] = "502 - Bad Gateway."
+    Errors[503,string] = "503 - Service Unavailable."
+    Errors[504,string] = "504 - Gateway Timeout."
+    Errors[511,string] = "511 - Network Authentication Required."
+}
+
+if(chatClk(owner())){
+    local LS = owner():lastSaid():explode(" ")
+    hideChat(1)
+    
+    local Foo = 1
+    switch(LS[1,string]){
+        case ".request",
+        if(LS:count() == 3){
+            local RequestServerName = LS[3, string]
+            dsSend(RequestServerName + "_request_" + LS[2, string], "naki's e2 network", entity())
+        }
+        break
+        
+        case ".ping",
+        if(LS:count() == 2){
+            ALL=array()
+            TOT=0
+            PingVal=0
+            Foo = 0
+            ServerNameSave = LS[2, string]
+            timer("ping 1",1000)
+            timer("ping_stop",5000)
+            print("Pinging "+ServerNameSave+" with 32 bytes of data:")
+            
+        }
+        break
+        
+        default,
+        Foo = 0
+        hideChat(0)
+        break
+    }
+    
+    if(Foo){
+        ErrorID = 400
+        timer("error",5000)
+    }
+}
+
+if(dsClk()){
+    stoptimer("error")
+    switch(dsClkName()){
+        case entity():id() + "_error",
+        local ErrorID = dsGetNumber()
+        timer("error", 1000)
+        break
+        
+        case entity():id() + "_send_ping",
+        stoptimer("failed_ping")
+        if(dsGetSender():owner()!=owner()){
+            PingTime = dsGetNumber()-((randint(dsGetSender():owner():ping()/2,dsGetSender():owner():ping())/10000))
+        }else{
+            PingTime = dsGetNumber()
+        }
+        
+        local PingTimeThing = round((systime() - PingTime)*1000)
+        if(PingTimeThing<1){
+            PingTimeThing2="<1"
+        }else{
+            PingTimeThing2="="+PingTimeThing:toString()
+        }
+        print("Reply from " + ServerNameSave + ": bytes=32 time"+PingTimeThing2 + "ms TTL=128")
+        TOT+=PingTimeThing
+        ALL:pushNumber(PingTimeThing)
+        PingVal++
+        break
+        
+        
+        case entity():id() + "_send_data",
+        local Data = dsGetString()
+        print(Data)
+        break
+    }
+}else{
+    local Clk = clkName():explode(" ")
+    switch(Clk[1, string]){
+        case "ping",
+        I = Clk[2, string]:toNumber() + 1
+        dsSend(ServerNameSave + "_ping", "naki's e2 network", entity())
+        if(I <= 4)
+        {
+            timer("ping " + I, 1000)
+        }
+        timer("failed_ping", 500)
+        break
+        
+        case "failed_ping",
+        print("PING: transmit failed. General failure.")
+        break
+        
+        case "ping_stop",
+        MIN=ALL:min()
+        MAX=ALL:max()
+        AVG=TOT/4
+        print("Ping statistics for "+ServerNameSave+":")
+        print("   Packets: Sent = 4, Received = " + PingVal + ", Lost = " + (4 - PingVal) + " (" + (4 - PingVal)*25 + "% loss).")
+        print("Approximate round trip times in milli-seconds:")
+        print("   Minimum = "+MIN+"ms, Maximum = "+MAX+"ms, Average =  "+AVG+"ms")
+        
+        break
+        
+        case "error",
+        hint(Errors[ErrorID, string], 7)
+        break
+    }
+}
+
+if(last()){
+    dsLeaveGroup("naki's e2 network")
+}

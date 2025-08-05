@@ -1,0 +1,84 @@
+@name Chat Monitor
+@outputs ChatDisplay:string
+@persist ChatShow ChatLog:array PrintQueue:array LineCount
+
+runOnChat(1)
+
+#User-configured
+SFX = "buttons/blip1.wav"
+ChatToggle = "!chattoggle"
+LineCountCmd = "!linecount"
+Upload = "!upload"
+
+#INIT
+if(first()) {
+    ChatShow = 1
+    LineCount = 20
+}
+function string precedeZero(Time) {
+    if(Time < 10) {
+        return "0" + Time
+    } else {
+        return Time:toString()
+    }
+}
+LastSaid = lastSaid():upper()
+
+#Time
+Month = precedeZero(time("month"))
+Minute = precedeZero(time("min"))
+Second = precedeZero(time("sec"))
+if(time("hour") >= 4) { #EST
+    Hour = precedeZero(time("hour") - 4)
+    Day = precedeZero(time("day"))
+} else {
+    Hour = precedeZero(time("hour") + 20)
+    Day = precedeZero(time("day") - 1)
+}
+
+#Chat & File
+Chat = "(" + Hour + ":" + Minute + ":" + Second + ") " + lastSpoke():name() + ": " + lastSaid()
+FileName = ">e2shared/chatlog_" + time("year") + "_" + Month + "_" + Day + ".txt"
+if(chatClk()) {
+    ChatLog:pushString(Chat)
+    fileAppend(FileName,Chat + "\n")
+}
+
+#LineCount
+if(chatClk(owner()) & (LastSaid:sub(1,LineCountCmd:length() + 1) == LineCountCmd:upper() + " ")) {
+    LineCount = LastSaid:sub(LineCountCmd:length() + 2):toNumber()
+    soundPlay(1,0,SFX)
+    PrintQueue:pushString("Number of displayed lines is now " + LineCount)
+}
+while(ChatLog:count() > LineCount) {
+    ChatLog:remove(1)
+}
+
+#ChatToggle
+if(chatClk(owner()) & (LastSaid == ChatToggle:upper())) {
+    ChatShow = !ChatShow
+    soundPlay(1,0,SFX)
+    PrintQueue:pushString("Chat display toggled")
+}
+
+#ChatDisplay
+if(ChatShow) {
+    ChatDisplay = "\n" + ChatLog:concat("\n")
+} else {
+    ChatDisplay = ""
+}
+
+#Upload
+if(chatClk(owner()) & (LastSaid == Upload:upper())) {
+    fileLoad(FileName)
+    soundPlay(1,0,SFX)
+    PrintQueue:pushString("File uploaded")
+}
+
+#PrintQueue
+if(clk("interval")) {
+    print(PrintQueue:shiftString())
+}
+if(PrintQueue:count()) {
+    interval(100)
+}

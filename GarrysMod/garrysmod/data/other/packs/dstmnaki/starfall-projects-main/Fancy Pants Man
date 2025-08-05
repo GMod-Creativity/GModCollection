@@ -1,0 +1,389 @@
+--@name Fancy Pants Man
+--@author Naki
+--@include katlibs/httpqueue.txt
+--@include katlibs/assetloader.txt
+--@include katlibs/coroutineutils.txt
+--@shared
+--https://github.com/solarembra/katlibs
+
+if SERVER then
+    local seat = prop.createSeat(chip():getPos()+Vector(0,0,10), Angle(0,90,0), "models/nova/airboat_seat.mdl", true)
+    local screen = prop.createComponent(chip():getPos()+Vector(-55,0,45), Angle(90,0,0), "starfall_screen", "models/hunter/plates/plate2x2.mdl", true)
+    screen:linkComponent(chip())
+    hook.add("ClientInitialized", "", function(ply)
+        net.start("sendseat")
+        net.writeEntity(seat)
+        net.send(ply,false)
+    end)
+    timer.create("sendseat", 1, 1, function()
+        net.start("sendseat")
+        net.writeEntity(seat)
+        net.send(find.allPlayers(),false)
+    end)
+else
+    local SEAT = chip()
+    net.receive("sendseat", function()
+        SEAT = net.readEntity()
+    end)
+    require("katlibs/httpqueue.txt")
+    require("katlibs/assetloader.txt")
+    require("katlibs/coroutineutils.txt")
+    
+    local assetsDownloaded = false
+    
+    function createTexture(path)
+        texture = material.create("UnlitGeneric")
+        texture2 = material.createFromImage(path, "alphatest smooth nocull")
+        texture:setTexture("$basetexture", texture2:getName())
+        return texture
+    end
+    
+    local assetsURL = "https://www.dropbox.com/scl/fi/9opffts4muwmlp9656eu4/fancy-pants-man-project-assets.zip?rlkey=kdfru82zvwdoqfwnyvyj1nmtx&dl=0"
+    
+    function autoFilterDropboxLinks(url)
+        if url:sub(9,23) == "www.dropbox.com" then
+            urlNew=string.replace(url,"www.dropbox.com","dl.dropboxusercontent.com")
+            if urlNew:sub(-4,-1) == "dl=0" then
+                urlNew=string.replace(urlNew,"dl=0","dl=1")
+                --print("detected unchanged dropbox link, replacing dropbox with dropboxusercontent and dl=0 to dl=1")
+            else
+                --print("detected unchanged dropbox link, replacing dropbox with dropboxusercontent")
+            end
+        else
+            urlNew=url
+        end
+        return urlNew
+    end
+    
+    httpQueue.get(autoFilterDropboxLinks(assetsURL),function(httpdata)
+        coroutineUtils.quotaWrap(0.1,assetloader.loadFromZip,{httpdata,true},function(assetPaths,rawData)
+            materials = {}
+            for i, name in ipairs(table.getKeys(assetPaths)) do
+                materials[name]=createTexture(assetPaths[name])
+            end
+            print(Color(0,255,255),"Assets downloaded!")
+            assetsDownloaded=true
+        end)
+    end)
+    
+    local resoX, resoY = render.getGameResolution()
+    
+    local currentRoomID = 1
+    
+    -- Constants
+    local GRAVITY = -1000
+    local JUMP_FORCE = -500
+    local MOVE_SPEED = 200
+    
+    -- World setup
+    local world = {
+        pos = Vector(0, 0, 0), -- World position
+        rooms = {
+            {-- room 1
+                obstacles = {-- These objects are aligned to the left top
+                    {pos = Vector(-512/2, 512-32, 0), size = Vector(512*2, 512, 0)},
+                    {pos = Vector(-512,-32, 0), size = Vector(512, 512, 0)},
+                    {pos = Vector(512,-32, 0), size = Vector(512, 512, 0)},
+                },
+                width=512,
+                height=512
+            }
+        }
+    }
+    
+    -- Player setup
+    local IDLEROW = 8*16
+    local CROUCHROW = 16
+    local JUMPROW = 9*16
+    local WALLLEANROW = 6*16+6
+    local WALLHUGROW = 2*16+9
+    local animationData = {
+        ["idleFrames"] = {IDLEROW+1,IDLEROW+2,IDLEROW+3,IDLEROW+4,IDLEROW+5,IDLEROW+6,IDLEROW+7},
+        ["crouchFrames"] = {CROUCHROW+1,CROUCHROW+2,CROUCHROW+3,CROUCHROW+4,CROUCHROW+5},
+        ["runFrames"] = {2,3,4,5,6,7,8,9},
+        ["jumpFrames"] = {JUMPROW+1,JUMPROW+2,JUMPROW+3,JUMPROW+4,JUMPROW+5,JUMPROW+6,JUMPROW+7,JUMPROW+8},
+        ["wallHugFrames"] = {2*16+10},
+        ["wallLeanFrames"] = {WALLLEANROW+1,WALLLEANROW+2,WALLLEANROW+3,WALLLEANROW+4,WALLLEANROW+5,WALLLEANROW+6}
+    }
+    local cube = {
+        pos = Vector(512/2, 512/2, 0), -- Starting position
+        vel = Vector(0, 0, 0), -- Velocity
+        size = Vector(45, 45, 0), -- Player hitbox size
+        isGrounded = false,
+        collideLeft = false,
+        collideRight = false,
+        collideCeiling = false,
+        crouch = false,
+        leftright = false,
+        dance = false,
+        idle = false,
+        idleCT = timer.curtime(),
+        crouchLast = true,
+        crouchCT = 0,
+        isStayingStill = true,
+        stayingStillCT = timer.curtime(),
+        idleCycle = 1,
+        crouchCycle = 1,
+        runCycle = 1,
+        runCT = 0,
+        jumpCycle = 1,
+        jumpCT = 0,
+    }
+    world.currentRoom=world.rooms[currentRoomID]
+    
+    -- Collision Detection
+    function checkCollision(cube, obstacle)
+        
+        -- Bounding box adjustments
+        local SIZEX = cube.size.x*0.5
+        local px = cube.pos.x + cube.size.x * 0.01 - SIZEX / 2
+        local py = cube.pos.y
+        local pw = SIZEX * 0.98
+        local ph = cube.size.y * 0.99
+    
+        local ox, oy, ow, oh = obstacle.pos.x, obstacle.pos.y, obstacle.size.x, obstacle.size.y
+    
+        -- AABB overlap check
+        local xOverlap = px < ox + ow and px + pw > ox
+        local yOverlap = py < oy + oh and py + ph > oy
+    
+        if xOverlap and yOverlap then
+            local cubeBottom = py + ph
+            local cubeTop = py
+            local cubeLeft = px
+            local cubeRight = px + pw
+    
+            local obstacleBottom = oy + oh
+            local obstacleTop = oy
+            local obstacleLeft = ox
+            local obstacleRight = ox + ow
+    
+            local dx1 = obstacleRight - cubeLeft
+            local dx2 = cubeRight - obstacleLeft
+            local dy1 = obstacleBottom - cubeTop
+            local dy2 = cubeBottom - obstacleTop
+    
+            local minDX = math.min(dx1, dx2)
+            local minDY = math.min(dy1, dy2)
+    
+            if minDX < minDY then
+                -- Horizontal collision
+                if dx1 < dx2 then
+                    cube.collideLeft = true
+                    -- Optionally: cube.pos.x = obstacleRight (push right)
+                else
+                    cube.collideRight = true
+                    -- Optionally: cube.pos.x = obstacleLeft - pw (push left)
+                end
+            else
+                -- Vertical collision
+                if dy1 < dy2 then
+                    -- Hitting ceiling
+                    cube.collideCeiling = true
+                    cube.pos.y = obstacleBottom
+                    cube.vel.y = 0
+                    cube.isGrounded = false
+    
+                else
+                    -- Landing on top
+                    cube.isGrounded = true
+                    cube.pos.y = obstacleTop - ph
+                    cube.vel.y = 0
+                    owner():emitSound("player/footsteps/sand1.wav", 100, 100, 1, CHANNEL_AUTO)
+                end
+            end
+        end
+    end
+    
+    
+    
+    function updateCollisions(cube, world)
+        -- Reset collision states
+        cube.collideLeft = false
+        cube.collideRight = false
+        cube.collideCeiling = false
+        
+        -- Check all obstacles
+        for _, obstacle in ipairs(world.currentRoom.obstacles) do
+            checkCollision(cube, obstacle)
+        end
+    end
+    
+    -- Player Input and Movement
+    function handleInput(cube, deltaTime)
+        -- Horizontal movement
+        cube.crouch = input.isKeyDown(KEY.S)
+        if cube.crouch ~= cube.crouchLast then
+            cube.crouchCT = timer.curtime()
+            if cube.crouch then
+                cube.crouchCycle = 1
+            end
+        end
+        cube.crouchLast = cube.crouch
+        
+        if input.isKeyDown(KEY.D) and not cube.collideRight and not cube.crouch then
+            cube.vel.x = cube.vel.x + MOVE_SPEED*(cube.isGrounded and 0.1 or 0.01)
+        elseif input.isKeyDown(KEY.A) and not cube.collideLeft and not cube.crouch then
+            cube.vel.x = cube.vel.x - MOVE_SPEED*(cube.isGrounded and 0.1 or 0.01)
+        else
+            cube.vel.x = cube.vel.x/(cube.isGrounded and 1.1 or 1.0025)
+        end
+        if cube.vel.x > 0 and cube.collideRight or cube.vel.x < 0 and cube.collideLeft then
+            cube.vel.x = 0
+        end
+        cube.vel.x = math.clamp(cube.vel.x,-MOVE_SPEED,MOVE_SPEED)
+        
+        -- Jumping
+        if input.isKeyDown(KEY.SPACE) then
+            if cube.isGrounded or (not cube.isGrounded and (cube.collideLeft or cube.collideRight)) and blockSpace != true then
+                cube.vel.y = JUMP_FORCE/1.25
+                if not cube.isGrounded then
+                    cube.vel.x = cube.collideLeft and -JUMP_FORCE/1.25 or (cube.collideRight and JUMP_FORCE/1.25 or 0)
+                end
+                cube.isGrounded = false
+                blockSpace = true
+                owner():emitSound("physics/flesh/flesh_impact_hard2.wav", 100, 100, 1, CHANNEL_AUTO)
+            end
+        else
+            blockSpace = false
+        end
+    end
+    
+    -- Physics and Gravity
+    function updatePhysics(cube, deltaTime)
+        -- Apply gravity
+        if not cube.isGrounded then
+            cube.vel.y = math.clamp(cube.vel.y - (GRAVITY * (cube.isGrounded and 0 or 1) * deltaTime)*(((cube.collideLeft or cube.collideRight) and (cube.vel.y > 0)) and 0.5 or 1), GRAVITY, -GRAVITY)
+        end
+        cube.isStayingStill = true
+        if math.abs(cube.vel.x) >= 5 then
+            cube.idleCT = timer.curtime()
+            cube.isStayingStill = false
+            cube.leftRight = cube.vel.x<0
+        else
+            cube.vel.x = 0
+        end
+        -- Update position
+        cube.pos.x = cube.pos.x + cube.vel.x * deltaTime
+        cube.pos.y = cube.pos.y + cube.vel.y * deltaTime
+        -- Prevent cube from falling out of bounds
+        if cube.pos.y > 512*2 then
+            cube.pos = Vector(512/2,512/2,0)
+            cube.vel.y = 0
+            cube.isGrounded = true
+        end
+    end
+    function getFrame(index)
+        local flip = cube.leftRight and (cube.leftRight and not (cube.collideLeft and not cube.isGrounded)) or (cube.collideRight and not cube.isGrounded) 
+        local SheetSize = 1024
+        local FrameSize = 64
+        local FramesPerRow = SheetSize / FrameSize
+    
+        local i = index - 1
+        local col = i % FramesPerRow
+        local row = math.floor(i / FramesPerRow)
+    
+        local u1 = (col * FrameSize) / SheetSize
+        local v1 = (row * FrameSize) / SheetSize
+        local u2 = ((col + 1) * FrameSize) / SheetSize
+        local v2 = ((row + 1) * FrameSize) / SheetSize
+    
+        -- Flip U coordinates if needed
+        if flip then
+            u1, u2 = u2, u1
+        end
+    
+        return u1, v1, u2, v2
+    end
+    
+    -- Rendering
+    function renderWorld()
+        render.setColor(Color(255,255,255,255))
+        render.setMaterial(materials["world_bg.png"])
+        render.drawTexturedRect(0,0,512,512)
+        
+        render.setMaterial(materials["ply_char_sheet.png"])
+        if cube.isGrounded then
+            if cube.collideLeft or cube.collideRight then
+                if timer.curtime() - cube.stayingStillCT > 0.2 then
+                    cube.stayingStillCT = timer.curtime()
+                    cube.idleCycle = cube.idleCycle + 1
+                    if cube.idleCycle > #animationData["wallLeanFrames"] then
+                        cube.idleCycle = 1
+                    end
+                end
+                u1, v1, u2, v2 = getFrame(animationData["wallLeanFrames"][cube.idleCycle])
+            else
+                if cube.isStayingStill then
+                    if cube.crouch or cube.crouchCycle < 5 then
+                        if timer.curtime() - cube.crouchCT > 0.1 then
+                            cube.crouchCT = timer.curtime()
+                            cube.crouchCycle = cube.crouchCycle + 1
+                            if cube.crouch then
+                                cube.crouchCycle = math.clamp(cube.crouchCycle,0,2)
+                            else
+                                cube.crouchCycle = math.clamp(cube.crouchCycle,2,4)
+                            end
+                        end
+                        u1, v1, u2, v2 = getFrame(animationData["crouchFrames"][cube.crouchCycle]+1)
+                    else
+                        if timer.curtime() - cube.stayingStillCT > 0.2 then
+                            cube.stayingStillCT = timer.curtime()
+                            cube.idleCycle = cube.idleCycle + 1
+                            if cube.idleCycle > #animationData["idleFrames"] then
+                                cube.idleCycle = 1
+                            end
+                        end
+                        u1, v1, u2, v2 = getFrame(animationData["idleFrames"][cube.idleCycle])
+                    end
+                else
+                    if timer.curtime() - cube.runCT > (0.2-0.12*(math.abs(cube.vel.x)/MOVE_SPEED)) then
+                        cube.runCT = timer.curtime()
+                        cube.runCycle = cube.runCycle + 1
+                        if cube.runCycle > #animationData["runFrames"] then
+                            cube.runCycle = 1
+                        end
+                        if cube.runCycle == 1 or cube.runCycle == 4 or cube.runCycle == 7 then
+                            owner():emitSound("player/footsteps/sand1.wav", 100, 100, 1, CHANNEL_AUTO)
+                        end
+                    end
+                    u1, v1, u2, v2 = getFrame(animationData["runFrames"][cube.runCycle])
+                end
+            end
+            cube.jumpCycle = 1
+        else
+            if cube.collideLeft or cube.collideRight then
+                u1, v1, u2, v2 = getFrame(animationData["wallHugFrames"][1])
+            else
+                if timer.curtime() - cube.jumpCT > 0.1 then
+                    cube.jumpCT = timer.curtime()
+                    cube.jumpCycle = cube.jumpCycle + 1
+                    cube.jumpCycle = math.clamp(cube.jumpCycle,0,#animationData["jumpFrames"])
+                end
+                u1, v1, u2, v2 = getFrame(animationData["jumpFrames"][cube.jumpCycle])
+            end
+        end
+        render.drawTexturedRectUV(cube.pos.x - cube.size.x / 2,cube.pos.y+cube.size.y*0.1,cube.size.x,cube.size.y,u1, v1, u2, v2)
+        render.setMaterial(materials["world_top.png"])
+        render.drawTexturedRect(0,0,512,512)
+    end
+    -- Hook into the game loop
+    hook.add("render", "render everything", function()
+        if assetsDownloaded and player():inVehicle() and player():getVehicle() == SEAT then
+            -- Update game logic
+            local deltaTime = timer.frametime() -- Time elapsed since the last frame
+            handleInput(cube, deltaTime)
+            updatePhysics(cube, deltaTime)
+            updateCollisions(cube, world)
+            -- Render the world
+            renderWorld()
+            
+            render.setColor(Color(75,75,75))
+            
+            render.drawText(16,15,"Fancy Pants Man Demo by Naki",nil)
+            render.drawText(16,30,"A/D - Move",nil)
+            render.drawText(16,45,"Space - Jump",nil)
+            render.drawText(16,60,"S - Crouch",nil)
+        end
+    end)
+end

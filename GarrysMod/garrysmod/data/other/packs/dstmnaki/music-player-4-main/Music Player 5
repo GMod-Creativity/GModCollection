@@ -1,0 +1,755 @@
+--@name Music Player 5
+--@author Naki
+--@include nakilibs/musicplayer4/tracklist.txt
+--@client
+
+if CLIENT then
+local permissionSatisfied = hasPermission("bass.loadURL") and hasPermission("file.existsInGame") and hasPermission("file.read")
+parent = chip()
+
+holoStore = hologram.create(parent:localToWorld(Vector(0,0,0)), parent:localToWorldAngles(Angle(0,0,0)), "models/holograms/icosphere2.mdl", Vector(25))
+holoStore:setParent(chip())
+holoStore:setMaterial("models/wireframe")
+holoStore:setColor(Color(255,255,255,255))
+
+holoStore:setNoDraw(true)
+local centerTransform = Matrix()
+centerTransform:setTranslation(Vector(x, y, 0)/2)
+
+require("nakilibs/musicplayer4/tracklist.txt")
+tracklistGet = tracklist2()
+bandNames = {}
+bandSet = {}  -- Helper table to track uniqueness
+
+function tracklist()
+    -- Ensure the band names and songs are fetched properly with the fallback "Other/Misc"
+    local tracklistWithBands = tracklistGet  -- Fetch the original tracklist
+    local returnTable = {}
+    -- Modify the tracklist to ensure each track has a band, adding "Other/Misc" if needed
+    for _, song in ipairs(tracklistWithBands) do
+        local songDetails = song[2]  -- Format: "band - song name"
+        local extractedBand, songName = songDetails:match("^(.-) %- (.+)$")
+        if extractedBand == nil then
+            songName = songDetails
+        end
+        -- If no band name is found or it's empty, set it to "Other/Misc"
+        if extractedBand == nil or extractedBand == "" then
+            extractedBand = "Other"
+        end
+        
+        -- Update the song with the band name (song[2] should be in the form "band - song name")
+        
+        table.insert(returnTable,{song[1],extractedBand.. " - " .. songName})
+    end
+
+    -- Return the modified tracklist
+    return returnTable
+end
+
+-- Sort band names alphabetically
+
+function fetchSongs(band)
+    local filteredTracks = {}  -- Stores songs matching the band
+    local nameIndexMap = {}  -- Maps song names to original entries
+    local names = {}  -- List of names for sorting
+
+    -- Filter songs by band
+    for _, entry in ipairs(tracklist()) do
+        local songURL = entry[1]
+        local fullName = entry[2]
+
+        -- Extract band and song name
+        local extractedBand, songName = fullName:match("^(.-) %- (.+)$")
+
+        if extractedBand == band then
+            table.insert(filteredTracks, {songURL, fullName})
+            table.insert(names, songName)  -- Store only the song name for sorting
+            nameIndexMap[songName] = {songURL, fullName}
+        end
+    end
+
+    -- Sort by song name
+    table.sort(names)
+    -- Create sorted song list
+    local sortedTracks = {}
+    for _, songName in ipairs(names) do
+        table.insert(sortedTracks, nameIndexMap[songName])
+    end
+    
+    return sortedTracks
+end
+
+local buffers = {"RT", "RT2"}
+local buffernum = 1
+render.createRenderTarget("RT")
+render.createRenderTarget("RT2")
+local centerTransform = Matrix()
+centerTransform:setTranslation(Vector(512, 512, 0))
+
+getTrackList = {}
+url = ""
+name = ""
+_snd = nil
+function playURL(url2,name)
+    print("Now playing "..name)
+    wait=true
+    if _snd != nil then 
+        _snd:stop()
+    end
+    bass.loadURL(url2,"3d noblock",function(snd)
+    _snd = snd
+    if snd != nil then
+        snd:play()
+        snd:setPos(chip():getPos())
+        snd:setFade(500,0)
+        snd:setVolume(0)
+        snd:setLooping(1)
+        
+        alpha = 0
+        alpha2 = 0
+        alpha3 = 0
+        playing = false
+    end
+end)
+
+end
+if permissionSatisfied then
+    local fileExists = file.existsInGame("data/starfall/musicplayer4/mytracklist.txt")
+    if fileExists then
+        local getFileData = file.readInGame("data/starfall/musicplayer4/mytracklist.txt")
+        if getFileData != nil then
+            local lines = string.explode("\n",getFileData,nil)
+            local linesCount = #lines
+            local lineIndex = 1
+            timer.create("addsongs",0.1,0,function()
+                lineIndex = lineIndex + 1
+                local this = lines[lineIndex]
+                if this != nil and this != "" then
+                    local line = string.explode("||",this,nil)
+                    if line != nil and line != "" then
+                        local lineURL = line[1]:sub(2,string.len(line[1])-1)
+                        local lineARTIST = line[2]:sub(2,string.len(line[2])-1)
+                        table.insert(tracklistGet,1,{lineURL,lineARTIST})
+                    end
+                end
+                if lineIndex >= linesCount then
+                    timer.remove("addsongs")
+                    
+                    -- Extract unique band names
+                    for _, song in ipairs(tracklist()) do
+                        local bandName = song[2]:match("^(.-) %- ") or song[2]  -- Extract band name
+                    
+                        if not bandSet[bandName] then  -- Avoid duplicates
+                            bandSet[bandName] = true
+                            table.insert(bandNames, bandName)
+                        end
+                    end
+                    table.sort(bandNames)
+                end
+            end)
+        end
+    end
+else
+setupPermissionRequest({"bass.loadURL","file.existsInGame","file.read"},"Play music, Check for custom music library, Read custom music library", true)
+hook.add("permissionrequest", "", function()
+    permissionSatisfied = hasPermission("bass.loadURL") and hasPermission("file.existsInGame") and hasPermission("file.read")
+    if permissionSatisfied == true then
+        local fileExists = file.existsInGame("data/starfall/musicplayer4/mytracklist.txt")
+        if fileExists then
+            local getFileData = file.readInGame("data/starfall/musicplayer4/mytracklist.txt")
+            if getFileData != nil then
+                local lines = string.explode("\n",getFileData,nil)
+                local linesCount = #lines
+                local lineIndex = 1
+                timer.create("addsongs",0.1,0,function()
+                    lineIndex = lineIndex + 1
+                    local this = lines[lineIndex]
+                    if this != nil and this != "" then
+                        local line = string.explode("||",this,nil)
+                        if line != nil and line != "" then
+                            local lineURL = line[1]:sub(2,string.len(line[1])-1)
+                            local lineARTIST = line[2]:sub(2,string.len(line[2])-1)
+                            table.insert(tracklistGet,1,{lineURL,lineARTIST})
+                        end
+                    end
+                    if lineIndex >= linesCount then
+                        timer.remove("addsongs")
+                        
+                        -- Extract unique band names
+                        for _, song in ipairs(tracklist()) do
+                            local bandName = song[2]:match("^(.-) %- ") or song[2]  -- Extract band name
+                        
+                            if not bandSet[bandName] then  -- Avoid duplicates
+                                bandSet[bandName] = true
+                                table.insert(bandNames, bandName)
+                            end
+                        end
+                        table.sort(bandNames)
+                    end
+                end)
+            end
+        end
+    end
+end)
+end
+
+local function inbox(boxdata)
+    local boxpos = boxdata[1]
+    local boxsize = boxdata[2]
+    local boxpos1 = boxpos - boxsize / 2
+    local boxpos2 = boxpos + boxsize / 2
+    local localposx, localposy = render.cursorPos(player(), screenEnt)
+    
+    local xok = (localposx > boxpos1.x) and (localposx < boxpos2.x)
+    local yok = (localposy > boxpos1.y) and (localposy < boxpos2.y)
+
+    --if xok then print("xok") end
+    --if yok then print("yok") end
+
+    return xok and yok
+end
+local function openMenu(boolean)
+    if not boolean then
+        if menuOpen != false then
+            menuOpen = false
+            menuMoveCT = timer.curtime()
+            scrolling = false
+            scroll=0
+            localposystore=0
+        end
+    else
+        if menuOpen != true then
+            menuOpen = true
+            menuMoveCT = timer.curtime()
+        end
+    end
+end
+local function updateSongList(band)
+    openMenu(false) -- Close the menu
+
+    timer.simple(1/3, function() -- Wait for the menu to fully close (adjust delay if needed)
+        songList = fetchSongs(band) -- Fetch new song list
+        getTrackList = {}
+        
+        for _, song in ipairs(tracklist()) do
+            local bandName = song[2]:match("^(.-) %- ") or song[2]
+            if bandName == selectedBand then
+                table.insert(getTrackList, song)
+            end
+        end
+        openMenu(true) -- Reopen the menu with the updated list
+    end)
+end
+
+local function closeBandList()
+    openMenu(false) -- Close the menu
+
+    timer.simple(1/3, function() -- Wait for the menu to fully close (adjust delay if needed)
+        selectedBand = nil
+        selectedSong = nil
+        storeBand = nil
+        storeSong = nil
+        getTrackList = {}
+        openMenu(true) -- Reopen the menu with the updated list
+    end)
+end
+local function closeMenuSelection()
+    openMenu(false) -- Close the menu
+
+    timer.simple(1/3, function() -- Wait for the menu to fully close (adjust delay if needed)
+        selectedBand = nil
+        selectedSong = nil
+        storeBand = nil
+        storeSong = nil
+        getTrackList = {}
+    end)
+end
+
+local menuTex = material.create("UnlitGeneric")
+local menuTex2 = material.createFromImage("icon16/folder.png", "alphatest")
+menuTex:setTexture("$basetexture", menuTex2:getName())
+
+local arrow = material.create("UnlitGeneric")
+local arrow2 = material.createFromImage("icon16/control_end.png", "alphatest")
+arrow:setTexture("$basetexture", arrow2:getName())
+
+local function drawMenu()
+    if menuOpen == nil then menuOpen = false end
+    if menuMoveCT == nil then menuMoveCT = timer.curtime()-1 end
+    local menuOpenToFloat = menuOpen and 1 or 0  -- Now it represents the target state correctly
+    local progress = math.clamp((timer.curtime() - menuMoveCT) * 3, 0, 1)
+    local progressSongList = math.easeInBack(math.clamp((timer.curtime() - menuMoveCT) * 3, 0, 1))
+    
+    -- Lerp between closed (-512) and open (0) positions
+    local menuMoveMath = menuOpenToFloat * progress + (1 - menuOpenToFloat) * (1 - progress)
+    local menuPos = Vector(-512 + 512 * menuMoveMath, 0, 0)
+    local songMoveMath = menuOpenToFloat * progressSongList + (1 - menuOpenToFloat) * (1 - progressSongList)
+    local songList = Vector(-512 + 512 * songMoveMath, 0, 0)
+    
+    local dontHide = not (menuOpen == false and progress == 1)
+    
+    menumoving = progress != 1
+    
+    -- Get cursor position relative to the screen
+    local localposx, localposy = render.cursorPos(player(), screenEnt)
+    if scroll == nil then scroll = 0 end
+    if localposystore == nil then localposystore = 0 end
+    if isDragging == nil then isDragging = false end
+    if getTrackList != nil then
+        if localposy != nil and menuOpen == true and localposy > 60*(scrolling and 0 or 1) then
+            if input.isMouseDown(MOUSE.MOUSE1) and isDragging == false then
+                -- Calculate the maximum scrollable height based on the number of visible items and item height
+                local itemHeight = 35 + 15  -- Height per item including spacing
+                local totalHeight = itemHeight * (#bandNames + #getTrackList)  -- Total height of all items (bands + songs)
+            
+                -- Adjust scroll position based on mouse movement
+                scroll = math.clamp(localposystore - localposy, 0, totalHeight - itemHeight*1)
+                scrolling = true
+            else
+                -- Store the initial position for the next scroll calculation
+                localposystore = localposy + scroll
+                scrolling = false
+            end
+        end
+        if dontHide then
+            -- Calculate menu display range
+            local menuHeight = 512 - 60  -- Height where the list disappears sooner
+            local itemHeight = 35 + 15  -- Height per item including spacing
+            local startIndex = math.max(1, math.floor(scroll / itemHeight))  -- First visible item
+            local endIndex = math.min(#bandNames, math.ceil((scroll + menuHeight) / itemHeight))  -- Last visible item
+            
+            local fadeStart = scroll + menuHeight + 512 / 2  -- Where fading begins
+            local fadeEnd = fadeStart + (itemHeight * 4)  -- Fading fully disappears after 4 items
+            
+            -- Check if a band has been selected, and display corresponding songs
+            if table.count(getTrackList) == 0 then
+                -- Render band names
+                for i = startIndex, endIndex do
+                    local bandName = bandNames[i]
+            
+                    local yPos = 35 / 2 + (itemHeight * i) - scroll
+                    local sinOffset = 5 * math.sin(math.rad((timer.curtime() * 0.5 + 0.25 * i) * 180))
+            
+                    -- Adjusted fade calculation across multiple items
+                    local fadeFactor = math.min(1, math.max(0, (fadeEnd - (yPos + itemHeight * i)) / (fadeEnd - fadeStart)))
+                    local alpha = (1 - fadeFactor) * 255  -- Scale from 0 to 255
+                    local alpha2 = fadeFactor * 255  -- Scale from 0 to 255
+            
+                    -- Apply alpha to HSV color
+                    local colorRGB = Color((timer.curtime() * 10 + 180) % 360 - 180, 1, 1):hsvToRGB()
+                    colorRGB.a = alpha2
+                    render.setColor(colorRGB)
+                    render.drawRoundedBox(15, -75 + songList.x + sinOffset - alpha, yPos, 512 + 20, 48)
+            
+                    -- Adjust black background fade for visibility
+                    local colorblack = Color(0, 0, 0)
+                    colorblack.a = math.clamp(alpha2 * 5, 0, 255)  -- Make background fade more dramatic
+                    render.setColor(colorblack)
+                    render.drawRoundedBox(10, -75 + 4 + songList.x + sinOffset - alpha, yPos + 4, 512 - 8 + 20, 40)
+            
+                    -- Apply text with alpha fade
+                    render.setColor(colorRGB)
+                    local ExtraText = bandName:sub(35, 35) ~= "" and "..." or ""
+                    render.drawText(20 + songList.x + sinOffset - alpha, yPos + 10, bandName:sub(1, 32) .. ExtraText, TEXT_ALIGN.LEFT)
+                end
+            else
+                -- Render songs for the selected band
+                local startIndexSongs = math.max(1, math.floor(scroll / itemHeight))  -- First visible song
+                local endIndexSongs = math.min(#getTrackList, math.ceil((scroll + menuHeight) / itemHeight))  -- Last visible song
+            
+                for i = startIndexSongs, endIndexSongs do
+                    local song = getTrackList[i]
+            
+                    local yPos = 35 / 2 + (itemHeight * i) - scroll
+                    local sinOffset = 5 * math.sin(math.rad((timer.curtime() * 0.5 + 0.25 * i) * 180))
+            
+                    -- Adjusted fade calculation across multiple items
+                    local fadeFactor = math.min(1, math.max(0, (fadeEnd - (yPos + itemHeight * i)) / (fadeEnd - fadeStart)))
+                    local alpha = (1 - fadeFactor) * 255  -- Scale from 0 to 255
+                    local alpha2 = fadeFactor * 255  -- Scale from 0 to 255
+            
+                    -- Apply alpha to HSV color
+                    local colorRGB = Color((timer.curtime() * 10 + 180) % 360 - 180, 1, 1):hsvToRGB()
+                    colorRGB.a = alpha2
+                    render.setColor(colorRGB)
+                    render.drawRoundedBox(15, -75 + songList.x + sinOffset - alpha, yPos, 512 + 20, 48)
+            
+                    -- Adjust black background fade for visibility
+                    local colorblack = Color(0, 0, 0)
+                    colorblack.a = math.clamp(alpha2 * 5, 0, 255)  -- Make background fade more dramatic
+                    render.setColor(colorblack)
+                    render.drawRoundedBox(10, -75 + 4 + songList.x + sinOffset - alpha, yPos + 4, 512 - 8 + 20, 40)
+            
+                    -- Apply text with alpha fade
+                    render.setColor(colorRGB)
+                    local ExtraText = song[2]:sub(35, 35) ~= "" and "..." or ""
+                    render.drawText(20 + songList.x + sinOffset - alpha, yPos + 10, song[2]:sub(1, 32) .. ExtraText, TEXT_ALIGN.LEFT)
+                end
+            end
+
+
+            if secondPressCT != nil then
+                if timer.curtime()-secondPressCT > 0.3 then
+                    storeSong = nil
+                    secondPress = 0
+                    storeSongCurrent = nil
+                    storeBand = nil
+                end
+            end
+            if secondPressCT == nil then secondPressCT = timer.curtime() end
+            if localposy != nil and progress == 1 then
+                if progresslast == nil then progresslast = progress end
+                
+                -- Ensure correct precedence by grouping conditions
+                if input.isMouseDown(MOUSE.MOUSE1) and wait ~= true and progresslast == progress and localposy > 60 and menuOpen then
+                    if secondPress == nil then secondPress = 0 end
+                    if selectedBand == nil then selectedBand = nil end
+                    if selectedSong == nil then selectedSong = nil end
+                    if down2 == nil then down2 = false end
+                    
+                    if down2 ~= true then
+                        down2 = true
+                        
+                        if (timer.curtime() - secondPressCT) > 0.05 then
+                            if selectedBand == nil then
+                                -- First: Double-click to select a BAND
+                                for i, band in ipairs(bandNames) do
+                                    local posX = -25 + menuPos.x + 5 * math.sin(math.rad((timer.curtime() * 0.5 + 0.25 * i) * 180))
+                                    local posY = 35 / 2 + (15 + 35) * i - scroll
+                                    local sizeX, sizeY = 512 - 25, 48
+                                    
+                                    local boxdata = {Vector(posX + sizeX / 2, posY + sizeY / 2, 0), Vector(sizeX, sizeY, 0)}
+                
+                                    if inbox(boxdata) then
+                                        if storeBand == nil then
+                                            storeBand = i
+                                        else
+                                            storeBandCurrent = i
+                                        end
+                
+                                        if storeBandCurrent == storeBand then
+                                            secondPress = secondPress + 1
+                                            secondPressCT = timer.curtime()
+                                            storeBandCurrent = nil
+                                        end
+                
+                                        if secondPress >= 1 then
+                                            -- Select band and filter song list
+                                            secondPress = 0
+                                            selectedBand = band
+                                            updateSongList(band) -- Pass the band to update the song list
+                                        end
+                
+                                        break
+                                    end
+                                end
+                            else
+                                -- Second: Double-click to select a SONG
+                                for i, song in ipairs(getTrackList) do
+                                    local posX = -25 + menuPos.x + 5 * math.sin(math.rad((timer.curtime() * 0.5 + 0.25 * i) * 180))
+                                    local posY = 35 / 2 + (15 + 35) * i - scroll
+                                    local sizeX, sizeY = 512 - 25, 48
+                
+                                    local boxdata = {Vector(posX + sizeX / 2, posY + sizeY / 2, 0), Vector(sizeX, sizeY, 0)}
+                
+                                    if inbox(boxdata) then
+                                        if storeSong == nil then
+                                            storeSong = i
+                                        else
+                                            storeSongCurrent = i
+                                        end
+                
+                                        if storeSongCurrent == storeSong then
+                                            secondPress = secondPress + 1
+                                            secondPressCT = timer.curtime()
+                                            storeSongCurrent = nil
+                                        end
+                
+                                        if secondPress >= 1 then
+                                            -- Select song and play it
+                                            secondPress = 0
+                                            track = song
+                                            url = track[1]
+                                            name = track[2]
+                                            volume = volume or 1
+                                            playURL(url, name)
+                
+                                            -- Reset for next selection
+                                            closeMenuSelection()
+                                        end
+                
+                                        break
+                                    end
+                                end
+                            end
+                        end
+                        secondPressCT = timer.curtime()
+                    end
+                else
+                    down2 = false
+                end
+
+
+            end
+            -- Store progress for next frame
+            progresslast = progress
+        end
+        
+        if volume == nil then volume = 1 end
+        -- Line 222: Volume Slider Code
+        local sliderX, sliderY = 512/2-100, 25  -- Slider position
+        local sliderWidth, sliderHeight = 200, 25
+        local handleRadius = 25
+        local isDragging = false
+        
+        -- If mouse is held, check if it's dragging the handle
+        if scrolling == nil then scrolling = false end
+        if input.isMouseDown(MOUSE.MOUSE1) and localposx != nil then
+            if isDragging or (localposx >= sliderX-5 and localposx <= sliderX + sliderWidth+5 
+                and localposy >= sliderY and localposy <= sliderY + sliderHeight) and scrolling == false then
+                isDragging = true
+                volume = math.clamp((localposx - sliderX) / sliderWidth, 0, 1)
+                if _snd != nil and _snd:isValid() then
+                    _snd:setVolume(volume)
+                end
+            end
+        else
+            isDragging = false
+        end
+        
+            
+        render.setColor(Color((timer.curtime()*10+180)%360-180, 1, 1):hsvToRGB())
+        --render.drawRoundedBoxEx(15, menuPos.x, menuPos.y+512-5, 480, 5, false, false, false, true)
+        
+        render.drawRoundedBoxEx(15, 0, menuPos.y, 512, 70, false, true, false, true)
+        
+        render.setColor(Color(0,0,0))  -- Example gray color
+        render.drawRoundedBoxEx(10, 0, menuPos.y+5, 512-5, 60, false, true, false, true)
+        
+        -- Draw slider background (using one of your predefined colors)
+        render.setColor(Color((timer.curtime()*10+180)%360-180, 1, 1):hsvToRGB())  -- Example gray color
+        render.drawRoundedBox(15,sliderX-handleRadius/2*2, sliderY-handleRadius/2*0.75, sliderWidth+handleRadius*2, sliderHeight+handleRadius*0.7)
+        
+        render.setColor(Color(0,0,0))  -- Example gray color
+        render.drawRoundedBox(10,sliderX-(handleRadius/2*2-5), sliderY-(handleRadius/2*0.75-5), sliderWidth+handleRadius*2-10, sliderHeight+handleRadius*0.7-10)
+        
+        -- Draw slider handle
+        local handleX = sliderX + volume * sliderWidth
+        render.setColor(Color((timer.curtime()*10+180)%360-180, 1, 1):hsvToRGB())  -- White for contrast
+        render.drawRoundedBox(5, handleX-handleRadius/2, sliderY-handleRadius/2 + sliderHeight / 2, handleRadius, handleRadius)
+        
+        render.drawRoundedBox(15,512-100,48/4,90,48)
+        
+        render.setColor(Color(0,0,0,255))
+        render.drawRoundedBox(10,512-100+4,48/4+4,90-8,40)
+        
+        
+        render.setColor(Color((timer.curtime()*10+180)%360-180, 1, 1):hsvToRGB())
+        render.drawRoundedBox(15,48/4,48/4,48,48)
+        
+        render.setColor(Color(0,0,0,255))
+        render.drawRoundedBox(10,48/4+4,48/4+4,40,40)
+        
+        render.setColor(Color((timer.curtime()*10+180)%360-180, 1, 1):hsvToRGB())
+        render.drawRoundedBox(15,48/4+48+10,48/4,48,48)
+        
+        render.setColor(Color(0,0,0,255))
+        render.drawRoundedBox(10,48/4+48+10+4,48/4+4,40,40)
+        
+        render.setColor(Color((timer.curtime()*10+180)%360-180, 1, 1):hsvToRGB())
+        render.setMaterial(menuTex)
+        render.drawTexturedRect(48/4+8,48/4+8,32,32,0)
+        
+        render.setMaterial(arrow)
+        render.drawTexturedRect(48/4+8+48+10,48/4+8,32,32,0)
+        
+        -- Show volume percentage
+        render.drawText(sliderX + sliderWidth + 105, sliderY - 5, string.format("%.0f%%", volume * 100), TEXT_ALIGN.CENTER)
+        
+    end
+end
+hook.add("think","",function()
+    if _snd != nil and isValid(_snd) then
+        _snd:setPos(player():getPos())
+    end
+end)
+hook.add("render","render_gui_stuff",function()
+    screenEnt = screenEnt or render.getScreenEntity()
+    if render.isInRenderView() then return end
+    local snd = _snd
+    if screenEnt then
+        render.setColor(Color(255, 255, 255))
+        render.setFont("DermaLarge")
+        if not snd or wait == true then
+            if not permissionSatisfied then
+                render.drawText(256, 256 - 32, "IF you run out of ram, use this command", 1)
+                render.drawText(256, 256, "*sf_timebuffer_cl 0.1*", 1)
+                render.drawText(256, 256 - 128, "GRANT ME PERMS FOR MUSIC (PRESS E)", 1)
+                return
+            else
+                render.setColor(Color((timer.curtime()*10+180)%360-180, 1, 1):hsvToRGB())
+                if wait then
+                    if time == nil or timer.curtime()-time > 1 then time = timer.curtime() end
+                    if timer.curtime()-time < 0.33 then
+                        addText = "."
+                    elseif timer.curtime()-time < 0.66 then
+                        addText = ".."
+                    elseif timer.curtime()-time < 0.99 then
+                        addText = "..."
+                    else
+                        addText="..."
+                    end
+                    render.drawText(256, 256 - 32, "Now loading track"..addText, 1)
+                else
+                    render.drawText(256, 256 - 128, "Music Player by Naki", 1)
+                    render.drawText(256, 256 - 32, "Controls:", 1)
+                    render.drawText(256, 256 + 0, "Mouse1 - Interact with buttons", 1)
+                    render.drawText(256, 256 + 32, "Mouse1 (Hold & Move) - Scroll song list", 1)
+                    render.drawText(256, 256 + 64, "Mouse1 (Double Tap) - Select song", 1)
+                    render.drawText(256, 256 + 128, "Open song list from the top left corner!", 1)
+                end
+            end
+        end
+        if snd != nil and isValid(snd) then
+            if not snd:isPaused() then
+                if wait != false then
+                    wait = false
+                end
+                
+                local n = 64
+                local scrnw = 512
+                local fft = snd:getFFT(n)
+        
+                local nextbuffer = (buffernum%#buffers)+1
+                
+                
+                alpha = alpha + 0.1
+                alpha = math.clamp(alpha,0,1)
+                
+                alpha2 = alpha2 + 0.01
+                alpha2 = math.clamp(alpha2,0,1)
+                
+                if alpha2 >= 1 then
+                    alpha3 = alpha3 + 0.02
+                    alpha3 = math.clamp(alpha3,0,1)
+                end
+                if alpha2 >= 1 then
+                    if playing == false then
+                        playing = true
+                        if volume == nil then volume = 1 end
+                        snd:setVolume(volume)
+                        snd:setTime(0)
+                    end
+                end
+                local fft2 = snd:getFFT(64*5)
+                hook.runRemote(nil,((fft2[1]+fft2[2]+fft2[3]+fft2[4]+fft2[5])/5)*1.5)
+                
+                render.setRenderTargetTexture(buffers[buffernum])
+                render.selectRenderTarget(buffers[nextbuffer])
+                render.clear(Color(0,0,0,255))
+                render.setColor(Color((timer.curtime()*10+180)%360-180, 1, alpha3):hsvToRGB())
+                render.pushMatrix(centerTransform)
+                
+                if fft != nil then
+                    for i=1, n do
+                        local current = fft[i+1]
+                        local next = fft[i]
+                        if current != nil and next != nil then
+                            local width = scrnw/n
+                            local pos = -(scrnw)+(((scrnw*2)/n)*(i-0.5))
+                            local x = width+pos
+                            local y = 5
+                            local lx = width+pos
+                            local ly = (current*512)
+                            
+                            render.drawRect(x,y,width,ly)
+                        end
+                    end
+                end
+                local length = snd:getLength()
+                local time = snd:getTime()
+                if playing == true then
+                    progresspercent = 1-((length-time)/length)
+                else
+                    progresspercent = 0
+                end
+                
+                --render.selectRenderTarget()
+                buffernum = nextbuffer
+                
+                render.setColor(Color((timer.curtime()*10+180)%360-180, 1, alpha3):hsvToRGB())
+                
+                render.drawRoundedBox(8,-500,-4,500*progresspercent*2,5)
+                
+                render.setColor(Color((timer.curtime()*10+180)%360-180, 1, alpha):hsvToRGB())
+                render.drawText(0, -55, name, 1)
+                
+                
+                render.popMatrix()
+                render.selectRenderTarget()
+                
+                render.setColor(Color(255, 255, 255, 255))
+                render.setRenderTargetTexture(buffers[nextbuffer])
+                render.drawTexturedRect(0, 0, 512, 512)
+                holoStore:setPos(screenEnt:getPos()-screenEnt:getUp()*150)
+                holoStore:setAngles(Angle(35*math.sin(timer.systime()*360/1000),timer.systime()*5,35*math.cos(timer.systime()*90/1000)))
+                holoStore:setColor(Color((timer.curtime()*10+180)%360-180, 1, alpha):hsvToRGB())
+                holoStore:draw()
+            end
+        end
+        
+        if wait == nil then wait = false end
+        if menumoving == nil then menumoving = false end
+        local localposx, localposy = render.cursorPos(player(), screenEnt)
+        if localposx != nil then
+            --render.drawText(localposx,localposy,math.ceil(localposx).." "..math.ceil(localposy),1)
+            if input.isMouseDown(MOUSE.MOUSE1) and menumoving != true then
+                if down == nil then down = false end
+                if down != true then
+                    down = true
+                    local boxdata = {Vector(48/1.35,48/1.35,0),Vector(48,48,0)}
+                    --render.drawRect(boxdata[1].x-boxdata[2].x/2,boxdata[1].y-boxdata[2].y/2,boxdata[2].x,boxdata[2].y)
+                    if inbox(boxdata) then
+                        if selectedBand then
+                            closeBandList()
+                        else
+                            openMenu(!menuOpen)
+                        end
+                    end
+                    local boxdata = {Vector(48/1.35+10+48,48/1.35,0),Vector(48,48,0)}
+                    --render.drawRect(boxdata[1].x-boxdata[2].x/2,boxdata[1].y-boxdata[2].y/2,boxdata[2].x,boxdata[2].y)
+                    if inbox(boxdata) then
+                        if _snd != nil and _snd:isValid() then
+                            if not _snd:isPaused() then
+                                _snd:pause()
+                            else
+                                _snd:play()
+                            end
+                        end
+                    end
+                    
+                end
+            else
+                down = false
+            end
+        end
+        drawMenu()
+        local colorRGB = Color((timer.curtime()*10+180)%360-180, 1, 1):hsvToRGB()
+        if localposx != nil then
+            if hideCursorLast == nil then hideCursorLast=Vector(localposx,localposy,0) end
+            if hideCursorCT == nil then hideCursorCT=timer.curtime() end
+            if hideCursorLast != Vector(localposx,localposy,0) then hideCursorCT = timer.curtime() end
+            if timer.curtime() - hideCursorCT > 1 then hideCursor = true else hideCursor = false end
+            if timer.curtime() - hideCursorCT <= 2 then
+                local alphaMod = 255-255*math.clamp(-1+(timer.curtime() - hideCursorCT),0,1)
+                colorRGB.a = alphaMod
+                render.setColor(colorRGB)
+                render.drawRect(localposx-4, localposy-4, 8, 8)
+                render.setColor(Color(75,75,75,alphaMod))
+                render.drawRectOutline(localposx-5, localposy-5, 10, 10, 2)
+            end
+            hideCursorLast=Vector(localposx,localposy,0)
+        end
+    end
+end)
+end

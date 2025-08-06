@@ -1,6 +1,7 @@
-Author: Δp
-Date: September 12, 2022
-Title: acf projectile prediction
+- Author: Δp
+
+- Title: acf projectile prediction
+- Date: 12-09-2022
 
 tried to explain it as much as i could
 

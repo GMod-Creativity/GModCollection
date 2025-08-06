@@ -1,7 +1,9 @@
 - Author: Technicolour
 - Steam Profile: https://steamcommunity.com/profiles/76561197983168201
-- Date: Nov 2010
+- Date (dd-mm-yyyy): 14-11-2010
 - Title: Chip-8 Emulator 99% Speed and Compatability (Code & Dupe in thread)
+- Source: https://web.archive.org/web/20101117015858/http://www.wiremod.com/forum/finished-contraptions/23515-chip-8-emulator-99-speed-compatability-code-dupe-thread.html
+- Source Accessed (dd-mm-yyyy): 06-08-2025
 - GMODCOLLECTION_COMMENT: change mtable to table
 
 After hitting a roadblock on my GB emulator I decided to start a bit lower, a Chip 8 Emulator coded entirely in E2, runs 100% without unlimited 1. Originally, like the GB emulator this was merely meant to be a proof of concept but after writing it, debugging it and optomising it like fuck I've actualy got it to more or less 100% speed of a real Chip 8, and alot of games are not only fully playable but pretty damn fun.

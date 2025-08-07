@@ -1,8 +1,10 @@
 - Author: Okei
+- Steam Profile: https://steamcommunity.com/profiles/76561198000970954
+
+- Title: Okei's Custom Pathfinder
 - Date (dd-mm-yyyy): 23-04-2012
 - Source: https://web.archive.org/web/20150426145158/http://www.wiremod.com/forum/finished-contraptions/29386-okeis-custom-pathfinder.html
 - Source Accessed (dd-mm-yyyy): 07-06-2025
-- Title: Okei's Custom Pathfinder
 
 ## Okei's Custom Pathfinder
 

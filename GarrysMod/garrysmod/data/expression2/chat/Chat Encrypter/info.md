@@ -1,6 +1,9 @@
-- Author: XninjazXxx
-- Date: 08-16-2014
+- Author: Gato (XninjazXxx) (Devoided)
+
 - Title: [E2] Chat Encrypter
+- Date (dd-mm-yyyy): 08-16-2014
+- Source: https://web.archive.org/web/20150304054934/http://www.wiremod.com:80/forum/finished-contraptions/33452-e2-chat-encrypter.html
+- Source Accessed (dd-mm-yyyy): 06-08-2025
 
 ## [E2] Chat Encrypter
 

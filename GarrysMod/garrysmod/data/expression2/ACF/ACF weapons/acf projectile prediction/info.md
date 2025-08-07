@@ -3,6 +3,8 @@
 - Title: acf projectile prediction
 - Date: 12-09-2022
 
+## acf projectile prediction
+
 tried to explain it as much as i could
 
 predict function doesn't do an arcing trajectory

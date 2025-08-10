@@ -1,8 +1,14 @@
-Author: Enyx
-Date: 08-19-2015
-Title: CryNet Bot Destroyer [+other types] (Run to improve server performance)
+- Author: EnyxRB (Enyx)
+- Steam Profile: https://steamcommunity.com/profiles/76561197977307695
+- Github: https://github.com/EnyxRB
+- youtube: https://www.youtube.com/@Enyx
 
-*CryNet Bot Destroyer [+other types] (Run to improve server performance)*
+- Title: CryNet Bot Destroyer [+other types] (Run to improve server performance)
+- Date (dd-mm-yyyy): 19-08-2015
+- Source: https://web.archive.org/web/20150918154734/http://www.wiremod.com:80/forum/finished-contraptions/34753-crynet-bot-destroyer-other-types-run-improve-server-performance.html
+- Source Accessed (dd-mm-yyyy): 09-08-2025
+
+## CryNet Bot Destroyer [+other types] (Run to improve server performance)
 
 RUN THIS ON YOUR SERVER, IT WILL IMPROVE PERFORMANCE IF BOTS ARE FOUND.
 
@@ -20,6 +26,5 @@ Features:
 -If you have the prop protection / added the buddy of everyone on the bot owners on the sever (bot owners being the players unfortunate enough to have these bots somewhere in their props). Then after bots are deleted, you will be told who had the bots in their build.
 
 -If you don't have prop protection of certain bot owners, after running the E2, it will print to chat who needs to run a bot destroyer in order to get rid of their own evil bots.
-
 
 Also, heres a simple looping version, for inexperienced people who don't know how to edit the code. Helpful for owners that want to keep it running on the server while players spawn their dupes throughout the day. Making sure every bot spawned is rinsed.

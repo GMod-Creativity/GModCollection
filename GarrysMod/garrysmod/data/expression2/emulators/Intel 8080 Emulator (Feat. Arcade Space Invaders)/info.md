@@ -1,6 +1,14 @@
-Author: Technicolour
-Date: 06-02-2011
-Title: Intel 8080 Emulator (Feat. Arcade Space Invaders)
+- Author: Technicolour (Techni)
+- Steam Profile: https://steamcommunity.com/profiles/76561197983168201
+- Youtube: https://www.youtube.com/@Technicolour777
+
+- Title: Intel 8080 Emulator (Feat. Arcade Space Invaders)
+- Date (dd-mm-yyyy): 02-06-2011
+- Source: https://web.archive.org/web/20150411081952/http://www.wiremod.com:80/forum/finished-contraptions/26093-intel-8080-emulator-feat-arcade-space-invaders.html
+- Source: [Gmod Gameboy and Intel 8080 emulators.](https://web.archive.org/web/20150922051155/https://facepunch.com/threads/1117587-Gmod-Gameboy-and-Intel-8080-emulators.)
+- Source Accessed (dd-mm-yyyy): 09-08-2025
+
+## Intel 8080 Emulator (Feat. Arcade Space Invaders)
 
 This is a fully fledged Intel 8080 Emulator, nearly everything is Emulated.
 

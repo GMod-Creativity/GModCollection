@@ -1,7 +1,10 @@
-- Author: Δp
+- Author: Δp (pizza)
+- Steam Profile: https://steamcommunity.com/profiles/76561198433374055
 
 - Title: acf projectile prediction
-- Date: 12-09-2022
+- Date (dd-mm-yyyy): 12-09-2022
+- Source: Wiremod Discord
+- Source Accessed (dd-mm-yyyy): 09-08-2025
 
 ## acf projectile prediction
 

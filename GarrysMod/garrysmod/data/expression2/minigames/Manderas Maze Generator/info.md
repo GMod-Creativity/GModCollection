@@ -1,6 +1,11 @@
-- Author: mandera
-- Date: 03-02-2012
+- Author: Mandera
+- Steam Profile: https://steamcommunity.com/profiles/76561197982632516
+- Youtube: https://www.youtube.com/@Mandera93
+<!-- -->
 - Title: Mandera's Maze Generator
+- Date (dd-mm-yyyy): 02-03-2012
+- Source: https://web.archive.org/web/20130315133411/http://www.wiremod.com/forum/finished-contraptions/28880-manderas-maze-generator.html
+- Source Accessed (dd-mm-yyyy): 10-08-2025
 
 ## Mandera's Maze Generator
 

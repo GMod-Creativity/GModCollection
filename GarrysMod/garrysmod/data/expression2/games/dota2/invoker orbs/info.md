@@ -1,6 +1,9 @@
 - Author: gishygleb
-- Date: 09-03-2014
+<!-- -->
 - Title: [e2][dota2]fully functional invoker orbs![propcore]
+- Date (dd-mm-yyyy): 03-09-2014
+- Source: https://web.archive.org/web/20150429004628/http://www.wiremod.com/forum/finished-contraptions/33511-e2-dota2-fully-functional-invoker-orbs-propcore.html
+- Source Accessed (dd-mm-yyyy): 10-08-2025
 
 ## [e2][dota2]fully functional invoker orbs![propcore]
 

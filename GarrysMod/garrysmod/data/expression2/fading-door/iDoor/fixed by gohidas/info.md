@@ -1,8 +1,10 @@
 - Author: IrishTnT
-  
+- Steam Profile: https://steamcommunity.com/profiles/76561198076914559
+- Youtube: https://www.youtube.com/@irishtnt
+<!-- -->
 - Edited: gohidas (adosikas)
 - Github: https://github.com/adosikas
-  
+<!-- -->
 - Title: Really Bad Door E2
 - Date (dd-mm-yyyy): 07-08-2017
 - Source: Wiremod Discord

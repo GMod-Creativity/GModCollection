@@ -1,6 +1,13 @@
-- Author: coolerthanu9
-- Date: 07-21-2013
+- Author: ChupachuGames (coolerthanu9)
+- Steam Profile: https://steamcommunity.com/profiles/76561198023815430
+- Reddit: https://www.reddit.com/user/ChupachuGames/
+- Youtube: https://www.youtube.com/user/coolerthanu9
+- Youtube: https://www.youtube.com/channel/UCc_t13NWt4gX0jrIeW16_fg
+<!-- -->
 - Title: Pikmin E2
+- Date (dd-mm-yyyy): 21-07-2013
+- Source: https://web.archive.org/web/20150304043548/http://www.wiremod.com:80/forum/finished-contraptions/32008-pikmin-e2.html
+- Source Accessed (dd-mm-yyyy): 10-08-2025
 
 ## Pikmin E2
 

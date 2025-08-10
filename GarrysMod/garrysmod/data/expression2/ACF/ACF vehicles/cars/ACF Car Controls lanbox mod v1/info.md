@@ -1,4 +1,6 @@
 - Author: buder5
+- Steam Profile: https://steamcommunity.com/profiles/76561198010059730
+- Youtube: https://www.youtube.com/@buder5116
 
 - Title: ACF Car Controls lanbox mod v1
 - Date (dd-mm-yyyy): 05-10-2014

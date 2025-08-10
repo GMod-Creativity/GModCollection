@@ -1,4 +1,5 @@
-- Author: Gato (XninjazXxx) (Devoided)
+- Author: XninjazXxx (Gato) (Devoided)
+- Youtube: https://www.youtube.com/channel/UC-6WOjHUNpGwkk3fVCfrhGQ
 
 **Original**
 - Date (dd-mm-yyyy): 18-01-2016

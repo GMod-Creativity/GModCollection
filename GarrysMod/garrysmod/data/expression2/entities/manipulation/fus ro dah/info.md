@@ -1,8 +1,11 @@
-Author: malar163
-Date: 12-29-2014
-Title: [E2] A remake of that "fus ro dah" e2 I made about two years ago
+- Author: malar163
 
-*[E2] A remake of that "fus ro dah" e2 I made about two years ago*
+- Title: [E2] A remake of that "fus ro dah" e2 I made about two years ago
+- Date (dd-mm-yyyy): 29-12-2014
+- Source: https://web.archive.org/web/20150321102736/http://www.wiremod.com:80/forum/finished-contraptions/33851-e2-remake-fus-ro-dah-e2-i-made-about-two-years-ago.html
+- Source Accessed (dd-mm-yyyy): 10-08-2025
+
+## [E2] A remake of that "fus ro dah" e2 I made about two years ago
 
 > sees a shitty old e2 in post history
 > didireallydothis.jpg

@@ -1,9 +1,9 @@
+- Author: GliTcHed
+<!-- -->
+- Title: Blink Indication
+- Date (dd-mm-yyyy): 01-01-2015
 
-Author: GliTcHed
-Date: 01-01-2015
-Title: Blink Indication
-
-*Blink Indication*
+## Blink Indication
 
 A tracker and a health indicator that allows for the monitoring of other players
 

@@ -9,3 +9,5 @@
 - [ ] Update sources of info.md in data/expression2
 - [ ] Add stuff from [EmP] DEF: https://www.youtube.com/@FUNC_DEF
 - [ ] Add kolore's car minigame
+- [ ] Add stuff from Bonzoye: https://github.com/Bonyoze, https://www.youtube.com/@Bonyoze
+- [ ] Add stuff from Rusketh: https://www.youtube.com/watch?v=wabnoAJXlrc

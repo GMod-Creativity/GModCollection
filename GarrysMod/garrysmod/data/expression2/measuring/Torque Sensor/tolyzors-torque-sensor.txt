@@ -1,0 +1,57 @@
+@name Torque Load Cell
+@inputs E2:entity UnitSys
+@outputs OutRan Speed Torque Power 
+@persist E:entity [A B]:array A1 A2 I Theta
+@trigger none
+@model models/hunter/plates/plate075x075.mdl
+# This e2 outputs torque, and power transfered between it and E2. Change the Usys 
+# input to 0, 1, or 2 to make it output garrysmod, metric or imperial units 
+# respectively.
+# Torque range is dependant on mass (of both plates) so to change the torque range 
+# adjust their masses (keeping them equal). Torque range is symetric about 0, 
+# counterclockwise is positive. Accuracy is approx 0.2 % of the torque range.
+
+# After spawning wire the E2 input to the second plate (adv wire tool dupe bug).
+runOnTick(1)
+if (first()) {
+    E = entity()
+}
+E1v = -E:right()
+E2v = -E2:right()
+
+A1 = vec2(E1v:x(), E1v:z()):toAngle()
+A2 = vec2(E2v:x(), E2v:z()):toAngle()
+
+I = E:inertia():z() * 1550.1
+if (changed(I)) {
+    hint("Torque range set to +/- " + (round(37 * I * 1e3)):toString() + " gfu.glu", 7)
+}
+
+if (sign(A1) != sign(A2) & abs(A1) > 90) { # -180 to 180 bug
+    if (A1 > A2) {Theta = A1 - A2 - 360}
+    else {Theta = 360 + A1 - A2}
+} else {Theta = A1 - A2}
+
+OutRan = abs(Theta) > 37 ? 1 : 0 # out of range limit, also limit useing adv ballsocket 
+
+A:unshiftNumber(Theta * I * 1e3)
+A:remove(67 * 1)
+Torque = A:average()
+
+B:unshiftNumber(toRad(-E:angVelVector():z()))
+B:remove(67 * 1)
+Speed = B:average()
+
+# unit conversion
+Power = Torque * Speed
+if (UnitSys == 1) { # Metric
+    Speed *= 30 / pi() # rpm
+    Torque *= 3.629025e-4 # N.m
+    Power *= 3.629025e-7 # Kw
+} elseif (UnitSys == 2) { # Imperial
+    Speed *= 30 / pi() # rpm
+    Torque *= 2.676631478e-4 # lbf.ft
+    Power *= 4.8666027e-7 # hp
+}
+# by Tolyzor - please credit me if you use or modify this code!
+# Contact at the wiremod.com forums

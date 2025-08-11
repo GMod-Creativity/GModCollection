@@ -1,6 +1,13 @@
 - Author: Tolyzor
-- Date: 09-06-2014
-- Name: Holo Sprops Text
+- Youtube: https://www.youtube.com/user/Heatseeker1
+- Github: https://github.com/Tolyzor
+<!-- -->
+- Title: Holo Sprops Text
+- Date (dd-mm-yyyy): 06-09-2014
+- Source: https://web.archive.org/web/20160422094157/http://www.wiremod.com/forum/finished-contraptions/33516-holo-sprops-text.html
+- Source Accessed (dd-mm-yyyy): 11-08-2025
+
+## Holo Sprops Text
 
 This allows you to parent 3d text to any entity (such as a vehicle), but more importantly, you can create and edit the text in seconds!
 

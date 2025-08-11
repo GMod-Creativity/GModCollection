@@ -1,0 +1,66 @@
+@name Launcher
+@inputs Home Hover Fire [E1 E2]:entity
+@outputs RepSpeed RepAngSpeed [F1 F2]:vector Yaw
+@persist [Pos1 Pos2 HomePos1 HomePos2]:vector P1x P2x P1y P2y P1z P2z Armed
+@trigger 
+runOnTick(1)
+# launch parameters
+Speed = 4000 # glu/s
+AngSpeed = 33 # optimum spin
+Dir = vec(2, 0, 1):normalized()
+AngDir = vec(0, 0, 1):normalized()
+T = 66.567 # for tickrate 66 servers, use 32.985 for tickrate 33
+Kp = -20
+Kd = -500
+if (first() | duped()) {
+    HomePos1 = E1:pos() + vec(0, 0, 20)
+    HomePos2 = E2:pos() + vec(0, 0, 20)
+}
+if (~Hover) {
+    Armed = 1
+}
+
+# telemetry
+RepSpeed = E1:vel():length()
+RepAngSpeed = toRad(E1:angVelVector()):length()
+Yaw = acos(E1:velL():normalized():z())
+
+if (Hover & Armed) {
+    if (~Hover) {
+        Pos1 = E1:pos() + vec(0, 0, 20)
+        Pos2 = E2:pos() + vec(0, 0, 20)
+        # stop rotation
+        # this reduces accuracy for some reason if run next to the launch applyForce...
+        #E1:applyTorque(-toRad(E1:angVelVector()) * E1:inertia() * 1550.1)
+        #E2:applyTorque(-toRad(E2:angVelVector()) * E2:inertia() * 1550.1)
+        }
+    if (Home) {
+        Pos1 = HomePos1
+        Pos2 = HomePos2
+    }
+    P1x = E1:pos():x() - Pos1:x()
+    P2x = E2:pos():x() - Pos2:x()
+    P1y = E1:pos():y() - Pos1:y()
+    P2y = E2:pos():y() - Pos2:y()
+    P1z = E1:pos():z() - Pos1:z()
+    P2z = E2:pos():z() - Pos2:z()
+    D1x = $P1x
+    D2x = $P2x
+    D1y = $P1y
+    D2y = $P2y
+    D1z = $P1z
+    D2z = $P2z
+    F1 = E1:mass() * (Kp * vec(P1x, P1y, P1z) + Kd * vec(D1x, D1y, D1z) + vec(0, 0, gravity()))
+    F2 = E2:mass() * (Kp * vec(P2x, P2y, P2z) + Kd * vec(D2x, D2y, D2z) + vec(0, 0, gravity()))
+    E1:applyForce(F1 / T)
+    E2:applyForce(F2 / T)
+    
+}
+
+if (~Fire & Fire) {
+    Armed = 0
+    E1:applyForce(Speed * Dir * E1:mass())
+    E2:applyForce(Speed * Dir * E2:mass())
+    E1:applyTorque(AngSpeed * AngDir * E1:inertia() * 1550.1)
+    E2:applyTorque(AngSpeed * vec(-1, 0, 0) * E2:inertia() * 1550.1)
+}

@@ -1,8 +1,11 @@
-Author: FlakAttack
-Date: 01-12-2015
-Title: [E2] Hologram Entity Copier
+- Author: FlakAttack
+<!-- -->
+- Title: [E2] Hologram Entity Copier
+- Date (dd-mm-yyyy): 01-12-2015
+- Source: https://web.archive.org/web/20150429003757/http://www.wiremod.com:80/forum/finished-contraptions/33932-e2-hologram-entity-copier.html
+- Source Accessed (dd-mm-yyyy): 11-08-2025
 
-*[E2] Hologram Entity Copier*
+## [E2] Hologram Entity Copier
 
 So this is my second version of this since the last one broke and I never got around to fixing it.
 

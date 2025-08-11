@@ -1,6 +1,9 @@
 - Author: FlakAttack
-- Date: 08-15-2014
+<!-- -->
 - Title: E2 Hologram Copier
+- Date (dd-mm-yyyy): 15-08-2014
+- Source: https://web.archive.org/web/20150429003853/http://www.wiremod.com:80/forum/finished-contraptions/33440-e2-hologram-copier.html
+- Source Accessed (dd-mm-yyyy): 11-08-2025
 
 ## E2 Hologram Copier
 

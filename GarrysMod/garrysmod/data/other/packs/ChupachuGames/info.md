@@ -1,14 +1,14 @@
-- Author: ChupachuGames
+- Author: ChupachuGames (coolerthanu9)
 - Steam Profile: https://steamcommunity.com/profiles/76561198023815430
 - Reddit: https://www.reddit.com/user/ChupachuGames/
 - Youtube: https://www.youtube.com/user/coolerthanu9
 - Youtube: https://www.youtube.com/channel/UCc_t13NWt4gX0jrIeW16_fg
 
 **E2s**
-- Date (dd-mm-yyyy): 20/08/2019
+- Date (dd-mm-yyyy): 20-08-2019
 - Source: https://www.reddit.com/r/wiremod/comments/csynke/anyone_wanna_share_any_e2s/
 - Source: https://www.dropbox.com/s/2frjtqqz1cvbraj/E2s.zip?dl=0
-- Source Accessed (dd-mm-yyyy): 5/06/2025
+- Source Accessed (dd-mm-yyyy): 05-06-2025
 
 Here's every E2 I've ever made, found, or experimented with: https://www.dropbox.com/s/2frjtqqz1cvbraj/E2s.zip?dl=0
 

@@ -1,0 +1,248 @@
+@name Grumpy Jetpack V2
+
+
+@inputs [Base LTip RTip CC]:entity [Cam EyePod Pod]:wirelink
+
+@outputs Kph SX SY EX EY Effects
+
+@persist [E Col]:entity N Max DC X Y Alt Shift W S Space Active Mode X1 Y1 Roll RollMag [Forward Reverse Resistance Thrust Lift Rpos Hover]:vector
+@persist Sensitivity Nactive Effects BarF OO AA Tips Range CamAc BA:angle NS R BRF BarrelR TRoll Array:array
+
+
+                                    ### Grumpy Hitler's 'JetPack V2' Please Do Not Redistribute Or Rename ###
+
+
+#       Facepunch User 'Hunta' http://www.facepunch.com/member.php?u=9249        STEAM_0:1:11457524 
+ 
+
+#       Built On New Zealand Server: ON3Network.co.nz | GARRYS MOD [PHX][Wiremod][Gcombat]! 203.97.27.200:27035  Come Join Us.
+
+#       Please Credit If You Use This Code Or Flight System.
+
+#       Special Thanks To Kayne For Doing The Materials.
+
+
+
+#       Please Update PHX3 To Hear All Sound Effects.
+
+#       ** To Colour Your Jetpack, Use The Colour Tool On The White Square On This Control Board. **
+
+# Controls:
+            
+#           W     : Foward.
+#           S     : Backwards.
+#           Mouse : Flight Angles.
+#           Alt   : Toggle 'Hover' Mode.
+#           Shift : Boost/Turbo What Ever.
+#           R     : Barrel Roll (Must Between -5 and 5 Degrees) *Not Technically A Barrel Roll But QQ.
+#           Space : 3rd Person Camera. (If This Doesn't Work Try Deleting Your Other Cam Controllers)
+
+#           Mouse1 And Mouse2 Have Been Left Free If You Want To Install Weapons.
+
+
+#           The Artificial Horizon Uses The Adv Hud Indicator Tool Which Comes With "Wire Extras" SVN, It Is Not Essensial For Function
+#           But Is Recommended.
+
+#           Please Do Not Minge With Me, That Is Not My Intended Use; Who Knows, You Might Not Get V3
+
+runOnTick(1)
+
+
+if(first()){
+
+    Sensitivity = 9.3  #Higher Number = Lower Sensitivty
+    
+    RollMag     = 48
+    BarF        = 430
+    
+    
+    E     = entity()
+    N     = 1
+    
+    findIncludePlayerProps(owner())
+    findInSphere(Base:pos(),15)
+    Array = findToArray()
+    Max   = Array:count()
+    
+    Mode  = 1
+    
+    X1    = 0
+    Y1    = 0
+    
+    EyePod:setNumber("SetPitch",90*Mode)
+    
+    hint("Grumpy Hitler's Jetpack V2",7)
+
+}
+
+### Wirelinks
+
+X        = EyePod:number("X")
+Y        = EyePod:number("Y")
+
+
+Alt      = Pod:number("Alt")
+Shift    = Pod:number("Shift")
+W        = Pod:number("W")
+S        = Pod:number("S")
+Space    = Pod:number("Space")
+Active   = Pod:number("Active")
+R        = Pod:number("R")
+
+### Colouring
+
+while(N <= Max){
+    
+    Col = Array[N,entity]
+    
+    if(Col:getMaterial()=="phoenix_storms/mat/mat_phx_plastic"){
+        Col:setColor( CC:getColor() )
+    }
+    
+    N++
+}
+
+DC = CC:getColor():length()
+
+if(sign($DC)){N=1}
+
+### Flight (Angles)
+
+if(Alt&$Alt){Mode=!Mode , EyePod:setNumber("SetPitch",90*Mode)}
+
+if(Active&$Active){
+    EyePod:setNumber("Enable",Active)
+}
+
+
+X1    += clamp(($X/Sensitivity),-9,9)
+Y1    += clamp(($Y/Sensitivity),-11,11)
+
+
+Roll   = Base:velL():x()/RollMag
+
+Eye    =  angnorm( ang((-Roll+BarrelR)*Active*Mode,-X1,-Y1) + ang(0,180,-90) )
+
+TarQ   = quat(Eye) 
+CurQ   = quat(Base) 
+
+Q      = TarQ/CurQ
+
+V2     = Base:toLocal(rotationVector(Q)+Base:pos())
+
+Base:applyTorque((150*V2 - 12*Base:angVelVector())*Base:inertia()) 
+
+if(Nactive&Nactive){
+    Y1    = 0
+    CamAc = 0
+    Cam:setNumber("Activated",CamAc)
+}
+
+if(R&$R&(inrange(angnorm(Y1),-95,-85))){BRF+=360}
+
+if(BRF>BarrelR){BarrelR+=8, TRoll=1}else{TRoll = 0}
+
+
+### Flight (Thrust)
+
+if(Mode){
+    Forward    = Base:right()*(W)*Base:mass()*(40+Shift*200)
+}else{Forward    = Base:right()*W*Base:mass()*(6+Shift*10)}
+
+Reverse    = Base:right()*S*Base:mass()*-10
+Resistance = Base:vel()*Base:mass()*-0.02
+
+Lift       = vec(0,0,3500 + (1010*Effects))
+
+Thrust     = Forward + Reverse + Resistance + Lift + Hover
+
+
+Base:applyForce( Thrust )
+
+### Effects
+
+Kph        = floor(toUnit("km/h" , Base:vel():length() ))
+
+Nactive    = !Active
+
+Effects    = W|S
+
+Tips       = !inrange(Roll,-23,23) | TRoll
+
+if(Tips&$Tips){
+    LTip:setTrails(5,0, 0.7, "trails/smoke", vec(255,255,255) , 10) 
+    RTip:setTrails(5,0, 0.7, "trails/smoke", vec(255,255,255) , 10)
+}
+
+if(!Tips&$Tips){
+    LTip:removeTrails()
+    RTip:removeTrails()
+}
+
+if(Effects&$Effects){
+    
+    Base:soundPlay(1,0,"weapons/rpg/rocket1.wav")
+    soundPitch(1, 75)
+    soundVolume(1, 0.5)
+    
+    Base:soundPlay(2,0,"thrusters/jet03.wav")
+    soundVolume(2, 0.75)
+    
+    
+}
+
+if(!Effects){
+    soundStop(1)
+    soundStop(2)
+}
+
+if(Shift&$Shift){
+    Base:setTrails(15,0, 1, "trails/smoke", vec(200,200,200) , 150) 
+    Base:soundPlay(3,0,"thrusters/rocket04.wav")
+}
+
+NS = !Shift
+
+if((NS&$NS)|!W){
+    Base:removeTrails()
+    soundStop(3)
+}
+
+### Artificial Horizon
+
+
+OO         = (BarF*sin( (Roll*!CamAc) + (BA:pitch()*CamAc) ))/2
+AA         = (BarF*cos( (Roll*!CamAc) + (BA:pitch()*CamAc) ))/2
+
+
+
+SX         = 960 - AA 
+SY         = 540 + OO - (Eye:roll()*1.5) - (!Mode*135)
+
+EX         = 960 + AA 
+EY         = 540 - OO - (Eye:roll()*1.5) - (!Mode*135)
+
+### Ranging / Hover
+
+if(!Active){
+Rpos       = Base:pos()+Base:right()*-28
+Range      = rangerOffset(Rpos,Rpos + vec(0,0,-100000)):distance()
+
+Hover      = clamp(vec(0,0,(30-Range-$Range))*Base:mass(),vec(0,0,0),vec(0,0,1500))
+}else{Hover = vec(0,0,0)}
+
+### Cam
+
+if(Space&$Space){
+    CamAc = !CamAc
+    Cam:setNumber("Activated",CamAc)
+}
+
+
+if(CamAc){
+    
+    BA = Base:angles()
+    
+    Cam:setVector("Position",  Base:pos() - (Base:right()*120) + (Base:up()*25) )
+    Cam:setAngle("Angle", angnorm( ang(BA:roll(),BA:yaw()-90,BA:pitch() ) ))
+}

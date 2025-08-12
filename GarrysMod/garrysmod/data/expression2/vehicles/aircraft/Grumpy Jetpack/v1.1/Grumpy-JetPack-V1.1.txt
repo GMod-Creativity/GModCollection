@@ -1,0 +1,136 @@
+@name Jetpack
+
+
+@inputs Active Seat:entity X Y W S Mouse2 Shift Space
+
+@outputs Effects Ninety Range Velocity CamActive Plate:entity CamPos:vector CamAng:angle
+
+@persist ActAng:angle Roll  RUns RollRate Thrust:vector Forward:vector Reverse:vector Resistance:vector Hover:vector H:vector Boost NE NA NS
+@persist Sensitivity
+
+runOnTick(1)
+
+
+
+
+                            ### Grumpy Hitler's 'JetPack' Please Do Not Redistribute ###
+
+
+# Facepunch user 'Hunta' http://www.facepunch.com/member.php?u=92490
+
+
+#    Built on New Zealand server: ClearnetDeluxe.co.nz | GARRYSMOD [PHX][WIRE][Gcombat]  203.97.27.200:27035  come join us.
+#    Yes the code is a mess but I cbf cleaning it and/or optimising it, so climb a tree and smoke a bud
+
+Sensitivity = 10 #Changes the mouse sensitivity - Higher numbers are less sensitve >_<
+
+Plate = entity():isWeldedTo()
+
+if(first()){
+    NA = 1
+}
+
+
+if(Active&~Active){
+    Seat:hintDriver("Grumpy Hitler's",7)
+    Seat:hintDriver("W-Forward, Shift-Boost, Mouse-Pitch+Yaw",7)
+    Seat:hintDriver("Mouse2 - Look Down/Ahead",7)
+    Seat:hintDriver("** Space - Toggle 3rd Peron **",7)
+    timer("Boost",600)
+    Boost = 1
+    Roll  = 0
+    RUns  = 0
+}
+
+
+RUns     = 2.4*(angnorm($X))
+
+if(RUns > Roll){
+    Roll += RollRate
+}
+if(RUns < Roll){
+    Roll -= RollRate
+}
+
+RollRate    = 0.5
+
+Eye=angnorm( ang(-Roll*Active,-X/Sensitivity,-Y/Sensitivity) + ang(0,180,-90)  )
+
+TarQ = quat(Eye) 
+CurQ = quat(Plate) 
+
+Q = TarQ/CurQ
+
+V2 = Plate:toLocal(rotationVector(Q)+Plate:pos())
+
+Plate:applyTorque((150*V2 - 12*Plate:angVelVector())*Plate:inertia()) 
+
+Ninety   = 90*!Mouse2
+
+Forward    = Plate:right()*(W|Boost)*Plate:mass()*(30+Shift*200)
+Reverse    = Plate:right()*S*Plate:mass()*-10
+Resistance = Plate:vel()*Plate:mass()*-0.02
+
+Range  = rangerOffset(Seat:pos(),(Seat:pos()) + vec(0,0,-100000)):distance()
+H  = vec(0,0,(12-Range-$Range))*!Active*Plate:mass()*10
+
+if(H:z()>0){
+    Hover = H
+}else{Hover = vec(0,0,0)}
+
+Thrust     = Forward + Reverse + Resistance + Hover
+
+Plate:applyForce( Thrust )
+
+Effects = W|S|Boost
+
+if(clk("Boost")){
+    Plate:soundPlay(2,10,"weapons/mortar/mortar_explode2.wav")
+    Boost = 0
+    Roll  = 0
+    RUns  = 0
+}
+
+entity():setAlpha(0)
+
+if(Effects&$Effects){
+    Plate:soundPlay(3,0,"weapons/rpg/rocket1.wav")
+    soundVolume(3,10)
+    soundPitch(3,70)
+}
+
+NE = !Effects
+
+if(NE&$NE){
+    soundStop(3)
+}
+
+NA = !Active
+
+if(NA&$NA){
+    reset()
+}
+
+if(Shift&~Shift){
+    Plate:soundPlay(5,0,"ambient/levels/citadel/zapper_loop2.wav")
+    Plate:soundPlay(6,0,"ambient/gas/steam_loop1.wav")
+    Plate:setTrails(25,0, 1, "trails/smoke", vec(200,200,200) , 150) 
+}
+
+NS = !Shift
+
+if((NS&$NS)|!W){
+    soundStop(5)
+    soundStop(6)
+    Plate:removeTrails()
+}
+
+Velocity    = floor(toUnit("km/h" , Plate:vel():length() ))
+
+
+if(Space&~Space){
+    CamActive = !CamActive
+}
+
+CamPos = Plate:pos() - (Plate:right()*100) + (Plate:up()*20)
+CamAng = angnorm( entity():angles() + ang(180,0,180)  )

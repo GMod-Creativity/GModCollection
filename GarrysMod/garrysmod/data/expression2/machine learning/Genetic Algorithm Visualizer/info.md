@@ -1,8 +1,16 @@
-Author: RedReaper
-Date: 01-31-2016
-Title: Genetic Algorithm Visualizer
+- Author: RedReaper
+- Youtube: https://www.youtube.com/@redreaper-xe6so
+- Github: https://github.com/Redreaper
+<!-- -->
+- Title: Genetic Algorithm Visualizer
+- Date (dd-mm-yyyy): 31-01-2016
+- Source: https://web.archive.org/web/20160306090807/http://www.wiremod.com:80/forum/finished-contraptions/35467-genetic-algorithm-visualizer.html
+- Source: https://www.youtube.com/watch?v=snXXbqESJ_c
+- Source: https://www.youtube.com/watch?v=LDXsHTU6ZMk
+- Source: https://www.dropbox.com/scl/fi/03d1yh2z9ugc9dp00t1tr/Genetic_Algorithm.txt?rlkey=pv0w32tbuqecut6rot5220ogo&e=1&dl=0
+- Source Accessed (dd-mm-yyyy): 12-08-2025
 
-*Genetic Algorithm Visualizer*
+## Genetic Algorithm Visualizer
 
 Something i wrote for a science class in college back in november, which I've been too lazy to post here. Not sure this is necessarily what y'all would find interesting, since it's not a mech, tank, game, plane, etc.
 

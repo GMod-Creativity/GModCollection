@@ -1,11 +1,14 @@
 - Author: paul_rose
 - Steam Profile: https://steamcommunity.com/profiles/76561198103168085
+<!-- -->
+- Title: 3-in-1 Holo Sentry Gun
 - Date (dd-mm-yyyy): 18-12-2021
 - Date Last Edited (dd-mm-yyyy): 25-12-2021
 - Source: https://catalogue.smods.ru/archives/235997
 - Source: https://steamcommunity.com/workshop/filedetails/?id=2685959642
 - Source Accessed (dd-mm-yyyy): 06-06-2025
-- Title: 3-in-1 Holo Sentry Gun
+
+## 3-in-1 Holo Sentry Gun
 
 Description:
 a TF2 Sentry Gun made entirely of holograms using E2

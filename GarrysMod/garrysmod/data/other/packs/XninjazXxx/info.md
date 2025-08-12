@@ -1,4 +1,4 @@
-- Author: XninjazXxx (Gato) (Devoided)
+- Author: XninjazXxx (gato) (Devoided)
 - Youtube: https://www.youtube.com/channel/UC-6WOjHUNpGwkk3fVCfrhGQ
 
 **Original**

@@ -1,0 +1,103 @@
+@name Stacker
+@inputs Bot:entity SP:vector
+@outputs Grab Ang:angle
+@persist Vec:vector Ang:angle Stage:string Boxes:array Box:entity A Mul Mul2
+@trigger 
+if (first()) {
+    runOnTick(1)
+    Bot:setMass(100)
+    findClipToClass("prop")
+    findIncludePlayerProps(owner())
+    findByModel("models/props_junk/wood_crate001a.mdl")
+    findInSphere(entity():pos(),500000)
+    Boxes = findToArray()
+    A = 1
+    Mul = 500
+    Mul2 = 500
+    
+    if (Boxes:count() <= 0) {
+        Stage = "Sleep"
+    }
+    else {
+        Stage = "Recieve"
+    }
+}
+
+if (Stage == "Sleep") {
+    Vec = ((entity():pos()+vec(0,0,50))-Bot:pos())*Mul
+    Ang = Bot:angles()*-5000
+    
+    Bot:applyForce(Vec+$Vec*5)
+    Bot:applyAngForce(Ang+$Ang*5)
+}
+
+if (Stage == "Recieve") {
+    Box = Boxes:entity(A)
+    Vec = ((Box:pos()+vec(0,0,Box:boxSize():z()-10))-Bot:pos())*Mul
+    Ang = angnorm((Box:angles():setPitch(0):setRoll(0) - Bot:angles()))*5000
+
+    Bot:applyForce(Vec+$Vec*5)
+    Bot:applyAngForce(Ang+$Ang*5)
+    
+    if (inrange(Bot:pos(),Box:pos()+vec(0,0,Box:boxSize():z()-15),Box:pos()+vec(0,0,Box:boxSize():z()-5))) {
+        Grab = 1
+        Stage = "Raise1"
+    }
+}
+
+if (Stage == "Raise1") {
+    Box = Boxes:entity(A)
+    Vec = ((Box:pos())-Bot:pos())*-Mul
+    Ang = angnorm((Box:angles():setPitch(0):setRoll(0) - Bot:angles()))*5000
+
+    Bot:applyForce(Vec+$Vec*5)
+    Bot:applyAngForce(Ang+$Ang*5)
+    
+    if (Box:pos():z() >= (SP:z()+((Box:boxSize():z()*A)*2))) {
+        Stage = "Stack"
+    }
+}
+
+if (Stage == "Stack") {
+    Box = Boxes:entity(A)
+    if (A > 1) {
+        Vec = (Boxes:entity(A-1):pos()-(Bot:pos()-vec(0,0,(Box:boxSize():z())+31)))*Mul
+    }
+    else {
+        Vec = (SP-(Bot:pos()-vec(0,0,(Box:boxSize():z())+12)))*Mul
+    }
+    Ang = Bot:angles()*-5000
+
+    Bot:applyForce(Vec+$Vec*10)
+    Bot:applyAngForce(Ang+$Ang*5)
+    
+    if (A > 1) {
+        if (inrange(Box:pos():setZ(0),Boxes:entity(A-1):pos():setZ(0)-vec(0.01,0.01,0),Boxes:entity(A-1):pos():setZ(0)+vec(0.01,0.01,0))) {
+            Stage = "Raise2"
+            Grab = 0
+            A++
+        }
+    }
+    else {
+        if (inrange(Box:pos():setZ(0),SP:setZ(0)-vec(0.01,0.01,0),SP:setZ(0)+vec(0.01,0.01,0))) {
+            Stage = "Raise2"
+            Grab = 0
+            A++
+        }
+    }
+}
+
+if (Stage == "Raise2") {
+    Box = Boxes:entity(A)
+    Vec = ((SP)-Bot:pos())*-Mul
+    Ang = Bot:angles()*-5000
+
+    Bot:applyForce(Vec+$Vec*5)
+    Bot:applyAngForce(Ang+$Ang*5)
+    
+    timer("w",200)
+    if (clk("w")) {
+        Stage = "Recieve"
+        stoptimer("w")
+    }
+}

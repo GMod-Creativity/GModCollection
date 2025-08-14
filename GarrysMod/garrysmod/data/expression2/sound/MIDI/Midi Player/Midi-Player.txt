@@ -1,0 +1,256 @@
+@name midi_player
+
+@persist Debug_Lines:array Debug_Header:string Debug_StateInfo:string StartTime EndTime FileSize
+@persist Buf:string State
+@persist [CONFIG_DEBUG]:number [CONFIG_URL]:string
+
+@persist Header_FileFormat Header_Tracks Header_TimingFormat Header_Timing0TPQ 
+@persist TrackData:table CurTrack Tempo SongStart
+@persist Channels:table Holos:table
+if(first()){
+    #=========== Config ===========
+    CONFIG_DEBUG = 1
+    CONFIG_URL = "http://sebastianwolff.info/download/portal-2/Turret%20Wife%20Serenade.mid"
+    
+    #=========== End Config ===========
+    setName("")
+    if(!httpCanRequest()){error("Error: Can't HTTP request!")}
+    
+    runOnHTTP(1)
+    runOnTick(1)
+    setName("Loading MIDI File...")
+    httpRequest(CONFIG_URL)
+    State = 0
+    Tempo = 120
+    #----------- Conversion Functions -----------
+    function number toByte2(S:string){
+        local Result = 0
+        for(I=1,S:length()){
+            Result+=toByte(S,I) << (S:length()-I)*8
+        }
+        return Result
+    }
+    #----------- Debug Functions -----------
+    function void debug(S:string){
+        if(CONFIG_DEBUG!=1){return}
+        Debug_Lines:pushString(S)
+    }
+    function void debugFlush(){
+        local Output = ""
+        if(CONFIG_DEBUG!=1){return}
+        while(Debug_Lines:count() & ( Output:length()+Debug_Lines[1,string]:length() )<=249){
+            Output+=Debug_Lines:shiftString()+"\n"
+        }
+        if(Output:length()>0){
+            print(_HUD_PRINTCONSOLE,Output)
+        }
+    }
+    if( CONFIG_DEBUG ){ timer("debug_flush", 300) }
+    #----------- Buffer Functions -----------
+    function number bufReadByte(){
+        local Result=toByte(Buf:left(1))
+        Buf=Buf:sub(2)
+        return Result
+    }
+    function number bufReadByte( N:number ){
+        local Result=toByte2(Buf:left(N))
+        Buf=Buf:sub(N+1)
+        return Result
+    }
+    function string bufReadString( N:number ){
+        local S=Buf:left(N)
+        Buf=Buf:sub(N+1)
+        return S
+    }
+    function number bufReadVLQ(){
+        local Result = 0
+        for(I=1, 8){
+            C = bufReadByte( )
+            Result = Result << 7
+            Result = Result || (C && 0x7F)
+            if( (C && 0x80) != 0x80 ){
+                return Result
+            }
+        }
+        return Result
+        
+    }
+    function void bufSet( NewBuf:string ){
+        Buf = NewBuf
+    }
+    function string bufGet(){
+        return Buf
+    }
+    function number bufSize(){
+        return Buf:length()
+    }
+}
+if(clk("debug_flush")){
+    debugFlush()
+    timer("debug_flush",300)
+}
+if(httpClk()){
+    debug("\nLoaded file from server!")
+    bufSet(httpData())
+    FileSize = bufSize()
+    State = 0
+}
+if(State == 0){
+    if(Holos:count()<16){
+        if(holoCanCreate()){
+            C = Holos:count()+1
+            X = (C-1)%8
+            Y = floor((C-1)/8)
+            Holo = holoCreate(C, entity():toWorld(vec(0.7*X-2.5,Y-2,0.5)))
+            Holo:soundPlay(C,0,"synth/triangle_880.wav", 0)
+            soundPitch(C, 0)
+            holoScale(C, vec(0.05,0.05,0.05))
+            holoModel(C, "hqsphere")
+            holoParent(C, entity())
+            Holos[Holos:count()+1,entity] = Holo
+        }   
+    }else{
+        State = 1
+    }
+}elseif(State == 1){
+    Type = bufReadString(4)
+    Length = bufReadByte(4)
+    debug("==============================")
+    debug("Chunk Type:\t\t"+Type)
+    debug("Chunk Data Length:\t"+Length)
+    
+    if(Type == "MThd"){ # Header Chunk
+        Header_FileFormat = bufReadByte(2)
+        Header_Tracks = bufReadByte(2)
+        
+        TDivision = bufReadByte(2)
+        Header_TimingFormat = TDivision >> 15
+        
+        if(Header_TimingFormat == 0){
+            Header_Timing0TPQ = TDivision && 0x7FFF
+        }elseif(Header_TimingFormat == 1){}# Rarely used by midi, not worth the effort.
+
+        Debug_Header = 
+            "File Format: "+Header_FileFormat+"\n"+
+            "Tracks: "+Header_Tracks+"\n"+
+            "Timing Format: "+Header_TimingFormat+"\n"+
+            "T_TPQ: "+Header_Timing0TPQ
+    }elseif(Type == "MTrk" ){ # Track Chunk
+        TrackData[TrackData:count()+1, table] = table( "Raw" = bufReadString(Length) )
+    }
+    if(!bufSize()){
+        State = 2
+        StartTime = curtime()
+        CurTrack=1
+        for(I=1, TrackData:count() ){
+            Buf = TrackData[I,table]["Raw",string]
+            TrackData[I,table]["TrackTime",number] = bufReadVLQ() # DeltaTime
+            TrackData[I,table]["Raw",string] = Buf
+        }
+        debug("==============================")
+        debug("State=2")
+        debug("Tracks Loaded: "+TrackData:count())
+        debug("\n")
+    }
+}elseif(State == 2){
+    while(perf()){
+        if(StartTime+TrackData[CurTrack,table]["TrackTime",number]<=curtime()){
+            Buf = TrackData[CurTrack,table]["Raw",string]
+            EventStatus = bufReadByte()
+            if( (EventStatus && 0xF0) == 0xF0 ){ # system / meta event
+                if(EventStatus == 0xFF){ # meta event
+                    MetaType = bufReadByte()
+                    MetaDataLenth = bufReadVLQ()
+                    MetaData = bufReadString(MetaDataLenth)
+                    if(MetaType == 0x00){ # Sequence number
+                    }elseif(MetaType == 0x01){ # (Optional) Text event
+                    }elseif(MetaType == 0x02){ # (Optional) Copyright notice
+                    }elseif(MetaType == 0x03){ # (Optional) Sequence or track name
+                    }elseif(MetaType == 0x04){ # (Optional) Instrument name
+                    }elseif(MetaType == 0x05){ # (Optional) Lyric text
+                    }elseif(MetaType == 0x06){ # (Optional) Marker text
+                    }elseif(MetaType == 0x07){ # (Optional) Cue point
+                    }elseif(MetaType == 0x20){ # (Optional) MIDI channel prefix assignment
+                    }elseif(MetaType == 0x2F){ # (Optional) End of track
+                    }elseif(MetaType == 0x51){ # Tempo setting
+                        Tempo = round(60000000/toByte2(MetaData))
+                    }elseif(MetaType == 0x54){ # SMPTE offset
+                    }elseif(MetaType == 0x58){ # Time signature
+                    }elseif(MetaType == 0x59){ # Key signature
+                    }elseif(MetaType == 0x7F){ # Sequencer specific event
+                    }
+                }elseif(EventStatus == 0xF0 | EventStatus == 0xF7){ # SysEx event
+                    SysexDataLength = bufReadVLQ()
+                    SysexData = bufReadString(SysexDataLength)
+                }
+            }else{ # channel event
+                Param1 = 0
+                if( (EventStatus && 0x80) == 0 ){  #running event
+                    Param1 = EventStatus
+                    EventStatus = TrackData[CurTrack,table]["LastEventType",number]
+                } else {
+                    Param1 = bufReadByte()
+                    TrackData[CurTrack,table]["LastEventType",number] = EventStatus
+                }
+                Channel = EventStatus && 0x0F
+                MidiEvent = EventStatus >> 4
+                if(MidiEvent == 0x08){ # Note_Off
+                    Note = Param1
+                    Velocity = bufReadByte()
+                    
+                    Key = Note
+                    for(I=0,31){
+                        if(Channels[I,number]==Key){
+                            soundPitch(I+1,0)
+                            holoEntity(I+1):setColor(vec(255,255,255))
+                            Channels[I,number] = 0
+                            break
+                        }
+                    }
+                }elseif(MidiEvent == 0x09){ # Note_On
+                    Note = Param1
+                    Velocity = bufReadByte()
+                    Key = Note
+                    if(Velocity!=0){
+                        for(I=0,31){
+                            if(Channels[I,number]==0 ){
+                                Channels[I,number] = Key
+                                Pitch = 2^((Note-69)/12)*50
+                                Debug_StateInfo = "PlayTime: "+round(TrackData[CurTrack,table]["TrackTime",number])+"\nTempo:"+Tempo+"\nTrack: "+CurTrack+"\nNote: "+Note
+                                holoEntity(I+1):setColor(hsv2rgb((CurTrack*60)%360,1,1))
+                                soundPitch(I+1,Pitch)
+                                soundVolume(I+1, (Velocity/127)*1)
+                                break
+                            }
+                        }
+                    }else{
+                        for(I=0,31){
+                            if(Channels[I,number]==Key){
+                                soundPitch(I+1,0)
+                                holoEntity(I+1):setColor(vec(255,255,255))
+                                Channels[I,number] = 0
+                                break
+                            }
+                        }
+                    }
+                }elseif(MidiEvent == 0x0A){ # AfterTouch
+                    Param2 = bufReadByte()
+                }elseif(MidiEvent == 0x0B){ # controller
+                    Param2 = bufReadByte()
+                }elseif(MidiEvent == 0x0C){ # programChange
+                }elseif(MidiEvent == 0x0D){ # channelAftertouch
+                }elseif(MidiEvent == 0x0E){ # pitchBend
+                    Param2 = bufReadByte()
+                }else{
+                    setName(""),error("Unrecognized MIDI event type: 0x"+toString(MidiEvent,16)+"(0x"+toString(EventStatus,16)+")")
+                }
+            }
+            DeltaTime = bufReadVLQ()
+            TrackData[CurTrack,table]["TrackTime",number] = TrackData[CurTrack,table]["TrackTime",number] + (60 * DeltaTime) / (Tempo * Header_Timing0TPQ)
+            TrackData[CurTrack,table]["Raw",string] = Buf
+        }
+        CurTrack++
+        if(CurTrack>TrackData:count()){ CurTrack = 1 }
+    }
+}
+setName("MIDI Player By DarkE\n"+Debug_Header+"\n \n"+"State="+State+"\nBufSize: "+bufSize()+"\n \n"+Debug_StateInfo)

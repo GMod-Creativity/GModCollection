@@ -1,7 +1,9 @@
-- Author: Technicolour
+- Author: Technicolour (Techni)
 - Steam Profile: https://steamcommunity.com/profiles/76561197983168201
-- Date (dd-mm-yyyy): 24-01-2011
+- Youtube: https://www.youtube.com/@Technicolour777
+<!-- -->
 - Title: Wire Music Studio
+- Date (dd-mm-yyyy): 24-01-2011
 - Source: https://web.archive.org/web/20110126173413/http://www.wiremod.com/forum/finished-contraptions/24530-wire-music-studio.html
 - Source Accessed (dd-mm-yyyy): 06-06-2025
 

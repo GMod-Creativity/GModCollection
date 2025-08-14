@@ -1,5 +1,6 @@
 - Author: Foton
-
+- Steam Profile: https://steamcommunity.com/profiles/76561198031875647
+<!-- -->
 - Title: [E2] Ragdoll animator
 - Date (dd-mm-yyyy): 11-09-2011
 - Source: https://web.archive.org/web/20130626054743/http://www.wiremod.com:80/forum/finished-contraptions/27395-e2-ragdoll-animator.html

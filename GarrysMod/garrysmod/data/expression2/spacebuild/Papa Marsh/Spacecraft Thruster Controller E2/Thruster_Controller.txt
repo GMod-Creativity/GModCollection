@@ -1,0 +1,77 @@
+@name Thruster Controller 2.0 TOP
+@inputs Active W A S D Space Shift Alt Mouse1 Mouse2 Zoom AngularStab_Active LateralStab_Active ForwardStop_Active AngStabPriority_Active VectorControl_Active Control_Vector:vector
+@outputs Forward Backward Left Right Up Down PitchUp PitchDown YawLeft YawRight RollLeft RollRight Distance Approach
+@persist AngStabOverride VelPitch VelYaw VelRoll VelX VelY VelZ Bearing Elevation
+@trigger 
+@strict
+
+#PLACE E2 CHIP ON TOP OF CRAFT WITH RED ARROW POINTED FORWARD
+
+interval(1)
+
+VelPitch = entity():angVel():pitch()
+VelYaw = entity():angVel():yaw()
+VelRoll = entity():angVel():roll()
+
+VelX = entity():velL():x()
+VelY = entity():velL():y()
+VelZ = entity():velL():z()
+
+#This portion controls angular stabilization
+if(AngularStab_Active == 1 & VectorControl_Active == 0){
+    if((abs(VelPitch) > 1 | abs(VelYaw) > 1 | abs(VelRoll) > 1) & AngStabPriority_Active == 1){AngStabOverride = 1}else{AngStabOverride = 0}
+    
+    if(VelPitch < -1 & !(!Shift & (W | S))){PitchUp = 1}else{PitchUp = 0}
+    if(VelPitch > 1 & !(!Shift & (W | S))){PitchDown = 1}else{PitchDown = 0}
+    if(VelYaw < -1 & !(!Shift & (A | D))){YawLeft = 1}else{YawLeft = 0}
+    if(VelYaw > 1 & !(!Shift & (A | D))){YawRight = 1}else{YawRight = 0}
+    if(VelRoll < -1 & !Mouse1 & !Mouse2){RollLeft = 1}else{RollLeft = 0}
+    if(VelRoll > 1 & !Mouse1 & !Mouse2){RollRight = 1}else{RollRight = 0}
+}
+
+#This portion controls lateral stabilization
+if(LateralStab_Active == 1){
+    if(VelZ < -1 & AngStabOverride == 0 & !(Shift & (W | S))){Up = 1}else{Up = 0}
+    if(VelZ > 1 & AngStabOverride == 0 & !(Shift & (W | S))){Down = 1}else{Down = 0}
+    if(VelY < -1 & AngStabOverride == 0 & !(Shift & (A | D))){Right = 1}else{Right = 0}
+    if(VelY > 1 & AngStabOverride == 0 & !(Shift & (A | D))){Left = 1}else{Left = 0}
+    if(VelX > 1 & AngStabOverride == 0){Forward = 1}else{Forward = 0}
+    if(ForwardStop_Active == 1 & VelX < -1 & AngStabOverride == 0){Backward = 1}else{Backward = 0}
+}
+
+#This portion controls manual controls
+if(Active == 1){
+    #Roll controls
+    if(Zoom == 0){
+        if(Mouse1){RollLeft = 1}elseif(AngularStab_Active == 0){RollLeft = 0}
+        if(Mouse2){RollRight = 1}elseif(AngularStab_Active == 0){RollRight = 0}
+    }
+    #Pitch/Yaw controls
+    if(VectorControl_Active == 0 & Shift == 0){
+        if(W){PitchDown = 1}elseif(AngularStab_Active == 0){PitchDown = 0}
+        if(S){PitchUp = 1}elseif(AngularStab_Active == 0){PitchUp = 0}
+        if(D){YawRight = 1}elseif(AngularStab_Active == 0){YawRight = 0}
+        if(A){YawLeft = 1}elseif(AngularStab_Active == 0){YawLeft = 0}
+    }
+    #Translation controls
+    if(Shift == 1 | VectorControl_Active == 1){
+        if(W){Up = 1}elseif(LateralStab_Active == 0 | VectorControl_Active == 1){Up = 0}
+        if(S){Down = 1}elseif(LateralStab_Active == 0 | VectorControl_Active == 1){Down = 0}
+        if(D){Right = 1}elseif(LateralStab_Active == 0 | VectorControl_Active == 1){Right = 0}
+        if(A){Left = 1}elseif(LateralStab_Active == 0 | VectorControl_Active == 1){Left = 0}
+    }
+    if(Space == 1){Forward = 1}elseif(LateralStab_Active == 0 | VectorControl_Active == 1){Forward = 0}
+}
+
+#This portion controls the vector aiming
+if(VectorControl_Active == 1 & AngularStab_Active == 0){
+    Bearing = entity():bearing(Control_Vector)
+    Elevation = entity():elevation(Control_Vector)
+    Distance = entity():pos():distance(Control_Vector)
+    if(Bearing > 0 & VelYaw < 0.1 * Bearing){YawLeft = 1}else{YawLeft = 0}
+    if(Bearing < 0 & VelYaw > 0.1 * Bearing){YawRight = 1}else{YawRight = 0}
+    if(Elevation > 0 & VelPitch < 0.1 * Elevation){PitchUp = 1}else{PitchUp = 0}
+    if(Elevation < 0 & VelPitch > 0.1 * Elevation){PitchDown = 1}else{PitchDown = 0}
+    
+    if(abs(Bearing) > 175 & abs(Elevation) < 5){Approach = 1}else{Approach = 0}
+}

@@ -1,0 +1,158 @@
+@name Snayk_HugLemper
+@inputs Display:wirelink [W,A,S,D]:number Player:entity
+@outputs 
+@persist SnakeBody:array [ChgDir,HighScore,Score,CheckPos,Game,I,Length,Dir,HX,HY,FX,FY]:number
+@trigger 
+function void doDisplay()
+{
+    for(I=1,Length,1)
+    {
+        Display:egpBox(I+4,SnakeBody[I,vector2],vec2(10,10))
+    }
+}
+function void newFood()
+{
+    Score+=1
+    Display:egpText(2,"Score: "+Score,vec2(10,10))
+    FX = floor(random(51))*10
+    FY = floor(random(51))*10
+    CheckPos=0
+    if(HighScore < Score)
+    {
+        HighScore = Score
+        Display:egpText(3,"Highscore: "+HighScore+" "+Player:name(),vec2(10,30))
+    }
+    for(I=1,Length,1)
+    {
+        CheckPos = (vec2(FX,FY)==SnakeBody[I,vector2])
+        if(CheckPos){break}
+    }
+    while(CheckPos)
+    {
+        FX = floor(random(51))*10
+        FY = floor(random(51))*10
+        CheckPos=0
+        for(I=1,Length,1)
+        {
+            CheckPos = (vec2(FX,FY)==SnakeBody[I,vector2])
+            if(CheckPos){break}
+        }
+    }
+    Display:egpPos(1,vec2(FX,FY))
+    Display:egpColor(1,vec(0,255,0))
+    Length +=1
+}
+function void newGame()
+{
+    ChgDir = 0
+    Score=0
+    
+    Display:egpClear()
+    Length = 10
+    HX = 100
+    HY = 100
+    FX = 256
+    FY = 256
+    Dir= 2
+    Display:egpBox(1,vec2(FX,FY),vec2(10,10))
+    Display:egpText(2,"Score: 0",vec2(10,10))
+    Display:egpColor(1,vec(0,255,0))
+    newFood()
+    Game=1
+    SnakeBody = array()
+    
+    interval(200-Length)
+}
+
+if(first())
+{
+    newGame()
+    HighScore = 0
+}
+
+
+function void changeDirection()
+{
+    if(ChgDir==0)
+    {
+        if    (W&Dir !=1){Dir=3}
+        elseif(A&Dir !=2){Dir=4}
+        elseif(S&Dir !=3){Dir=1}
+        elseif(D&Dir !=4){Dir=2}
+    }
+    ChgDir = 1
+}
+function number checkCollision()
+{
+    Chk=0
+    for(I=2,Length,1)
+    {
+        if(SnakeBody[1,vector2]==SnakeBody[I,vector2])
+        {
+            Chk=1
+            break
+            
+        }
+    }
+    return Chk
+}
+function void doMove()
+{
+    if(Dir==1)
+    {
+        HY+=10
+        if(HY>510){HY=0}
+    }
+    elseif(Dir==2)
+    {
+        HX+=10
+        if(HX>510){HX=0}
+    }
+    elseif(Dir==3)
+    {
+        HY-=10
+        if(HY<0){HY=510}
+    }
+    elseif(Dir==4)
+    {
+        HX-=10
+        if(HX<0){HX=510}
+    }
+    SnakeBody:unshiftVector2(vec2(HX,HY))
+    if(SnakeBody:count()>=Length)
+    {
+        SnakeBody:pop()
+    }
+    doDisplay()
+    if(SnakeBody[1,vector2]==vec2(FX,FY))
+    {
+        newFood()
+    }
+    if(checkCollision())
+    {
+        for(J=1,Length,1)
+            {
+                Display:egpColor(J+4,vec(255,0,0))
+                Game=0
+            }
+        timer("NewGame",2000)
+    }
+    ChgDir = 0
+}
+if(Game==1)
+{
+    interval(200-Length)
+}
+if(clk())
+{
+    doMove()
+}
+if(clk("NewGame"))
+{
+    newGame()
+}
+
+if(~W | ~A | ~S | ~D)
+{
+    changeDirection()
+}

@@ -1,0 +1,701 @@
+@name LeghumperTowerDefense
+@inputs EGPScreen:wirelink HardReset:number
+@outputs SpawnCommandNumber:number GameState:string HoloEmitterPos:vector [HoloEmitterLine,HoloEmitterGround,HoloEmitterSize]:number EnemyType:array
+@persist [MapSizeX,MapSizeY,EnemyCount,TileSize,GameClk,SpawnSequenceClk,CurrentGameClk,WaitUntil,Coins,Health,KillsThisRound,RoundNumber,ShootyTower]:number 
+@persist Player:entity [HoverBtn,SelectedItem]:string
+@persist [DecodedLevel,TowerTimeOut,TowerRange,TowerReloadSpeed,TowerAttack]:array [Path,Map,MapModels,CurrentEnemyPathNumber,EnemyPos,Levels,TowerTypeList,TowerPosList,TowerCoolDown,EnemyHP,AliveEnemiesList,HoloPointers]:array PathMaterial:string
+@trigger 
+@model models/props_phx/construct/plastic/plastic_panel4x4.mdl
+
+function string getTileType(X,Y:number)
+{
+    Tile = Map[Y*MapSizeY+X,string]
+    return Tile
+}
+function void drawMainMenu()
+{
+    EGPScreen:egpClear()
+    EGPScreen:egpDrawTopLeft(0)
+    EGPScreen:egpText(1,"Leghumper's Tower Defense Game",vec2(256,120))
+    EGPScreen:egpAlign(1,1,1)
+    EGPScreen:egpColor(1,vec(128,128,128))
+    EGPScreen:egpFont(1,"Lucida Console",25)
+    
+    EGPScreen:egpRoundedBox(3,vec2(256,256),vec2(200,50))
+    EGPScreen:egpText(4,"New Game",vec2(256,256))
+    EGPScreen:egpFont(4,"Lucida Console",25)
+    EGPScreen:egpColor(4,vec(0,0,0))
+    EGPScreen:egpAlign(4,1,1)
+    
+    EGPScreen:egpWedge(2,vec2(1,1),vec2(20,20))
+    EGPScreen:egpSize(2,300)
+    EGPScreen:egpOrder(2,2)
+}
+function void placeTower(Type:string,Pos:vector2,Range,RldSpeed,Atk:number)
+{
+    Map[Pos:y()*MapSizeY+Pos:x(),string] = Type
+    TowerTypeList:pushString(Type)
+    TowerRange:pushNumber(Range)
+    TowerReloadSpeed:pushNumber(RldSpeed)
+    TowerPosList:pushVector2(Pos)
+    TowerAttack:pushNumber(Atk)
+}
+function void drawStrategyMenu()
+{
+    EGPScreen:egpClear()
+    EGPScreen:egpDrawTopLeft(1)
+    EGPScreen:egpText(1,"Player: "+Player:name(),vec2(10,10))
+    EGPScreen:egpFont(1,"Lucida Console",15)
+    EGPScreen:egpAlign(1,0,0)
+    EGPScreen:egpRoundedBox(3,vec2(410,472),vec2(100,30))
+    EGPScreen:egpAlign(3,0,0)
+    EGPScreen:egpBox(4,vec2(1,100),vec2(124,124))
+    EGPScreen:egpBox(5,vec2(129,100),vec2(124,124))
+    EGPScreen:egpColor(5,vec(64,64,64))
+    EGPScreen:egpBox(6,vec2(257,100),vec2(124,124))
+    EGPScreen:egpColor(6,vec(64,64,64))
+    EGPScreen:egpBox(7,vec2(384,100),vec2(124,124))
+    EGPScreen:egpColor(7,vec(64,64,64))
+    EGPScreen:egpText(8,"Select your towers and place them on the map.",vec2(10,80))
+    EGPScreen:egpFont(8,"Lucida Console",15)
+    EGPScreen:egpText(9,"Coins: "+Coins:toString()+" | HP: "+Health+"/100",vec2(10,480))
+    EGPScreen:egpFont(9,"Lucida Console",15)
+    EGPScreen:egpText(10,"Basic Tower",vec2(10,150))
+    EGPScreen:egpFont(10,"Lucida Console",15)
+    EGPScreen:egpColor(10,vec(0,0,0))
+    EGPScreen:egpText(11,"Cost: 100",vec2(10,200))
+    EGPScreen:egpFont(11,"Lucida Console",11)
+    EGPScreen:egpColor(11,vec(0,0,0))
+    EGPScreen:egpText(12,"Start",vec2(442,476))
+    EGPScreen:egpColor(12,vec(0,55,0))
+    EGPScreen:egpText(13,"???",vec2(155,150))
+    EGPScreen:egpColor(13,vec(11,11,11))
+    EGPScreen:egpText(14,"???",vec2(283,150))
+    EGPScreen:egpColor(14,vec(11,11,11))
+    EGPScreen:egpText(15,"???",vec2(411,150))
+    EGPScreen:egpColor(15,vec(11,11,11))
+    
+    EGPScreen:egpWedge(2,vec2(1,1),vec2(20,20))
+    EGPScreen:egpSize(2,300)
+}
+function vector2 tileNumberToRealPosition(XY:vector2)
+{
+    X = XY:x()
+    Y = XY:y()
+    Num = entity():pos()+vec(X*TileSize,Y*TileSize,0)-vec(entity():boxSize():x()/2+TileSize/2,entity():boxSize():y()/2+TileSize/2,0)
+    return vec2(Num)
+}
+function void drawMapModels()
+{
+    for(I=1,MapModels:count())
+    {
+        TileSize = entity():boxSize():x()/MapSizeX
+        ExplodedMap = MapModels[I,string]:explode(",")
+        MapX = ExplodedMap[1,string]:toNumber()
+        MapY = ExplodedMap[2,string]:toNumber()
+        Map[MapY*MapSizeY+MapX,string] = "decoration"
+        holoCreate(Path:count()+I,entity():pos()+vec(MapX*TileSize,MapY*TileSize,0)-vec(TileSize/2,TileSize/2,-6)-vec(entity():boxSize():x()/2,entity():boxSize():y()/2,0))
+        holoModel(Path:count()+I,ExplodedMap[3,string])
+        holoScale(Path:count()+I,vec(0.5,0.5,0.5))
+        holoParent(Path:count()+I,entity())
+    }
+}
+function void makePath()
+{
+    TileSize = entity():boxSize():x()/MapSizeX
+    for(I=1,Path:count())
+    {
+        holoCreate(I,entity():pos()+vec(Path[I,vector2]*TileSize)-vec(entity():boxSize():x()/2+TileSize/2,entity():boxSize():y()/2+TileSize/2,0))
+        holoScale(I,vec(1.6,1.6,0.6))
+        holoMaterial(I,"phoenix_storms/metalbox")
+        holoParent(I,entity())
+        Map[Path[I,vector2]:y()*MapSizeY+Path[I,vector2]:x(),string] = "path"
+    }
+}
+
+function void newEnemy(Type:number)
+{
+    soundPlay(1,0,"squeek/sqk_deploy1.wav")
+    EnemyCount++
+    local I=1
+    while(EnemyHP[I,number] != 0 && EnemyHP[I,number] != -1 && I <=EnemyCount){ I++ }
+    EnemyType[I,number]=Type
+    if(Type==1){Model="models/Lamarr.mdl" EnemyHP[I,number]=50 HoloScale = 0.5 HoloAnim = 2}
+    elseif(Type==2){Model="models/Zombie/Classic_torso.mdl" EnemyHP[I,number]=100 HoloScale = 0.5 HoloAnim = 2}
+    elseif(Type==3){Model="models/Zombie/Classic.mdl.mdl" EnemyHP[I,number]=200 HoloScale = 0.5 HoloAnim = 2}
+    elseif(Type==4){Model="models/antlion_guard.mdl" EnemyHP[I,number]=800 HoloScale = 0.5 HoloAnim = 17}
+    elseif(Type==5){Model="models/Lamarr.mdl" EnemyHP[I,number]=90 HoloScale = 0.9 HoloAnim = 2}
+    CurrentEnemyPathNumber[I,number] = 1
+    EnemyPos[I,vector] = entity():pos()+vec(Path[1,vector2])*TileSize-entity():boxSize()/2-vec(TileSize,TileSize,-10)/2
+    holoCreate(I+50,EnemyPos[I,vector])
+    holoModel(I+50,Model)
+    holoScale(I+50,vec(HoloScale,HoloScale,HoloScale))
+    holoAnim(I+50,HoloAnim)
+    holoAlpha(I+50,255)
+    GetEnemyHeading = ang(0,(Path[2,vector2]-Path[1,vector2]):toAngle(),0)
+    holoAng(I+50,GetEnemyHeading)
+}
+function void processSpawnSequence()
+{
+    SpawnSequenceClk++
+    if(WaitUntil < SpawnSequenceClk)
+    {
+        if(DecodedLevel[SpawnCommandNumber,string]:sub(1,1) == "s")
+        {
+            if(DecodedLevel[SpawnCommandNumber,string]:sub(2) == "1"){newEnemy(1)}
+            elseif(DecodedLevel[SpawnCommandNumber,string]:sub(2) == "2"){newEnemy(2)}
+            elseif(DecodedLevel[SpawnCommandNumber,string]:sub(2) == "3"){newEnemy(3)}
+            elseif(DecodedLevel[SpawnCommandNumber,string]:sub(2) == "4"){newEnemy(4)}
+            elseif(DecodedLevel[SpawnCommandNumber,string]:sub(2) == "5"){newEnemy(5)}
+        }
+        elseif(DecodedLevel[SpawnCommandNumber,string]:sub(1,1) == "w")
+        {
+            WaitUntil = SpawnSequenceClk + DecodedLevel[SpawnCommandNumber,string]:sub(3):toNumber()
+        }
+        
+        if(SpawnCommandNumber >= DecodedLevel:count())
+        {
+            SpawnCommandNumber = -1
+        }
+        elseif(SpawnCommandNumber != -1)
+        {
+            SpawnCommandNumber++
+        }
+    }
+}
+function void towerScanner()
+{
+    for(I=1,TowerPosList:count())
+    {
+        for(J=1,EnemyHP:count())
+        {
+            if(EnemyHP[J,number] != -1)
+            {
+                if(TowerTypeList[I,string] == "simpleTower"){  }
+                
+                CoolDown = TowerReloadSpeed[I,number]
+                DamageToDeal = TowerAttack[I,number]
+                Distance = tileNumberToRealPosition(TowerPosList[I,vector2]):distance(vec2(EnemyPos[J,vector]))
+                TriggerRange = TowerRange[I,number]
+                if(Distance < TriggerRange && TowerCoolDown[I,number] < 1 && EnemyHP[J,number] != -1)
+                {
+                    EnemyHP[J,number] = EnemyHP[J,number]-DamageToDeal
+                    TowerCoolDown[I,number] = CoolDown
+                    holoColor(50+J,vec(255,0,0))
+                    HoloEmitterPos = EnemyPos[J,vector]+vec(0,0,2)
+                    HoloEmitterLine = 1
+                    ShootyTower = I
+                    TowerRealPosition = tileNumberToRealPosition(TowerPosList[I,vector2])
+                    GetTowerHeading = ang(0,(vec2(EnemyPos[J,vector])-TowerRealPosition):toAngle(),0)
+                    holoAnim(102+I,77)
+                    holoAng(102+I,GetTowerHeading)
+                    timer("shootyLazer",10)
+                    if(EnemyHP[J,number] < 1)
+                    {
+                        HoloPointers:remove(J)
+                        if(EnemyType[J,number]==1){Coins = Coins + 10}
+                        elseif(EnemyType[J,number]==2){Coins = Coins + 20}
+                        elseif(EnemyType[J,number]==3){Coins = Coins + 50}
+                        elseif(EnemyType[J,number]==4){Coins = Coins + 100}
+                        elseif(EnemyType[J,number]==5){Coins = Coins + 20}
+                        if(Coins >= 100 && TowerTimeOut[1,number]<=0)
+                        {
+                            EGPScreen:egpColor(4,vec(255,255,255))
+                            EGPScreen:egpColor(11,vec(0,0,0))
+                        }
+                        EGPScreen:egpText(9,"Coins: "+Coins:toString()+" | Health: "+Health+"/100",vec2(10,480))
+                        holoAlpha(50+J,0)
+                        #CurrentEnemyPathNumber:remove(J)
+                        soundPlay(1,0,"npc/headcrab/headbite.wav")
+                        KillsThisRound++
+                        EnemyHP[J,number] = -1
+                        EnemyPos[J,vector] = entity():pos()+vec(Path[1,vector2])*TileSize-entity():boxSize()/2-vec(TileSize,TileSize,-10)/2
+                    }
+                }
+                else{holoColor(50+J,vec(255,255,255))}
+            }
+        }
+        if(TowerCoolDown[I,number]>0){TowerCoolDown[I,number] = TowerCoolDown[I,number]-1}
+    }
+}
+function void moveEnemies()
+{
+    for(I=1,EnemyCount)
+    {
+        GetEnemyHeading = ang(0,(Path[CurrentEnemyPathNumber[I,number],vector2]-Path[CurrentEnemyPathNumber[I,number]-1,vector2]):toAngle(),0)
+        CurrentDistanceVector = tileNumberToRealPosition(Path[CurrentEnemyPathNumber[I,number],vector2]) - tileNumberToRealPosition(Path[CurrentEnemyPathNumber[I,number]-1,vector2])
+        EnemyDistanceToNode = vec2(EnemyPos[I,vector]):distance(tileNumberToRealPosition(Path[CurrentEnemyPathNumber[I,number],vector2]))
+        
+        if(EnemyDistanceToNode > 1)
+        {
+            EnemyPos[I,vector] = EnemyPos[I,vector]+vec(CurrentDistanceVector)/10
+        }
+        else
+        {
+            CurrentEnemyPathNumber[I,number] = CurrentEnemyPathNumber[I,number]+1
+            if(CurrentEnemyPathNumber[I,number] >= Path:count()) #If the enemies got through, reduce your HP by what's left of the enemies HP, and delete the enemy.
+            {
+                Health = Health - EnemyHP[I,number]
+                EnemyHP[I,number] = -1
+                EnemyPos[I,vector] = entity():pos()+vec(Path[1,vector2])*TileSize-entity():boxSize()/2-vec(TileSize,TileSize,-10)/2
+                KillsThisRound++
+                entity():soundPlay(1,1,"scientist/sci_pain8.wav")
+                EGPScreen:egpText(9,"Coins: "+Coins:toString()+" | Health: "+Health+"/100",vec2(10,480))
+                holoAlpha(50+I,0)
+                if(Health<0)
+                {
+                    GameState = "dead"
+                    EGPScreen:egpTextLayout(300,"You died.",vec2(256,256),vec2(40,40))
+                    entity():soundPlay(2,1,"vo/coast/cr_sorry.wav")
+                    timer("resetChip",3000)
+                    stoptimer("towerTimeOut")
+                }
+            }
+        }
+        holoPos(I+50,EnemyPos[I,vector])
+        holoAng(I+50,GetEnemyHeading)
+    }
+}
+function vector2 realPosToTile(X,Y:number)
+{
+    XTile = 11-round((entity():pos():x() - X + entity():boxSize():x()/2 + TileSize/2)/TileSize)
+    YTile = 11-round((entity():pos():y() - Y + entity():boxSize():y()/2 + TileSize/2)/TileSize)
+    return vec2(XTile,YTile)
+}
+function void startNewRound()
+{
+    EnemyType = array()
+    WaitUntil = 0
+    SpawnCommandNumber = 1
+    KillsThisRound = 0
+    SpawnSequenceClk = 0
+    RoundNumber++
+    EnemyHP = array()
+    EnemyPos = array()
+    EnemyCount = 0
+    CurrentGameClk = 0
+    soundPlay(1,0,"radio/letsgo.wav")
+    GameState = "inGame"
+    timer("gameClk",100)
+    EGPScreen:egpText(8,"Round "+RoundNumber+" in progress...",vec2(256,80))
+    EGPScreen:egpFont(8,"Lucida Console",15)
+    EGPScreen:egpAlign(8,1,1)
+    DecodedLevel = Levels[RoundNumber,string]:explode(",")
+    timer("towerTimeOut",1000)
+}
+function void endOfRound()
+{
+    soundPlay(1,0,"vo/k_lab2/al_wemadeit.wav")
+    GameState = "inStrategyMenu"
+    stoptimer("towerTimeOut")
+    EGPScreen:egpText(11,"Coins: 100",vec2(10,200))
+    EGPScreen:egpText(8,"Please prepare for round "+(RoundNumber+1),vec2(256,80))
+    if(Coins >= 100)
+    {
+        EGPScreen:egpColor(4,vec(255,255,255))
+        EGPScreen:egpColor(11,vec(0,0,0))
+    }
+    TowerTimeOut = array()
+}
+function void gameClk()
+{
+    if(Player:aimEntity() == EGPScreen:entity())
+    {
+        holoAlpha(100,0)
+        holoAlpha(101,0)
+        holoAlpha(102,0)
+        Cursor = EGPScreen:egpCursor(Player)
+        EGPScreen:egpPos(2,Cursor)
+        EGPScreen:egpAlpha(2,255)
+        if(SelectedItem=="simpleTower")
+            {
+                EGPScreen:egpColor(4,vec(64,64,150))
+            }
+            else
+            {
+                EGPScreen:egpColor(4,vec(255,255,255))
+                EGPScreen:egpColor(11,vec(0,0,0))
+            }
+            EGPScreen:egpColor(3,vec(255,255,255))
+            if(Coins < 100 || TowerTimeOut[1,number] > 0)
+            {
+                EGPScreen:egpColor(4,vec(100,100,100))
+                EGPScreen:egpColor(11,vec(255,100,100))
+            }
+        if(Cursor:x()<129 && Cursor:y() > 100 && Cursor:y() < 224 && Coins >= 100 && TowerTimeOut[1,number] <= 0)
+        {
+            EGPScreen:egpColor(4,vec(120,255,120))
+            if(SelectedItem =="simpleTower")
+            {
+                EGPScreen:egpColor(4,vec(64,64,150))
+            }
+            
+            if(Player:keyUse())
+            {
+                SelectedItem = "simpleTower"
+                EGPScreen:egpColor(4,vec(64,64,150))
+                holoCreate(101,entity():pos()+vec(0,0,15)-vec(TileSize/2,TileSize/2,0))
+                holoModel(101,"models/Humans/Group03/male_06.mdl")
+                holoScale(101,vec(0.5,0.5,0.5))
+                holoAng(101,ang(0,0,0))
+                #holoMaterial(101,"phoenix_storms/wire/pcb_green")
+                holoCreate(102,entity():pos()+vec(0,0,10)-vec(TileSize/2,TileSize/2,0),vec(8,8,0.1))
+                holoModel(102,"cylinder")
+                holoColor(102,vec(32,32,255))
+                holoAlpha(101,0)
+                holoAlpha(102,0)
+            }
+        }
+        #[elseif(Cursor:x() > 410 && Cursor:y() > 472)
+        {
+            if(TowerPosList:count() > 0)
+            {
+                EGPScreen:egpColor(3,vec(120,255,120))
+                if(Player:keyUse())
+                {
+                    startNewRound()
+                }
+            }
+            else
+            {
+                EGPScreen:egpColor(3,vec(255,120,120))
+            }
+        }]#
+        # else
+        #{
+            
+        #}
+    }
+    elseif(Player:aimEntity() == entity())
+    {
+    EGPScreen:egpAlpha(2,0)
+    CursorPos = Player:aimPos()-entity():pos()-vec(TileSize/2,TileSize/2,4)
+    HoloCursorPos = entity():pos()+round(CursorPos/TileSize)*TileSize+vec(TileSize/2,TileSize/2,4)
+    holoPos(100,HoloCursorPos)
+    holoPos(101,HoloCursorPos+vec(0,0,15))
+    holoPos(102,HoloCursorPos+vec(0,0,5))
+    holoAlpha(100,255)
+        if(SelectedItem != "")
+        {
+            holoAlpha(101,255)
+            holoAlpha(102,100)
+        }
+        SelectedTile = realPosToTile(Player:aimPos():x(),Player:aimPos():y())
+        SelectedTileType = getTileType(SelectedTile:x(),SelectedTile:y())
+        if(SelectedTileType == "")
+        {
+            holoColor(100,vec(0,255,0))
+            holoColor(101,vec(255,255,255))
+            holoColor(102,vec(32,32,255))
+            if(Player:keyUse() && Coins >= 100 && SelectedItem != "")
+            {
+                SelectedItem = ""
+                Coins = Coins - 100
+                EGPScreen:egpText(9,"Coins: "+Coins:toString()+" | Health: "+Health+"/100",vec2(10,480))
+                holoCreate(103+TowerPosList:count(),HoloCursorPos+vec(0,0,0),vec(0.5,0.5,0.5))
+                holoModel(103+TowerPosList:count(),"models/Humans/Group03/male_06.mdl")
+                holoAng(103+TowerPosList:count(),ang(0,0,0))
+                holoAlpha(101,0)
+                holoAlpha(102,0)
+                placeTower("simpleTower",SelectedTile,50,10,10)
+                print("Placed a new tower on "+SelectedTile:toString())
+                soundPlay(1,0,"physics/concrete/concrete_impact_hard2.wav")
+                TowerTimeOut[1,number] = 30
+                timer("towerTimeOut",1000)
+            }
+        }
+        else
+        {
+            holoColor(100,vec(255,64,64))
+            holoColor(101,vec(255,64,64))
+            holoColor(102,vec(255,64,64))
+        }
+    }
+    else
+    {
+        holoAlpha(100,0)
+    }
+    if(GameState == "inGame")
+    {
+        if(SpawnCommandNumber < 0 && KillsThisRound >= EnemyCount)
+        {
+            endOfRound()
+        }
+        else
+        {
+            CurrentGameClk++
+            moveEnemies()
+            towerScanner()
+            processSpawnSequence()
+            timer("gameClk",GameClk) 
+        }
+    }
+}
+if(clk("gameClk"))
+{
+    gameClk()
+}
+if(clk("shootyLazer"))
+{
+    soundPlay(round(random(10)),0.4,"weapons/pistol/pistol_fire2.wav")
+    HoloEmitterPos = vec(tileNumberToRealPosition(TowerPosList[ShootyTower,vector2]))+vec(0,0,entity():pos():z()+35)
+    
+}
+function void resetEverything()
+{
+    RoundNumber = 0
+    HoloEmitterSize = 5
+    KillsThisRound = 0
+    Health = 100
+    EGPScreen:egpDrawTopLeft(1)
+    GameState = "inMenu"
+    SpawnCommandNumber = 1
+    SpawnSequenceClk = 0
+    WaitUntil = 0
+    for(I = 1, TowerPosList:count())
+    {
+        holoDelete(I+102)
+    }
+    for(I = 1,EnemyHP:count())
+    {
+        holoAlpha(50+I,0)
+    }
+    TowerPosList = array()
+    TowerPosList = array()
+    TowerTypeList = array()
+    EnemyHP = array()
+    Levels = array("w-10,s1,w-60,s1,w-60,s1,w-60,s1,w-60,s1,w-60,s1,w-60,s1,w-60,s1,w-60,s1,w-60,s1",
+                   "w-10,s2,w-50,s2,w-50,s1,w-50,s2,w-50,s1,w-10,s5,w-10,s5",
+                   "w-10,s2,w-30,s2,w-30,s2,w-30,s2,w-30,s2,w-20,s2,w-30,s2,w-30,s1,w-30,s2,w-30,s1",
+                   "w-10,s3,w-50,s2,w-3,s2,w-9,s2,w-9,s2,w-9,s2,w-9,s2,w-9,s1,w-33,s2,w-9,s1,w-9,s1",
+                   "w-10,s3,w-20,s3,w-30,s2,w-30,s2,w-10,s2,w-30,s2,w-3,s2,w-3,s1,w-33,s2,w-3,s1,w-3,s1,w-1,s1,w-1,s1,w-1,s1",
+                   "w-10,s4",
+                   "w-10,s5,w-2,s5,w-2,s5,w-2,s5,w-2,s5,w-2,s5,w-2,s5,w-2,s5,w-2,s5,w-2,s5,w-2,s5,w-2,s5,w-2,s5,w-2,s5,w-2")
+    MapModels = array("10,8,models/props_c17/gravestone002a.mdl","3,3,models/props/de_nuke/cinderblock_stack.mdl","5,5,models/props_c17/oildrum001.mdl")
+    MapSizeX = 10
+    MapSizeY = 10
+    GameClk = 60
+    entity():setMaterial("models/props_c17/furnituremetal001a")
+    Path = array(vec2(10,9),vec2(9,9),vec2(8,9),vec2(7,9),vec2(6,9),
+    vec2(6,8),vec2(6,7),vec2(6,6),vec2(7,6),vec2(8,6),
+    vec2(8,5),vec2(8,4),vec2(8,3),vec2(8,2),
+    vec2(7,2),vec2(6,2),vec2(5,2),vec2(4,2),vec2(3,2),vec2(2,2),
+    vec2(2,3),vec2(2,4),vec2(2,5),vec2(2,6),
+    vec2(3,6),vec2(3,7),vec2(3,8),vec2(3,9),
+    vec2(2,9),vec2(2,10))
+    makePath()
+    drawMapModels()
+    Player = owner()
+    holoCreate(100,entity():pos()+vec(vec2(1,1)*TileSize)-vec(entity():boxSize():x()/2+TileSize/2,entity():boxSize():y()/2+TileSize/2,0))
+    holoScale(100,vec(1.6,1.6,0.6))
+    holoColor(100,vec(0,255,0))
+    holoModel(100,"cylinder")
+    holoAlpha(100,0)
+    Coins = 100
+    drawMainMenu()
+}
+function void gameOver()
+{
+    resetEverything()
+}
+
+if(clk("resetChip"))
+{
+    resetEverything()
+}
+if(clk("towerTimeOut"))
+{
+    if(TowerTimeOut[1,number] > 0)
+    {
+        TowerTimeOut[1,number] = TowerTimeOut[1,number]-1
+        timer("towerTimeOut",1000)
+        EGPScreen:egpText(11,"Time left: "+toString(TowerTimeOut[1,number]),vec2(10,200))
+    }
+    else
+    {
+        EGPScreen:egpText(11,"Cost: 100",vec2(10,200))
+    }
+}
+if(HardReset)
+{
+    #reset()
+    holoDeleteAll()
+    timer("resetChip",2000)
+    resetEverything()
+}
+if(first() || duped())
+{
+    resetEverything()
+}
+if(GameState == "inMenu")
+{
+    holoAlpha(100,0)
+    holoAlpha(101,0)
+    holoAlpha(102,0)
+    findByClass("player")
+    ClosestPlayer = findClosest(entity():pos())
+    if(ClosestPlayer:aimEntity() == EGPScreen:entity())
+    {
+        ClosestCursor = EGPScreen:egpCursor(ClosestPlayer)
+        EGPScreen:egpPos(2,ClosestCursor)
+        EGPScreen:egpAlpha(2,255)
+        if(ClosestCursor:x() > 156 && ClosestCursor:x() < 356 && ClosestCursor:y() > 231 && ClosestCursor:y() < 281)
+        {
+            EGPScreen:egpColor(3,vec(120,255,120))
+            if(HoverBtn != "newGame")
+            {
+                entity():soundPlay(1,0,"weapons/alyx_gun/alyx_shotgun_cock1.wav")
+            }
+            HoverBtn = "newGame"
+            if(ClosestPlayer:keyUse())
+            {
+                Player = ClosestPlayer
+                drawStrategyMenu()
+                GameState = "inStrategyMenu"
+                entity():soundPlay(1,0,"buttons/button1.wav")
+            }
+        }
+        else
+        {
+            soundStop(1)
+            EGPScreen:egpColor(3,vec(255,255,255))
+            HoverBtn = "nothing"
+        }
+    }
+    else
+    {
+        EGPScreen:egpAlpha(2,0)
+    }
+    interval(10)
+}
+
+elseif(GameState == "inStrategyMenu")
+{
+    if(Player:aimEntity() == EGPScreen:entity())
+    {
+        holoAlpha(100,0)
+        holoAlpha(101,0)
+        holoAlpha(102,0)
+        Cursor = EGPScreen:egpCursor(Player)
+        EGPScreen:egpPos(2,Cursor)
+        EGPScreen:egpAlpha(2,255)
+        if(Cursor:x()<129 && Cursor:y() > 100 && Cursor:y() < 224 && Coins >= 100 && TowerTimeOut[1,number] <= 0)
+        {
+            EGPScreen:egpColor(4,vec(120,255,120))
+            if(SelectedItem =="simpleTower")
+            {
+                EGPScreen:egpColor(4,vec(64,64,150))
+            }
+            
+            if(Player:keyUse())
+            {
+                SelectedItem = "simpleTower"
+                EGPScreen:egpColor(4,vec(64,64,150))
+                holoCreate(101,entity():pos()+vec(0,0,0)-vec(TileSize/2,TileSize/2,0))
+                holoModel(101,"models/Humans/Group03/male_06.mdl")
+                holoScale(101,vec(0.5,0.5,0.5))
+                holoAng(101,ang(0,0,0))
+                #holoMaterial(101,"phoenix_storms/wire/pcb_green")
+                holoCreate(102,entity():pos()+vec(0,0,0)-vec(TileSize/2,TileSize/2,0),vec(8,8,0.1))
+                holoModel(102,"cylinder")
+                holoColor(102,vec(32,32,255))
+                holoAlpha(101,0)
+                holoAlpha(102,0)
+            }
+        }
+        elseif(Cursor:x() > 410 && Cursor:y() > 472)
+        {
+            if(TowerPosList:count() > 0)
+            {
+                EGPScreen:egpColor(3,vec(120,255,120))
+                if(Player:keyUse())
+                {
+                    if(RoundNumber >= Levels:count())
+                    {
+                        soundPlay(5,0,"vo/npc/vortigaunt/allfornow.wav")
+                        timer("resetChip",2000)
+                    }
+                    else{startNewRound()}
+                }
+            }
+            else
+            {
+                EGPScreen:egpColor(3,vec(255,120,120))
+            }
+        }
+        else
+        {
+            if(SelectedItem=="simpleTower")
+            {
+                EGPScreen:egpColor(4,vec(64,64,150))
+            }
+            else
+            {
+                EGPScreen:egpColor(4,vec(255,255,255))
+            }
+            EGPScreen:egpColor(3,vec(255,255,255))
+            if(Coins < 100)
+            {
+                EGPScreen:egpColor(4,vec(100,100,100))
+                EGPScreen:egpColor(11,vec(255,100,100))
+            }
+        }
+    }
+    elseif(Player:aimEntity() == entity())
+    {
+        EGPScreen:egpAlpha(2,0)
+        CursorPos = Player:aimPos()-entity():pos()-vec(TileSize/2,TileSize/2,4)
+        HoloCursorPos = entity():pos()+round(CursorPos/TileSize)*TileSize+vec(TileSize/2,TileSize/2,4)
+        holoPos(100,HoloCursorPos)
+        holoPos(101,HoloCursorPos+vec(0,0,15))
+        holoPos(102,HoloCursorPos+vec(0,0,5))
+        holoAlpha(100,255)
+        if(SelectedItem != "")
+        {
+            holoAlpha(101,255)
+            holoAlpha(102,100)
+        }
+        SelectedTile = realPosToTile(Player:aimPos():x(),Player:aimPos():y())
+        SelectedTileType = getTileType(SelectedTile:x(),SelectedTile:y())
+        if(SelectedTileType == "")
+        {
+            holoColor(100,vec(0,255,0))
+            holoColor(101,vec(255,255,255))
+            holoColor(102,vec(32,32,255))
+            if(Player:keyUse() && Coins >= 100 && SelectedItem != "")
+            {
+                SelectedItem = ""
+                Coins = Coins - 100
+                EGPScreen:egpText(9,"Coins: "+Coins:toString()+" | Health: "+Health+"/100",vec2(10,480))
+                holoAlpha(101,0)
+                holoAlpha(102,0)
+                placeTower("simpleTower",SelectedTile,50,10,10)
+                
+                HoloInitialAngle = (tileNumberToRealPosition(TowerPosList[TowerPosList:count(),vector2])-tileNumberToRealPosition(Path[1,vector2])):toAngle()
+                holoCreate(102+TowerPosList:count(),HoloCursorPos+vec(0,0,0),vec(0.5,0.5,0.5))
+                holoModel(102+TowerPosList:count(),"models/Humans/Group03/male_06.mdl")
+                holoAng(102+TowerPosList:count(),ang(0,HoloInitialAngle-180,0))
+                holoAnim(102+TowerPosList:count(),1)
+                print("Initial angle: "+HoloInitialAngle)
+                
+                RandomLine = round(random(40))
+                if(RandomLine<10){RandomString = "0"+toString(RandomLine)}else{RandomString=toString(RandomLine)}
+                TowerTimeOut[1,number] = 30
+                EGPScreen:egpText(11,"Sold out",vec2(10,200))
+                soundPlay(1,0,"vo/npc/male01/answer"+RandomString+".wav")
+            }
+        }
+        else
+        {
+            holoColor(100,vec(255,64,64))
+            holoColor(101,vec(255,64,64))
+            holoColor(102,vec(255,64,64))
+        }
+    }
+    else
+    {
+        holoAlpha(100,0)
+    }
+    interval(60)
+}
+

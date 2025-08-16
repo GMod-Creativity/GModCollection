@@ -1,0 +1,226 @@
+@name HangMan by Leghumper
+@inputs XWL:wirelink BodyParts:array
+@outputs [Selection,NextInstance]:number
+@persist [GuessTable,WordsList,ButtonColors]:array [Alphabet,CustomWordsURL,CurrentWord]:string [N,CursorEGPID,ButtonWidth,PrevSelection,UseKeyPressed,GuessedLetters,Mistakes,InGame]:number
+@trigger 
+#Made by Leghumper in 2020 November 6
+function downloadCustomWords(URL:string)
+{
+    httpRequest(URL)
+}
+runOnHTTP(1)
+function makeNewGuess(S:string)
+{
+    NextInstance = CurrentWord:lower():find(S:lower())
+    if(NextInstance)
+    {
+        LetterOrder=Alphabet:find(S)
+        GuessTable[LetterOrder,number] = 1
+        XWL:egpColor(LetterOrder*2-1,vec(0,255,0))
+        ButtonColors[LetterOrder,vector] = vec(0,255,0)
+        N++
+        Spacing = 512/CurrentWord:length()
+        CurrentSpacing = CurrentWord:find(S:lower())*Spacing-Spacing/2
+        XWL:egpText(N,S,vec2(CurrentSpacing-10,220))
+        XWL:egpSize(N,30)
+        GuessedLetters++
+        soundPlay(1,0,"common/stuck1.wav")
+        while(CurrentWord:find(S:lower(),NextInstance+1) != 0 && NextInstance < CurrentWord:length())
+        {
+            N++
+            CurrentSpacing = CurrentWord:sub(NextInstance+1):find(S:lower())*Spacing-Spacing/2+NextInstance*Spacing
+            XWL:egpText(N,S,vec2(CurrentSpacing-10,220))
+            XWL:egpSize(N,30)
+            NextInstance = CurrentWord:find(S:lower(),NextInstance+1)
+            GuessedLetters++
+        }
+        if(GuessedLetters >= CurrentWord:length())
+        {
+            soundPlay(1,0,"hourly-notification-bells-short-14e60437.mp3")
+            InGame = 0
+            timer("newGame",5000)
+        }
+    }
+    else
+    {
+        LetterOrder=Alphabet:find(S)
+        GuessTable[LetterOrder,number] = 2
+        XWL:egpColor(LetterOrder*2-1,vec(255,0,0))
+        ButtonColors[LetterOrder,vector] = vec(255,0,0)
+        soundPlay(1,0,"vj_gib/bones_snapping"+toString(randint(3))+".wav")
+        Mistakes++
+        BodyParts[Mistakes,entity]:setAlpha(255)
+        if(Mistakes>=BodyParts:count())
+        {
+            InGame = 0
+            soundPlay(1,0,"physics/body/body_medium_impact_hard6.wav")
+            timer("newGame",5000)
+            N++
+            XWL:egpText(N,"Your word was: "+CurrentWord,vec2(10,300))
+        }
+    }
+}
+function playerHandler()
+{
+    findByClass("player")
+    findSortByDistance(entity():pos())
+    PlayerList = findToArray()
+    ClosestPlayer = PlayerList[1,entity]
+    
+    if(ClosestPlayer:aimEntity() == XWL:entity())
+    {
+        Cursor = XWL:egpCursor(ClosestPlayer)
+        XWL:egpPos(CursorEGPID,Cursor)
+        if(Cursor:y() > (512-ButtonWidth*2))
+        {
+            HoverButton = round((Cursor:x()+ButtonWidth/2) / ButtonWidth )+(Cursor:y()>512-ButtonWidth)*(Alphabet:length()/2)
+            XWL:egpColor(HoverButton*2-1,ButtonColors[HoverButton,vector])
+            #if(GuessTable[HoverButton,number] == 0)
+            #{
+                PrevSelection = Selection
+                Selection = HoverButton
+                if(PrevSelection > 0){XWL:egpColor(PrevSelection*2-1,ButtonColors[PrevSelection,vector])}
+                
+                if(GuessTable[Selection,number] == 0){XWL:egpColor(Selection*2-1,vec(200,255,200))}
+            #}
+            
+            if(ClosestPlayer:keyUse() && !UseKeyPressed)
+            {
+                GuessLetter = Alphabet:sub(Selection,Selection)
+                if(GuessTable[HoverButton,number] == 0)
+                {
+                    makeNewGuess(GuessLetter)
+                }
+                UseKeyPressed = 1
+            }
+            elseif(!ClosestPlayer:keyUse())
+            {
+                UseKeyPressed = 0
+            }
+        }
+        else
+        {
+            if(PrevSelection > 0){XWL:egpColor(PrevSelection*2-1,ButtonColors[PrevSelection,vector])}
+            #XWL:egpColor(PrevSelection*2-1,vec(255,255,255))
+            Selection = 0
+        }
+        }
+    
+    if(InGame){interval(10)}
+}
+function selectRandomWord()
+{
+    RandomWordNumber = randint(WordsList:count())
+    while(WordsList[RandomWordNumber,string]:length() < 5)
+    {
+        RandomWordNumber = randint(WordsList:count())
+    }
+    CurrentWord = WordsList[RandomWordNumber,string]
+}
+function hideHangman()
+{
+    for(I = 1, BodyParts:count())
+    {
+        BodyParts[I,entity]:setAlpha(50)
+    }
+}
+function drawLines()
+{
+    N++
+    LineLength = 512/CurrentWord:length()
+    for(I=1,CurrentWord:length())
+    {
+        N++
+        XWL:egpLine(N,vec2(I*LineLength-LineLength/2-LineLength/4,256),vec2(I*LineLength-LineLength/4,256))
+    }
+}
+function drawLetterButtons()
+{
+    XWL:egpClear()
+    ButtonWidth = 512/Alphabet:length()*2
+    N = 1
+    XWL:egpDrawTopLeft(1)
+    for(I=1,Alphabet:length())
+    {
+        XWL:egpBox(N,vec2(ButtonWidth*(mod(I-1,Alphabet:length()/2)),512-ButtonWidth*2+(ButtonWidth*(I>Alphabet:length()/2))),vec2(ButtonWidth-1))
+        N++
+        XWL:egpText(N,Alphabet:sub(I,I),XWL:egpPos(N-1)+vec2(ButtonWidth/3))
+        XWL:egpColor(N,vec(0,0,0))
+        N++
+    }
+        
+
+}
+if(first() || duped())
+{
+    XWL:egpClear()
+    InGame = 1
+    GuessedLetters = 0
+    N=1
+    Mistakes = 0
+    CustomWordsURL = "https://raw.githubusercontent.com/peterkimpan/wiremodcustomcontent/master/words.txt"
+    Alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    GuessTable = array()
+    for(I=1,Alphabet:length())
+    {
+        GuessTable:pushNumber(0)
+        ButtonColors:pushVector(vec(255,255,255))
+        #0 = Not guessed this letter yet.
+        #1 = This letter is correct, the word contains it.
+        #2 = This guess is incorrect.
+    }
+    drawLetterButtons()
+    hideHangman()
+    downloadCustomWords(CustomWordsURL)
+}
+if(httpClk())
+{
+    StuffToDecode = httpData()
+    WordsList = StuffToDecode:explode("\n")
+    WordsList:pushString("empy")
+    WordsList:pushString("unknao")
+    WordsList:pushString("alessio")
+    WordsList:pushString("catandfrog")
+    WordsList:pushString("leghumper")
+    selectRandomWord()
+    drawLines()
+    N++
+    CursorEGPID = N
+    for(I=N,N+5)
+    {
+        XWL:egpCircleOutline(N,vec2(256,300),vec2(5,5))
+        XWL:egpColor(N,vec(100,100,100))
+        
+    }
+}
+
+playerHandler()
+if(clk("newGame"))
+{
+    N=1
+    XWL:egpClear()
+    drawLetterButtons()
+    hideHangman()
+    selectRandomWord()
+    drawLines()
+    N++
+    XWL:egpCircleOutline(N,vec2(256,300),vec2(5,5))
+    XWL:egpColor(N,vec(100,100,100))
+    CursorEGPID = N
+    InGame = 1
+    GuessedLetters = 0
+    Mistakes = 0
+    GuessTable = array()
+    ButtonColors = array()
+    for(I=1, Alphabet:length())
+    {
+        XWL:egpColor(I*2-1,vec(255,255,255))
+        GuessTable:pushNumber(0)
+        ButtonColors:pushVector(vec(255,255,255))
+        #0 = Not guessed this letter yet.
+        #1 = This letter is correct, the word contains it.
+        #2 = This guess is incorrect.
+    }
+    soundPlay(1,0,"radio/letsgo.wav")
+    interval(10)
+}

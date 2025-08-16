@@ -1,0 +1,196 @@
+@name Bomberman_Leghumper
+@inputs [P1A,P1S,P1D,P1W,P1Space]:number
+@outputs TargetBlock:vector2
+@persist [MapEntityList,BasicMapArray,MapModelList,PlayerColors,PlayerSpeeds,Map]:array [MapSizeX,MapSizeY,MapBlockID,PlayerCount,X,Y,BordersDone]:number [MapBaseEntityModel,MapTileModel]:string TileScale:vector
+@persist [PlayerPosArray,P1Bombs,P2Bombs,P3Bombs,P4Bombs]:array
+@trigger 
+#@model models/hunter/plates/plate8x8.mdl
+function number blockType(X,Y:number)
+{
+    BID = X+(Y-1)*MapSizeX
+    return Map[BID,number]
+}
+    
+function void explosion(X,Y,Range:number)
+{
+    #cast explosion left
+    Exp_X = X
+    while(blockType(Exp_X,Y) == 0 && X-Exp_X > Range)
+    {
+        Exp_X++
+    }
+}
+function vector2 worldVecToBlockPos(InputVec2:vector2)
+{
+    return positive(ceil((InputVec2-vec2(entity():pos())+vec2(TileScale/2))/TileScale:x()))+vec2(1,0)
+}
+function vector blockPosToRealPos(InputVec2:vector2)
+{
+    TS = TileScale:x()
+    return entity():pos()+vec(-TS*InputVec2:x(),TS*(InputVec2:y()-1),0)
+}
+function void movePlayer(PNumber:number,Direction:vector)
+{
+    PlayerPos = PlayerPosArray[PNumber,vector]
+    if(!rangerOffset(PlayerPos,PlayerPos+(Direction*PlayerSpeeds[PNumber,number])):hit())
+    {
+        NewPos = PlayerPosArray[PNumber,vector] + Direction*PlayerSpeeds[PNumber,number]
+        FaceYaw = angnorm( clamp((NewPos-PlayerPos):toAngle()+ ang(0,30,0),ang(0,-3600,0),ang(0,3600,0)) ) #+ang(30,0,30)
+        #FaceYaw = angnorm( clamp((entity():pos()-ClosestPerson:pos()):toAngle()+ang(0,30,0),ang(0,-3600,0),ang(0,3600,0)) )#+ang(30,0,30)
+        holoAng(PNumber,FaceYaw)
+        PlayerPosArray[PNumber,vector] = PlayerPosArray[PNumber,vector] + Direction * PlayerSpeeds[PNumber,number]
+        holoPos(PNumber,PlayerPosArray[PNumber,vector])
+        holoPos(PNumber+4,blockPosToRealPos(worldVecToBlockPos(vec2(PlayerPosArray[PNumber,vector]))))
+    }
+}
+function void placeBomb(PNumber:number)
+{
+    BlockPos = worldVecToBlockPos(vec2(PlayerPosArray[PNumber,vector]))
+    BlockID = BlockPos:x()+(BlockPos:y()-1)*MapSizeX
+    if(Map[BlockID,number] == 0)
+    {
+        holoCreate(PNumber+10,blockPosToRealPos(worldVecToBlockPos(vec2(PlayerPosArray[PNumber,vector]))),vec(4,4,4))
+        holoModel(PNumber+10,"models/dynamite/dynamite.mdl")
+        holoMaterial(PNumber+10,"engine/singlecolor")
+        holoColor(PNumber+10,PlayerColors[PNumber,vector])
+        Map[BlockID,number] = 10+PNumber
+    }
+}
+function void resetValues()
+{
+    MapSizeX = 15
+    MapSizeY = 11
+    MapBaseEntityModel = "models/hunter/plates/plate8x8.mdl"
+    BasicMapArray = array(  0,2,2,2,0,0,0,0,0,0,0,0,0,0,0,
+                            0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,
+                            0,0,3,0,0,0,0,0,0,0,0,0,3,0,0,
+                            0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,
+                            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                            0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,
+                            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                            0,1,3,1,0,1,0,1,0,1,0,1,3,1,0,
+                            0,0,0,0,0,0,2,2,2,0,0,0,0,0,0,
+                            0,1,0,1,0,1,0,1,0,1,0,1,0,1,0)
+    Map = BasicMapArray
+                            #[BasicMapArray = array(  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                            0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,
+                            0,0,3,0,0,0,0,0,0,0,0,0,3,0,0,
+                            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                            0,0,3,0,0,0,0,0,0,0,0,0,3,0,0,
+                            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0)]#
+    MapBlockID = 0
+    MapTileModel = "models/hunter/blocks/cube1x1x1.mdl"
+    #MapBreakableModel = "models/props_junk/wood_crate001a.mdl"
+    MapBreakableModel = "models/hunter/blocks/cube1x1x1.mdl"
+    PlayerModel = "models/Police.mdl"
+    MapModelList = array(MapTileModel,MapBreakableModel,PlayerModel)
+    PlayerCount = 0
+    BordersDone = 0
+    PlayerColors = array(vec(255,0,0),vec(0,255,0),vec(0,0,255),vec(255,0,255))
+    PlayerSpeeds = array(15,15,15,15)
+    #findByClass("prop_physics")
+    #findIncludePlayerProps("leghumper")
+    #MyEnts = findToArray()
+    #print(MyEnts:count())
+    X=-1
+    Y=-1
+}
+function void spawnNextMapItem()
+{
+    MapBlockID++
+    while(BasicMapArray[MapBlockID,number] == 0){MapBlockID++ if(MapBlockID>BasicMapArray:count()){break}}
+    X = mod(MapBlockID,MapSizeX)
+    Y = floor(MapBlockID/MapSizeX)
+    #print(X,", ",Y)
+    if(MapBlockID < BasicMapArray:count())
+    {
+        if(BasicMapArray[MapBlockID,number] != 3){
+        NewTile = propSpawn(MapModelList[BasicMapArray[MapBlockID,number],string],entity():pos()+vec(TileScale:x()*-X,TileScale:y()*Y,TileScale:z()/2),ang(0,0,0),1)
+        NewTile:setMaterial("models/props/de_nuke/crate")
+        if(BasicMapArray[MapBlockID,number] == 1){NewTile:setMaterial("Models/props_animated_breakable/Smokestack/brickwall002a")}
+        }
+        else
+        {
+            PlayerCount++
+            HoloPos = entity():pos()+vec(TileScale:x()*-X,TileScale:y()*Y,TileScale:z()/3)
+            PlayerPosArray[PlayerCount,vector] = HoloPos
+            holoCreate(PlayerCount,HoloPos,vec(1,1,0.7),ang(0,0,0))
+            holoModel(PlayerCount,MapModelList[BasicMapArray[MapBlockID,number],string])
+            holoMaterial(PlayerCount,"engine/singlecolor")
+            holoColor(PlayerCount,PlayerColors[PlayerCount,vector])
+            holoAnim(PlayerCount,10)
+            holoCreate(PlayerCount+4,HoloPos)
+            holoColor(PlayerCount+4,PlayerColors[PlayerCount,vector])
+        }
+    }
+    interval(300)
+}
+function void spawnMapBoundaries()
+{
+    if(Y<=MapSizeY)
+    {
+        if(X<MapSizeX+1)
+        {
+            if(Y>-1 && Y < MapSizeY)
+            {
+                if(X==0){X=MapSizeX+1}else{X=0}
+            }
+            else{X++}
+            propSpawn(MapTileModel,entity():pos()+vec(TileScale:x()*-X,TileScale:y()*Y,TileScale:z()/2),ang(0,0,0),1):setMaterial("Models/props_animated_breakable/Smokestack/brickwall002a")
+            
+        }
+    elseif(Y<=MapSizeY){Y++ X=0 if(Y<MapSizeY){ propSpawn(MapTileModel,entity():pos()+vec(TileScale:x()*-X,TileScale:y()*Y,TileScale:z()/2),ang(0,0,0),1):setMaterial("Models/props_animated_breakable/Smokestack/brickwall002a")}}
+         
+    }
+    else{BordersDone = 1}
+    interval(300)
+}
+function void spawnMap()
+{
+    #MapEntityList:pushEntity(propSpawn(MapBaseEntityModel,entity():pos(),ang(0,0,0),1))
+    #Edge model is models/hunter/blocks/cube025x8x025.mdl
+    #Let's calculate the offset position for the edge model.
+    #MapX = MapEntityList[1,entity]:aabbSize():x()
+    BasePlate = entity():isConstrainedTo()
+    MapX = BasePlate:aabbSize():x()
+    
+    #MapEntityList:pushEntity(propSpawn("models/hunter/blocks/cube025x8x025.mdl",entity():pos()+vec(MapX/2,0,0),ang(0,0,0),1))
+    #MapEntityList:pushEntity(propSpawn("models/hunter/blocks/cube025x8x025.mdl",entity():pos()+vec(-MapX/2,0,0),ang(0,180,0),1))
+    #MapEntityList:pushEntity(propSpawn("models/hunter/blocks/cube025x8x025.mdl",entity():pos()+vec(0,MapX/2,0),ang(0,90,0),1))
+    #MapEntityList:pushEntity(propSpawn("models/hunter/blocks/cube025x8x025.mdl",entity():pos()+vec(0,-MapX/2,0),ang(0,-90,0),1))
+    #MapEntityList[1,entity]:setPos(MapEntityList[1,entity]:massCenter()-MapEntityList[1,entity]:pos())
+    holoCreate(1,entity():pos()+vec(0,(MapX/2/MapSizeX)*12,6))
+    holoModel(1,"models/hunter/blocks/cube05x05x025.mdl")
+}
+if(first())
+{
+    resetValues()
+    FirstItem = propSpawn(MapTileModel,entity():pos(),ang(0,0,0),1)
+    TileScale = FirstItem:aabbSize()
+    print(TileScale)
+    FirstItem:propDelete()
+    interval(1500)
+}
+elseif(!BordersDone)
+{
+    spawnMapBoundaries()
+}
+elseif(MapBlockID<BasicMapArray:count()){spawnNextMapItem()}
+else
+{
+    #holoCreate(0,owner():aimPos())
+    TargetMouse = owner():aimPos()
+    movePlayer(1,clamp(TargetMouse-PlayerPosArray[1,vector],vec(-1,-1,0),vec(1,1,0)))
+    #holoCreate(5,blockPosToRealPos(TargetBlock))
+    #movePlayer(1,vec(randint(3)-2,randint(3)-2,0))
+    movePlayer(2,vec(randint(3)-2,randint(3)-2,0))
+    movePlayer(3,vec(randint(3)-2,randint(3)-2,0))
+    movePlayer(4,vec(randint(3)-2,randint(3)-2,0))
+    if(owner():keyAttack1()){placeBomb(1)}
+    if(randint(20)==4){placeBomb(randint(3)+1)}
+    interval(100)
+}

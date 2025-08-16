@@ -7,4 +7,4 @@
 - Description: This is a place to get my up to date e2s
 - Date (dd-mm-yyyy): 12-03-2023
 - Source: https://github.com/KemGus/Public-E2
-- Source Accessed (dd-mm-yyyy): 05/06/2025
+- Source Accessed (dd-mm-yyyy): 05-06-2025

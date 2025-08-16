@@ -1,0 +1,424 @@
+@name Minesweeper
+@inputs EgpScreen:wirelink
+@outputs 
+@persist [I,J,K,L,ColumnCount,RowCount,EgpScrWidth,EgpScrHeight,PrevSelNum,SelNum,PrevSelX,PrevSelY,SelX,SelY,CalcDistance,TilesLeft,RandX,RandY,BombCount,ReloadKeyPressed]:number BGColor:vector [DistanceTable,MineTable]:table [RevealTable,ColorArray,ColorTable,ZeroTable]:array Player:entity GameStatus:string
+@trigger 
+#NOT DONE YET
+function void setAllColors(Color:vector)
+{
+    for(I=1,ColumnCount*RowCount)
+    {
+        ColorTable[I,vector] = Color
+    }
+    
+}
+function void mainMenu()
+{
+    EgpScreen:egpClear()
+    EgpScreen:egpText(100,"Minesweeper by Leghumper",vec2(50,50))
+    EgpScreen:egpText(103,"",vec2(50,100))
+    EgpScreen:egpSize(100,30)
+    
+    
+    EgpScreen:egpBox(2,vec2(256,256),vec2(10,256))
+    EgpScreen:egpColor(2,vec(165,165,165))
+    EgpScreen:egpBox(3,vec2(256,256),vec2(10,256))
+    EgpScreen:egpAngle(3,45)
+    EgpScreen:egpColor(3,vec(165,165,165))
+    EgpScreen:egpBox(4,vec2(256,256),vec2(10,256))
+    EgpScreen:egpAngle(4,90)
+    EgpScreen:egpColor(4,vec(165,165,165))
+    EgpScreen:egpBox(5,vec2(256,256),vec2(10,256))
+    EgpScreen:egpAngle(5,135)
+    EgpScreen:egpColor(5,vec(165,165,165))
+    EgpScreen:egpCircle(1,vec2(256,256),vec2(80,80))
+    EgpScreen:egpColor(1,vec(65,65,65))
+    #for(I=1,3)
+    #{
+    #    for(J=1,3)
+    #    {
+    #        EgpScreen:egpBox(I+(J-1)*3,vec2(100+I*50,200+J*50),vec2(45,45))
+    #        EgpScreen:egpColor(I+(J-1)*3,vec(65,65,65))
+    #    }
+    #}
+    EgpScreen:egpBox(101,vec2(256,450),vec2(200,30))
+    EgpScreen:egpColor(101,vec(65,65,65))
+    EgpScreen:egpText(102,"E - Start",vec2(210,435))
+    EgpScreen:egpSize(102,30)
+    EgpScreen:egpColor(102,vec(0,0,0))
+}
+
+function void initGame()
+{
+    BombCount = 15
+    ColumnCount = 10
+    RowCount = 10
+    TilesLeft = ColumnCount*RowCount
+    EgpScrWidth = 512 #Default is 512.
+    EgpScrHeight = 512 #Default is 512.
+    
+    FillArray = array()
+    ColorArray = array()
+    BGColor = vec(64,64,64)
+    for(I=1,ColumnCount)
+    {
+        FillArray:pushNumber(0)
+    }
+    
+    RevealTable= array()
+    DistanceTable = table()
+    for(I=1,RowCount)
+    {
+        DistanceTable:pushArray(FillArray)
+    }
+    GameStatus="firstMove"
+    #printTable(ColorTable)
+    EgpScreen:egpClear()
+    #We initialize a new table for the game. 
+    #These variables can be changed.
+    K=0
+    for(I=1, ColumnCount,1) #Goes over each Column
+    {
+        for(J=1, RowCount,1) #Goes over each Row
+        {
+            K++
+            EgpScreen:egpBox(K,vec2(J*(EgpScrWidth/ColumnCount)-(EgpScrWidth/ColumnCount/2),I*(EgpScrHeight/RowCount)-(EgpScrHeight/RowCount/2)),vec2((EgpScrWidth/ColumnCount)-2,(EgpScrHeight/RowCount)-2))
+            #Draws a box for the mines.
+            EgpScreen:egpColor(K,BGColor)
+            
+        }
+    }
+    setAllColors(BGColor)
+    #Player = owner()
+    findByClass("player")
+    Player = findClosest(entity():pos())
+    EgpScreen:egpText(251,"Tiles left: "+TilesLeft+"/"+RowCount*ColumnCount+"        Bombs: "+BombCount,vec2(262,492))
+        EgpScreen:egpOrder(251,251)
+        EgpScreen:egpColor(251,vec(0,0,0))
+        EgpScreen:egpText(252,"Tiles left: "+TilesLeft+"/"+RowCount*ColumnCount+"        Bombs: "+BombCount,vec2(260,490))
+        EgpScreen:egpOrder(252,252)
+        EgpScreen:egpColor(252,vec(255,255,255))
+        EgpScreen:egpText(253,Player:name()+" is now playing.",vec2(6,6))
+        EgpScreen:egpOrder(253,253)        
+        EgpScreen:egpColor(253,vec(0,0,0))
+        EgpScreen:egpText(254,Player:name()+" is now playing.",vec2(7,7))
+        EgpScreen:egpOrder(254,254) 
+        EgpScreen:egpColor(254,vec(255,255,255))
+}
+function void menuHandler()
+{
+    findByClass("player")
+    Player = findClosest(EgpScreen:entity():pos())
+    if(inrange(EgpScreen:egpCursor(Player):x(),156,356) && inrange(EgpScreen:egpCursor(Player):y(),435,465))
+    {
+        EgpScreen:egpColor(101,vec(0,255,0))
+        if(Player:keyUse())
+        {
+            GameStatus = "inMenu"
+            initGame()
+        }
+    }
+    else
+    {
+        EgpScreen:egpColor(101,vec(65,65,65))
+    }
+}
+function void clearMines()
+{
+    #HOW THE FUCK DO I MAKE A 2D ARRAY?!?!
+    MineTable=table()
+    MineArray=array()
+    for(TI=1,ColumnCount)
+    {
+        MineArray:pushString(" ")
+        #MineTable[I,string]="0123456789"
+    }
+    for(TI=1,RowCount)
+    {
+        #MineTable:pushArray(MineArray)
+    }
+    
+    #[for(I=1,N)
+    {
+        X = randint(1,ColumnCount)
+        Y = randint(1,RowCount)
+        #Randomize the new bomb's place, then check it with a while loop to see if it is a valid coordinate for a new bomb.
+        while(MineTable[Y,array][X,number]== 1 || (X==StartX & Y==StartY))
+        {
+            #This While loop will continue, until it finds a new place for a bomb.
+            #It will check if there is already a bomb in the array, or if the new bomb's place matches the player's first choice of field at a new game.
+            X = randint(1,ColumnCount)
+            Y = randint(1,RowCount)
+        }
+    MineTable[Y,array][X,number] = 1
+    
+    }]#
+    
+}
+function void insertMines(N,StartX,StartY:number)
+{
+    
+    for(Ls=1,N)
+    {
+        RandX = randint(ColumnCount)
+        RandY = randint(RowCount)
+        #Randomize the new bomb's place, then check it with a while loop to see if it is a valid coordinate for a new bomb.
+        while(MineTable[RandY,array][RandX,string]== "*" || (RandX==StartX & RandY==StartY))
+        {
+            #This While loop will continue, until it finds a new place for a bomb.
+            #It will check if there is already a bomb in the array, or if the new bomb's place matches the player's first choice of field at a new game.
+            RandX = randint(ColumnCount)
+            RandY = randint(RowCount)
+        }
+        RandArray = MineTable[RandY,array]
+        RandArray[RandX,string]="*"
+        MineTable[RandY,array]=RandArray
+    }
+
+    
+}
+function void revealTable()
+{
+    K=RowCount*ColumnCount+1
+    L=0
+    #K is the variable I'll be using to store the indexes of the tables' text.
+    #It starts at the end of the last boxes index, hence this multiplication.
+    for(I=1,ColumnCount)
+    {
+        for(J=1,RowCount)
+        {
+            K++
+            L++
+            if(MineTable[I,array][J,string]=="*")
+            {
+                
+                EgpScreen:egpText(K,"*",vec2(J*(EgpScrWidth/ColumnCount)-20-(EgpScrWidth/ColumnCount/2),I*(EgpScrHeight/RowCount)-(EgpScrHeight/RowCount/2)-40))
+                EgpScreen:egpSize(K,80)
+                EgpScreen:egpColor(K,vec(128,0,0))
+            }
+            
+            
+            EgpScreen:egpColor(L,vec(255,0,0))
+        }
+    }
+    
+}
+function vector getColor(ASDX,ASDY:number)
+{
+    return ColorTable[ASDX+(ASDY-1)*RowCount, vector]
+}
+function number revealField(SX,SY:number)
+{
+    K=0
+    if(RevealTable[SX+(SY-1)*ColumnCount,number] == 0 && getColor(SelX,SelY) != vec(255,255,0))
+    {
+        RevealTable[SX+(SY-1)*ColumnCount,number] = 1
+        TilesLeft--
+        entity():soundPlay(1,0,"buttons/lightswitch2.wav")
+    }
+    if(MineTable[SY,array][SX,string]!="*")
+    {
+        for(I=SX-1,SX+1)
+        {
+            for(J=SY-1,SY+1)
+            {
+                if(MineTable[J,array][I,string]=="*")
+                {
+                    K++
+                }
+            }
+        }
+    }
+    else{K=9}
+    return K
+}
+function void setColorTable(ASDX,ASDY:number, Color:vector)
+{
+    ColorTable[ASDX+(ASDY-1)*RowCount, vector] = Color
+}
+function plsRevealAroundThisTileThankyou(X,Y:number)
+{
+    ZeroTable[X+(Y-1)*RowCount,number]=1
+    for(I=1,3)
+    {
+        for(J=1,3)
+        {
+            K = revealField(X-2+J,I-2+J)
+            SelNum = J+(I-1)*RowCount
+            L=RowCount*ColumnCount+1+SelNum
+            EgpScreen:egpText(L, toString(K),vec2(SelX*(EgpScrWidth/ColumnCount)-20-(EgpScrWidth/ColumnCount/2),SelY*(EgpScrHeight/RowCount)-(EgpScrHeight/RowCount/2)-40))
+            EgpScreen:egpSize(L,70)
+            EgpScreen:egpColor(L,vec(128,128,255))
+            
+            setColorTable(SelX,SelY,vec(0,0,0))
+            if(K==0)
+            {
+                EgpScreen:egpColor(L,vec(30,30,30))
+            }
+        }
+    }
+}
+function void calculateDistanceTable()
+{
+    for(I2=1, ColumnCount)
+    {
+        for(J2=1, RowCount)
+        {
+            DistanceTable[J2,array][I2,number] = revealField(J2,I2)
+        }
+    }
+}
+
+
+function void moveMouse()
+{
+    X = EgpScreen:egpCursor(Player):x()
+    Y = EgpScreen:egpCursor(Player):y()
+    PrevSelX = SelX 
+    PrevSelY = SelY
+    SelX = ceil(X/(EgpScrWidth/ColumnCount))
+    SelY = ceil(Y/(EgpScrHeight/RowCount))
+    
+    PrevSelNum = SelNum
+    SelNum = (SelY-1)*ColumnCount+SelX
+    if(PrevSelNum > 0){EgpScreen:egpColor(PrevSelNum,getColor(PrevSelX,PrevSelY))}
+    #print(getColor(PrevSelX,PrevSelY))
+    EgpScreen:egpColor(SelNum,vec(0,255,0))
+    if(SelNum < 0){EgpScreen:egpColor(1,getColor(1,1))}
+    #if(ZeroTable[SelX+(SelY-1)*ColumnCount,number] == 0)
+    #{
+        #plsRevealAroundThisTileThankyou(SelX,SelY)
+    #}
+    #EgpScreen:egpText(150,toString(SelNum),vec2(128,128))
+    #EgpScreen:egpColor(150,vec(0,0,0))
+    #print(ColorTable[X+(Y-1)*RowCount, vector])
+    #print(PrevSelNum+" "+SelNum)
+    if(GameStatus == "inGame")
+    {
+        EgpScreen:egpText(299,"E: Reveal field",clamp(EgpScreen:egpCursor(Player), vec2(0,0),vec2(350,420))+vec2(50,0))
+        EgpScreen:egpText(298,"R: Mark field as mine",clamp(EgpScreen:egpCursor(Player), vec2(0,0),vec2(300,420))+vec2(50,20))
+        EgpScreen:egpOrder(299,300)
+        EgpScreen:egpOrder(298,300)
+    }
+    elseif(GameStatus == "firstMove")
+    {
+        EgpScreen:egpText(299,"E: New Game",EgpScreen:egpCursor(Player)+vec2(50,0))
+        EgpScreen:egpText(298,"",EgpScreen:egpCursor(Player)+vec2(50,20))
+    }
+    if(Player:keyUse() && getColor(SelX,SelY) != vec(255,255,0))
+    {
+        if(GameStatus=="firstMove")
+        {
+            initGame()
+            clearMines()
+            insertMines(BombCount,SelX,SelY)
+            GameStatus="inGame"
+            #print("New game started")
+            #printTable(MineTable)
+            #CalcDistance=8
+            #calculateDistanceTable()
+        }
+        L=RowCount*ColumnCount+1+SelNum
+        K = revealField(SelX,SelY)
+        #print(TilesLeft)
+        EgpScreen:egpText(251,"Tiles left: "+TilesLeft+"/"+RowCount*ColumnCount+"        Bombs: "+BombCount,vec2(262,492))
+        EgpScreen:egpOrder(251,251)
+        EgpScreen:egpColor(251,vec(0,0,0))
+        EgpScreen:egpText(252,"Tiles left: "+TilesLeft+"/"+RowCount*ColumnCount+"        Bombs: "+BombCount,vec2(260,490))
+        EgpScreen:egpOrder(252,252)
+        EgpScreen:egpColor(252,vec(255,255,255))
+        EgpScreen:egpText(253,Player:name()+" is now playing.",vec2(6,6))
+        EgpScreen:egpOrder(253,253)        
+        EgpScreen:egpColor(253,vec(0,0,0))
+        EgpScreen:egpText(254,Player:name()+" is now playing.",vec2(7,7))
+        EgpScreen:egpOrder(254,254) 
+        EgpScreen:egpColor(254,vec(255,255,255))
+        if(K!=9)
+        {
+            EgpScreen:egpText(L, toString(K),vec2(SelX*(EgpScrWidth/ColumnCount)-20-(EgpScrWidth/ColumnCount/2),SelY*(EgpScrHeight/RowCount)-(EgpScrHeight/RowCount/2)-40))
+            EgpScreen:egpSize(L,70)
+            EgpScreen:egpColor(L,vec(128,128,255))
+            
+            setColorTable(SelX,SelY,vec(0,0,0))
+            if(K==0)
+            {
+                EgpScreen:egpColor(L,vec(30,30,30))
+            }
+            if(TilesLeft <= BombCount)
+            {
+                entity():soundPlay(1,0,"vo/toughbreak/eng_quest_complete_easy_16.mp3")
+                EgpScreen:egpText(300,"CONGRUANAFTALIONS!",vec2(2,256))
+                EgpScreen:egpSize(300,50)
+                EgpScreen:egpColor(300,vec(255,0,0))
+                GameStatus="win"
+                timer("toMenuTimer",5000)
+                EgpScreen:egpText(299,"",EgpScreen:egpCursor(Player)+vec2(50,20))
+                EgpScreen:egpText(298,"",EgpScreen:egpCursor(Player)+vec2(50,20))
+            }
+        }
+        else
+        {
+        EgpScreen:egpColor(SelNum,vec(255,0,0))
+        setAllColors(vec(255,0,0))
+        revealTable()
+        GameStatus = "lost"
+        EgpScreen:egpText(299,"",EgpScreen:egpCursor(Player)+vec2(50,20))
+        EgpScreen:egpText(298,"",EgpScreen:egpCursor(Player)+vec2(50,20))
+        entity():soundPlay(1,0,"ambient/explosions/explode_8.wav")
+        timer("newGameTimer",2500)
+        }
+        #print("X: "+SelX+" Y: "+SelY+" Bombs: "+K)
+    }
+    elseif(Player:keyUse()  && getColor(SelX,SelY) == vec(255,255,0))
+    {
+        entity():soundPlay(1,0,"resource/warning.wav")
+    }
+    if(Player:keyReload() && (Player:keyReload() != ReloadKeyPressed))
+    {
+        if(getColor(SelX,SelY) != vec(255,255,0) && RevealTable[SelX+(SelY-1)*ColumnCount,number] == 0)
+        {
+            setColorTable(SelX,SelY,vec(255,255,0))
+            entity():soundPlay(1,0,"buttons/blip2.wav")
+        }
+        elseif(RevealTable[SelX+(SelY-1)*ColumnCount,number] == 0)
+        {
+            setColorTable(SelX,SelY,BGColor)
+            entity():soundPlay(1,0,"resource/warning.wav")
+        }
+        ReloadKeyPressed = 1
+    }
+    elseif((Player:keyReload() != ReloadKeyPressed)){ReloadKeyPressed=0}
+    #print(ColorTable["1",array][1,vector])
+}
+if(first() || duped())
+{
+    EgpScreen:egpClear()
+    mainMenu()
+    GameStatus="inMenu"
+    #insertMines(10,3,3) #We want 10 bombs, and we start at 3,3.
+    #revealTable()
+}
+interval(10)
+if(GameStatus=="inGame" || GameStatus == "firstMove")
+{
+    moveMouse()
+    if(Player:pos():distance(entity():pos())>500)
+    {
+        GameStatus = "inMenu"
+        mainMenu()
+    }
+}
+elseif(clk("newGameTimer"))
+{
+    GameStatus = "firstMove"
+}
+elseif(clk("toMenuTimer"))
+{
+    mainMenu()
+}
+else
+{
+    menuHandler()
+}
+
+#NOT DONE YET

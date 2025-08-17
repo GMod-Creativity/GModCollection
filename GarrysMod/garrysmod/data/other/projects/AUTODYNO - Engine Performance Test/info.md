@@ -1,4 +1,5 @@
 - Author: Tolyzor
+- Steam Profile: https://steamcommunity.com/profiles/76561197980070446
 - Youtube: https://www.youtube.com/user/Heatseeker1
 - Github: https://github.com/Tolyzor
 <!-- -->

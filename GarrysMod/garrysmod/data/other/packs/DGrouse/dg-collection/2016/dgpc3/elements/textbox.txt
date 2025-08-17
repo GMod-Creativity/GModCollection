@@ -1,0 +1,95 @@
+@name DGPC3-E-TextBox
+@persist TextBoxes:table ActiveTextBoxes:array TextBoxIndex
+
+#include "dgpc3/draw"
+#include "dgpc3/keyboard"
+
+function number textboxNew(Name:string,X,Y,W,H,S,Limit,DT:string,BC,TC,Func:string,Filter:string,Active){
+    TextBoxIndex++
+    local B = box(X,Y,W,H,BC)
+    local T = text(DT,X+5-W/2,Y,S,TC,0,1)
+    
+    if( Active ){
+        keyboardAdd(Name,Func,Filter)
+        ActiveTextBoxes:pushNumber(TextBoxIndex)
+    }
+    
+    TextBoxes[""+TextBoxIndex,array] = array(B,T,Limit,Name,Func,Filter,Active)
+    return TextBoxIndex
+}
+
+function textboxUpdateText(Ind,Txt:string){
+    local T = TextBoxes[""+Ind,array][2,number]
+    text(T,Txt)
+}
+
+function textboxSetActive(Ind,Active){
+    local A = TextBoxes[""+Ind,array]
+    
+    if( Active ){
+        ActiveTextBoxes:pushNumber(Ind)
+        keyboardAdd(A[4,string],A[5,string],A[6,string])
+    }else{
+        ActiveTextBoxes:remove(Ind)
+        keyboardRemove(A[4,string])
+    }
+    
+    A[7,number] = Active
+}
+
+function textboxSetBoxColor(Ind,Color){
+    local B = TextBoxes[""+Ind,array][1,number]
+    color(B,Color)
+}
+
+function textboxSetTextColor(Ind,Color){
+    local T = TextBoxes[""+Ind,array][2,number]
+    color(T,Color)
+}
+
+function textboxRemove(Ind){
+    local B = TextBoxes[""+Ind,array][1,number]
+    local T = TextBoxes[""+Ind,array][2,number]
+    
+    remove( array(B,T) )
+    
+    keyboardRemove(TextBoxes[""+Ind,array][4,string])
+    
+    ActiveTextBoxes:remove(Ind)
+    TextBoxes:removeArray(""+Ind)
+}
+
+function textboxRemove(A:array){
+    foreach(K,V:number=A){
+        textboxRemove(V)
+    }
+}
+
+function textboxSetColors(Ind,BC,TC){
+    local B = TextBoxes[Ind,array][1,number]
+    local T = TextBoxes[Ind,array][2,number]
+    color(B,BC)
+    color(T,TC)
+}
+
+function clearTextBoxes(){
+    foreach(K,V:array=TextBoxes){
+        textboxRemove(K:toNumber())
+        print( K )
+    }
+    TextBoxIndex = 0
+}
+
+function string textEdit(Ind,S:string,Mem){
+    if( Mem == 127 ){
+        return S:left( S:length()-1 )
+    }elseif( Mem == 13 ){
+        return S
+    }else{
+        return (S+toChar(Mem)):left( TextBoxes[Ind,array][3,number] )
+    }
+}
+
+function string string:pwtxt(){
+    return "*":repeat( This:length() )
+}

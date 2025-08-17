@@ -1,0 +1,141 @@
+@name MoodLights
+@outputs RGB:vector On Brightness FOV Distance Texture:string
+@persist CGI Speed Lock
+@persist LS:string
+@persist [CG Grad1 Grad2]:array
+@persist [CGC CC]:vector
+
+if( first() ){
+    
+    On = 1
+    Brightness = 3
+    Distance = 300
+    FOV = 50
+    RGB = vec(100,50,10)
+    Texture = "effects/flashlight001"
+    
+    # Chat Command
+    function number cm( Str:string ){
+        if( Lock ){
+            return 0
+        }else{
+            if(LS:left(Str:length())==Str ){
+                hideChat(1)
+                return 1
+            }else{ return 0 }
+        }
+    }
+    
+    Speed = 1
+    
+    Grad1 = array(
+        vec(255,100,0),
+        vec(0,100,255),
+        vec(255,255,0),
+        vec(200,0,255)
+    )
+    
+    Grad2 = array(
+        vec(255,0,0),
+        vec(0,255,0),
+        vec(0,0,255)
+    )
+    
+    CGI = 1 # Current Gradient Index
+    CG = Grad2 # Current Gradient
+    CGC = CG[CGI,vector] # Current Gradient Color
+    CC = CGC # Current Color
+    
+    # Gradients
+    function gradient_start(){
+        print( "Gradient started" )
+        timer("grad",0)
+    }
+    
+    function gradient_stop(){
+        print( "Gradient stopped" )
+        stoptimer("grad")
+    }
+    
+}
+
+if( clk( "grad" ) ){
+    if( CC:distance(CGC)<10 ){
+        if( CGI < CG:count() ){
+            CGI++
+        }else{
+            CGI = 1
+        }
+        CGC = CG[CGI,vector]
+    }
+    CC = CC+( (CGC-CC)/CGC:distance(CC) )*Speed
+    RGB = CC
+    timer("grad",50)
+}
+
+runOnChat(1)
+if( chatClk(owner()) ){
+    
+    LS=owner():lastSaid()
+    
+    if( LS == "!lock" ){
+        Lock = !Lock
+    }
+    
+    if( cm( "/c" ) ){
+        local S = LS:replace("/c ","")
+        local A = S:explode(" ")
+        RGB = vec( A[1,string]:toNumber(),A[2,string]:toNumber(),A[3,string]:toNumber() )
+        print( "RGB changed to:",RGB )
+    }
+    
+    if( cm( "/b" ) ){
+        local S = LS:replace("/b ","")
+        Brightness = S:toNumber()
+        
+        print( "Brightness changed to: "+Brightness ) 
+    }
+    
+    if( cm( "/g" ) && !cm( "/gs" ) ){
+        gradient_start()
+    }
+    
+    if( cm( "!g" ) ){
+        gradient_stop()
+    }
+    
+    if( cm( "/gs" ) ){
+        local S = LS:replace("/gs ","")
+        Speed = S:toNumber()
+        print( "Speed changed to: "+Speed )
+    }
+    
+    if( cm( "/d" ) ){
+        local S = LS:replace("/d ","")
+        Distance = S:toNumber()
+        print( "Distance changed to: "+Distance )
+    }
+    
+    if( cm( "/fov" ) ){
+        local S = LS:replace("/fov ","")
+        FOV = S:toNumber()
+        print( "FOV changed to: "+FOV )
+    }
+    
+    if( cm( "/fov" ) ){
+        local S = LS:replace("/fov ","")
+        FOV = S:toNumber()
+        print( "FOV changed to: "+FOV )
+    }
+    
+    if( cm( "/on" ) ){
+        local S = LS:replace("/on ","")
+        On = S:toNumber()
+        if( On ){
+            print( "Lights are now on" )
+        }else{
+            print( "Lights are now off" )
+        }
+    }
+    
+}

@@ -1,0 +1,287 @@
+@name MineSweeper - Game
+
+function ms_game_includes(){
+    #include "dgpc3/programs/minesweeper/variables"
+    #include "dgpc3/inputs"
+    #include "dgpc3/draw"
+    #include "dgpc3/math"
+    #include "dgpc3/elements/button"
+    #include "dgpc3/elements/cursor"
+    #include "dgpc3/clicks"
+    #include "dgpc3/keyboard"
+}
+
+function ms_initGrid(){
+    local G = array()
+    local P = ms_num("BoardSize")+2
+    local SX = 512/P
+    local SY = 512/P
+    ms_num("SpaceX",SX)
+    ms_num("SpaceY",SY)
+    
+    for( I=1,P ){
+        G:pushNumber( line(SX*I,SY,SX*I,512-SY,2) )
+        G:pushNumber( line(SX,SY*I,512-SX,SY*I,2) )
+    }
+    ms_arr("ObjGrid",G)
+}
+
+function vector2 ms_numtopos(K){
+    local P = ms_num("BoardSize")
+    local Y = ceil(K/P)
+    local X = K-Y*P+P
+    return vec2(X,Y)
+}
+
+function ms_drawbox( I,Color,Scale ){
+    local P = ms_numtopos(I)
+    local X = P:x()
+    local Y = P:y()
+    local SX = ms_num("SpaceX")
+    local SY = ms_num("SpaceY")
+    ms_arr("MSObj"):pushNumber( box(X*SX+SX/2,Y*SY+SY/2,(SX-4)*Scale,(SY-4)*Scale,Color) )
+}
+
+function ms_CreateTimerText(){
+    local T = ms_num("TimerTime"):toString()
+    ms_num("TimerTxt",text(T,256,492,20,2,1,1))
+    ms_arr("ObjGrid"):pushNumber( ms_num("TimerTxt") )
+}
+
+function ms_UpdateTimerText(){
+    local T = ms_num("TimerTime"):toString()
+    text(ms_num("TimerTxt"),T)
+}
+
+function ms_drawmines(){
+    foreach(K,V:number = ms_arr("Mines")){
+        ms_drawbox( K,4,1 )
+    }
+    cursor()
+}
+
+function ms_mines(X){
+    local Mines = array()
+    for(I=1,ms_num("BoardSize")^2){
+        if( I != X ){
+            local B = random(0,1)+ms_num("Odds")/2
+            if( B > 0.5 ){
+                Mines[I,number] = 1
+            }
+        }
+    }
+    ms_arr("Mines",Mines)
+}
+
+function ms_SetTimer(){
+    if( ms_str("GameType") == "Classic" ){ ms_num("TimerTime",0) return }
+    
+    local T = ceil( (ms_num("BoardSize")^2)/2+ms_arr("Mines"):counter()*5 )
+    ms_num("TimerTime",T)
+    ms_CreateTimerText()
+    hookAdd("ms_TimerTick","ms_Timer","ms_timer",1000)
+}
+
+function ms_firstClick(X){
+    ms_mines(X)
+    ms_SetTimer()
+    #ms_drawmines()
+}
+
+function number ms_clickpos(Pos:vector2){
+    local SX = ms_num("SpaceX")
+    local SY = ms_num("SpaceY")
+    local P = ms_num("BoardSize")
+    if( between( Pos:x(),SX,512-SX ) && between( Pos:y(),SY,512-SY ) ){
+       return floor(Pos:x()/SX)+floor(Pos:y()/SY)*P-P
+    }else{ return -1 }
+}
+
+function number ms_surrounding(){
+    local P = EGP:egpCursor(User)
+    local SX = ms_num("SpaceX")
+    local SY = ms_num("SpaceY")
+    local Count = 0
+    foreach(K,V:vector2 = ms_arr("Surround")){
+        X = ms_clickpos( P+V*vec2(SX,SY) )
+        if( X>0 ){
+            if( ms_arr("Mines")[X,number] ){
+                Count++
+            }
+        }
+    }
+    return Count
+}
+
+function ms_minecount( P ){
+    local T = ms_surrounding()
+    local Vec = ms_numtopos(P)
+    local SX = ms_num("SpaceX")
+    local SY = ms_num("SpaceY")
+    local X = Vec:x()*SX+SX/2
+    local Y = Vec:y()*SY+SY/2
+    ms_arrAdd("MSObj",array(textshadow(T:toString(),X,Y,250/ms_num("BoardSize"),5+T,1,1,2,1,210):x(),Index-1) )
+    cursor()
+}
+
+function string ms_CurrentScore(){
+    return ms_tbl("Scores")[CurrentUser,number]:toString()
+}
+
+function ms_CreatePointsText(){
+    local T = "Points: "+ms_CurrentScore()
+    ms_num("PointTxt",text(T,256,20,20,2,1,1))
+    ms_arr("ObjGrid"):pushNumber( ms_num("PointTxt") )
+}
+
+function ms_UpdatePointsText(){
+    local T = "Points: "+ms_CurrentScore()
+    text(ms_num("PointTxt"),T)
+}
+
+function ms_restart(){
+    remove( ms_arr("MSObj") )
+    remove( ms_num("TimerTxt") )
+    hookRemove("ms_TimerTick")
+    ms_arr("Selected",array())
+    ms_arr("Flagged",array())
+    ms_num("Ready",1)
+    ms_num("Clicks",0)
+    hookRemove( "MS_Restart" )
+}
+
+function ms_addScore(){
+    if( !ms_tbl("Scores"):count() ){ ms_tbl("Scores",table()) }
+    local CS = ms_tbl("Scores")[CurrentUser,number]
+    local S = ms_arr("Mines"):counter()
+    local T = ms_num("TimerTime")
+    ms_tblSet("Scores",CurrentUser,CS+S+T)
+}
+
+function ms_win(){
+    hookRemove("ms_TimerTick")
+    ms_drawmines()
+    ms_num("Ready",0)
+    ms_arrAdd("MSObj",array(textshadow("YOU WIN!!!",256,256,60,2,1,1,2,1,210):x(),Index-1) )
+    ms_addScore()
+    ms_UpdatePointsText()
+    hookAdd("MS_Restart","restartgame","ms_restart",5000)
+    soundPlay(2,10, "garrysmod/save_load"+randint(1,4)+".wav" )
+}
+
+function ms_lose(){
+    hookRemove("ms_TimerTick")
+    ms_drawmines()
+    ms_num("Ready",0)
+    ms_arrAdd("MSObj",array(textshadow( "YOU LOSE",256,256,60,2,1,1,2,1,210):x(),Index-1) )
+    hookAdd("MS_Restart","restartgame","ms_restart",3000)
+    soundPlay(0,10, "common/bass.wav" )
+    soundPlay(1,10, "common/bugreporter_failed.wav" )
+}
+
+function ms_timer(){
+    ms_num("TimerTime",ms_num("TimerTime")-1)
+    ms_UpdateTimerText()
+    if( ms_num("TimerTime") <= 0 ){
+        ms_lose()
+    }else{
+        timer("ms_TimerTick",1000)
+    }
+}
+
+function number ms_check(P){
+    if( ms_arr("Mines")[P,number] ){
+        ms_lose()
+        return 0
+    }
+    if( ms_arr("Selected")[P,number] ){
+        return 1 
+    }
+    ms_arrSet("Selected",P,1)
+    ms_drawbox( P,5,1 )
+    ms_minecount( P )
+    
+    if( ms_arr("Selected"):counter() >= ms_num("BoardSize")^2-ms_arr("Mines"):counter() ){
+        ms_win()
+        return 0
+    }
+    return 1
+}
+
+function ms_closeGame(){
+    remove( ms_arr("ObjGrid") )
+    remove( ms_arr("MSObj") )
+    ms_restart()
+    hookRemoveIdentifier("LeftClick","MineSweeperClick")
+    hookRemoveIdentifier("RightClick","MineSweeperFlag")
+    hookRemove("ms_TimerTick")
+}
+
+function ms_InitGame(){
+    "ms_closeBoardSize"()
+    "ms_backbutton"("ms_BoardSize","ms_closeGame")
+    
+    ms_tbl("DO",table())
+    ms_tblSet("DO","Beginner",-0.85)
+    ms_tblSet("DO","Easy",-0.8)
+    ms_tblSet("DO","Medium",-0.7)
+    ms_tblSet("DO","Hard",-0.6)
+    ms_tblSet("DO","Impossible",-0.5)
+    
+    hookAdd("LeftClick","MineSweeperClick","ms_leftclick")
+    hookAdd("RightClick","MineSweeperFlag","ms_Flag")
+    
+    ms_num("Odds", ms_tbl("DO")[ms_str("Difficulty"),number] )
+    
+    ms_arr("MSObj",array())
+    ms_arr("Flagged",array())
+    ms_arr("Selected",array())
+    
+    ms_arr("Surround",array(
+        vec2(-1,-1),
+        vec2(-1,0),
+        vec2(-1,1),
+        vec2(0,-1),
+        vec2(0,1),
+        vec2(1,-1),
+        vec2(1,0),
+        vec2(1,1)
+    ))
+    
+    ms_initGrid()
+    ms_CreatePointsText()
+    
+    ms_num("Ready",1)
+    cursor()
+}
+
+function ms_Flag(){
+    if( ms_num("Ready") ){
+        local Pos = ms_clickpos(EGP:egpCursor(User))
+        if( Pos > 0 && !ms_arr("Selected")[Pos,number] ){
+            if( ms_arr("Flagged")[Pos,number] ){
+                EGP:egpRemove( ms_arr("Flagged")[Pos,number] )
+                ms_arrSet("Flagged",Pos,0)
+            }else{
+                ms_drawbox( Pos,4,0.5 )
+                ms_arrSet("Flagged",Pos,Index)
+                cursor()
+            }
+        }
+    }
+}
+
+function ms_leftclick(){
+    if( ms_num("Ready") ){
+        local Pos = ms_clickpos(EGP:egpCursor(User))
+        if( Pos > 0 ){
+            local Clicks = ms_num("Clicks")
+            if(Clicks==0){
+                ms_firstClick(Pos)
+            }
+            ms_num("Ready", ms_check( Pos ) )
+            Clicks++
+            ms_num("Clicks",Clicks)
+        }
+    }
+}

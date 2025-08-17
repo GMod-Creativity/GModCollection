@@ -1,7 +1,7 @@
 - Author: sabady (sabadyCZ)
-- Github: https://github.com/sabadyCZ
 - Steam Profile: https://steamcommunity.com/profiles/76561197988983496
 - Youtube: https://www.youtube.com/@sabady
+- Github: https://github.com/sabadyCZ
 <!-- -->
 - Title: [E2, EGP] Multiplayer Bomberman
 - Date (dd-mm-yyyy): 16-09-2013

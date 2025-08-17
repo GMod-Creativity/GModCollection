@@ -1,0 +1,121 @@
+@name DGPC3-D-Network
+@persist Window_Network JoinNetworkText JoinNetworkTB:array JNetTBname JNetTBdesc NWButtonJoin
+@persist [TBNN_txt TBND_txt]:string
+
+function dt_MetworkIncludes(){
+    #include "dgpc3/elements/cursor"
+    #include "dgpc3/elements/button"
+    #include "dgpc3/elements/window"
+    #include "dgpc3/elements/textbox"
+    #include "dgpc3/network"
+}
+
+function dt_openNetwork(){
+    
+    "closeStartMenu"()
+    
+    local X = 256
+    local Y = 225
+    local W = 400
+    local H = 410
+    local LX = X-W/2 local RX = X+W/2 local TY = Y-H/2 local BY = Y+H/2
+    
+    Window_Network = windowNew(X,Y,W,H,"dt_closeNetwork")
+    
+    windowContent("Objects",array(
+        text("Networks",LX+20,TY+25,30,1,0,1)
+    ))
+    
+    local NWButtons = array()
+    local NWText = array()
+    local C = 0
+    
+    foreach(K,V:string = Networks){
+        C++
+        NWButtons:pushNumber( 
+            buttonAdd(box(X,TY+20+44*C,360,40,13),"dt_B"+K,X,TY+20+44*C,360,40,13,14,"dt_removeNetwork",1) 
+        )
+        NWText:pushNumber( text(K,X-175,TY+13+44*C,27,1,0,1) )
+        NWText:pushNumber( text(V,X-175,TY+30+44*C,20,1,0,1) )
+    }
+    
+    if( Networks:count() < 8 ){
+        C++
+        NWButtonJoin = buttonAdd(box(X,TY+20+44*C,360,40,13),"addnetwork",X,TY+20+44*C,360,40,5,6,"dt_addNetwork",1)
+        NWButtons:pushNumber( NWButtonJoin )
+        
+        JoinNetworkText = text("Add Network",X-175,TY+20+44*C,30,1,0,1)
+        NWText:pushNumber( JoinNetworkText )
+        
+        JoinNetworkTB = array( vec2(X,TY+10+44*C),vec2(X,TY+30+44*C) )
+    }
+    
+    windowContent("Objects",NWText)
+    windowContent("Buttons",NWButtons)
+    
+    cursor()
+}
+
+function dt_closeNetwork(){
+    windowClose( Window_Network )
+}
+
+function dt_removeNetwork(){
+    local N = LastIdentifier:sub(5)
+    dt_closeNetwork()
+    nwLeave( N )
+    dt_openNetwork()
+}
+
+function dt_addNetwork(){
+    remove( JoinNetworkText )
+    
+    buttonRemove( NWButtonJoin )
+    
+    local P1 = JoinNetworkTB[1,vector2]
+    local P2 = JoinNetworkTB[2,vector2]
+    
+    windowContent( "Objects",box(P1:x(),P1:y()+10,360,40,5) )
+    
+    TBNN_txt = ""
+    TBND_txt = ""
+    
+    JNetTBname = textboxNew("NetworkName",P1:x(),P1:y(),355,16,14,25,"Name",6,1,"dt_nwTCname","kFilter_LetNumSym",1)
+    JNetTBdesc = textboxNew("NetworkDesc",P2:x(),P2:y(),355,16,14,40,"Desc",5,1,"dt_nwTCdesc","kFilter_LetNumSym",0)
+    windowContent("Textboxes",array(JNetTBname,JNetTBdesc))
+    
+    cursor()
+}
+
+function dt_nwTCname( Mem ){
+    if( Mem == KEY_ENTER ){
+        if( !Networks[TBNN_txt,string] ){
+            textboxSetActive(JNetTBname,0)
+            textboxSetBoxColor(JNetTBname,7)
+            textboxSetActive(JNetTBdesc,1)
+            textboxSetBoxColor(JNetTBdesc,6)
+        }else{
+            textboxSetBoxColor(JNetTBname,8)
+        }
+    }else{
+        TBNN_txt = textEdit( JNetTBname,TBNN_txt,Mem )
+        textboxUpdateText(JNetTBname,TBNN_txt)
+    }
+}
+
+function dt_nwTCdesc( Mem ){
+    if( Mem == KEY_ENTER ){
+        dt_closeNetwork()
+        nwJoin( TBNN_txt,TBND_txt )
+        dt_openNetwork()
+        
+    }elseif( Mem == KEY_TAB ){
+        textboxSetActive(JNetTBdesc,0)
+        textboxSetBoxColor(JNetTBdesc,5)
+        textboxSetActive(JNetTBname,1)
+        textboxSetBoxColor(JNetTBname,6)
+    }else{
+        TBND_txt = textEdit( JNetTBdesc,TBND_txt,Mem )
+        textboxUpdateText(JNetTBdesc,TBND_txt)
+    }
+}

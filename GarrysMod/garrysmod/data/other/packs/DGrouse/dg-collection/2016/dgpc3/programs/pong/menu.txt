@@ -1,0 +1,292 @@
+@name Pong - Menu
+
+function pg_MenuIncludes(){
+    #include "dgpc3/elements/loadingbar"
+    #include "dgpc3/elements/textbox"
+    #include "dgpc3/elements/window"
+    #include "dgpc3/elements/button"
+    #include "dgpc3/lib2"
+    #include "dgpc3/network"
+    #include "dgpc3/programs/pong/variables"
+    #include "dgpc3/programs/pong/game"
+}
+
+pg_arr("BackShape",array(
+    vec2(-1,0),
+    vec2(1,-1),
+    vec2(1,1)
+))
+
+function pg_closeMainMenu(){
+    remove( pg_arr("menu") )
+    buttonRemove( pg_arr("menuButtons") )
+}
+
+function pg_MainMenu(){
+    pg_arr("menuButtons",array(
+        buttonAddBox("pg_NewGame",256,200,300,50,5,6,"pg_Difficulty",1),
+        buttonAddBox("pg_Multiplayer",256,260,300,50,5,6,"pg_ServerMenu",1),
+        buttonAddBox("pg_Scores",256,320,300,50,5,6,"pg_Scores",1),
+        buttonAddBox("closePong",256,380,300,50,5,6,"closePong",1)
+    ))
+    pg_arr("menu",array(
+        text("DGrouse's",256,40,30,2,1,1),
+        text("Pong",256,110,70,2,1,1),
+        textshadow("Singleplayer",256,200,30,2,1,1,2,1,210):x(),Index-1,
+        textshadow("Multiplayer",256,260,30,2,1,1,2,1,210):x(),Index-1,
+        textshadow("Scores",256,320,30,2,1,1,2,1,210):x(),Index-1,
+        textshadow("Quit",256,380,30,2,1,1,2,1,210):x(),Index-1
+    ))
+    
+    cursor()
+}
+
+function pg_RemoveBackButton(){
+    remove( pg_num("menuBBController") )
+    buttonRemove( pg_num("menuBackButton") )
+    pg_num( "menuBackButton",0 )
+}
+
+function pg_UseBackButton(){
+    pg_RemoveBackButton()
+    pg_str("toclose")()
+    pg_str("toopen")()
+}
+
+function pg_backbutton(Open:string,Close:string){
+    
+    if( pg_num( "menuBackButton" ) ){
+        pg_RemoveBackButton()
+    }
+    
+    pg_str("toopen",Open)
+    pg_str("toclose",Close)
+    
+    local P = polygon(pg_arr("BackShape"),12,30,30,2)
+    pg_num("menuBBController",P:y() )
+    pg_num("menuBackButton",buttonAdd(P:x(),"pg_UseBackButton",24,24,40,40,2,6,"pg_UseBackButton",1) )
+    
+}
+
+function pg_ServerSearch(){
+    pg_num("SSN",pg_num("SSN")+1)
+    if(pg_num("SSN") > pg_arr("SearchServers"):count()){
+        hookRemove("Pong:ServerSearch")
+    }else{
+        nwSendData("pg_Available",pg_arr("SearchServers")[pg_num("SSN"),entity],table() )
+        timer("Pong:ServerSearch",100)
+    }
+}
+
+function pg_StartServerSearch( NW:string ){
+    remove( pg_arr("sm_GamesObj") )
+    buttonRemove( pg_arr("sm_GamesBut") )
+    stoptimer("Pong:ServerSearch")
+    
+    addNetworkString("pg_Acallback","ServerAvailable","pg_Acallback")
+    addNetworkString("pg_Bcallback","Connect","pg_Bcallback")
+    
+    pg_arr("SearchServers",nwProbe( NW ))
+    pg_num("SSN",0)
+    pg_num("sv_count",0)
+    hookAdd("Pong:ServerSearch","Search","pg_ServerSearch",0)
+}
+
+function pg_setNetwork(){
+    if( LastIdentifier != pg_str("setnetwork") ){
+        buttonSetColors(pg_tbl("sm_Buttons")[LastIdentifier,number],10,11)
+        buttonSetColors(pg_tbl("sm_Buttons")[pg_str("setnetwork"),number],5,6)
+        pg_str("setnetwork",LastIdentifier)
+    }
+    pg_StartServerSearch(LastIdentifier)
+}
+
+function pg_Bcallback(T:table){
+    stoptimer("Pong:ServerSearch")
+    removeNetworkString("pg_Acallback")
+    removeNetworkString("pg_Bcallback")
+    "pg_closeServerMenu"()
+    pg_RemoveBackButton()
+    
+    pg_num("Connectee",LastNetSender)
+    
+    pg_num("IsSinglePlayer",0)
+    pg_num("IsHosting",0)
+    
+    pg_str("HostName",T["HostName",string])
+    pg_num("SpawnDist",T["SpawnDist",number])
+    
+    pg_num("H_Dist",T["H_Dist",number])
+    pg_num("T_Dist",T["T_Dist",number])
+    pg_num("B_Dist",T["B_Dist",number])
+    
+    pg_num("BallSize",T["BallSize",number])
+    
+    pg_num("BallInitSpeed",T["BallInitSpeed",number])
+    pg_num("BallMaxSpeed",T["BallMaxSpeed",number])
+    pg_num("BallSpeedLerp",T["BallSpeedLerp",number])
+    
+    pg_num("MoveSpeed",T["MoveSpeed",number])
+    
+    pg_num("PaddleL",T["PaddleL",number])
+    pg_num("PaddleW",T["PaddleW",number])
+    
+    pg_InitGame()
+}
+
+function pg_JoinGame(){
+    nwSendData("pg_Connect",LastIdentifier:toNumber(),table(CurrentUser))
+}
+
+function pg_Acallback(Data:table){
+    pg_num("sv_count",pg_num("sv_count")+1)
+    
+    local C = pg_num("sv_count")
+    local T = "["+LastNetSender+"] "+Data[1,string]
+    
+    pg_arrAdd("sm_GamesBut",array(
+        buttonAddBox(LastNetSender:toString(),384,160+C*30,200,24,5,6,"pg_JoinGame",1)
+    ))
+    
+    pg_arrAdd("sm_GamesObj",array(
+        textshadow(T,384,160+C*30,15,2,1,1,2,1,210):x(),Index-1
+    ))
+    
+    cursor()
+}
+
+function pg_Available(Data:table){
+    nwSendData("pg_Acallback",LastNetSender,table(CurrentUser))
+}
+
+function pg_HostGame(){
+    "pg_closeServerMenu"()
+    pg_RemoveBackButton()
+    pg_num("IsSinglePlayer",0)
+    pg_num("IsHosting",1)
+    pg_InitGame()
+    addNetworkString("pg_Available","ServerAvailable","pg_Available")
+    addNetworkString("pg_Connect","Connect","pg_Connect")
+}
+
+function pg_ServerMenu(){
+    pg_closeMainMenu()
+    pg_backbutton("pg_MainMenu","pg_closeServerMenu")
+    
+    pg_tbl("sm_Buttons",table())
+    pg_arr("sm_GamesObj",array())
+    pg_arr("sm_GamesBut",array())
+    
+    pg_arr("sm_obj",array(
+        text("Multiplayer",256,30,55,2,1,1),
+        text("Network",34,159,45,2,0,2),
+        text("Servers",478,159,45,2,2,2),
+        line(32,160,480,160,2),
+        line(256,170,256,500,2)
+    ))
+    
+    local C = 0
+    
+    foreach(K,V:string=Networks){
+        
+        C++
+        
+        if( !pg_str("setnetwork") || !Networks[pg_str("setnetwork"),string] ){
+            pg_str("setnetwork",K)
+        }
+        
+        local B = buttonAddBox(K,128,160+C*30,200,24,5,6,"pg_setNetwork",1)
+        pg_arrAdd("sm_but",array(B))
+        
+        pg_tblSet("sm_Buttons",K,B)
+        
+        pg_arrAdd("sm_obj",array(
+            textshadow(K,128,160+C*30,15,2,1,1,2,1,210):x(),Index-1
+        ))
+        
+        if( pg_str("setnetwork") == K ){
+            buttonSetColors(B,10,11)
+            pg_StartServerSearch(K)
+        }
+    }
+    
+    pg_arrAdd("sm_but",array( buttonAddBox("HostPongGame",256,90,320,30,5,6,"pg_HostGame",1) ))
+    pg_arrAdd("sm_obj",array( textshadow("Host Game",256,90,30,2,1,1,2,1,210):x(),Index-1 ))
+    
+    cursor()
+}
+
+function pg_closeServerMenu(){
+    remove( pg_arr("sm_obj") )
+    buttonRemove( pg_arr("sm_but") )
+    remove( pg_arr("sm_GamesObj") )
+    buttonRemove( pg_arr("sm_GamesBut") )
+}
+
+function pg_Difficulty(){
+    
+    pg_closeMainMenu()
+    pg_backbutton("pg_MainMenu","pg_closeDifficulty")
+    
+    pg_arr("diffButtons",array(
+        buttonAddBox("pg_Easy",256,200,300,50,5,6,"pg_StartGame",1),
+        buttonAddBox("pg_Advanced",256,280,300,50,5,6,"pg_StartGame",1)
+    ))
+    pg_arr("diff",array(
+        text("Difficulty",256,110,70,2,1,1),
+        textshadow("Easy",256,200,30,2,1,1,2,1,210):x(),Index-1,
+        textshadow("Advanced",256,280,30,2,1,1,2,1,210):x(),Index-1
+    ))
+    
+    cursor()
+}
+
+function pg_closeDifficulty(){
+    remove( pg_arr("diff") )
+    buttonRemove( pg_arr("diffButtons") )
+}
+
+function pg_StartGame(){
+    pg_closeDifficulty()
+    pg_str( "Difficulty", LastIdentifier:sub(4) )
+    pg_RemoveBackButton()
+    pg_num("IsSinglePlayer",1)
+    pg_num("IsHosting",0)
+    pg_InitGame()
+}
+
+function array pg_GenScores(){
+    
+    local HS = pg_tbl("Scores")
+    local A = array()
+    local C = 0
+    
+    foreach(K,V:number = HS){
+        C++ if( C > 10 ){ break }
+        A:pushNumber( text(K,50,130+C*30,28,2,0,2) )
+        A:pushNumber( text(V:toString(),462,130+C*30,28,2,2,2) )
+    }
+    
+    return A
+}
+
+function pg_Scores(){
+    pg_closeMainMenu()
+    pg_backbutton("pg_MainMenu","pg_closeScores")
+    
+    
+    pg_arr("menuScores",pg_GenScores())
+    
+    pg_arrAdd("menuScores",array(
+        text("Scores",256,50,50,2,1,1),
+        text("Name",50,120,30,2,0,2),
+        text("Points",462,120,30,2,2,2),
+        line(30,125,482,125,2)
+    ))
+    
+    cursor()
+}
+
+function pg_closeScores(){
+    remove( pg_arr("menuScores") )
+}

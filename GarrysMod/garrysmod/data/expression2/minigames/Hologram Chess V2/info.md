@@ -1,6 +1,6 @@
 - Author: SpectreCat
+- Steam Profile: https://steamcommunity.com/profiles/76561197994706868
 - Youtube: https://www.youtube.com/@MadCatVII
-- Reddit: https://www.reddit.com/user/MadCatVII/
 <!-- -->
 - Title: Hologram Chess V2
 - Date (dd-mm-yyyy): 26-07-2009

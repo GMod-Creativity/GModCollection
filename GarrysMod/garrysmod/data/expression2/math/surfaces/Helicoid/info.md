@@ -1,5 +1,5 @@
 - Author: DEElekgolo (wunkolo)
-- Steam Profile: http://steamcommunity.com/profiles/76561197991136523
+- Steam Profile: https://steamcommunity.com/profiles/76561197991136523
 - Youtube: https://www.youtube.com/user/DEElekgolo
 - Youtube: https://www.youtube.com/@Wunkolo
 - Github: https://github.com/wunkolo

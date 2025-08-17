@@ -1,0 +1,399 @@
+@name Pong - Game
+
+function pg_GameIncludes(){
+    #include "dgpc3/lib1"
+    #include "dgpc3/lib2"
+    #include "dgpc3/draw"
+    #include "dgpc3/network"
+    #include "dgpc3/programs/pong/variables"
+}
+
+function number pg_Upoints(){
+    return pg_tbl("Scores")[CurrentUser,number]
+}
+
+function pg_UpdatePointsText(){
+    text(pg_num("PointsTxt"),"Points: "+pg_Upoints())
+}
+
+function pg_Board(){
+    local HD = pg_num("H_Dist")
+    local TD = pg_num("T_Dist")
+    local BD = pg_num("B_Dist")
+    X = 256
+    Y = (512+TD-BD)/2
+    W = 512-HD*2
+    H = 512-TD-BD
+    
+    pg_str("StartText","'Space' to start")
+    
+    if( pg_num("IsSinglePlayer") )
+    {
+        pg_str("HostName",CurrentUser)
+        pg_str("ClientName","CPU")
+    }else{
+        if( pg_num("IsHosting") )
+        {
+            pg_str("HostName",CurrentUser)
+            
+            if( !pg_num("RivalConnected") )
+            {
+                pg_str("ClientName","Not Connected")
+                pg_str("StartText","Waiting for rival")
+            }
+        }else{
+            pg_str("ClientName",CurrentUser)
+        }
+    }
+    
+    local TT = text("0",512-HD-50,TD-30,40,2,1,1)
+    local HOST = text(pg_str("HostName"),HD+10,TD+15,20,2,0,1), alpha(100)
+    local RIV = text(pg_str("ClientName"),512-HD-10,TD+15,20,2,2,1), alpha(100)
+    local PT = text("Points: "+pg_Upoints(),HD,TD-25,40,2,0,1)
+    
+    pg_num("TimerTxt",TT)
+    pg_num("PointsTxt",PT)
+    
+    pg_arr("Board",array(
+        boxoutline(X,Y,W,H,2,2),
+        boxoutline(512-HD-50,TD-30,100,50,2,2),
+        TT, HOST, RIV,PT,
+        text("'W' & 'S' to move   |   "+pg_str("StartText")+"   |   'Shift' to exit",256,512-BD/2,20,2,1,1)
+    ))
+}
+
+function pg_Spawn(){
+    
+    pg_num("Timer",0)
+    
+    local HD = pg_num("H_Dist")
+    local TD = pg_num("T_Dist")
+    local BD = pg_num("B_Dist")
+    
+    local Y = (512+TD-BD)/2
+    local W = pg_num("SpawnDist")+HD
+    
+    local PW = pg_num("PaddleW")
+    local L = pg_num("PaddleL")
+    local BS = pg_num("BallSize")
+    
+    local P = box(W,Y,PW,L,7)
+    local O = box(512-W,Y,PW,L,8)
+    local B = circle(256,Y,BS,BS,9)
+    
+    pg_num("Player",P)
+    pg_num("Opponent",O)
+    pg_num("Ball",B)
+    
+    pg_arr("Ents",array(P,O,B))
+}
+
+function pg_InitGame(){
+    
+    cursorRemove()
+    
+    if( pg_num("IsSinglePlayer") || pg_num("IsHosting") ){
+    
+        pg_num("SpawnDist",50)
+        pg_num("H_Dist",10)
+        pg_num("T_Dist",60)
+        pg_num("B_Dist",30)
+        
+        pg_num("BallSize",8)
+        
+        pg_num("BallInitSpeed",4)
+        pg_num("BallMaxSpeed",15)
+        pg_num("BallSpeedLerp",1)
+        
+        pg_num("MoveSpeed",5) #Step Distance ( Speed*20 units per second )
+        
+        pg_num("PaddleL",80)
+        pg_num("PaddleW",20)
+    }
+    
+    # PRE MATH
+    #=======================
+    pg_num("MaxH",512-pg_num("B_Dist")-pg_num("PaddleL")/2-5)
+    pg_num("MinH",pg_num("T_Dist")+pg_num("PaddleL")/2+5)
+    
+    pg_num("CoLa",pg_num("H_Dist")+pg_num("SpawnDist")+( pg_num("PaddleW")+pg_num("BallSize") )/2 )
+    pg_num("CoLi",pg_num("H_Dist")+pg_num("SpawnDist")-pg_num("PaddleW")/2 )
+    
+    pg_num("CoRa",512-pg_num("CoLa") )
+    pg_num("CoRi",512-pg_num("CoLi") )
+    
+    pg_num("CoT",pg_num("T_Dist")+pg_num("BallSize")/2)
+    pg_num("CoB",512-pg_num("B_Dist")-pg_num("BallSize")/2)
+    
+    pg_num("CoHP",pg_num("PaddleL")/2 )
+    
+    pg_num("H_DistR",512-pg_num("H_Dist"))
+    #=======================
+    
+    pg_Board()
+    pg_Spawn()
+    
+    keyboardAdd("PongGame","pg_Keys","kFilter_Pong")
+    unkeyboardAdd("PongGame","pg_unKeys","kFilter_Pong")
+}
+
+function pg_Connect(Data:table){
+    
+    pg_num("RivalConnected",1)
+    pg_str("ClientName",Data[1,string])
+    
+    pg_num("Connectee",LastNetSender)
+    
+    remove( pg_arr("Board") )
+    pg_Board()
+    
+    T = table()
+    T["HostName",string] = CurrentUser
+    T["SpawnDist",number] = pg_num("SpawnDist")
+    
+    T["H_Dist",number] = pg_num("H_Dist")
+    T["T_Dist",number] = pg_num("T_Dist")
+    T["B_Dist",number] = pg_num("B_Dist")
+    
+    T["BallSize",number] = pg_num("BallSize")
+    
+    T["BallInitSpeed",number] = pg_num("BallInitSpeed")
+    T["BallMaxSpeed",number] = pg_num("BallMaxSpeed")
+    T["BallSpeedLerp",number] = pg_num("BallSpeedLerp")
+    
+    T["MoveSpeed",number] = pg_num("MoveSpeed")
+    
+    T["PaddleL",number] = pg_num("PaddleL")
+    T["PaddleW",number] = pg_num("PaddleW")
+    
+    nwSendData("pg_Bcallback",LastNetSender,T)
+}
+
+function pg_end(){
+    keyboardRemove("PongGame")
+    unkeyboardRemove("PongGame")
+    hookRemove("Pong:GameStep")
+    hookRemove("Pong:Timer")
+}
+
+function pg_restart(){
+    hookRemove("Pong:Restart")
+    remove( pg_arr("Ents") )
+    pg_Spawn()
+    keyboardAdd("PongGame","pg_Keys","kFilter_Pong")
+    unkeyboardAdd("PongGame","pg_unKeys","kFilter_Pong")
+    pg_num("Timer",0)
+    text( pg_num("TimerTxt"),"0")
+}
+
+function pg_addScore(){
+    pg_tblSet( "Scores",CurrentUser,pg_Upoints()+pg_num("Timer") )
+}
+
+function pg_lose(){
+    pg_end()
+    pg_arrAdd("Ents",array(textshadow( "YOU LOSE",256,256,60,2,1,1,2,1,210):x(),Index-1) )
+    soundPlay(0,10, "common/bass.wav" )
+    soundPlay(1,10, "common/bugreporter_failed.wav" )
+    hookAdd("Pong:Restart","restartgame","pg_restart",2000)
+}
+
+function pg_win(){
+    pg_end()
+    pg_arrAdd("Ents",array(textshadow("YOU WIN!!!",256,256,60,2,1,1,2,1,210):x(),Index-1) )
+    pg_addScore()
+    pg_UpdatePointsText()
+    soundPlay(2,10, "garrysmod/save_load"+randint(1,4)+".wav" )
+    hookAdd("Pong:Restart","restartgame","pg_restart",2000)
+}
+
+function pg_GameTimer(){
+    local T = pg_num("Timer")+1
+    pg_num("Timer",T)
+    text( pg_num("TimerTxt"),T:toString())
+    timer("Pong:Timer",1000)
+}
+
+function pg_move(O,X,Y){
+    local S = pg_num("MoveSpeed")
+    move(O,X*S,Y*S)
+}
+
+function pg_BallDir(B){
+    pg_num("BallDir",B)
+    if(B == 1){
+        local L = pg_num("CoHP")
+        pg_num("CPU_Aim",randint(-L+4,L-4))
+        hookAdd("Pong:GameStep","CPU","pg_CPU",0)
+        if( pg_str("Difficulty") == "Advanced" ){
+            hookRemoveIdentifier("Pong:GameStep","AdvancedCPU")
+        }
+    }else{
+        hookRemoveIdentifier("Pong:GameStep","CPU")
+        if( pg_str("Difficulty") == "Advanced" ){
+            hookAdd("Pong:GameStep","AdvancedCPU","pg_AdvancedCPU")
+        }
+    }
+}
+
+function pg_randomDirection(){
+    if( randint(0,1) ){
+        pg_BallDir(1)
+    }else{
+        pg_BallDir(-1)
+    }
+}
+
+function pg_AdvancedCPU(){
+    local O = pg_num("Opponent")
+    local Op = position( O ):y()
+    if( Op < 240 ){
+        if( Op < pg_num("MaxH") ){
+            pg_move(O,0,1)
+        }
+    }elseif( Op > 270 ){
+        if( Op > pg_num("MinH") ){
+            pg_move(O,0,-1)
+        }
+    }else{
+        hookRemoveIdentifier("Pong:GameStep","AdvancedCPU")
+    }
+}
+
+function pg_CPU(){
+    local O = pg_num("Opponent")
+    local Op = position( O ):y()
+    local A = position( pg_num("Ball") ):y()+pg_num("CPU_Aim")
+    if( Op < A ){
+        if( Op < pg_num("MaxH") ){
+            pg_move(O,0,1)
+        }
+    }else{
+        if( Op > pg_num("MinH") ){
+            pg_move(O,0,-1)
+        }
+    }
+}
+
+function pg_ballColDir(X,Y,I,A,Obj,D){
+    if( between(X,I,A) ){
+        local O = position( Obj ):y()
+        local OA = O+pg_num("CoHP")
+        local OI = O-pg_num("CoHP")
+        if( between(Y,OI,OA) ){
+            pg_BallDir(D)
+            pg_num("BallVert",pg_num("BallVert")+(Y-O)/20)
+            local BI = pg_num("BallInitSpeed")
+            local BM = pg_num("BallMaxSpeed")
+            local BL = pg_num("BallSpeedLerp")
+            local BS = pg_num("BallSpeed")
+            pg_num("BallSpeed",clamp(BS+BL,BI,BM))
+        }
+    }
+}
+
+function pg_ballCollision(){
+    local P = position( pg_num("Ball") )
+    local X = P:x()
+    local Y = P:y()
+    
+    if( X > pg_num("H_DistR") ){
+        pg_win()
+    }elseif( X < pg_num("H_Dist") ){
+        pg_lose()
+    }
+    
+    if( Y < pg_num("CoT") ){
+        pg_num("BallVert",-pg_num("BallVert"))
+    }elseif( Y > pg_num("CoB") ){
+        pg_num("BallVert",-pg_num("BallVert"))
+    }
+    
+    if( pg_num("BallDir") == 1 ){
+        pg_ballColDir(X,Y,pg_num("CoRa"),pg_num("CoRi"),pg_num("Opponent"),-1)
+    }else{
+        pg_ballColDir(X,Y,pg_num("CoLi"),pg_num("CoLa"),pg_num("Player"),1)
+    }
+}
+
+function pg_ball(){
+    pg_ballCollision()
+    local D = pg_num("BallDir")
+    local S = pg_num("BallSpeed")
+    local B = pg_num("Ball")
+    local V = pg_num("BallVert")
+    move(B,S*D,V)
+}
+
+function pg_GameStep(){
+    pg_ball()
+    timer("Pong:GameStep",50)
+}
+
+function pg_moveUp(){
+    local P = pg_num("Player")
+    Pos = position(P):y()
+    if( Pos > pg_num("MinH") ){
+        pg_move(P,0,-1)
+    }
+}
+
+function pg_moveDown(){
+    local P = pg_num("Player")
+    Pos = position(P):y()
+    if( Pos < pg_num("MaxH") ){
+        pg_move(P,0,1)
+    }
+}
+
+function pg_startGame(){
+    pg_randomDirection()
+    pg_num("BallSpeed",pg_num("BallInitSpeed"))
+    pg_num("BallVert",random(-3,3))
+    hookAdd("Pong:GameStep","Refresh","pg_GameStep",0)
+    hookAdd("Pong:Timer","Refresh","pg_GameTimer",1000)
+    
+    local T = table()
+    
+    T["BallSpeed",number] = pg_num("BallSpeed")
+    
+    if( !pg_num("IsSinglePlayer") ){
+        nwSendData("pg_StartGame",pg_num("Connectee"),T)
+    }
+}
+
+function pg_exitGame(){
+    remove( pg_arr("Board") )
+    remove( pg_arr("Ents") )
+    pg_end()
+    
+    "pg_MainMenu"()
+}
+
+function pg_Keys( Mem ){
+    if( Mem == 119 ){
+        hookAdd("Pong:GameStep","MoveUp","pg_moveUp")
+        hookRemoveIdentifier("Pong:GameStep","MoveDown")
+    }elseif( Mem == 115 ){
+        hookAdd("Pong:GameStep","MoveDown","pg_moveDown")
+        hookRemoveIdentifier("Pong:GameStep","MoveUp")
+    }elseif( Mem == 32 ){
+        pg_startGame()
+    }elseif( Mem == 154 ){
+        pg_exitGame()
+    }
+}
+
+function pg_unKeys( Mem ){
+    if( Mem == 119 ){
+        hookRemoveIdentifier("Pong:GameStep","MoveUp")
+    }elseif( Mem == 115 ){
+        hookRemoveIdentifier("Pong:GameStep","MoveDown")
+    }
+}
+
+function number kFilter_Pong( Mem ){
+    if( any(Mem,array(119,115,32,154)) ){
+        return 1
+    }else{ return 0 }
+}

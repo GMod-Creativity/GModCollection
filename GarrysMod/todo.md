@@ -12,5 +12,6 @@
 - [ ] Add stuff from Bonzoye: https://github.com/Bonyoze, https://www.youtube.com/@Bonyoze
 - [ ] Add stuff from Rusketh: https://www.youtube.com/watch?v=wabnoAJXlrc
 - [ ] Ask around for Bulls Wired Worms: https://web.archive.org/web/20150306042805/http://www.wiremod.com:80/forum/finished-contraptions/15710-wired-worms-released.html
+- [ ] Ask around for cipher ultra vehicles: https://web.archive.org/web/20160503034106/http://www.wiremod.com:80/forum/finished-contraptions/24367-m12-warthog-halo-series.html
 - [x] Add stuff from DGrouse: https://dg-collection.weebly.com/expression-2.html 
-- [ ] Add simplicity stuff: https://gmods.org/?q=Simplicity and https://web.archive.org/web/20110220205658/http://www.wiremod.com:80/forum/finished-contraptions/15285-simplicity-computer.html
+- [x] Add simplicity stuff: https://gmods.org/?q=Simplicity and https://web.archive.org/web/20110220205658/http://www.wiremod.com:80/forum/finished-contraptions/15285-simplicity-computer.html

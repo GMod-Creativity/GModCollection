@@ -5,7 +5,7 @@
 
 - Title: Character Poser
 - Date (dd-mm-yyyy): March 7, 2020
-- Source: Wiremod discord
+- Source: Wiremod Discord
 - Source Accessed (dd-mm-yyyy): 06-08-2025
 
 ## Character Poser

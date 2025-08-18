@@ -1,0 +1,514 @@
+@name Slots
+@inputs Screen:wirelink Player:entity
+@outputs Lights:vector
+
+@persist LightOn FlashCount
+
+@persist Active [KeyHook KEYS]:table Credits Bet CredText TotalLost
+@persist BetBox [Box1 Box2 Box3]:vector2 SpinState Ticker Spinning
+@persist S1 S2 S3 #Spin Results
+@persist [Locks WinBox]:array Winnings LastUser:entity ActualWin
+
+@persist InputAmount RequestAmount Inputs:array CredSel
+
+# Config Vars
+@persist LowBet MidBet HighBet WinMult
+@persist LowInput MidInput HighInput MegaInput
+@persist SpinSpeed
+
+if( first() )
+{
+    #include "pokies/drawfuncs"
+    
+    # Config
+    #============================
+    
+    LowBet    = 50
+    MidBet    = 100
+    HighBet   = 200
+    
+    LowInput  = 1000
+    MidInput  = 3000
+    HighInput = 6000
+    MegaInput = 10000
+    
+    WinMult   = 8
+    
+    SpinSpeed = 10
+    
+    #============================
+    
+    function scaleConfig( Scale )
+    {
+        LowBet *= Scale
+        MidBet *= Scale
+        HighBet *= Scale
+        
+        LowInput *= Scale
+        MidInput *= Scale
+        HighInput *= Scale
+        MegaInput *= Scale
+        
+        WinMult *= Scale
+    }
+    
+    scaleConfig( 16 )
+    
+    Inputs = array( LowInput, MidInput, HighInput, MegaInput )
+    setEGP( Screen )
+    
+    function addHook(Key:string,Func:string)
+    {
+        KeyHook[Key,string]=Func
+    }
+    
+    function removeHook(Key:string)
+    {
+        KeyHook:removeString(Key)
+    }
+    
+    function clearHooks()
+    {
+        KeyHook:clear()
+    }
+    
+    function updateBetBox()
+    {
+        if( Bet == 0 ){
+            position(BetBox,187,395)
+        }
+        elseif( Bet == 1 ){
+            position(BetBox,308,395)
+        }
+        else{
+            position(BetBox,420,395)
+        }
+    }
+    
+    function setBetBox(N)
+    {
+        Bet = clamp(N,0,2)
+        updateBetBox()
+    }
+    
+    function background()
+    {
+        clear()
+        box(256,256,512,512,3)
+        box(200,200,1000,1000,4) material("gui/gradient") rotation(90)
+        roundedboxoutline(256,256,490,490,5,20,10)
+        
+        font("Coolvetica")
+        textshadow("SPINNY MAN",256,42,50,2,1,1,3,1,200)
+        line(10,70,502,70,5,10)
+    }
+    
+    function vector2 boxer(X,Y,W,H,S,C)
+    {
+        return vec2( box(X,Y,W+S,H+S,5), box(X,Y,W,H,C) )
+    }
+    
+    function number spinbox(Box:vector2)
+    {
+        local R = randint(1,7)
+        text(Box:x(),R:toString())
+        text(Box:y(),R:toString())
+        
+        return R
+    }
+    
+    function spinboxes( R )
+    {
+        if( SpinState == 0 )
+        {
+            local S = spinbox(Box1)
+            spinbox(Box2)
+            spinbox(Box3)
+            
+            if( R ){
+                S1 = S
+                Locks:pushNumber( box(106,226,120,120,9) ) alpha(30)
+            }
+        }
+        elseif( SpinState == 1 )
+        {
+            local S = spinbox(Box2)
+            spinbox(Box3)
+            
+            if( R ){
+                S2 = S
+                Locks:pushNumber( box(256,226,120,120,9) ) alpha(30)
+            }
+        }
+        else
+        {
+            local S = spinbox(Box3)
+            
+            if( R ){
+                S3 = S
+                Locks:pushNumber( box(406,226,120,120,9) ) alpha(30)
+            }
+        }
+    }
+    
+    function updateCreds()
+    {
+        text(CredText,Credits:toString())
+    }
+    
+    function addSpinHooks()
+    {
+        clearHooks()
+        addHook("d","betMore")
+        addHook("a","betLess")
+        addHook("space","spin")
+        addHook("1","bet1")
+        addHook("2","bet2")
+        addHook("3","bet3")
+    }
+    
+    function screenPlay()
+    {
+        background()
+        
+        boxer(256,226,450,150,12,6)
+        
+        box(106,226,120,120,2)
+        box(256,226,120,120,2)
+        box(406,226,120,120,2)
+        
+        box(256,261,80,450,1) material("gui/gradient") rotation(90)
+        box(256,191,80,450,1) material("gui/gradient") rotation(-90)
+        
+        font("")
+        Box1 = textshadow("7",106,226,120,1,1,1,2,2,255)
+        Box2 = textshadow("7",256,226,120,1,1,1,2,2,255)
+        Box3 = textshadow("7",406,226,120,1,1,1,2,2,255)
+        
+        boxer(335,110,270,50,10,1)
+        
+        font("Coolvetica")
+        textshadow("CREDITS",40,112,40,2,0,1,3,1,200)
+        
+        font("Lucida Console")
+        CredText = text(Credits:toString(),210,110,30,2,0,1)
+        
+        
+        boxer(256,332,450,30,4,4)
+        text("Match",50,332,20,5,0,1) 
+        text("$"+LowBet,154,332,20,5,0,1)
+        text("$"+MidBet,271,332,20,5,0,1)
+        text("$"+HighBet,378,332,20,5,0,1)
+        
+        boxer(256,415,450,115,4,4)
+        text("777",50,378,20,5,0,1)
+        text("111",50,403,20,5,0,1)
+        text("552",50,428,20,5,0,1)
+        text("151",50,453,20,5,0,1)
+        
+        text("$"+floor(700*0.25*WinMult),154,378,20,5,0,1)
+        text("$"+floor(100*0.25*WinMult),154,403,20,5,0,1)
+        text("$"+floor(50*0.25*WinMult),154,428,20,5,0,1)
+        text("$"+floor(10*0.25*WinMult),154,453,20,5,0,1)
+        
+        text("$"+floor(700*0.5*WinMult),271,378,20,5,0,1)
+        text("$"+floor(100*0.5*WinMult),271,403,20,5,0,1)
+        text("$"+floor(50*0.5*WinMult),271,428,20,5,0,1)
+        text("$"+floor(10*0.5*WinMult),271,453,20,5,0,1)
+        
+        text("$"+floor(700*WinMult),378,378,20,5,0,1)
+        text("$"+floor(100*WinMult),378,403,20,5,0,1)
+        text("$"+floor(50*WinMult),378,428,20,5,0,1)
+        text("$"+floor(10*WinMult),378,453,20,5,0,1)
+        
+        BetBox = boxoutline(187,395,100,170,8,4)
+        updateBetBox()
+        addSpinHooks()
+    }
+    
+    function betMore(){ setBetBox( Bet+1 ) }
+    function betLess(){ setBetBox( Bet-1 ) }
+    function bet1(){ setBetBox( 0 ) }
+    function bet2(){ setBetBox( 1 ) }
+    function bet3(){ setBetBox( 2 ) }
+    
+    function spin()
+    {
+        if( !Spinning )
+        {
+            remove( Locks )
+            remove( WinBox )
+            clearHooks()
+            
+            Ticker = 0
+            SpinState = 0
+            Spinning = 1
+            
+            if( Bet == 0 ){
+                Credits = Credits-LowBet
+            }elseif( Bet == 1 ){
+                Credits = Credits-MidBet
+            }else{
+                Credits = Credits-HighBet
+            }
+            updateCreds()
+            
+            timer("SpinBoxes",0)
+        }
+    }
+    
+    
+    function screenPay()
+    {
+        background()
+        
+        font("Coolvetica")
+        textshadow("Input Credits",256,120,40,2,1,1,3,1,200)
+        
+        boxer(100,180,60,60,4,4) boxer(284,180,280,60,4,4)
+        text("1",100,180,40,5,1,1) text("$"+LowInput,160,180,40,5,0,1)
+        
+        boxer(100,260,60,60,4,4) boxer(284,260,280,60,4,4)
+        text("2",100,260,40,5,1,1) text("$"+MidInput,160,260,40,5,0,1)
+        
+        boxer(100,340,60,60,4,4) boxer(284,340,280,60,4,4)
+        text("3",100,340,40,5,1,1) text("$"+HighInput,160,340,40,5,0,1)
+        
+        boxer(100,420,60,60,4,4) boxer(284,420,280,60,4,4)
+        text("4",100,420,40,5,1,1) text("$"+MegaInput,160,420,40,5,0,1)
+        
+        BetBox = boxoutline(248,180,374,78,8,4)
+        RequestAmount = LowInput
+        
+        clearHooks()
+        addHook("s","credMore")
+        addHook("w","credLess")
+        addHook("space","requestCredits")
+        addHook("1","cred1")
+        addHook("2","cred2")
+        addHook("3","cred3")
+        addHook("4","cred4")
+    }
+    
+    function credSelection( ID )
+    {
+        CredSel = clamp( ID,1,4 )
+        RequestAmount = Inputs[ID,number]
+        
+        if( ID == 1 )
+        {
+            position(BetBox,248,180)
+        }
+        elseif( ID == 2 )
+        {
+            position(BetBox,248,260)
+        }
+        elseif( ID == 3 )
+        {
+            position(BetBox,248,340)
+        }
+        else
+        {
+            position(BetBox,248,420)
+        }
+    }
+    
+    function requestCredits()
+    {
+        moneyRequest(User,RequestAmount,"Spinny Man - Add Credits") 
+    }
+    
+    function credMore(){ credSelection( CredSel+1 ) }
+    function credLess(){ credSelection( CredSel-1 ) }
+    
+    function cred1(){ credSelection(1) requestCredits() }
+    function cred2(){ credSelection(2) requestCredits() }
+    function cred3(){ credSelection(3) requestCredits() }
+    function cred4(){ credSelection(4) requestCredits() }
+    
+    function number betvalue()
+    {
+        if( Bet == 0 ){ return 0.25 }elseif( Bet == 1 ){ return 0.5 }
+        return 1
+    }
+    
+    function showWinnings()
+    {
+        local Boxer = boxer(256,150,200,40,4,4)
+    
+        WinBox = array( 
+            Boxer:x(),
+            Boxer:y(),
+            text("$"+ActualWin,256,150,30,5,1,1)
+        )
+        font( "Lucida Console" )
+    }
+    
+    function calcWinnings()
+    {
+        local M1 = 0
+        local M2 = 0
+        
+        Winnings = 0
+        
+        if( S1 == S2 )
+        {
+            M1 = S1
+            Winnings = S1*10
+        }
+        
+        if( S1 == S3 )
+        {
+            M2 = S1
+            Winnings = S1*10
+        }
+        
+        if( M1 == M2 && M1 > 0 )
+        {
+            Winnings = S1*100
+        }
+        elseif( S2 == S3 )
+        {
+            Winnings = S2*10
+        }
+        
+        if( Winnings > 0 )
+        {
+            ActualWin = floor( Winnings*betvalue()*WinMult )
+            Credits = Credits + ActualWin
+            updateCreds()
+            showWinnings()
+            soundPlay(2,10, "garrysmod/save_load"+randint(1,4)+".wav" )
+            timer("FlashLights",0)
+        }
+        
+        if( Credits <= 0 ){
+            TotalLost = TotalLost+InputAmount
+            InputAmount = 0
+            screenPay()
+        }else{
+            addSpinHooks()
+        }
+        
+    }
+    
+    function tickSound()
+    {
+        soundPlay(1,5,"physics/plaster/ceiling_tile_impact_bullet1.wav")
+        soundPitch(1,255)
+        soundVolume(1,0.1)
+    }
+    
+    screenPlay()
+    
+}
+
+if( clk("FlashLights") )
+{
+    LightOn = !LightOn
+    if( LightOn ){ Lights = vec(20,255,0) }else{ Lights = vec() FlashCount++ }
+    
+    if( FlashCount < 4 )
+    {
+        timer("FlashLights",100)
+    }else{
+        FlashCount = 0
+    }
+}
+
+if( clk("SpinBoxes") )
+{
+    Ticker++
+    
+    tickSound()
+    
+    if( Ticker == 10 )
+    {
+        spinboxes( 1 )
+        Ticker = 0
+        SpinState++
+    }
+    else
+    {
+        spinboxes( 0 )
+    }
+    if( SpinState < 3 )
+    {
+        timer("SpinBoxes",1000/SpinSpeed)
+    }
+    else
+    {
+        Spinning = 0
+        calcWinnings()
+    }
+}
+
+if( inputClk() )
+{
+    if( Player )
+    {
+        if( !Active )
+        {
+            Active = 1
+            
+            Bet = 0
+            TotalLost = 0
+            InputAmount = 0
+            
+            LastUser = Player
+            runOnKeys(Player,1)
+            setUser( Player )
+            
+            screenPay()
+        }
+    }
+    else
+    {
+        if( Active )
+        {
+            Active = 0
+            
+            runOnKeys(LastUser,0)
+            
+            moneyGive(LastUser,Credits)
+            stoptimer("SpinBoxes")
+            
+            print( "Profit: $"+(InputAmount+TotalLost-Credits)+" from "+LastUser:name() )
+            
+            Credits = 0
+            Spinning = 0
+            
+            screenPlay()
+            updateCreds()
+        }
+    }
+    
+    if( Screen )
+    {
+        setEGP( Screen )
+    }
+}
+
+if( keyClk(Player) )
+{
+    if( !KEYS[keyClkPressed(),number] )
+    {
+        KEYS[keyClkPressed(),number] = 1
+        local Func = KeyHook[keyClkPressed(),string]
+        if( Func )
+        {
+            Func()
+        }
+    }
+    else
+    {
+        KEYS:removeNumber(keyClkPressed())
+    }
+}
+
+if( moneyClk() )
+{
+    Credits = RequestAmount
+    InputAmount = RequestAmount
+    screenPlay()
+}

@@ -1,0 +1,800 @@
+@name Tic-Tac-Toe
+@inputs [Board Score]:wirelink [Ply1 Ply2]:entity
+
+@persist OwnerCut MinBet MaxBet DefWager WagerAddValue DefRounds MinRounds MaxRounds
+@persist Wager P1Wins P2Wins Rounds InGame Round
+
+@persist FirstTurn Turn Ghost [AimBox LastAimBox]:vector2
+@persist [Pieces WinConditions]:array Turns
+
+@persist [Offsets Locks]:array [P1Keys P2Keys KEYS1 KEYS2]:table
+@persist P1Active P2Active Active P1Paid P2Paid
+
+@persist WagerTxt CostTxt P1ScoreTxt P2ScoreTxt RoundTxt
+
+if( first() )
+{
+    #include "pokies/drawfuncs"
+
+    # Config
+    #============================
+    
+    OwnerCut = 0.05
+    MinBet = 1000
+    MaxBet = 1000000
+    DefWager = 5000
+    WagerAddValue = 1000
+    
+    DefRounds = 3
+    MinRounds = 1
+    MaxRounds = 10
+    
+    #============================
+    
+    E = entity()
+    
+    function addKey( Player,Key:string,Func:string )
+    {
+        if( Player == 1 )
+        {
+            P1Keys[Key,string]=Func
+        }else{
+            P2Keys[Key,string]=Func
+        }
+    }
+    
+    function addKey( Key:string,Func:string )
+    {
+        addKey( 1,Key,Func )
+        addKey( 2,Key,Func )
+    }
+    
+    function removeKey( Player,Key:string )
+    {
+        if( Player == 1 )
+        {
+            P1Keys:removeString(Key)
+        }else{
+            P2Keys:removeString(Key)
+        }
+    }
+    
+    function removeKey( Key:string )
+    {
+        removeKey( 1,Key )
+        removeKey( 2,Key )
+    }
+    
+    function clearKeys( Player )
+    {
+        if( Player == 1 )
+        {
+            P1Keys:clear()
+        }else{
+            P2Keys:clear()
+        }
+    }
+    
+    function clearKeys()
+    {
+        clearKeys( 1 )
+        clearKeys( 2 )
+    }
+    
+    setColorSet(array( 
+        vec(0,0,0),       #1 Black
+        vec(255,255,255), #2 White
+        
+        vec(20,20,50),    #3 Background Base
+        vec(40,40,100),   #4 Background Gradient
+        
+        vec(255,150,0),   #5 Text Glow
+        vec(100,255,100), #6 Lock Bet
+        
+        vec(50,255,50)  #7 Win Highlight
+        
+    ))
+    
+    Offsets = array(
+        vec2(-1,-1),
+        vec2(0,-1),
+        vec2(1,-1),
+        vec2(-1,0),
+        vec2(0,0),
+        vec2(1,0),
+        vec2(-1,1),
+        vec2(0,1),
+        vec2(1,1)
+    )
+    
+    WinConditions = array( 
+        vec(1,2,3),
+        vec(4,5,6),
+        vec(7,8,9),
+        
+        vec(1,4,7),
+        vec(2,5,8),
+        vec(3,6,9),
+        
+        vec(1,5,9),
+        vec(3,5,7)
+    )
+    
+    #========================================================================
+    # SOUNDS
+    #========================================================================
+    
+    function soundTick()
+    {
+        soundPlay(1,5,"physics/plaster/ceiling_tile_impact_bullet1.wav")
+        soundPitch(1,255)
+        soundVolume(1,0.1)
+    }
+    
+    function soundLock()
+    {
+        soundPlay(1,5,"tools/ifm/beep.wav")
+        soundPitch(1,255)
+        soundVolume(1,0.1)
+    }
+    
+    function soundWin()
+    {
+        soundPlay(2,10, "garrysmod/save_load"+randint(1,4)+".wav" )
+        soundVolume(1,0.5)
+    }
+    
+    #========================================================================
+    # OTHER
+    #========================================================================
+    
+    function number to1D( V:vector2 )
+    {
+        local S = V+vec2(1,2)
+        return S:x()*3 + S:y()
+    }
+    
+    function vector2 to2D( N )
+    {
+        local X = ceil( N/3 )
+        local Y = N - (X-1)*3
+        return vec2(X,Y)-vec2(2)
+    }
+    
+    function string getLetter()
+    {
+        if( Turn == 1 )
+        {
+            return "X"
+        }
+        return "O"
+    }
+    
+    function number getPiece( Pos:vector2 )
+    {
+        local P = Pieces[to1D( Pos ),number]
+        if( P ){ return P }
+        return 0
+    }
+    
+    function number getPiece( N )
+    {
+        local P = Pieces[N,number]
+        if( P ){ return P }
+        return 0
+    }
+    
+    function vector2 checkWin()
+    {
+        foreach(K,V:vector = WinConditions)
+        {
+            local X = getPiece( V:x() )
+            local Y = getPiece( V:y() )
+            local Z = getPiece( V:z() )
+            
+            if( X>0 && Y>0 && Z>0 )
+            {
+                if( X == Y && Y == Z )
+                {
+                    return vec2( X,K )
+                }
+            }
+        }
+        return vec2(0)
+    }
+    
+    function number otherPly( N )
+    {
+        if( N == 1 ){ return 2 }
+        return 1
+    }
+    
+    function startPlyThink( Ply:entity )
+    {
+        User = Ply
+        timer("ThinkPly",0)
+    }
+    
+    function stopPlyThink()
+    {
+        stoptimer("ThinkPly")
+    }
+    
+    function entity getPlyEnt( P )
+    {
+        if( P == 1 ){ return Ply1 }
+        return Ply2
+    }
+    
+    #========================================================================
+    # SCORE BOARD
+    #========================================================================
+    
+    function number getMaxBet()
+    {
+        local LM = MaxBet
+        
+        if( Ply1:money() < LM )
+        {
+            LM = Ply1:money()
+        }
+        if( Ply2:money() < LM )
+        {
+            LM = Ply2:money()
+        }
+        
+        return LM
+    }
+    
+    function number getCost()
+    {
+        return round( Wager*(1+OwnerCut) )
+    }
+    
+    function number getFee()
+    {
+        return round( Wager*OwnerCut )
+    }
+    
+    function updateWager( NewValue )
+    {
+        setEGP( Score )
+        soundTick()
+    
+        Locks = array()
+        color( WagerTxt, 2 )
+    
+        local MB = getMaxBet()
+        
+        Wager = clamp( NewValue, MinBet, round( MB/(1+OwnerCut) ) )
+        text(WagerTxt,"WAGER: "+Wager)
+        text(CostTxt,"Fee: "+getFee())
+    }
+    
+    function drawScoreBase()
+    {
+        setEGP( Score )
+        clear()
+        
+        box(256,420,180,120,1) alpha(230)
+        boxoutline(256,420,180,120,2,2)
+        
+        font("coolvetica")
+        text("Tic-Tac-Toe",256,374,20,2) 
+        box(256,384,180,2,2)
+        
+        font("Lucida Console")
+        box(256,390,180,1,2)
+        WagerTxt = text("WAGER: "+Wager,256,400,14,2)
+        box(256,409,180,1,2)
+    }
+    
+
+    function drawWager()
+    {
+        drawScoreBase()
+        
+        font("Lucida Console")
+        text("Enter - Lock in Bet",180,420,12,2,0,1)
+        text("Space - Double Bet",180,432,12,2,0,1)
+        text("w     - +"+WagerAddValue,180,444,12,2,0,1)
+        text("s     - -"+WagerAddValue,180,456,12,2,0,1)
+    
+        CostTxt = text("Fee: "+getFee(),180,468,12,2,0,1)
+    }
+    
+    function pDoubleBet( P ){ updateWager( Wager*2 ) }
+    function pAddBet( P ){ updateWager( Wager+WagerAddValue ) }
+    function pSubBet( P ){ updateWager( Wager-WagerAddValue ) }
+    
+    function pLockBet( P )
+    {  
+        setEGP( Score )
+        
+        soundLock()
+        
+        Locks[P,number] = 1
+        color( WagerTxt, 6 )
+        
+        if( Locks[1,number] && Locks[2,number] )
+        {
+            clearKeys()
+            Locks = array()
+            
+            moneyRequest(Ply1,getCost(),"Tic-Tac-Toe Wager")
+            moneyRequest(Ply2,getCost(),"Tic-Tac-Toe Wager")
+        }
+    }
+    
+    function updateRounds( NewValue )
+    {
+        setEGP( Score )
+        soundTick()
+    
+        Rounds = clamp( NewValue, MinRounds, MaxRounds )
+        Locks = array()
+        color( RoundTxt, 2 )
+        
+        text(RoundTxt,Rounds:toString())
+    }
+    
+    function drawRounds()
+    {
+        drawScoreBase()
+        
+        font("Lucida Console")
+        text("Enter - Lock",174,440,12,2,0,1)
+        text("D     - +1",174,452,12,2,0,1)
+        text("S     - -1",174,464,12,2,0,1)
+        
+        font("")
+        text("Rounds",308,424,14,2)
+        boxoutline(308,453,35,35,2,1)
+        RoundTxt = text(Rounds:toString(),308,453,14,2)
+    }
+    
+    function pAddRound( P ){ updateRounds( Rounds+1 ) }
+    function pSubRound( P ){ updateRounds( Rounds-1 ) }
+    
+    function pLockRound( P )
+    {
+        setEGP( Score )
+        soundLock()
+    
+        Locks[P,number] = 1
+        color( RoundTxt, 6 )
+        
+        if( Locks[1,number] && Locks[2,number] )
+        {
+            Round = 0
+            Locks = array()
+            InGame = 1
+            
+            "drawScores"()
+            "startRound"()
+        }
+    }
+    
+    function drawScores()
+    {
+        drawScoreBase()
+        
+        font("")
+        text("P1",194,426,14,2)
+        boxoutline(194,455,30,30,2,1)
+        P1ScoreTxt = text(P1Wins:toString(),194,455,14,2)
+        
+        text("P2",320,426,14,2)
+        boxoutline(320,455,30,30,2,1)
+        P2ScoreTxt = text(P2Wins:toString(),320,455,14,2)
+        
+        text("Round",256,426,14,2)
+        boxoutline(256,455,60,35,2,1)
+        RoundTxt = text(Round+"/"+Rounds,256,455,14,2)
+        
+    }
+    
+    function updateScores()
+    {
+        setEGP( Score )
+        text(P1ScoreTxt,P1Wins:toString())
+        text(P2ScoreTxt,P2Wins:toString())
+        text(RoundTxt,Round+"/"+Rounds)
+    }
+    
+    function drawWaiting()
+    {
+        drawScoreBase()
+        font("")
+        text("Waiting for Opponent",256,440,14,2)
+    }
+    
+    #========================================================================
+    # MONEY
+    #========================================================================
+    
+    function returnMoney()
+    {
+        if( P1Paid )
+        {
+            moneyGive(Ply1,getCost())
+            P1Paid = 0
+        }
+        if( P2Paid )
+        {
+            moneyGive(Ply1,getCost())
+            P1Paid = 0
+        }
+    }
+    
+    function giveWinnings( P )
+    {
+        if( P == 1 )
+        {
+            moneyGive(Ply1,Wager*2)
+        }
+        elseif( P == 2 )
+        {
+            moneyGive(Ply2,Wager*2)
+        }
+        else
+        {
+            moneyGive(Ply1,Wager)
+            moneyGive(Ply2,Wager)
+        }
+        
+        P1Paid = 0
+        P2Paid = 0
+    }
+    
+    function startGame()
+    {
+        clearKeys()
+        Wager = DefWager
+        InGame = 0
+        "drawBoard"()
+        drawWager()
+        
+        P1Wins = 0
+        P2Wins = 0
+        
+        addKey( "enter","pLockBet" )
+        addKey( "space","pDoubleBet" )
+        addKey( "w","pAddBet" )
+        addKey( "s","pSubBet" )
+    }
+    
+    #========================================================================
+    # GAME BOARD
+    #========================================================================
+    
+    function drawBoard()
+    {
+        setEGP( Board )
+        clear()
+        
+        box(256,256,512,512,3)
+        
+        box(256,256+128,150,512,4) material("gui/gradient") rotation(90)
+        box(256,256-128,150,512,4) material("gui/gradient") rotation(-90)
+        box(256-128,256,150,512,4) material("gui/gradient")
+        box(256+128,256,150,512,4) material("gui/gradient") rotation(180)
+        
+        foreach(K,V:vector2 = Offsets)
+        {
+            box(256+V:x()*132,256+V:y()*132,120,120,1) alpha(150)
+        }
+        
+        #text("X",256,256,130,5)
+        #text("X",256,256,115,2)
+    }
+    
+    function drawPiece()
+    {
+        local X = 256+AimBox:x()*132
+        local Y = 256+AimBox:y()*132
+        text(getLetter(),X,Y,130,5)
+        text(getLetter(),X,Y,115,2)
+    }
+    
+    function startRound()
+    {
+        if( Round >= Rounds )
+        {
+            if( P1Wins > P2Wins )
+            {
+                giveWinnings( 1 )
+            }
+            elseif( P2Wins > P1Wins )
+            {
+                giveWinnings( 2 )
+            }
+            else
+            {
+                giveWinnings( 0 )
+            }
+            
+            startGame()
+            
+        }
+        else
+        {
+            Round++
+            FirstTurn = otherPly( FirstTurn )
+            Turn = FirstTurn
+            LastAimBox = vec2(-2)
+            Ghost = 0
+            Turns = 0
+                
+            clearKeys()
+                
+            startPlyThink( getPlyEnt( Turn ) )
+            addKey( Turn,"mouse_left","pInputPiece" )
+            
+            drawBoard()
+            updateScores()
+        }
+    }
+    
+    function winRound( Win:vector2 )
+    {
+        clearKeys()
+        
+        P = Win:x()
+        
+        if( P == 1 )
+        {
+            P1Wins++
+        }
+        elseif( P == 2 )
+        {
+            P2Wins++
+        }
+        
+        if( Win:y()>0 )
+        {
+            local S = WinConditions[Win:y(),vector]
+            local X = to2D( S:x() )
+            local Y = to2D( S:y() )
+            local Z = to2D( S:z() )
+            
+            setEGP( Board )
+            box(256+X:x()*132,256+X:y()*132,120,120,7) alpha(120)
+            box(256+Y:x()*132,256+Y:y()*132,120,120,7) alpha(120)
+            box(256+Z:x()*132,256+Z:y()*132,120,120,7) alpha(120)
+        }
+        
+        Pieces = array()
+        
+        updateScores()
+        
+        soundWin()
+        
+        stopPlyThink()
+        
+        timer("NextRound",2000)
+    }
+    
+    function pInputPiece( P )
+    {
+        if( P == Turn && getPiece( AimBox ) == 0 )
+        {
+            Pieces[to1D( AimBox ),number] = P
+            
+            # print(to1D( AimBox ):toString() + " : " + AimBox:toString() )
+            
+            remove(Ghost) Ghost = 0
+            drawPiece()
+            
+            local Win = checkWin()
+            
+            if( Win:x() == 0 )
+            {
+                Turns++
+                
+                if( Turns >= 9 )
+                {
+                     winRound( vec2(0) )
+                }
+                else
+                {
+                    LastAimBox = vec2(-2)
+                    Turn = otherPly(Turn)
+                    clearKeys()
+                    startPlyThink( getPlyEnt( Turn ) )
+                    addKey( Turn,"mouse_left","pInputPiece" )
+                }
+            }
+            else
+            {
+                winRound( Win )
+            }
+        }
+    }
+    
+    function drawGhost(X,Y)
+    {
+        local MX = 256+X*132
+        local MY = 256+Y*132
+    
+        setEGP( Board )
+        
+        if( Ghost )
+        {
+            position(Ghost,MX,MY)
+        }
+        else
+        {
+            Ghost = text(getLetter(),MX,MY,130,2)
+        }
+        
+        if( getPiece( AimBox ) == 0 )
+        {
+            alpha(Ghost,50)
+        }
+        else
+        {
+            alpha(Ghost,0)
+        }
+    }
+    
+    drawBoard()
+    drawScores()
+}
+
+if( clk("ThinkPly") )
+{
+    AimBox = clamp( round( (cpos()-vec2(256))/512*4 ), vec2(-1), vec2(1) )
+    
+    if( LastAimBox != AimBox )
+    {
+        LastAimBox = AimBox
+        drawGhost(AimBox:x(),AimBox:y())
+    }
+    
+    timer("ThinkPly",50)
+}
+elseif( clk("NextRound") )
+{
+    startRound()
+}
+elseif( inputClk() )
+{
+    # Player 1
+    if( Ply1 )
+    {
+        if( !P1Active )
+        {
+            P1Active = 1
+            runOnKeys(Ply1,1)
+        }
+    }
+    if( !Ply1 )
+    {
+        if( P1Active )
+        {
+            P1Active = 0
+            runOnKeys(Ply1,0)
+            
+            if( InGame )
+            {
+                giveWinnings(2)
+            }
+            else
+            {
+                returnMoney()
+            }
+        }
+    }
+    
+    # Player 2
+    if( Ply2 )
+    {
+        if( !P2Active )
+        {
+            P2Active = 1
+            runOnKeys(Ply2,1)
+        }
+    }
+    if( !Ply2 )
+    {
+        if( P2Active )
+        {
+            P2Active = 0
+            runOnKeys(Ply2,0)
+            
+            if( InGame )
+            {
+                giveWinnings(1)
+            }
+            else
+            {
+                returnMoney()
+            }
+        }
+    }
+    
+    local Active = P1Active + P2Active
+    if( Active == 0 )
+    {
+        clearKeys()
+        drawBoard()
+        drawScores()
+        InGame = 0
+    }
+    elseif( Active == 1 )
+    {
+        clearKeys()
+        drawBoard()
+        drawWaiting()
+        InGame = 0
+    }
+    else
+    {
+        startGame()
+    }
+}
+elseif( keyClk(Ply1) )
+{
+    #print( keyClkPressed() )
+    if( !KEYS1[keyClkPressed(),number] )
+    {
+        KEYS1[keyClkPressed(),number] = 1
+        local Func = P1Keys[keyClkPressed(),string]
+        if( Func )
+        {
+            Func(1)
+        }
+    }
+    else
+    {
+        KEYS1:removeNumber(keyClkPressed())
+    }
+}
+elseif( keyClk(Ply2) )
+{
+    if( !KEYS2[keyClkPressed(),number] )
+    {
+        KEYS2[keyClkPressed(),number] = 1
+        local Func = P2Keys[keyClkPressed(),string]
+        if( Func )
+        {
+            Func(2)
+        }
+    }
+    else
+    {
+        KEYS2:removeNumber(keyClkPressed())
+    }
+}
+elseif( moneyClk("Tic-Tac-Toe Wager") )
+{
+    local P = moneyClkPlayer()
+    
+    if( P == Ply1 )
+    {
+        P1Paid = 1
+    }
+    elseif( P == Ply2 )
+    {
+        P2Paid = 1
+    }
+
+    if( P1Paid && P2Paid )
+    {
+        Rounds = DefRounds
+        drawRounds()
+        addKey( "enter","pLockRound" )
+        addKey( "d","pAddRound" )
+        addKey( "a","pSubRound" )
+    }
+}
+elseif( moneyNoClk("Tic-Tac-Toe Wager") )
+{
+    returnMoney()
+}
+
+
+
+
+

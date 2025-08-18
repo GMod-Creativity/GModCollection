@@ -1,0 +1,210 @@
+@name MineSweeper - Menu
+
+function ms_menu_includes(){
+    #include "dgpc3/programs/minesweeper/variables"
+    #include "dgpc3/inputs"
+    #include "dgpc3/draw"
+    #include "dgpc3/elements/button"
+    #include "dgpc3/elements/cursor"
+    #include "dgpc3/math"
+}
+
+ms_arr("BackShape",array(
+    vec2(-1,0),
+    vec2(1,-1),
+    vec2(1,1)
+))
+
+ms_num("BoardSize",6)
+ms_num("BoardSizeMin",5)
+ms_num("BoardSizeMax",10)
+
+function ms_closeMainMenu(){
+    remove( ms_arr("menu") )
+    buttonRemove( ms_arr("menuButtons") )
+}
+
+function ms_MainMenu(){
+    ms_arr("menuButtons",array(
+        buttonAdd(box(256,200,300,50,14),"ms_NewGame",256,200,300,50,14,15,"ms_NewGame",1),
+        buttonAdd(box(256,280,300,50,14),"ms_Scores",256,280,300,50,14,15,"ms_Scores",1),
+        buttonAdd(box(256,360,300,50,14),"closeMineSweeper",256,360,300,50,14,15,"closeMineSweeper",1)
+    ))
+    ms_arr("menu",array(
+        text("DGrouse's",256,50,30,2,1,1),
+        text("Mine Sweeper",256,100,50,2,1,1),
+        textshadow("New Game",256,200,30,2,1,1,2,1,210):x(),Index-1,
+        textshadow("Scores",256,280,30,2,1,1,2,1,210):x(),Index-1,
+        textshadow("Quit",256,360,30,2,1,1,2,1,210):x(),Index-1
+        
+    ))
+    cursor()
+}
+
+function ms_RemoveBackButton(){
+    remove( ms_num("menuBBController") )
+    buttonRemove( ms_num("menuBackButton") )
+    ms_num( "menuBackButton",0 )
+}
+
+function ms_UseBackButton(){
+    ms_RemoveBackButton()
+    ms_str("toclose")()
+    ms_str("toopen")()
+}
+
+function ms_backbutton(Open:string,Close:string){
+    
+    if( ms_num( "menuBackButton" ) ){
+        ms_RemoveBackButton()
+    }
+    
+    ms_str("toopen",Open)
+    ms_str("toclose",Close)
+    
+    local P = polygon(ms_arr("BackShape"),12,30,30,2)
+    ms_num("menuBBController",P:y() )
+    ms_num("menuBackButton",buttonAdd(P:x(),"ms_UseBackButton",24,24,40,40,2,15,"ms_UseBackButton",1) )
+    
+}
+
+function ms_CreateOptions(Obj:string,But:string,O:array,B:array,Func:string){
+    foreach(K,V:string = B){
+        ms_arrAdd(But,array( buttonAdd(box(256,40+80*K,300,50,14),V,256,40+80*K,300,50,14,15,Func,1) ))
+    }
+    foreach(K,V:string = O){
+        ms_arrAdd(Obj,array( textshadow(V,256,40+80*K,30,2,1,1,2,1,210):x(),Index-1 ))
+    }
+}
+
+function ms_NewGame(){
+    ms_closeMainMenu()
+    
+    ms_backbutton("ms_MainMenu","ms_closeNewGame")
+    
+    local O = array("Classic","Timed")
+    local B = array("ms_GClassic","ms_GTimed")
+    
+    ms_CreateOptions("menuNG","menuNGButtons",O,B,"ms_NGtoD")
+    ms_arrAdd("menuNG",array( text("Game Type",256,50,50,2,1,1) ) )
+    
+    cursor()
+}
+function ms_closeNewGame(){
+    remove( ms_arr("menuNG") )
+    buttonRemove( ms_arr("menuNGButtons") )
+}
+
+
+function ms_Difficulty(){
+    
+    ms_backbutton("ms_NewGame","ms_closeDifficulty")
+    
+    local O = array("Beginner","Easy","Medium","Hard","Impossible")
+    local B = array("ms_DBeginner","ms_DEasy","ms_DMedium","ms_DHard","ms_DImpossible")
+    
+    ms_CreateOptions("menuDiff","menuDiffButtons",O,B,"ms_DtoBS")
+    ms_arrAdd("menuDiff",array( text("Difficulty",256,50,50,2,1,1) ) )
+    
+    cursor()
+}
+
+function ms_NGtoD(){
+    ms_closeNewGame()
+    ms_str( "GameType", LastIdentifier:sub(5) )
+    ms_Difficulty()
+}
+
+function ms_closeDifficulty(){
+    remove( ms_arr("menuDiff") )
+    buttonRemove( ms_arr("menuDiffButtons") )
+}
+
+function ms_BSUpdate(){
+    local V = ms_num("BoardSize")
+    local Min = ms_num("BoardSizeMin")
+    local Max = ms_num("BoardSizeMax")
+    if( LastIdentifier == "ms_BSIncrease" ){
+        V++
+    }elseif( LastIdentifier == "ms_BSDecrease" ){
+        V--
+    }
+    V = clamp(V,Min,Max)
+    ms_num("BoardSize",V)
+    
+    text( ms_num("BStxt"),V:toString() )
+}
+
+function ms_BoardSize(){
+
+    ms_backbutton("ms_Difficulty","ms_closeBoardSize")
+    
+    local L = polygon(ms_arr("BackShape"),30,186,256,2)
+    local M = polygon(ms_arr("BackShape"),30,326,256,2) rotation(M:y(),180)
+    local T = text(ms_num("BoardSize"):toString(),256,256,50,2,1,1)
+    ms_num("BStxt",T)
+    
+    ms_arr("menuBSButtons",array(
+        buttonAdd(M:x(),"ms_BSIncrease",326,256,60,60,2,15,"ms_BSUpdate",1),
+        buttonAdd(L:x(),"ms_BSDecrease",186,256,60,60,2,15,"ms_BSUpdate",1),
+        buttonAdd(box(256,400,300,50,14),"ms_InitGame",256,400,300,50,14,15,"ms_InitGame",1)
+        
+    ))
+    ms_arr("menuBS",array( 
+        text("Board Size",256,50,50,2,1,1),
+        L:x(),L:y(),M:x(),M:y(),T,
+        textshadow("Play",256,400,30,2,1,1,2,1,210):x(),Index-1
+    ))
+    
+    cursor()
+}
+
+function ms_DtoBS(){
+    ms_closeDifficulty()
+    ms_str( "Difficulty", LastIdentifier:sub(5) )
+    ms_BoardSize()
+}
+
+function ms_closeBoardSize(){
+    remove( ms_arr("menuBS") )
+    buttonRemove( ms_arr("menuBSButtons") )
+}
+
+
+
+function array ms_GenScores(){
+    
+    local HS = ms_tbl("Scores")
+    local A = array()
+    local C = 0
+    
+    foreach(K,V:number = HS){
+        C++ if( C > 10 ){ break }
+        A:pushNumber( text(K,50,130+C*30,28,2,0,2) )
+        A:pushNumber( text(V:toString(),462,130+C*30,28,2,2,2) )
+    }
+    
+    return A
+}
+
+function ms_Scores(){
+    ms_closeMainMenu()
+    ms_backbutton("ms_MainMenu","ms_closeScores")
+    
+    
+    ms_arr("menuScores",ms_GenScores())
+    
+    ms_arrAdd("menuScores",array(
+        text("Scores",256,50,50,2,1,1),
+        text("Name",50,120,30,2,0,2),
+        text("Points",462,120,30,2,2,2),
+        line(30,125,482,125,2)
+    ))
+    
+    cursor()
+}
+
+function ms_closeScores(){
+    remove( ms_arr("menuScores") )
+}
+

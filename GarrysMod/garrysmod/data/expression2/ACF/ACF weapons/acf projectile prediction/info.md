@@ -1,6 +1,12 @@
-Author: Δp
-Date: September 12, 2022
-Title: acf projectile prediction
+- Author: Δp (pizza)
+- Steam Profile: https://steamcommunity.com/profiles/76561198433374055
+
+- Title: acf projectile prediction
+- Date (dd-mm-yyyy): 12-09-2022
+- Source: Wiremod Discord
+- Source Accessed (dd-mm-yyyy): 09-08-2025
+
+## acf projectile prediction
 
 tried to explain it as much as i could
 

@@ -1,0 +1,550 @@
+@name FLStudio_by_HugLemper
+@inputs XWL:wirelink Sync:entity
+@outputs [PitchOut,Hydraulic1,Hydraulic2]:number SyncOut:entity
+@persist Cursor:vector2  [Play,Stop,BPM,InstrumentSelector,PlayPos,SelectedRow,NumColumns,ColumnWidth,ColumnHeight,ReloadKeyPressed,KeyUsed,Pattern,NotesPerBeat,NumPatterns,N]:number NumPages:string [NoteTable,PlayTable1,PlayTable2,RealPianoSounds,SoundDirectory]:array [Sound,Sound1,MenuSelectedItem]:string ClosestPlayer:entity
+@trigger 
+function redrawNotes(From:number)
+{
+    for(I=1,NumColumns)
+    {
+        SelectedRow = PlayTable1[I+From-1,number]
+        XWL:egpBox(I+160,vec2(I*ColumnWidth-ColumnWidth/2, SelectedRow*ColumnHeight-ColumnHeight/2),vec2(ColumnWidth,ColumnHeight))
+        XWL:egpColor(I+160,vec4(0,255,0,64))
+        SelectedRow = PlayTable2[I+From-1,number]
+        XWL:egpBox(I+200,vec2(I*ColumnWidth-ColumnWidth/2, SelectedRow*ColumnHeight-ColumnHeight/2),vec2(ColumnWidth,ColumnHeight))
+        XWL:egpColor(I+200,vec4(255,0,0,64))
+    }
+}
+function startOver()
+{
+    PlayTable1 = array()
+    PlayTable2 = array()
+    for(I=1, NumColumns)
+    {
+        Pattern = 1
+        XWL:egpText(134,"1"+NumPages,vec2(175,494)) #This is the pattern's variable text.
+        
+        #XWL:egpBox(I+160,vec2(I*ColumnWidth-ColumnWidth/2, SelectedRow*ColumnHeight-ColumnHeight/2),vec2(ColumnWidth,ColumnHeight))
+        XWL:egpColor(I+160,vec4(0,255,0,0))
+        #XWL:egpBox(I+200,vec2(I*ColumnWidth-ColumnWidth/2, SelectedRow*ColumnHeight-ColumnHeight/2),vec2(ColumnWidth,ColumnHeight))
+        XWL:egpColor(I+200,vec4(255,0,0,0))
+    }
+}
+function processStringIntoSong(S:string)
+{
+    
+}
+function void redrawMeasure()
+{
+    for(I=0,NumColumns)
+    {
+        ColorOffset = mod(floor((I-1)/NotesPerBeat),2)*30
+        ColorOffsetVec = vec(ColorOffset,ColorOffset,ColorOffset)
+        if(mod(I,2)==1)
+        {
+            XWL:egpBox(I,vec2((I-1)*ColumnWidth+ColumnWidth/2,256),vec2(ColumnWidth+1,512))
+            XWL:egpColor(I,vec(52,52,52)+ColorOffsetVec)
+        }
+        else
+        {
+            XWL:egpBox(I,vec2((I-1)*ColumnWidth+ColumnWidth/2,256),vec2(ColumnWidth+1,512))
+            XWL:egpColor(I,vec(48,48,48)+ColorOffsetVec)
+        }
+    }
+}
+if(first())
+{
+    SyncOut = entity()
+    RealPianoSounds = array("gmodtower/lobby/instruments/piano/a1.wav", #C1
+                            "gmodtower/lobby/instruments/piano/b1.wav",
+                            "gmodtower/lobby/instruments/piano/a2.wav",
+                            "gmodtower/lobby/instruments/piano/b2.wav",
+                            "gmodtower/lobby/instruments/piano/a3.wav",
+                            "gmodtower/lobby/instruments/piano/a4.wav",
+                            "gmodtower/lobby/instruments/piano/b3.wav",
+                            "gmodtower/lobby/instruments/piano/a5.wav",
+                            "gmodtower/lobby/instruments/piano/b4.wav",
+                            "gmodtower/lobby/instruments/piano/a6.wav",
+                            "gmodtower/lobby/instruments/piano/b5.wav",
+                            "gmodtower/lobby/instruments/piano/a7.wav",
+                            "gmodtower/lobby/instruments/piano/a8.wav", #C2
+                            "gmodtower/lobby/instruments/piano/b6.wav",
+                            "gmodtower/lobby/instruments/piano/a9.wav",
+                            "gmodtower/lobby/instruments/piano/b7.wav",
+                            "gmodtower/lobby/instruments/piano/a10.wav",
+                            "gmodtower/lobby/instruments/piano/a11.wav",
+                            "gmodtower/lobby/instruments/piano/b8.wav",
+                            "gmodtower/lobby/instruments/piano/a12.wav",
+                            "gmodtower/lobby/instruments/piano/b9.wav",
+                            "gmodtower/lobby/instruments/piano/a13.wav",
+                            "gmodtower/lobby/instruments/piano/b10.wav",
+                            "gmodtower/lobby/instruments/piano/a14.wav",
+                            "gmodtower/lobby/instruments/piano/a15.wav")
+    SoundDirectory = array("bass.wav",
+                           "bass3.wav",
+                        "bassguitar2.wav",
+                        "bell.wav",
+                        "coolchiff.wav",
+                        "crackpiano.wav",
+                        "dingdong.wav",
+                        "dooooooooh.wav",
+                        "dusktodawn.wav",
+                        "flute.wav",
+                        "fmbass.wav",
+                        "fuzz.wav",
+                        "guitar.wav",
+                        "hit.wav",
+                        "honkytonk.wav",
+                        "horn.wav",
+                        "justice.wav",
+                        "littleflower.wav",
+                        "meow.wav",
+                        "miku.wav",
+                        "mmm.wav",
+                        "oohh.wav",
+                        "overdrive.wav",
+                        "pianostab.wav",
+                        "prima.wav",
+                        "quack.wav",
+                        "saw_880.wav",
+                        "sine_880.wav",
+                        "skull.wav",
+                        "slap.wav",
+                        "square_880.wav",
+                        "string.wav",
+                        "toypiano.wav",
+                        "triangle_880.wav",
+                        "trumpet.wav",
+                        "woof.wav")
+    BlackNotePositions = array(1,4,6,8,11,13,16,18,20,23,25)
+    PlayPos = 1
+    NoteTable = array(128,120,112,106,100,95,89,84,79,75,71,67,63,60,56,53,49,47,44,42,40,37,35,33,31,30)
+    XWL:egpClear()
+    NumPatterns = 64
+    NumColumns = 16
+    NumNotes = 32
+    NumRows = NoteTable:count()
+    NotesPerBeat = 4
+    ScreenWidth = 512
+    NumPages = "/"+toString(ceil(NumPatterns/NumColumns))
+    #NumPages = "/4"
+    Sound = "ui/hitsound_menu_note1.wav"
+    Sound1 = "ui/hitsound_menu_note9.wav"
+    BPM = 250
+    Pattern = 1
+    InstrumentSelector = 1
+    ColumnWidth = (ScreenWidth-4)/NumColumns
+    ColumnHeight = 480 / NumRows
+    for(I=0,NumColumns)
+    {
+        ColorOffset = mod(floor((I-1)/NotesPerBeat),2)*30
+        ColorOffsetVec = vec(ColorOffset,ColorOffset,ColorOffset)
+        if(mod(I,2)==1)
+        {
+            XWL:egpBox(I,vec2((I-1)*ColumnWidth+ColumnWidth/2,256),vec2(ColumnWidth+1,512))
+            XWL:egpColor(I,vec(52,52,52)+ColorOffsetVec)
+        }
+        else
+        {
+            XWL:egpBox(I,vec2((I-1)*ColumnWidth+ColumnWidth/2,256),vec2(ColumnWidth+1,512))
+            XWL:egpColor(I,vec(48,48,48)+ColorOffsetVec)
+        }
+    }
+    
+    #Drawing the black notes on the piano roll
+    for(I=1,BlackNotePositions:count())
+    {
+        XWL:egpBox(NumColumns+I,vec2(256,BlackNotePositions[I,number]*ColumnHeight-ColumnHeight/2),vec2(ScreenWidth,ColumnHeight))
+        XWL:egpColor(NumColumns+I,vec4(0,0,0,200))
+    }
+    
+    #Track number text
+    #XWL:egpText(110,"Now editing track 1", vec2(400,500))
+    #XWL:egpSize(110,12)
+    #This is the pointer
+    XWL:egpBox(300,vec2(0,0),vec2(ColumnWidth,ColumnHeight))
+    XWL:egpColor(300,vec4(25,25,255,64))
+    
+    #This is the player position. It defaults to the starting position.
+    XWL:egpBox(299,vec2(ColumnWidth-ColumnWidth/2,256),vec2(ColumnWidth,512))
+    XWL:egpColor(299,vec4(255,0,0,32))
+    ReloadKeyPressed=0
+    KeyUsed = 0
+    
+    #Now let's make the bottom menu.
+    N=BlackNotePositions:count() + NumColumns
+    XWL:egpBox(N,vec2(256,496),vec2(512,33)) 
+    XWL:egpColor(N,vec(16,16,32)) N++
+    
+    XWL:egpText(N,"Instrument",vec2(4,480))
+    XWL:egpSize(N,12) N++
+    XWL:egpText(N,"Interval",vec2(100,480))
+    XWL:egpSize(N,12) N++
+    XWL:egpText(N,"Pattern",vec2(170,480))
+    XWL:egpSize(N,12) N++
+    XWL:egpBox(N,vec2(6,504),vec2(16,16)) N++ #This is the Instrument's MINUS button.
+    XWL:egpBox(N,vec2(54, 504),vec2(16,16)) N++ #This is the Instrument's PLUS button.
+    XWL:egpBox(N,vec2(86,504),vec2(16,16)) N++ #This is the BPM's MINUS button.
+    XWL:egpBox(N,vec2(134,504),vec2(16,16)) N++ #This is the BPM's PLUS button.
+    XWL:egpBox(254,vec2(165,504),vec2(16,16)) #This is the Pattern's MINUS button.
+    XWL:egpBox(255,vec2(213, 504),vec2(16,16)) #This is the Pattern's PLUS button.
+    XWL:egpBox(258,vec2(253, 504),vec2(16,16)) #EXPERIMENTAL button.
+    XWL:egpBox(256,vec2(480,504),vec2(64,16)) #THis is the fuckup button.
+    XWL:egpText(257,"Start over",vec2(450,480))
+    XWL:egpSize(257,12)
+    
+    #Label time!!!  
+    XWL:egpText(128,"-",vec2(5,494))
+    XWL:egpColor(128,vec(0,0,0))
+    XWL:egpText(129,"+",vec2(49,494))
+    XWL:egpColor(129,vec(0,0,0))
+    XWL:egpText(130,"-",vec2(84,494))
+    XWL:egpColor(130,vec(0,0,0))
+    XWL:egpText(131,"+",vec2(129,494))
+    XWL:egpColor(131,vec(0,0,0))
+    #Variable text time!!!!
+    XWL:egpText(132,"01",vec2(21,494)) #This is the instrument's variable text.
+    XWL:egpText(133,"250",vec2(96,494)) #This is the BPM's variable text.
+    XWL:egpText(134,"1"+NumPages,vec2(175,494)) #This is the pattern's variable text.
+    XWL:egpText(250,"E: Place a note",vec2(256,256))
+    XWL:egpText(251,"R: Play/Stop",vec2(256,268))
+    XWL:egpSize(250,15)
+    XWL:egpSize(251,15)
+    XWL:egpText(252,"-",vec2(163,494))
+    XWL:egpColor(252,vec(0,0,0))
+    XWL:egpText(253,"+",vec2(208,494))
+    XWL:egpColor(253,vec(0,0,0))
+    for(I=1,SoundDirectory:count())
+    {
+        
+    }
+    ClosestPlayer = owner()
+}
+findByClass("player")
+ClosestPlayer = findClosest(XWL:entity():pos())
+Cursor = XWL:egpCursor(ClosestPlayer)
+
+#Cursor = XWL:egpCursor(owner())
+function void dumpPlayTableInfo()
+{
+    TempString = ""
+    #for(I=1,PlayTable2:count())
+    #{
+    #    TempString = TempString + PlayTable2[I,string]
+    #}
+    printTable(PlayTable2)
+}
+if(Cursor != vec2(-1,-1))
+{
+    if(Cursor:y()<480) #Piano Roll controller
+    {
+        XWL:egpAlpha(250,255)
+        XWL:egpAlpha(251,255)
+    SelectedColumn = ceil(Cursor:x()/ColumnWidth)
+    PrevSelectedRow = SelectedRow
+    SelectedRow = ceil(Cursor:y()/ColumnHeight)
+    XWL:egpPos(300,vec2(SelectedColumn*ColumnWidth-ColumnWidth/2, SelectedRow*ColumnHeight-ColumnHeight/2))
+    XWL:egpColor(123,vec(255,255,255)) #This is the Instrument's MINUS button.
+    XWL:egpColor(124,vec(255,255,255)) #This is the Instrument's PLUS button.
+    XWL:egpColor(125,vec(255,255,255)) #This is the BPM's MINUS button.
+    XWL:egpColor(126,vec(255,255,255)) #This is the BPM's PLUS button.
+    
+    #XWL:egpPos(250,Cursor+vec2(20,0))
+    XWL:egpPos(251,Cursor+vec2(20,+20))
+        if(PlayTable1[SelectedColumn+(Pattern-1)*NumColumns,number] == SelectedRow && InstrumentSelector == 1)
+        {
+            XWL:egpText(250,"E: Delete this note",Cursor+vec2(20,0))
+        }
+        elseif(PlayTable2[SelectedColumn+(Pattern-1)*NumColumns,number] == SelectedRow && InstrumentSelector == 2)
+        {
+            XWL:egpText(250,"E: Delete this note",Cursor+vec2(20,0))
+        }
+        else
+        {
+            XWL:egpText(250,"E: Place a note",Cursor+vec2(20,0))
+        }
+    }
+    elseif(Cursor:y()>480) #Menu controller
+    {
+        XWL:egpPos(300,vec2(512, 512)) #This code puts the currently selected note from the piano roll into an unseeable position.
+        XWL:egpColor(124,vec(255,255,255)) #This is the Instrument's MINUS button.
+        XWL:egpColor(125,vec(255,255,255)) #This is the Instrument's PLUS button.
+        XWL:egpColor(126,vec(255,255,255)) #This is the BPM's MINUS button.
+        XWL:egpColor(127,vec(255,255,255)) #This is the BPM's PLUS button.
+        XWL:egpColor(254,vec(255,255,255)) #This is the BPM's MINUS button.
+        XWL:egpColor(255,vec(255,255,255)) #This is the BPM's PLUS button.
+        XWL:egpColor(256,vec(255,255,255)) #This is the BPM's PLUS button.
+        XWL:egpColor(258,vec(255,255,255)) #This is the EXPERIMENTALbutton.
+        XWL:egpAlpha(250,0)
+        XWL:egpAlpha(251,0)
+            if(Cursor:x()<16)
+            {
+                XWL:egpColor(124,vec(64,64,128))
+                MenuSelectedItem = "INSTR_MINUS"
+            }
+            elseif(Cursor:x() > 46 && Cursor:x() < 62)
+            {
+                XWL:egpColor(125,vec(64,64,128))
+                MenuSelectedItem = "INSTR_PLUS"
+            }
+            elseif(Cursor:x() > 78 && Cursor:x() < 94)
+            {
+                XWL:egpColor(126,vec(64,64,128))
+                MenuSelectedItem = "BPM_MINUS"
+            }
+            elseif(Cursor:x() > 126 && Cursor:x() < 142)
+            {
+                XWL:egpColor(127,vec(64,64,128))
+                MenuSelectedItem = "BPM_PLUS"
+            }
+            elseif(Cursor:x() > 157 && Cursor:x() < 173)
+            {
+                XWL:egpColor(254,vec(64,64,128))
+                MenuSelectedItem = "PATTERN_MINUS"
+                
+            }
+            elseif(Cursor:x() > 205 && Cursor:x() < 221)
+            {
+                XWL:egpColor(255,vec(64,64,128))
+                MenuSelectedItem = "PATTERN_PLUS"
+            }
+            elseif(Cursor:x() > 244 && Cursor:x() <261)
+            {
+                XWL:egpColor(258,vec(64,64,128))
+                MenuSelectedItem = "EXPERIMENTAL"
+            }
+            elseif(Cursor:x() > 448)
+            {
+                XWL:egpColor(256,vec(64,64,128))
+                MenuSelectedItem = "FUCKUP"
+            }
+            else
+            {
+                MenuSelectedItem = "NONE"
+            }
+    }
+    if(ClosestPlayer:keyUse() && KeyUsed == 0){
+        if(Cursor:y() < 480)
+        {
+        if(InstrumentSelector==1)
+        {
+            if(PlayTable1[SelectedColumn+(Pattern-1)*NumColumns,number] == SelectedRow)
+            {
+                #XWL:egpText(250,"E: Delete this note",Cursor+vec2(20,0))
+                PlayTable1[SelectedColumn+(Pattern-1)*NumColumns,number] = 0
+                #XWL:egpBox(SelectedColumn+160,vec2(SelectedColumn*ColumnWidth-ColumnWidth/2, SelectedRow*ColumnHeight-ColumnHeight/2),vec2(ColumnWidth,ColumnHeight))
+                XWL:egpColor(SelectedColumn+160,vec4(0,255,0,0))
+            }
+            else
+            {    
+            PlayTable1[SelectedColumn+(Pattern-1)*NumColumns,number]= SelectedRow
+            XWL:egpBox(SelectedColumn+160,vec2(SelectedColumn*ColumnWidth-ColumnWidth/2, SelectedRow*ColumnHeight-ColumnHeight/2),vec2(ColumnWidth,ColumnHeight))
+            XWL:egpColor(SelectedColumn+160,vec4(0,255,0,64))
+            #print("Set column ",SelectedColumn," to ",SelectedRow)
+            PianoSound = RealPianoSounds[RealPianoSounds:count()-SelectedRow,string]
+            #soundPlay(SelectedRow,0,PianoSound)
+            soundPlay(1,0,Sound)
+            soundPitch(1,NoteTable[SelectedRow,number])
+            Hydraulic1 = NoteTable[SelectedRow,number]
+            #print(XWL:egpNumObjects())
+            }
+        }
+        elseif(InstrumentSelector==2)
+        {
+            if(PlayTable2[SelectedColumn+(Pattern-1)*NumColumns,number] == SelectedRow)
+            {
+                #XWL:egpText(250,"E: Delete this note",Cursor+vec2(20,0))
+                PlayTable2[SelectedColumn+(Pattern-1)*NumColumns,number] = 0
+                XWL:egpColor(SelectedColumn+200,vec4(0,255,0,0))
+            }
+            else
+            {    
+            PlayTable2[SelectedColumn+(Pattern-1)*NumColumns,number]= SelectedRow
+            XWL:egpBox(SelectedColumn+200,vec2(SelectedColumn*ColumnWidth-ColumnWidth/2, SelectedRow*ColumnHeight-ColumnHeight/2),vec2(ColumnWidth,ColumnHeight))
+            XWL:egpColor(SelectedColumn+200,vec4(255,0,0,64))
+            soundPlay(2,0,Sound1)
+            soundPitch(2,NoteTable[SelectedRow,number])
+            Hydraulic2 = NoteTable[SelectedRow,number]
+            #print("Set column ",SelectedColumn," to ",SelectedRow)
+            }
+        }
+        KeyUsed = 1
+        }
+        else #IF the cursor is down at the bottom bar
+        {
+            if(MenuSelectedItem == "INSTR_MINUS" && InstrumentSelector>1)
+            {
+                InstrumentSelector--
+                XWL:egpText(132,toString(InstrumentSelector),vec2(21,494))
+            }
+            elseif(MenuSelectedItem == "INSTR_PLUS" && InstrumentSelector < 3)
+            {
+                InstrumentSelector++
+                XWL:egpText(132,toString(InstrumentSelector),vec2(21,494))
+            }
+            elseif(MenuSelectedItem == "BPM_MINUS" && BPM > 50)
+            {
+                BPM = BPM - 10
+                XWL:egpText(133,toString(BPM),vec2(96,494))
+            }
+            elseif(MenuSelectedItem == "BPM_PLUS" && BPM < 500)
+            {
+                BPM = BPM + 10
+                XWL:egpText(133,toString(BPM),vec2(96,494))
+            }
+            elseif(MenuSelectedItem == "PATTERN_MINUS" && Pattern > 1)
+            {
+                Pattern--
+                XWL:egpText(134,toString(Pattern)+NumPages,vec2(175,494))
+                redrawNotes(NumColumns*(Pattern-1)+1)
+            }
+            elseif(MenuSelectedItem == "PATTERN_PLUS" && Pattern < (NumPatterns/NumColumns))
+            {
+                Pattern++
+                XWL:egpText(134,toString(Pattern)+NumPages,vec2(175,494))
+                redrawNotes(NumColumns*(Pattern-1)+1)
+            }
+            elseif(MenuSelectedItem == "EXPERIMENTAL")
+            {
+                dumpPlayTableInfo()
+            }
+            elseif(MenuSelectedItem == "FUCKUP")
+            {
+                startOver()
+            }
+            KeyUsed = 1
+        }
+    }
+    elseif(ClosestPlayer:keyUse() != 1){KeyUsed = 0}
+    if(ClosestPlayer:keyUse()==0 && Play == 0)
+    {
+        soundStop(1)
+        soundStop(2)
+    }
+    if(ClosestPlayer:keyReload() && ReloadKeyPressed == 0)
+    {
+        ReloadKeyPressed = 1
+        Play = !Play
+        
+        if(Play)
+        {
+        
+            if(Pattern>1)
+            {
+                Pattern=1
+                XWL:egpText(134,toString(Pattern)+NumPages,vec2(175,494)) #This is the pattern's variable text.
+                redrawNotes(1)
+            }
+            timer("PlayTimer",BPM)
+            
+            soundPlay(1,0,Sound)
+            soundPlay(2,0,Sound1)
+            PlayPos = 1
+            #soundPlay(PlayPos,1,RealPianoSounds[RealPianoSounds:count()-PlayTable1[PlayPos,number],string])
+            soundPitch(1,NoteTable[PlayTable1[PlayPos,number],number])
+            soundPitch(2,NoteTable[PlayTable2[PlayPos,number],number])
+            Hydraulic1 = NoteTable[PlayTable1[PlayPos,number],number]
+            Hydraulic2 = NoteTable[PlayTable2[PlayPos,number],number]
+            dsSendDirect("Play",Sync,"Play")
+        }
+        else
+        {
+            dsSendDirect("Stop",Sync,"Stop")
+            PlayPos = 0
+            XWL:egpPos(299,vec2(PlayPos*ColumnWidth-10,256))
+            soundStop(1)
+            soundStop(2)
+        }
+    }
+    elseif(ClosestPlayer:keyReload() != 1){ReloadKeyPressed=0}
+    
+}
+if(dsClk("Play"))
+{
+    Play = 1
+    if(Pattern>1)
+            {
+                Pattern=1
+                XWL:egpText(134,toString(Pattern)+NumPages,vec2(175,494)) #This is the pattern's variable text.
+                redrawNotes(1)
+            }
+            timer("PlayTimer",BPM)
+            
+            soundPlay(1,0,Sound)
+            soundPlay(2,0,Sound1)
+            PlayPos = 1
+            #soundPlay(PlayPos,1,RealPianoSounds[RealPianoSounds:count()-PlayTable1[PlayPos,number],string])
+            soundPitch(1,NoteTable[PlayTable1[PlayPos,number],number])
+            soundPitch(2,NoteTable[PlayTable2[PlayPos,number],number])
+            Hydraulic1 = NoteTable[PlayTable1[PlayPos,number],number]
+            Hydraulic2 = NoteTable[PlayTable2[PlayPos,number],number]
+}
+elseif(dsClk("Stop"))
+{
+    PlayPos = 0
+    XWL:egpPos(299,vec2(PlayPos*ColumnWidth-10,256))
+    soundStop(1)
+    soundStop(2)
+    Play = 0
+}
+if(Play==1 && clk("PlayTimer"))
+{
+    timer("PlayTimer",BPM)
+    if(mod(PlayPos,NotesPerBeat) == 0)
+    {
+        #soundPlay(5,0.5,"ui/buttonrollover.wav")
+    }
+    if(PlayPos < NumPatterns)
+    {
+        PlayPos++
+        if(PlayPos == NumColumns*Pattern)
+        {
+            Pattern++
+            redrawNotes((Pattern-1)*NumColumns+1)
+            XWL:egpText(134,toString(Pattern)+NumPages,vec2(175,494))
+        }
+    }
+    else
+    {
+        Pattern=1
+        redrawNotes(1)
+        PlayPos = 1
+        XWL:egpText(134,toString(Pattern)+NumPages,vec2(175,494))
+    }
+    XWL:egpPos(299,vec2(mod(PlayPos,NumColumns)*ColumnWidth-ColumnWidth/2,256))
+    PitchOut = NoteTable[PlayTable1[PlayPos,number],number]
+    if(PitchOut>0) #This used to be my way of setting the pitch to the piano sound
+    {
+        #entity():soundPlay(PlayPos,1,RealPianoSounds[RealPianoSounds:count()-PlayTable1[PlayPos,number],string])
+        if(NoteTable[PlayTable1[PlayPos-1,number],number]==0)
+        {
+            soundPlay(1,0,Sound)
+        }
+        soundPitch(1,PitchOut)
+        Hydraulic1 = PitchOut
+            
+        
+    }
+     else
+    {
+        soundStop(1)
+    }
+    
+    PitchOut = NoteTable[PlayTable2[PlayPos,number],number]
+    if(PitchOut>0)
+    {
+        soundPitch(2,PitchOut)
+        if(NoteTable[PlayTable2[PlayPos-1,number],number]==0)
+        {
+            soundPlay(2,0,Sound1)
+        }
+        soundPitch(2,PitchOut)
+        Hydraulic2 = PitchOut
+    }
+    else
+    {
+        soundStop(2)
+    }
+    
+}
+interval(100)

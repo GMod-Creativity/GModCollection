@@ -1,0 +1,131 @@
+@name Missile PID
+@inputs Active Target:entity Lead_Acive
+@outputs Forward TopFront TopBack BottomFront BottomBack RightFront RightBack LeftFront LeftBack Holo_Vec:vector Holo_Active
+@persist Up Down Left Right YawLeft YawRight PitchUp PitchDown VelPitch VelYaw VelRoll VelX VelY VelZ YawError PitchError CurrentTime PitchIntegral YawIntegral PitchDerivative YawDerivative PitchCommand YawCommand Distance Closing_Vel Intercept_Time Intercept_Vec:vector
+@trigger 
+@strict
+
+#PLACE E2 CHIP SO THAT IT IS ON TOP OF THE VESSEL WITH THE RED ARROW POINTING FORWARD
+
+#This establishes refresh rate
+interval(1)
+
+#Get time (used for integrals and derivatives in PID controller)
+CurrentTime = curtime()
+
+#WARNING Do not set the missile to active without a valid target input, or it will enter a permanent error state
+if(Active == 1 & Target){
+    
+  #Variable setup
+    #PID variables (KEEP POSITIVE)
+    Proportional = 5    
+    Integral = 0        #This can be zero if no forces are acting to prevent the missile from vectoring onto target (excluding inertia)
+    Derivative = 1.5
+    
+    #Aquisition margin (The degrees off from dead-ahead that the target can be before the main thruster wont fire)
+    Margin = 20
+    
+    #Thruster multipliers (Ensure the wire thrusters on the missile have a multiplier of 1)
+    TranslationForce = 200
+    VectorForce = 2
+    ForwardForce = 1000
+    
+    #This value affects when the forward thruster will stop firing (KEEP NEGATIVE)
+    #This is meant to reduce the amount of lead vector correction due to acceleration
+    MaxClosing_Vel = -10000
+    
+  #This portion gets info
+    #Get velocity vector of missile so it knows how to correct it
+    #The missile will attempt to counter any movement that isn't directly forward
+    VelX = entity():velL():x()
+    VelY = entity():velL():y()
+    VelZ = entity():velL():z()
+
+    #Get current angular velocity of missile so it knows how to correct it
+    #The missile doesn't really use these values much
+    VelPitch = entity():angVel():pitch()
+    VelYaw = entity():angVel():yaw()
+    VelRoll = entity():angVel():roll()
+    
+    #Get target distance
+    Distance = sqrt((entity():pos():x() - Target:pos():x())^2 + (entity():pos():y() - Target:pos():y())^2 + (entity():pos():z() - Target:pos():z())^2)
+    
+    #Calculate closing speed, intercept time, and intercept position of target
+    #Negative values for closing speed indicate that the distance is decreasing
+    Closing_Vel = ($Distance / $CurrentTime) * 1000
+    Intercept_Time = Distance / Closing_Vel
+    Intercept_Vec = Target:pos() + (Target:vel() * Intercept_Time * -1 * 1000)
+    
+    #If the target IS closing, lead the aiming vector to account for target velocity, and aim the laser at the intercept point
+    #If the target IS NOT closing, keep the aiming vector directly at the target
+    if(Closing_Vel < 0 & Lead_Acive){
+        YawError = entity():bearing(Intercept_Vec)
+        PitchError = entity():elevation(Intercept_Vec)
+        Holo_Active = 1
+        Holo_Vec = Intercept_Vec
+    }else{
+        YawError = entity():bearing(Target:pos())
+        PitchError = entity():elevation(Target:pos())
+        Holo_Active = 0
+    }
+
+  #This portion controls lateral stabilization
+    if(VelZ < -1){Up = 1 * TranslationForce}else{Up = 0}
+    if(VelZ > 1){Down = 1 * TranslationForce}else{Down = 0}
+    if(VelY < -1){Left = 1 * TranslationForce}else{Left = 0}
+    if(VelY > 1){Right = 1 * TranslationForce}else{Right = 0}
+
+  #This portion controls roll stabilization (Currently Disabled)
+    #if(VelRoll > 1){entity():applyAngForce(ang(0,0,-5000))}else{entity():applyAngForce(ang(0,0,0))}
+    #if(VelRoll < -1){entity():applyAngForce(ang(0,0,5000))}else{entity():applyAngForce(ang(0,0,0))}
+
+  #This portion computes the pitch & yaw commands using PID tuning and sends them to the thruster controller
+    #Compute integral component, this value gets larger the longer the missile is aiming off-target
+    PitchIntegral += $PitchError * $CurrentTime
+    YawIntegral += $YawError * $CurrentTime
+
+    #Compute derivative component, this value becomes more negative the quicker the missile approaches the correct vector, this prevents oscillations when the missile is on-target
+    PitchDerivative = $PitchError / $CurrentTime
+    YawDerivative = $YawError / $CurrentTime
+    
+    #Compute proportional component, this value's magnitude is proportional to the error in the missile's vector
+    #Add each of the PID components together and multiply them by their coefficients to get a final pitch and yaw command/magnitude
+    PitchCommand = ((Proportional * PitchError) + (Integral * PitchIntegral) + (Derivative * PitchDerivative)) * VectorForce
+    YawCommand = ((Proportional * YawError) + (Integral * YawIntegral) + (Derivative * YawDerivative)) * VectorForce
+    
+    #Decide whether the pitch command is positive or negative, and which thrusters need to respond
+    if(PitchCommand > 0){PitchUp = abs(PitchCommand)}else{PitchUp = 0}
+    if(PitchCommand < 0){PitchDown = abs(PitchCommand)}else{PitchDown = 0}
+    
+    #Decide whether the yaw command is positive or negative, and which thrusters need to respond
+    if(YawCommand < 0){YawLeft = abs(YawCommand)}else{YawLeft = 0}
+    if(YawCommand > 0){YawRight = abs(YawCommand)}else{YawRight = 0}
+    
+  #This portion adds the translation & vectoring commands and sends them to the correct thruster
+  #For example, the thruster on the top of the missile at the front can be used to pitch down OR translate down, so it should respond to both commands
+    TopFront = PitchDown + Down
+    TopBack = PitchUp + Down
+    BottomFront = PitchUp + Up
+    BottomBack = PitchDown + Up
+    RightFront = YawLeft + Left
+    RightBack = YawRight + Left
+    LeftFront = YawRight + Right
+    LeftBack = YawLeft + Right
+    
+  #If the missile's aiming vector is within the margin of error, or if the missile is moving backwards, thrust forward
+    if(VelX < 0 | ((abs(YawError) < Margin & abs(PitchError) < Margin) & (Closing_Vel / 1000) > MaxClosing_Vel)){Forward = 1 * ForwardForce}else{Forward = 0}
+    
+}else{
+    
+  #If not active, turn all thrusters off
+    Forward = 0
+    TopFront = 0
+    TopBack = 0
+    BottomFront = 0
+    BottomBack = 0
+    RightFront = 0
+    RightBack = 0
+    LeftFront = 0
+    LeftBack = 0
+    Holo_Active = 0
+}

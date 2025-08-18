@@ -1,0 +1,371 @@
+@name Cloud Strife Maze Gen Explanation
+@persist Length Width Height [Visited DirVector MoveDir Props DirAvail Pos Order Hold]:array ADir Scale Generation [CurPos StartPos PosVec]:vector I Prop:entity Pathing Count Group OGroup Z J Wait
+if(first())
+{
+    function number getIndex(XLen, YWidth, ZHeight)
+    {
+        return (XLen + (YWidth - 1) * Length + (ZHeight - 1) * (Length * Width))
+    }
+    function number getIndex(XYZVector:vector)
+    {
+        return getIndex(XYZVector:x(),XYZVector:y(),XYZVector:z())
+    }
+    function vector getPosIndex(Index)
+    {
+        return vec(floor(((Index-1))%Length)+1,ceil(((Index-1)%(Length*Width)+1)/Length),1)
+    }
+    function number getWallIndex(XLen, YWidth, ZHeight, ADir)
+    {
+        if(ADir>3)
+        {
+            XLen = XLen + DirVector[ADir,vector]:x()
+            YWidth = YWidth + DirVector[ADir,vector]:y()
+            ZHeight = ZHeight + DirVector[ADir,vector]:z()
+            ADir = ADir - 3
+        }
+        return ((XLen - 1) * 3 + (YWidth - 1) * Length * 3 + (ZHeight - 1) * (Length * Width) * 3 + ADir)
+    }
+    function number getWallIndex(XYZVector:vector, ADir)
+    {
+        return getWallIndex(XYZVector:x(),XYZVector:y(),XYZVector:z(),ADir)
+    }
+    function number avaliableDirNum(XLen, YWidth, ZHeight,GroupNum)
+    {
+        Avail = 0
+        DirAvail = array()
+        if(XLen != 1)
+        {
+            if(Visited[getIndex(XLen-1,YWidth,ZHeight),number] != GroupNum & Visited[getIndex(XLen-1,YWidth,ZHeight),number] > -0.5)
+            {
+                Avail = Avail + 1
+                DirAvail:pushNumber(2)
+            }
+        }
+        if(YWidth != 1)
+        {
+            if(Visited[getIndex(XLen,YWidth-1,ZHeight),number] != GroupNum & Visited[getIndex(XLen,YWidth-1,ZHeight),number] > -0.5)
+            {
+                Avail = Avail + 1
+                DirAvail:pushNumber(1)
+            }
+        }
+        if(XLen != Length)
+        {
+            if(Visited[getIndex(XLen+1,YWidth,ZHeight),number] != GroupNum & Visited[getIndex(XLen+1,YWidth,ZHeight),number] > -0.5)
+            {
+                Avail = Avail + 1
+                DirAvail:pushNumber(4)
+            }
+        }
+        if(YWidth != Width)
+        {
+            if(Visited[getIndex(XLen,YWidth+1,ZHeight),number] != GroupNum & Visited[getIndex(XLen,YWidth+1,ZHeight),number] > -0.5)
+            {
+                Avail = Avail + 1
+                DirAvail:pushNumber(3)
+            }
+        }
+        return Avail
+    }
+    function number avaliableDirNum(XYZVector:vector,GroupNum)
+    {
+        return avaliableDirNum(XYZVector:x(),XYZVector:y(),XYZVector:z(),GroupNum)
+    }
+    function number avaliableDirNum(XLen, YWidth, ZHeight)
+    {
+        Avail = 0
+        DirAvail = array()
+        if(XLen != 1)
+        {
+            if(Visited[getIndex(XLen-1,YWidth,ZHeight),number] < 0.5)
+            {
+                Avail = Avail + 1
+                DirAvail:pushNumber(2)
+            }
+        }
+        if(YWidth != 1)
+        {
+            if(Visited[getIndex(XLen,YWidth-1,ZHeight),number] < 0.5)
+            {
+                Avail = Avail + 1
+                DirAvail:pushNumber(1)
+            }
+        }
+        if(XLen != Length)
+        {
+            if(Visited[getIndex(XLen+1,YWidth,ZHeight),number] < 0.5)
+            {
+                Avail = Avail + 1
+                DirAvail:pushNumber(4)
+            }
+        }
+        if(YWidth != Width)
+        {
+            if(Visited[getIndex(XLen,YWidth+1,ZHeight),number] < 0.5)
+            {
+                Avail = Avail + 1
+                DirAvail:pushNumber(3)
+            }
+        }
+        return Avail
+    }
+    function number avaliableDirNum(XYZVector:vector)
+    {
+        return avaliableDirNum(XYZVector:x(),XYZVector:y(),XYZVector:z())
+    }
+    function void visit(XLen, YWidth, ZHeight)
+    {
+        Visited[getIndex(XLen,YWidth,ZHeight),number] = 1
+        Props[getIndex(XLen,YWidth,ZHeight),entity]:setColor(vec(200,200,0))
+    }
+    function void visit(XYZVector:vector)
+    {
+        visit(XYZVector:x(),XYZVector:y(),XYZVector:z())
+    }
+    function vector wallPos(XLen, YWidth, ZHeight,ADir)
+    {
+        ReturnVec = vec(XLen-1,YWidth-1,ZHeight-1)*Scale+DirVector[ADir,vector]*Scale/2
+        return ReturnVec
+    }
+    function vector wallPos(XYZVector:vector,ADir)
+    {
+        return wallPos(XYZVector:x(),XYZVector:y(),XYZVector:z(),ADir)
+    }
+    function void removeWall(XLen, YWidth, ZHeight,ADir)
+    {
+        Count++
+        holoCreate(Count,wallPos(XLen,YWidth,ZHeight,ADir)+vec(1,1,1)*Scale+StartPos)
+        holoScale(Count,vec(2.6,2.6,0.2))
+        holoColor(Count,vec(100,100,100))
+    }
+    function void removeWall(XYZVector:vector,ADir)
+    {
+        removeWall(XYZVector:x(),XYZVector:y(),XYZVector:z(),ADir)
+    }
+    function void orderGeneration()
+    {
+        
+        Z=0
+        Hold=array()
+        Order=array()
+        for(J=1,(Length*Height*Width))
+        {
+            Hold[J,number]=J
+        }
+        for(J=1,(Length*Height*Width))
+        {
+            Order[J,number]=Hold:removeNumber(randint(Hold:count()))
+        }
+    }
+    HowMany = 0
+    interval(1000)
+    Length = 5
+    Width = 5
+    Height = 1
+    Scale = 66
+    StartPos = entity():pos()+vec(0,0,20)
+    
+    Visited = array()
+    DirVector = array(vec(0,-1,0),vec(-1,0,0),vec(0,1,0),vec(1,0,0))
+    MoveDir = array(vec(1,0,0),vec(0,1,0))
+    I = 0
+    Generation = 1
+    holoCreate(1)
+    holoColor(1,vec(0,0,200))
+    Count =1
+    Pathing = 2
+    if(Pathing == 2)
+    {
+        orderGeneration()
+    }
+    Wait = 1
+}
+elseif(Generation)
+{
+    interval(100)
+    if(propCanCreate())
+    {
+        I++
+        if(I<= Length*Width)
+        {
+            Prop = propSpawn("models/sprops/rectangles/size_4/rect_36x36x3.mdl",StartPos+getPosIndex(I)*Scale,1)
+            Prop:setMaterial("models/debug/debugwhite")
+            Props[I,entity] = Prop
+        }
+        else
+        {
+            print("Done Generation")
+            Generation = 0
+            Pathing = 2
+            if(Pathing == 1)
+            {
+                CurPos = vec(randint(Length),randint(Width),1)
+                visit(CurPos)
+                Pos = array(CurPos)
+                holoPos(1,CurPos*Scale+StartPos)
+            }
+        }
+    }
+}
+elseif(Pathing)
+{
+    interval(300)
+    if(holoCanCreate())
+    {
+        if(Pathing == 1)
+        {
+            if(Pos:count()>0)
+            {
+                PosVec=Pos[Pos:count(),vector]
+                if(avaliableDirNum(PosVec)>0)
+                {
+                    Rand = randint(Avail)
+                    removeWall(PosVec,DirAvail[Rand,number])
+                    PosVec = PosVec + DirVector[DirAvail[Rand,number],vector]
+                    visit(PosVec)
+                    Pos:pushVector(PosVec)
+                }
+                else
+                {
+                    Props[getIndex(PosVec),entity]:setColor(vec(200,0,0))
+                    Pos:pop()
+                    interval(40)
+                }
+                holoPos(1,PosVec*Scale+StartPos)
+                
+            }
+            elseif(Wait)
+            {
+                interval(2000)
+                Wait = 0
+            }
+            else
+            {
+                Wait = 1
+                #print("done pathing")
+                Visited=array()
+                Pathing = 2
+                
+                for(I=1,Length*Width)
+                {
+                    Props[I,entity]:setColor(vec(255,255,255))
+                }
+                while(Count>1)
+                {
+                    holoDelete(Count)
+                    Count--
+                }
+                if(Pathing==1)
+                {
+                    CurPos = vec(randint(Length),randint(Width),1)
+                    Pos = array(CurPos)
+                    holoPos(1,CurPos*Scale+StartPos)
+                    visit(CurPos)
+                }
+                if(Pathing==2)
+                {
+                    orderGeneration()
+                }
+            }
+        }
+        if(Pathing == 2)
+        {
+            if(Order:count()>0)
+            {
+                #print(Order)
+                HowMany++
+                I = Order:popNumber()
+                PosVec = getPosIndex(I)
+                Group = Visited[I,number]
+                if(Group == 0)
+                {
+                    Z = Z + 1
+                    Group = Z
+                    Visited[I,number] = Group
+                    Props[I,entity]:setColor((Group * 15%255),(Group * Group%255),(255-Group*25)%255)
+                }
+                Num = avaliableDirNum(PosVec,Group)
+                
+                if(Num>0)
+                {
+                    Rand = randint(Num)
+                    removeWall(PosVec,DirAvail[Rand,number])
+                    PosVec = PosVec + DirVector[DirAvail[Rand,number],vector]
+                    OGroup = Visited[getIndex(PosVec),number]
+                    if(OGroup != 0)
+                    {
+                        for(J=1,Length*Width*Height)
+                        {
+                            if(Visited[J,number] == OGroup)
+                            {
+                                Visited[J,number]=Group
+                                
+                                Props[J,entity]:setColor((Group * 15%255),(Group * Group%255),(255-Group*25)%255)
+                            }
+                        }
+                    }
+                    else
+                    {
+                        Visited[getIndex(PosVec),number] = Group
+                        
+                        Props[getIndex(PosVec),entity]:setColor((Group * 15%255),(Group * Group%255),(255-Group*25)%255)
+                    }
+                    
+                    Order:unshiftNumber(I)
+                }
+                else
+                {
+                    Visited[I,number] = -1
+                    Props[I,entity]:setColor(vec())
+                    interval(40)
+                }
+                holoPos(1,PosVec*Scale+StartPos)
+            }
+            elseif(Wait)
+            {
+                interval(2000)
+                Wait = 0
+            }
+            else
+            {
+                Wait = 1
+                #print("done pathing2")
+                Pathing = 1
+                Visited=array()
+                
+                for(I=1,Length*Width)
+                {
+                    Props[I,entity]:setColor(vec(255,255,255))
+                }
+                while(Count>1)
+                {
+                    holoDelete(Count)
+                    Count--
+                }
+                if(Pathing==1)
+                {
+                    CurPos = vec(randint(Length),randint(Width),1)
+                    Pos = array(CurPos)
+                    holoPos(1,CurPos*Scale+StartPos)
+                    visit(CurPos)
+                }
+                if(Pathing==2)
+                {
+                    orderGeneration()
+                }
+            }
+        }
+    }
+}
+#[
+    Scopes have been added. If you find any bugs,
+    please report them on the forums.
+
+    An option to copy with bbcode color syntax
+    highlighting has been added (for use on forums).
+    Right click anywhere in the editor to use it.
+
+    Documentation and examples are available at:
+    http://wiki.wiremod.com/wiki/Expression_2
+    The community is available at http://www.wiremod.com
+]#

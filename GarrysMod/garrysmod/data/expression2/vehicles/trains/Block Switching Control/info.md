@@ -1,6 +1,14 @@
 - Author: Tolyzor
-- Date: 09-07-2014
+- Steam Profile: https://steamcommunity.com/profiles/76561197980070446
+- Youtube: https://www.youtube.com/user/Heatseeker1
+- Github: https://github.com/Tolyzor
+<!-- -->
 - Title: gm_trainset onboard setPos switch control
+- Date (dd-mm-yyyy): 07-09-2014
+- Source: https://web.archive.org/web/20150509072903/http://www.wiremod.com/forum/finished-contraptions/33522-gm_trainset-onboard-setpos-switch-control.html
+- Source Accessed (dd-mm-yyyy): 17-08-2025
+
+## gm_trainset onboard setPos switch control
 
 gm_trainset has 150 switches, and you constantly have to exit the train to throw them, as most are manual.
 

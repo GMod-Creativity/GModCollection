@@ -1,0 +1,146 @@
+@name DGPC3-D-Gadgets
+@persist GadgetsWindow Gadgets:table GG_CPU_Bar
+@persist [GG_ClockTxt GG_CPU_Text]:array
+
+function dt_GadgetIncludes(){
+    #include "dgpc3/elements/cursor"
+    #include "dgpc3/elements/button"
+    #include "dgpc3/elements/window"
+    #include "dgpc3/elements/loadingbar"
+    #include "dgpc3/lib1"
+    #include "dgpc3/lib2"
+}
+
+function dt_openGadgets(){
+    "toggleStartMenu"()
+    
+    GadgetsWindow = createmenu(256,300,200,70,Gadgets,"Gadgets","dt_closeGadgets")
+    cursor()
+}
+
+function dt_closeGadgets(){
+    windowClose( GadgetsWindow )
+}
+
+function gadget(Gad:string,Enabled){
+    Users[CurrentUser,table]["Gadgets",table][Gad,number] = Enabled
+}
+
+function number gadget(Gad:string){
+    return Users[CurrentUser,table]["Gadgets",table][Gad,number]
+}
+
+function loadGadgets(){
+    foreach(K,V:number = Users[CurrentUser,table]["Gadgets",table] ){
+        if( V ){
+            Gadgets[K,table][4,string]()
+        }
+    }
+}
+
+function addGadget(Name:string,Toggle:string,Open:string,Admin){
+    Gadgets[Name,table] = table(Admin,"Function",Toggle,Open)
+}
+
+addGadget("Clock","gg_clockToggle","gg_clockStart",0)
+
+function string gg_clockText(){
+    local H = time("hour")
+    local M = time("min")
+    local E = "am"
+    if( H == 0 ){
+        E = "am"
+        H = 12
+    }elseif( H > 12 ){
+        E = "am"
+        H = H-12
+    }
+    local Min = M:toString()
+    local Hour = H:toString()
+    
+    if( Min:length() == 1 ){ Min = "0"+Min }
+    if( Hour:length() == 1 ){ Hour = "0"+Hour }
+    
+    return Hour+":"+Min+E
+}
+
+function gg_clockUpdate(){
+    local T = gg_clockText()
+    text(GG_ClockTxt[1,number],T)
+    text(GG_ClockTxt[2,number],T)
+    timer("GG:Clock",60000)
+    cursor()
+}
+
+function gg_clockStart(){
+    GG_ClockTxt = array( textshadow(gg_clockText(),502,490,30,2,2,1,2,1,200):x(),Index-1 )
+    hookAdd("GG:Clock","tick","gg_clockUpdate",(60-time("sec"))*1000 )
+    cursor()
+}
+
+function gg_clockClose(){
+    remove( GG_ClockTxt )
+    hookRemove("GG:Clock")
+}
+
+function gg_clock(){
+    if( gadget("Clock") ){
+        gg_clockStart()
+    }else{
+        gg_clockClose()
+    }
+}
+
+function gg_clockToggle(){
+    gadget("Clock",!gadget("Clock"))
+    gg_clock()
+}
+
+addGadget("CPU","gg_cpuToggle","gg_cpuStart",0)
+
+function number gg_cpuPercent(){
+    return clamp( ops()/hardQuota(),0,1 )
+}
+
+function gg_cpuUpdate(){
+    local P = gg_cpuPercent()
+    local PT = round( P*100 ):toString()+"%"
+    loadingBarPercent(GG_CPU_Bar,P)
+    text(GG_CPU_Text[2,number],PT)
+    text(GG_CPU_Text[3,number],PT)
+    timer("GG:CPU",200)
+    cursor()
+}
+
+function gg_cpuStart(){
+    local P = gg_cpuPercent()
+    local PT = round( P*100 ):toString()+"%"
+    
+    GG_CPU_Bar = loadingBarInit(330,490,80,30,4,1,29,30,P)
+    
+    local CT = text("CPU",330,490,38,1,1,1) alpha(120)
+    GG_CPU_Text = array( CT, textshadow(PT,330,490,20,2,1,1,2,1,200):x(),Index-1 )
+    
+    hookAdd("GG:CPU","tick","gg_cpuUpdate",200)
+    
+    cursor()
+}
+
+function gg_cpuClose(){
+    remove( GG_CPU_Text )
+    loadingBarRemove(GG_CPU_Bar,1)
+    hookRemove("GG:CPU")
+}
+
+function gg_cpu(){
+    if( gadget("CPU") ){
+        gg_cpuStart()
+    }else{
+        gg_cpuClose()
+    }
+}
+
+function gg_cpuToggle(){
+    gadget("CPU",!gadget("CPU"))
+    gg_cpu()
+}

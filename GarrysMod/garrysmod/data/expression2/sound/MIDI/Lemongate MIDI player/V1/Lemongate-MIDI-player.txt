@@ -1,0 +1,282 @@
+@name ugh.
+@inputs 
+@outputs AMC:table
+@persist Song:table SData:array HTTPRet:string Holo:array XSnds:array
+@persist Converting PlayBack ParseIndex HardwareTime SoftwareTime TempoVal StartTime TCount TempoAdd Fdiv CheckString ChunkString Inserting 
+@persist SChunkArray:array SAssembleCycles SChunkPos SChunking LastChunkPos  SAssemblePos SDoInsert SIAssemblerPos SIEIndex FStor:table
+@persist 
+@trigger 
+#  					              .-----  .----.    .-----` `-----. .------` `-----.  ----.`   `-.    `-.    `--:-.                       
+#                     dNhyyy` dNysymh- `mNssss- /Ndssso /yyyhNN: sNhsss/ `NNsshms  -Nh    oNs  .sdhyyyhs                      
+#                     mM-     mM- `hMo `MM.```  +My```     .dN+  yMo```  .MN``-Mm  :Md    oMs .mN/`   `.                      
+#                     mMhyys  mMhydNo` `MMyyyo  +Mmyyy.   :mm:   yMdyyy` .MMyydNo` :Md    oMs /Mh  /yyho                      
+#                     mM/...  mM:-oNy` `MM.```  +My```   +Nh.    yMo```  .MN``.yMs -Mm`   sMo -NN- `./Mh                      
+#                     mM-     mM-  sMy `NMo+++. +Md++++ oMNo+++: yMh+++: .MN++odm/ `yNh++sNh.  /dmy++yMh                      
+#                     :/`     :/`  `//  ://///. ./////: -//////- -/////-  ////:-`    -/++/-`    `-/++/:. 
+if (first()) { 
+    runOnTick(1)
+    runOnChat(1)
+    runOnHTTP(1)
+    TCount = 0
+    for (I=1,12) {
+     Holo[I,entity] = holoCreate(I)
+     holoScale(I,vec(0.3))
+     holoPos(I,entity():toWorld(vec(5 * I,0,0)))   
+     holoParent(I,entity())
+    Fdiv = 1 # o.o
+
+    }
+    timer("Sounds",100) 
+    
+     XSnds = array(
+        "synth/12_5_pwm_440.wav",
+        "synth/25_pwm_440.wav",
+        "synth/75_pwm_440.wav",
+        "synth/saw_440.wav",
+        "synth/saw_inverted_440.wav",
+        "synth/12_5_pwm_440.wav",
+        "synth/25_pwm_440.wav",
+        "synth/75_pwm_440.wav",
+        "synth/saw_440.wav",
+        "synth/saw_inverted_440.wav",
+        "synth/12_5_pwm_440.wav",
+        "synth/25_pwm_440.wav",
+        "synth/75_pwm_440.wav",
+        "synth/saw_440.wav",
+        "synth/saw_inverted_440.wav"
+        )
+   
+}
+if (clk("Sounds")) {
+    TCount = TCount + 1
+    holoEntity(TCount):soundPlay(TCount,9999,XSnds:string(TCount))
+    soundVolume(TCount,0.1)
+    soundPitch(TCount,TCount * 20)
+    Holo[TCount,entity]:setColor(vec(TCount*15,0,0))
+    if (TCount==Holo:count()) {
+       timer("StopChime",1500)
+    } else {
+        timer("Sounds",50)    
+    }
+}
+if (clk("StopChime")) {
+        for (I=1,12) {
+                soundPitch(I,-1)
+             }
+}
+if (chatClk(owner())) {
+    X = owner():lastSaid():explode(" ")
+    if (X[1,string]=="midi") {
+        hideChat(1)    
+        if (X[2,string]=="load") {
+            PlayBack = 0
+            httpRequest("http://www.mythicservers.com/freezyplayground/lgmidi.php?fn=" + X[3,string])
+        }
+        if (X[2,string]=="tempo") {
+            TempoAdd = X[3,string]:toNumber()
+        }
+        if (X[2,string]=="fd") {
+            Fdiv = X[3,string]:toNumber()
+        }
+        
+    }
+    
+    
+}
+
+if (httpClk()) {
+    HTTPRet = httpData()
+    if (HTTPRet:find("MFile")) {
+        #CheckString = 1
+     SData = array()
+     #TempoVal = SData[1,string]:toNumber() Obsolited, noSData to draw from yet.
+     ParseIndex = 0
+     Song = table() # yis.
+     HardwareTime = 0
+     SoftwareTime = 0
+     StartTime = 0
+     ChunkString = 0
+
+     SAssemblePos = 0
+     Inserting = 0
+     SChunckPos = -1 # :x
+     CheckString = 1
+    
+    
+    }   
+}
+
+
+    
+    
+
+
+if (CheckString==1) {
+    if (HTTPRet:length() > (3*1024)) { ## 3 KiB,I don't have but 10000 ops to use >.>
+        #Alright lets be safe little darlings and call it 5KIB
+        ## Magnets!
+        SAssembleCycles = ceil(HTTPRet:length() / (3*1024)) # Maximum number of 3 KIB blocks we can have?
+        print("[ChunkAssembler]: Max chunk count is " + SAssembleCycles)
+         print("[ChunkAssembler]: Starting chunking process.")
+        LastChunkPos = 0
+        CheckString = 0
+        ChunkString = 1
+    }
+}
+if (ChunkString==1) {
+        while(perf()) {
+            
+            SChunkPos = SChunkPos + 20
+            if (SChunkPos - LastChunkPos >  5*1024 | SChunkPos == HTTPRet:length() - 2 ) {
+                if (HTTPRet:sub(SChunkPos,SChunkPos + 1)=="@@") {  #End of event, SAFE TO PROCEEED.
+                    XStor = HTTPRet:sub(LastChunkPos,SChunkPos - 1) # Inclusive, we don't want to capture the last to @@ bits, results in nil index and wastes converter cycles.
+                    SChunkArray[SChunkArray:count() + 1,string] = XStor
+                    LastChunkPos = SChunkPos + 2## We already captured these bits.
+                }
+                
+            }
+            setName("Chunking data " + round((SChunkPos /  HTTPRet:length())*100) + "%" )
+            if (SChunkPos>=HTTPRet:length() - 2) {
+                ChunkString = 0
+                 print("[ChunkAssembler]: Job complete, XStor holds " + SChunkArray:count())
+                 print("[ChunkAssembler]: Starting split process..")
+                SChunking = 1
+
+                break
+            }
+           # print(SChunkPos / HTTPRet:length())
+        
+        }
+}
+
+if (SChunking==1) {
+ while(perf()) {
+    SAssemblePos = SAssemblePos + 1
+    setName("Breaking data " + round((SAssemblePos / FStor:count())*100) + " %")
+    FStor[SAssemblePos,array] = SChunkArray[SAssemblePos,string]:explode("@@")
+    
+    
+
+    
+    if (SAssemblePos == SChunkArray:count()) {
+        SChunking=0
+        SIAssemblerPos = 1
+        SDoInsert = 1
+         print("[ChunkAssembler]: Done splitting.")
+         print("[ChunkAssembler]: Moving data into song table.")
+        break
+    }
+    
+}   
+
+    
+    
+}
+
+
+if (SDoInsert==1) {
+     #SDoInsert SIAssemblerPos SIEIndex
+    while(perf()) {
+        SIEIndex++
+        SData[SData:count() + 1,string] = FStor[SIAssemblerPos,array]:string(SIEIndex)
+
+        if (SIEIndex==FStor[SIAssemblerPos,array]:count()) { 
+            SIAssemblerPos++    
+            SIEIndex = -1
+
+        }
+            setName("==Moving chunks into memory== \n CHUNK NO: "+ SIAssemblerPos + " \n Pro: " + round((SIEIndex / FStor[SIAssemblerPos,array]:count())*100) + " %")
+        
+        if (SIAssemblerPos>FStor:count()) {
+        SDoInsert = 0
+        Converting     = 1
+        TempoVal = SData[1,string]:toNumber()
+         print("[ChunkAssembler]: Done.")
+		  print("[ChunkAssembler]: Starting converter process.")
+        break
+            
+        }
+    }
+
+    
+    
+}
+
+
+if (Converting==1) {
+
+    while (perf()) {
+        ParseIndex++
+        
+        Row = SData[ParseIndex,string]:explode(" ")
+   
+        if (Row[1,string]:toNumber(10)!=0) { # Do we have a valid time?
+            if (Row[2,string]=="On" | Row[2,string]== "Off") { # We are not able to process any other event.
+                ## From here on we know we have the proper data and structure to parse the notes,
+                ## We can safely add it to the song table now.
+           
+                TIME = Row[1,string]:toNumber(10)
+                EVENT = (Row[2,string]=="On") # 1 or 0, off will be 0.
+                CHANNEL = Row[3,string]:sub(4,Row[3,string]:length()):toNumber(10) ## snip ch= off
+                PITCH = Row[4,string]:sub(3,Row[4,string]:length()):toNumber(10) ## snip n=  off
+                VOLUME = Row[5,string]:sub(3,Row[5,string]:length()):toNumber(10)## snip v= off
+                if (Song:exists(CHANNEL)==0) {
+                    Song[CHANNEL,table] = table()    
+                }
+                Song[CHANNEL,table][TIME,array] = array(EVENT,PITCH,VOLUME)
+            }
+                        
+        }
+        setName("Converting ... "  + round((ParseIndex/ SData:count())*100) + "%")
+       # print(ParseIndex + " / " +  SData:count())
+        if (ParseIndex == SData:count()) {
+            Converting = 0
+            PlayBack = 1
+            StartTime = realtime()
+            print("Done converting.")
+			print("Start playback.")
+            break
+        }      
+    }
+    
+    
+}
+if (PlayBack==1) {
+     while (perf()) {
+        SoftwareTime = floor((TempoVal + TempoAdd)*(realtime() - StartTime))
+      
+        if (HardwareTime == SoftwareTime) {break}
+            HardwareTime++
+
+                for (I=1,12) {
+                    if (Song[I,table]:exists(HardwareTime)) {
+                            HWRow = Song[I,table][HardwareTime,array]
+                            AMC[I,array] = HWRow
+                            Event = HWRow:number(1)
+                            if (Event==1) {
+                                Pitch =  ((440 / 32) * (2^((HWRow:number(2) - 9) / 12)))  / Fdiv
+                                Freq = (Pitch * 5) / 22
+                                if (Freq > 255) {
+                                    Freq = (Pitch / 2) * 5 / 22
+                                }
+                                Vol = HWRow:number(3)
+                                Holo[I,entity]:setColor(vec(255 * ( Freq / 256),255 * (Vol / 100),0))
+                                if (Vol < 5) { Freq = 0 } 
+                                    if (Vol > 5) {soundVolume(I,(Vol/100) * 0.3 )}
+                                    soundPitch(I,Freq)
+                                
+                                
+                            }
+                            if (Event==0) {
+                                soundPitch(I,0)
+                            }
+                        }
+                }        
+    }
+    
+    
+    
+    
+}
+
+(This is a modified MIDI class.)

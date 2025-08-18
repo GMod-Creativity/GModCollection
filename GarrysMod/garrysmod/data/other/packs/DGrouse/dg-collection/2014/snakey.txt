@@ -1,0 +1,254 @@
+@name Snakey
+@inputs DS:wirelink Up Dn Lf Rt Active
+@outputs Terminate
+@persist CS:array Res SL Dir Play Speed LastActive Extend Color FFR:array
+@persist X Y VH:entity LS:string Sn:array L Food FD:array PC:array Ind HS
+
+runOnChat(1)
+
+if(first()){
+    
+    #=======================#
+    #       VARIABLES       #
+#-------------------------------#
+    
+    # Color Scheme
+    CS = array(
+        vec(),            #1 Black
+        vec(255,255,255), #2 White
+        vec(255,100,100), #3 Red
+        vec(100,255,100), #4 Green
+        vec(100,100,255), #5 Blue
+        vec(255,255,100), #6 Yellow
+        vec(100,255,255), #7 Light Blue
+        vec(255,100,255)  #8 Pink
+    )
+    
+    Res = 16 # Resolution
+    SL = 3 # Starting Length
+    Food = 10 # Max food on plane
+    Extend = 0
+    
+    #=======================#
+    #      FUNCTIONS        #
+#-------------------------------#
+
+    # Get Colour Scheme
+    function vector cs(I){
+       return CS[I,vector]
+    }
+    
+    # Init Digital Screen
+    function wirelink:initScreen(Res){
+        This[1048574]=0
+        This[1048569]=2
+        This[1048575]=1
+        This[1048572]=Res
+        This[1048573]=Res
+    } 
+    
+    # Draw Pixel  
+    function wirelink:drawPixel(X,Y,Color:vector){
+        This[X+Y*Res]=rgb2digi(Color,2)
+    }
+       
+    # Chat Command
+    function number cm( Str:string ){
+        if(LS:left(Str:length())==Str ){
+            return 1
+        }else{ return 0 }
+    }
+    
+    # Insert snake at pos
+    function sn(Nm:number,Ps:vector2){
+        Sn[Nm,vector2] = Ps
+        DS:drawPixel(Ps:x(),Ps:y(),cs(2))
+    }
+    
+    # Insert snake
+    function si(Ps:vector2){
+        Sn:insertVector2(1,Ps)
+        DS:drawPixel(Ps:x(),Ps:y(),cs(Color))
+    }
+    
+    # Remove snake
+    function sr(Nm){
+        Px = Sn[Nm,vector2]
+        DS:drawPixel(Px:x(),Px:y(),cs(1))
+        Sn:removeVector2(Nm)
+    }
+    
+    # Find Food Pos
+    function vector2 ffp(){
+        R2v = round( randvec2(0,Res) )
+        R2 = 0
+        for( I=1,FD:count() ){
+            if( FD[I,vector2]==R2v ){ R2 = 1 }
+        }
+        for( I=1,Sn:count() ){
+            if( Sn[I,vector2]==R2v ){ R2 = 1 }
+        }
+        if( R2 ){ return vec2(-1,-1) }
+        else{ return R2v }
+    }
+    
+    # Create random food
+    function fn(){
+        Rv = ffp()
+        if( Rv == vec2(-1,-1) ){ Ind++ timer(toString(Ind),10) FFR:insertNumber(1,Ind) }else{
+            FD:insertVector2(1,Rv)
+            Col = randint(3,8)
+            DS:drawPixel(Rv:x(),Rv:y(),cs(Col))
+            PC:insertNumber(1,Col)
+        }
+    }
+    
+    # Remove food
+    function fr(Nm){
+        Px = FD[Nm,vector2]
+        Color = PC[Nm,number]
+        DS:drawPixel(Px:x(),Px:y(),cs(Color))
+        FD:removeVector2(Nm)
+        
+    }
+    
+    # Check food pos
+    function cfp(Ps:vector2){
+        for( I=1,FD:count() ){
+            if( FD[I,vector2] == Ps ){
+                R2 = 1 
+                fr(I) 
+                Extend = 1 
+                fn() 
+                Speed = clamp(Speed+1,0,20) 
+                for( K=1, Sn:count() ){
+                    Px = Sn[K,vector2]
+                    DS:drawPixel(Px:x(),Px:y(),cs(Color))
+                }
+            }
+        }
+    }
+    
+    function vector2 dir(Nm){
+        if( Nm == 0 ){
+            return vec2(0,-1)
+        }
+        if( Nm == 1 ){
+            return vec2(0,1)
+        }
+        if( Nm == 2 ){
+            return vec2(-1,0)
+        }
+        if( Nm == 3 ){
+            return vec2(1,0)
+        }
+    }
+    
+    function play(){
+        DS:initScreen(Res)
+        Sn:clear()
+        FD:clear()
+        Play = 1
+        Speed = 1
+        Color = 2
+        L = SL # Length
+        Dir = 0 # Snake Direction 0:Up 1:Dn 2:Lf 3:Rt
+        for( I=1,Food ){ fn() }
+        timer( "Play", 500 )
+        for( I=1,SL ){
+            sn(I,vec2(round(Res/2),round(Res/2)+I-round(SL/2)))
+        }
+    }
+    
+    # Check touch
+    function number ct(){
+        R1 = 0
+        for( I=1,Sn:count() ){
+            if( I != 1 ){
+                if( Sn[I,vector2] == Sn[1,vector2] ){ R1 = 1 }
+            }
+        }
+        Px = Sn[1,vector2]
+        if( Px:x() < 0 || Px:x() >= Res || Px:y() < 0 || Px:y() >= Res ){ R1 = 1 }
+        
+        return R1
+    }
+    
+    function move(){
+        if( Extend ){ Extend = 0 }else{ sr(Sn:count()) }
+        si(Sn[1,vector2]+dir(Dir))
+        cfp(Sn[1,vector2])
+        if( ct() ){ if( HS ){ Terminate = 1 timer("term",10) } play() }
+    }
+    
+    #=======================#
+    #        FIRST          #
+#-------------------------------#
+
+    DS:initScreen(Res)
+    foreach(K,V:array=CS){
+        DS:drawPixel(K-1,1,cs(K))
+    }
+    
+}
+
+    #=======================#
+    #     CHAT COMMANDS     #
+#-------------------------------#
+if( chatClk(owner()) ){
+    LS=owner():lastSaid()
+    if( cm("!high stakes") ){
+        HS = !HS
+        if( HS ){
+            print( "HIGH STAKES ENABLED" )
+        }
+        else{ print( "HIGH STAKES DISABLED" ) }
+    }
+}
+
+    #=======================#
+    #        Inputs         #
+#-------------------------------#
+if( inputClk() ){
+    if( Up ){
+        Dir = 0
+    }
+    if( Dn ){
+        Dir = 1
+    }
+    if( Lf ){
+        Dir = 2
+    }
+    if( Rt ){
+        Dir = 3
+    }
+    if( Active ){
+        if( LastActive != Active ){
+            play()
+        }
+        LastActive = Active
+    }
+} 
+    #=======================#
+    #         PLAY!         #
+#-------------------------------#
+
+if( clk("Play") ){
+    
+    move()
+    
+    if( Play ){
+        timer("Play",300-Speed*10)
+    }
+}
+
+foreach( K,V:number=FFR ){
+    if( clk(toString(V)) ){
+        fn()
+        FFR:remove(V)
+    }
+}
+
+if( clk("term") ){
+    Terminate = 0
+}

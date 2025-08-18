@@ -1,0 +1,348 @@
+@name G-Ray: Core
+
+if( 0 ){
+    #include "G-Ray/Variables"
+    #include "G-Ray/Hooks"
+}
+
+function wirelink:initScreen(){
+    This[1048574]=0 # Reset Screen
+    This[1048569]=3 # Set color mode to 3
+    This[1048575]=1 # Apply
+    This[1048572]=Res # Set Height
+    This[1048573]=Res # Set Width
+}
+
+function vector clampVec(V:vector,I,A){
+    local X = clamp(V:x(),0,255)
+    local Y = clamp(V:y(),0,255)
+    local Z = clamp(V:z(),0,255)
+    return vec(X,Y,Z)
+}
+
+function wirelink:drawPixel(X,Y,Color:vector){
+    local C = clampVec(Color,0,255)
+    This[X+Y*Res]=rgb2digi(C,3)
+}
+
+function number between(X,M,L){
+    return ( X >= M && X <= L )
+}
+
+function runMaterial(){
+    RM_Func( RM_Ranger )
+}
+
+function ranger:runMaterial(){
+    RM_Ranger = This
+    
+    if( IsLight ){
+        
+        IsLight = 0
+        RM_Func = "mat_Light"
+        
+    }elseif( This:entity():isValid() && This:entity():type() == "prop_physics" ){
+        local F = Materials[This:entity():getMaterial(),string]
+        if( F ){
+            RM_Func = F
+        }else{
+            RM_Func = "mat_Nil"
+        }
+    }else{
+        RM_Func = "mat_Sky"
+    }
+    
+    if( ThreadCount > Threads ){
+        ThreadCount = 0
+        hookAdd("RunMaterial","exe","runMaterial",StepTime)
+    }else{
+        ThreadCount++
+        runMaterial()
+    }
+}
+
+function vector getColor( ID ){
+    return Rays[ID,table]["Color",vector]
+}
+
+function string getRayType( ID ){
+    return Rays[ID,table]["Type",string]
+}
+
+function number getParent( ID ){
+    return Rays[ID,table]["Parent",number]
+}
+
+function colorMix( ID,Col:vector ){
+    Rays[ID,table]["Color",vector] = ( getColor( ID )+Col )/2
+}
+
+function colorMix( ID,Col:vector,Samps ){
+    Rays[ID,table]["Color",vector] = getColor( ID )+( Col/Samps^2 )
+}
+
+function colorAdd( ID,Col:vector ){
+    Rays[ID,table]["Color",vector] = Col+getColor( ID )
+}
+
+function colorTint( ID,Tint:vector ){
+    Rays[ID,table]["Color",vector] = getColor( ID )*(Tint/255)
+}
+
+function vector colorTint( Color:vector,Tint:vector ){
+    return Color*(Tint/255)
+}
+
+function vector mixRayColor( T:array ){
+    local F = vec()
+    foreach(K,V:number = T){
+        F = F+getColor(V)
+    }
+    return F/T:count()
+}
+
+function string toTime(S){
+    local H = floor( S/3600 )
+    local M = floor( (S-H*3600)/60 )
+    local S = floor( S-H*3600-M*60 )
+    
+    local R = ""
+    
+    if( H ){
+        R += H+" hours, "
+    }
+    if( M ){
+        R += M+" minutes, "
+    }
+    if( S ){
+        R += S+" seconds"
+    }
+    
+    return R
+}
+
+function runPercent(){
+    Percent += 100/Res^2
+    if( Percent < 100 ){
+        if( Percent > PercentJump ){
+            local TE = realtime()-StartTime
+            local TL = ( TE*100/Percent ) - TE
+            PercentTime = realtime()
+            
+            print( PercentJump+"% complete, "+toTime(TL)+" remaining." )
+            PercentJump += PercentNotify
+        }
+    }
+}
+
+function drawPixel(){
+    local T = mixRayColor( CurrentPixel )
+    T += ( ( CAtmos/AA )*( AtmosColor/AtmosRange ) )*AtmosDensity
+    DS:drawPixel(CX,CY,T)
+}
+
+function runExit(){
+    if( ExitParent ){
+        ExitParent = 0
+        ( "exit_"+getRayType( NextExit ) )( getParent(NextExit) )
+    }else{
+        ( "exit_"+getRayType( NextExit ) )( NextExit )
+    }
+}
+
+function runExit( ID,Same ){
+    ExitParent = Same
+    NextExit = ID
+    if( ThreadCount > Threads ){
+        ThreadCount = 0
+        timer("RunExit",StepTime)
+    }else{
+        ThreadCount++
+        runExit()
+    }
+}
+
+function runExit( ID ){
+    runExit( ID,1 )
+}
+
+function ranger sampleLight( Pos:vector,Light,Offset:vector ){
+    rangerFilter(Filter)
+    return rangerOffset(Pos,entity(Light):pos()+Offset)
+}
+
+function ranger rangeLight( Pos:vector,Light,Type:string,Parent ){
+    local T = table()
+    T["Type",string] = Type
+    T["Color",vector] = vec()
+    T["Parent",number] = Parent
+
+    RayID++
+    Rays[RayID,table] = T
+
+    rangerFilter(Filter)
+    return rangerOffset(Pos,entity(Light):pos())
+}
+
+function ranger range( Pos:vector,Dir:vector,Type:string,Parent ){
+    local T = table()
+    T["Type",string] = Type
+    T["Color",vector] = vec()
+    T["Parent",number] = Parent
+
+    RayID++
+    Rays[RayID,table] = T
+    
+    LastDirection = Dir
+    rangerFilter(Filter)
+    local R = rangerOffset(MaxRange,Pos,Dir)
+    return R
+}
+
+function ranger range( Pos:vector,Dir:vector,Type:string ){
+    return range( Pos,Dir,Type,RayID )
+}
+
+function ranger rangeEnt( Offset:angle ){
+    return range( Epos,(Eang+Offset):up(),"Camera" )
+}
+
+function ranger rangeGuide( Pos:vector,Dir:vector ){
+    LastDirection = Dir
+    rangerFilter(Filter)
+    return rangerOffset(MaxRange,Pos,Dir)
+}
+
+function ranger rangeGuide( Offset:angle ){
+    local Dir = (Eang+Offset):up()
+    local Pos = Epos
+    return rangeGuide( Pos,Dir )
+}
+
+function renderSample( R:ranger ){
+    if( !R:hitWorld() && !R:hitSky() ){
+        CAtmos += R:distance()
+    }
+    R:runMaterial()
+}
+
+function trunk(){
+    Rays:clear()
+    CurrentPixel = array( RayID+1 )
+    CurrentAA = 0
+    CurrentBounce = 1
+    CAtmos = 0
+    
+    local P = FOV/Res*( CY-Res/2 )
+    local Y = FOV/Res*( Res/2-CX )
+    renderSample( rangeEnt( ang(P,0,Y) ) )
+}
+
+function resetPixel(){
+    if( PixelOrder == "center" ){
+        CX = Res/2
+        CY = Res/2
+        O_C_S = 1 # Step Size
+        O_C_N = 1 # Steps Left Before Turn
+        O_C_D = 0 # Step Direction R-D-L-U
+    }
+}
+
+function nextPixel(){
+    if( PixelOrder == "center" ){
+        if( O_C_N <= 0 ){
+        
+            if( O_C_D == 1 || O_C_D == 3 ){
+                O_C_S++
+            }
+            
+            if( O_C_D >= 3 ){
+                O_C_D = 0
+            }else{
+                O_C_D++
+            }
+            
+            O_C_N = O_C_S
+        }
+        
+        if( O_C_D == 0 ){
+            CX++
+        }elseif( O_C_D == 1 ){
+            CY++
+        }elseif( O_C_D == 2 ){
+            CX--
+        }elseif( O_C_D == 3 ){
+            CY--
+        }
+        O_C_N--
+    }
+    if( between(CX,0,Res) && between(CY,0,Res) ){
+        runPercent()
+        trunk()
+    }else{
+        local T = realtime()-StartTime
+        print( "Completed "+Res^2+" pixels in "+toTime(T)+"." )
+        hookRemove("RunSample")
+        hookRemove("RunMaterial")
+        "initGuides"()
+    }
+}
+
+function runSample(){
+    CurrentAA++
+    if( CurrentAA <= AA ){
+        local A = (360/4)*CurrentAA
+        
+        local P = FOV/Res*( CY-Res/2 )
+        local Y = FOV/Res*( Res/2-CX )
+        
+        local R = rangeEnt( ( ang(sin(A),0,cos(A))*AARadius+ang(P,0,Y) ) )
+        CurrentPixel:pushNumber( RayID )
+        renderSample(R)   
+        drawPixel()
+    }else{
+        drawPixel()
+        if( ThreadCount > Threads ){
+            ThreadCount = 0
+            timer("NextPixel",StepTime)
+        }else{
+            ThreadCount++
+            nextPixel()
+        }
+    }
+}
+
+function exit_Camera( ID ){
+
+    CurrentBounce = 0
+    if( CurrentAA < 1 ){
+        runSample()
+    }else{
+        drawPixel()
+        if( ThreadCount > Threads ){
+            ThreadCount = 0
+            timer("RunSample",StepTime)
+        }else{
+            ThreadCount++
+            runSample()
+        }
+        
+    }
+}
+
+function startRender(){
+
+    StartTime = realtime()
+    PercentTime = StartTime
+    Percent = 0
+    PercentJump = PercentNotify
+    
+    refreshInits()
+    
+    hookAdd("RunSample","exe","runSample")
+    hookAdd("NextPixel","exe","nextPixel")
+    hookAdd("RunExit","exe","runExit")
+    
+    resetPixel()
+    trunk()
+}

@@ -1,6 +1,10 @@
 - Author: Ryno630
-- Date: 05-20-2014
+- Steam Profile: https://steamcommunity.com/profiles/76561198044476687/
+
 - Title: [E2] Ryno630's Chat to Holo Expression 2
+- Date (dd-mm-yyyy): 20-05-2014
+- Source: https://web.archive.org/web/20150310014554/http://www.wiremod.com:80/forum/finished-contraptions/33063-e2-ryno630s-chat-holo-expression-2-a.html
+- Source Accessed (dd-mm-yyyy): 06-08-2025
 
 ## [E2] Ryno630's Chat to Holo Expression 2
 

@@ -1,0 +1,17 @@
+## TODO
+- [ ] data/other/packs/GMODISM add Pastebin: https://pastebin.com/u/Gmodism
+- [ ] Add info.md for GMODISM stuff in data/expression2
+- [ ] Add stuff from Metacore91: https://www.youtube.com/@Metacore91
+- [ ] Add stuff from wiremod: https://web.archive.org/web/*/http://www.wiremod.com/forum/finished-contraptions/*
+- [x] Add stuff from leghumper: https://github.com/sailingtheseasjoe/E2
+- [x] Add stuff from leghumper: https://github.com/sailingtheseasjoe/advdupe2
+- [ ] Add sources to info.md in data/expression2
+- [ ] Update sources of info.md in data/expression2
+- [ ] Add stuff from [EmP] DEF: https://www.youtube.com/@FUNC_DEF
+- [ ] Add kolore's car minigame
+- [ ] Add stuff from Bonzoye: https://github.com/Bonyoze, https://www.youtube.com/@Bonyoze
+- [ ] Add stuff from Rusketh: https://www.youtube.com/watch?v=wabnoAJXlrc
+- [ ] Ask around for Bulls Wired Worms: https://web.archive.org/web/20150306042805/http://www.wiremod.com:80/forum/finished-contraptions/15710-wired-worms-released.html
+- [ ] Ask around for cipher ultra vehicles: https://web.archive.org/web/20160503034106/http://www.wiremod.com:80/forum/finished-contraptions/24367-m12-warthog-halo-series.html
+- [x] Add stuff from DGrouse: https://dg-collection.weebly.com/expression-2.html 
+- [x] Add simplicity stuff: https://gmods.org/?q=Simplicity and https://web.archive.org/web/20110220205658/http://www.wiremod.com:80/forum/finished-contraptions/15285-simplicity-computer.html

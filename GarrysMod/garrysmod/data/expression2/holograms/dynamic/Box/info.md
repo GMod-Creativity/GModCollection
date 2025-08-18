@@ -1,6 +1,12 @@
 - Author: bigdogmat
-- Date: 07-06-2014
+- Steam Profile: https://steamcommunity.com/profiles/76561198075926617
+- Github: https://github.com/bigdogmat
+- Youtube: https://www.youtube.com/@mandmproduction880
+<!-- -->
 - Title: [E2] Box
+- Date (dd-mm-yyyy): 06-07-2014
+- Source: https://web.archive.org/web/20150429083832/http://www.wiremod.com:80/forum/finished-contraptions/33280-e2-box.html
+- Source Accessed (dd-mm-yyyy): 10-08-2025
 
 ## [E2] Box
 

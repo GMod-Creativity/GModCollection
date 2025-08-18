@@ -1,0 +1,177 @@
+Data;
+
+//MEMBUS SETTINGS
+//OFFSET 1 : 0
+//  SIZE 1 : 1048576 (128kb isn't big enough for size 255..)
+//OFFSET 2 : 1048576 Digital screen
+//  SIZE 2 : 1048576 
+//
+// Input the size straight to IObus, min 2 / max 255
+//
+
+define DATA_OFFSET,65536          //Memory offset
+define SCREEN_OFFSET,1114112      //Screen offset for setup
+define DATA_TO_SCREEN,1048576     //the add from memory to screen
+define WHITE,999000               //duh
+
+alloc start_time
+alloc counter
+alloc old_time
+alloc size                 //Input size
+alloc screen_width         //Size * 2 + 1 for the border
+alloc screen_total         //total size of the screen, screenwidth^2
+
+Direction_options:
+ db 0,0,0,0;                 //Available directions, Should never be more then 3.
+
+
+Code;
+
+Main:
+  call Setup               //Setup clears the screen and sets sizes.
+  call Screen_setup        //Fills the entire screen white and memory with 1s, except the borders.
+  jmp Generate             //Last part so I'm just jumping over
+
+Setup:
+    in eax,0               // input the required size from dataport 0
+  max eax,2          
+  min eax,255              //make sure it's not too small or big
+  mov #size,eax          //Input of the size
+  mul eax,2
+  inc eax                  //calculated screen_width      
+
+  mov ecx,SCREEN_OFFSET
+  add ecx,1048572
+  mov #ecx,eax             //Set screen height
+  inc ecx
+  mov #ecx,eax             //Set screen width
+  inc ecx
+  mov #ecx,1               //Clear the screen
+
+  mov #screen_width,eax    //Store the total width of the grid.
+  fpwr eax,2  
+  mov #screen_total,eax    //Storing the total size off the grid.
+ret
+
+Screen_setup:              //create the border
+  mov eax,1                //Fill value, just so the memchecker sees it can't go there
+  mov ecx,0                // reset ecx to 0
+Fill_first_row:            // top row fill, simply a filled row with 1
+      call Write_values    //call write
+  inc ecx                  //go the next one
+    cmp ecx,#screen_width  //and check if it is done with the row.
+      jl Fill_first_row    // if not, jump back
+    
+Fill_sides:                // the two sides of the screen
+  dec ecx                  // dec to write the last one of the last row
+      call Write_values
+  inc ecx                  // inc to write the first one of the current row
+      call Write_values  
+  add ecx,#screen_width
+    cmp ecx,#screen_total  //check with the total side
+      jl Fill_sides        //if less jump back
+
+  mov ecx,#screen_total    
+  sub ecx,#screen_width    //go to the start of the first row
+Fill_last_Row:             //and fill it up again
+  inc ecx
+      call Write_values
+    cmp ecx,#screen_total   
+      jl Fill_last_Row
+ret
+
+
+
+Write_values:              //Write data to screen and memory
+  timer edx
+  out 6,edx
+  sub edx,#old_time
+  cmp edx,1
+    jl Write;
+    
+    out 5,edx
+    out 7,#counter
+    mov #counter,0
+    timer edx
+    mov #old_time,edx
+  
+Write:
+  mov edx,ecx              //Put current ecx into edx
+  add edx,DATA_OFFSET      //move edx to the memory
+  mov #edx,eax             //move the data of eax to the memory
+  add edx,DATA_TO_SCREEN   //move edx to the screen
+  mov #edx,WHITE           //Write a white dot to the screen
+  add #counter,1
+ret
+
+
+Cell_check:                //Checks if a cell is available to move to
+  mov edx,ebx              //ebx is put in edx as a save. ebx holds the check direction
+  add ebx,ecx              // current cell is add to the check offset
+  add ebx,DATA_OFFSET      // and moved to the memory
+    cmp #ebx,0             // if there is anything but 0, we can't go there
+      jne Cell_check_end  
+  div edx,2                //edx which holds the direction, is divided by 2, that's handy to write the values
+  mov #eax,edx             //an option is added to Direction_options
+  inc eax                  //eax is increased for a next possibility
+Cell_check_end:
+ret
+
+
+
+Generate:                 //Generation 
+  mov ecx,#screen_width
+  mul ecx,2
+  add ecx,2               //moved to the first Cell to start
+  mov eax,1               //set eax to special magic value 1, that tells the backtrack it has returned to the start and ends the program
+      call Write_values   //write the cells
+    
+Cell_check_loop:
+  mov eax,Direction_options   //eax is placed at the start of Direction_options
+  mov ebx,2                   //first we check to the left
+      call Cell_check
+  mov ebx,-2                  //then the right
+      call Cell_check
+  mov ebx,#screen_width
+  mul ebx,2                   //down..
+      call Cell_check
+  mov ebx,#screen_width
+  mul ebx,-2                  //and last up.
+      call Cell_check
+  mov ebx,eax                 //ebx is moved to eax, which acts as direction counter
+  sub ebx,Direction_options   //directions is substracted from ebx
+    cmp ebx,0                 //if no possible options
+      je Back_track           //go back to the previous written cell with the backtracker.
+
+  mov eax,ebx                 //eax is set to the amount of options
+  rand ebx                    //random ebx 0...1
+  min ebx,0.9999999           //make sure it's not 1, that would mess up.  
+  mul ebx,eax                 //the random is multiplied by the amount of options
+  fint ebx                    //the floored ebx is the option to take 
+  add ebx,Direction_options   //and moved to the chosen option
+  add ecx,#ebx                //the direction of the cell to move to is retrieved from options
+      call Write_values       
+  mov eax,#ebx                //we put that direction in eax
+  mul eax,2                   //and multiplied by 2 gives that perfect data for the backtracker
+  add ecx,#ebx                //ecx is moved to the next cell again
+      call Write_values
+      jmp Cell_check_loop     //and we go back checking these cells
+
+Back_track:                   // backtracker
+
+
+  mov ebx,DATA_OFFSET         //ebx is move to the start of the memory
+  add ebx,ecx                 //the current cell is added
+    cmp #ebx,1
+      je Program_end
+  sub ecx,#ebx                //else substract the found data from ecx, now we are back where we came from.
+      jmp Cell_check_loop     //and go check if there are options
+
+
+Program_end:
+   timer eax
+   out 4,eax
+   mov ebx,#size
+   fpwr ebx,2
+   div eax,ebx
+   out 3,eax

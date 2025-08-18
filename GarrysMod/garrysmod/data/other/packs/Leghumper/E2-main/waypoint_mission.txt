@@ -1,0 +1,61 @@
+@name Waypoint_Mission
+@inputs  [A,B,C,D,Pos]:vector
+@outputs TargetVector:vector Angle:angle
+@persist Waypoints:array NumWaypoints:number Status:string CurrentWaypoint:number Usekey:number ForceLimit:number
+@trigger 
+if(first())
+{
+    Status = "selecting_waypoints"
+    Waypoints = array()
+    NumWaypoints = 0
+    holoCreate(1,entity():pos(), vec(10,10,10),ang(0,0,0))
+    holoModel(1,"models/sprops/misc/alphanum/alphanum_"+NumWaypoints+".mdl")
+    ForceLimit = 1500
+}
+if(Status == "selecting_waypoints")
+{
+    holoPos(NumWaypoints+1, owner():aimPos()+vec(0,0,50))
+    
+    if(owner():keyUse() && Usekey==0)
+    {
+        Usekey = 1
+        Waypoints[NumWaypoints,vector] = owner():aimPos()
+        NumWaypoints++
+        holoCreate(NumWaypoints+1,entity():pos(), vec(10,10,10),ang(0,0,0))
+        holoModel(NumWaypoints+1,"models/sprops/misc/alphanum/alphanum_"+NumWaypoints+".mdl")
+        print("Number of waypoints: "+NumWaypoints)
+    }
+    elseif(owner():keyUse() != 1){Usekey=0}
+    if(owner():keyReload())
+    {
+        
+        Status = "looping_waypoints"
+        holoDelete(NumWaypoints+1)
+        CurrentWaypoint = 0
+        printTable(Waypoints)
+    }
+}
+elseif(Status == "looping_waypoints")
+{
+    TargetVector = clamp((Waypoints[CurrentWaypoint,vector]-entity():pos())*500,vec(-ForceLimit,-ForceLimit,0),vec(ForceLimit,ForceLimit,0))
+    entity():applyForce(TargetVector)
+    Angle = (Waypoints[CurrentWaypoint,vector]-entity():pos()):toAngle()+ang(0,90,0)
+    #entity():isConstrainedTo():setAng(Angle)
+    if(entity():pos():distance(Waypoints[CurrentWaypoint,vector])<200)
+    {
+        holoColor(CurrentWaypoint+1,vec(255,255,255))
+        
+
+        if(CurrentWaypoint<NumWaypoints-1)
+        {
+            CurrentWaypoint++
+        }
+        else
+        {
+            CurrentWaypoint = 0
+        }
+        holoColor(CurrentWaypoint+1,vec(255,0,0))
+        
+    }
+}
+interval(10)

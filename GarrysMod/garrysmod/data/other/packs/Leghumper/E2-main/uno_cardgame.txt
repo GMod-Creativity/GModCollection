@@ -1,0 +1,924 @@
+@name UNO_CardGame
+@inputs [P1,P2,P3,P4]:entity [Seat1,Seat2,Seat3,Seat4]:entity [EGP1,EGP2,EGP3,EGP4]:wirelink [P1A,P1D,P2A,P2D,P3A,P3D,P4A,P4D]:number
+@outputs Deck:array [Seat1Lock,Seat2Lock,Seat3Lock,Seat4Lock]:number TopCard:array
+@persist [CardHeight,HoloCardOffsetZ,HoloCardDistance,CardWidth,CardStartPosition,SelectedCard,MaximumPixelsForCards,CountDown]:number
+@persist [P1Cards,P2Cards,P3Cards,P4Cards,ToDoList,VoxSoundsToPlay]:array [GameStatus,NeedMorePlayersText]:string [P1NumCards,P2NumCards,P3NumCards,P4NumCards]:number
+@persist [P1SelectedCard,P2SelectedCard,P3SelectedCard,P4SelectedCard]:number [P1CardSize,P2CardSize,P3CardSize,P4CardSize]:number
+@persist [P1ScreenWidth,P1ScreenHeight,P2ScreenWidth,P2ScreenHeight,P3ScreenWidth,P3ScreenHeight,P4ScreenWidth,P4ScreenHeight]:number
+function void drawTopCard()
+{
+    Card = Deck:popString():explode("_")
+    TopCard = Card
+}
+function number numberOfPlayers()
+{
+    return (P1:name() != "")+(P2:name() != "")+(P3:name() != "")+(P4:name() != "")
+}
+function announceVox(S:string)
+{
+    soundPlay(6,1,"vox/"+S+".wav")
+}
+function playNextVox()
+{
+    S=VoxSoundsToPlay:shiftString()
+    if(S=="1"){S="one"}
+    elseif(S=="2"){S="two"}
+    elseif(S=="3"){S="three"}
+    elseif(S=="4"){S="four"}
+    elseif(S=="5"){S="five"}
+    elseif(S=="6"){S="six"}
+    elseif(S=="7"){S="seven"}
+    elseif(S=="8"){S="eight"}
+    elseif(S=="9"){S="nine"}
+    elseif(S=="0"){S="zero"}
+    announceVox(S)
+    if(VoxSoundsToPlay:count() >= 0)
+    {
+        timer("voxPlay",600)
+    }
+}
+if(clk("voxPlay"))
+{
+    playNextVox()
+}
+function lockUnusedSeats()
+{
+    if(P1:name() == "")
+    {
+        Seat1:setAlpha(0)
+        Seat1Lock = 1
+        Seat1:isConstrainedTo():setAlpha(0)
+    }
+    if(P2:name() == "")
+    {
+        Seat2:setAlpha(0)
+        Seat2Lock = 1
+        Seat2:isConstrainedTo():setAlpha(0)
+    }
+    if(P3:name() == "")
+    {
+        Seat3:setAlpha(0)
+        Seat3Lock = 1
+        Seat3:isConstrainedTo():setAlpha(0)
+    }
+    if(P4:name() == "")
+    {
+        Seat4:setAlpha(0)
+        Seat4Lock = 1
+        Seat4:isConstrainedTo():setAlpha(0)
+    }
+}
+function announceToEveryScreen(S:string)
+{
+    EGP1:egpText(300,S,vec2(P1ScreenWidth/2,P1ScreenHeight/2))
+    EGP1:egpSize(300,30)
+    EGP1:egpAlign(300,1,1)
+    EGP2:egpText(300,S,vec2(P2ScreenWidth/2,P2ScreenHeight/2))
+    EGP2:egpSize(300,30)
+    EGP2:egpAlign(300,1,1)
+    EGP3:egpText(300,S,vec2(P3ScreenWidth/2,P3ScreenHeight/2))
+    EGP3:egpSize(300,30)
+    EGP3:egpAlign(300,1,1)
+    EGP4:egpText(300,S,vec2(P4ScreenWidth/2,P4ScreenHeight/2))
+    EGP4:egpSize(300,30)
+    EGP4:egpAlign(300,1,1)
+}
+function redrawCards(P:number)
+{
+    if(P==1)
+    {
+        for(I=1,P1Cards:count())
+        {
+        PosOffset = vec2((I-1)*CardWidth*P1CardSize+CardStartPosition,0)
+        EGP1:egpRoundedBox((I-1)*5+1,vec2(CardStartPosition,P1ScreenHeight-CardHeight/2*P1CardSize)+PosOffset,vec2(CardWidth*P1CardSize-2,CardHeight*P1CardSize))
+        EGP1:egpRoundedBox((I-1)*5+2,vec2(0,0),vec2(CardWidth*P1CardSize-P1CardSize*5,CardHeight*P1CardSize-P1CardSize*5))
+        EGP1:egpSize((I-1)*5+3,P1CardSize*35)
+        EGP1:egpColor((I-1)*5+3,vec(0,0,0))
+        EGP1:egpSize((I-1)*5+4,P1CardSize*35)
+        EGP1:egpCircleOutline((I-1)*5+5,vec2(0,0),vec2(CardWidth*P1CardSize/2.25,CardHeight*P1CardSize/2.25))
+        EGP1:egpAngle((I-1)*5+5,20)
+        CardType = P1Cards[I,string]:explode("_")[2,string]
+        if(CardType == "Skip" || CardType == "Choose")
+            {
+                EGP1:egpSize((I-1)*5+3,P1CardSize*16)
+                EGP1:egpSize((I-1)*5+4,P1CardSize*16)
+            }
+        }
+    }
+    elseif(P==2)
+    {
+        for(I=1,P2Cards:count())
+        {
+        PosOffset = vec2((I-1)*CardWidth*P1CardSize+CardStartPosition,0)
+        EGP2:egpRoundedBox((I-1)*5+1,vec2(CardStartPosition,P2ScreenHeight-CardHeight/2*P1CardSize)+PosOffset,vec2(CardWidth*P1CardSize-2,CardHeight*P1CardSize))
+        EGP2:egpRoundedBox((I-1)*5+2,vec2(0,0),vec2(CardWidth*P1CardSize-P1CardSize*5,CardHeight*P1CardSize-P1CardSize*5))
+        EGP2:egpSize((I-1)*5+3,P1CardSize*35)
+        EGP2:egpColor((I-1)*5+3,vec(0,0,0))
+        EGP2:egpSize((I-1)*5+4,P1CardSize*35)
+        EGP2:egpCircleOutline((I-1)*5+5,vec2(0,0),vec2(CardWidth*P1CardSize/2.25,CardHeight*P1CardSize/2.25))
+        EGP2:egpAngle((I-1)*5+5,20)
+        CardType = P2Cards[I,string]:explode("_")[2,string]
+        if(CardType == "Skip" || CardType == "Choose")
+            {
+                EGP2:egpSize((I-1)*5+3,P1CardSize*16)
+                EGP2:egpSize((I-1)*5+4,P1CardSize*16)
+            }
+        }
+    }
+    elseif(P==3)
+    {
+        for(I=1,P3Cards:count())
+        {
+        PosOffset = vec2((I-1)*CardWidth*P3CardSize+CardStartPosition,0)
+        EGP3:egpRoundedBox((I-1)*5+1,vec2(CardStartPosition,P3ScreenHeight-CardHeight/2*P3CardSize)+PosOffset,vec2(CardWidth*P3CardSize-2,CardHeight*P3CardSize))
+        EGP3:egpRoundedBox((I-1)*5+2,vec2(0,0),vec2(CardWidth*P3CardSize-P3CardSize*5,CardHeight*P3CardSize-P3CardSize*5))
+        EGP3:egpSize((I-1)*5+3,P3CardSize*35)
+        EGP3:egpColor((I-1)*5+3,vec(0,0,0))
+        EGP3:egpSize((I-1)*5+4,P3CardSize*35)
+        EGP3:egpCircleOutline((I-1)*5+5,vec2(0,0),vec2(CardWidth*P1CardSize/2.25,CardHeight*P3CardSize/2.25))
+        EGP3:egpAngle((I-1)*5+5,20)
+        CardType = P3Cards[I,string]:explode("_")[2,string]
+        if(CardType == "Skip" || CardType == "Choose")
+            {
+                EGP3:egpSize((I-1)*5+3,P3CardSize*16)
+                EGP3:egpSize((I-1)*5+4,P3CardSize*16)
+            }
+        }
+    }
+    elseif(P==4)
+    {
+        for(I=1,P4Cards:count())
+        {
+        PosOffset = vec2((I-1)*CardWidth*P4CardSize+CardStartPosition,0)
+        EGP4:egpRoundedBox((I-1)*5+1,vec2(CardStartPosition,P4ScreenHeight-CardHeight/2*P4CardSize)+PosOffset,vec2(CardWidth*P4CardSize-2,CardHeight*P4CardSize))
+        EGP4:egpRoundedBox((I-1)*5+2,vec2(0,0),vec2(CardWidth*P4CardSize-P4CardSize*5,CardHeight*P4CardSize-P4CardSize*5))
+        EGP4:egpSize((I-1)*5+3,P4CardSize*35)
+        EGP4:egpColor((I-1)*5+3,vec(0,0,0))
+        EGP4:egpSize((I-1)*5+4,P4CardSize*35)
+        EGP4:egpCircleOutline((I-1)*5+5,vec2(0,0),vec2(CardWidth*P4CardSize/2.25,CardHeight*P4CardSize/2.25))
+        EGP4:egpAngle((I-1)*5+5,20)
+        CardType = P4Cards[I,string]:explode("_")[2,string]
+        if(CardType == "Skip" || CardType == "Choose")
+            {
+                EGP4:egpSize((I-1)*5+3,P4CardSize*16)
+                EGP4:egpSize((I-1)*5+4,P4CardSize*16)
+            }
+        }
+    }
+}
+function brandNewDeck()
+{
+    Deck = array()
+    Deck:pushString("green_"+toString(0))
+    for(I=1,9)
+    {
+        Deck:pushString("green_"+toString(I))
+        Deck:pushString("green_"+toString(I))
+    }
+    Deck:pushString("green_+2")
+    Deck:pushString("green_+2")
+    Deck:pushString("green_v^")
+    Deck:pushString("green_v^")
+    Deck:pushString("green_Skip")
+    Deck:pushString("green_Skip")
+    Deck:pushString("red_"+toString(0))
+    for(I=1,9)
+    {
+        Deck:pushString("red_"+toString(I))
+        Deck:pushString("red_"+toString(I))
+    }
+    Deck:pushString("red_+2")
+    Deck:pushString("red_+2")
+    Deck:pushString("red_v^")
+    Deck:pushString("red_v^")
+    Deck:pushString("red_Skip")
+    Deck:pushString("red_Skip")
+    Deck:pushString("blue_"+toString(0))
+    for(I=1,9)
+    {
+        Deck:pushString("blue_"+toString(I))
+        Deck:pushString("blue_"+toString(I))
+    }
+    Deck:pushString("blue_+2")
+    Deck:pushString("blue_+2")
+    Deck:pushString("blue_v^")
+    Deck:pushString("blue_v^")
+    Deck:pushString("blue_Skip")
+    Deck:pushString("blue_Skip")
+    Deck:pushString("yellow_"+toString(0))
+    for(I=1,9)
+    {
+        Deck:pushString("yellow_"+toString(I))
+        Deck:pushString("yellow_"+toString(I))
+    }
+    Deck:pushString("yellow_+2")
+    Deck:pushString("yellow_+2")
+    Deck:pushString("yellow_v^")
+    Deck:pushString("yellow_v^")
+    Deck:pushString("yellow_Skip")
+    Deck:pushString("yellow_Skip")
+    Deck:pushString("any_+4")
+    Deck:pushString("any_+4")
+    Deck:pushString("any_+4")
+    Deck:pushString("any_+4")
+    Deck:pushString("any_Choose")
+    Deck:pushString("any_Choose")
+    Deck:pushString("any_Choose")
+    Deck:pushString("any_Choose")
+}
+function shuffleDeck()
+{
+    TempDeck = array()
+    for(I=1, 108){TempDeck:pushString(Deck:removeString(randint(Deck:count())))}
+    Deck = TempDeck
+}
+function pickupCard(Card:string, Color:string, Whomstdve:number)
+{
+    if(Color == "green"){   CardColor = vec(0,210,0)}
+    elseif(Color == "blue"){CardColor = vec(0,0,210)}
+    elseif(Color == "red") {CardColor = vec(210,0,0)}
+    elseif(Color == "yellow"){CardColor = vec(210,210,0)}
+    elseif(Color == "any"){   CardColor = vec(0,0,0)}
+    if(Whomstdve == 1)
+    {
+        PosOffset = vec2((P1NumCards)*CardWidth*P1CardSize+CardStartPosition,0)
+        EGP1:egpRoundedBox(P1NumCards*5+1,vec2(CardStartPosition,P1ScreenHeight-CardHeight/2*P1CardSize)+PosOffset,vec2(CardWidth*P1CardSize-2,CardHeight*P1CardSize))
+        EGP1:egpRoundedBox(P1NumCards*5+2,vec2(0,0),vec2(CardWidth*P1CardSize-P1CardSize*5,CardHeight*P1CardSize-P1CardSize*5))
+        EGP1:egpColor(P1NumCards*5+2,CardColor)
+        EGP1:egpText(P1NumCards*5+3,Card,vec2(0-3,0+2))
+        EGP1:egpAlign(P1NumCards*5+3,1,1)
+        EGP1:egpSize(P1NumCards*5+3,P1CardSize*35)
+        EGP1:egpColor(P1NumCards*5+3,vec(0,0,0))
+        EGP1:egpText(P1NumCards*5+4,Card,vec2(0,0))
+        EGP1:egpAlign(P1NumCards*5+4,1,1)
+        EGP1:egpSize(P1NumCards*5+4,P1CardSize*35)
+        EGP1:egpCircleOutline(P1NumCards*5+5,vec2(0,0),vec2(CardWidth*P1CardSize/2.25,CardHeight*P1CardSize/2.25))
+        EGP1:egpAngle(P1NumCards*5+5,20)
+        EGP1:egpParent(P1NumCards*5+2,P1NumCards*5+1)
+        EGP1:egpParent(P1NumCards*5+3,P1NumCards*5+1)
+        EGP1:egpParent(P1NumCards*5+4,P1NumCards*5+1)
+        EGP1:egpParent(P1NumCards*5+5,P1NumCards*5+1)
+        if(Card == "Skip" || Card == "Choose")
+        {
+            EGP1:egpSize(P1NumCards*5+3,P1CardSize*16)
+            EGP1:egpSize(P1NumCards*5+4,P1CardSize*16)
+        }
+        holoCreate((P1NumCards*3)+1,(entity():pos()+vec(HoloCardDistance,0,HoloCardOffsetZ))+P1NumCards*vec(0,4,0),vec(0.1,0.5,1),ang(0,0,0))
+        holoColor((P1NumCards*3)+1,vec(0,0,0))
+        holoCreate((P1NumCards*3)+2,(entity():pos()+vec(HoloCardDistance-0.75,0,HoloCardOffsetZ))+P1NumCards*vec(0,4,0),vec(0.3,0.9,0.01),ang(-30,90,90))
+        holoModel((P1NumCards*3)+2,"cylinder")
+        holoColor((P1NumCards*3)+2,vec(210,0,0))
+        holoCreate((P1NumCards*3)+3,(entity():pos()+vec(HoloCardDistance,0,HoloCardOffsetZ))+P1NumCards*vec(0,4,0),vec(0.09,0.55,1.1),ang(0,0,0))
+        holoColor((P1NumCards*3)+3,vec(255,255,255))
+        holoParent((P1NumCards*3)+2,(P1NumCards*3)+1)
+        holoParent((P1NumCards*3)+3,(P1NumCards*3)+1)
+        holoParent((P1NumCards*3)+1,300)
+        holoPos(300,entity():pos()+vec(HoloCardDistance,-3,HoloCardOffsetZ)+P1NumCards*vec(0,-3,0))
+        P1NumCards++
+        P1Cards[P1NumCards,string] = Color+"_"+Card
+        soundPlay(1,1,"physics/surfaces/sand_impact_bullet"+toString(randint(4))+".wav")
+    }
+    elseif(Whomstdve == 2)
+    {
+        PosOffset = vec2((P2NumCards)*CardWidth*P2CardSize+CardStartPosition,0)
+        EGP2:egpRoundedBox(P2NumCards*5+1,vec2(CardStartPosition,P2ScreenHeight-CardHeight/2*P2CardSize)+PosOffset,vec2(CardWidth*P2CardSize-2,CardHeight*P2CardSize))
+        EGP2:egpRoundedBox(P2NumCards*5+2,vec2(0,0),vec2(CardWidth*P2CardSize-P2CardSize*5,CardHeight*P2CardSize-P2CardSize*5))
+        EGP2:egpColor(P2NumCards*5+2,CardColor)
+        EGP2:egpText(P2NumCards*5+3,Card,vec2(0-3,0+2))
+        EGP2:egpAlign(P2NumCards*5+3,1,1)
+        EGP2:egpSize(P2NumCards*5+3,P2CardSize*35)
+        EGP2:egpColor(P2NumCards*5+3,vec(0,0,0))
+        EGP2:egpText(P2NumCards*5+4,Card,vec2(0,0))
+        EGP2:egpAlign(P2NumCards*5+4,1,1)
+        EGP2:egpSize(P2NumCards*5+4,P2CardSize*35)
+        EGP2:egpCircleOutline(P2NumCards*5+5,vec2(0,0),vec2(CardWidth*P2CardSize/2.25,CardHeight*P2CardSize/2.25))
+        EGP2:egpAngle(P2NumCards*5+5,20)
+        EGP2:egpParent(P2NumCards*5+2,P2NumCards*5+1)
+        EGP2:egpParent(P2NumCards*5+3,P2NumCards*5+1)
+        EGP2:egpParent(P2NumCards*5+4,P2NumCards*5+1)
+        EGP2:egpParent(P2NumCards*5+5,P2NumCards*5+1)
+        if(Card == "Skip" || Card == "Choose")
+        {
+            EGP2:egpSize(P2NumCards*5+3,P2CardSize*16)
+            EGP2:egpSize(P2NumCards*5+4,P2CardSize*16)
+        }
+        holoCreate((P2NumCards*3)+1+50,(entity():pos()+vec(0,-HoloCardDistance,HoloCardOffsetZ))+P2NumCards*vec(4,0,0),vec(0.1,0.5,1),ang(0,90,0))
+        holoColor((P2NumCards*3)+1+50,vec(0,0,0))
+        holoCreate((P2NumCards*3)+2+50,(entity():pos()+vec(0,-HoloCardDistance+0.75,HoloCardOffsetZ))+P2NumCards*vec(4,0,0),vec(0.3,0.9,0.01),ang(-30,0,90))
+        holoModel((P2NumCards*3)+2+50,"cylinder")
+        holoColor((P2NumCards*3)+2+50,vec(210,0,0))
+        holoCreate((P2NumCards*3)+3+50,(entity():pos()+vec(0,-HoloCardDistance,HoloCardOffsetZ))+P2NumCards*vec(4,0,0),vec(0.09,0.55,1.1),ang(0,90,0))
+        holoColor((P2NumCards*3)+3+50,vec(255,255,255))
+        holoParent((P2NumCards*3)+2+50,(P2NumCards*3)+1+50)
+        holoParent((P2NumCards*3)+3+50,(P2NumCards*3)+1+50)
+        holoParent((P2NumCards*3)+1+50,299)
+        holoPos(299,entity():pos()+vec(-3,-HoloCardDistance,HoloCardOffsetZ)+P2NumCards*vec(-3,0,0))
+        
+        P2NumCards++
+        P2Cards[P2NumCards,string] = Color+"_"+Card
+        soundPlay(1,1,"physics/surfaces/sand_impact_bullet"+toString(randint(4))+".wav")
+    }
+    elseif(Whomstdve == 3)
+    {
+        PosOffset = vec2((P3NumCards)*CardWidth*P3CardSize+CardStartPosition,0)
+        EGP3:egpRoundedBox(P3NumCards*5+1,vec2(CardStartPosition,P3ScreenHeight-CardHeight/2*P3CardSize)+PosOffset,vec2(CardWidth*P3CardSize-2,CardHeight*P3CardSize))
+        EGP3:egpRoundedBox(P3NumCards*5+2,vec2(0,0),vec2(CardWidth*P3CardSize-P3CardSize*5,CardHeight*P3CardSize-P3CardSize*5))
+        EGP3:egpColor(P3NumCards*5+2,CardColor)
+        EGP3:egpText(P3NumCards*5+3,Card,vec2(0-3,0+2))
+        EGP3:egpAlign(P3NumCards*5+3,1,1)
+        EGP3:egpSize(P3NumCards*5+3,P3CardSize*35)
+        EGP3:egpColor(P3NumCards*5+3,vec(0,0,0))
+        EGP3:egpText(P3NumCards*5+4,Card,vec2(0,0))
+        EGP3:egpAlign(P3NumCards*5+4,1,1)
+        EGP3:egpSize(P3NumCards*5+4,P3CardSize*35)
+        EGP3:egpCircleOutline(P3NumCards*5+5,vec2(0,0),vec2(CardWidth*P3CardSize/2.25,CardHeight*P3CardSize/2.25))
+        EGP3:egpAngle(P3NumCards*5+5,20)
+        EGP3:egpParent(P3NumCards*5+2,P3NumCards*5+1)
+        EGP3:egpParent(P3NumCards*5+3,P3NumCards*5+1)
+        EGP3:egpParent(P3NumCards*5+4,P3NumCards*5+1)
+        EGP3:egpParent(P3NumCards*5+5,P3NumCards*5+1)
+        if(Card == "Skip" || Card == "Choose")
+        {
+            EGP3:egpSize(P3NumCards*5+3,P3CardSize*16)
+            EGP3:egpSize(P3NumCards*5+4,P3CardSize*16)
+        }
+        #holoCreate((P1NumCards*3)+1,(entity():pos()+vec(HoloCardDistance,0,HoloCardOffsetZ))+P1NumCards*vec(0,4,0),vec(0.1,0.5,1),ang(0,0,0))
+        holoCreate((P3NumCards*3)+1+100,(entity():pos()+vec(-HoloCardDistance,0,HoloCardOffsetZ))+P3NumCards*vec(0,-4,0),vec(0.1,0.5,1),ang(0,0,0))
+        holoColor((P3NumCards*3)+1+100,vec(0,0,0))
+        holoCreate((P3NumCards*3)+2+100,(entity():pos()+vec(-HoloCardDistance+0.75,0,HoloCardOffsetZ))+P3NumCards*vec(0,-4,0),vec(0.3,0.9,0.01),ang(30,90,90))
+        holoModel((P3NumCards*3)+2+100,"cylinder")
+        holoColor((P3NumCards*3)+2+100,vec(210,0,0))
+        holoCreate((P3NumCards*3)+3+100,(entity():pos()+vec(-HoloCardDistance,0,HoloCardOffsetZ))+P3NumCards*vec(0,-4,0),vec(0.09,0.55,1.1),ang(0,0,0))
+        holoColor((P3NumCards*3)+3+100,vec(255,255,255))
+        
+        holoParent((P3NumCards*3)+2+100,(P3NumCards*3)+1+100)
+        holoParent((P3NumCards*3)+3+100,(P3NumCards*3)+1+100)
+        holoParent((P3NumCards*3)+1+100,298)
+        holoPos(298,entity():pos()+vec(-HoloCardDistance,3,HoloCardOffsetZ)+P3NumCards*vec(0,3,0))
+        
+        P3NumCards++
+        P3Cards[P3NumCards,string] = Color+"_"+Card
+        soundPlay(1,1,"physics/surfaces/sand_impact_bullet"+toString(randint(4))+".wav")
+    }
+    elseif(Whomstdve == 4)
+    {
+        PosOffset = vec2((P4NumCards)*CardWidth*P4CardSize+CardStartPosition,0)
+        EGP4:egpRoundedBox(P4NumCards*5+1,vec2(CardStartPosition,P4ScreenHeight-CardHeight/2*P4CardSize)+PosOffset,vec2(CardWidth*P4CardSize-2,CardHeight*P4CardSize))
+        EGP4:egpRoundedBox(P4NumCards*5+2,vec2(0,0),vec2(CardWidth*P4CardSize-P4CardSize*5,CardHeight*P4CardSize-P4CardSize*5))
+        EGP4:egpColor(P4NumCards*5+2,CardColor)
+        EGP4:egpText(P4NumCards*5+3,Card,vec2(0-3,0+2))
+        EGP4:egpAlign(P4NumCards*5+3,1,1)
+        EGP4:egpSize(P4NumCards*5+3,P3CardSize*35)
+        EGP4:egpColor(P4NumCards*5+3,vec(0,0,0))
+        EGP4:egpText(P4NumCards*5+4,Card,vec2(0,0))
+        EGP4:egpAlign(P4NumCards*5+4,1,1)
+        EGP4:egpSize(P4NumCards*5+4,P4CardSize*35)
+        EGP4:egpCircleOutline(P4NumCards*5+5,vec2(0,0),vec2(CardWidth*P4CardSize/2.25,CardHeight*P4CardSize/2.25))
+        EGP4:egpAngle(P4NumCards*5+5,20)
+        EGP4:egpParent(P4NumCards*5+2,P4NumCards*5+1)
+        EGP4:egpParent(P4NumCards*5+3,P4NumCards*5+1)
+        EGP4:egpParent(P4NumCards*5+4,P4NumCards*5+1)
+        EGP4:egpParent(P4NumCards*5+5,P4NumCards*5+1)
+        if(Card == "Skip" || Card == "Choose")
+        {
+            EGP4:egpSize(P4NumCards*5+3,P4CardSize*16)
+            EGP4:egpSize(P4NumCards*5+4,P4CardSize*16)
+        }
+        #holoCreate((P2NumCards*3)+1+50,(entity():pos()+vec(0,-HoloCardDistance,HoloCardOffsetZ))+P2NumCards*vec(4,0,0),vec(0.1,0.5,1),ang(0,90,0))
+        holoCreate((P4NumCards*3)+1+150,(entity():pos()+vec(0,HoloCardDistance,HoloCardOffsetZ))+P4NumCards*vec(-4,0,0),vec(0.1,0.5,1),ang(0,90,0))
+        holoColor((P4NumCards*3)+1+150,vec(0,0,0))
+        holoCreate((P4NumCards*3)+2+150,(entity():pos()+vec(0,HoloCardDistance-0.75,HoloCardOffsetZ))+P4NumCards*vec(-4,0,0),vec(0.3,0.9,0.01),ang(30,0,90))
+        holoModel((P4NumCards*3)+2+150,"cylinder")
+        holoColor((P4NumCards*3)+2+150,vec(210,0,0))
+        holoCreate((P4NumCards*3)+3+150,(entity():pos()+vec(0,HoloCardDistance,HoloCardOffsetZ))+P4NumCards*vec(-4,0,0),vec(0.09,0.55,1.1),ang(0,90,0))
+        holoColor((P4NumCards*3)+3+150,vec(255,255,255))
+        holoParent((P4NumCards*3)+2+150,(P4NumCards*3)+1+150)
+        holoParent((P4NumCards*3)+3+150,(P4NumCards*3)+1+150)
+        holoParent((P4NumCards*3)+1+150,297)
+        holoPos(297,entity():pos()+vec(3,HoloCardDistance,HoloCardOffsetZ)+P4NumCards*vec(3,0,0))
+        
+        P4NumCards++
+        P4Cards[P4NumCards,string] = Color+"_"+Card
+        soundPlay(1,1,"physics/surfaces/sand_impact_bullet"+toString(randint(4))+".wav")
+    }
+}
+
+if(first())
+{
+    EGP1:egpClear()
+    EGP2:egpClear()
+    EGP3:egpClear()
+    EGP4:egpClear()
+    P1NumCards = 0
+    P2NumCards = 0
+    P3NumCards = 0
+    P4NumCards = 0
+    #P1ScreenWidth = 1920 #egpScrW(P1)
+    #P1ScreenHeight = 1080#egpScrH(P1)
+    CardStartPosition = 200
+    HoloCardOffsetZ = -5
+    HoloCardDistance = 50
+    P1SelectedCard = 1
+    P2SelectedCard = 1
+    P3SelectedCard = 1
+    P4SelectedCard = 1
+    GameStatus = "waiting"
+    NeedMorePlayersText = "Need 1 more player to join to start a new game."
+    brandNewDeck()
+    shuffleDeck()
+    CardHeight = 89 #Official UNO card game height in millimeters.
+    CardWidth = 56  #Official UNO card game width  in millimeters. The actual card graphic is 2 pixel narrower to allow 2 pixels of gap between the cards.
+    P1CardSize = 2    #Card size modifier.
+    P2CardSize = 2
+    P3CardSize = 2
+    P4CardSize = 2
+    CountDown = 10
+    EGP1:egpAlign(300,1,1)
+    EGP1:egpSize(300,40)
+    EGP2:egpAlign(300,1,1)
+    EGP2:egpSize(300,40)
+    EGP3:egpAlign(300,1,1)
+    EGP3:egpSize(300,40)
+    EGP4:egpAlign(300,1,1)
+    EGP4:egpSize(300,40)
+    holoCreate(300,(entity():pos()+vec(HoloCardDistance,0,HoloCardOffsetZ))+P1NumCards*vec(0,4,0),vec(0.1,0.5,1),ang(0,0,0))
+    holoAlpha(300,0)
+    holoCreate(299,(entity():pos()+vec(0,-HoloCardDistance,HoloCardOffsetZ))+P2NumCards*vec(0,4,0),vec(0.1,0.5,1),ang(0,90,0))
+    holoAlpha(299,0)
+    holoCreate(298,(entity():pos()+vec(-HoloCardDistance,0,HoloCardOffsetZ))+P3NumCards*vec(0,-4,0),vec(0.1,0.5,1),ang(0,0,0))
+    holoAlpha(298,0)
+    holoCreate(297,(entity():pos()+vec(0,HoloCardDistance,HoloCardOffsetZ))+P4NumCards*vec(0,-4,0),vec(0.1,0.5,1),ang(0,90,0))
+    holoAlpha(297,0)
+    Seat1:setAlpha(255)
+    Seat1Lock = 0
+    Seat2:setAlpha(255)
+    Seat2Lock = 0
+    Seat3:setAlpha(255)
+    Seat3Lock = 0
+    Seat4:setAlpha(255)
+    Seat4Lock = 0
+    Seat1:isConstrainedTo():setAlpha(255)
+    Seat2:isConstrainedTo():setAlpha(255)
+    Seat3:isConstrainedTo():setAlpha(255)
+    Seat4:isConstrainedTo():setAlpha(255)
+}
+function rageQuit(P:number)
+{
+    if(P == 1)
+    {
+        EGP1:egpClear()
+        for(I = 1, P1Cards:count()*3)
+        {
+            holoDelete(I)
+        }
+        for(I = 1, P1Cards:count()) #This will put the player's card back into bottom of the deck.
+        {
+            Deck:unshiftString(P1Cards:popString())
+        }
+        P1Cards = array()
+        P1NumCards = 0
+        P1SelectedCard = 1
+        holoPos(300,entity():pos()+vec(HoloCardDistance,0,HoloCardOffsetZ)+P1NumCards*vec(0,4,0))
+        EGP1:egpText(300,NeedMorePlayersText,vec2(P1ScreenWidth/2,P1ScreenHeight/2))
+        EGP1:egpSize(300,30)
+        EGP1:egpAlign(300,1,1)
+    }
+    elseif(P == 2)
+    {
+        EGP2:egpClear()
+        for(I = 1, P2Cards:count()*3)
+        {
+            holoDelete(I+50)
+        }
+        for(I = 1, P2Cards:count()) #This will put the player's card back into bottom of the deck.
+        {
+            Deck:unshiftString(P2Cards:popString())
+        }
+        P2Cards = array()
+        P2NumCards = 0
+        P2SelectedCard = 1
+        holoPos(299,entity():pos()+vec(0,-HoloCardDistance,HoloCardOffsetZ)+P2NumCards*vec(0,4,0))
+        EGP2:egpText(300,NeedMorePlayersText,vec2(P2ScreenWidth/2,P2ScreenHeight/2))
+        EGP2:egpSize(300,30)
+        EGP2:egpAlign(300,1,1)
+    }
+    elseif(P == 3)
+    {
+        EGP3:egpClear()
+        for(I = 1, P3Cards:count()*3)
+        {
+            holoDelete(I+100)
+        }
+        for(I = 1, P3Cards:count()) #This will put the player's card back into bottom of the deck.
+        {
+            Deck:unshiftString(P3Cards:popString())
+        }
+        P3Cards = array()
+        P3NumCards = 0
+        P3SelectedCard = 1
+        holoPos(298,entity():pos()+vec(-HoloCardDistance,0,HoloCardOffsetZ)+P3NumCards*vec(0,4,0))
+        EGP3:egpText(300,NeedMorePlayersText,vec2(P3ScreenWidth/2,P3ScreenHeight/2))
+        EGP3:egpSize(300,30)
+        EGP3:egpAlign(300,1,1)
+    }
+    elseif(P == 4)
+    {
+        EGP4:egpClear()
+        for(I = 1, P4Cards:count()*3)
+        {
+            holoDelete(I+150)
+        }
+        for(I = 1, P4Cards:count()) #This will put the player's card back into bottom of the deck.
+        {
+            Deck:unshiftString(P4Cards:popString())
+        }
+        P4Cards = array()
+        P4NumCards = 0
+        P4SelectedCard = 1
+        holoPos(297,entity():pos()+vec(0,HoloCardDistance,HoloCardOffsetZ)+P4NumCards*vec(0,4,0))
+        EGP4:egpText(300,NeedMorePlayersText,vec2(P4ScreenWidth/2,P4ScreenHeight/2))
+        EGP4:egpSize(300,30)
+        EGP4:egpAlign(300,1,1)
+    }
+    print("Deck: "+Deck:count())
+}
+function void celebrateWinner()
+{
+    soundPlay(5,5,"misc/happy_birthday.wav")
+    timer("resetEverything",5000)
+}
+function void declareLastPlayerAsWinner()
+{
+    print("Last player is the winner.")
+    if(P1:name() != ""){WinnerName =     P1:name() Winner = 1}
+    elseif(P2:name() != ""){WinnerName = P2:name() Winner = 2}
+    elseif(P3:name() != ""){WinnerName = P3:name() Winner = 3}
+    elseif(P4:name() != ""){WinnerName = P4:name() Winner = 4}
+    celebrateWinner()
+}
+if(~P1 && P1:name() != "" && GameStatus == "waiting" && P1Cards:count() < 6)
+{
+    P1ScreenWidth = egpScrW(P1)
+    P1ScreenHeight = egpScrH(P1)
+    print("Player 1's resolution: "+P1ScreenWidth+"x"+P1ScreenHeight)
+    EGP1:egpText(300,NeedMorePlayersText,vec2(P1ScreenWidth/2,P1ScreenHeight/2))
+    EGP1:egpAlign(300,1,1)
+    EGP1:egpSize(300,30)
+    ToDoList:pushString("newDeck_P1")
+    soundPlay(2,2,"ui/duel_challenge.wav")
+    if(numberOfPlayers()>1 && GameStatus != "newGameCountDown"){timer("newGameCountDown",1000) GameStatus = "newGameCountDown"}
+    print("Total number of players at the table: "+numberOfPlayers())
+    timer("ToDoList",50)
+}
+elseif(~P1 && P1:name() == "") # && GameStatus == "waiting"
+{
+    if(numberOfPlayers() < 2)
+    {
+        CountDown = 5
+        if(GameStatus == "inGame"){declareLastPlayerAsWinner()}
+        GameStatus = "waiting"
+    }
+    rageQuit(1)
+    ToDoList:pushString("rageQuit_1")
+    soundPlay(2,2,"ui/duel_score_behind.wav")
+}
+if(~P2 && P2:name() != "" && GameStatus == "waiting" && P2Cards:count() < 6)
+{
+    P2ScreenWidth = egpScrW(P2)
+    P2ScreenHeight = egpScrH(P2)
+    print("Player 2's resolution: "+P2ScreenWidth+"x"+P2ScreenHeight)
+    EGP2:egpText(300,NeedMorePlayersText,vec2(P2ScreenWidth/2,P2ScreenHeight/2))
+    EGP2:egpAlign(300,1,1)
+    EGP2:egpSize(300,30)
+    ToDoList:pushString("newDeck_P2")
+    soundPlay(2,2,"ui/duel_challenge.wav")
+    if(numberOfPlayers()>1 && GameStatus != "newGameCountDown"){timer("newGameCountDown",1000) GameStatus = "newGameCountDown"}
+    timer("ToDoList",50)
+}
+elseif(~P2 && P2:name() == "") # && GameStatus == "waiting"
+{
+    if(numberOfPlayers() < 2)
+    {
+        CountDown = 5
+        print("GameStatus: "+GameStatus)
+        if(GameStatus == "inGame"){declareLastPlayerAsWinner()}
+        GameStatus = "waiting"
+    }
+    rageQuit(2)
+    ToDoList:pushString("rageQuit_2")
+    soundPlay(2,2,"ui/duel_score_behind.wav")
+}
+if(~P3 && P3:name() != "" && GameStatus == "waiting" && P3Cards:count() < 6)
+{
+    P3ScreenWidth = egpScrW(P3)
+    P3ScreenHeight = egpScrH(P3)
+    EGP3:egpText(300,NeedMorePlayersText,vec2(P3ScreenWidth/2,P3ScreenHeight/2))
+    EGP3:egpAlign(300,1,1)
+    EGP3:egpSize(300,30)
+    ToDoList:pushString("newDeck_P3")
+    soundPlay(2,2,"ui/duel_challenge.wav")
+    if(numberOfPlayers()>1 && GameStatus != "newGameCountDown"){timer("newGameCountDown",1000) GameStatus = "newGameCountDown"}
+    timer("ToDoList",50)
+}
+elseif(~P3 && P3:name() == "") # && GameStatus == "waiting"
+{
+    if(numberOfPlayers() < 2)
+    {
+        CountDown = 5
+        print("GameStatus: "+GameStatus)
+        if(GameStatus == "inGame"){declareLastPlayerAsWinner()}
+        GameStatus = "waiting"
+    }
+    rageQuit(3)
+    ToDoList:pushString("rageQuit_3")
+    soundPlay(2,2,"ui/duel_score_behind.wav")
+}
+if(~P4 && P4:name() != "" && GameStatus == "waiting" && P4Cards:count() < 6)
+{
+    P4ScreenWidth = egpScrW(P4)
+    P4ScreenHeight = egpScrH(P4)
+    EGP4:egpText(300,NeedMorePlayersText,vec2(P4ScreenWidth/2,P4ScreenHeight/2))
+    EGP4:egpAlign(300,1,1)
+    EGP4:egpSize(300,30)
+    ToDoList:pushString("newDeck_P4")
+    soundPlay(2,2,"ui/duel_challenge.wav")
+    if(numberOfPlayers()>1 && GameStatus != "newGameCountDown"){timer("newGameCountDown",1000) GameStatus = "newGameCountDown"}
+    timer("ToDoList",50)
+}
+elseif(~P4 && P4:name() == "") # && GameStatus == "waiting"
+{
+    if(numberOfPlayers() < 2)
+    {
+        CountDown = 5
+        print("GameStatus: "+GameStatus)
+        if(GameStatus == "inGame"){declareLastPlayerAsWinner()}
+        GameStatus = "waiting"
+    }
+    rageQuit(4)
+    ToDoList:pushString("rageQuit_4")
+    soundPlay(2,2,"ui/duel_score_behind.wav")
+}
+if(~P1A && P1A == 1)
+{
+    if(P1SelectedCard > 1)
+    {
+        P1SelectedCard--
+        PosOffset = vec2((P1SelectedCard-1)*CardWidth*P1CardSize+CardStartPosition,0)
+        EGP1:egpPos((P1SelectedCard-1)*5+1,vec2(CardStartPosition,P1ScreenHeight-CardHeight/2*P1CardSize)+PosOffset-vec2(0,CardHeight*P1CardSize/2))
+        PosOffset = vec2((P1SelectedCard)*CardWidth*P1CardSize+CardStartPosition,0)
+        EGP1:egpPos((P1SelectedCard)*5+1,vec2(CardStartPosition,P1ScreenHeight-CardHeight/2*P1CardSize)+PosOffset)
+        holoPos((P1SelectedCard-1)*3+1,(entity():pos()+vec(HoloCardDistance,-3*P1NumCards,HoloCardOffsetZ))+(P1SelectedCard-1)*vec(0,7,0)+vec(0,0,5))
+        holoPos((P1SelectedCard)*3+1,(entity():pos()+vec(HoloCardDistance,-3*P1NumCards,HoloCardOffsetZ))+(P1SelectedCard)*vec(0,7,0)+vec(0,0,0))
+        soundPlay(2,1,"ui/buttonrollover.wav")
+    }
+}
+elseif(~P1D && P1D == 1)
+{
+    if(P1SelectedCard < P1Cards:count())
+    {
+        P1SelectedCard++
+        PosOffset = vec2((P1SelectedCard-1)*CardWidth*P1CardSize+CardStartPosition,0)
+        EGP1:egpPos((P1SelectedCard-1)*5+1,vec2(CardStartPosition,P1ScreenHeight-CardHeight/2*P1CardSize)+PosOffset-vec2(0,CardHeight*P1CardSize/2))
+        PosOffset = vec2((P1SelectedCard-2)*CardWidth*P1CardSize+CardStartPosition,0)
+        EGP1:egpPos((P1SelectedCard-2)*5+1,vec2(CardStartPosition,P1ScreenHeight-CardHeight/2*P1CardSize)+PosOffset)
+        holoPos((P1SelectedCard-1)*3+1,(entity():pos()+vec(HoloCardDistance,-3*P1NumCards,HoloCardOffsetZ))+(P1SelectedCard-1)*vec(0,7,0)+vec(0,0,5))
+        holoPos((P1SelectedCard-2)*3+1,(entity():pos()+vec(HoloCardDistance,-3*P1NumCards,HoloCardOffsetZ))+(P1SelectedCard-2)*vec(0,7,0)+vec(0,0,0))
+        soundPlay(2,1,"ui/buttonrollover.wav")
+        
+    }
+}
+if(~P2A && P2A == 1)
+{
+    if(P2SelectedCard > 1)
+    {
+        P2SelectedCard--
+        PosOffset = vec2((P2SelectedCard-1)*CardWidth*P2CardSize+CardStartPosition,0)
+        EGP2:egpPos((P2SelectedCard-1)*5+1,vec2(CardStartPosition,P2ScreenHeight-CardHeight/2*P2CardSize)+PosOffset-vec2(0,CardHeight*P2CardSize/2))
+        PosOffset = vec2((P2SelectedCard)*CardWidth*P2CardSize+CardStartPosition,0)
+        EGP2:egpPos((P2SelectedCard)*5+1,vec2(CardStartPosition,P2ScreenHeight-CardHeight/2*P2CardSize)+PosOffset)
+        holoPos((P2SelectedCard-1)*3+1+50,(entity():pos()+vec(-3*P2NumCards,-HoloCardDistance,HoloCardOffsetZ))+(P2SelectedCard-1)*vec(7,0,0)+vec(0,0,5))
+        holoPos((P2SelectedCard)*3+1+50,(entity():pos()+vec(-3*P2NumCards,-HoloCardDistance,HoloCardOffsetZ))+(P2SelectedCard)*vec(7,0,0)+vec(0,0,0))
+        soundPlay(2,1,"ui/buttonrollover.wav")
+    }
+}
+elseif(~P2D && P2D == 1)
+{
+    if(P2SelectedCard < P2Cards:count())
+    {
+        P2SelectedCard++
+        PosOffset = vec2((P2SelectedCard-1)*CardWidth*P2CardSize+CardStartPosition,0)
+        EGP2:egpPos((P2SelectedCard-1)*5+1,vec2(CardStartPosition,P2ScreenHeight-CardHeight/2*P2CardSize)+PosOffset-vec2(0,CardHeight*P2CardSize/2))
+        PosOffset = vec2((P2SelectedCard-2)*CardWidth*P2CardSize+CardStartPosition,0)
+        EGP2:egpPos((P2SelectedCard-2)*5+1,vec2(CardStartPosition,P2ScreenHeight-CardHeight/2*P2CardSize)+PosOffset)
+        holoPos((P2SelectedCard-1)*3+1+50,(entity():pos()+vec(-3*P2NumCards,-HoloCardDistance,HoloCardOffsetZ))+(P2SelectedCard-1)*vec(7,0,0)+vec(0,0,5))
+        holoPos((P2SelectedCard-2)*3+1+50,(entity():pos()+vec(-3*P2NumCards,-HoloCardDistance,HoloCardOffsetZ))+(P2SelectedCard-2)*vec(7,0,0)+vec(0,0,0))
+        soundPlay(2,1,"ui/buttonrollover.wav")
+    }
+}
+if(~P3A && P3A == 1)
+{
+    if(P3SelectedCard > 1)
+    {
+        P3SelectedCard--
+        PosOffset = vec2((P3SelectedCard-1)*CardWidth*P3CardSize+CardStartPosition,0)
+        EGP3:egpPos((P3SelectedCard-1)*5+1,vec2(CardStartPosition,P3ScreenHeight-CardHeight/2*P3CardSize)+PosOffset-vec2(0,CardHeight*P3CardSize/2))
+        PosOffset = vec2((P3SelectedCard)*CardWidth*P3CardSize+CardStartPosition,0)
+        EGP3:egpPos((P3SelectedCard)*5+1,vec2(CardStartPosition,P3ScreenHeight-CardHeight/2*P3CardSize)+PosOffset)
+        #holoCreate((P3NumCards*3)+1+100,(entity():pos()+vec(-HoloCardDistance,0,HoloCardOffsetZ))+P3NumCards*vec(0,-4,0),vec(0.1,0.5,1),ang(0,0,0))
+        holoPos((P3SelectedCard-1)*3+1+100,(entity():pos()+vec(-HoloCardDistance,3*P3NumCards,HoloCardOffsetZ))+(P3SelectedCard-1)*vec(0,-7,0)+vec(0,0,5))
+        holoPos((P3SelectedCard)*3+1+100,(entity():pos()+vec(-HoloCardDistance,3*P3NumCards,HoloCardOffsetZ))+(P3SelectedCard)*vec(0,-7,0)+vec(0,0,0))
+        soundPlay(2,1,"ui/item_wood_weapon_pickup.wav")
+    }
+}
+elseif(~P3D && P3D == 1)
+{
+    if(P3SelectedCard < P3Cards:count())
+    {
+        P3SelectedCard++
+        PosOffset = vec2((P3SelectedCard-1)*CardWidth*P3CardSize+CardStartPosition,0)
+        EGP3:egpPos((P3SelectedCard-1)*5+1,vec2(CardStartPosition,P3ScreenHeight-CardHeight/3*P3CardSize)+PosOffset-vec2(0,CardHeight*P3CardSize/2))
+        PosOffset = vec2((P3SelectedCard-2)*CardWidth*P3CardSize+CardStartPosition,0)
+        EGP3:egpPos((P3SelectedCard-2)*5+1,vec2(CardStartPosition,P3ScreenHeight-CardHeight/2*P3CardSize)+PosOffset)
+        holoPos((P3SelectedCard-1)*3+1+100,(entity():pos()+vec(-HoloCardDistance,3*P3NumCards,HoloCardOffsetZ))+(P3SelectedCard-1)*vec(0,-7,0)+vec(0,0,5))
+        holoPos((P3SelectedCard-2)*3+1+100,(entity():pos()+vec(-HoloCardDistance,3*P3NumCards,HoloCardOffsetZ))+(P3SelectedCard-2)*vec(0,-7,0)+vec(0,0,0))
+        soundPlay(2,1,"ui/item_wood_weapon_pickup.wav")
+    }
+}
+if(~P4A && P4A == 1)
+{
+    if(P4SelectedCard > 1)
+    {
+        P4SelectedCard--
+        PosOffset = vec2((P4SelectedCard-1)*CardWidth*P4CardSize+CardStartPosition,0)
+        EGP4:egpPos((P4SelectedCard-1)*5+1,vec2(CardStartPosition,P4ScreenHeight-CardHeight/2*P4CardSize)+PosOffset-vec2(0,CardHeight*P4CardSize/2))
+        PosOffset = vec2((P4SelectedCard)*CardWidth*P4CardSize+CardStartPosition,0)
+        EGP4:egpPos((P4SelectedCard)*5+1,vec2(CardStartPosition,P4ScreenHeight-CardHeight/2*P4CardSize)+PosOffset)
+        #holoCreate((P4NumCards*3)+1+150,(entity():pos()+vec(0,HoloCardDistance,HoloCardOffsetZ))+P4NumCards*vec(-4,0,0),vec(0.1,0.5,1),ang(0,90,0))
+        holoPos((P4SelectedCard-1)*3+1+150,(entity():pos()+vec(3*P4NumCards,HoloCardDistance,HoloCardOffsetZ))+(P4SelectedCard-1)*vec(-7,0,0)+vec(0,0,5))
+        holoPos((P4SelectedCard)*3+1+150,(entity():pos()+vec(3*P4NumCards,HoloCardDistance,HoloCardOffsetZ))+(P4SelectedCard)*vec(-7,0,0)+vec(0,0,0))
+        soundPlay(2,1,"ui/item_wood_weapon_pickup.wav")
+    }
+}
+elseif(~P4D && P4D == 1)
+{
+    if(P4SelectedCard < P4Cards:count())
+    {
+        P4SelectedCard++
+        PosOffset = vec2((P4SelectedCard-1)*CardWidth*P4CardSize+CardStartPosition,0)
+        EGP4:egpPos((P4SelectedCard-1)*5+1,vec2(CardStartPosition,P4ScreenHeight-CardHeight/3*P4CardSize)+PosOffset-vec2(0,CardHeight*P4CardSize/2))
+        PosOffset = vec2((P4SelectedCard-2)*CardWidth*P4CardSize+CardStartPosition,0)
+        EGP4:egpPos((P4SelectedCard-2)*5+1,vec2(CardStartPosition,P4ScreenHeight-CardHeight/2*P4CardSize)+PosOffset)
+        holoPos((P4SelectedCard-1)*3+1+150,(entity():pos()+vec(3*P4NumCards,HoloCardDistance,HoloCardOffsetZ))+(P4SelectedCard-1)*vec(-7,0,0)+vec(0,0,5))
+        holoPos((P4SelectedCard-2)*3+1+150,(entity():pos()+vec(3*P4NumCards,HoloCardDistance,HoloCardOffsetZ))+(P4SelectedCard-2)*vec(-7,0,0)+vec(0,0,0))
+        soundPlay(2,1,"ui/item_wood_weapon_pickup.wav")
+    }
+}
+
+if(clk("ToDoList"))
+{
+    ToDoFirst = ToDoList[1,string]:explode("_")
+    if(ToDoFirst[1,string] == "newDeck")
+    {
+        if(ToDoFirst[2,string] == "P1")
+        {
+            if(P1Cards:count() >= 6)
+            {                
+                ToDoList:shift()
+            }
+            Card = Deck:popString():explode("_")
+            pickupCard(Card[2,string],Card[1,string],1)
+            TotalHorizontalPixels = P1Cards:count()*CardWidth*P1CardSize
+            MaximumPixelsForCards = P1ScreenWidth*0.5
+            if(TotalHorizontalPixels > MaximumPixelsForCards)
+            {
+                P1CardSize = MaximumPixelsForCards/(P1Cards:count())/CardWidth
+                redrawCards(1)
+            }
+        }
+        elseif(ToDoFirst[2,string] == "P2")
+        {
+            if(P2Cards:count() >= 6)
+            {
+                ToDoList:shift()              
+            }
+            Card = Deck:popString():explode("_")
+            pickupCard(Card[2,string],Card[1,string],2)
+            TotalHorizontalPixels = P2Cards:count()*CardWidth*P2CardSize
+            MaximumPixelsForCards = P2ScreenWidth*0.5
+            if(TotalHorizontalPixels > MaximumPixelsForCards)
+            {
+                P2CardSize = MaximumPixelsForCards/(P2Cards:count())/CardWidth
+                redrawCards(2)
+            }
+        }
+        elseif(ToDoFirst[2,string] == "P3")
+        {
+            if(P3Cards:count() >= 6)
+            {
+                ToDoList:shift()              
+            }
+            Card = Deck:popString():explode("_")
+            pickupCard(Card[2,string],Card[1,string],3)
+            TotalHorizontalPixels = P3Cards:count()*CardWidth*P3CardSize
+            MaximumPixelsForCards = P3ScreenWidth*0.5
+            if(TotalHorizontalPixels > MaximumPixelsForCards)
+            {
+                P3CardSize = MaximumPixelsForCards/(P2Cards:count())/CardWidth
+                redrawCards(3)
+            }
+        }
+        elseif(ToDoFirst[2,string] == "P4")
+        {
+            if(P4Cards:count() >= 6)
+            {
+                ToDoList:shift()              
+            }
+            Card = Deck:popString():explode("_")
+            pickupCard(Card[2,string],Card[1,string],4)
+            TotalHorizontalPixels = P4Cards:count()*CardWidth*P4CardSize
+            MaximumPixelsForCards = P4ScreenWidth*0.5
+            if(TotalHorizontalPixels > MaximumPixelsForCards)
+            {
+                P4CardSize = MaximumPixelsForCards/(P4Cards:count())/CardWidth
+                redrawCards(4)
+            }
+        }
+    }
+    elseif(ToDoFirst[1,string] == "rageQuit")
+    {
+        if(ToDoFirst[2,string] == "1")
+        {
+            rageQuit(1)
+            ToDoList:shift()
+        }
+        elseif(ToDoFirst[2,string] == "2")
+        {
+            rageQuit(2)
+            ToDoList:shift()
+        }
+        elseif(ToDoFirst[2,string] == "3")
+        {
+            rageQuit(3)
+            ToDoList:shift()
+        }
+        elseif(ToDoFirst[2,string] == "4")
+        {
+            rageQuit(4)
+            ToDoList:shift()
+        }
+    }
+    if(ToDoList[1,string] != "")
+    {
+        timer("ToDoList",150)
+    }
+}
+function beginNewGame()
+{
+    print("New game started with "+numberOfPlayers()+" players.")
+    lockUnusedSeats()
+    GameStatus = "inGame"
+    soundPlay(5,2,"items/samurai/tf_conch.wav")
+    drawTopCard()
+    announceToEveryScreen("The first card is: "+TopCard[1,string]+TopCard[2,string])
+    VoxSoundsToPlay:pushString(TopCard[1,string])
+    VoxSoundsToPlay:pushString(TopCard[2,string])
+    timer("voxPlay",100)
+}
+if(clk("newGameCountDown"))
+{
+    if(CountDown > 0)
+    {
+        if(numberOfPlayers()>1)
+        {
+            CountDown--
+            timer("newGameCountDown",1000)
+            soundPlay(3,1,"garrysmod/ui_hover.wav")
+            announceToEveryScreen("A new game begins in "+toString(CountDown)+" seconds...")
+        }
+        else
+        {
+            CountDown = 5
+        }
+    }
+    else
+    {
+        beginNewGame()
+    }
+    
+}
+if(clk("resetEverything"))
+{
+    Seat1Lock = 0
+    Seat2Lock = 0
+    Seat3Lock = 0
+    Seat4Lock = 0
+    Seat1:isConstrainedTo():setAlpha(255)
+    Seat2:isConstrainedTo():setAlpha(255)
+    Seat3:isConstrainedTo():setAlpha(255)
+    Seat4:isConstrainedTo():setAlpha(255)
+    Seat1:setAlpha(255)
+    Seat2:setAlpha(255)
+    Seat3:setAlpha(255)
+    Seat4:setAlpha(255)
+    GameStatus = "waiting"
+}

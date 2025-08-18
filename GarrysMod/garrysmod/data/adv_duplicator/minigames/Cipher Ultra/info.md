@@ -1,6 +1,14 @@
 - Author: Cipher_Ultra
-- Date: jan 2011
+- Youtube: https://www.youtube.com/user/CipherUltra
+- Steam Profile: https://steamcommunity.com/profiles/76561197978513282
+<!-- -->
 - Title: [E2] Holo Racing Minigames
+- Date (mm-yyyy): 12-2010
+- Source: https://web.archive.org/web/20110118075632/http://www.wiremod.com:80/forum/finished-contraptions/24045-e2-holo-racing-minigames.html
+- Source: https://gmods.org/view/567
+- Source: https://gmods.org/view/568
+- Source: https://gmods.org/view/6754
+- Source Accessed (dd-mm-yyyy): 11-08-2025
 
 ## [E2] Holo Racing Minigames
 

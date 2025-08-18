@@ -1,0 +1,75 @@
+@name Array Data plotter v1
+@inputs S:wirelink [DataX DataY]:array Draw
+@outputs 
+@persist Graph1Pos:vector2 GraphHeight GraphWidth BGCol:vector
+@persist LineArray:array 
+@persist Xmin Xmax Ymin Ymax Update Index DataCount
+@trigger 
+# where Data is an array containing 2d vectors specifiying 
+# x and y dimensions of data
+runOnTick(1)
+if (first()) {
+    S:egpClear()
+    Graph1Pos = vec2(60, 450)
+    GraphHeight = 420
+    GraphWidth = 420
+    BGCol = vec(240, 240, 240)
+}
+if (~Draw & Draw) {
+    Update = 1
+    S:egpClear()
+    S:egpBox(1, vec2(256, 256), vec2(512, 512))
+    S:egpColor(1, BGCol)
+    LineArray = array()
+    Index = 0
+    Xmin = DataX:min()
+    Ymin = DataY:min()
+    Xmax = DataX:max()
+    Ymax = DataY:max()
+    DataCount = DataX:count()
+    exit()
+}
+if (Update) {
+    #for (Loop = 1, DataCount) {
+    while (perf() & Index < DataCount) {
+        Index++
+        # Size = (Data - Min) / (Max - Min)
+        # S = 512 * (1 - Size)
+        Xpos = GraphWidth * ((DataX[Index, number] - Xmin) / (Xmax - Xmin)) + Graph1Pos:x()
+        Ypos = GraphHeight * (1 - ((DataY[Index, number] - Ymin)) / (Ymax - Ymin)) + (Graph1Pos:y() - GraphHeight)
+        LineArray[Index, vector2] = vec2(Xpos, Ypos)
+    }
+    if (Index == DataCount) {
+        hint("lol",7)
+        LineEndPos1 = Graph1Pos + vec2(GraphWidth, 0)
+        LineArray:pushVector2(LineEndPos1)
+        LineEndPos2 = Graph1Pos 
+        LineArray:pushVector2(LineEndPos2)
+        S:egpPolyOutline(11, LineArray)
+        S:egpColor(11, vec(0, 0, 180))
+        Pos1 = Graph1Pos
+        Pos2 = Graph1Pos + vec2(GraphWidth, 0)
+        Pos3 = Graph1Pos + vec2(0, -GraphHeight)
+        S:egpLine(2, Pos1 + vec2(-6, 0), Pos2)
+        S:egpLine(3, Pos1 + vec2(0, 6), Pos3)
+        S:egpLine(4, Pos2, Pos2 + vec2(0, 6))
+        S:egpLine(5, Pos3, Pos3 + vec2(-6, 0))
+        S:egpLine(6, Graph1Pos + vec2(GraphWidth, 0), Graph1Pos + vec2(GraphWidth, -GraphHeight))
+        S:egpColor(6, BGCol)
+        S:egpText(7, int(Xmin):toString(), Pos1 + vec2(0, 6))
+        S:egpText(8, int(Xmax):toString(), Pos2 + vec2(0, 6))
+        S:egpText(9, int(Ymin):toString(), Pos1 + vec2(-6, -6))
+        S:egpText(10, int(Ymax):toString(), Pos3 + vec2(-6, 0))
+        for (Loop = 2, 5) {
+            S:egpColor(Loop, vec())
+            S:egpSize(Loop, 2)
+        }
+        for (Loop = 7, 10) {
+            S:egpColor(Loop, vec())
+            S:egpSize(Loop, 14)
+            S:egpFont(Loop, "Arial")
+            S:egpAlign(Loop, 2)
+        }
+        Update = 0
+    }
+}

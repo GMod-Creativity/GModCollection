@@ -1,0 +1,167 @@
+@name CrewTask
+@inputs EGP:wirelink
+@outputs 
+@persist [ColorOrder,RandomizedOrder,ConnectOrder]:array [Task,KeyUse,NumberWires,SelectedWire,Wiring]:number
+@trigger 
+function void prepareNewTask(TaskNumber:number)
+{
+    switch(TaskNumber)
+    {
+        case 1,
+            ColorOrder = array(vec(226,208,4),vec(255,0,0),vec(255,0,255),vec(0,0,255))
+            ConnectOrder = array(0,0,0,0)
+            NumberWires = 0
+            EGP:egpClear()
+            #Background decoration wires
+            #EGP:egpCircleOutline(200,vec2(612,256),vec2(256,256))
+            #EGP:egpColor(200,vec(122,11,11))
+            #EGP:egpSize(200,2)
+            
+            EGP:egpLine(200,vec2(randint(512),0),vec2(randint(512),512))
+            EGP:egpColor(200,vec(32,11,11))
+            EGP:egpSize(200,20)
+            
+            EGP:egpLine(201,vec2(randint(512),0),vec2(randint(512),512))
+            EGP:egpColor(201,vec(32,32,11))
+            EGP:egpSize(201,20)
+            
+            EGP:egpLine(202,vec2(randint(512),0),vec2(randint(512),512))
+            EGP:egpColor(202,vec(11,32,11))
+            EGP:egpSize(202,20)
+            
+            EGP:egpLine(203,vec2(randint(512),0),vec2(randint(512),512))
+            EGP:egpColor(203,vec(11,11,32))
+            EGP:egpSize(203,20)
+            
+            EGP:egpText(205,"Press and hold E to connect wires, starting from the left side.",vec2(256,500))
+            EGP:egpSize(205,12)
+            EGP:egpAlign(205,1,1)
+            EGP:egpBox(100,vec2(20,256),vec2(40,512))
+            EGP:egpBox(101,vec2(492,256),vec2(40,512))
+            EGP:egpColor(100,vec(56,60,65))
+            EGP:egpColor(101,vec(56,60,65))
+            EGP:egpCircleOutline(102,vec2(256,256),vec2(10,10))
+            EGP:egpParentToCursor(102)
+            local PoppyOrder = ColorOrder:clone()
+            RandomizedOrder = array()
+            while(RandomizedOrder:count()<4)
+            {
+                Rand = randint(4-RandomizedOrder:count())
+                RandomizedOrder:pushVector(PoppyOrder:removeVector(Rand))
+            }
+            for(I=1,4)
+            {
+               EGP:egpBox(I,vec2(20,I*(512/4)-512/8-12),vec2(40,20))
+               EGP:egpColor(I,vec(226,208,4))
+            }
+            for(I=5,8)
+            {
+                EGP:egpBox(I,vec2(40,(I-4)*(512/4)-512/8+12),vec2(80,20))
+                EGP:egpColor(I,ColorOrder[I-4,vector])
+            }
+            for(I=9,12)
+            {
+                EGP:egpBox(I,vec2(492,(I-8)*(512/4)-512/8-12),vec2(40,20))
+                EGP:egpColor(I,vec(126,108,4))
+            }
+            for(I=13,16)
+            {
+                EGP:egpBox(I,vec2(472,(I-12)*(512/4)-512/8+12),vec2(80,20))
+                EGP:egpColor(I,RandomizedOrder[I-12,vector])
+            }
+    }
+}
+function void newRandomTask()
+{
+    Task = randint(1)
+    prepareNewTask(Task)
+}
+if(first())
+{
+    
+    Task = randint(1)
+    KeyUse = 0
+    prepareNewTask(Task)
+}
+runOnTick(1)
+findByClass("player")
+ClosestPlayer = findClosest(entity():pos())
+if(Wiring)
+{
+    StartingY = SelectedWire*128-52
+    #YDifference = (EGP:egpCursor(ClosestPlayer):y() - StartingY)
+    StartingX = 80
+    EGP:egpLine(102+NumberWires,vec2(StartingX,StartingY),EGP:egpCursor(ClosestPlayer))
+    
+    #XDifference = (EGP:egpCursor(ClosestPlayer):x() - StartingX)
+    #Length = sqrt(YDifference*XDifference)
+    #Rotation = asin(XDifference/YDifference)
+    #EGP:egpBox(102+NumberWires,vec2(XDifference/2,YDifference),vec2(Length/2,10))
+    #EGP:egpAngle(102+NumberWires,Rotation)
+}
+
+if(EGP:egpCursor(ClosestPlayer) != vec2(-1,-1))
+{
+    switch(Task)
+    {
+    case 1,
+    #EGP:egpPos(102,EGP:egpCursor(ClosestPlayer))
+    if(ClosestPlayer:keyUse() && !KeyUse)
+    {
+        SelectedWire = round((EGP:egpCursor(ClosestPlayer):y()+512/8)/128) * (EGP:egpCursor(ClosestPlayer):x() < 150)
+        if(SelectedWire > 0 && ConnectOrder[SelectedWire,number] == 0)
+        {
+            #print(SelectedWire)
+            soundPlay(1,0,"freeman/taserx26_click1.wav")
+            NumberWires++
+            #EGP:egpBox(102+NumberWires,vec2(40,SelectedWire*128-52),vec2(10,10))
+            EGP:egpLine(102+NumberWires,vec2(40,SelectedWire*128-52),EGP:egpCursor(ClosestPlayer))
+            EGP:egpSize(102+NumberWires,20)
+            EGP:egpColor(102+NumberWires,ColorOrder[SelectedWire,vector])
+            Wiring = 1
+            KeyUse = 1
+        }
+        
+    }
+    elseif(!ClosestPlayer:keyUse() && KeyUse)
+    {
+        FirstWire=SelectedWire
+        SelectedWire = round((EGP:egpCursor(ClosestPlayer):y()+512/8)/128) * (EGP:egpCursor(ClosestPlayer):x() > 310)
+        if(SelectedWire == 0 && Wiring)
+        {
+            EGP:egpRemove(102+NumberWires)
+            NumberWires--
+            
+        }
+        elseif(ColorOrder[FirstWire,vector] == RandomizedOrder[SelectedWire,vector])
+        {
+            EGP:egpLine(102+NumberWires,vec2(StartingX,StartingY),vec2(432,SelectedWire*128-52))
+            soundPlay(1,0,"freeman/taserx26_click2.wav")
+            ConnectOrder[FirstWire,number] = SelectedWire
+            EGP:egpColor(8+SelectedWire,vec(226,208,4))
+            if(ConnectOrder:sum() == 10)
+            {
+                soundPlay(1,0,"modernrewards/success.wav")
+                
+                EGP:egpText(102+NumberWires+1,"Yay! You completed a task!",vec2(256,256))
+                print(ClosestPlayer:name()+" completed a task :3")
+                EGP:egpSize(102+NumberWires+1,40)
+                EGP:egpAlign(102+NumberWires+1,1,1)
+                timer("newTask",5000)
+            }
+        }
+        else
+        {
+            soundPlay(1,0,"resource/warning.wav")
+            EGP:egpRemove(102+NumberWires)
+            NumberWires--
+        }
+        Wiring = 0
+        KeyUse = 0
+    }
+    }
+}
+if(clk("newTask"))
+{
+    newRandomTask()
+}

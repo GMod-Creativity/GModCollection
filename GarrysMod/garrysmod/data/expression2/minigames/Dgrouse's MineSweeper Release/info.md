@@ -1,6 +1,13 @@
 - Author: DGrouse
-- Date: 10-06-2014
+- Steam Profile: https://steamcommunity.com/profiles/76561197984369367
+- Website: https://dg-collection.weebly.com/expression-2.html
+<!-- -->
 - Title: [E2] Dgrouse's MineSweeper Release
+- Date (dd-mm-yyyy): 06-10-2014
+- Source: https://web.archive.org/web/20150508193549/http://www.wiremod.com/forum/finished-contraptions/33602-e2-dgrouses-minesweeper-release.html
+- Source Accessed (dd-mm-yyyy): 17-08-2025
+
+## [E2] Dgrouse's MineSweeper Release
 
 **Details**
 Sup, I just finished my take on minesweeper for egp, I haven't tested other resolutions besides 512x512 so just leave as is.

@@ -1,0 +1,119 @@
+@name plants_vs_zombies
+@inputs EntityMarker:array
+@outputs Zombies:array
+@persist [ZombieFirstHoloNumber,SquareSize,Money]:number FirstSquare:vector GameStatus:string
+@outputs [Shots,ShotsPosIRL]:array OwnerAimPos:vector
+@persist [Towers]:array
+@strict
+function number laneNumberToXPos(Num:number){
+    return (Num-1)*SquareSize
+}
+function number squareNumberToYPos(Num:number){
+    return FirstSquare:y() + SquareSize*Num
+}
+function void fireShot(Lane:number,YPos:number,BulletType:string,BulletSpeed:number){
+    #Lane: 1,2,3,4,5
+    #BulletSpeed: Default: 5
+    #BulletType: "hax", "melon"
+    switch(BulletType){
+        case "hax",
+        holoCreate(Shots:count()+1,FirstSquare-vec(laneNumberToXPos(1),squareNumberToYPos(1),-20),vec(0.5,0.5,0.5),ang(0,-90,0)),
+        holoModel(Shots:count()+1, "models/props_lab/monitor01a.mdl"),
+        Shots:pushVector4(vec4(Lane,YPos,BulletSpeed,1)),
+        break
+
+    }
+}
+function void bulletHandler(){
+    for(I=1,Shots:count()){
+        if(Shots[I,vector4]:y() > (FirstSquare:y()-SquareSize*8)){
+            Shots[I,vector4] = Shots[I,vector4] - vec4(0,Shots[I,vector4]:z(),0,0)
+            X = FirstSquare:x()-laneNumberToXPos(Shots[I,vector4]:x())
+            Y = FirstSquare:y()+Shots[I,vector4]:y()
+            Z = FirstSquare:z()
+            #ShotsPosIRL:pushVector(vec(X,Y,Z))
+            holoPos(I,vec(X,Y,Z))
+        }
+        else{
+            holoDelete(I)
+            Shots:remove(I)
+        }
+    }
+}
+function void makeTowerShoot(Num:number){
+    #WhichTower = Towers[Num,vector2]
+}
+function void placeTower(Type:string, Position:vector, Size:number){
+    switch(Type){
+        case "sunflower", 
+                holoCreate(1,Position,vec(1,1,1),ang(0,0,0)),
+                holoModel(1,"models/Roller.mdl"),
+                holoScaleUnits(1,vec(Size)),
+                holoMaterial(1,"models/effects/muzzleflash/brightmuzzle"),
+        break
+    }
+}
+function void spawnZombie(LaneNumber:number, YPos:number, ZombieType:string, YSpeed:number){
+    switch (ZombieType){
+        case "simple",
+                N=Zombies:count()+ZombieFirstHoloNumber,
+                holoCreate(N,FirstSquare+vec(0,-SquareSize*YPos,0),vec(1,1,1),ang(0,90,0)),
+                holoModel(N,"models/Zombie/Classic.mdl"),
+                holoScaleUnits(N,vec(SquareSize,SquareSize,SquareSize*1.7)),
+                holoAnim(N,1,0,0.2),
+                Zombies:pushVector4(vec4(LaneNumber,-SquareSize*YPos,YSpeed,1)),
+        break
+    }
+}
+function void gameLost(){
+    GameStatus = "lost"
+    print("Scheisse")
+}
+function void zombieMovementHandler(){
+    I=1
+    while(I<Zombies:count()){
+        
+        N=I+ZombieFirstHoloNumber
+        LanePos = (Zombies[I,vector4]:x()-1)*-SquareSize
+        Zombies[I,vector4] = Zombies[I,vector4] + vec4(0,Zombies[I,vector4]:z(),0,0)
+        #holoPos(N,FirstSquare+vec(LanePos,Zombies[I,vector4]:y()-10*SquareSize,0))
+        X = FirstSquare:x()-laneNumberToXPos(Zombies[I,vector4]:x())
+        Y = FirstSquare:y()+Zombies[I,vector4]:y()
+        Z = FirstSquare:z()
+        holoPos(N,vec(X,Y,Z))
+        
+        if(Zombies[I,vector4]:y() >= 10*SquareSize){gameLost()}
+        I++
+    }
+}
+
+if(first()){
+    FirstPlank = EntityMarker[1,entity]
+    SquareSize = FirstPlank:aabbSize():x()
+    FirstSquare = FirstPlank:pos()+vec(0,FirstPlank:aabbSize():y()/2-SquareSize/2,0)
+    ZombieFirstHoloNumber = 50
+    Zombies = array()
+    Shots = array()
+    runOnTick(1)
+    timer("newZombie",1000)
+    GameStatus = "ingame"
+    Money = 50
+    holoCreate(100,FirstSquare,vec(1,1,1),ang(0,0,0))
+    holoColor(100,vec(255,0,0))
+    holoCreate(101,FirstSquare-vec(0,SquareSize*10,0),vec(1,1,1),ang(0,0,0))
+    holoColor(101,vec(0,0,255))
+}
+event tick(){
+    if(GameStatus=="ingame"){
+        if(Zombies:count() > 0){zombieMovementHandler()}
+        if(Shots:count() > 0){bulletHandler()}
+    OwnerAimPos = owner():aimPos()
+    }
+}
+
+if(clk("newZombie") &&  GameStatus == "ingame"){
+    
+    spawnZombie(randint(5),10,"simple",0.1)
+    fireShot(randint(5),randint(5),"hax",1)
+    timer("newZombie",10000)
+}

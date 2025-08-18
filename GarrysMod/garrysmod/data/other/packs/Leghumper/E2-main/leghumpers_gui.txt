@@ -1,0 +1,277 @@
+@name LegHumpers_GUI
+@inputs XWL:wirelink
+@outputs 
+@persist [EGPObjectCount,TitleBarHeight,ButtonPadding,N,KeyUsed,NotePosition]:number [EGPWindowList,UsedObjectsList,Shit,WindowButtonCount,WindowSizes,WindowPositions,WindowMessages,ATC,NoteTable,Shit2,Shit3,Shit4]:array [TitleBarColor,TextColor,ButtonColor,CursorColor]:vector
+@trigger 
+function newWindow(X,Y,Width,Height:number, Title:string,Message:string, ButtonList:array)
+{
+    N = 1
+    #while(UsedObjectsList[N,number] == 1)
+    #{
+    #    N++
+    #}
+    while(XWL:egpHasObject(N))
+    {
+        N++
+    }
+    M = 1
+    while(EGPWindowList[M,string] != "")
+    {
+        M++
+    }
+    StringContainingObjects = ""
+    #XWL:egpOrder(1,1)
+    XWL:egpBoxOutline(N,vec2(X+Width/2,Y+Height/2),vec2(Width,Height))
+    WindowOutlineEGPObject = N
+    XWL:egpColor(N,TitleBarColor-vec(40,40,40))
+    StringContainingObjects = StringContainingObjects + toString(N) + ","
+    N++
+    
+    #XWL:egpBox(N,vec2(X+Width/2,Y+Height/2),vec2(Width-2,Height-2))
+    XWL:egpBox(N,vec2(0,0),vec2(Width-2,Height-2))
+    StringContainingObjects = StringContainingObjects + toString(N) + ","
+    XWL:egpParent(N,WindowOutlineEGPObject)
+    N++
+    
+    XWL:egpBox(N,vec2(0,-Height/2+TitleBarHeight/2),vec2(Width-2,TitleBarHeight-1))
+    XWL:egpColor(N,TitleBarColor)
+    StringContainingObjects = StringContainingObjects + toString(N) + ","
+    XWL:egpParent(N,WindowOutlineEGPObject)
+    N++
+    
+    #XWL:egpText(N,Title+"("+toString(WindowSizes:count()+1)+")",vec2(TitleBarHeight/2-Width/2,-Height/2))
+    XWL:egpText(N,Title,vec2(TitleBarHeight/2-Width/2,-Height/2))
+    StringContainingObjects = StringContainingObjects + toString(N) + ","
+    XWL:egpParent(N,WindowOutlineEGPObject)
+    N++
+    
+    XWL:egpText(N,Message,vec2(TitleBarHeight/2-Width/2,-Height/2+TitleBarHeight))
+    XWL:egpColor(N,TextColor)
+    StringContainingObjects = StringContainingObjects + toString(N) + ","
+    XWL:egpParent(N,WindowOutlineEGPObject)
+    
+    #Render Buttons
+    ButtonSpacing = Width/ButtonList:count()
+    
+    for(I=1,ButtonList:count())
+    {
+        N++
+        BtnX = ButtonSpacing*I - ButtonSpacing/2-Width/2
+        XWL:egpBox(N,vec2(BtnX,Height/2-TitleBarHeight/2-ButtonPadding),vec2(ButtonSpacing-ButtonPadding,TitleBarHeight))
+        XWL:egpColor(N,ButtonColor)
+        StringContainingObjects = StringContainingObjects + toString(N) + ","
+        XWL:egpParent(N,WindowOutlineEGPObject)
+        N++
+        
+        XWL:egpText(N,ButtonList[I,string],vec2(BtnX,Height/2-TitleBarHeight/2-ButtonPadding))
+        XWL:egpColor(N,TextColor)
+        XWL:egpAlign(N,1,1)
+        StringContainingObjects = StringContainingObjects + toString(N) + ","
+        XWL:egpParent(N,WindowOutlineEGPObject)
+    }
+    EGPWindowList:pushString(StringContainingObjects)
+    WindowButtonCount:pushNumber(ButtonList:count())
+    WindowSizes:pushVector2(vec2(Width,Height))
+    WindowPositions:pushVector2(vec2(X,Y))
+    WindowMessages:pushString(Message)
+    soundPlay(1,0,"ui/hint.wav")
+}
+function moveWindow(WhichOne,X,Y:number)
+{
+    OutlineObjectNumber = EGPWindowList[WhichOne,string]:explode(",")[1,number]
+    #NewPos = XWL:egpPos(OutlineObjectNumber)+vec2(X,Y)
+    #XWL:egpPos(OutlineObjectNumber,NewPos)
+    XWL:egpPos(OutlineObjectNumber,vec2(X,Y))
+    #print(XWL:egpPos(OutlineObjectNumber))
+}
+function closeWindow(WhichOne:number)
+{
+    ObjectList = EGPWindowList[WhichOne,string]:explode(",")
+    for(I=1,ObjectList:count())
+    {
+        ObjectList[I,number] = ObjectList[I,string]:toNumber()
+    }
+    FirstObj = ObjectList[1,number]
+    NumRemovals = 0
+    for(I=1,ObjectList:count()-1)
+    {
+        XWL:egpRemove(ObjectList[I,number])
+        NumRemovals++
+    }
+    EGPWindowList:removeString(WhichOne)
+    WindowButtonCount:removeNumber(WhichOne)
+    WindowSizes:removeVector2(WhichOne)
+    WindowPositions:removeVector2(WhichOne)
+    WindowMessages:removeString(WhichOne)
+    N = XWL:egpNumObjects()
+    #soundPlay(1,0,"freeman/taserx26_click2.wav")
+    #print("Removed ",NumRemovals," objects, starting from ",FirstObj)
+}
+function resetScreen()
+{
+    XWL:egpClear()
+    EGPObjectCount = 1
+    UsedObjectsList = array()
+}
+function number hoverOverButton(WhichWindow,X,Y:number)
+{
+    
+    WP = WindowPositions[WhichWindow,vector2]
+    WS = WindowSizes[WhichWindow,vector2]
+    WindowLeftEdge = WP:x() 
+    WindowRightEdge= WP:x() + WS:x()
+    WindowTopEdge  = WP:y()
+    WindowBottomEdge=WP:y() + WS:y()
+    SelectedButton = -1
+    WindowList = EGPWindowList[WhichWindow,string]:explode(",")
+    for(I=1,WindowList:count())
+    {
+        WindowList[I,number] = WindowList[I,string]:toNumber()
+    }
+    if(inrange(X,WindowLeftEdge,WindowRightEdge) && inrange(Y,WindowTopEdge,WindowBottomEdge))
+    {
+        #XWL:egpColor(WindowList[1,number],vec(120,255,120))
+        SelectedButton=0
+        if(inrange(Y,WindowBottomEdge-TitleBarHeight-ButtonPadding,WindowBottomEdge))
+        {
+            #XWL:egpColor(WindowList[1,number],vec(255,120,120))
+            SelectedButton = ceil((X-WindowLeftEdge)/(WS:x()/2))
+            #print(WindowList[WindowList:count()- (WindowButtonCount[WhichWindow,number]-SelectedButton+1)*2,number])
+            for(I=1,WindowButtonCount[WhichWindow,number])
+            {
+                if(I==SelectedButton)
+                {
+                    XWL:egpColor(WindowList[WindowList:count()- (WindowButtonCount[WhichWindow,number]-I+1)*2,number],vec(120,255,120))
+                }
+                else
+                {
+                    XWL:egpColor(WindowList[WindowList:count()- (WindowButtonCount[WhichWindow,number]-I+1)*2,number],ButtonColor)
+                }
+            }
+            #XWL:egpColor(WindowList[WindowList:count()- (WindowButtonCount[WhichWindow,number]-SelectedButton+1)*2,number],vec(50,190,190))
+        }
+        else
+        {
+            for(I=1,WindowButtonCount[WhichWindow,number])
+            {
+                XWL:egpColor(WindowList[WindowList:count()- (WindowButtonCount[WhichWindow,number]-I+1)*2,number],ButtonColor)
+            }
+        }
+    }
+    else
+    {
+        #XWL:egpColor(EGPWindowList[WhichWindow,string]:explode(",")[1,number],TitleBarColor)
+        for(I=1,WindowButtonCount[WhichWindow,number])
+        {
+            XWL:egpColor(WindowList[WindowList:count()- (WindowButtonCount[WhichWindow,number]-I+1)*2,number],ButtonColor)
+        }
+    }
+    return SelectedButton
+}
+if(first())
+{
+    Shit = array("Does your mom know you're gay?",
+                 "You poopy pants",
+                 "EGP sucks.",
+                 "Just testing Window sizes.",
+                 "Go away.",
+                 "Meta: 80% 8 year olds.",
+                 "I wrote this in 2 days.",
+                 "That was a lie.",
+                 "You're wonderful",
+                 "Too many russians",
+                 "Money money money",
+                 "LegHumper is a cool name",
+                 "This window was an accident",
+                 "You can write a better GUI",
+                 "Does this thing ever end?",
+                 "Stop using me, lol",
+                 "Did you know?",
+                 "Did you poop today?",
+                 "Yes or No?",
+                 "When the?",
+                 "Are you ready?",
+                 "Love pressing Buttons?",
+                 "Claim your iPad here",
+                 "Claim your 300 FPS here",
+                 "Is your client happy?")
+    Shit2 = array("La","La","La","La",
+                  "La","La","...","...","...",
+                  "...","It's","All","A",
+                  "Round","The","World","Just") 
+    Shit3 = array("Ding","Dong","...","...",
+                  "Bing","Bong","...","...",
+                  "Ding!","Dong!","...","...",
+                  "Bing!","Bang!","...","Bong",
+                  "Ding","Dong","...","...",
+                  "Ding","Dong","...","...",
+                  "Ding","Dong","...","...",
+                  "Ding","Dong","...","...")
+    TitleBarHeight = 20
+    TitleBarColor = vec(160,160,200)
+    TextColor = vec(0,0,0)
+    ButtonColor = vec(190,190,190)
+    ButtonPadding = 5
+    CursorColor = vec(55,255,55)
+    ATC = array(1,8,5,1,6,13,10,6,5,12,8,5,3,10,6,3)
+    NoteTable = array(128,120,112,106,100,95,89,84,79,75,71,67,63,60,56,53,49,47,44,42,40,37,35,33,31,30)
+    resetScreen()
+    XWL:egpCircleOutline(1,vec2(0,0),vec2(5,5))
+    XWL:egpColor(1,CursorColor)
+    XWL:egpParentToCursor(1)
+    NotePosition = 1
+    newWindow(randint(250),randint(100),250+randint(50),190+randint(200),"New message",Shit[NotePosition+1,string],array("OK","Cancel"))
+}
+
+findByClass("player")
+ClosestPlayer = findClosest(XWL:entity():pos())
+Cursor = XWL:egpCursor(ClosestPlayer)
+    #Cursor = XWL:egpCursor(owner())
+    CursorX = Cursor:x()
+    CursorY = Cursor:y()
+    J = EGPWindowList:count()
+    while(J>=0)
+    {
+        
+        HoverButton = hoverOverButton(J,CursorX,CursorY)
+        if(HoverButton != -1)
+        {
+            if(ClosestPlayer:keyUse() && HoverButton != 0 && KeyUsed == 0)
+            {
+                soundPlay(1,0,"replay/showdetails.wav")
+                print(ClosestPlayer:name()+" chose option "+HoverButton+" on "+WindowMessages[J,string])
+                timer("newWindow",1000)
+                timer("newWindow2",1500)
+                closeWindow(J)
+                KeyUsed = 1
+            }
+            elseif(ClosestPlayer:keyUse() != 1){KeyUsed = 0}
+            break
+        }  
+        J--
+        if(WindowSizes:count() >= 10)
+{
+    closeWindow(1)
+    closeWindow(1)
+}
+
+    }
+
+
+
+interval(50)#[
+newWindow(randint(250),randint(100),250+randint(50),190+randint(200),"New message",Shit2[NotePosition+2,string],array("Cancel","OK"))
+NotePosition++
+soundPlay(1,0.2,"wowozela/samples/toypiano.wav")
+soundPitch(1,NoteTable[ATC[NotePosition,number],number])
+]#
+if(NotePosition >= ATC:count()){NotePosition = 0}
+
+if(WindowSizes:count() >= 10)
+{
+    closeWindow(1)
+}
+if(clk("newWindow") || clk("newWindow2"))
+{
+    newWindow(randint(250),randint(100),250+randint(50),190+randint(200),"New message",Shit[randint(Shit:count()),string],array("Yes","No"))
+}

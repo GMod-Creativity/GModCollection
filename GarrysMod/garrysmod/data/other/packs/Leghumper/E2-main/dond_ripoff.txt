@@ -1,0 +1,109 @@
+@name Dond_Ripoff
+@inputs EGPEmitter:wirelink EGPEmitterCaseContent:wirelink CaseFrontEntityArray:array
+@outputs AvgCaseAmount:number
+@persist [PrizesRandomized,PrizesInOrder,CaseFrontOriginalPos,CaseFrontOriginalAng,PickedCase]:array [LastSelected,Selected,CaseesLeft]:number
+function number avgValue()
+{
+    TotalPickedCases = 24-PickedCase:sum()
+    SumOfUnpickedCases = 0
+    for(I=1,24)
+    {
+        SumOfUnpickedCases += PrizesRandomized[I,number] * (PickedCase[I,number]==0)
+    }
+    Avg = SumOfUnpickedCases / TotalPickedCases
+    return Avg
+}
+function void resetGame()
+{
+    EGPEmitterCaseContent:egpClear()
+    EGPEmitter:egpClear()
+    CasesLeft = 24
+    PickedCase = array(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0)
+    PrizesInOrder = array(1,5,10,20,40,60,80,100,200,400,500,1000,1500,5000,10000,20000,50000,70000,100000,200000,250000,500000,750000,1000000)
+    PrizesRandomized = array()
+    for(I=1,PrizesInOrder:count())
+    {
+        PrizesRandomized:pushNumber(PrizesInOrder:removeNumber(randint(1,PrizesInOrder:count())))
+    }
+    for(J=1,4)
+    {
+    
+    for(I=1,6)
+    {
+        
+        EGPEmitter:egpText((J-1)*6+I,((J-1)*6+I):toString(), vec2(I*85.605*4,-(J-4)*48.733*4))
+        EGPEmitter:egpSize((J-1)*6+I,80)
+        EGPEmitter:egpAlign((J-1)*6+I,1,1)
+        
+        #EGPEmitterCaseContent:egpText((J-1)*6+I,PrizesRandomized[(J-1)*6+I,number]:toString(), vec2(I*345,-(J-4)*195))
+        EGPEmitterCaseContent:egpText((J-1)*6+I,"???", vec2(I*85.605*4,-(J-4)*48.733*4))
+        EGPEmitterCaseContent:egpSize((J-1)*6+I,40)
+        EGPEmitterCaseContent:egpAlign((J-1)*6+I,1,1)
+    }
+    }
+}
+if(first())
+{
+    #entity():streamStart(1,"https://www.youtube.com/watch?v=2wo6bN035RI")
+    resetGame()
+    for(I=1,CaseFrontEntityArray:count())
+    {
+        CaseFrontOriginalPos:pushVector(CaseFrontEntityArray[I,entity]:pos())
+        CaseFrontOriginalAng:pushAngle(CaseFrontEntityArray[I,entity]:angles())
+    }
+}
+findByClass("player")
+ClosestPlayer = findClosest(entity():pos())
+#ClosestPlayer = owner()
+if(ClosestPlayer:aimEntity() != noentity())
+{
+    I=1
+    while(I<=24 && ClosestPlayer:aimEntity() != CaseFrontEntityArray[I,entity]){I++}
+    if(I<=24)
+    {
+        LastSelected = Selected
+        CaseFrontEntityArray[LastSelected,entity]:setColor(255,255,255)
+        Selected = I
+        CaseFrontEntityArray[Selected,entity]:setColor(128,128,255)
+        if(ClosestPlayer:keyUse() && !PickedCase[Selected,number])
+        {
+            PickedCase[Selected,number] = 1
+            CaseFrontEntityArray[Selected,entity]:propFreeze(0)
+            #EGPEmitterCaseContent:egpBox(Selected+24,EGPEmitterCaseContent:egpPos(Selected),vec2(170,100))
+            #EGPEmitterCaseContent:egpColor(Selected+24,vec(128,128,255))
+            EGPEmitterCaseContent:egpText(Selected,"$"+PrizesRandomized[Selected,number]:toString(),EGPEmitterCaseContent:egpPos(Selected))
+            EGPEmitter:egpRemove(Selected)
+            soundPlay(1,0,"garrysmod/balloon_pop_cute.wav")
+            soundPitch(1,100+randint(100))
+            AvgCaseAmount = avgValue()
+            if(PickedCase:sum() == 24)
+            {
+                timer("ResetGame",3000)
+            }
+        }
+    }
+    else
+    {
+        LastSelected = Selected
+        CaseFrontEntityArray[LastSelected,entity]:setColor(255,255,255)
+    }
+}
+interval(100)
+if(clk("ResetGame"))
+{
+    resetGame()
+    for(I=1,24)
+    {
+        CaseFrontEntityArray[I,entity]:setPos(CaseFrontOriginalPos[I,vector])
+        CaseFrontEntityArray[I,entity]:propFreeze(1)
+        CaseFrontEntityArray[I,entity]:setAng(CaseFrontOriginalAng[I,angle])
+    }
+}
+#[
+    Documentation and examples are available at:
+    https://github.com/wiremod/wire/wiki/Expression-2
+
+    Discord is available at https://discord.gg/H8UKY3Y
+    Reddit is available at https://www.reddit.com/r/wiremod
+    Report any bugs you find here https://github.com/wiremod/wire/issues
+]#

@@ -1,0 +1,177 @@
+@name MazeGame v1.0
+@inputs DS:wirelink Pod:wirelink
+@persist [Start,End,Current,CurPos]:vector2 [Closed,Path,Dir,ADir,NFS,VFS,Maze,IMaze]:table [Size,GM,GB,CEnd,X,Y,Play]:number
+@trigger 
+
+runOnTick(1)
+
+
+if(first()){
+    
+    #In size dont put higher than 100 or it will lag on generating
+    #The size must be an unpair number
+    Size=61
+    
+    #Functions
+    function wirelink:drawMLine(Position1:vector2,Position2:vector2,Color:vector,Resolution){
+        X1=Position1:x(),Y1=Position1:y()
+        X2=Position2:x(),Y2=Position2:y()
+        DX=abs(X2-X1),DY=abs(Y2-Y1) 
+        if(X1<X2){SX=1}else{SX=-1},if(Y1<Y2){SY=1}else{SY=-1}
+        Err=DX-DY
+        for(I=1,Resolution){
+            if(IMaze[vec2(X1,Y1):toString(),number]){
+                This[X1+Y1*Resolution]=rgb2digi(Color,3)
+            }elseif(X1>=0&Y1>=0&X1<=Size-1&Y1<=Size-1){
+                This[X1+Y1*Resolution]=rgb2digi(vec(0),3)
+            }
+            if(vec2(X1,Y1)==Start){
+                This[X1+Y1*Resolution]=rgb2digi(vec(0,255,0),3)
+            }
+            if(vec2(X1,Y1)==End){
+                This[X1+Y1*Resolution]=rgb2digi(vec(255,0,0),3)
+            }
+            if(X1==X2&Y1==Y2){break}
+            
+            E2 = 2*Err
+            if(E2>-DY){Err=Err-DY,X1=X1+SX}
+            if(E2<DX){Err=Err+DX,Y1=Y1+SY}  
+        }
+    }
+    
+    function wirelink:drawMaze(Position:vector2,Radius,Color:vector,Resolution){
+        F=1-Radius
+        DdF_x=1,DdF_y=-2*Radius
+        X=0,Y=Radius
+        This:drawMLine(vec2(Position:x(),Position:y()+Radius),vec2(Position:x(),Position:y()-Radius),Color,Resolution)
+        This:drawMLine(vec2(Position:x()+Radius,Position:y()),vec2(Position:x()-Radius,Position:y()),Color,Resolution)
+        while(X < Y){
+            if(F>=0){Y--,DdF_y += 2,F+=DdF_y}
+            X++
+            DdF_x+=2
+            F+=DdF_x
+            This:drawMLine(vec2(Position:x()-X,Position:y()+Y),vec2(Position:x()+X,Position:y()+Y),Color,Resolution)
+            This:drawMLine(vec2(Position:x()-X,Position:y()-Y),vec2(Position:x()+X,Position:y()-Y),Color,Resolution)
+            This:drawMLine(vec2(Position:x()-Y,Position:y()+X),vec2(Position:x()+Y,Position:y()+X),Color,Resolution)
+            This:drawMLine(vec2(Position:x()-Y,Position:y()-X),vec2(Position:x()+Y,Position:y()-X),Color,Resolution)
+        }
+    }
+    
+    function wirelink:initScreen(Resolution){
+        This[1048574]=0
+        This[1048569]=3
+        This[1048575]=1
+        This[1048572]=Resolution
+        This[1048573]=Resolution
+    }   
+
+    function wirelink:drawPixel(X,Y,Color:vector,Resolution){
+        This[X+Y*Resolution]=rgb2digi(Color,3)
+    }
+    
+    DS:initScreen(Size)
+    Start=vec2(Size-1,Size-1)
+    End=vec2(0,0)
+    DS:drawPixel(End:x()*2,End:y()*2,vec(255,0,0),Size)
+    Current=End
+    Maze:pushVector2(End)
+    Closed:pushVector2(End)
+    Path:pushVector2(End)
+    
+    Dir[1,vector2]=vec2(1,0)
+    Dir[2,vector2]=vec2(-1,0)
+    Dir[3,vector2]=vec2(0,1)
+    Dir[4,vector2]=vec2(0,-1)
+    GM=1
+    timer("CEnd",2000)
+}
+
+if(GM){
+    IClosed=invert(Closed)
+    ADir:clear()
+    GB=1
+    
+    for(I=1,4){
+        if(!IClosed[(Current+Dir[I,vector2]):toString(),number]&(Current+Dir[I,vector2]):x()<Size/2&(Current+Dir[I,vector2]):x()>=0&(Current+Dir[I,vector2]):y()<Size/2&(Current+Dir[I,vector2]):y()>=0){
+            ADir:pushVector2(Dir[I,vector2])
+            GB=0
+        }
+    }
+        
+    if(GB){
+        Path:removeVector2(Path:count())
+        Current=Path[Path:count(),vector2]
+    }else{
+        DirN=randint(1,Dir:count())
+        Current=Current+ADir[DirN,vector2]
+        if(!IClosed[Current:toString(),number]){
+            Closed:pushVector2(Current)
+            Path:pushVector2(Current)
+            Maze:pushVector2(vec2(Current:x()*2-ADir[DirN,vector2]:x(),Current:y()*2-ADir[DirN,vector2]:y()))
+            Maze:pushVector2(vec2(Current:x()*2,Current:y()*2))
+        }
+        DS:drawPixel(Current:x()*2,Current:y()*2,vec(255),Size)
+        DS:drawPixel(Current:x()*2-ADir[DirN,vector2]:x(),Current:y()*2-ADir[DirN,vector2]:y(),vec(255),Size)
+    }
+    
+    if(Path:count()==1&CEnd){
+        DS:drawPixel(End:x(),End:y(),vec(255,0,0),Size)
+        DS:drawPixel(Start:x(),Start:y(),vec(0,255,0),Size)
+        GM=0
+    }
+}
+
+if(clk("CEnd")){CEnd=1}
+
+if(!GM&!Play){
+    if(changed(GM)){DS:initScreen(Size)}
+    while(perf(50)){
+        DS:drawPixel(X,Y,vec(145),Size)
+        X++
+        if(X==Size){X=0,Y++}
+        if(Y==Size){Play=1}
+    }
+}
+  
+    
+if(Play){    
+    if(changed(Play)){
+        IMaze=invert(Maze)
+        CurPos=Start
+        DS:drawMaze(CurPos,5,vec(255),Size)
+        DS:drawPixel(CurPos:x(),CurPos:y(),vec(255,255,0),Size)
+    }
+    
+    if(!changed(Play)){
+    W=Pod["W",number]
+    A=Pod["A",number]
+    S=Pod["S",number]
+    D=Pod["D",number]
+    
+    if(changed(W)|changed(A)|changed(S)|changed(D)){
+    if(W){
+        if(IMaze[(CurPos+vec2(0,1)):toString(),number]){
+            CurPos=CurPos+vec2(0,1)
+        }
+    }
+    if(A){
+        if(IMaze[(CurPos+vec2(1,0)):toString(),number]){
+            CurPos=CurPos+vec2(1,0)
+        }
+    }
+    if(S){
+        if(IMaze[(CurPos+vec2(0,-1)):toString(),number]){
+            CurPos=CurPos+vec2(0,-1)
+        }
+    }
+    if(D){
+        if(IMaze[(CurPos+vec2(-1,0)):toString(),number]){
+            CurPos=CurPos+vec2(-1,0)
+        }
+    }
+    
+    DS:drawMaze(CurPos,5,vec(255),Size)
+    DS:drawPixel(CurPos:x(),CurPos:y(),vec(0,161,255),Size)
+    }
+    }
+}

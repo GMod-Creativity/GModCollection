@@ -1,0 +1,250 @@
+@name 
+@inputs Active Size [Mem Pod]:wirelink Scr:entity Reset
+@outputs Cell Width [CamPos CamDir]:vector Direction Count I
+@persist OldDir Epos:vector WallUpdate Setup Moved End StartTime
+@trigger all
+if (~Reset & Reset) {
+    reset()
+}
+
+if (first()) {
+    Epos=entity():pos()
+    CamPos=Epos+vec(0,0,40)
+}
+if (!Setup) {
+    interval(20)
+    if (I<20) {
+        holoCreate(I+20,Epos+vec(I*50-500,0,-200))
+    }
+    elseif (I>=20 & I<40) {
+        holoScale(I,vec(4,4,5))
+    }
+    elseif (I==40) {
+        holoCreate(1,Epos-vec(0,0,400))
+    }
+    elseif (I==41) {
+        holoScale(1,vec(4,4,5))
+    }
+    elseif (I==42) {
+        holoCreate(2,Scr:pos()+Scr:up()*5,vec(1,1,1),ang(),vec(255,0,0))
+    }
+    elseif (I==43) {
+        holoScaleUnits(2,vec(95,95,95)/(Size*2+1) )
+    }        
+    else {
+        Setup=1
+    }
+    I++
+}
+
+if (Active & Setup) {
+    interval(10)
+    if (~Active) {
+        Width=Size*2+1
+        Cell=Width*2+2
+        WallUpdate=1
+        StartTime=curtime()
+        End=0
+        
+    }
+    Direction=(round(Pod:number("Bearing")/90)+2)%4
+    if (!WallUpdate) {
+        if (Direction!=OldDir) {
+            OldDir=Direction
+            WallUpdate=1
+        }
+        W=Pod:number("W")
+        if (W) {
+            if (!Moved) {
+                if (!Direction) {
+                    CheckCell=Cell-1
+                }
+                elseif (Direction==1) {
+                    CheckCell=Cell+Width
+                }
+                elseif (Direction==2) {
+                    CheckCell=Cell+1
+                }
+                elseif (Direction==3) {
+                    CheckCell=Cell-Width
+                }
+                if (Mem:readCell(CheckCell)) {
+                    Cell=CheckCell
+                    Moved=1
+                    WallUpdate=1   #95
+                    Unit=95/Width
+                    holoPos(2,Scr:pos()+Scr:up()*2 +
+                    Scr:right()*(47.5 - Unit/2 - Unit*(Cell%Width)) + 
+                    -Scr:forward()*(47.5 - Unit/2 - Unit*floor(Cell/Width)) )
+                }
+            }
+        }
+        else {
+            Moved=0
+        }
+    }
+    
+    if (Pod:number("Space")) {
+        CamDir=-Scr:up()
+        CamPos=Scr:pos()+Scr:up()*70
+    }
+    else {
+        CamDir=vec(1,0,0):rotate(-Pod:number("Elevation"),Pod:number("Bearing"),0)
+        CamPos=Epos+vec(0,0,40)
+    }
+        
+        
+    
+    
+    if (WallUpdate) {
+        if (WallUpdate==1) {
+            I=1
+            if (!Direction) {
+                while( Mem:readCell(Cell-I) ) {
+                    I++
+                }
+                holoPos(1,Epos+vec(-48*I,0,30))
+                holoAng(1,ang())
+            }
+            elseif (Direction==1) {
+                while( Mem:readCell(Cell+I*Width) ) {
+                    I++
+                }
+                holoPos(1,Epos+vec(0,-48*I,30))
+                holoAng(1,ang(0,90,0))
+            }
+            elseif (Direction==2) {
+                while( Mem:readCell(Cell+I) ) {
+                    I++
+                }
+                holoPos(1,Epos+vec(48*I,0,30))
+                holoAng(1,ang())
+            }
+            elseif (Direction==3) {
+                while( Mem:readCell(Cell-I*Width) ) {
+                    I++
+                }
+                holoPos(1,Epos+vec(0,48*I,30))
+                holoAng(1,ang(0,90,0))
+            }
+            Count=I+1
+            WallUpdate=2
+            I=0
+        }
+        elseif (WallUpdate==2) {
+            if (!Direction) {
+                while( I<Count & I<10) {
+                    if (Mem:readCell(Cell-Width-I)) {
+                        holoPos(20+I,Epos+vec(-48*I,48,-130))
+                    }
+                    else {
+                        holoPos(20+I,Epos+vec(-48*I,48,30))
+                    }
+                    I++
+                }
+            }
+            elseif (Direction==1) {
+                while( I<Count & I<10) {
+                    if (Mem:readCell(Cell-1+I*Width)) {
+                        holoPos(20+I,Epos+vec(-48,-48*I,-130))
+                    }
+                    else {
+                        holoPos(20+I,Epos+vec(-48,-48*I,30))
+                    }
+                    I++
+                }
+            }
+            elseif (Direction==2) {
+                while( I<Count & I<10) {
+                    if (Mem:readCell(Cell+Width+I)) {
+                        holoPos(20+I,Epos+vec(48*I,-48,-130))
+                    }
+                    else {
+                        holoPos(20+I,Epos+vec(48*I,-48,30))
+                    }
+                    I++
+                }
+            }
+            elseif (Direction==3) {
+                while( I<Count & I<10) {
+                    if (Mem:readCell(Cell+1-I*Width)) {
+                        holoPos(20+I,Epos+vec(48,48*I,-130))
+                    }
+                    else {
+                        holoPos(20+I,Epos+vec(48,48*I,30))
+                    }
+                    I++
+                }                 
+            }
+            WallUpdate=3
+            I=0                                    
+        }
+        
+        elseif (WallUpdate==3) {
+            if (Direction==2) {
+                while( I<Count & I<10) {
+                    if (Mem:readCell(Cell-Width+I)) {
+                        holoPos(30+I,Epos+vec(48*I,48,-130))
+                    }
+                    else {
+                        holoPos(30+I,Epos+vec(48*I,48,30))
+                    }
+                    I++
+                }
+            }
+            elseif (Direction==1) {
+                while( I<Count & I<10) {
+                    if (Mem:readCell(Cell+1+I*Width)) {
+                        holoPos(30+I,Epos+vec(48,-48*I,-130))
+                    }
+                    else {
+                        holoPos(30+I,Epos+vec(48,-48*I,30))
+                    }
+                    I++
+                }
+            }
+            elseif (!Direction) {
+                while( I<Count & I<10) {
+                    if (Mem:readCell(Cell+Width-I)) {
+                        holoPos(30+I,Epos+vec(-48*I,-48,-130))
+                    }
+                    else {
+                        holoPos(30+I,Epos+vec(-48*I,-48,30))
+                    }
+                    I++
+                }
+            }
+            elseif (Direction==3) {
+                while ( I<Count & I<10) {
+                    if (Mem:readCell(Cell-1-I*Width)) {
+                        holoPos(30+I,Epos+vec(-48,48*I,-130))
+                    }
+                    else {
+                        holoPos(30+I,Epos+vec(-48,48*I,30))
+                    }
+                    I++
+                }    
+            }
+            WallUpdate=0                           
+        }
+    }    
+}
+
+if (Cell==(Width^2-Width*2-3) & !End) {
+    End=1
+    String="Congratulations! You finished a size " + Size:toString() + " maze in "
+    Time=floor(curtime()-StartTime)
+    if (Time>59) {     
+        if (Time<120) {
+            String = String + "1 minute and "   
+        } else {
+            String = String + floor(Time/60):toString() + " minutes and "
+        }
+    }
+    if ( (Time%60) == 1) {
+        String = String + "1 second."
+    } else {
+        String = String + (Time%60):toString() + " seconds."
+    }
+    print(String)
+}

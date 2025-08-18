@@ -1,0 +1,582 @@
+@name DBOX
+@inputs Power Player1:wirelink Player2:wirelink Player3:wirelink Player4:wirelink EGP:wirelink
+@persist ColSch:array IsOn RM:table Num E:wirelink Game:string SDP:vector2 LodB
+@outputs Seats:array
+# Pong
+@persist StopPong Dir Y Hold P1S P2S Spd A2 A1 Tx1:string Tx2:string StepDist
+
+# Box Wars
+@persist StopBW FA:array Rdy:array Bor Ded:array Bdir:table BNu Cdown DedC
+
+#------------------------------#
+#      DGROUSE - 24/01/13      #
+#------------------------------#
+
+
+if( first() ){
+    Num++
+    E = EGP
+    E:egpClear()
+    
+function vector2 ep(Index:number){
+    return EGP:egpPos(Index)
+}
+
+function vector cols(I){
+    return ColSch[I,vector]
+}
+function number rmg(Name:string){
+    return RM[Name,number]
+}
+
+function rm(Name:string){
+    E:egpRemove( RM[Name,number] )
+    RM:remove(Name)
+}
+
+function rmi(Name:string,Index){
+    if( RM[Name,number] ){ rm(Name) }
+    RM[Name,number] = Index
+}
+
+function rmn(Name:string){
+    if( RM[Name,number] ){ rm(Name) }
+    RM[Name,number] = Num
+}
+
+function rma(Ar:array){
+    for(I=1,Ar:count()){
+        rm(Ar[I,string])
+    }
+}
+
+function col(X:number,Col:vector){
+    E:egpColor(X,Col)
+}
+
+function esize(X:number,Sz:number){
+    E:egpSize(X,Sz)
+}
+
+function box(Pos:vector2,Sz:vector2,Col:vector){
+    Num++
+    E:egpBox(Num,Pos,Sz)
+    perf()
+    col(Num,Col)
+}
+function circ(Pos:vector2,Sz:vector2,Col:vector){
+    Num++
+    E:egpCircle(Num,Pos,Sz)
+    perf()
+    col(Num,Col)
+}
+
+function r2r(Pos:vector2,Spc:number,SI:vector2,Xc:vector,Yc:vector){
+    Num++
+    E:egpRoundedBox(Num,Pos,SI)
+    perf()
+    col(Num,Xc)
+    Num++
+    perf()
+    E:egpRoundedBox(Num,Pos,SI-vec2(Spc,Spc))
+    perf()
+    col(Num,Yc)
+}
+
+function txt(Pos:vector2,Tx:string,Col:vector,Sz:number,Shad:number){
+    if( Shad ){ 
+        Num++
+        E:egpText(Num,Tx,Pos+vec2(2,2))
+        perf()
+        col(Num,vec())
+        perf()
+        esize(Num,Sz)
+        perf()
+    }
+    Num++
+    E:egpText(Num,Tx,Pos)
+    perf()
+    col(Num,Col)
+    perf()
+    esize(Num,Sz)
+}
+
+function line(Pos1:vector2,Pos2:vector2,Col:vector){
+    Num++
+    EGP:egpLine(Num,Pos1,Pos2)
+    perf()
+    col(Num,Col)
+}
+
+function poly(Par:number,Ar:array,Col:vector){
+    Num++
+    E:egpPoly(Num,Ar)
+    E:egpParent(Num,Par)
+    E:egpColor(Num,Col)
+}
+    
+function loadcols(){
+    if( Game == "" ){
+        ColSch = array(
+        vec(),            #1 Black
+        vec(255,255,255), #2 White
+        vec(100,100,255), #3 SDblue
+        vec(110,110,255), #4 Lblue
+        vec(255,110,110), #5 LRed
+        vec(110,255,110)  #6 LGreen
+        )
+    }elseif( Game == "pong" ){
+        ColSch = array(
+        vec(),            #1 Black
+        vec(255,255,255), #2 White
+        vec(100,100,255), #3 SDblue
+        vec(255,0,0),     #4 Red
+        vec(0,255,0),     #5 Green
+        vec(0,0,255),     #6 Blue 1
+        vec(10,10,40),    #7 Dblue 1
+        vec(40,10,10)     #8 Dred 1
+        )
+    }elseif( Game == "boxwars" ){
+        ColSch = array(
+        vec(),            #1 Black
+        vec(255,255,255), #2 White
+        vec(100,100,255), #3 SDblue
+        vec(255,0,0),     #4 Red
+        vec(0,255,0),     #5 Green 1
+        vec(0,0,255),     #6 Blue
+        vec(255,255,0),   #7 Yellow
+        vec(100,100,255), #8 Bullet
+        vec(100,150,100), #9 Green 2
+        vec(10,70,10)     #10 DGreen 3
+        )
+    }
+}
+
+function bg1(X:number,Y:number){
+    box(vec2(256,256),vec2(512,512),cols(X)) rmn("BG1")
+    perf()
+    box(vec2(256,256),vec2(750,750),cols(Y)) rmn("BG2")
+    perf()
+    E:egpMaterial(Num,"gui/gradient")
+    perf()
+    E:egpAngle(Num,45)
+}
+
+function backing(){
+    box(vec2(256,256),vec2(512,512),cols(1)) rmn("Backing")
+}
+    
+function init(){
+    if( Game == "pong" ){
+        box(vec2(50,256),vec2(20,70),cols(4)) rmn("Pad1")
+        box(vec2(512-50,256),vec2(20,70),cols(6)) rmn("Pad2")
+        circ(vec2(255,256),vec2(10,10),cols(5)) rmn("Ball")
+        Y = random(-1,1)
+        Dir = randint(0,1)
+        Hold = 1
+        txt(vec2(10,10),"Player 1: "+P1S,cols(2),20,0) rmn("P1S")
+        txt(vec2(390,10),"Player 2: "+P2S,cols(2),20,0) rmn("P2S")
+        txt(ep(1),"CPU",cols(2),20,0) rmn("P1Txt")
+        txt(ep(2),"CPU",cols(2),20,0) rmn("P2Txt")
+        EGP:egpAngle(rmg("P1Txt"),90)
+        EGP:egpAngle(rmg("P2Txt"),-90)
+        EGP:egpParent(rmg("P1Txt"),rmg("Pad1"))
+        EGP:egpParent(rmg("P2Txt"),rmg("Pad2"))
+        Spd = 0
+    }elseif( Game == "boxwars" ){
+        box(vec2(50,50),vec2(25,25),cols(1)) rmn("P1") E:egpAlpha(Num,0)
+        poly(Num,array(vec2(0,-20),vec2(10,15),vec2(0,5),vec2(-10,15)),cols(4)) rmn("Ps1")
+        box(vec2(512-50,50),vec2(25,25),cols(1)) rmn("P2") E:egpAlpha(Num,0)
+        poly(Num,array(vec2(0,-20),vec2(10,15),vec2(0,5),vec2(-10,15)),cols(5)) rmn("Ps2")
+        box(vec2(50,512-50),vec2(25,25),cols(1)) rmn("P3") E:egpAlpha(Num,0)
+        poly(Num,array(vec2(0,-20),vec2(10,15),vec2(0,5),vec2(-10,15)),cols(6)) rmn("Ps3")
+        box(vec2(512-50,512-50),vec2(25,25),cols(1)) rmn("P4") E:egpAlpha(Num,0)
+        poly(Num,array(vec2(0,-20),vec2(10,15),vec2(0,5),vec2(-10,15)),cols(7)) rmn("Ps4")
+        timer("cdown",0)
+        Cdown = 3
+    }
+}
+
+function base(){
+    if( Game == "pong" ){
+        bg1(7,8)
+        soundStop(0,0) 
+        line(vec2(10,35),vec2(502,35),cols(2)) rmn("Lbar")
+        txt(vec2(170,10),"DGrouse's DBOX-Pong",cols(2),20,0) rmn("DDBP")
+        StopPong = 0
+        P1S = 0
+        P2S = 0
+        SDP = vec2(160,50)
+    }
+    if( Game == "boxwars" ){
+        bg1(9,10)
+        Bor = 30
+        StopBW = 0
+        SDP = vec2(160,150)
+    }
+}
+
+function shutdown(){
+    StopPong = 1
+    StopBW = 1
+    IsOn = 0
+    foreach(K,S:string=RM){
+        rm(S)
+    }
+    backing()
+    Game = ""
+}
+
+function boot(){
+    rma(array("DTitle","LoadingB","LoadBall","LSB1","LSB2","LSB3","Dcre"))
+    Game = "pong"
+    loadcols()
+    base()
+    init()
+    timer( Game,33 )
+}
+
+function mp(Id:number,Inp:number,Mov:vector2){
+    if(Inp){
+        EGP:egpPos(Id, ep(Id)+Mov )
+    }
+}
+
+function number between( I,X,Y ){
+    if( I > X && I < Y ){
+        return 1
+    }else{ return 0 }
+}
+
+function number bear2(XY1:vector2,XY2:vector2){
+NX1 = XY1-XY2
+return (atan(NX1:x(),NX1:y()))
+}
+
+function number pin(Player:number,Button:string){
+    if( Player == 1 ){
+        Ply = Player1
+    }elseif( Player == 2 ){
+        Ply = Player2
+    }elseif( Player == 3 ){
+        Ply = Player3
+    }elseif( Player == 4 ){
+        Ply = Player4
+    }
+    return Ply[Button,number]
+}
+
+function entity pie(Player:number,Button:string){
+    if( Player == 1 ){
+        Ply = Player1
+    }elseif( Player == 2 ){
+        Ply = Player2
+    }elseif( Player == 3 ){
+        Ply = Player3
+    }elseif( Player == 4 ){
+        Ply = Player4
+    }
+    return Ply[Button,entity]
+}
+
+for( I=1,4 ){
+        Seats[I,entity] = pie(I,"Entity")
+    }
+
+function chadDed(Amount:number){
+    DedC=DedC+Amount
+    if( DedC >= 3 ){
+        DedC = 0
+        perf()
+        init()
+    }
+}
+
+function loadsys(){
+    Num++
+    E:egpCircle(Num,vec2(256,256),vec2(1,1)) rmn("LoadBall")
+    E:egpColor(Num,cols(randint(4,6)))
+    perf()
+    box(vec2(240,220),vec2(220,5),cols(2)) E:egpAlpha(Num,100) rmn("LSB1")
+    box(vec2(270,210),vec2(220,5),cols(2)) E:egpAlpha(Num,70) rmn("LSB2")
+    box(vec2(250,200),vec2(220,5),cols(2)) E:egpAlpha(Num,150) rmn("LSB3")
+    LodB = 1
+    timer("LoadingB",33)
+    txt(vec2(200,150),"DBOX",cols(2),50,0) rmn("DTitle")
+    txt(vec2(115,350),"- Created by DGrouse -",cols(2),30,0) rmn("Dcre")
+    timer("BootReady",6000)
+}
+
+}
+
+if( clk("LoadingB") ){
+    LodB++
+    E:egpPos( rmg("LSB1"), vec2(200,220)+vec2(290/LodB,0)*40 )
+    E:egpPos( rmg("LSB2"), vec2(320,210)-vec2(290/LodB,0)*40 )
+    E:egpPos( rmg("LSB3"), vec2(180,200)+vec2(290/LodB,0)*50 )
+    LBI = rmg("LoadBall")
+    E:egpSize(LBI,E:egpSize(LBI)+vec2(3,3))
+    if( LBI ){
+        timer("LoadingB",33)
+    }
+}
+
+#=================================================#
+#       BOXWARS - DGrouse - February 2014         #
+#=================================================#
+
+if( clk("cdown") ){
+    txt(vec2(230,170),toString(Cdown),cols(2),70,1) rmn("Cdn") rmi("CdnS",Num-1)
+    Cdown--
+    if( Cdown < 0 ){
+        rma(array("Cdn","CdnS"))
+    }else{ timer("cdown",1000) }
+}
+
+function fireaw(I:number){
+    BNu++
+    Inz = rmg("P"+I)
+    InP = ep(Inz)
+    InA = E:egpAngle(Inz)
+    box(InP,vec2(3,10),cols(8)) rmn("Bn"+BNu)
+    Bdir["Bn"+BNu,vector] = vec(Num,InA,0)
+    E:egpAngle(Num,InA)
+    Rdy[I,number] = 0
+    timer("checkfire"+I,1000)
+}
+
+if( first()){
+    for( I=1,4 ){
+        Rdy[I,number] = 1 
+    }
+}
+    
+for( I=1,4 ){
+
+if( clk("checkfire"+I) ){
+    Rdy[I,number] = 1
+    if(FA[I,number]){
+        fireaw(I)
+        FA[I,number]=0
+    }
+}
+
+}
+
+if ( clk("boxwars") ){
+    
+if( Cdown < 0 ){
+    
+foreach( K,V:vector=Bdir){
+    if( V:z() > 100 ){ rm(K) Bdir:removeVector(K) }else{
+        Bdir[K,vector] = vec(V:x(),V:y(),V:z()+2)
+        E:egpPos(V:x(),ep(V:x())+10*vec2(-sin(V:y()),-cos(V:y())))
+    }
+}
+
+for( I=1,4 ){
+    
+    if( pin(I,"Active") ){
+        
+        if(!Ded[I,number]){
+        Inz = rmg("P"+I)
+        InP = ep(Inz)
+        InPy = InP:y()
+        InPx = InP:x()
+    
+        for( L=1,4 ){
+            if(L!=I && !Ded[L,number]){
+            Lnz = rmg("P"+L)
+            LnP = ep(Lnz)
+            LnPy = LnP:y()
+            LnPx = LnP:x()
+                if( between(InPy,LnPy-10,LnPy+10) && between(InPx,LnPx-10,LnPx+10) ){
+                    rma(array("P"+I,"Ps"+I,"P"+L,"Ps"+L))
+                    Ded[I,number]=1 Ded[L,number]=1 chadDed(2)
+                }
+            } 
+        }
+        
+        if( !(pin(I,"W") && pin(I,"S")) ){
+            if( pin(I,"W") && InPy > Bor ){
+                mp(Inz,pin(I,"W"),vec2(0,-4))
+            }
+            if( pin(I,"S") && InPy < 512-Bor ){
+                mp(Inz,pin(I,"S"),vec2(0,4))
+            }
+        }
+        if( !(pin(I,"A") && pin(I,"D")) ){
+            if( pin(I,"A") && InPx > Bor ){
+                mp(Inz,pin(I,"A"),vec2(-4,0))
+            }
+            if( pin(I,"D") && InPx < 512-Bor ){
+                mp(Inz,pin(I,"D"),vec2(4,0))
+            }
+        }
+        E:egpAngle( rmg("P"+I),bear2( ep(rmg("P"+I)),E:egpCursor( pie(I,"Entity"):driver() ) ) )
+        if( pin(I,"Mouse1") ){FA[I,number]=1 if(Rdy[I,number]){ fireaw(I) }}else{FA[I,number]=0}
+    }
+    }else{ Ded[I,number]=1 rm("P"+I) chadDed(1) }
+}
+
+}
+    
+if( !StopBW ){
+    timer("boxwars",66)
+}
+    
+}
+
+#====================BOXWARS======================#
+
+#=================================================#
+#        PONG - DGrouse - December 2013           #
+#=================================================#
+
+if ( clk("pong") ){
+    
+if( Player1["R",number] | Player2["R",number] ){
+    init()
+}
+ 
+EP1 = ep(rmg("Pad1"))
+EP2 = ep(rmg("Pad2"))
+EP3 = ep(rmg("Ball"))
+
+perf()
+
+if ( Dir == 0 ){
+    EGP:egpPos(rmg("Ball"), EP3+vec2(6+Spd,Y) ) 
+}else{
+    EGP:egpPos(rmg("Ball"), EP3+vec2(-6-Spd,Y) ) 
+}
+
+perf()
+
+if ( !pin(1,"Active") ){ if( Dir ){
+    if ( EP1:y()-EP3:y() > A1 ){
+      if( EP1:y() > 80 ){
+      C1m = -8 }
+      }else{ if( EP1:y() < 477 ){ C1m = 8 }}
+    EGP:egpPos(rmg("Pad1"), EP1+vec2(0,C1m) )
+    }
+    Tx1 = "CPU"
+}else{
+    if(EP2:y()>80){
+        mp(rmg("Pad1"),pin(1,"W"),vec2(0,-8))
+    }
+    if(EP2:y()<460){
+        mp(rmg("Pad1"),pin(1,"S"),vec2(0,8))
+    }
+  Tx1 = Player1["Entity",entity]:driver():name():upper()
+}
+
+perf()
+
+if ( !pin(2,"Active") ){ if( !Dir ){
+    if ( EP2:y()-EP3:y() > A2 ){
+      if( EP2:y() > 80 ){
+      C2m = -8 }
+      }else{ if( EP2:y() < 477 ){ C2m = 8 }}
+    EGP:egpPos(rmg("Pad2"), EP2+vec2(0,C2m) )
+    }
+    Tx2 = "CPU"
+}else{
+    if(EP2:y()>80){
+        mp(rmg("Pad2"),pin(2,"W"),vec2(0,-8))
+    }
+    if(EP2:y()<460){
+        mp(rmg("Pad2"),pin(2,"S"),vec2(0,8))
+    }
+  Tx2 = Player2["Entity",entity]:driver():name():upper()
+}
+
+perf()
+
+EGP:egpText(rmg("P1Txt"),Tx1,vec2(-27,0))
+EGP:egpText(rmg("P2Txt"),Tx2,vec2(27,0))
+EGP:egpAlign(rmg("P1Txt"),1,1)
+EGP:egpAlign(rmg("P2Txt"),1,1)
+
+P1W = vec2( EP1:y()+45, EP1:y()-45 ) 
+P2W = vec2( EP2:y()+45, EP2:y()-45 )
+
+perf()
+
+if ( Dir == 0 && between(EP3:y(),P2W:y(),P2W:x()) && between(EP3:x(),442,462) ){
+      Dir = 1
+      Y = -Y+(EP3:y()-EP2:y())/15
+      entity():soundPlay(0,0.2,"synth/tri.wav")
+      soundVolume(0,0.2)
+      Spd = clamp(Spd+0.5,0,14)
+      A2 = randint(-40,40)
+}
+
+perf()
+
+if ( Dir == 1 && between(EP3:y(),P1W:y(),P1W:x()) && between(EP3:x(),50,70) ){
+      Dir = 0
+      Y = -Y+(EP3:y()-EP1:y())/15
+      entity():soundPlay(0,0.2,"synth/tri.wav")
+      soundPitch(0,80)
+      soundVolume(0,0.2)
+      Spd = clamp(Spd+0.5,0,14)
+      A1 = randint(-40,40)
+}
+
+if ( EP3:y() < 60 | EP3:y() > 482 ){
+    if ( Hold ){
+    Y = -Y
+    Hold = 0
+    }
+}else{ Hold = 1 }
+
+if( EP3:x() < 0 ){
+    P2S++
+    init()
+}
+
+perf()
+
+if( EP3:x() > 512 ){
+    P1S++
+    init()
+}
+
+if( !StopPong ){
+    timer("pong",66)
+}
+
+}
+#=====================PONG========================#
+
+if( inputClk() ){
+    if( Power ){
+        if( IsOn ){
+            txt(SDP,"Shutting Down",cols(3),30,0)
+            rmn("sdt")
+            timer("SDhold",3000)
+        }else{
+        loadcols()
+        E:egpClear()
+        timer("ldsys",10)
+        backing()
+        IsOn = 1
+        }
+    }else{
+        rm("sdt")
+        stoptimer("SDhold")
+    }
+}
+
+if( clk("SDhold") ){
+    shutdown()
+}
+
+if( clk("ldsys") ){
+    loadsys()
+}
+
+if( clk("BootReady") ){
+    boot()
+}

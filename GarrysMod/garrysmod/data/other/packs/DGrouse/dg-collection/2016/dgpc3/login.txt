@@ -1,0 +1,208 @@
+@name DGPC3-Login
+@persist Login_WindowCU TB_CUUserName TB_CUPassWord [TBUN_txt TBPW_txt]:string
+@persist TB_LUserName TB_LPassWord Login_Window FadeAlpha FadeBox
+
+#include "dgpc3/lib1"
+#include "dgpc3/elements/backgrounds"
+#include "dgpc3/desktop"
+
+function loginIncludes(){
+    #include "dgpc3/hooks"
+    #include "dgpc3/elements/window"
+    #include "dgpc3/elements/textbox"
+}
+
+function fadeToDesktop(){
+    FadeAlpha = clamp(FadeAlpha+20,0,255)
+    alpha(FadeBox,FadeAlpha)
+    if( FadeAlpha < 255 ){
+        timer("FadetoDesktop",50)
+    }else{
+        desktopInit()
+    }
+}
+
+function loginClose(){
+    TBPW_txt = ""
+    TBUN_txt = ""
+    windowClose( Login_Window )
+    textboxRemove(TB_LUserName)
+    textboxRemove(TB_LPassWord)
+    
+    hookRemove( "CloseLogin" )
+    
+    textshadow("Welcome",256,240,70,2,1,1,3,1,200)
+    textshadow(CurrentUser,256,300,50,2,1,1,3,1,200)
+    
+    FadeAlpha = 0
+    FadeBox = box(256,256,512,512,1) alpha(FadeAlpha)
+    
+    hookAdd( "FadetoDesktop","fade","fadeToDesktop",1000 )
+    
+}
+
+function lPassWord( Mem ){
+    if( Mem == KEY_ENTER ){
+        if( Users[CurrentUser,table]["Password",string] == TBPW_txt ){
+            textboxSetActive(TB_LPassWord,0)
+            textboxSetBoxColor(TB_LPassWord,7)
+            
+            hookAdd( "CloseLogin","close","loginClose",500 )
+        }else{
+            textboxSetBoxColor(TB_LPassWord,8)
+        }
+    }elseif( Mem == KEY_TAB ){
+        textboxSetActive(TB_LPassWord,0)
+        textboxSetBoxColor(TB_LPassWord,5)
+        textboxSetActive(TB_LUserName,1)
+        textboxSetBoxColor(TB_LUserName,6)
+    }else{
+    
+        TBPW_txt = textEdit( TB_LPassWord,TBPW_txt,Mem )
+        textboxUpdateText(TB_LPassWord,TBPW_txt:pwtxt())
+        
+    }
+}
+
+function lUserName( Mem ){
+    if( Mem == KEY_ENTER ){
+        if( Users[TBUN_txt,table] ){
+            CurrentUser = TBUN_txt
+            textboxSetActive(TB_LUserName,0)
+            textboxSetBoxColor(TB_LUserName,7)
+            textboxSetActive(TB_LPassWord,1)
+            textboxSetBoxColor(TB_LPassWord,6)
+        }else{
+            textboxSetBoxColor(TB_LUserName,8)
+        }
+    }else{
+    
+        TBUN_txt = textEdit( TB_LUserName,TBUN_txt,Mem )
+        textboxUpdateText(TB_LUserName,TBUN_txt)
+        
+    }
+}
+
+function login(){
+    
+    Login_Window = windowNew(256,256,300,150)
+    
+    TB_LUserName = textboxNew("TB_LUserName", # Name
+        315,255,150,20,20,14,"",6,1,            # X,Y,W,H,Size,DefaultText,BoxColor,TextColor
+        "lUserName","kFilter_LetNum",1         # Function,Filter,Active?
+    )
+    
+    TB_LPassWord = textboxNew("TB_LPassWord",
+        315,295,150,20,20,14,"",5,1,
+        "lPassWord","kFilter_LetNum",0
+    )
+    
+    windowContent("Objects",array(
+        text("Login",120,190,30,1,0,0),
+        line(120,220,300,220,1),
+        line(120,223,300,223,1),
+        text("Username:",235,240,25,1,2,0),
+        text("Password:",235,280,25,1,2,0)
+    ))
+}
+
+function createUserClose(){
+    
+    TBPW_txt = ""
+    TBUN_txt = ""
+    windowClose( Login_WindowCU )
+    textboxRemove(TB_CUUserName)
+    textboxRemove(TB_CUPassWord)
+    
+    login()
+    
+    hookRemove( "CloseCreateUser" )
+}
+
+function tbPassWord( Mem ){
+    if( Mem == KEY_ENTER ){
+        
+        Users[TBUN_txt,table]["Password",string] = TBPW_txt
+        if( Users:count() == 1 ){ Users[TBUN_txt,table]["IsAdmin",number] = 1 }
+        
+        textboxSetActive(TB_CUPassWord,0)
+        textboxSetBoxColor(TB_CUPassWord,7)
+        windowContent( Login_WindowCU,"Objects", text("Created! - Applying Settings...",256,316,15,1,1,1) )
+        dgp( "Password set to: "+TBPW_txt )
+        hookAdd( "CloseCreateUser","close","createUserClose",1500 )
+        
+#        saveUser(TBUN_txt)
+#        userEnable(TBUN_txt,1)
+
+    }elseif( Mem == KEY_TAB ){
+        textboxSetActive(TB_CUPassWord,0)
+        textboxSetBoxColor(TB_CUPassWord,5)
+        textboxSetActive(TB_CUUserName,1)
+        textboxSetBoxColor(TB_CUUserName,6)
+        Users:remove(TBUN_txt)
+    }else{
+    
+        TBPW_txt = textEdit( TB_CUPassWord,TBPW_txt,Mem )
+        textboxUpdateText(TB_CUPassWord,TBPW_txt:pwtxt())
+        
+    }
+}
+
+function tbUserName( Mem ){
+    if( Mem == KEY_ENTER ){
+        if( Users[TBUN_txt,table] ){
+			         textboxSetBoxColor(TB_CUUserName,8)
+		      }else{
+        			 Users[TBUN_txt,table] = userDefaults()
+        			 textboxSetActive(TB_CUUserName,0)
+        			 textboxSetBoxColor(TB_CUUserName,7)
+        			
+        			 textboxSetActive(TB_CUPassWord,1)
+        			 textboxSetBoxColor(TB_CUPassWord,6)
+        }
+    }else{
+    
+        TBUN_txt = textEdit( TB_CUUserName,TBUN_txt,Mem )
+        textboxUpdateText(TB_CUUserName,TBUN_txt)
+        
+    }
+}
+
+function createUser(){
+    
+    Login_WindowCU = windowNew(256,256,300,150)
+    
+    TB_CUUserName = textboxNew("TB_CUUserName", # Name
+        315,255,150,20,20,14,"",6,1,            # X,Y,W,H,Size,DefaultText,BoxColor,TextColor
+        "tbUserName","kFilter_LetNum",1         # Function,Filter,Active?
+    )
+    
+    TB_CUPassWord = textboxNew("TB_CUPassWord",
+        315,295,150,20,20,14,"",5,1,
+        "tbPassWord","kFilter_LetNum",0
+    )
+    
+    windowContent("Objects",array(
+        text("Create a user",120,190,30,1,0,0),
+        line(120,220,300,220,1),
+        line(120,223,300,223,1),
+        text("Username:",235,240,25,1,2,0),
+        text("Password:",235,280,25,1,2,0)
+    ))
+}
+
+function initLogin(){
+    
+    clear()
+    
+    defcolor()
+    
+    bg_bluegrad()
+    bge_spotted()
+    
+    if( Users:count() < 1 ){
+        createUser()
+    }else{
+        login()
+    }
+}

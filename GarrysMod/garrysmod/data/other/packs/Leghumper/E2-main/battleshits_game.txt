@@ -1,0 +1,1204 @@
+@name BattleShits_Game
+@inputs [P1A,P1S,P1D,P1W,P2A,P2S,P2D,P2W,P1Seat,P2Seat,P1KeyClk,P2KeyClk,P1Shift,P1Space,P2Shift,P2Space]:number [P1PrivateScreen,P2PrivateScreen,P1PublicScreen,P2PublicScreen]:wirelink
+@outputs [P1ShipArray,P2ShipArray]:array
+@persist [P1BoatTable,P2BoatTable,P1GuessTable,P2GuessTable,BoatLengths,P1BoatHPs,P2BoatHPs,P1Hits,P2Hits,P1Misses,P2Misses]:array [P1Head,P2Head]:vector2 [SizeOfHologramTable,NumberOfTilesXY]:number GameState:string
+@persist [C,P1Rotation,P2Rotation,P1X,P1Y,P2X,P2Y,P1CanPlace,P2CanPlace]:number Footer:string [P1CurrentlyPlacing,P2CurrentlyPlacing]:number ShipColor:vector
+@persist [P1HP,P2HP]:number 
+@trigger 
+function void paintSquare(TableNumber:number,XY:vector2,Color:vector)
+{
+    if(TableNumber==1)
+    {
+        EGPNumber = (XY:y()-1)*NumberOfTilesXY + XY:x()
+        P1PublicScreen:egpColor(EGPNumber,Color)
+    }
+    elseif(TableNumber==2)
+    {
+        EGPNumber = (XY:y()-1)*NumberOfTilesXY + XY:x()
+        P2PublicScreen:egpColor(EGPNumber,Color)
+    }
+}
+function void resizeSquare(TableNumber:number,XY:vector2,Size:vector2)
+{
+    if(TableNumber==1)
+    {
+        EGPNumber = (XY:y()-1)*NumberOfTilesXY + XY:x()
+        P1PublicScreen:egpSize(EGPNumber,Size)
+    }
+    elseif(TableNumber==2)
+    {
+        EGPNumber = (XY:y()-1)*NumberOfTilesXY + XY:x()
+        P2PublicScreen:egpSize(EGPNumber,Size)
+    }
+}
+function void drawShip(Player:number,Head:vector2,Rotation,Length:number,Color:vector)
+{
+    if(Player==1)
+    {
+        P1CanPlace = 1
+        PosIncrement = Rotation ? vec2(1,0) : vec2(0,1) #
+        for(I=1,Length)
+        {
+            #NumSquare = (((Head:y()-1+PosIncrement:y()*I))*NumberOfTilesXY)+((Head:x()+PosIncrement:x()*I))
+            NewX = Head:x() + Rotation*(I-1)
+            NewY = Head:y() + !Rotation*(I-1)
+            NumSquare = (NewY-1)*NumberOfTilesXY+NewX
+            if(P1BoatTable[NumSquare,number])
+            {
+                P1CanPlace = 0
+            }
+            ActualColor = P1BoatTable[NumSquare,number] ? vec(255,0,0) : Color
+            paintSquare(Player,Head+PosIncrement*(I-1),ActualColor)
+        }
+    }
+    elseif(Player==2)
+    {
+        P2CanPlace = 1
+        PosIncrement = Rotation ? vec2(1,0) : vec2(0,1) #
+        for(I=1,Length)
+        {
+            #NumSquare = (((Head:y()-1+PosIncrement:y()*I))*NumberOfTilesXY)+((Head:x()+PosIncrement:x()*I))
+            NewX = Head:x() + Rotation*(I-1)
+            NewY = Head:y() + !Rotation*(I-1)
+            NumSquare = (NewY-1)*NumberOfTilesXY+NewX
+            if(P2BoatTable[NumSquare,number])
+            {
+                P2CanPlace = 0
+            }
+            ActualColor = P2BoatTable[NumSquare,number] ? vec(255,0,0) : Color
+            paintSquare(Player,Head+PosIncrement*(I-1),ActualColor)
+        }
+    }
+}
+function void unDrawShip(Player:number,Head:vector2,Rotation,Length:number)
+{
+        PosIncrement = Rotation ? vec2(1,0) : vec2(0,1) #
+        for(I=1,Length)
+        {
+            #NumSquare = (((Head:y()-1+PosIncrement:y()*I))*NumberOfTilesXY)+((Head:x()+PosIncrement:x()*I))
+            NewX = Head:x() + Rotation*(I-1)
+            NewY = Head:y() + !Rotation*(I-1)
+            NumSquare = (NewY-1)*NumberOfTilesXY+NewX
+            if(Player==1){ ActualColor = P1BoatTable[NumSquare,number] ? ShipColor : vec(32,32,32) } else {ActualColor = P2BoatTable[NumSquare,number] ? ShipColor  : vec(32,32,32) }
+            #ActualColor = P1BoatTable[NumSquare,number] ? ShipColor : vec(32,32,32)
+            paintSquare(Player,Head+PosIncrement*(I-1),ActualColor)
+        }
+
+}
+function void placeShip(Player:number,Head:vector2,Rotation,Length:number,Color:vector)
+{
+    if(Player == 1)
+    {
+        NewString = ""
+        PosIncrement = Rotation ? vec2(1,0) : vec2(0,1) #
+        for(I=1,Length)
+        {
+            WhereToPaint = Head+PosIncrement*(I-1)
+            paintSquare(Player,WhereToPaint,Color)
+            resizeSquare(Player,Head+PosIncrement*(I-1),vec2(42+Rotation*10,42+!Rotation*10))
+            NewX = Head:x() + Rotation*(I-1)
+            NewY = Head:y() + !Rotation*(I-1)
+            NumSquare = (NewY-1)*NumberOfTilesXY+NewX
+            P1BoatTable[NumSquare,number] = P1CurrentlyPlacing
+            EGPNumber = (WhereToPaint:y()-1)*NumberOfTilesXY + WhereToPaint:x()
+            P1ShipArray:pushNumber(EGPNumber)
+            NewString = NewString + "("+(Head:y()-1+PosIncrement:y()*I)*NumberOfTilesXY + "," + (Head:x()+PosIncrement:x()*I)+")"
+        }
+    }
+    elseif(Player == 2)
+    {
+        NewString = ""
+        PosIncrement = Rotation ? vec2(1,0) : vec2(0,1) #
+        for(I=1,Length)
+        {
+            WhereToPaint = Head+PosIncrement*(I-1)
+            paintSquare(Player,WhereToPaint,Color)
+            resizeSquare(Player,Head+PosIncrement*(I-1),vec2(42+Rotation*10,42+!Rotation*10))
+            NewX = Head:x() + Rotation*(I-1)
+            NewY = Head:y() + !Rotation*(I-1)
+            NumSquare = (NewY-1)*NumberOfTilesXY+NewX
+            P2BoatTable[NumSquare,number] = P2CurrentlyPlacing
+            EGPNumber = (WhereToPaint:y()-1)*NumberOfTilesXY + WhereToPaint:x()
+            P2ShipArray:pushNumber(EGPNumber)
+            NewString = NewString + "("+(Head:y()-1+PosIncrement:y()*I)*NumberOfTilesXY + "," + (Head:x()+PosIncrement:x()*I)+")"
+        }
+    }
+}
+function void beginElimination()
+{
+    GameState = "p1targetting"
+    soundPlay(5,0,"vo/npc/barney/ba_bringiton.wav")
+    P1PrivateScreen:egpSetText(101,"Ok, let's begin!")
+    P2PrivateScreen:egpSetText(101,"Ok, let's begin!")
+    P1PrivateScreen:egpAlpha(103,0)
+    P2PrivateScreen:egpAlpha(103,0)
+    P1PrivateScreen:egpAlpha(104,0)
+    P2PrivateScreen:egpAlpha(104,0)
+    P1PrivateScreen:egpAlpha(105,0)
+    P2PrivateScreen:egpAlpha(105,0)
+    timer("beginGame",1000)
+}
+function void afterMatchCleanup()
+{
+    for(I=1,P1Misses:count())
+    {
+        P1PrivateScreen:egpColor(P1Misses[I,number],vec(32,32,32))
+        P2PublicScreen:egpColor(P1Misses[I,number],vec(32,32,32))
+    }
+    for(I=1,P1Hits:count())
+    {
+        P1PrivateScreen:egpColor(P1Hits[I,number],vec(32,32,32))
+        P2PublicScreen:egpColor(P1Hits[I,number],vec(32,32,32))
+    }
+    for(I=1,P2Misses:count())
+    {
+        P2PrivateScreen:egpColor(P2Misses[I,number],vec(32,32,32))
+        P1PublicScreen:egpColor(P2Misses[I,number],vec(32,32,32))
+    }
+    for(I=1,P2Hits:count())
+    {
+        P2PrivateScreen:egpColor(P2Hits[I,number],vec(32,32,32))
+        P1PublicScreen:egpColor(P2Hits[I,number],vec(32,32,32))
+    }
+    N=1
+    for(I=1,P1ShipArray:count())
+    {
+        P1PublicScreen:egpColor(P1ShipArray[I,number], vec(32,32,32))
+        P1PublicScreen:egpSize(P1ShipArray[I,number], vec2(36,36))
+        N++
+    }
+    for(I=1,P2ShipArray:count())
+    {
+        P2PublicScreen:egpColor(P2ShipArray[I,number], vec(32,32,32))
+        P2PublicScreen:egpSize(P2ShipArray[I,number], vec2(36,36))
+        N++
+    }
+    print("Cleaned up "+N)
+    P1PrivateScreen:egpAlpha(106,0)
+    P1PublicScreen:egpAlpha(106,0)
+    P2PrivateScreen:egpAlpha(106,0)
+    P2PublicScreen:egpAlpha(106,0)
+    P2PublicScreen:egpAlpha(105,0)
+}
+if(clk("beginGame"))
+{
+    P1Head = vec2(5,5)
+    P2Head = vec2(5,5)
+    P1GuessTable = array()
+    P2GuessTable = array()
+    P1PrivateScreen:egpSetText(101,"Your turn")
+    P1PrivateScreen:egpAlign(101,0,0)
+    P1PrivateScreen:egpPos(101,vec2(10,10))
+    P1PrivateScreen:egpSetText(103,"W,A,S,D: move target")
+    P1PrivateScreen:egpSetText(104,"Space: attack")
+    P2PrivateScreen:egpSetText(103,"W,A,S,D: move target")
+    P2PrivateScreen:egpSetText(104,"Space: attack")
+    P1PrivateScreen:egpSize(103,20)
+    P1PrivateScreen:egpSize(104,20)
+    P2PrivateScreen:egpSize(103,20)
+    P2PrivateScreen:egpSize(104,20)
+    
+    P1PrivateScreen:egpText(105,"X",vec2(P1Head:x()*51.2,P1Head:y()*51.2))
+    P2PublicScreen:egpText(105,"X",vec2(P1Head:x()*51.2,P1Head:y()*51.2))
+    P1PrivateScreen:egpPos(105,vec2((P1Head:x()-1)*(512/NumberOfTilesXY)+12,(P1Head:y()-1)*(512/NumberOfTilesXY)))
+    P2PublicScreen:egpPos(105,vec2((P1Head:x()-1)*(512/NumberOfTilesXY)+12,(P1Head:y()-1)*(512/NumberOfTilesXY)+5))
+    P2PublicScreen:egpSize(105,50)
+    P2PublicScreen:egpFont(105,"Courier New")
+
+    
+    P2PrivateScreen:egpText(105,"X",vec2(P1Head:x()*51.2,P1Head:y()*51.2))
+    P1PublicScreen:egpText(105,"X",vec2(P1Head:x()*51.2,P1Head:y()*51.2))
+    P2PrivateScreen:egpPos(105,vec2((P1Head:x()-1)*(512/NumberOfTilesXY)+12,(P1Head:y()-1)*(512/NumberOfTilesXY)))
+    P1PublicScreen:egpPos(105,vec2((P1Head:x()-1)*(512/NumberOfTilesXY)+12,(P1Head:y()-1)*(512/NumberOfTilesXY)+5))
+    P1PublicScreen:egpSize(105,50)
+    P2PrivateScreen:egpSize(105,50)
+    P1PublicScreen:egpFont(105,"Courier New")
+    
+    P2PrivateScreen:egpAlpha(105,0)
+    P1PublicScreen:egpAlpha(105,0)
+    P1PublicScreen:egpSize(105,50)
+    P1PrivateScreen:egpSize(105,50)
+    
+    P1PublicScreen:egpColor(105,vec(100,0,0))
+    P2PublicScreen:egpColor(105,vec(100,0,0))
+    P1PrivateScreen:egpColor(105,vec(100,0,0))
+    P2PrivateScreen:egpColor(105,vec(100,0,0))
+    
+    P1PrivateScreen:egpAlpha(105,255)
+    P1PrivateScreen:egpAlpha(104,255)
+    P1PrivateScreen:egpAlpha(103,255)
+    P1PrivateScreen:egpAlpha(101,128)
+    P2PrivateScreen:egpAlpha(101,128)
+    P2PrivateScreen:egpSetText(101,"Opponent's turn...")
+    P2PrivateScreen:egpPos(101,vec2(10,10))
+    P2PrivateScreen:egpAlign(101,0,0)
+    P2PrivateScreen:egpSize(101,30)
+    
+    P1HP = BoatLengths:sum()
+    P2HP = P1HP
+    P1BoatHPs = BoatLengths:clone()
+    P2BoatHPs = BoatLengths:clone()
+    
+    P1Hits = array()
+    P2Hits = array()
+    P1PrivateScreen:egpText(106,"Opponent's HP: "+toString(P2HP),vec2(350,480))
+    P2PrivateScreen:egpText(106,"Opponent's HP: "+toString(P1HP),vec2(350,480))
+    P1PublicScreen:egpText(106,"Your HP: "+toString(P1HP),vec2(350,480))
+    P2PublicScreen:egpText(106,"Your HP: "+toString(P2HP),vec2(350,480))
+    
+    P1PrivateScreen:egpAlpha(106,255)
+    P1PublicScreen:egpAlpha(106,255)
+    P2PrivateScreen:egpAlpha(106,255)
+    P2PublicScreen:egpAlpha(106,255)
+}
+elseif(clk("bombing"))
+{
+    if(GameState == "P1Dropping")
+    {
+        GuessTableNumber = (P1Head:y()-1)*NumberOfTilesXY+P1Head:x()
+        P1GuessTable[GuessTableNumber,number] = 1
+        if(P2BoatTable[GuessTableNumber,number] > 0)
+        {
+            soundPlay(2,0,"fireworks/firework_explosion_1.wav")
+            P2PublicScreen:egpColor(GuessTableNumber,vec(255,0,0))
+            P1PrivateScreen:egpColor(GuessTableNumber,vec(255,0,0))
+            P2HP -= 1
+            
+            P1PrivateScreen:egpText(106,"Opponent's HP: "+toString(P2HP),vec2(350,480))
+            P2PublicScreen:egpText(106,"Your HP: "+toString(P2HP),vec2(350,480))
+            P2BoatHPs[P2BoatTable[GuessTableNumber,number],number] = P2BoatHPs[P2BoatTable[GuessTableNumber,number],number] - 1
+            P1Hits:pushNumber(GuessTableNumber)
+            if(P2BoatHPs[P2BoatTable[GuessTableNumber,number],number] < 1)
+            {
+                #Paint all the destroyed boat parts a darker red.
+                soundPlay(3,0,"radio/clear.wav")
+                for(I=1,P1Hits:count())
+                {
+                    if(P2BoatTable[P1Hits[I,number],number] == P2BoatTable[GuessTableNumber,number])
+                    {
+                        P1PrivateScreen:egpColor(P1Hits[I,number],vec(50,0,0))
+                        P2PublicScreen:egpColor(P1Hits[I,number],vec(50,0,0))
+                    }
+                }
+                if(P2HP <= 0)
+                {
+                    GameState = "P1Won"
+                    soundPlay(2,0,"misc/happy_birthday.wav")
+                    P1PrivateScreen:egpSetText(101,"You won! :DD")
+                    P2PrivateScreen:egpSetText(101,"Better luck next time! :P")
+                    P1PrivateScreen:egpAlign(101,1,1)
+                    P1PrivateScreen:egpPos(101,vec2(256,256))
+                    P2PrivateScreen:egpAlign(101,1,1)
+                    P2PrivateScreen:egpPos(101,vec2(256,256))
+                    timer("resetGame",5000)
+                }
+                else
+                {
+                    GameState = "p2targetting"
+                }
+            }
+            #printTable(BoatLengths)
+            print("You hit a type "+P2BoatTable[GuessTableNumber,number]+" boat which is "+toString( BoatLengths[P2BoatTable[GuessTableNumber,number],number])+" long. HP: "+P2BoatHPs[P2BoatTable[GuessTableNumber,number],number])
+        }
+        else
+        {
+            soundPlay(2,0,"vehicles/airboat/pontoon_splash1.wav")
+            P2PublicScreen:egpColor(GuessTableNumber,vec(0,0,0))
+            P1PrivateScreen:egpColor(GuessTableNumber,vec(0,0,0))
+            P1Misses:pushNumber(GuessTableNumber)
+            
+        }
+        if(P2HP>0)
+        {
+            P1PrivateScreen:egpSetText(101,"Opponent's turn")
+            P2PrivateScreen:egpSetText(101,"Your turn")
+            P1PrivateScreen:egpAlpha(103,0)
+            P1PrivateScreen:egpAlpha(104,0)
+            P2PrivateScreen:egpAlpha(103,255)
+            P2PrivateScreen:egpAlpha(104,255)
+            
+            P2PrivateScreen:egpAlpha(105,255) #Make the target visible on P2's side
+            P2PublicScreen:egpAlpha(105,0) #Hide the target on P2's public side
+            P1PublicScreen:egpAlpha(105,255)
+            P1PrivateScreen:egpAlpha(105,0)
+            GameState = "p2targetting"
+        }
+        
+        
+        
+    }
+    elseif(GameState == "P2Dropping")
+    {
+        GuessTableNumber = (P2Head:y()-1)*NumberOfTilesXY+P2Head:x()
+        P2GuessTable[GuessTableNumber,number] = 1
+        if(P1BoatTable[GuessTableNumber,number] > 0)
+        {
+            soundPlay(2,0,"fireworks/firework_explosion_1.wav")
+            P1PublicScreen:egpColor(GuessTableNumber,vec(255,0,0))
+            P2PrivateScreen:egpColor(GuessTableNumber,vec(255,0,0))
+            
+            P1HP -= 1
+            P2PrivateScreen:egpText(106,"Opponent's HP: "+toString(P1HP),vec2(350,480))
+            P1PublicScreen:egpText(106,"Your HP: "+toString(P1HP),vec2(350,480))
+            P1BoatHPs[P1BoatTable[GuessTableNumber,number],number] = P1BoatHPs[P1BoatTable[GuessTableNumber,number],number] - 1
+            P2Hits:pushNumber(GuessTableNumber) #Store only the ID's of all the hits and then later use these IDs to change the EGP boxes colors.
+            if(P1BoatHPs[P1BoatTable[GuessTableNumber,number],number] < 1)
+            {
+
+                soundPlay(3,0,"radio/clear.wav")
+                #Paint all the destroyed boat parts a darker red.
+                for(I=1,P2Hits:count())
+                {
+                    if(P1BoatTable[P2Hits[I,number],number] == P1BoatTable[GuessTableNumber,number])
+                    {
+                        P2PrivateScreen:egpColor(P2Hits[I,number],vec(50,0,0))
+                        P1PublicScreen:egpColor(P2Hits[I,number],vec(50,0,0))
+                    }
+                }
+                if(P1HP <= 0)
+                {
+                    GameState = "P2Won"
+                    soundPlay(2,0,"misc/happy_birthday.wav")
+                    P1PrivateScreen:egpSetText(101,"Better luck next time! :P")
+                    P2PrivateScreen:egpSetText(101,"You won! :DD")
+                    P1PrivateScreen:egpAlign(101,1,1)
+                    P1PrivateScreen:egpPos(101,vec2(256,256))
+                    P2PrivateScreen:egpAlign(101,1,1)
+                    P2PrivateScreen:egpPos(101,vec2(256,256))
+                    timer("resetGame",5000)
+                }
+                else
+                {
+                    GameState = "p1targetting"
+                }
+            }
+        }
+        else
+        {
+            soundPlay(2,0,"vehicles/airboat/pontoon_splash1.wav")
+            P1PublicScreen:egpColor(GuessTableNumber,vec(0,0,0))
+            P2PrivateScreen:egpColor(GuessTableNumber,vec(0,0,0))
+            P2Misses:pushNumber(GuessTableNumber)
+        }
+        if(P1HP>0)
+        {
+            P1PrivateScreen:egpSetText(101,"Your turn")
+            P2PrivateScreen:egpSetText(101,"Opponent's turn")
+            P1PrivateScreen:egpAlpha(103,255)
+            P1PrivateScreen:egpAlpha(104,255)
+            P2PrivateScreen:egpAlpha(103,0)
+            P2PrivateScreen:egpAlpha(104,0)
+            
+            P2PrivateScreen:egpAlpha(105,0) 
+            P2PublicScreen:egpAlpha(105,255) 
+            P1PublicScreen:egpAlpha(105,0)
+            P1PrivateScreen:egpAlpha(105,255)
+            GameState = "p1targetting"
+        }
+        GameState = "p1targetting"
+        
+        
+        
+    }
+}
+
+function void newGameScreen()
+{
+            P1PrivateScreen:egpSize(101,40)
+            P1PrivateScreen:egpSetText(101,"Place your ships...")
+            
+            P1PrivateScreen:egpSetText(103,"W,A,S,D: Move ship")
+            P1PrivateScreen:egpPos(103,vec2(10,350))
+            P1PrivateScreen:egpSize(103,40)
+            P1PrivateScreen:egpAlign(103,0,0)
+            P1PrivateScreen:egpAlpha(103,255)
+            
+            P1PrivateScreen:egpSetText(104,"Shift: Rotate ship")
+            P1PrivateScreen:egpPos(104,vec2(10,380))
+            P1PrivateScreen:egpSize(104,40)
+            P1PrivateScreen:egpAlign(104,0,0)
+            P1PrivateScreen:egpAlpha(104,255)
+            
+            P1PrivateScreen:egpText(105,"Space: Place ship",vec2(10,410))
+            P1PrivateScreen:egpColor(105,vec(255,255,255))
+            P1PrivateScreen:egpSize(105,40)
+            P1PrivateScreen:egpAlign(105,0,0)
+            P1PrivateScreen:egpFont(105,"Courier New")
+            P1PrivateScreen:egpAlpha(105,255)
+            
+            P1Head = vec2(1,1)
+            P2Head = vec2(1,1)
+            P1CurrentlyPlacing = 1
+            P2CurrentlyPlacing = 1
+            P1Rotation = 0
+            P2Rotation = 0
+            drawShip(1,P1Head,P1Rotation,BoatLengths[P1CurrentlyPlacing,number],ShipColor)
+            
+            P2PrivateScreen:egpSize(101,40)
+            P2PrivateScreen:egpSetText(101,"Place your ships...")
+            
+            P2PrivateScreen:egpSetText(103,"W,A,S,D: Move ship")
+            P2PrivateScreen:egpPos(103,vec2(10,350))
+            P2PrivateScreen:egpSize(103,40)
+            P2PrivateScreen:egpAlign(103,0,0)
+            P2PrivateScreen:egpAlpha(103,255)
+            
+            P2PrivateScreen:egpSetText(104,"Shift: Rotate ship")
+            P2PrivateScreen:egpPos(104,vec2(10,380))
+            P2PrivateScreen:egpSize(104,40)
+            P2PrivateScreen:egpAlign(104,0,0)
+            P2PrivateScreen:egpAlpha(104,255)
+            
+            P2PrivateScreen:egpText(105,"Space: Place ship",vec2(10,410))
+            P2PrivateScreen:egpSize(105,40)
+            P2PrivateScreen:egpAlign(105,0,0)
+            P2PrivateScreen:egpFont(105,"Courier New")
+            P2PrivateScreen:egpAlpha(105,255)
+            P2PrivateScreen:egpColor(105,vec(255,255,255))
+            drawShip(2,P2Head,P2Rotation,BoatLengths[P1CurrentlyPlacing,number],ShipColor)
+}
+function void p1Joined()
+{
+    soundPlay(10,0,"vo/canals/airboat_nag03.wav")
+        P1PrivateScreen:egpAlpha(103,255)
+        P1PrivateScreen:egpAlpha(104,255)
+        P1PrivateScreen:egpAlpha(105,0)
+        
+        N=1
+        for(I=1,NumberOfTilesXY) #First we draw the Bottom screen. 
+            {
+                for(J=1,NumberOfTilesXY)
+                {
+                    P1PublicScreen:egpBox(N,vec2(51.2*J-51.2/2,51.2*I-51.2/2+8),vec2(36,36))
+                    P1PublicScreen:egpColor(N,vec(32,32,32))
+                    #FUCKIN OVERTICKS AGAIN???
+                    N++
+                }
+            }
+        if(P2Seat) #If both seats are occupied, then begin the game.
+        {
+            GameState = "placingBoats"
+            newGameScreen()
+        }
+}
+function void p2Joined()
+{
+    soundPlay(10,0,"vo/canals/airboat_nag03.wav")
+        P2PrivateScreen:egpAlpha(103,255)
+        P2PrivateScreen:egpAlpha(104,255)
+        #P2PrivateScreen:egpAlpha(105,255)
+        N=1
+        for(I=1,NumberOfTilesXY) #Draw the Bottom screen. 
+        {
+            for(J=1,NumberOfTilesXY)
+            {
+                P2PublicScreen:egpBox(N,vec2(51.2*J-51.2/2,51.2*I-51.2/2+8),vec2(36,36))
+                P2PublicScreen:egpColor(N,vec(32,32,32))
+                #FUCKIN OVERTICKS AGAIN???
+                N++
+            }
+        }
+        if(P1Seat)
+        {
+            GameState = "placingBoats"
+            newGameScreen()
+        }
+}
+function void resetP1PrivateScreen()
+{
+    N=1
+    for(I=1,NumberOfTilesXY)
+    {
+        for(J=1,NumberOfTilesXY)
+        {
+            P1PrivateScreen:egpBox(N,vec2(51.2*J-51.2/2,51.2*I-51.2/2),vec2(36,36))
+            P1PrivateScreen:egpColor(N,vec(32,32,32))
+
+            N++
+        }
+    }
+    P1PrivateScreen:egpAlpha(103,0)   #Hide Instructions
+    P1PrivateScreen:egpAlpha(104,0)   #Hide Instructions
+    P1PrivateScreen:egpAlpha(105,0)   #Hide Instructions
+    P1PrivateScreen:egpAlign(101,1,1) #Align title screen to center
+    P1PrivateScreen:egpPos(101,vec2(256,256))#Place title in the middle of the screen
+    P1PrivateScreen:egpAlpha(101,255)
+    P1PrivateScreen:egpSetText(101,"BATTLESHITS")
+    P1PrivateScreen:egpAlpha(106,0)
+}
+function void resetP2PrivateScreen()
+{
+    N=1
+    for(I=1,NumberOfTilesXY)
+    {
+        for(J=1,NumberOfTilesXY)
+        {
+            P2PrivateScreen:egpBox(N,vec2(51.2*J-51.2/2,51.2*I-51.2/2),vec2(36,36))
+            P2PrivateScreen:egpColor(N,vec(32,32,32))
+            N++
+        }
+    }
+    P2PrivateScreen:egpAlpha(103,0)
+    P2PrivateScreen:egpAlpha(104,0)
+    P2PrivateScreen:egpAlpha(105,0)
+    P2PrivateScreen:egpAlpha(103,0)
+    P2PrivateScreen:egpAlpha(104,0)
+    P2PrivateScreen:egpAlpha(105,0)
+    P2PrivateScreen:egpAlign(101,1,1)
+    P2PrivateScreen:egpPos(101,vec2(256,256))
+    P2PrivateScreen:egpAlpha(101,255)
+    P2PrivateScreen:egpSetText(101,"BATTLESHITS")
+}
+function void resetBothPrivateScreens()
+{
+    N=1
+    for(I=1,NumberOfTilesXY)
+    {
+        for(J=1,NumberOfTilesXY)
+        {
+            P2PrivateScreen:egpBox(N,vec2(51.2*J-51.2/2,51.2*I-51.2/2),vec2(36,36))
+            P2PrivateScreen:egpColor(N,vec(32,32,32))
+            P1PrivateScreen:egpBox(N,vec2(51.2*J-51.2/2,51.2*I-51.2/2),vec2(36,36))
+            P1PrivateScreen:egpColor(N,vec(32,32,32))
+            N++
+        }
+    }
+    P1PrivateScreen:egpAlpha(103,0)   #Hide Instructions
+    P1PrivateScreen:egpAlpha(104,0)   #Hide Instructions
+    P1PrivateScreen:egpAlpha(105,0)   #Hide Instructions
+    P1PrivateScreen:egpAlign(101,1,1) #Align title screen to center
+    P1PrivateScreen:egpPos(101,vec2(256,256))#Place title in the middle of the screen
+    P1PrivateScreen:egpAlpha(101,255)
+    P1PrivateScreen:egpSetText(101,"BATTLESHITS")
+    P1PrivateScreen:egpAlpha(106,0)
+    P2PrivateScreen:egpAlpha(103,0)
+    P2PrivateScreen:egpAlpha(104,0)
+    P2PrivateScreen:egpAlpha(105,0)
+    P2PrivateScreen:egpAlpha(103,0)
+    P2PrivateScreen:egpAlpha(104,0)
+    P2PrivateScreen:egpAlpha(105,0)
+    P2PrivateScreen:egpAlign(101,1,1)
+    P2PrivateScreen:egpPos(101,vec2(256,256))
+    P2PrivateScreen:egpAlpha(101,255)
+    P2PrivateScreen:egpSetText(101,"BATTLESHITS")
+}
+function void resetGame()
+{
+    
+    #TODO LIST:
+    #1. Initial ship selection window for each player.
+    #   +The players will select their ships, with lengths taken from the "BoatLengths" array, and place on the table.
+    #   +They will be able to rotate the ships with Shift.
+    #   +Instructions will appear on the player's screen.
+    #   +Players will be informed of how many ships the opponent has already placed, so they know they're not playing against an AFKer.
+    #   -When both players placed their all their ships, the game starts.
+    #   
+    #2. ATTACK PHASE
+    #   OK so it looks like the "Placing the boats" part was a success. Now I need to figure out the rest of the game
+    #   While in the "attacking" phase, I think I will use Space key for dropping the bombs.
+    #   Players will take turns guessing where the opponent placed their ships.
+    #   The other player will see live where the opponent is targeting, adding to the suspense.
+    #   After pressing the attack button, the selected square will turn white if it missed, and red if it hit a ship.
+    #   The player will not know how long that ship is or which direction it is facing, only that they hit a part of a ship.
+    #   OK, now let's find all the conditions which will lead to a STARTGAME event.
+    P1BoatTable = array()
+    P2BoatTable = array()
+    P1GuessTable = array()
+    P2GuessTable = array()
+    P1Misses = array()
+    P2Misses = array()
+    P1Hits = array()
+    P2Hits = array()
+    P1ShipArray = array()
+    P2ShipArray = array()
+    P1Rotation = 0
+    P2Rotation = 0
+    BoatLengths = array(5,4,3,3,2) #Carrier: 5 spaces, Battleship: 4 spaces, Cruiser: 3 spaces, Submarine: 3 spaces, Destroyer: 2 spaces.
+    
+    P1PublicScreen:egpDrawTopLeft(0)
+    P2PublicScreen:egpDrawTopLeft(0)
+    
+    P1PrivateScreen:egpText(101,"BATTLESHITS",vec2(256,256))
+    P1PrivateScreen:egpSize(101,80)
+    P1PrivateScreen:egpAlign(101,1,1)
+    P1PrivateScreen:egpFont(101,"Courier New")
+    
+    P1PrivateScreen:egpText(102,Footer,vec2(5,510))
+    P1PrivateScreen:egpAlign(102,0,2)
+    P1PrivateScreen:egpSize(102,10)
+    
+    P1PrivateScreen:egpText(103,"Welcome, Captain!",vec2(256,350))
+    P1PrivateScreen:egpAlign(103,1,1)
+    P1PrivateScreen:egpSize(103,40)
+    P1PrivateScreen:egpFont(103,"Courier New")
+    P1PrivateScreen:egpAlpha(103,0)
+    
+    P1PrivateScreen:egpText(104,"We will start as soon as someone joins.",vec2(256,380))
+    P1PrivateScreen:egpAlign(104,1,1)
+    P1PrivateScreen:egpSize(104,20)
+    P1PrivateScreen:egpFont(104,"Courier New")
+    P1PrivateScreen:egpAlpha(104,0)
+    
+        
+    P2PrivateScreen:egpText(101,"BATTLESHITS",vec2(256,256))
+    P2PrivateScreen:egpSize(101,80)
+    P2PrivateScreen:egpAlign(101,1,1)
+    P2PrivateScreen:egpFont(101,"Courier New")
+    
+    P2PrivateScreen:egpText(102,Footer,vec2(5,510))
+    P2PrivateScreen:egpAlign(102,0,2)
+    P2PrivateScreen:egpSize(102,10)
+    
+    P2PrivateScreen:egpText(103,"Welcome, Captain!",vec2(256,350))
+    P2PrivateScreen:egpAlign(103,1,1)
+    P2PrivateScreen:egpSize(103,40)
+    P2PrivateScreen:egpFont(103,"Courier New")
+    P2PrivateScreen:egpAlpha(103,0)
+    
+    P2PrivateScreen:egpText(104,"We will start as soon as someone joins.",vec2(256,380))
+    P2PrivateScreen:egpAlign(104,1,1)
+    P2PrivateScreen:egpSize(104,20)
+    P2PrivateScreen:egpFont(104,"Courier New")
+    P2PrivateScreen:egpAlpha(104,0)
+    
+    P1CanPlace = 1
+    P2CanPlace = 1
+    P1CurrentlyPlacing = 1
+    P2CurrentlyPlacing = 1
+    #if(P1Seat){p1Joined()}
+    #if(P2Seat){p2Joined()}
+    if(P1Seat && P2Seat){
+        GameState = "placingBoats"
+        newGameScreen()
+    }
+    else{GameState = "waitingForPlayers"}
+}
+if(clk("resetGame")){ afterMatchCleanup() resetGame()}
+
+
+if(~P1Seat)
+{
+    if(P1Seat)
+    {
+        p1Joined()
+    }
+    elseif(P2Seat)
+    {
+        soundPlay(10,0,"vox/goodbye.wav")
+        P1PrivateScreen:egpAlpha(103,0)
+        P1PrivateScreen:egpAlpha(104,0)
+        P1PrivateScreen:egpAlpha(105,0)
+        P1PrivateScreen:egpSetText(101,"BATTLESHITS")
+        P2PrivateScreen:egpSetText(101,"BATTLESHITS")
+        P1PublicScreen:egpClear()
+        P2PrivateScreen:egpText(103,"Welcome, Captain!",vec2(256,350))
+        P2PrivateScreen:egpAlign(103,1,1)
+        P2PrivateScreen:egpSize(103,40)
+        P2PrivateScreen:egpFont(103,"Courier New")
+        P2PrivateScreen:egpText(104,"We will start as soon as someone joins.",vec2(256,380))
+        P2PrivateScreen:egpAlign(104,1,1)
+        P2PrivateScreen:egpSize(104,20)
+        P2PrivateScreen:egpFont(104,"Courier New")
+        #P2PrivateScreen:egpAlpha(104,0)
+        P2PrivateScreen:egpAlpha(105,0)
+        
+        P2PrivateScreen:egpAlpha(103,255)
+        P2PrivateScreen:egpAlpha(104,255)
+        P2PrivateScreen:egpAlpha(105,0)
+        unDrawShip(2,P2Head,P2Rotation,BoatLengths[P2CurrentlyPlacing,number])
+        GameState = "waitingForPlayers"
+        
+        P2PublicScreen:egpClear()
+        P1BoatTable = array()
+        P2BoatTable = array()
+        P1ShipArray = array()
+        P2ShipArray = array()
+        N=1
+        for(I=1,NumberOfTilesXY) #Draw the Bottom screen. 
+        {
+            for(J=1,NumberOfTilesXY)
+            {
+                P2PublicScreen:egpBox(N,vec2(51.2*J-51.2/2,51.2*I-51.2/2+8),vec2(36,36))
+                P2PublicScreen:egpColor(N,vec(32,32,32))
+                P1PrivateScreen:egpColor(N,vec(32,32,32))
+                P2PrivateScreen:egpColor(N,vec(32,32,32))
+                N++
+            }
+        }
+        P1PrivateScreen:egpAlpha(101,255)
+        P2PrivateScreen:egpAlpha(101,255)
+        P1PrivateScreen:egpAlign(101,1,1)
+        P2PrivateScreen:egpAlign(101,1,1)
+        P1PrivateScreen:egpPos(101,vec2(256,256))
+        P2PrivateScreen:egpPos(101,vec2(256,256))
+        P1PrivateScreen:egpColor(105,vec(255,255,255))
+        P2PrivateScreen:egpColor(105,vec(255,255,255))
+        
+        P1PrivateScreen:egpAlpha(106,0)
+        P2PrivateScreen:egpAlpha(106,0)
+        interval(100)
+        
+    }
+    else
+    {
+        soundPlay(10,0,"vox/goodbye.wav")
+        P2PrivateScreen:egpAlpha(106,0)
+        P1PublicScreen:egpClear()
+        resetP1PrivateScreen()
+        resetGame()
+    }
+}
+if(~P2Seat)
+{
+    if(P2Seat)
+    {
+        p2Joined()
+    }
+    elseif(P1Seat)
+    {
+        soundPlay(10,0,"vox/goodbye.wav")
+        P2PrivateScreen:egpAlpha(103,0)
+        P2PrivateScreen:egpAlpha(104,0)
+        P2PrivateScreen:egpAlpha(105,0)
+        P2PrivateScreen:egpSetText(101,"BATTLESHITS")
+        P2PublicScreen:egpClear()
+        
+        P1PrivateScreen:egpText(103,"Welcome, Captain!",vec2(256,350))
+        P1PrivateScreen:egpAlign(103,1,1)
+        P1PrivateScreen:egpSize(103,40)
+        P1PrivateScreen:egpFont(103,"Courier New")
+    
+        P1PrivateScreen:egpText(104,"We will start as soon as someone joins.",vec2(256,380))
+        P1PrivateScreen:egpAlign(104,1,1)
+        P1PrivateScreen:egpSize(104,20)
+        P1PrivateScreen:egpFont(104,"Courier New")
+        P1PrivateScreen:egpAlpha(105,0)
+        P1PublicScreen:egpAlpha(105,0)
+        P1PublicScreen:egpAlpha(106,0)
+        P1PrivateScreen:egpSetText(101,"BATTLESHITS")
+        
+        P1PrivateScreen:egpAlpha(106,0)
+        P2PrivateScreen:egpAlpha(106,0)
+        #P1PublicScreen:egpClear()
+        P1BoatTable = array()
+        P2BoatTable = array()
+        P1ShipArray = array()
+        P2ShipArray = array()
+        N=1
+        for(I=1,NumberOfTilesXY) #Draw the Bottom screen. 
+        {
+            for(J=1,NumberOfTilesXY)
+            {
+                P1PublicScreen:egpBox(N,vec2(51.2*J-51.2/2,51.2*I-51.2/2+8),vec2(36,36))
+                P1PublicScreen:egpColor(N,vec(32,32,32))
+                P2PrivateScreen:egpColor(N,vec(32,32,32))
+                P1PrivateScreen:egpColor(N,vec(32,32,32))
+                N++
+            }
+        }
+        P1PrivateScreen:egpAlpha(101,255)
+        P2PrivateScreen:egpAlpha(101,255)
+        P1PrivateScreen:egpAlign(101,1,1)
+        P2PrivateScreen:egpAlign(101,1,1)
+        P1PrivateScreen:egpPos(101,vec2(256,256))
+        P2PrivateScreen:egpPos(101,vec2(256,256))
+        P1PrivateScreen:egpColor(105,vec(255,255,255))
+        P2PrivateScreen:egpColor(105,vec(255,255,255))
+        
+        unDrawShip(1,P1Head,P1Rotation,BoatLengths[P1CurrentlyPlacing,number])
+        P2BoatTable = array()
+        GameState = "waitingForPlayers"
+        interval(100)
+    }
+    else
+    {
+        soundPlay(10,0,"vox/goodbye.wav")        
+        P1PrivateScreen:egpAlpha(106,0)
+        P2PrivateScreen:egpAlpha(106,0)
+        P2PublicScreen:egpClear()
+        resetP2PrivateScreen()
+        resetGame()
+    }
+}
+function void p1KeyHandler()
+{
+    if(P1A)
+    {
+        if(GameState == "placingBoats")
+        {
+            if(P1Head:x() > 1 && P1CurrentlyPlacing<=BoatLengths:count())
+            {
+                unDrawShip(1,P1Head,P1Rotation,BoatLengths[P1CurrentlyPlacing,number])
+                P1Head = P1Head - vec2(1,0)
+                drawShip(1,P1Head,P1Rotation,BoatLengths[P1CurrentlyPlacing,number],ShipColor)
+                soundPlay(1,0,"ui/buttonrollover.wav") 
+            }
+        }
+        elseif(GameState == "p1targetting")
+        {
+            if(P1Head:x()>1)
+            {
+                P1Head = P1Head - vec2(1,0)
+                P1PrivateScreen:egpPos(105,vec2((P1Head:x()-1)*(512/NumberOfTilesXY)+12,(P1Head:y()-1)*(512/NumberOfTilesXY)))
+                P2PublicScreen:egpPos(105,vec2((P1Head:x()-1)*(512/NumberOfTilesXY)+12,(P1Head:y()-1)*(512/NumberOfTilesXY)+5))
+            }
+        }
+    }
+    elseif(P1S)
+    {
+        if(GameState == "placingBoats"  && P1CurrentlyPlacing<=BoatLengths:count())
+        {
+            if(P1Head:y() < NumberOfTilesXY-!P1Rotation*(BoatLengths[P1CurrentlyPlacing,number]-1))
+            {
+                unDrawShip(1,P1Head,P1Rotation,BoatLengths[P1CurrentlyPlacing,number])
+                P1Head = P1Head + vec2(0,1)
+                drawShip(1,P1Head,P1Rotation,BoatLengths[P1CurrentlyPlacing,number],ShipColor)
+                soundPlay(1,0,"ui/buttonrollover.wav")
+            }
+        }
+        elseif(GameState == "p1targetting")
+        {
+            if(P1Head:y()<10)
+            {
+                P1Head = P1Head + vec2(0,1)
+                P1PrivateScreen:egpPos(105,vec2((P1Head:x()-1)*(512/NumberOfTilesXY)+12,(P1Head:y()-1)*(512/NumberOfTilesXY)))
+                P2PublicScreen:egpPos(105,vec2((P1Head:x()-1)*(512/NumberOfTilesXY)+12,(P1Head:y()-1)*(512/NumberOfTilesXY)+5))
+            }
+        }
+    }
+    elseif(P1D)
+    {
+        if(GameState == "placingBoats"  && P1CurrentlyPlacing<=BoatLengths:count())
+        {
+            if(P1Head:x() < NumberOfTilesXY-P1Rotation*(BoatLengths[P1CurrentlyPlacing,number]-1))
+            {
+                unDrawShip(1,P1Head,P1Rotation,BoatLengths[P1CurrentlyPlacing,number])
+                P1Head = P1Head + vec2(1,0)
+                drawShip(1,P1Head,P1Rotation,BoatLengths[P1CurrentlyPlacing,number],ShipColor)
+                soundPlay(1,0,"ui/buttonrollover.wav")
+            }
+        }
+        elseif(GameState == "p1targetting")
+        {
+            if(P1Head:x()<10)
+            {
+                P1Head = P1Head + vec2(1,0)
+                P1PrivateScreen:egpPos(105,vec2((P1Head:x()-1)*(512/NumberOfTilesXY)+12,(P1Head:y()-1)*(512/NumberOfTilesXY)))
+                P2PublicScreen:egpPos(105,vec2((P1Head:x()-1)*(512/NumberOfTilesXY)+12,(P1Head:y()-1)*(512/NumberOfTilesXY)+5))
+            }
+        }
+    }
+    elseif(P1W)
+    {
+        if(GameState == "placingBoats"  && P1CurrentlyPlacing<=BoatLengths:count())
+        {
+            if(P1Head:y()>1)
+            {
+                unDrawShip(1,P1Head,P1Rotation,BoatLengths[P1CurrentlyPlacing,number])
+                P1Head = P1Head - vec2(0,1)
+                drawShip(1,P1Head,P1Rotation,BoatLengths[P1CurrentlyPlacing,number],ShipColor)
+                soundPlay(1,0,"ui/buttonrollover.wav")
+            }
+        }
+        elseif(GameState == "p1targetting")
+        {
+            if(P1Head:y()>1)
+            {
+                P1Head = P1Head - vec2(0,1)
+                P1PrivateScreen:egpPos(105,vec2((P1Head:x()-1)*(512/NumberOfTilesXY)+12,(P1Head:y()-1)*(512/NumberOfTilesXY)))
+                P2PublicScreen:egpPos(105,vec2((P1Head:x()-1)*(512/NumberOfTilesXY)+12,(P1Head:y()-1)*(512/NumberOfTilesXY)+5))
+            }
+        }
+    }
+    elseif(P1Shift && P1CurrentlyPlacing<=BoatLengths:count())
+    {
+        if(P1Rotation)#If horizontal
+        {
+            unDrawShip(1,P1Head,P1Rotation,BoatLengths[P1CurrentlyPlacing,number])
+            if(P1Head:y()>=NumberOfTilesXY-(BoatLengths[P1CurrentlyPlacing,number]-1))
+            {
+                P1Head = vec2(P1Head:x(),NumberOfTilesXY-(BoatLengths[P1CurrentlyPlacing,number]-1))
+            }
+            P1Rotation = !P1Rotation
+            drawShip(1,P1Head,P1Rotation,BoatLengths[P1CurrentlyPlacing,number],ShipColor)
+            soundPlay(4,0,"ui/hint.wav")
+        }
+        else#If Vertical
+        {
+            unDrawShip(1,P1Head,P1Rotation,BoatLengths[P1CurrentlyPlacing,number])
+            if(P1Head:x()>NumberOfTilesXY-BoatLengths[P1CurrentlyPlacing,number])
+            {
+                P1Head = vec2(NumberOfTilesXY-BoatLengths[P1CurrentlyPlacing,number]+1,P1Head:y())
+            }
+            P1Rotation = !P1Rotation
+            drawShip(1,P1Head,P1Rotation,BoatLengths[P1CurrentlyPlacing,number],ShipColor)
+            soundPlay(4,0,"ui/hint.wav")
+        }
+        
+    }
+    elseif(P1Space)
+    {
+        if(GameState == "placingBoats")
+        {
+            if(P1CanPlace  && P1CurrentlyPlacing<=BoatLengths:count())
+            {
+                placeShip(1,P1Head,P1Rotation,BoatLengths[P1CurrentlyPlacing,number],ShipColor)
+                P1Head = vec2(1,1)
+                P1CurrentlyPlacing++
+                drawShip(1,P1Head,P1Rotation,BoatLengths[P1CurrentlyPlacing,number],ShipColor)
+                soundPlay(2,0,"vehicles/airboat/pontoon_splash1.wav")
+                if(P1CurrentlyPlacing>BoatLengths:count())
+                {
+                    if(P2CurrentlyPlacing<=BoatLengths:count())
+                    {
+                        soundPlay(3,0,"vo/npc/female01/readywhenyouare01.wav")
+                        P1PrivateScreen:egpSetText(101,"You are ready!")
+                        P1PrivateScreen:egpSetText(103,"Waiting for your opponent...")
+                        P1PrivateScreen:egpSize(103,20)
+                        P1PrivateScreen:egpSetText(104,"They have "+toString(BoatLengths:count()-P2CurrentlyPlacing+1)+" ships left to place.")
+                        P1PrivateScreen:egpSize(104,20)
+                        P1PrivateScreen:egpAlpha(105,0)
+                    }
+                    else{beginElimination()}
+                }
+                if(P2CurrentlyPlacing>BoatLengths:count())
+                {
+                    P2PrivateScreen:egpSetText(104,"They have "+toString(BoatLengths:count()-P1CurrentlyPlacing+1)+" ships left to place.")
+                }
+            }
+            else{soundPlay(3,0,"tools/ifm/ifm_denyundo.wav")}
+        }
+        elseif(GameState == "p1targetting")
+        {
+            GuessTableNumber = (P1Head:y()-1)*NumberOfTilesXY+P1Head:x()
+            if(P1GuessTable[GuessTableNumber,number] == 0)
+            {
+                soundPlay(2,0,"fireworks/firework_launch_1.wav")
+                GameState = "P1Dropping"
+                timer("bombing",1000)
+            }
+        }
+        
+    }
+}
+function void p2KeyHandler()
+{
+    if(P2A)
+    {
+        if(GameState == "placingBoats")
+        {
+            if(P2Head:x() > 1 && P2CurrentlyPlacing<=BoatLengths:count())
+            {
+                unDrawShip(2,P2Head,P2Rotation,BoatLengths[P2CurrentlyPlacing,number])
+                P2Head = P2Head - vec2(1,0)
+                drawShip(2,P2Head,P2Rotation,BoatLengths[P2CurrentlyPlacing,number],ShipColor)
+                soundPlay(1,0,"ui/buttonrollover.wav") 
+            } 
+        }
+        elseif(GameState == "p2targetting")
+        {
+            if(P2Head:x()>1)
+            {
+                P2Head = P2Head - vec2(1,0)
+                P2PrivateScreen:egpPos(105,vec2((P2Head:x()-1)*(512/NumberOfTilesXY)+12,(P2Head:y()-1)*(512/NumberOfTilesXY)))
+                P1PublicScreen:egpPos(105,vec2((P2Head:x()-1)*(512/NumberOfTilesXY)+12,(P2Head:y()-1)*(512/NumberOfTilesXY)+5))
+            }
+        }
+    }
+    elseif(P2S)
+    {
+        if(GameState == "placingBoats"  && P2CurrentlyPlacing<=BoatLengths:count())
+        {
+            if(P2Head:y() < NumberOfTilesXY-!P2Rotation*(BoatLengths[P2CurrentlyPlacing,number]-1))
+            {
+                unDrawShip(2,P2Head,P2Rotation,BoatLengths[P2CurrentlyPlacing,number])
+                P2Head = P2Head + vec2(0,1)
+                drawShip(2,P2Head,P2Rotation,BoatLengths[P2CurrentlyPlacing,number],ShipColor)
+                soundPlay(1,0,"ui/buttonrollover.wav")
+            }
+        }
+        elseif(GameState == "p2targetting")
+        {
+            if(P2Head:y()<10)
+            {
+                P2Head = P2Head + vec2(0,1)
+                P2PrivateScreen:egpPos(105,vec2((P2Head:x()-1)*(512/NumberOfTilesXY)+12,(P2Head:y()-1)*(512/NumberOfTilesXY)))
+                P1PublicScreen:egpPos(105,vec2((P2Head:x()-1)*(512/NumberOfTilesXY)+12,(P2Head:y()-1)*(512/NumberOfTilesXY)+5))
+            }
+        }
+    }
+    elseif(P2D)
+    {
+        if(GameState == "placingBoats"  && P2CurrentlyPlacing<=BoatLengths:count())
+        {
+            if(P2Head:x() < NumberOfTilesXY-P2Rotation*(BoatLengths[P2CurrentlyPlacing,number]-1))
+            {
+                unDrawShip(2,P2Head,P2Rotation,BoatLengths[P2CurrentlyPlacing,number])
+                P2Head = P2Head + vec2(1,0)
+                drawShip(2,P2Head,P2Rotation,BoatLengths[P2CurrentlyPlacing,number],ShipColor)
+                soundPlay(1,0,"ui/buttonrollover.wav")
+            }
+        }
+        elseif(GameState == "p2targetting")
+        {
+            if(P2Head:x()<10)
+            {
+                P2Head = P2Head + vec2(1,0)
+                P2PrivateScreen:egpPos(105,vec2((P2Head:x()-1)*(512/NumberOfTilesXY)+12,(P2Head:y()-1)*(512/NumberOfTilesXY)))
+                P1PublicScreen:egpPos(105,vec2((P2Head:x()-1)*(512/NumberOfTilesXY)+12,(P2Head:y()-1)*(512/NumberOfTilesXY)+5))
+            }
+        }
+    }
+    elseif(P2W)
+    {
+        if(GameState == "placingBoats"  && P2CurrentlyPlacing<=BoatLengths:count())
+        {
+            if(P2Head:y()>1)
+            {
+                unDrawShip(2,P2Head,P2Rotation,BoatLengths[P2CurrentlyPlacing,number])
+                P2Head = P2Head - vec2(0,1)
+                drawShip(2,P2Head,P2Rotation,BoatLengths[P2CurrentlyPlacing,number],ShipColor)
+                soundPlay(1,0,"ui/buttonrollover.wav")
+            }
+        }
+        elseif(GameState == "p2targetting")
+        {
+            if(P2Head:y()>1)
+            {
+                P2Head = P2Head - vec2(0,1)
+                P2PrivateScreen:egpPos(105,vec2((P2Head:x()-1)*(512/NumberOfTilesXY)+12,(P2Head:y()-1)*(512/NumberOfTilesXY)))
+                P1PublicScreen:egpPos(105,vec2((P2Head:x()-1)*(512/NumberOfTilesXY)+12,(P2Head:y()-1)*(512/NumberOfTilesXY)+5))
+            }
+        }
+    }
+    elseif(P2Shift && P2CurrentlyPlacing<=BoatLengths:count())
+    {
+        if(P2Rotation)#If horizontal
+        {
+            unDrawShip(2,P2Head,P2Rotation,BoatLengths[P2CurrentlyPlacing,number])
+            if(P2Head:y()>=NumberOfTilesXY-(BoatLengths[P2CurrentlyPlacing,number]-1))
+            {
+                P2Head = vec2(P2Head:x(),NumberOfTilesXY-(BoatLengths[P2CurrentlyPlacing,number]-1))
+            }
+            P2Rotation = !P2Rotation
+            drawShip(2,P2Head,P2Rotation,BoatLengths[P2CurrentlyPlacing,number],ShipColor)
+            soundPlay(4,0,"ui/hint.wav")
+        }
+        else#If Vertical
+        {
+            unDrawShip(2,P2Head,P2Rotation,BoatLengths[P2CurrentlyPlacing,number])
+            if(P2Head:x()>NumberOfTilesXY-BoatLengths[P2CurrentlyPlacing,number])
+            {
+                P2Head = vec2(NumberOfTilesXY-BoatLengths[P2CurrentlyPlacing,number]+1,P2Head:y())
+            }
+            P2Rotation = !P2Rotation
+            drawShip(2,P2Head,P2Rotation,BoatLengths[P2CurrentlyPlacing,number],ShipColor)
+            soundPlay(4,0,"ui/hint.wav")
+        }
+        
+    }
+    elseif(P2Space)
+    {
+        if(GameState == "placingBoats"  && P2CurrentlyPlacing<=BoatLengths:count())
+        {
+            if(P2CanPlace)
+            {
+                placeShip(2,P2Head,P2Rotation,BoatLengths[P2CurrentlyPlacing,number],ShipColor)
+                P2Head = vec2(1,1)
+                P2CurrentlyPlacing++
+                drawShip(2,P2Head,P2Rotation,BoatLengths[P2CurrentlyPlacing,number],ShipColor)
+                soundPlay(2,0,"vehicles/airboat/pontoon_splash1.wav")
+                if(P2CurrentlyPlacing>BoatLengths:count())
+                {
+                    if(P1CurrentlyPlacing<BoatLengths:count())
+                    {
+                        soundPlay(3,0,"vo/npc/female01/readywhenyouare01.wav")
+                        P2PrivateScreen:egpSetText(101,"You are ready!")
+                        P2PrivateScreen:egpSetText(103,"Waiting for your opponent...")
+                        P2PrivateScreen:egpSize(103,20)
+                        P2PrivateScreen:egpSetText(104,"They have "+toString(BoatLengths:count()-P1CurrentlyPlacing+1)+" ships left to place.")
+                        P2PrivateScreen:egpSize(104,20)
+                        P2PrivateScreen:egpAlpha(105,0)
+                    }
+                    else{beginElimination()}
+                }
+                if(P1CurrentlyPlacing>BoatLengths:count())
+                {
+                    P1PrivateScreen:egpSetText(104,"They have "+toString(BoatLengths:count()-P2CurrentlyPlacing+1)+" ships left to place.")
+                }
+            }
+            else{soundPlay(3,0,"tools/ifm/ifm_denyundo.wav")}
+        }
+        elseif(GameState == "p2targetting")
+        {
+            GuessTableNumber = (P2Head:y()-1)*NumberOfTilesXY+P2Head:x()
+            if(P2GuessTable[GuessTableNumber,number] == 0)
+            {
+                soundPlay(2,0,"fireworks/firework_launch_1.wav")
+                GameState = "P2Dropping"
+                timer("bombing",1000)
+            }
+        }
+    }
+    
+}
+if(~P1KeyClk && P1KeyClk && GameState != "waitingForPlayers"){p1KeyHandler()}
+if(~P2KeyClk && P2KeyClk && GameState != "waitingForPlayers"){p2KeyHandler()}
+if(first())
+{#Initial stuff goes here
+    Footer = "By Leghumper. Ver: 2020.06.13, Still coding it. Pls tell any bugs or annoying/confusing things to me, thx"
+    NumberOfTilesXY = 10
+    ShipColor = vec(0,0,200)
+    P1PrivateScreen:egpClear()
+    P2PrivateScreen:egpClear()
+    P1PublicScreen:egpClear()
+    P2PublicScreen:egpClear()
+    N=1
+    for(I=1,NumberOfTilesXY)
+    {
+        for(J=1,NumberOfTilesXY)
+        {
+            
+            P1PrivateScreen:egpBox(N,vec2(51.2*J-51.2/2,51.2*I-51.2/2),vec2(36,36))
+            P1PrivateScreen:egpColor(N,vec(32,32,32))
+            #P2PrivateScreen:egpBox(N,vec2(51.2*J-51.2/2,51.2*I-51.2/2),vec2(36,36))
+            #P2PrivateScreen:egpColor(N,vec(32,32,32))
+            #P1PublicScreen:egpBox(N,vec2(51.2*J-51.2/2,51.2*I-51.2/2),vec2(36,36))
+            #P1PublicScreen:egpColor(N,vec(32,32,32))
+            #P2PublicScreen:egpBox(N,vec2(51.2*J-51.2/2,51.2*I-51.2/2),vec2(36,36))
+            #P2PublicScreen:egpColor(N,vec(32,32,32))
+            N++
+        }
+    }
+    timer("EGPPart2",3)
+    
+    interval(100)
+}
+if(clk("EGPPart2"))
+{
+    N=1
+    for(I=1,NumberOfTilesXY)
+    {
+        for(J=1,NumberOfTilesXY)
+        {
+            
+            #P1PrivateScreen:egpBox(N,vec2(51.2*J-51.2/2,51.2*I-51.2/2),vec2(36,36))
+            #P1PrivateScreen:egpColor(N,vec(32,32,32))
+            P2PrivateScreen:egpBox(N,vec2(51.2*J-51.2/2,51.2*I-51.2/2),vec2(36,36))
+            P2PrivateScreen:egpColor(N,vec(32,32,32))
+            #P1PublicScreen:egpBox(N,vec2(51.2*J-51.2/2,51.2*I-51.2/2),vec2(36,36))
+            #P1PublicScreen:egpColor(N,vec(32,32,32))
+            #P2PublicScreen:egpBox(N,vec2(51.2*J-51.2/2,51.2*I-51.2/2),vec2(36,36))
+            #P2PublicScreen:egpColor(N,vec(32,32,32))
+            N++
+        }
+    }
+    resetGame()
+}
+if(GameState == "waitingForPlayers" && clk())
+{
+    interval(100)
+    C++
+    P1PrivateScreen:egpSize(101,sin(C*30)*10 + 70)
+    P2PrivateScreen:egpSize(101,sin(C*30)*10 + 70)
+}

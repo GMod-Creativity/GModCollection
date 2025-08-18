@@ -1,3 +1,12 @@
-Author: gato
-Date: April 2, 2018
-Title: Turret Controller
+- Author: XninjazXxx (gato) (Devoided)
+- Youtube: https://www.youtube.com/channel/UC-6WOjHUNpGwkk3fVCfrhGQ
+<!-- -->
+- Title: Turret Controller
+- Date (dd-mm-yyyy): 02-04-2018
+- Source: Wiremod Discord
+- Source: https://web.archive.org/web/20160301094245/http://www.wiremod.com:80/forum/finished-contraptions/35442-every-e2-ive-ever-made.html
+- Source Accessed (dd-mm-yyyy): 12-08-2025
+
+## Turret Controller
+
+Some old E2s I made a while ago that I found

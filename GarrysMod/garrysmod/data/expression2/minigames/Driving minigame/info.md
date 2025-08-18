@@ -1,10 +1,18 @@
-Author: xiiliea
-Date: 06-11-2015
-Title: [E2] Driving minigame!
+- Author: xiiliea
+- Steam Profile: https://steamcommunity.com/profiles/76561198053197228
+- Youtube: https://www.youtube.com/@xiiliea
+<!-- -->
+- Title: [E2] Driving minigame!
+- Date (dd-mm-yyyy): 11-06-2015
+- Source: https://web.archive.org/web/20150716032528/http://www.wiremod.com:80/forum/finished-contraptions/34506-e2-driving-minigame.html
+- Source: https://www.youtube.com/watch?v=01X2SqQEauM
+- Source Accessed (dd-mm-yyyy): 17-08-2025
 
-*[E2] Driving minigame!*
+## [E2] Driving minigame!
 
 Here's probably the most complex E2 contraption I ever made. It's basically a mini-game where you have to drive a "car" and avoid bumping into walls.
+
+https://www.youtube.com/watch?v=01X2SqQEauM
 
 Note: I know the code looks weird, that I chose to store each possible line in an array, instead of calculating it later on, because it would have made a tick quota exceeded error. Also I didn't really know how to use the explode() function to convert strings to arrays until I finished it, but whatever since it works.
 

@@ -1,0 +1,224 @@
+@name Capture 2.0
+@inputs DS:wirelink
+@persist FOV Setup LS:string Capture Int AA CPos:vector CAng:angle PixDist Res Depth CFOV Range X Y Speed Raw
+
+if( chatClk(owner()) ) { LS=owner():lastSaid() }
+
+if( first() ){
+    
+    runOnChat(1)
+    
+    function wirelink:initScreen(Res){
+    This[1048574]=0 #Reset Screen and whatever was on it will be cleared.
+    This[1048569]=2 #Set color mode to 3
+    This[1048575]=1 #Apply changes
+    This[1048572]=Res #Set new resolution on Y (Height)
+    This[1048573]=Res #Set new resolution on X (Width)
+    }   
+    function wirelink:drawPixel(X,Y,Color:vector,Res){
+    This[X+Y*Res]=rgb2digi(Color,2)
+    }
+
+    
+    print( "Capture 2.0 - Created by DGrouse" )
+    
+    Int = 2
+    FOV = 50
+    Res = 256
+    Depth = 300
+    Range = 1
+    Speed = 5
+    Raw = 0
+    
+    # Anti-Aliasing Angle Offset
+    AA = 0.1
+    
+    function startCapture(){
+        print( "STARTING CAPTURE" )
+        Setup = 0
+        Capture = 1
+        CPos = entity():pos()
+        CAng = entity():angles()
+        PixDist = FOV/Res
+        CFOV = FOV/2   
+        X = 0
+        Y = 0
+        timer( "Capture",Int )
+    }
+    
+    # Hologram Guides
+    function setup(){
+        Setup = 1
+        timer( "Setup",100 )
+    }
+    
+    DS:initScreen(Res)
+    setup()
+    
+}
+
+if( clk( "Capture" ) ){
+    
+    for( L=1, Speed ){
+    
+        Col = vec()
+        X++
+        if(X==Res){X=0,Y++} #If X on the edge, go lower
+        if(Y==Res){Capture = 0} #If Y at the bottom, reset
+        PixAng = CAng+ang(-CFOV+Y*PixDist,0,CFOV-X*PixDist)
+        
+        Ao = ang()
+        
+        for( I=1,5 ){
+            if( I == 2 ){
+                Ao = ang(0,0,AA)
+            }
+            if( I == 3 ){
+                Ao = ang(0,0,-AA)
+            }
+            if( I == 4 ){
+                Ao = ang(-AA,0,0)
+            }
+            if( I == 5 ){
+                Ao = ang(AA,0,0)
+            }
+            
+            Angle = (PixAng+Ao):up()
+            R = rangerOffset(Depth,CPos,Angle)
+            EC = R:entity():getColor()
+            if( EC == vec() ){ EC = vec(255,255,255) }
+            Col = Col+clamp(R:distance()^Range/Depth^Range*EC,0,255)
+            
+            if( !Raw && I == 1 ){
+                Rpos = R:position()
+                holoCreate(9)
+                holoScale(9,vec()+0.5)
+                holoModel(9,"hqsphere")
+                holoColor(9,vec(0,255,0))
+                holoPos(9,Rpos)
+            }
+        }
+        
+        Color = Col/5
+    
+        DS:drawPixel(X,Y,Color,Res)
+    }
+    if( Capture ){
+        timer( "Capture",Int )
+    }else{
+        setup()
+    }
+}
+
+if( clk( "Setup" ) ){
+    Pos = entity():pos()
+    Ang = entity():angles()
+    FOV2 = FOV/2
+    
+    for( I=1,5 ){
+        if( I == 2 ){
+            Ao = ang(FOV2,0,FOV2)
+        }
+        if( I == 3 ){
+            Ao = ang(-FOV2,0,-FOV2)
+        }
+        if( I == 4 ){
+            Ao = ang(-FOV2,0,FOV2)
+        }
+        if( I == 5 ){
+            Ao = ang(FOV2,0,-FOV2)
+        }
+        
+        Angle = (Ang+Ao):up()
+        
+        R = rangerOffset(Depth,Pos,Angle)
+        Rpos = R:position()
+        holoCreate(I)
+        holoPos(I,Rpos)
+        holoScale(I,vec()+0.5)
+        holoModel(I,"hqsphere")
+        holoColor(I,vec(255,0,0))
+    }
+    if( Setup ){
+        timer( "Setup",100 )
+    }else{
+        for( I=1,5 ){
+            holoDelete(I)
+        }
+    }
+}
+
+if( chatClk(owner()) ){
+
+    if(LS:left(8)=="!capture" ) {
+        startCapture()
+    }
+    
+    if(LS:left(5)=="!fov " ) {
+        Nm = LS:replace("!fov ","")
+        Sn = Nm:toNumber()
+        FOV = Sn
+        print( "FOV CHANGED TO "+Nm+"." )
+    }
+    
+    if(LS:left(5)=="!stop" ) {
+        Capture = 0
+        setup()
+        print( "CAPTURE CANCELLED" )
+    }
+    
+    if(LS:left(11)=="!checkdepth" ) {
+        Pos = entity():pos()
+        Angle = entity():angles():up()
+        R = rangerOffset(Depth,Pos,Angle)
+        print( "DEPTH: "+R:distance() )
+    }
+    
+    if(LS:left(7)=="!depth " ) {
+        Nm = LS:replace("!depth ","")
+        Sn = Nm:toNumber()
+        Depth = Sn
+        print( "DEPTH CHANGED TO "+Nm+"." )
+    }
+    
+    if(LS:left(5)=="!res " ) {
+        Nm = LS:replace("!res ","")
+        Sn = Nm:toNumber()
+        Res = Sn
+        DS:initScreen(Res)
+        print( "RESOLUTION CHANGED TO "+Nm+"." )
+    }
+    
+    if(LS:left(4)=="!aa " ) {
+        Nm = LS:replace("!aa ","")
+        Sn = Nm:toNumber()
+        AA = Sn
+        print( "ANTI-ALIASING OFFSET CHANGED TO "+Nm+"." )
+    }
+    
+    if(LS:left(7)=="!range " ) {
+        Nm = LS:replace("!range ","")
+        Sn = Nm:toNumber()
+        Range = Sn
+        print( "RANGE CHANGED TO "+Nm+"." )
+    }
+    
+    if(LS:left(7)=="!speed " ) {
+        Nm = LS:replace("!speed ","")
+        Sn = Nm:toNumber()
+        Speed = Sn
+        print( "SPEED CHANGED TO "+Nm+"." )
+    }
+    
+    if(LS:left(5)=="!init" ) {
+        DS:initScreen(Res)
+        print( "INITIALISED SCREEN" )
+    }
+    
+    if(LS:left(5)=="!raw" ) {
+        Raw = !Raw
+        if( Raw ){
+           print( "GUIDE REMOVED" )
+        }else{ print( "GUIDE ENABLED" ) }
+    }
+}

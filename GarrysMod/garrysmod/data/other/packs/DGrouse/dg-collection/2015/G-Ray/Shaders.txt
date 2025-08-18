@@ -1,0 +1,238 @@
+@name G-Ray: Shaders
+
+if( 0 ){
+    #include "G-Ray/Core"
+}
+
+function vector ranger:getColor(){
+    if( This:entity() ){
+        return This:entity():getColor()
+    }else{
+        return SkyColor
+    }
+}
+
+function entity:makeLight( A:array ){
+
+    local Str = A[1,string]:toNumber()
+    local Size = A[2,string]:toNumber()
+    local Col = vec(A[3,string]:toNumber(),A[4,string]:toNumber(),A[5,string]:toNumber())
+    local ID = This:id()
+    
+    for(I=1,Lights:count()){
+        local V = Lights[I,table]
+        if( V["ID",number] == ID ){
+            Lights:remove(I)
+        }
+    }
+
+    local T = table()
+    T["Strength",number] = Str
+    T["Size",number] = Size
+    T["Color",vector] = Col
+    T["ID",number] = ID
+    
+    Lights:pushTable( T )
+}
+
+function number ranger:getStrength(){
+    local T = EntityData[This:entity():id(),table]
+    if( T ){
+        local N = T["Strength",number]
+        if( N ){
+            return N
+        }
+    }
+    return 3
+}
+
+function exit( ID,C:vector ){
+    local P = getParent(ID)
+    local T = getRayType(ID)
+    
+    if( T == "Mix" ){
+        colorAdd( P,C*Rays[P,table]["Factor",number] )
+    }else{
+        colorAdd( P,C )
+    }
+    
+    CurrentBounce--
+    runExit( ID )
+}
+
+function exit( ID ){
+    exit( ID,getColor(ID) )
+}
+
+function shade_Emission( R:ranger,Color:vector ){
+    exit( RayID,Color )
+}
+
+function vector doNormal( R:ranger ){
+    if( Spheres[R:entity():model(),number] > 0 ){
+        local P = R:pos()
+        local O = R:entity():pos()
+        return (P-O)/P:distance(O)
+    }
+    return R:hitNormal()
+}
+
+function shade_Mirror( R:ranger,Color:vector ){
+    
+    if( CurrentBounce > Bounces ){
+        exit( RayID )
+        return
+    }
+
+    CurrentBounce++
+
+    Rays[RayID,table]["TintColor",vector] = Color
+    
+    local N = doNormal( R )
+    local D = LastDirection
+    local F = D-2*(D*N)*N
+    
+    local NR = range( R:pos(),F,"Mirror" )
+
+    NR:runMaterial()
+}
+
+function exit_Mirror( ID ){
+    colorTint( ID,Rays[ID,table]["TintColor",vector] )
+    exit( ID )
+}
+
+function vector pointLight( ID,Dist ){
+    local T = Lights[ID,table]
+    return T["Color",vector]/( Dist/T["Strength",number] )
+}
+
+function vector ambientLight(){
+    return SkyColor/255*SkyBrightness
+}
+
+function shade_Light( R:ranger ){
+    
+    local ID = RayID
+    local P = getParent(ID)
+    
+    local L = Rays[P,table]["ID",number]
+    local S = Lights[L,table]["Size",number]
+    
+    local OR = Rays[P,table]["Ranger",ranger]
+    local Div = 1
+    
+    if( SoftShadows ){
+        Div = SS+1
+        for( SD=1,SoftShadows ){
+            local BN = (SD*(1/SoftShadows))
+            for(D=1,6){
+                local Off = ( Offsets[D,vector]*S*BN ):rotate(ang(0,BN*180,0))
+                local NR = sampleLight(OR:pos(),Lights[L,table]["ID",number],Off)
+                if( NR:fraction() == 1 ){
+                    colorAdd( ID,pointLight(L,NR:distance())/Div )
+                }
+            }
+        }
+    }else{
+        local NR = sampleLight(OR:pos(),Lights[L,table]["ID",number],vec())
+        if( NR:fraction() == 1 ){
+            colorAdd( ID,pointLight(L,NR:distance())/Div )
+        }
+    }
+    
+    if( R:fraction() == 1 ){
+        colorAdd( ID,pointLight(L,R:distance())/Div )
+    }
+    exit( ID )
+}
+
+function shade_Diffuse( R:ranger,Color:vector ){
+
+    if( CurrentBounce > Bounces ){
+        exit( RayID )
+        return
+    }
+    
+    Rays[RayID,table]["TintColor",vector] = Color
+    Rays[RayID,table]["Light",number] = 1
+    Rays[RayID,table]["Ranger",ranger] = R
+    
+    colorAdd( RayID,ambientLight() )
+
+    "exit_Diffuse"( RayID )
+}
+
+function exit_Diffuse( ID ){
+
+    local L = Rays[ID,table]["Light",number]
+    
+    if( L <= Lights:count() ){
+    
+        CurrentBounce++
+    
+        local R = Rays[ID,table]["Ranger",ranger]
+    
+        local Data = Lights[L,table]
+        local I = Data["ID",number]
+        local NR = rangeLight(R:pos(),I,"Diffuse",ID)
+        
+        Rays[ID,table]["ID",number] = L
+        Rays[ID,table]["Light",number] = L+1
+        
+        IsLight = 1
+        NR:runMaterial()
+    }else{
+        colorTint( ID,Rays[ID,table]["TintColor",vector] )
+        exit( ID )
+    }
+}
+
+function shade_Mix(R:ranger,Color:vector,Factor){
+
+    if( CurrentBounce > Bounces ){
+        exit( RayID )
+        return
+    }
+    
+    Rays[RayID,table]["TintColor",vector] = Color
+    Rays[RayID,table]["Factor",number] = 1-Factor
+    Rays[RayID,table]["Ranger",ranger] = R
+    
+    colorAdd( RayID,ambientLight() )
+    
+    for(I=1,Lights:count()){
+        local Data = Lights[I,table]
+        local ID = Data["ID",number]
+        local NR = rangeLight(R:pos(),ID,"Diffuse",ID)
+        if( NR:fraction() == 1 ){
+            colorAdd( RayID,pointLight(I,NR:distance())*Factor )
+        }
+    }
+    
+    "exit_Mix"( RayID )
+}
+
+function exit_Mix( ID ){
+
+    if( !Rays[ID,table]["RanOther",number] ){
+    
+    Rays[ID,table]["RanOther",number] = 1
+
+    CurrentBounce++
+    
+    local R = Rays[ID,table]["Ranger",ranger]
+    
+    local N = doNormal( R )
+    local D = LastDirection
+    local F = D-2*(D*N)*N
+    
+    local NR = range( R:pos(),F,"Mix" )
+
+    NR:runMaterial()
+    
+    }else{
+        colorTint( ID,Rays[ID,table]["TintColor",vector] )
+        exit( ID )
+    }
+}

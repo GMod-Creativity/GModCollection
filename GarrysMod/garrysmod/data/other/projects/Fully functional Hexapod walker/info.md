@@ -1,10 +1,13 @@
 - Author: sicklebrick
+- Steam Profile: https://steamcommunity.com/profiles/76561197996355226
+- Youtube: https://www.youtube.com/channel/UCcGq-VdvMTrs19qcUpo6L_Q
+<!-- -->
+- Title: [E2] Fully functional Hexapod walker.
 - Date (dd-mm-yyyy): 06-03-2012
-- Source: http://www.wiremod.com/forum/finished-contraptions/28908-e2-fully-functional-hexapod-walker.html
+- Source: https://web.archive.org/web/20130315100317/https://wiremod.com/forum/finished-contraptions/28908-e2-fully-functional-hexapod-walker.html
 - Source: https://web.archive.org/web/20130101102022/http://sicklebrick.com/?p=364
 - Source: https://web.archive.org/web/20130101102022/http://sicklebrick.com/wp-downloads/sicklebrick.com_hexapod.rar
 - Source Accessed (dd-mm-yyyy): 06-06-2025
-- Title: [E2] Fully functional Hexapod walker.
 
 ## [E2] Fully functional Hexapod walker
 

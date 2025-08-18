@@ -1,0 +1,221 @@
+@name hoyo's Midi Player Ver_4
+@outputs X Y Update DBG Played BPM Play MT HTD:string Cal
+@outputs TMPN TMPN2 TMPN3:array TMPN4:array CMP Comp Datas:array
+@outputs Status:string Ch Pitch V I3:array Time KN1 KN2 KS KDBG:string J
+@persist URL:string BPM IH Holo:array Play Ch
+@persist TMPN TMPN2 I2 I Chs I3:array Data:array Datas:array CMP
+@persist Last:array
+@persist MTRKS KN1 KN2 KS Type
+@persist R:array J Time DBG Pitch V Status:string LCh
+@persist LChR:array IH2 HTD:string RT SPD MT NR:array Count TMPN3:array
+@persist TMPN4:array HTD2:array TR:array
+@trigger  
+runOnChat(1)
+runOnTick(1)
+if(first() | duped() | dupefinished())
+{
+    SPD = 1
+    Update = 0.001
+    URL = "http://hoyo321.phps.kr/midi.php"
+}
+if(chatClk(owner()))
+{
+    if(lastSaid():lower() == "type 1")
+    {
+        Type = 1
+    }
+    if(lastSaid():lower() == "type 0")
+    {
+        Type = 0
+    }
+    if(lastSaid():explode(" "):string(1):lower() == "play" & lastSaid():find("http://") & !lastSaid():lower():explode(".mid"):string(2))
+    {
+        if(httpCanRequest())
+        {
+            print("requesting...")
+            runOnHTTP(1)
+            LChR = array()
+            holoDeleteAll()
+            httpRequest(URL+"?fn="+httpUrlEncode(lastSaid():sub(6,lastSaid():length())))
+        }
+        else
+        {
+            print("try later")
+        }
+    }
+    
+    if(lastSaid():lower():trimRight() == "reset")
+    {
+        reset()
+    }
+    if(lastSaid():explode(" "):string(1):lower() == "set_bpm")
+    {
+        SPD = lastSaid():explode(" "):string(2):toNumber()
+    }
+}
+if(httpClk())
+{ 
+    HDBG = httpData():sub(1,200)
+    CMP = 1
+    RT = realtime()
+    I = 0
+    TMPN = 0
+    TMPN2 = 0
+    Data = array()
+    HTD = ""
+    BPM = httpData():sub(1,httpData():find("<BR>")):explode("!"):string(1):toNumber()
+    print("calculating...")
+}
+if(CMP)
+{
+    while(opcounter()<5000 & CMP)
+    {
+        Cal = DBG
+        DBG = realtime()-RT
+#        TMPN = httpData():find("<BR>",TMPN2)
+#        TMPN2 = httpData():find("<BR>",TMPN+1)
+#        HTD = httpData():sub(TMPN,TMPN2)
+#        if(!HTD:find("MTrk") & !HTD:lower():find("sysex") &!HTD:lower():find("meta"))
+#        {
+#            Data:pushString(HTD:replace("<",""):replace(">",""):replace("BR",""))
+#        }
+#        if(HTD:find("MTrk"))
+#        {
+#            MTRKS++
+#        }
+#        if(HTD:find("TrkEnd"))
+#        {
+#            I++
+#            Datas[I,array] = Data
+#            Data = array()
+#        }
+#        if(TMPN2 == 0)
+#        {
+#            CMP = 0
+#            I2 = I
+#            Cal = DBG
+#            RT = 0
+#            DBG = 0
+#            timer("holoCR",150)
+#        }
+        TMPN = httpData():find("MTrk",TMPN2)
+        TMPN2 = httpData():find("TrkEnd",TMPN+1)
+        Datas:pushString(TMPN:toString()+" "+TMPN2:toString())
+        if(!TMPN)
+        {
+            CMP = 0
+            I2 = I
+            Cal = DBG
+            RT = 0
+            DBG = 0
+            TMPN = 0
+            TMPN2 = 0
+            Comp++
+            timer("holoCR",150)
+            break
+        }
+    }
+}
+if(clk("holoCR"))
+{
+    CMP = 0
+    TMPN = 0 
+    TMPN2 = 0
+    Ch = 0
+    HTD = ""
+    CTime = realtime()
+    for(I99 = 1,Datas:count())
+    {
+        I3[I99,number] = 1
+    }
+    Play = 1
+    MTRKS = Datas:count()
+    print(Holo:count())
+    print("done")
+    RT = systime()
+    IH = 0
+}
+if(Play)
+{
+    while(opcounter()<4000)
+    {
+        J++
+        X+=0.01
+        if(X>1)
+        {
+            X = -1
+        }
+        DBG = (systime()-RT)*BPM*SPD
+#        TMPN3[J,number] = httpData():sub(Datas[J,string]:explode(" "):string(1):toNumber(),Datas[J,string]:explode(" "):string(2):toNumber()):find("<BR>",TMPN4[J,number])
+#        TMPN4[J,number] = httpData():sub(Datas[J,string]:explode(" "):string(1):toNumber(),Datas[J,string]:explode(" "):string(2):toNumber()):find("<BR>",TMPN3[J,number]+1)
+#        HTD2[J,string] = httpData():sub(Datas[J,string]:explode(" "):string(1):toNumber(),Datas[J,string]:explode(" "):string(2):toNumber()):sub(TMPN3[J,number],TMPN4[J,number])
+#        HTD = HTD2[    
+        HTD  = HTD2[J,string]
+        R = HTD:explode(" ")
+        Time = R[1,string]:replace("<BR>",""):toNumber()
+        Status = R[2,string]
+        if(Time<DBG)
+        {
+            TR = Datas[J,string]:explode(" ")
+            TMPN3[J,number] = httpData():sub(TR[1,string]:toNumber(),TR[2,string]:toNumber()):find("<BR>",TMPN4[J,number])
+            TMPN4[J,number] = httpData():sub(TR[1,string]:toNumber(),TR[2,string]:toNumber()):find("<BR>",TMPN3[J,number]+1)
+            HTD2[J,string] = httpData():sub(TR[1,string]:toNumber(),TR[2,string]:toNumber()):sub(TMPN3[J,number],TMPN4[J,number])
+            V = HTD:lower():replace("<",""):explode("v="):string(2):explode(" "):string(1):toNumber()
+            I3[J,number] = I3[J,number] + 1
+            Ch = HTD:lower():explode("ch="):string(2):explode(" "):string(1):toNumber()
+            Pitch = HTD:lower():explode("n="):string(2):explode(" "):string(1):toNumber()
+            if(1)
+            {
+                #keySig = from Hyper Thereading
+                if(HTD:lower():find("keysig"))
+                {
+                    KDBG = HTD
+                    KN1 = -(HTD:lower():find("major") ? 0 : 3)
+                    KN2 = ((abs(R[3,string]:replace("<",""):toNumber()) <=7 ? R[3,string]:replace("<",""):toNumber() : 0) + 8)
+                } 
+                Pitch += KN1 + KN2
+                #end of quote
+                if(Status:lower() == "on")
+                {
+                    LCh = Ch+(Type ? J : 0)
+                    if(!holoEntity(LChR[LCh,number]) & holoCanCreate() & holoRemainingSpawns())
+                    {
+                        IH++
+                        LChR[LCh,number] = IH
+                        Holo:pushEntity(holoCreate(IH))
+                        holoPos(IH,entity():pos()+vec(0,0,IH*12))
+                        holoEntity(IH):soundPlay(IH,0,"/synth/sine_440.wav")
+                        holoParent(IH,entity())
+                        soundPitch(IH,0)
+                        holoAng(IH,ang())
+                        MTRKS = max(MTRKS,LCh)
+                    }
+#                    holoEntity(LChR[LCh,number]):soundPlay(LChR[LCh,number],0,"/instruments/pianoc.wav")
+                    holoColor(LChR[LCh,number],vec(255*(V==0),255*(V>0),0))
+                    soundPitch(LChR[LCh,number],2^(Pitch/12))
+#                    soundVolume(LChR[LCh,number],V/127)
+                    Played++
+                }
+                if(Status:lower() == "off" | (Status:lower() == "on" & !V))
+                {
+                    LCh = Ch+(Type ? J : 0)
+                    holoColor(LChR[LCh,number],vec(255,0,0))
+                    soundPitch(LChR[LCh,number],0)
+                }
+                Y = $Pitch/100
+            }
+        }
+#        if(DBG>MT)
+#        {
+#            IH = 0
+#            I3 = array()
+#            RT = systime()
+#            LChR = array()
+#            holoDeleteAll()
+#        }
+        if(J>Datas:count())
+        {
+            J = 0
+        }
+    }
+}

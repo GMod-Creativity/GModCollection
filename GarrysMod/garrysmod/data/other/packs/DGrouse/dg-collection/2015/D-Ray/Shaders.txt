@@ -1,0 +1,219 @@
+@name D-Ray: Shaders
+
+if( 0 ){
+    #include "D-Ray/Core"
+}
+
+function vector ranger:getColor(){
+    if( This:entity() ){
+        return This:entity():getColor()
+    }else{
+        return SkyColor
+    }
+}
+
+function entity:setStrength( X ){
+    local T = EntityData[This:id(),table]
+    if( !T ){
+        EntityData[This:id(),table] = table()
+    }
+    EntityData[This:id(),table]["Strength",number] = X
+}
+
+function number ranger:getStrength(){
+    local T = EntityData[This:entity():id(),table]
+    if( T ){
+        local N = T["Strength",number]
+        if( N ){
+            return N
+        }
+    }
+    return 3
+}
+
+function exit( ID,C:vector ){
+    local P = getParent(ID)
+    local T = getRayType(ID)
+    
+    if( T == "Glossy" ){
+        colorMix( P,C,Rays[P,table]["Samp",number] )
+        CurrentBounce--
+    }elseif( T == "Diffuse" ){
+        colorMix( P,C,Samples )
+        CurrentBounce -= Bounces/DiffuseBounces
+    }else{
+        colorAdd( P,C )
+        CurrentBounce--
+    }
+    runExit( ID )
+}
+
+function exit( ID ){
+    exit( ID,getColor(ID) )
+}
+
+function shade_Emission( R:ranger,Strength,Color:vector ){
+    exit( RayID,Color*Strength )
+}
+
+function shade_Mirror( R:ranger,Color:vector ){
+    
+    if( CurrentBounce > Bounces ){
+        exit( RayID )
+        return
+    }
+
+    CurrentBounce++
+
+    Rays[RayID,table]["TintColor",vector] = Color
+    
+    local N = R:hitNormal()
+    local D = LastDirection
+    local F = D-2*(D*N)*N
+    
+    local NR = range( R:pos(),F,"Mirror" )
+
+    NR:runMaterial()
+}
+
+function exit_Mirror( ID ){
+    colorTint( ID,Rays[ID,table]["TintColor",vector] )
+    exit( ID )
+}
+
+function shade_Glossy( R:ranger,Angle,Color:vector ){
+    
+    if( CurrentBounce > Bounces ){
+        exit( RayID )
+        return
+    }
+    
+    Rays[RayID,table]["TintColor",vector] = Color
+    Rays[RayID,table]["Ranger",ranger] = R
+    Rays[RayID,table]["Angle",number] = Angle
+    
+    Rays[RayID,table]["S",number] = 1
+    Rays[RayID,table]["H",number] = 0
+    
+    Rays[RayID,table]["Samp",number] = Samples*clamp(Angle/90,0,1)
+    Rays[RayID,table]["LD",vector] = LastDirection
+    Rays[RayID,table]["LN",vector] = R:hitNormal()
+    
+    "exit_Glossy"( RayID )
+}
+
+function exit_Glossy( ID ){
+    local Samp = Rays[ID,table]["Samp",number]
+    local S = Rays[ID,table]["S",number]
+    local H = Rays[ID,table]["H",number]
+    
+    if( H >= Samples ){
+        H = 1
+        Rays[ID,table]["H",number] = H
+        S = S+1 
+        Rays[ID,table]["S",number] = S
+    }else{
+        H = H+1
+        Rays[ID,table]["H",number] = H
+    }
+    
+    if( S <= Samp ){
+    
+        CurrentBounce++
+ 
+        local R = Rays[RayID,table]["Ranger",ranger]
+        local Angle = Rays[RayID,table]["Angle",number]
+        local LD = Rays[RayID,table]["LD",vector]
+        local LN = Rays[RayID,table]["LN",vector]
+        
+        local N = LD-2*(LD*LN)*LN  
+        local A = (360/Samp)*H
+        local D = ang(sin(A),cos(A),0)*(S-2)*(Angle/Samp)
+        
+        local F = ( N:toAngle() + D ):forward()
+        
+        local NR = range( R:pos(),F,"Glossy",ID )
+        
+        NR:runMaterial()
+        
+    }else{
+        CurrentBounce--
+        colorTint( ID,Rays[ID,table]["TintColor",vector] )
+        exit( ID )
+    }
+}
+
+function shade_Diffuse( R:ranger,Color:vector ){
+
+    if( CurrentBounce > Bounces ){
+        exit( RayID )
+        return
+    }
+    
+    Rays[RayID,table]["TintColor",vector] = Color
+    Rays[RayID,table]["Ranger",ranger] = R
+    
+    Rays[RayID,table]["S",number] = 1
+    Rays[RayID,table]["H",number] = 0
+    
+    "exit_Diffuse"( RayID )
+}
+
+function exit_Diffuse( ID ){
+    
+    local S = Rays[ID,table]["S",number]
+    local H = Rays[ID,table]["H",number]
+    
+    if( H >= Samples ){
+        H = 1
+        Rays[ID,table]["H",number] = H
+        S = S+1 
+        Rays[ID,table]["S",number] = S
+    }else{
+        H = H+1
+        Rays[ID,table]["H",number] = H
+    }
+    
+    if( S <= Samples ){
+        CurrentBounce += Bounces/DiffuseBounces
+        local R = Rays[ID,table]["Ranger",ranger]
+        
+        local DZ = 2/Samples*( S ) - 1
+        local T = ( 2*pi() )/Samples*( H )
+        
+        local M = sqrt(1-DZ^2)
+        local DX = M * cosr( T )
+        local DY = M * sinr( T )
+
+        local NR = range( R:pos(),vec(DX,DY,DZ),"Diffuse",ID )
+        
+        NR:runMaterial()
+        
+    }else{
+        colorTint( ID,Rays[ID,table]["TintColor",vector] )
+        exit( ID )
+    }
+}
+
+#[
+function shade_Select( A:table ){
+    local R = A["Ranger",ranger]
+    local S = A["Shader",string]
+    local C = A["Color",vector]
+    
+    if( S == "shade_Mirror" ){
+        shade_Mirror( R,C )
+    }elseif( S == "shade_Glossy" ){
+        shade_Glossy( R,A["Angle",number],C )
+    }elseif( S == "shade_Diffuse" ){
+        shade_Diffuse( R,C )
+    }
+}
+
+function vector shade_Mix( Shader1:table,Shader2:table,Factor ){
+    local C1 = shade_Select( Shader1 )
+    local C2 = shade_Select( Shader2 )
+    LastColor = C1*( 1-Factor ) + C2*Factor
+    return LastColor
+}
+#]

@@ -1,0 +1,99 @@
+@name DPGC3-Network
+@persist [LastNetHook LastNetId]:string [NetHook Networks]:table LastNetSender
+
+dsSetScope(2)
+
+function array nwProbe( NW:string ){
+    return dsProbe( NW )
+}
+
+function number nwProbe( NW:string,Id ){
+    local A = dsProbe(NW)
+    local B = 0
+    foreach(K,V:entity = A){
+        if( Id == V:id() ){
+            B = 1
+            break
+        }
+    }
+    return B
+}
+
+function nwJoin( Name:string,Desc:string ){
+    Networks[Name,string] = Desc
+    dsJoinGroup(Name)
+}
+
+function nwJoin( Name:string ){
+    nwJoin(Name,"A generic network")
+}
+
+function nwLeave( S:string ){
+    Networks:remove( S )
+}
+
+function number nwTunnel(E){
+    foreach(N,D:string=Networks){
+        foreach(K,V:entity=nwProbe(N)){
+            if( V:id() == E ){
+                return 1   
+            }
+        }
+    }
+    return 0
+}
+
+function nwSendData( NH:string,E,Data:table ){
+    local T = table()
+    T["Sender",number] = entity():id()
+    T["Data",table] = Data
+    dsSendDirect( NH,entity(E),T )
+}
+
+function nwSendData( NH:string,E:entity,Data:table ){
+    local T = table()
+    T["Sender",number] = entity():id()
+    T["Data",table] = Data
+    dsSendDirect( NH,E,T )
+}
+
+function addNetworkString( S:string,Id:string,Func:string ){
+    if( !NetHook[S,table] ){ NetHook[S,table] = table() }
+        NetHook[S,table][Id,string] = Func
+}
+
+function addNetworkString( T:table ){
+    NetHook:add( T )
+}
+
+function removeNetworkString( S:string ){
+    NetHook:remove( S )
+}
+
+function removeNetworkString( T:table ){
+    foreach(K,V:string = T){
+        NetHook:remove( V )	
+    }
+}
+
+function removeNetworkId( S:string,Id:string ){
+    if( NetHook[S,table] ){
+		      NetHook[S,table]:remove(Id)
+	   }
+}
+
+function runNetwork(){
+    foreach(Name,ID:table = NetHook){
+        foreach(K,V:string = ID){
+            if( dsClk(Name) ){
+                
+                LastNetHook = Name
+                LastNetId = K
+                
+                local T = dsGetTable()
+                LastNetSender = T["Sender",number]
+                V( T["Data",table] )
+            }
+        }
+    }
+}

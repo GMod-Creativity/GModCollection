@@ -1,0 +1,60 @@
+@name Definer - Page
+@persist DF_TextBox DF_DefBox [DF_Definition DF_SearchText]:string
+
+if(0){
+    #include "dgpc3/elements/textbox"
+    #include "dgpc3/elements/window"
+    #include "dgpc3/elements/button"
+    #include "dgpc3/lib2"
+    #include "dgpc3/http"
+}
+
+function df_UpdateDefinition(){
+    DF_DefBox = windowNew(256,300,400,300)
+    
+    local Char = 45
+    
+    for( I=1,clamp( ceil( DF_Definition:length()/Char ),0,10 ) ){
+        local Sub = DF_Definition:sub( (I-1)*Char, I*Char )
+        windowContent( "Objects",text(Sub,70,140+20*I,15,1,0,0) )
+    }
+}
+
+function df_TextUpdate( Mem ){
+    if( Mem == KEY_ENTER ){
+        httpReq("http://www.online-utility.org/english/dictionary.jsp?word="+DF_SearchText,"df_ReturnHTTP")
+        DF_Definition = "Loading"
+        df_UpdateDefinition()
+    }elseif( Mem == 154 ){
+        "closeDefiner"()
+    }else{
+        DF_SearchText = textEdit(DF_TextBox,DF_SearchText,Mem)
+        textboxUpdateText(DF_TextBox,DF_SearchText)
+    }
+}
+
+function df_InitPage(){
+    DF_SearchText = ""
+    DF_TextBox = textboxNew("Define",256,90,200,20,20,18,"",2,1,"df_TextUpdate","kFilter_LetNumSymShift",1)
+}
+
+function df_ReturnHTTP( Data:string ){
+    if(Data != ""){
+        local S = Data:find( "meaning of" )
+        local D = Data:find( "-",S )
+        local E = Data:find( "<br/>",D )
+        if(S && E){
+            local D = Data:sub(D,E-1)
+            local D = D:replace("<b>","")
+            local D = D:replace("</b>","")
+            local D = D:replace("<i>","")
+            local D = D:replace("</i>","")
+            DF_Definition = D
+        }else{
+            DF_Definition = "Invalid"
+        }
+    }else{
+        DF_Definition = "Invalid"
+    }
+    df_UpdateDefinition()
+}

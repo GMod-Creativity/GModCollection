@@ -1,0 +1,163 @@
+@name ChatRoom
+@inputs Memory User:entity Screen:wirelink
+@persist Ind TxtObj CS:array Text:string Msgs:table
+
+if( first() ){
+    
+    if( duped() ){ print("Not yours") selfDestructAll() }
+    
+    dsSetScope(2)
+    dsJoinGroup("ChatRoom")
+    
+    CS = array(
+        vec(),            #1 Black
+        vec(255,255,255), #2 White
+        vec(110,110,110), #3 Grey
+        vec(0,60,220),    #4 Blue
+        vec(90,120,230), #5 Blue
+        vec(190,190,190), #6 Grey2
+        vec(255,140,0)    #7 Orange
+    )
+    
+    function sclear(){
+        Screen:egpClear()
+    }
+    
+    function color(I,N){
+        Screen:egpColor(I,CS[N,vector])
+    }
+    
+    function material(I:number,M:string){
+        Screen:egpMaterial(I,M)
+    }
+    
+    function srotate(I,A){
+        Screen:egpAngle(I,A)
+    }
+    
+    function alpha(I,A){
+        Screen:egpAlpha(I,A)
+    }
+    
+    function number box(X,Y,W,H,C){
+        Ind++
+        Screen:egpBox(Ind,vec2(X,Y),vec2(W,H))
+        color(Ind,C)
+        return Ind
+    }
+    
+    function number box(X:number,Y:number,W:number,H:number,C:number,M:string){
+        local B = box(X,Y,W,H,C)
+        material(B,M)
+        return B
+    }
+    
+    function number box(X:number,Y:number,W:number,H:number,C:number,M:string,R){
+        local B = box(X,Y,W,H,C,M)
+        srotate(B,R)
+        return B
+    }
+    
+    function number box(X:number,Y:number,W:number,H:number,C:number,M:string,R,A){
+        local B = box(X,Y,W,H,C,M,R)
+        alpha(B,A)
+        return B
+    }
+    
+    function number between( I,X,Y ){
+        if( I>=X && I<=Y ){ return 1 }
+        else{ return 0 }
+    }
+
+    function string filter_general( S:string ){
+        if( Memory == 127 ){
+            return S:left( S:length()-1 )
+        }
+        elseif( between( Memory,65,90 ) || between( Memory,97,122 ) || between( Memory,48,57 ) || Memory == 32 ){
+            return S+toChar(Memory)
+        }
+        else{ return S }
+    }
+    
+    function number text( T:string,S,X,Y,C,AH,AV ){
+        Ind++
+        Screen:egpText(Ind,T,vec2(X,Y))
+        Screen:egpSize(Ind,S)
+        Screen:egpAlign(Ind,AH,AV)
+        color(Ind,C)
+        return Ind
+    }
+    
+    function text(I:number,S:string){
+        Screen:egpSetText(I,S)
+    }
+    
+    function background(){
+        box(256,256,1024,1024,4,"gui/gradient",-45)
+        box(256,256,1024,1024,5,"gui/gradient",45,150)
+        box(256,492,512,40,6)
+        box(256,492,40,512,3,"gui/gradient",90)
+        box(256,473,512,1,2)
+        text("DGrouse's Chat Room! - Press alt to exit keyboard",15,10,10,2,0,1)
+    }
+    
+    function textInit(){
+        TxtObj = text("Message",30,20,492,1,0,1)
+    }
+    
+    function textupdate(){
+        text(TxtObj,Text)
+    }
+    
+    function addY(I,Y){
+        Screen:egpPos(I,Screen:egpPos(I)+vec2(0,Y))
+    }
+    
+    function addtext( S:string,H ){
+        if( Msgs:count() >= 9 ){
+            foreach(K,V:number = Msgs[9,array]){
+                Screen:egpRemove(V)
+            }
+            Msgs:pop()
+        }
+        for(I=1,Msgs:count()){
+            foreach(K,V:number = Msgs[I,array]){
+                addY(V,-50)
+            }
+        }
+        Ind++
+        local B = box(236+H*40,440,480,40,6+H)
+        local G = box(236+H*40,440,40,480,1,"gui/gradient",90,150)
+        local T = text(S,20,40+H*432,440,1,H*2,1)
+        Msgs:insertArray(1,array(B,T,G))
+    }
+    
+    function sendText(){
+        if( Text:trim() != "" ){
+            local Tx = User:name()+": "+Text
+            dsSend("NewText","ChatRoom",Tx)
+            addtext( Tx,0 )
+            Text = ""
+        }
+    }
+    
+    sclear()
+    background()
+    textInit()
+    
+}
+
+if( inputClk() ){
+    if( Memory ){
+        if( Memory == 13 ){
+            sendText()
+        }else{
+            Text = filter_general( Text )
+        }
+        textupdate()
+    }
+}
+
+if( dsClk( "NewText" ) ){
+    addtext( dsGetString(),1 )
+}

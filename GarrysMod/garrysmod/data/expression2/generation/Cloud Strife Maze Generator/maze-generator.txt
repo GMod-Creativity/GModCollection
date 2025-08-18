@@ -1,0 +1,1354 @@
+@name Cloud Strife Maze Generator
+@persist I Spawning Vec:vector Prop:entity [RelPos BoxSize CurPos Size PosVec]:vector LenHolder [ArrHolder Visited Dir Walls DirAvail DirVector Pos Ang Arr Arr2 MoveDir Slice SpawnList Order Hold BackWalls]:array Height Length Width Combine Pathing Spawning2 Spawning3 Spawning4 HorizontalSpacing VerticalSpacing Z OGroup Group H Lenz Lenz2
+@persist BarCount Abort J R [ModelName Text LastSaid]:string Count:array DimX DimY Q Roof Glass Thick ThickHold NotSwap SavedLen SavedVec:vector SpawnNumber Cube Delay SaveData:string SavedArray:array 
+if(Spawning>0)
+{
+    interval(80)
+}
+else
+{
+    interval(20)
+}
+
+if(first())
+{
+    Length=7
+    Width=8
+    Height=1
+    
+    
+    #scaling use 3,6,12,24,48,96,192,240
+    HorizontalSpacing = 96
+    VerticalSpacing = 96
+    
+    #pathing 1: recursive backtracer, 2:Kruskal's
+    Pathing = 2
+
+    #1 if u want optional
+    Glass = 0
+    Cube = 0
+    Roof = 0 #only matters for 1 high mazes
+
+
+    function number getIndex(XLen, YWidth, ZHeight)
+    {
+        return (XLen + (YWidth - 1) * Length + (ZHeight - 1) * (Length * Width))
+    }
+    function number getIndex(XYZVector:vector)
+    {
+        return getIndex(XYZVector:x(),XYZVector:y(),XYZVector:z())
+    }
+    function number getBackWallIndex(XLen, YWidth, ZHeight)
+    {
+        if(YWidth == 1 + Width)
+        {
+            return XLen + (ZHeight - 1) * Length
+        }
+        elseif(XLen == 1 + Length)
+        {
+            return Length * Height + YWidth + (ZHeight - 1) * Width
+        }
+        else
+        {
+            return (Length + Width)*Height + XLen + (YWidth - 1) * Length
+        }
+    }
+    function number getBackWallIndex(XYZVector:vector)
+    {
+        return getBackWallIndex(XYZVector:x(),XYZVector:y(),XYZVector:z())
+    }
+    function vector getPosIndex(Index)
+    {
+        return vec(floor(((Index-1)/3)%Length)+1,ceil(((Index-1)%(Length*Width*3)+1)/Length/3),ceil(Index/(Length*Width*3)))
+    }
+    function number getWallIndex(XLen, YWidth, ZHeight, ADir)
+    {
+        if(ADir>3)
+        {
+            XLen = XLen + DirVector[ADir,vector]:x()
+            YWidth = YWidth + DirVector[ADir,vector]:y()
+            ZHeight = ZHeight + DirVector[ADir,vector]:z()
+            ADir = ADir - 3
+        }
+        return ((XLen - 1) * 3 + (YWidth - 1) * Length * 3 + (ZHeight - 1) * (Length * Width) * 3 + ADir)
+    }
+    function number getWallIndex(XYZVector:vector, ADir)
+    {
+        return getWallIndex(XYZVector:x(),XYZVector:y(),XYZVector:z(),ADir)
+    }
+    function number avaliableDirNum(XLen, YWidth, ZHeight)
+    {
+        Avail = 0
+        DirAvail = array()
+        if(XLen != 1)
+        {
+            if(Visited[getIndex(XLen-1,YWidth,ZHeight),number] < 0.5)
+            {
+                Avail = Avail + 1
+                DirAvail:pushNumber(2)
+            }
+        }
+        if(YWidth != 1)
+        {
+            if(Visited[getIndex(XLen,YWidth-1,ZHeight),number] < 0.5)
+            {
+                Avail = Avail + 1
+                DirAvail:pushNumber(1)
+            }
+        }
+        if(ZHeight != 1)
+        {
+            if(Visited[getIndex(XLen,YWidth,ZHeight-1),number] < 0.5)
+            {
+                Avail = Avail + 1
+                DirAvail:pushNumber(3)
+            }
+        }
+        if(XLen != Length)
+        {
+            if(Visited[getIndex(XLen+1,YWidth,ZHeight),number] < 0.5)
+            {
+                Avail = Avail + 1
+                DirAvail:pushNumber(5)
+            }
+        }
+        if(YWidth != Width)
+        {
+            if(Visited[getIndex(XLen,YWidth+1,ZHeight),number] < 0.5)
+            {
+                Avail = Avail + 1
+                DirAvail:pushNumber(4)
+            }
+        }
+        if(ZHeight != Height)
+        {
+            if(Visited[getIndex(XLen,YWidth,ZHeight+1),number] < 0.5)
+            {
+                Avail = Avail + 1
+                DirAvail:pushNumber(6)
+            }
+        }
+        return Avail
+    }
+    function number avaliableDirNum(XYZVector:vector)
+    {
+        return avaliableDirNum(XYZVector:x(),XYZVector:y(),XYZVector:z())
+    }
+    function number avaliableDirNum(XLen, YWidth, ZHeight,GroupNum)
+    {
+        Avail = 0
+        DirAvail = array()
+        if(XLen != 1)
+        {
+            if(Visited[getIndex(XLen-1,YWidth,ZHeight),number] != GroupNum & Visited[getIndex(XLen-1,YWidth,ZHeight),number] > -0.5)
+            {
+                Avail = Avail + 1
+                DirAvail:pushNumber(2)
+            }
+        }
+        if(YWidth != 1)
+        {
+            if(Visited[getIndex(XLen,YWidth-1,ZHeight),number] != GroupNum & Visited[getIndex(XLen,YWidth-1,ZHeight),number] > -0.5)
+            {
+                Avail = Avail + 1
+                DirAvail:pushNumber(1)
+            }
+        }
+        if(ZHeight != 1)
+        {
+            if(Visited[getIndex(XLen,YWidth,ZHeight-1),number] != GroupNum & Visited[getIndex(XLen,YWidth,ZHeight-1),number] > -0.5)
+            {
+                Avail = Avail + 1
+                DirAvail:pushNumber(3)
+            }
+        }
+        if(XLen != Length)
+        {
+            if(Visited[getIndex(XLen+1,YWidth,ZHeight),number] != GroupNum & Visited[getIndex(XLen+1,YWidth,ZHeight),number] > -0.5)
+            {
+                Avail = Avail + 1
+                DirAvail:pushNumber(5)
+            }
+        }
+        if(YWidth != Width)
+        {
+            if(Visited[getIndex(XLen,YWidth+1,ZHeight),number] != GroupNum & Visited[getIndex(XLen,YWidth+1,ZHeight),number] > -0.5)
+            {
+                Avail = Avail + 1
+                DirAvail:pushNumber(4)
+            }
+        }
+        if(ZHeight != Height)
+        {
+            if(Visited[getIndex(XLen,YWidth,ZHeight+1),number] != GroupNum & Visited[getIndex(XLen,YWidth,ZHeight+1),number] > -0.5)
+            {
+                Avail = Avail + 1
+                DirAvail:pushNumber(6)
+            }
+        }
+        return Avail
+    }
+    function number avaliableDirNum(XYZVector:vector,GroupNum)
+    {
+        return avaliableDirNum(XYZVector:x(),XYZVector:y(),XYZVector:z(),GroupNum)
+    }
+    function void visit(XLen, YWidth, ZHeight)
+    {
+        Visited[getIndex(XLen,YWidth,ZHeight),number] = 1
+    }
+    function void visit(XYZVector:vector)
+    {
+        visit(XYZVector:x(),XYZVector:y(),XYZVector:z())
+    }
+    function void removeWall(XLen, YWidth, ZHeight,ADir)
+    {
+        Walls[getWallIndex(XLen, YWidth, ZHeight, ADir),number] = 1
+    }
+    function void removeWall(XYZVector:vector,ADir)
+    {
+        removeWall(XYZVector:x(),XYZVector:y(),XYZVector:z(),ADir)
+    }
+    function void removeBackWall(XLen, YWidth, ZHeight)
+    {
+        BackWalls[getBackWallIndex(XLen, YWidth, ZHeight),number] = 1
+    }
+    function void removeBackWall(XYZVector:vector)
+    {
+        removeBackWall(XYZVector:x(),XYZVector:y(),XYZVector:z())
+    }
+    function vector wallPos(XLen, YWidth, ZHeight,ADir)
+    {
+        ReturnVec = vec(XLen-1,YWidth-1,ZHeight-1)*vec(HorizontalSpacing,HorizontalSpacing,VerticalSpacing)+DirVector[ADir,vector]*vec(HorizontalSpacing,HorizontalSpacing,VerticalSpacing)/2
+        return ReturnVec
+    }
+    function vector wallPos(XYZVector:vector,ADir)
+    {
+        return wallPos(XYZVector:x(),XYZVector:y(),XYZVector:z(),ADir)
+    }
+    function number getLen(XLen, YWidth, ZHeight, ADir)
+    {
+        Len = 0
+        while(inrange(vec(XLen,YWidth,ZHeight),vec(),vec(Length,Width,Height)) & Walls[getWallIndex(XLen, YWidth, ZHeight, ADir),number] != 1)
+        {
+            Walls[getWallIndex(XLen, YWidth, ZHeight, ADir),number] = 1
+            Len = Len + 1
+            XLen = XLen + MoveDir[ADir,vector]:x()
+            YWidth = YWidth + MoveDir[ADir,vector]:y()
+            ZHeight = ZHeight + MoveDir[ADir,vector]:z()
+            if(!perf())
+            {
+                Abort = 4
+                SavedVec = vec(XLen,YWidth,ZHeight)
+                SavedLen = Len
+                exit()
+            }
+        }  
+        return (Len * HorizontalSpacing)
+    }
+    function number getLen(XYZVector:vector,ADir)
+    {
+        return getLen(XYZVector:x(),XYZVector:y(),XYZVector:z(),ADir)
+    }
+    function number getLen(XLen, YWidth, ZHeight, ADir,Num)
+    {
+        Len = Num
+        while(inrange(vec(XLen,YWidth,ZHeight),vec(),vec(Length,Width,Height)) & Walls[getWallIndex(XLen, YWidth, ZHeight, ADir),number] != 1)
+        {
+            Walls[getWallIndex(XLen, YWidth, ZHeight, ADir),number] = 1
+            Len = Len + 1
+            XLen = XLen + MoveDir[ADir,vector]:x()
+            YWidth = YWidth + MoveDir[ADir,vector]:y()
+            ZHeight = ZHeight + MoveDir[ADir,vector]:z()
+            if(!perf())
+            {
+                Abort = 4
+                SavedVec = vec(XLen,YWidth,ZHeight)
+                SavedLen = Len
+                exit()
+            }
+        }  
+        return (Len * HorizontalSpacing)
+    }
+    function number getLen(XYZVector:vector,ADir,Num)
+    {
+        return getLen(XYZVector:x(),XYZVector:y(),XYZVector:z(),ADir,Num)
+    }
+    function number getBackLen(XLen, YWidth, ZHeight, ADir)
+    {
+        Len = 0
+        while(inrange(vec(XLen,YWidth,ZHeight)+DirVector[ADir,vector],vec(),vec(Length,Width,Height)) & BackWalls[getBackWallIndex(XLen, YWidth, ZHeight),number] != 1)
+        {
+            BackWalls[getBackWallIndex(XLen, YWidth, ZHeight),number] = 1
+            Len = Len + 1
+            XLen = XLen + MoveDir[ADir,vector]:x()
+            YWidth = YWidth + MoveDir[ADir,vector]:y()
+            ZHeight = ZHeight + MoveDir[ADir,vector]:z()
+        }  
+        return (Len * HorizontalSpacing)
+    }
+    function number getBackLen(XYZVector:vector,ADir)
+    {
+        return getBackLen(XYZVector:x(),XYZVector:y(),XYZVector:z(),ADir)
+    }
+    function array findLengths(LenHolder)
+    {
+        ArrHolder = array()
+        while(LenHolder>0)
+        {
+            if(LenHolder>=480)
+            {
+                LenHolder = LenHolder - 480
+                ArrHolder:pushNumber(480)
+            }
+            #elseif(LenHolder>=432)
+            #{
+                #LenHolder = LenHolder - 432
+                #ArrHolder:pushNumber(432)
+            #}
+            #elseif(LenHolder>=384)
+            #{
+                #LenHolder = LenHolder - 384
+                #ArrHolder:pushNumber(384)
+            #}
+            #elseif(LenHolder>=336)
+            #{
+                #LenHolder = LenHolder - 336
+                #ArrHolder:pushNumber(336)
+            #}
+            #elseif(LenHolder>=288)
+            #{
+                #LenHolder = LenHolder - 288
+                #ArrHolder:pushNumber(288)
+            #}
+            elseif(LenHolder>=240)
+            {
+                LenHolder = LenHolder - 240
+                ArrHolder:pushNumber(240)
+            }
+            elseif(LenHolder>=192)
+            {
+                LenHolder = LenHolder - 192
+                ArrHolder:pushNumber(192)
+            }
+            elseif(LenHolder>=144)
+            {
+                LenHolder = LenHolder - 144
+                ArrHolder:pushNumber(144)
+            }
+            #elseif(LenHolder>=132)
+            #{
+                #LenHolder = LenHolder - 132
+                #ArrHolder:pushNumber(132)
+            #}
+            #elseif(LenHolder>=120)
+            #{
+                #LenHolder = LenHolder - 120
+                #ArrHolder:pushNumber(120)
+            #}
+            #elseif(LenHolder>=108)
+            #{
+                #LenHolder = LenHolder - 108
+                #ArrHolder:pushNumber(108)
+            #}
+            elseif(LenHolder>=96)
+            {
+                LenHolder = LenHolder - 96
+                ArrHolder:pushNumber(96)
+            }
+            elseif(LenHolder>=90)
+            {
+                LenHolder = LenHolder - 90
+                ArrHolder:pushNumber(90)
+            }
+            elseif(LenHolder>=84)
+            {
+                LenHolder = LenHolder - 84
+                ArrHolder:pushNumber(84)
+            }
+            elseif(LenHolder>=78)
+            {
+                LenHolder = LenHolder - 78
+                ArrHolder:pushNumber(78)
+            }
+            elseif(LenHolder>=72)
+            {
+                LenHolder = LenHolder - 72
+                ArrHolder:pushNumber(72)
+            }
+            elseif(LenHolder>=66)
+            {
+                LenHolder = LenHolder - 66
+                ArrHolder:pushNumber(66)
+            }
+            elseif(LenHolder>=60)
+            {
+                LenHolder = LenHolder - 60
+                ArrHolder:pushNumber(60)
+            }
+            elseif(LenHolder>=54)
+            {
+                LenHolder = LenHolder - 54
+                ArrHolder:pushNumber(54)
+            }
+            elseif(LenHolder>=48)
+            {
+                LenHolder = LenHolder - 48
+                ArrHolder:pushNumber(48)
+            }
+            elseif(LenHolder>=42)
+            {
+                LenHolder = LenHolder - 42
+                ArrHolder:pushNumber(42)
+            }
+            elseif(LenHolder>=36)
+            {
+                LenHolder = LenHolder - 36
+                ArrHolder:pushNumber(36)
+            }
+            elseif(LenHolder>=30)
+            {
+                LenHolder = LenHolder - 30
+                ArrHolder:pushNumber(30)
+            }
+            elseif(LenHolder>=24)
+            {
+                LenHolder = LenHolder - 24
+                ArrHolder:pushNumber(24)
+            }
+            elseif(LenHolder>=18)
+            {
+                LenHolder = LenHolder - 18
+                ArrHolder:pushNumber(18)
+            }
+            elseif(LenHolder>=12)
+            {
+                LenHolder = LenHolder - 12
+                ArrHolder:pushNumber(12)
+            }
+            elseif(LenHolder>=6)
+            {
+                LenHolder = LenHolder - 6
+                ArrHolder:pushNumber(6)
+            }
+            elseif(LenHolder>=3)
+            {
+                LenHolder = LenHolder - 3
+                ArrHolder:pushNumber(3)
+            }
+            else
+            {
+                break
+            }
+        }
+        return ArrHolder
+    }
+    function void progressBar(Percent)
+    {
+        
+        holoPos(-1,entity():pos()+ vec(-100,0,20))
+        holoScaleUnits(-1,vec(50,1,5))
+        holoPos(-2,entity():pos()+ vec(-100-24*(1-Percent),0,20))
+        holoScaleUnits(-2,vec(49*Percent,3,4))
+    }
+    function void progressBar(Percent,BarIndex)
+    {
+        while(BarIndex>BarCount)
+        {
+            BarCount=BarCount + 1
+            holoCreate(-1-2*BarCount)
+            holoColor(-1-2*BarCount,vec())
+            holoCreate(-2-2*BarCount)
+            holoColor(-2-2*BarCount,vec(randint(200),randint(200),0))
+        }
+        holoPos((-1-2*BarIndex),entity():pos()+ vec(-100,0,20+8*BarIndex))
+        holoScaleUnits((-1-2*BarIndex),vec(50,1,5))
+        holoPos((-2-2*BarIndex),entity():pos()+ vec(-100-24*(1-Percent),0,20+8*BarIndex))
+        holoScaleUnits((-2-2*BarIndex),vec(49*Percent,3,4))
+    }
+    function void progressBar(Text:string,Percent,BarIndex)
+    {
+        if(Text != LastSaid|LastSaid:length()>Count[BarIndex,number])
+        {
+            LastSaid = Text
+            
+            while(LastSaid:length()>Count[BarIndex,number]&holoCanCreate())
+            {
+                Count[BarIndex,number]=Count[BarIndex,number] + 1
+                holoCreate(Count[BarIndex,number]+BarIndex*20)
+                
+            }
+            for(Q=1,Count[BarIndex,number])
+            {
+                if(Q<=LastSaid:length()&LastSaid:index(Q)!=" ")
+                {
+                    holoModel(Q+BarIndex*20,"models/sprops/misc/alphanum/alphanum_"+LastSaid:index(Q):lower()+".mdl")
+                    holoPos(Q+BarIndex*20,entity():pos()+ vec(-130-LastSaid:length()*4+Q*4,0,20+8*BarIndex))
+                    holoAng(Q+BarIndex*20,entity():angles()+ang(0,180,0))
+                    holoScale(Q+BarIndex*20,vec(0.3,0.3,0.3))
+                    holoColor(Q+BarIndex*20,vec(20,20,20))
+                }
+                else
+                {
+                    #holoPos(Q+BarIndex*20,entity():pos())
+                    holoDelete(Q+BarIndex*20)
+                }
+            }
+        }
+        progressBar(Percent,BarIndex)
+    }
+    function number isValidLen(LenVal)
+    {
+        if(LenVal == 3)
+        {
+            return 1
+        }
+        elseif(LenVal == 6)
+        {
+            return 1
+        }
+        elseif(LenVal == 12)
+        {
+            return 1
+        }
+        elseif(LenVal == 18)
+        {
+            return 1
+        }
+        elseif(LenVal == 24)
+        {
+            return 1
+        }
+        elseif(LenVal == 30)
+        {
+            return 1
+        }
+        elseif(LenVal == 36)
+        {
+            return 1
+        }
+        elseif(LenVal == 42)
+        {
+            return 1
+        }
+        elseif(LenVal == 48)
+        {
+            return 1
+        }
+        elseif(LenVal == 54)
+        {
+            return 1
+        }
+        elseif(LenVal == 60)
+        {
+            return 1
+        }
+        elseif(LenVal == 66)
+        {
+            return 1
+        }
+        elseif(LenVal == 72)
+        {
+            return 1
+        }
+        elseif(LenVal == 78)
+        {
+            return 1
+        }
+        elseif(LenVal == 84)
+        {
+            return 1
+        }
+        elseif(LenVal == 90)
+        {
+            return 1
+        }
+        elseif(LenVal == 96)
+        {
+            return 1
+        }
+        elseif(LenVal == 144)
+        {
+            return 1
+        }
+        elseif(LenVal == 192)
+        {
+            return 1
+        }
+        elseif(LenVal == 240)
+        {
+            return 1
+        }
+        elseif(LenVal == 480)
+        {
+            return 1
+        }
+        return 0
+    }
+    function string findModel(DimX,DimY)
+    {
+        if(DimX > DimY)
+        {
+            if(isValidLen(DimY))
+            {
+                NotSwap = 0
+                HoldVal = DimY
+                DimY = DimX
+                DimX = HoldVal
+            }
+            else
+            {
+                NotSwap = 1
+            }
+        }
+        if(DimX == 3)
+        {
+            ModelName = "models/sprops/rectangles/size_1/rect_3x"+DimY+"x3.mdl"
+        }
+        elseif(DimX == 6)
+        {
+            ModelName = "models/sprops/rectangles/size_1_5/rect_6x"+DimY+"x3.mdl"
+        }
+        elseif(DimX == 12)
+        {
+            ModelName = "models/sprops/rectangles/size_2/rect_12x"+DimY+"x3.mdl"
+        }
+        elseif(DimX == 18)
+        {
+            ModelName = "models/sprops/rectangles/size_2_5/rect_18x"+DimY+"x3.mdl"
+        }
+        elseif(DimX == 24)
+        {
+            ModelName = "models/sprops/rectangles/size_3/rect_24x"+DimY+"x3.mdl"
+        }
+        elseif(DimX == 30)
+        {
+            ModelName = "models/sprops/rectangles/size_3_5/rect_30x"+DimY+"x3.mdl"
+        }
+        elseif(DimX == 36)
+        {
+            ModelName = "models/sprops/rectangles/size_4/rect_36x"+DimY+"x3.mdl"
+        }
+        elseif(DimX == 42)
+        {
+            ModelName = "models/sprops/rectangles/size_4_5/rect_42x"+DimY+"x3.mdl"
+        }
+        elseif(DimX == 48)
+        {
+            ModelName = "models/sprops/rectangles/size_5/rect_48x"+DimY+"x3.mdl"
+        }
+        elseif(DimX == 54)
+        {
+            ModelName = "models/sprops/rectangles/size_54/rect_54x"+DimY+"x3.mdl"
+        }
+        elseif(DimX == 60)
+        {
+            ModelName = "models/sprops/rectangles/size_60/rect_60x"+DimY+"x3.mdl"
+        }
+        elseif(DimX == 66)
+        {
+            ModelName = "models/sprops/rectangles/size_66/rect_66x"+DimY+"x3.mdl"
+        }
+        elseif(DimX == 72)
+        {
+            ModelName = "models/sprops/rectangles/size_72/rect_72x"+DimY+"x3.mdl"
+        }
+        elseif(DimX == 78)
+        {
+            ModelName = "models/sprops/rectangles/size_78/rect_78x"+DimY+"x3.mdl"
+        }
+        elseif(DimX == 84)
+        {
+            ModelName = "models/sprops/rectangles/size_84/rect_84x"+DimY+"x3.mdl"
+        }
+        elseif(DimX == 90)
+        {
+            ModelName = "models/sprops/rectangles/size_90/rect_90x"+DimY+"x3.mdl"
+        }
+        elseif(DimX == 96)
+        {
+            ModelName = "models/sprops/rectangles/size_6/rect_96x"+DimY+"x3.mdl"
+        }
+        elseif(DimX == 144)
+        {
+            ModelName = "models/sprops/rectangles/size_7/rect_144x"+DimY+"x3.mdl"
+        }
+        elseif(DimX == 192)
+        {
+            ModelName = "models/sprops/rectangles/size_8/rect_192x"+DimY+"x3.mdl"
+        }
+        elseif(DimX == 240)
+        {
+            ModelName = "models/sprops/rectangles/size_9/rect_240x"+DimY+"x3.mdl"
+        }
+        elseif(DimX == 480)
+        {
+            ModelName = "models/sprops/rectangles/size_10/rect_480x"+DimY+"x3.mdl"
+        }
+        return ModelName
+    }
+    function void makeEntranceExit()
+    {
+        RandVar = randint(2)
+        if(RandVar == 1)
+        {
+            #print("mode 1")
+            removeWall(randint(Length), 1, 1, 1)
+            removeBackWall(randint(Length), Width+1, 1)
+        }
+        else
+        {
+            #print("mode 2")
+            removeWall(1, randint(Width), 1, 2)
+            removeBackWall(Length+1, randint(Width), 1)
+        }
+    }
+
+    print("Starting session")
+    
+    holoCreate(-1)
+    holoCreate(-2)
+    holoColor(-1,vec(0,0,0))
+    holoColor(-2,vec(0,200,0))
+    BarCount = 0
+    SpawnNumber = 0
+    Visited = array()
+    DirVector = array(vec(0,-1,0),vec(-1,0,0),vec(0,0,-1),vec(0,1,0),vec(1,0,0),vec(0,0,1))
+    MoveDir = array(vec(1,0,0),vec(0,1,0),vec(0,1,0))
+    Ang = array(ang(0,0,90),ang(0,90,90),ang(0,90,0))
+    propSpawnEffect(0)
+    I=0
+    Z=0
+    Spawning = 0
+    
+    printColor(vec(200,200,200),"Welcome to ",vec(0,200,0),"{GR} Cloud Strife [-WME-]",vec(200,200,200),"'s Maze Gen.")
+    printColor(vec(200,200,200),"problems/troubleshooting go to the OP at",vec(200,0,0)," <http://www.wiremod.com/forum/finished-contraptions/31981-e2-prop-maze-generator-code-heavy-pic-heavy.html>")
+    if(fileCanLoad())
+    {
+        Delay = 200
+        fileLoad("CloudStrifeMazeValues.txt")
+    }
+    else
+    {
+        Delay = 2
+        print("file can not load at this time try later")
+    }
+}
+elseif(Delay>0)
+{
+    Delay--
+    if(fileLoaded()&Delay>0)
+    {
+        Delay = 1
+        print("done loading")
+        SavedData = fileRead()
+        if(SavedData:length()>5)
+        {
+            SavedArray = vonDecode(SavedData)
+            Length = SavedArray[10,number]
+            Width = SavedArray[11,number]
+            Height = SavedArray[12,number]
+            HorizontalSpacing = SavedArray[13,number]
+            VerticalSpacing = SavedArray[14,number]
+            Pathing = SavedArray[6,number]
+            Glass = SavedArray[7,number]
+            Cube = SavedArray[8,number]
+            Roof = SavedArray[9,number]
+        }
+    }
+    if(Delay==0)
+    {
+        RelPos = entity():pos()
+        CurPos = RelPos + vec(HorizontalSpacing/2,HorizontalSpacing/2,VerticalSpacing/2)
+        PosVec = ceil(randvec(vec(),vec(Length,Width,Height)))
+        makeEntranceExit()
+        if(Pathing == 1)
+        {
+            visit(PosVec)
+            Pos:pushVector(PosVec)
+            #print(PosVec,avaliableDirNum(PosVec))
+        }
+        if(Pathing == 2)
+        {
+            Z=0
+            Hold=array()
+            Order=array()
+            for(J=1,(Length*Height*Width))
+            {
+                if(!perf(50))
+                {
+                    Abort = 1
+                    R = J
+                    exit() 
+                }
+                Hold[J,number]=J
+            }
+            for(J=1,(Length*Height*Width))
+            {
+                if(!perf(50))
+                {
+                    Abort = 2
+                    R = J
+                    exit() 
+                }
+                Order[J,number]=Hold:removeNumber(randint(Hold:count()))
+            }
+            #print("randomized order")
+        }
+    }
+}
+elseif(Abort>0)
+{
+    if(Abort == 1)
+    {
+        for(J=R,(Length*Height*Width))
+        {
+            if(!perf(50))
+            {
+                Abort = 1
+                R = J
+                exit() 
+            }
+            Hold[J,number]=J
+        }
+        for(J=1,(Length*Height*Width))
+        {
+            if(!perf(50))
+            {
+                Abort = 2
+                R = J
+                exit() 
+            }
+            Order[J,number]=Hold:removeNumber(randint(Hold:count()))
+        }
+        print("randomized order")
+    }
+    elseif(Abort == 2)
+    {
+        for(J=R,(Length*Height*Width))
+        {
+            if(!perf(50))
+            {
+                Abort = 2
+                R = J
+                exit() 
+            }
+            Order[J,number]=Hold:removeNumber(randint(Hold:count()))
+        }
+    }
+    elseif(Abort == 3)
+    {
+        for(J=R,Length*Width*Height)
+        {
+            if(!perf())
+            {
+                Abort = 3
+                R = J
+                exit()
+            }
+            if(Visited[J,number] == OGroup)
+            {
+                Visited[J,number]=Group
+            }
+        }
+        Order:unshiftNumber(I)
+        
+    }
+    elseif(Abort == 4)
+    {
+        Len = getLen(SavedVec,(Combine+1)/2,SavedLen)
+        if(Len>0)
+        {
+            Slice:pushNumber(Len)
+            Slice:pushNumber((Combine+1)/2)
+            Slice:pushVector(PosVec)
+        }
+        progressBar(I/(Length * Width * Height * 3),(Combine+1)/2)
+    }
+    Abort = 0
+}
+elseif(Pathing)
+{
+    if(Pathing == 1)
+    {
+        while(perf())
+        {
+            if(Pos:count()>0)
+            {
+                PosVec=Pos[Pos:count(),vector]
+                
+                Num = avaliableDirNum(PosVec)
+                if(Num>0)
+                {
+                    Rand = randint(Num)
+                    removeWall(PosVec,DirAvail[Rand,number])
+                    PosVec = PosVec + DirVector[DirAvail[Rand,number],vector]
+                    visit(PosVec)
+                    Pos:pushVector(PosVec)
+                }
+                else
+                {
+                    Pos:pop()
+                }
+                
+            }
+            else
+            {
+                #print("done pathing")
+                Pathing = 0
+                Combine = 1
+                H=-1
+                I=1
+                Visited=array()
+                Slice=array()
+                break
+            }
+        }
+        if(Visited:count()>0)
+        {
+            progressBar("pathing",(Visited:count())/(Length*Width*Height),0)
+        }
+        else
+        {
+            progressBar("pathing",1,0)
+        }
+    }
+    elseif(Pathing == 2)
+    {
+        while(perf())
+        {
+            if(Order:count()>0)
+            {
+                I = Order:popNumber()
+                PosVec = getPosIndex(I*3)
+                Group = Visited[I,number]
+                if(Group == 0)
+                {
+                    Z = Z + 1
+                    Group = Z
+                    Visited[I,number] = Group
+                }
+                Num = avaliableDirNum(PosVec,Group)
+                if(Num>0)
+                {
+                    Rand = randint(Num)
+                    removeWall(PosVec,DirAvail[Rand,number])
+                    PosVec = PosVec + DirVector[DirAvail[Rand,number],vector]
+                    OGroup = Visited[getIndex(PosVec),number]
+                    if(OGroup != 0)
+                    {
+                        for(J=1,Length*Width*Height)
+                        {
+                            if(!perf())
+                            {
+                                Abort = 3
+                                R = J
+                                exit()
+                            }
+                            if(Visited[J,number] == OGroup)
+                            {
+                                Visited[J,number]=Group
+                            }
+                        }
+                    }
+                    else
+                    {
+                        Visited[getIndex(PosVec),number] = Group
+                    }
+                    
+                    Order:unshiftNumber(I)
+                }
+                else
+                {
+                    Visited[I,number] = -1
+                }
+            }
+            else
+            {
+                #print("done pathing2")
+                Pathing = 0
+                Combine = 1
+                H=-1
+                I=1
+                Visited=array()
+                Slice=array()
+                break
+            }
+        }
+        if(Visited:count()>0)
+        {
+            progressBar("pathing",Visited:count()/(Length*Width*Height),0)
+        }
+        else
+        {
+            progressBar("pathing",1,0)
+        }
+    }
+}
+elseif(Combine > 0)
+{
+    for(J=1,3)
+    {
+        if(Combine == 1)
+        {
+            H++
+            if(H>=Height)
+            {
+                H = 0
+                I=I+3
+            }
+            if(I <= Length * Width * 3)
+            {
+                PosVec = getPosIndex(I)
+                PosVec = PosVec + vec(0,0,H)
+                Len = getLen(PosVec,1)
+                if(Len>0)
+                {
+                    Slice:pushNumber(Len)
+                    Slice:pushNumber(1)
+                    Slice:pushVector(PosVec)
+                }
+                progressBar("XZ Wall Combining",I/(Length * Width * 3),1)
+                
+            }
+            elseif(I <= Length * Width * 3 + Length * 3)
+            {
+                PosVec = vec((I+2-Length * Width * 3)/3,Width+1,1+H)
+                Len = getBackLen(PosVec,1)
+                #print(PosVec,Len)
+                if(Len>0)
+                {
+                    Slice:pushNumber(Len)
+                    Slice:pushNumber(1)
+                    Slice:pushVector(PosVec)
+                }
+            }
+            else
+            {
+                progressBar(1,1)
+                #print("comb1done")
+                Combine = 2
+                Spawning = 0
+                H = -1
+                I = 0
+            }
+        }
+        elseif(Combine == 2)
+        {
+            if(Slice:count()>0)
+            {
+                PosVec = Slice:popVector()
+                ADir = Slice:popNumber()
+                Len = Slice:popNumber()
+                Arr = findLengths(Len)
+                C = Slice:count()
+                
+                Thick = 1
+                ThickHold = 1
+                
+                if(C>0)
+                {
+                    while(Slice[C-(ThickHold - 1)*3,vector]==PosVec-vec(0,0,ThickHold)&Slice[C-(ThickHold - 1)*3-2,number]==Len)
+                    {
+                        ThickHold++
+                        if(isValidLen((ThickHold)*VerticalSpacing))
+                        {
+                            while(Thick<ThickHold)
+                            {
+                                Slice:pop()
+                                Slice:pop()
+                                Slice:pop()
+                                Thick++
+                            }
+                        }
+                        if(C-(ThickHold - 1)<1)
+                        {
+                            break
+                        }
+                    }
+                }
+                while(Arr:count()>0)
+                {
+                    Len = Arr:popNumber()
+                    ReturnVec = vec(PosVec:x()-1,PosVec:y()-1,PosVec:z()-1-(Thick-1)*0.5)*vec(HorizontalSpacing,HorizontalSpacing,VerticalSpacing)+DirVector[ADir,vector]*vec(HorizontalSpacing,HorizontalSpacing,VerticalSpacing)/2+vec(Len/2-HorizontalSpacing/2,0,0)
+                    PosVec = PosVec + vec(Len,0,0)/HorizontalSpacing
+                    SpawnList:pushVector(ReturnVec)
+                    SpawnList:pushVector(vec(VerticalSpacing*Thick,Len,0))
+                    SpawnList:pushNumber(ADir)
+                }
+            }
+            else
+            {
+                #print("comb2done")
+                Combine = 3
+                H=-1
+                I=1
+            }
+        }
+        elseif(Combine == 3)
+        {
+            H++
+            if(H>=Height)
+            {
+                H = 0
+                I=I+3
+            }
+            if(I <= Length * Width * 3)
+            {
+                PosVec = getPosIndex(I)
+                PosVec = PosVec + vec(0,0,H)
+                Len = getLen(PosVec,2)
+                if(Len>0)
+                {
+                    Slice:pushNumber(Len)
+                    Slice:pushNumber(2)
+                    Slice:pushVector(PosVec)
+                }
+                progressBar("YZ Wall Combining",I/(Length * Width * 3),2)
+                
+            }
+            elseif(I <= Length * Width * 3 + Length * 3)
+            {
+                PosVec = vec(Length + 1,(I+2-Length * Width * 3)/3,1+H)
+                Len = getBackLen(PosVec,2)
+                if(Len>0)
+                {
+                    Slice:pushNumber(Len)
+                    Slice:pushNumber(2)
+                    Slice:pushVector(PosVec)
+                }
+            }
+            else
+            {
+                #print("comb3done")
+                Combine = 4
+                Spawning = 0
+                I = 0
+            }
+        }
+        elseif(Combine == 4)
+        {
+            if(Slice:count()>0)
+            {
+                
+                PosVec = Slice:popVector()
+                ADir = Slice:popNumber()
+                Len = Slice:popNumber()
+                Arr = findLengths(Len)
+                
+                C = Slice:count()
+                
+                Thick = 1
+                ThickHold = 1
+                
+                if(C>0)
+                {
+                    while(Slice[C-(ThickHold - 1)*3,vector]==PosVec-vec(0,0,ThickHold)&Slice[C-(ThickHold - 1)*3-2,number]==Len)
+                    {
+                        ThickHold++
+                        if(isValidLen((ThickHold)*VerticalSpacing))
+                        {
+                            while(Thick<ThickHold)
+                            {
+                                Slice:pop()
+                                Slice:pop()
+                                Slice:pop()
+                                Thick++
+                            }
+                        }
+                        if(C-(ThickHold - 1)<1)
+                        {
+                            break
+                        }
+                    }
+                }
+                while(Arr:count()>0)
+                {
+                    Len = Arr:popNumber()
+                    ReturnVec = vec(PosVec:x()-1,PosVec:y()-1,PosVec:z()-1-(Thick-1)*0.5)*vec(HorizontalSpacing,HorizontalSpacing,VerticalSpacing)+DirVector[ADir,vector]*vec(HorizontalSpacing,HorizontalSpacing,VerticalSpacing)/2+vec(0,Len/2-HorizontalSpacing/2,0)
+                    PosVec = PosVec + vec(0,Len,0)/HorizontalSpacing
+                    SpawnList:pushVector(ReturnVec)
+                    SpawnList:pushVector(vec(VerticalSpacing*Thick,Len,0))
+                    SpawnList:pushNumber(ADir)
+                }
+            }
+            else
+            {
+                #print("comb4done")
+                Combine = 5
+                Spawning = 0
+                I = 0
+                H=-1
+            }
+        }
+        elseif(Combine == 5)
+        {
+            I=I+3
+            if(I <= Length * Width * Height * 3)
+            {
+                PosVec = getPosIndex(I)
+                Len = getLen(PosVec,3)
+                if(Len>0)
+                {
+                    Slice:pushNumber(Len)
+                    Slice:pushNumber(3)
+                    Slice:pushVector(PosVec)
+                }
+                progressBar("Floor Combining",I/(Length * Width * Height * 3),3)
+                
+            }
+            elseif(I <= Length * Width * Height * 3 + Length * Width * 3 & (Roof | Height > 1))
+            {
+                #print("there")
+                PosVec = vec((I/3-Length*Width*Height-1)%Length+1,ceil((I/3-Length*Width*Height)/Length),Height + 1)
+                Len = getBackLen(PosVec,3)
+                #print(PosVec,Len)
+                if(Len>0)
+                {
+                    Slice:pushNumber(Len)
+                    Slice:pushNumber(3)
+                    Slice:pushVector(PosVec)
+                }
+            }
+            else
+            {
+                #print("comb5done")
+                Combine = 6
+                Spawning = 0
+                I = 0
+            }
+        }
+        elseif(Combine == 6)
+        {
+            if(Slice:count()>0)
+            {
+                
+                PosVec = Slice:popVector()
+                ADir = Slice:popNumber()
+                Len = Slice:popNumber()
+                Arr = findLengths(Len)
+                C = Slice:count()
+                
+                Thick = 1
+                ThickHold = 1
+                
+                if(C>0)
+                {
+                    while(Slice[C-(ThickHold - 1)*3,vector]==PosVec-vec(ThickHold,0,0)&Slice[C-(ThickHold - 1)*3-2,number]==Len&ThickHold*HorizontalSpacing<480)
+                    {
+                        ThickHold++
+                        if(isValidLen((ThickHold)*HorizontalSpacing))
+                        {
+                            while(Thick<ThickHold)
+                            {
+                                Slice:pop()
+                                Slice:pop()
+                                Slice:pop()
+                                Thick++
+                            }
+                        }
+                        if(C-(ThickHold - 1)<1)
+                        {
+                            break
+                        }
+                    }
+                }
+                while(Arr:count()>0)
+                {
+                    Len = Arr:popNumber()
+                    ReturnVec = vec(PosVec:x()-1-(Thick-1)*0.5,PosVec:y()-1,PosVec:z()-1)*vec(HorizontalSpacing,HorizontalSpacing,VerticalSpacing)+DirVector[ADir,vector]*vec(HorizontalSpacing,HorizontalSpacing,VerticalSpacing)/2+vec(0,Len/2-HorizontalSpacing/2,0)
+                    PosVec = PosVec + vec(0,Len,0)/HorizontalSpacing
+                    SpawnList:pushVector(ReturnVec)
+                    SpawnList:pushVector(vec(HorizontalSpacing*Thick,Len,0))
+                    SpawnList:pushNumber(ADir)
+                }
+            }
+            else
+            {
+                #print("comb6done")
+                Combine = 0
+                Spawning = 2
+                I = 0
+            }
+        }
+    }
+}
+elseif(Spawning > 0)
+{
+    if(Spawning ==1)
+    {
+        if(propCanCreate())
+        {
+            
+            I=I+1
+            if(I <= Length * Width * Height * 3)
+            {
+                if(Walls[I,number]!=1)
+                {
+                    PosVec = getPosIndex(I)
+                    propSpawn("models/sprops/rectangles/size_6/rect_96x96x3.mdl",CurPos+wallPos(PosVec,(I-1)%3+1),Ang[(I-1)%3+1,angle],1)
+                }
+            }
+            else
+            {
+                Spawning=2
+                I=0
+            }
+        }
+    }
+    elseif(Spawning == 2)
+    {
+        if(SpawnList:count()>0)
+        {
+            if(propCanCreate())
+            {
+                ADir = SpawnList:popNumber()
+                Size = SpawnList:popVector()
+                PosVec = SpawnList:popVector()
+                
+                    Prop = propSpawn(findModel(Size:x(),Size:y()),CurPos+PosVec,Ang[ADir,angle]+ang(90,0,0)*(Size:x()>Size:y()&NotSwap==0&ADir!=3)+ang(0,90,0)*((Size:x()>Size:y()&NotSwap==0)&ADir == 3),1)
+                    SpawnNumber++
+                if(Cube==1)
+                {
+                    Prop:setMaterial("phoenix_storms/black_chrome")
+                    #Prop:setMaterial("debug/env_cubemap_model")
+                    Prop:setAlpha(220)
+                }
+                elseif(Glass==1)
+                {
+                    #Prop:setMaterial("phoenix_storms/glass")
+                    #Prop:setMaterial("Models/effects/vol_light001")
+                    Prop:setMaterial("models/props_combine/health_charger_glass")
+                }
+                elseif(ADir <3)
+                {
+                    Prop:setMaterial("models/props_combine/metal_combinebridge001")
+                }       
+                else
+                {
+                    Prop:setMaterial("models/props_canal/metalwall005b")
+                }
+            }    
+        }
+        else
+        {
+            print("spawned :",SpawnNumber)
+            Spawning=0
+            Spawning2=0
+            I=0
+            selfDestruct()
+        }
+    }
+}
+
+#[
+    Scopes have been added. If you find any bugs,
+    please report them on the forums.
+
+    An option to copy with bbcode color syntax
+    highlighting has been added (for use on forums).
+    Right click anywhere in the editor to use it.
+
+    Documentation and examples are available at:
+    http://wiki.wiremod.com/wiki/Expression_2
+    The community is available at http://www.wiremod.com
+]#

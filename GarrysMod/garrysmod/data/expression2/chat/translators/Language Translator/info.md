@@ -1,7 +1,7 @@
 - Author: Moglizorz
 - Steam Profile: https://steamcommunity.com/profiles/76561197984909994
 - Youtube: https://www.youtube.com/@Mogliz0rz
-
+<!-- -->
 - Title: [E2] Chat Translator
 - Date (dd-mm-yyyy): 22-05-2013
 - Source: https://web.archive.org/web/20150304052653/http://www.wiremod.com:80/forum/finished-contraptions/31808-e2-chat-translator.html

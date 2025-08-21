@@ -1,0 +1,355 @@
+@name AF_AHS Mk. 20
+#Auxiliary Function - Active Hydraulic Suspension
+@inputs Active PodEnt:entity AngVel_P AngVel_R Y Z Entities:array [Base TurretRing]:entity
+@inputs ALL_A ARL_A ALL_B ARL_B ALL_C ARL_C ALL_D ARL_D ALL_E ARL_E ALL_F ARL_F
+@outputs LL_A RL_A LL_B RL_B LL_C RL_C LL_D RL_D LL_E RL_E LL_F RL_F CPUus Constant Damping
+@persist TL Mul PMul RMul DYMul VMul CompClamp MaxLength MinLength Dist:array [Front Back Left Right Up Down Reset]:string
+@persist AP AR AH PR RR HR PRL HL CP CR CH Travel Driver:entity
+
+@trigger none
+
+if(duped() | dupefinished()) {reset()}
+
+if(first() | dupefinished()) {
+    
+#[    WheelInertia = vec(15)      #Inertia of roadwheels
+    
+    DriveWheelMul = 1.5         #Inertia multiplier for drivewheels
+    
+    BaseInertia = vec(5000)     #Inertia of baseplate
+    
+    TurretRingInertia = vec(1500)   #Inertia of turret base
+    
+    Entities[1,entity]:propInertia(WheelInertia*DriveWheelMul)
+    Entities[2,entity]:propInertia(WheelInertia*DriveWheelMul)
+    
+    for(I=3,Entities:count()) {Entities[I,entity]:propInertia(WheelInertia), I++}
+    
+    Base:propInertia(BaseInertia)
+    TurretRing:propInertia(TurretRingInertia)]#
+    
+    Constant = 45000
+    
+    Damping = 3500
+    
+    WheelCount = 6      #Roadwheel count (accepts 3-6).
+    
+    CompClamp = 25       #Max corection length to apply, in inches.
+    
+    TL = 90        #Your desired ride-height.
+    
+    HMul = 1.05     #Multiplier of your target length.
+    
+    #~ Compensation things ~#
+    
+    Mul = 0.3       #Multiplier for returning the wheels to the target length.
+    
+    AdjAmnt = -1.0   #If your vehicle leans forward or backwards, use this to add length per roadwheel.
+
+    AdjDir = 1     #Setting this to 1 makes the previous adjustments from back-to-front; -1
+                    #starts at the front and ends at the back.
+    
+    PMul = 0.25      #Pitch angular velocity multiplier.
+    
+    RMul = 0.1      #Roll angular velocity multiplier.
+    
+    DYMul = 0.035     #Forward/backward acceleration multiplier.
+    
+    VMul = 0.07     #Vertical multiplier.
+    
+    #~ Kneeling things Division ~#
+    
+    #Travel, ContactLength, and ContactWidth only matter if you want to know the angles the vehicle can kneel to.
+    
+    Debug = 0       #Print angles in chat? (1 for yes, 0 for no.)
+    
+    Travel = 16.5     #How far up and down the wheels can move.
+    
+    ContactLength = 148     #Distance from the last roadwheel to the first roadwheel.
+    
+    ContactWidth = 98       #Distance from a roadwheel on one side to a roadwheel on the other side.
+    
+    PR = 2
+    
+    RR = 0.5
+    
+    HR = 1.2
+    
+    PRL = 35
+    
+    HL = 30
+    
+    #~ Keybindings ~#
+    
+    # http://wiki.garrysmod.com/page/Enums/KEY #
+    
+    Reset = "Pad_5"
+    
+    Front = "Up"
+    
+    Back = "Down"
+    
+    Left = "Left"
+    
+    Right = "Right"
+    
+    Up = "Pad_7"
+    
+    Down = "Pad_4"
+    
+    #~ Things you shouldn't change ~#
+    
+    #Wheel travel limits
+    MinLength = TL - Travel/2
+    MaxLength = TL + Travel/2
+    
+    #Maximum pitch and roll angles
+    MaxRoll = round(asin(Travel/ContactWidth),2)
+    MaxPitch = round(asin(Travel/ContactLength),2)
+    if(Debug) {print("Max roll: " + MaxRoll + ", Max pitch: "+ MaxPitch)}
+    
+    #Imbalance adjustment
+    local TLA = TL*HMul
+    if(AdjDir > 0) {for(I=1,WheelCount) {Dist[I,number] = (5-I)*AdjAmnt + TLA, I++}}
+    else {for(I=1,WheelCount) {Dist[I,number] = (I-1)*AdjAmnt + TLA, I++}}
+    
+    Travel = Travel/2
+    
+    #Active suspension function picker based on number of roadwheels.
+    switch(WheelCount) {
+        
+        case 3,
+        function number translate(Sel,Offset) {
+            
+            switch(Sel) {
+                
+                case 1,
+                local ALA = (ALL_A + ARL_A)/2
+                local ALB = (ALL_B + ARL_B)/2
+                local ALC = (ALL_C + ARL_C)/2
+                
+                return ((ALA - ALB) + (ALB - ALC) + Offset)/2
+                break
+                
+                case 2,
+                local LL = (ALL_A + ALL_B + ALL_C)/3
+                local RL = (ARL_A + ARL_B + ARL_C)/3
+                
+                return (RL - LL) + Offset
+                break
+                
+                case 3,
+                return TL - (ALL_A + ALL_B + ALL_C + ARL_A + ARL_B + ARL_C)/6 + Offset
+                break
+            }
+        }
+        
+        function void newLength(Pitch,Roll,Height) {
+            
+            local CommonLeft = Height - Roll
+            LL_A = CommonLeft + Pitch + Mul*(TL - ALL_A) + Dist[1,number]
+            LL_B = CommonLeft + Mul*(TL - ALL_B) + Dist[2,number]
+            LL_C = CommonLeft - Pitch + Mul*(TL - ALL_C) + Dist[3,number]
+
+            local CommonRight = Height + Roll
+            RL_A = CommonRight + Pitch + Mul*(TL - ARL_A) + Dist[1,number]
+            RL_B = CommonRight + Mul*(TL - ARL_B) + Dist[2,number]
+            RL_C = CommonRight - Pitch + Mul*(TL - ARL_C) + Dist[3,number]
+        }
+        break
+        
+        case 4,
+        function number translate(Sel,Offset) {
+            
+            switch(Sel) {
+                
+                case 1,
+                local ALA = (ALL_A + ARL_A)/2
+                local ALB = (ALL_B + ARL_B)/2
+                local ALC = (ALL_C + ARL_C)/2
+                local ALD = (ALL_D + ARL_D)/2
+                
+                return ((ALA - ALB) + (ALB - ALC) + (ALC - ALD) + Offset)/3
+                break
+                
+                case 2,
+                local LL = (ALL_A + ALL_B + ALL_C + ALL_D)/4
+                local RL = (ARL_A + ARL_B + ARL_C + ARL_D)/4
+                
+                return (RL - LL) + Offset
+                break
+                
+                case 3,
+                return TL - (ALL_A + ALL_B + ALL_C + ALL_D + ARL_A + ARL_B + ARL_C + ARL_D)/8 + Offset
+                break
+            }
+        }
+        
+        function void newLength(Pitch,Roll,Height) {
+            
+            local HPitch = Pitch/2
+
+            local CommonLeft = Height - Roll
+            LL_A = CommonLeft + Pitch + Mul*(TL - ALL_A) + Dist[1,number]
+            LL_B = CommonLeft + HPitch + Mul*(TL - ALL_B) + Dist[2,number]
+            LL_C = CommonLeft - HPitch + Mul*(TL - ALL_C) + Dist[3,number]
+            LL_D = CommonLeft - Pitch + Mul*(TL - ALL_D) + Dist[4,number]
+
+            local CommonRight = Height + Roll
+            RL_A = CommonRight + Pitch + Mul*(TL - ARL_A) + Dist[1,number]
+            RL_B = CommonRight + HPitch + Mul*(TL - ARL_B) + Dist[2,number]
+            RL_C = CommonRight - HPitch + Mul*(TL - ARL_C) + Dist[3,number]
+            RL_D = CommonRight - Pitch + Mul*(TL - ARL_D) + Dist[4,number]
+        }
+        break
+        
+        case 5,
+        function number translate(Sel,Offset) {
+            
+            switch(Sel) {
+                
+                case 1,
+                local ALA = (ALL_A + ARL_A)/2
+                local ALB = (ALL_B + ARL_B)/2
+                local ALC = (ALL_C + ARL_C)/2
+                local ALD = (ALL_D + ARL_D)/2
+                local ALE = (ALL_E + ARL_E)/2
+                
+                return ((ALA - ALB) + (ALB - ALC) + (ALC - ALD) + (ALD - ALE) + Offset)/4
+                break
+                
+                case 2,
+                local LL = (ALL_A + ALL_B + ALL_C + ALL_D + ALL_E)/5
+                local RL = (ARL_A + ARL_B + ARL_C + ARL_D + ARL_E)/5
+                
+                return (RL - LL) + Offset
+                break
+                
+                case 3,
+                return TL - (ALL_A + ALL_B + ALL_C + ALL_D + ALL_E + ARL_A + ARL_B + ARL_C + ARL_D + ARL_E)/10 + Offset
+                break
+            }
+        }
+        
+        function void newLength(Pitch,Roll,Height) {
+            
+            local HPitch = Pitch/2
+
+            local CommonLeft = Height - Roll
+            LL_A = CommonLeft + Pitch + Mul*(TL - ALL_A) + Dist[1,number]
+            LL_B = CommonLeft + HPitch + Mul*(TL - ALL_B) + Dist[2,number]
+            LL_C = CommonLeft + Mul*(TL - ALL_C) + Dist[3,number]
+            LL_D = CommonLeft - HPitch + Mul*(TL - ALL_D) + Dist[4,number]
+            LL_E = CommonLeft - Pitch + Mul*(TL - ALL_E) + Dist[5,number]
+
+            local CommonRight = Height + Roll
+            RL_A = CommonRight + Pitch + Mul*(TL - ARL_A) + Dist[1,number]
+            RL_B = CommonRight + HPitch + Mul*(TL - ARL_B) + Dist[2,number]
+            RL_C = CommonRight + Mul*(TL - ARL_C) + Dist[3,number]
+            RL_D = CommonRight - HPitch + Mul*(TL - ARL_D) + Dist[4,number]
+            RL_E = CommonRight - Pitch + Mul*(TL - ARL_E) + Dist[5,number]
+        }
+        break
+        
+        case 6,
+        function number translate(Sel,Offset) {
+            
+            switch(Sel) {
+                
+                case 1,
+                local ALA = (ALL_A + ARL_A)/2
+                local ALB = (ALL_B + ARL_B)/2
+                local ALC = (ALL_C + ARL_C)/2
+                local ALD = (ALL_D + ARL_D)/2
+                local ALE = (ALL_E + ARL_E)/2
+                local ALF = (ALL_F + ARL_F)/2
+                
+                return ((ALA - ALB) + (ALB - ALC) + (ALC - ALD) + (ALD - ALE) + (ALE - ALF) + Offset)/5
+                break
+                
+                case 2,
+                local LL = (ALL_A + ALL_B + ALL_C + ALL_D + ALL_E + ALL_F)/6
+                local RL = (ARL_A + ARL_B + ARL_C + ARL_D + ARL_E + ARL_F)/6
+                
+                return (RL - LL) + Offset
+                break
+                
+                case 3,
+                return TL - (ALL_A + ALL_B + ALL_C + ALL_D + ALL_E + ALL_F + ARL_A + ARL_B + ARL_C + ARL_D + ARL_E + ARL_F)/12 + Offset
+                break
+            }
+        }
+        
+        function void newLength(Pitch,Roll,Height) {
+            
+            local HPitch = Pitch/2
+            local TPitch = Pitch/3
+
+            local CommonLeft = Height - Roll
+            LL_A = CommonLeft + Pitch + Mul*(TL - ALL_A) + Dist[1,number]
+            LL_B = CommonLeft + HPitch + Mul*(TL - ALL_B) + Dist[2,number]
+            LL_C = CommonLeft + TPitch + Mul*(TL - ALL_C) + Dist[3,number]
+            LL_D = CommonLeft - TPitch + Mul*(TL - ALL_D) + Dist[4,number]
+            LL_E = CommonLeft - HPitch + Mul*(TL - ALL_E) + Dist[5,number]
+            LL_F = CommonLeft - Pitch + Mul*(TL - ALL_F) + Dist[6,number]
+
+            local CommonRight = Height + Roll
+            RL_A = CommonRight + Pitch + Mul*(TL - ARL_A) + Dist[1,number]
+            RL_B = CommonRight + HPitch + Mul*(TL - ARL_B) + Dist[2,number]
+            RL_C = CommonRight + TPitch + Mul*(TL - ARL_C) + Dist[3,number]
+            RL_D = CommonRight - TPitch + Mul*(TL - ARL_D) + Dist[4,number]
+            RL_E = CommonRight - HPitch + Mul*(TL - ARL_E) + Dist[5,number]
+            RL_F = CommonRight - Pitch + Mul*(TL - ARL_F) + Dist[6,number]
+        }
+        break
+    }
+    
+}
+
+interval(200)
+
+#Driver check
+if(changed(Active)) {Driver = PodEnt:driver()}
+
+#Manual pitching, rolling, and elevating
+if(changed(Driver:keyPressed(Reset)) & Driver:keyPressed(Reset)) {CP=CR=CH = 0}
+
+elseif(changed(Driver:keyPressed(Front)) & Driver:keyPressed(Front)) {CP = clamp(CP + Travel/2,-Travel,Travel)}
+elseif(changed(Driver:keyPressed(Back)) & Driver:keyPressed(Back)) {CP = clamp(CP - Travel/2,-Travel,Travel)}
+
+elseif(changed(Driver:keyPressed(Right)) & Driver:keyPressed(Right)) {CR = clamp(CR + Travel/2,-Travel,Travel)}
+elseif(changed(Driver:keyPressed(Left)) & Driver:keyPressed(Left)) {CR = clamp(CR - Travel/2,-Travel,Travel)}
+
+elseif(changed(Driver:keyPressed(Up)) & Driver:keyPressed(Up)) {CH = clamp(CH + Travel/2,-Travel,Travel)}
+elseif(changed(Driver:keyPressed(Down)) & Driver:keyPressed(Down)) {CH = clamp(CH - Travel/2,-Travel,Travel)}
+
+if(changed(CP)) {
+    
+    local NRL = Travel - abs(CP), CR = clamp(CR,-NRL,NRL)
+    local NHL = NRL - abs(CR), CH = clamp(CH,-NHL,NHL)
+}
+
+elseif(changed(CR)) {
+    
+    local NPL = Travel - abs(CR), CP = clamp(CP,-NPL,NPL)
+    local NHL = NPL - abs(CP), CH = clamp(CH,-NHL,NHL)
+}
+
+elseif(changed(CH)) {
+    
+    local NPL = Travel - abs(CH), CP = clamp(CP,-NPL,NPL)
+    local NRL = NPL - abs(CP), CR = clamp(CR,-NRL,NRL)
+}
+
+
+if(CP) {AP = clamp(AP - translate(1,CP)*PR,-PRL,PRL)} else {AP = 0}
+if(CR) {AR = clamp(AR - translate(2,CR)*RR,-PRL,PRL)} else {AR = 0}
+if(CH) {AH = clamp(AH + translate(3,CH)*HR,-HL,HL)} else {AH = 0}
+
+Pitch = clamp(AngVel_P*PMul - $Y*DYMul,-CompClamp,CompClamp) + AP
+Roll = clamp(AngVel_R*RMul,-CompClamp,CompClamp) + AR
+Height = clamp(-Z*VMul,-CompClamp,CompClamp) + AH
+
+newLength(Pitch,Roll,Height)
+
+CPUus = cpuUsage()*1000000

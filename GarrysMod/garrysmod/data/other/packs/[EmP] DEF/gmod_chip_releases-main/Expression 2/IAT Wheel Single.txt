@@ -1,0 +1,214 @@
+@name IAT Wheel Single
+@inputs ChipLink [CrankInfo GearboxInfo]:table
+
+@inputs [Gear]:entity Brake
+@outputs Torque
+@outputs GearRPM
+@outputs Slip TorqueInertia WheelInertia IterLim Iter
+@persist M:table
+@trigger ChipLink
+
+@outputs OpsCPUus:vector2
+
+if(duped() | dupefinished()) {reset()}
+
+if(first() | dupefinished()) {
+    
+    M = table()
+    local Sensitivity = 0
+    
+    
+    # # # # # # # # # # # # # # #
+    
+    
+    #[
+    
+        Instructions:
+        
+        This is a Single Wheel Driver!
+        
+        This chip requires a Shaft Telemetry Unit and a Gearbox to function:
+        
+            Wire...
+            
+            < ChipLink > to the Shaft Telemetry Unit's < ChipLink > output.
+            
+            < CrankInfo > to the Shaft Telemetry Unit's < CrankInfo > output.
+            
+            < GearboxInfo > to the Gearbox's < GearboxInfo > output.
+        
+        Then you can wire up whatever entity you want to use as a gear to < Gear >.
+        
+        And you have < Brake >; wire that to your control chip of choice.
+    
+    ]#
+    
+    
+        #~ General ~#
+    
+    M["GearAxis",number] = 2        # Gear rotation axis.
+    
+    M["GearDir",number] = -1         # In case one or both of the gears rotate the wrong way (Left, Right).
+    
+    M["Debug",number] = 0           # See extra information about how the transmission is functioning.
+    
+    GearDrag = 0        # Set to 0 if you want to turn off drag on the gears.
+    
+        #~ Gear strength ~#
+        
+    #[
+    
+        So... gear strength, huh?
+        
+            The stronger your gearbox (higher < LinkInertia > and higher < Sensitivity >), the more likely your
+        crankshaft and gears will spazz out.
+        
+            A good starting point is to have your total gear inertia to equal your crankshaft's inertia. Set < LinkInertia >
+        to be your crankshaft's inertia.
+        
+        This is all assuming < Sensitivity > is set to 1; if < Sensitivity > was 0.5, equivalent < LinkInertia > would double.
+    
+    ]#
+    
+    M["LinkInertia",number] = 30       # Inertia at 1:1; scales with gear ratio.
+    
+    Sensitivity = 1.0          # Error multiplier. (RPM Difference * LinkInertia * Sensitivity)
+    
+    # # # Inertia stuff
+    
+    #[
+    
+        Inertia? Inertia!
+        
+        Ideally the gears would change inertia based on gear ratio to crankshaft.
+        
+        Just set < WheelInertiaMin, WheelInertiaMax > to acceptable limits.
+        
+            Pay particular attention to < WheelInertiaMax >; if you have a really low ratio (like 0.05), this needs to be higher.
+        The gear inertia at a ratio of 0.05 and < LinkInertia > of 50 would ideally be [50 * (1 / 0.05) = 1,000].
+    
+    ]#
+    
+    M["InertialShape",vector] = vec(1, 1, 1)        # "Shape" of inertia profile.
+    
+    M["WheelInertiaMin",number] = 30       # Minimum gear inertia; useful if you wire straight to the wheels.
+    
+    M["WheelInertiaMax",number] = 60       # Maximum gear inertia.
+    
+    # # # PID settings
+    
+    #[
+    
+        Well, iterators (or accumulators) are a pain in the ass to tune.
+        
+        Here are a few settings that worked for me:
+        
+            M["IterMul",number] = 0.35
+    
+            M["IterMul",number] = 0.35
+    
+    ]#
+    
+    M["IterMul",number] = 0.35      # Iterator rate.
+    
+    M["IterLim",number] = 0.35      # Iterator limit as percentage of gear speed.
+    
+    IteratorEnabled = 1     # Set to zero to turn off iterator; this will introduce more slip!
+    
+    
+    # # # # # # # # # # # # # # #
+    
+    
+    # Numerical axis to vector converter
+    function vector axis(Num:number) {
+        
+        local Mag = abs(Num)
+        
+        if(Mag == 1) {return vec(1, 0, 0)}
+        elseif(Mag == 2) {return vec(0, 1, 0)}
+        else {return vec(0, 0, 1)}
+    }
+    
+    M["GearVec",vector] = axis(M["GearAxis",number])
+    
+    # Inertia multiplier
+    local RADStoDGS = (pi() / 180)
+    local Constant = 23.25 * (1000 / 15)
+    
+    M["TorqueMul",number] = Constant * RADStoDGS * Sensitivity
+    
+    M["InertiaMin",number] = 1 / M["InertiaMax",number]
+    M["InertiaMulMax",number] = M["WheelInertiaMax",number] / M["LinkInertia",number]
+    
+    M["Iter",number] = 0
+    
+    M["Torque",vector] = vec(0)
+    
+    if(!IteratorEnabled) { M["IterLim",number] = 0 }
+    
+    Gear:propDrag(GearDrag)
+}
+
+# Apply torques
+event tick() {
+    Gear:applyTorque(M["Torque",vector])
+}
+
+# Gearbox tick
+if(~ChipLink) {
+    
+    # Getting gear speeds
+    local GearAVDir = Gear:angVelVector()[M["GearAxis",number]] * M["GearDir",number]
+    
+    # # Probes
+    GearRPM = GearAVDir / 6
+    
+    # Final calculations
+    
+    # # Inertia
+    TorqueInertia = M["LinkInertia",number] * min(1 / abs(GearboxInfo["TotalRatio",number]), M["InertiaMulMax",number])
+    
+    # # Input speeds
+    local OutputAV = lerp(GearAVDir, CrankInfo["CrankAV",number] * GearboxInfo["TotalRatio",number], GearboxInfo["Clutch",number])
+    local BrakeMul = (1 - Brake)
+    
+    local Error = OutputAV * BrakeMul - GearAVDir
+    
+    # # PID
+    local AccumultorLim = abs(GearAVDir) * M["IterLim",number]
+    
+    M["Iter",number] = clamp(M["Iter",number] + Error * M["IterMul",number], -AccumultorLim, AccumultorLim) * GearboxInfo["Clutch",number]
+    
+    # # Torque calculations
+    Torque = (Error + M["Iter",number]) * (TorqueInertia * M["TorqueMul",number])
+    
+    local CrankTorque = Torque * GearboxInfo["TotalRatio",number] * GearboxInfo["Clutch",number]
+    CrankInfo["CrankTorque",number] = CrankInfo["CrankTorque",number] - CrankTorque
+    
+    # Set inertia and apply the torque!
+    
+    local InertiaVec = M["InertialShape",vector] * clamp(TorqueInertia, M["WheelInertiaMin",number], M["WheelInertiaMax",number])
+    
+    # # Gears
+    local TorqueVector = Torque * M["GearVec",vector] * M["GearDir",number]
+    Gear:propInertia(InertiaVec)
+    M["Torque",vector] = TorqueVector * CrankInfo["ForceStepMul",number]
+    
+    # # Equal opposite torques
+    local BaseTorque = Gear:toWorldAxis(TorqueVector)
+    CrankInfo["BaseTorque",vector] = CrankInfo["BaseTorque",vector] - BaseTorque
+    
+    # Debug info
+    if(M["Debug",number]) {
+        
+        WheelInertia = InertiaVec[M["GearAxis",number]]
+        
+        Slip = (OutputAV - GearAVDir) / 6
+        
+        IterLim = AccumultorLim / 6
+        
+        Iter = M["Iter",number] / 6
+    }
+    
+    OpsCPUus = vec2(ops(), cpuUsage() * 1000000)
+}

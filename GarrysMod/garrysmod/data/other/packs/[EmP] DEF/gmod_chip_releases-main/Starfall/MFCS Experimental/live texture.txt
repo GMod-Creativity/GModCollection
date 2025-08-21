@@ -1,0 +1,125 @@
+--@name deflibs/Live Texture
+--@author Yours Truly
+
+local ColWhite = Color(255, 255, 255)
+
+local function BakeAll(LiveTexture) end
+
+-- >> LiveTexture; helps with manipulating render targets
+
+LiveTexture = class("LiveTexture")
+
+function LiveTexture:initialize(ID)
+    render.createRenderTarget(ID)
+    self.ID = ID
+    self.HookID = "generate-" .. ID
+    
+    self.X = 0; self.Y = 0
+    self.W = 1024; self.H = 1024
+    
+    self.QueueList = {}
+    self.StageList = {}
+    self.Writing = false
+    self.BakeList = {}
+end
+
+-- Queue a draw function; functions do not execute in order!
+function LiveTexture:Queue(FuncID, DrawFunc)
+    self.QueueList[FuncID] = DrawFunc
+end
+
+-- Queue a group of draw functions
+function LiveTexture:Stage()
+    if table.isEmpty(self.QueueList) then return end
+    
+    local drawFuncs = table.copy(self.QueueList)
+    table.empty(self.QueueList)
+    
+    local function DrawAll()
+        for _, func in pairs(drawFuncs) do
+            func()
+        end
+    end
+    
+    table.insert(self.StageList, #self.StageList + 1, DrawAll)
+end
+
+-- Queue a group of stage functions
+function LiveTexture:Bake(RGBA)
+    self:Stage()
+    local stageFuncs = {}
+    
+    if not table.isEmpty(self.StageList) then
+        stageFuncs = table.copy(self.StageList)
+        table.empty(self.StageList)
+    end
+    
+    local function WriteToTexture()
+        if RGBA then render.clear(RGBA) end
+        
+        for _, func in ipairs(stageFuncs) do
+            func()
+        end
+    end
+    
+    table.insert(self.BakeList, WriteToTexture)
+    
+    if not self.Writing then
+        self.Writing = true
+        hook.add("renderoffscreen", self.HookID, function() BakeAll(self) end)
+    end
+end
+
+-- Draw functions
+
+function LiveTexture:Draw()
+    render.setRenderTargetTexture(self.ID)
+    render.setColor(ColWhite)
+    render.drawTexturedRect(self.X, self.Y, self.W, self.H)
+end
+
+function LiveTexture:DrawDebugged()
+    self:Draw()
+    render.drawRectOutline(self.X, self.Y, self.W, self.H, 2)
+end
+
+-- Get local coordinates
+
+function LiveTexture:LocalPosition(X, Y)
+    return self:LocalX(X), self:LocalY(Y)
+end
+
+function LiveTexture:LocalX(X)
+    return X - self.X
+end
+
+function LiveTexture:LocalY(Y)
+    return Y - self.Y
+end
+
+-- Get absolute coordinates
+
+function LiveTexture:WorldPosition(X, Y)
+    return self:WorldX(X), self:WorldY(Y)
+end
+
+function LiveTexture:WorldX(X)
+    return X + self.X
+end
+
+function LiveTexture:WorldY(Y)
+    return Y + self.Y
+end
+
+-- Execute all baking functions
+function BakeAll(LiveTexture)
+    render.selectRenderTarget(LiveTexture.ID)
+    
+    while #LiveTexture.BakeList > 0 do
+        LiveTexture.BakeList[1]()
+        table.remove(LiveTexture.BakeList, 1)
+    end
+    
+    LiveTexture.Writing = false
+    hook.remove("renderoffscreen", LiveTexture.HookID)
+end

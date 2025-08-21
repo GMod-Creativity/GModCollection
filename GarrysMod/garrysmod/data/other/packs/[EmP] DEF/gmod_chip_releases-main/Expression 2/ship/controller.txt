@@ -1,0 +1,271 @@
+@name ship/Controller
+@inputs Pod:wirelink [Base]:entity
+@inputs [RightShaft LeftShaft RudderEnt RudderGate]:entity
+@outputs Throttle EngineActive
+@outputs Thrust Rudder
+@persist MMU:table EngineToggle:string
+
+if(duped() | dupefinished()) { reset() }
+
+if(first() | dupefinished()) {
+    
+    MMU = table(), local Empty = function() {}
+    local BaseHolo = noentity(), local ShowHolos = 0, local BaseAlign = ang(0)
+    local ParentDelay = 0, local ParentGates = 0, local StickyThrottle = 0
+    local MinThrottle = 0, local ShaftSolid = 0, local ShaftMax = 0
+    local ShaftRate = 0, local ShaftSteps = 0
+    local StickyRudder = 0, local RudderSteps = 0
+    local RudderMax = 0, local RudderAV = 0, local RudderMul = 0, local RudderRate = 0
+    EngineActive = 0
+    local CreateShaft = Empty, local CreateRudder = Empty
+    
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+    
+    local UserSettings = function() {
+        
+        # General
+        
+        ShowHolos = 0
+        
+        BaseAlign = ang(0, 0, -90)      # Alignment angle
+        
+        ParentGates = 1         # Set to 1 to parent gates
+        
+        ParentDelay = 0.210     # Gate parent delay (don't touch this)
+        
+        EngineToggle = "h"      # Toggle engine
+        
+        #[
+            Thrust (shaft), example:
+            
+            CreateShaft(RS, -1)
+            CreateShaft(LS, 1)
+            
+            CreateShaft(ShaftEntity, Direction)
+                Controls a Fin3 propellor
+                
+                <ShaftEntity>, the entity <entity> input of the Fin3 rudder
+                <Direction>, the number <number> multiplier to correct Fin3 direction
+        ]#
+        
+        CreateShaft(RightShaft, 1)
+        CreateShaft(LeftShaft, 1)
+        
+        ShaftRate = 1 / 20      # Thrust build % per tick
+        
+        ShaftMax = 13.0           # Maximum thrust
+        
+        MinThrottle = 25        # Idle throttle
+        
+        ShaftSolid = 0          # Set to 0 to make not solid (remove interaction with water)
+        
+        StickyThrottle = 0      # 1 makes the throttle 'stick' to where it last was, 0 is hold-to-throttle
+        
+        ShaftSteps = 4          # Thrust build % per input, only counts for StickyThrottle
+        
+        #[
+            Rudder, example:
+            
+            CreateRudder(RE, RG)
+            
+            CreateRudder(RudderEntity, RudderGate)
+                Controls a Fin2 rudder
+                
+                <RudderEntity>, the entity <entity> input of the Fin2 rudder
+                <RudderGate>, the entity <entity> that the rudder entity parents to
+        ]#
+        
+        CreateRudder(RudderEnt, RudderGate)
+        
+        RudderRate = 1 / 10     # Rudder build % per tick
+        
+        RudderAV = 35           # Maximum rudder target angular velocity
+        
+        RudderMul = 3           # Rudder angular velocity multiplier
+        
+        RudderMax = 60          # Maximum rudder angle
+        
+        StickyRudder = 0        # 1 makes the rudder 'stick' to where it last was, 0 is hold-to-steer
+        
+        RudderSteps = 2         # Rudder build % per input, only counts for StickyRudder
+        
+    }
+    
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+    
+    # Shaft object
+    CreateShaft = function(Ent:entity, ShaftMul:number) {
+        local IShaft = table()
+        
+        local M_Pitch = 0
+        
+        IShaft["Initialize",function] = function() {
+            Ent:propNotSolid(!ShaftSolid)
+        }
+        
+        IShaft["SetPitch",function] = function(Pitch:number) {
+            M_Pitch = clamp(Pitch, -ShaftMax, ShaftMax)
+            Ent:fin3SetBladePitch(M_Pitch * ShaftMul)
+        }
+        
+        IShaft["GetSpeed",function] = function() { return 0 }
+        IShaft["GetPitch",function] = function() { return M_Pitch }
+        
+        MMU["AddShaft",function](IShaft)
+    }
+    
+    # Rudder object
+    local RudderCount = 1
+    CreateRudder = function(Ent:entity, Gate:entity) {
+        local IRudder = table()
+        
+        local M_Holo = noentity()
+        local M_PosBias = 0
+        local M_Ang = 0
+        
+        IRudder["Initialize",function] = function() {
+            RudderCount++
+            
+            M_Holo = holoCreate(
+                RudderCount,
+                Ent:pos(),
+                vec(1),
+                BaseHolo:angles(),
+                vec4(255) * ShowHolos,
+                "models/sprops/misc/origin.mdl"
+            )
+            holoParent(RudderCount, Base)
+            
+            M_PosBias = BaseHolo:toLocal(Ent:pos())[1] > 0 ? -1 : 1
+            M_Ang = 0
+            
+            Gate:deparent(), Ent:deparent()
+            if(ParentGates == 1) {
+                timer("rudder-gate-" + RudderCount, ParentDelay, 1, function() { Gate:parentTo(M_Holo), Ent:parentTo(Gate) })
+            }
+        }
+        
+        IRudder["SetRudderAOA",function] = function(Yaw:number) {
+            local AOA = MMU["GetVelAng",function]()[number]
+            M_Ang = clamp(AOA + Yaw * M_PosBias, -RudderMax, RudderMax)
+            M_Holo:setAng(BaseHolo:toWorld(ang(0, M_Ang, 0)))
+        }
+        
+        MMU["AddRudder",function](IRudder)
+    }
+    
+    # Manager
+    if(1) {
+        local M_BaseVel = vec(), local M_BaseAngVel = vec()
+        local M_VelAng = 0
+        
+        local M_Shafts = table(), local M_Rudders = table()
+        
+        local M_PropTarget = 0, local M_Prop = 0
+        local M_RudderTarget = 0, local M_Rudder = 0
+        
+        MMU["AddShaft",function] = function(Obj:table) { M_Shafts:pushTable(Obj) }
+        MMU["AddRudder",function] = function(Obj:table) { M_Rudders:pushTable(Obj) }
+        
+        # Setup
+        MMU["Initialize",function] = function() {
+            BaseHolo = holoCreate(
+                1,
+                Base:pos(),
+                vec(1),
+                Base:toWorld(BaseAlign),
+                vec4(255) * ShowHolos,
+                "models/sprops/misc/origin.mdl"
+            )
+            BaseHolo:parentTo(Base)
+            
+            foreach(_:number, Shaft:table = M_Shafts) {
+                Shaft["Initialize",function]()
+            }
+            
+            foreach(_:number, Rudder:table = M_Rudders) {
+                Rudder["Initialize",function]()
+            }
+        }
+        
+        # Helpers
+        MMU["MoveProp",function] = function(Dir:number) {
+            if(StickyThrottle) {
+                M_PropTarget = clamp(M_PropTarget + Dir / ShaftSteps, -1, 1)
+            }
+            else { M_PropTarget = Dir }
+        }
+        
+        MMU["SetRudder",function] = function(Dir:number) {
+            if(StickyRudder) {
+                M_RudderTarget = clamp(M_RudderTarget + Dir / RudderSteps, -1, 1)
+            }
+            else { M_RudderTarget = Dir }
+        }
+        
+        # Running loop
+        MMU["Update",function] = function() {
+            if(!Pod["Active",number]) { return 0 }
+            
+            M_BaseVel = Base:velL():rotate(-BaseAlign)
+            #M_BaseAngVel = Base:angVelVector():rotate(-BaseAlign)
+            M_BaseAngVel = BaseHolo:toLocalAxis(Base:toWorldAxis(Base:angVelVector()))
+            local LowPass = max(abs(M_BaseVel[1]), 100)
+            local XSign = sign(M_BaseVel[1])
+            M_VelAng = vec2(LowPass, M_BaseVel[2]):toAngle() * XSign
+            
+            # Shaft stuff
+            M_Prop = clamp(M_PropTarget, M_Prop - ShaftRate, M_Prop + ShaftRate)
+            local TotProp = M_Prop * ShaftMax
+            foreach(_:number, Shaft:table = M_Shafts) {
+                Shaft["SetPitch",function](TotProp)
+            }
+            
+            # Rudder stuff
+            M_Rudder = clamp(M_RudderTarget, M_Rudder - RudderRate, M_Rudder + RudderRate)
+            local TotRudder = (M_Rudder * RudderAV + M_BaseAngVel[3] * XSign) * RudderMul
+            foreach(_:number, Rudder:table = M_Rudders) {
+                Rudder["SetRudderAOA",function](TotRudder)
+            }
+            
+            Thrust = M_Prop
+            Rudder = M_Rudder
+            Throttle = remap(abs(M_Prop), 0, 1, MinThrottle, 100)
+            
+            return 1
+        }
+        
+        # Getters
+        MMU["GetVel",function] = function() { return M_BaseVel }
+        MMU["GetAngVel",function] = function() { return M_BaseAngVel }
+        MMU["GetVelAng",function] = function() { return M_VelAng }
+    }
+    
+    UserSettings()
+    MMU["Initialize",function]()
+    timer("system-loop", 0.120, 0, MMU["Update",function])
+}
+
+event keyPressed(Player:entity, Key:string, Down:number, KeyBind:string) {
+    if(Player == Pod["Driver",entity]) {
+        switch(KeyBind) {
+            case "forward",
+            MMU["MoveProp",function](Down)
+            break
+            
+            case "back",
+            MMU["MoveProp",function](-Down) 
+            break
+            
+            case "moveleft",
+            MMU["SetRudder",function](-1 * Down)
+            break
+            
+            case "moveright",
+            MMU["SetRudder",function](1 * Down)
+            break
+        }
+        
+        if(Key == EngineToggle & Down) { EngineActive = !EngineActive }
+    }
+}

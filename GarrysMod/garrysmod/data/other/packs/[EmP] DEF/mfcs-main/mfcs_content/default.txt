@@ -1,0 +1,1090 @@
+--@name mfcs_content/Default
+--@author DEF
+
+local NULL = game.getWorld()
+local function Empty() end
+
+local Content = {}
+
+local Module = MFCS:GetGraphicsModule()
+local API = Module:GetAPI()
+local GlobalSettings = {}
+
+local Atlas = {}; local Ref = {}
+local UVP = {}; local FL = {}; local Resource = {}
+local F_Default = {}; local F_Fancy = {}; local F_FancySans = {}
+local Blinker = false
+
+-- # # # DESCRIPTIONS START # # # --
+
+--[[
+    Default content chip for MFCS
+    Contains extra structures
+    
+    local Settings = {
+        C_SightBacklight = Color(50, 200, 50),
+        C_SightBorder = Color(0, 0, 0),
+        C_SightBasic = Color(255, 255, 255, 175),
+        C_CursorBacklight = Color(50, 200, 50),
+        C_CursorBorder = Color(0, 0, 0),
+        C_CompassBackground = Color(5, 25, 5),
+        C_CompassText = Color(200, 50, 50),
+        C_CompassMark = Color(150, 150, 150),
+        C_LockBacklight = Color(200, 50, 50),
+        C_LockBorder = Color(0, 0, 0),
+    }
+]]
+function Content:Initialize(Settings)
+    
+    MFCS:AddSharedInput("HullReference", "Entity")
+    MFCS:AddSharedInput("TurretReference", "Entity")
+    MFCS:AddSharedInput("EngineRPM", "Number")
+    MFCS:AddSharedInput("Fuel", "Number")
+    MFCS:AddSharedInput("Speed", "Number")
+    MFCS:AddSharedInput("Gear", "Number")
+    MFCS:AddSharedInput("GearLocked", "Number")
+    
+    if SERVER then return end
+    
+    F_Default = render.createFont("Arial", 42, 1000, true, false, false, false, 0, false, 0)
+    F_FancySans = render.createFont("CambriaMath", 120, 500, true, false, false, false, 1, false, 0)
+    F_Fancy = render.createFont("Cambria", 120, 500, true, false, false, false, 1, false, 0)
+    
+    GlobalSettings = Settings
+    
+    Atlas:MakeGenericA()
+    Atlas:MakePrimarySight()
+    Atlas:MakeSecondarySight()
+end
+
+--[[
+    A cursor
+    
+    local Settings = {
+        Scale = 0.35,
+        UsePointer = true,
+    }
+]]
+function Content:AddCursor(CameraTags, Settings)
+    local Graphic = Module:AddGraphic(true)
+    Graphic:SetCameraTags(CameraTags)
+    Graphic:SetLayer(2)
+    Graphic:SetUpdate(Module.UPDATE.STATIC)
+    
+    Graphic.DrawFunc = function()
+        // Cursor
+        local mat = API:GetCursorAimMatrix()
+        mat:setScale(Vector(Settings.Scale, Settings.Scale))
+        
+        render.pushMatrix(mat, true)
+            Ref.Cursor:DrawInstanced(-70.5, -75.5)
+        render.popMatrix()
+        
+        // Pointer
+        if Settings.UsePointer then
+            local mat, dist = API:GetCursorPointer(0.1, true)
+            
+            local alpha = 0
+            if dist > 100 then alpha = math.min((dist - 100) * 0.0025, 1) end
+            
+            mat:setScale(Vector(Settings.Scale + alpha * 0.25, Settings.Scale + alpha * 0.5))
+            
+            render.pushMatrix(mat, true)
+                Ref.Pointer.PreDrawInstance = function()
+                    API:GetMaterial():setFloat("$alpha", alpha)
+                end
+                Ref.Pointer:DrawInstanced(-50, -145)
+            render.popMatrix()
+        end
+    end
+end
+
+--[[
+    A lase position tracker
+    
+    local Settings = {
+        Scale = 0.35,
+    }
+]]
+function Content:AddTracker(CameraTags, Settings)
+    local Graphic = Module:AddGraphic(true)
+    Graphic:SetCameraTags(CameraTags)
+    Graphic:SetLayer(1)
+    Graphic:SetUpdate(Module.UPDATE.STATIC)
+    
+    Graphic.DrawFunc = function()
+        if not API:GetComputerLocked() then return end
+        
+        local mat = API:GetComputerPosMatrix()
+        mat:setScale(Vector(Settings.Scale, Settings.Scale))
+        
+        render.pushMatrix(mat, true)
+            Ref.LockMarker:DrawInstanced(-75, -75)
+        render.popMatrix()
+    end
+end
+
+--[[
+    A basic sight resembling a halo
+    
+    local Settings = {
+        Gun = "W120",
+        Scale = 0.15,
+        Correction = true,
+    }
+]]
+function Content:AddGhostSight(CameraTags, Settings)
+    local Graphic = Module:AddGraphic(true)
+    Graphic:SetCameraTags(CameraTags)
+    Graphic:SetLayer(1)
+    Graphic:SetUpdate(Module.UPDATE.STATIC)
+    
+    Graphic.DrawFunc = function()
+        local mat = API:GetWeaponAimMatrix(Settings.Gun, Settings.Correction)
+        mat:setScale(Vector(Settings.Scale, Settings.Scale))
+        
+        render.pushMatrix(mat, true)
+            Ref.GhostSight:DrawInstanced(-75, -75)
+        render.popMatrix()
+    end
+end
+
+--[[
+    An abrams-style sight
+    
+    local Settings = {
+        Gun = "W120",
+        Scale = 0.15,
+        Correction = true,
+        ScaleOnZoom = false,
+    }
+]]
+function Content:AddPrimarySight(CameraTags, Settings)
+    local Graphic = Module:AddGraphic(true)
+    Graphic:SetCameraTags(CameraTags)
+    Graphic:SetLayer(1)
+    Graphic:SetUpdate(Module.UPDATE.STATIC)
+    
+    Graphic.DrawFunc = function()
+        local scale = Settings.Scale
+        if Settings.ScaleOnZoom then scale = scale * API:GetCameraMagnification() end
+        
+        local mat = API:GetWeaponAimMatrix(Settings.Gun, Settings.Correction)
+        mat:setScale(Vector(scale, scale))
+        
+        render.pushMatrix(mat, true)
+            Ref.PrimarySight:DrawInstanced(-500, -500)
+        render.popMatrix()
+    end
+end
+
+--[[
+    A CV90-style sight
+    
+    local Settings = {
+        Gun = "W120",
+        Scale = 0.15,
+        Correction = true,
+        ScaleOnZoom = false,
+    }
+]]
+function Content:AddSecondarySight(CameraTags, Settings)
+    local Graphic = Module:AddGraphic(true)
+    Graphic:SetCameraTags(CameraTags)
+    Graphic:SetLayer(1)
+    Graphic:SetUpdate(Module.UPDATE.STATIC)
+    
+    Graphic.DrawFunc = function()
+        local scale = Settings.Scale
+        if Settings.ScaleOnZoom then scale = scale * API:GetCameraMagnification() end
+        
+        local mat = API:GetWeaponAimMatrix(Settings.Gun, Settings.Correction)
+        mat:setScale(Vector(scale, scale))
+        
+        render.pushMatrix(mat, true)
+            Ref.SecondarySight:DrawInstanced(-500, -500)
+        render.popMatrix()
+    end
+end
+
+--[[
+    A scope occlusion effect
+    
+    local Settings = {
+        Scale = 1.15,
+        Radius = 400,
+        Blur = 5,
+    }
+]]
+function Content:AddScopeEffect(CameraTags, Settings)
+    local Graphic = Module:AddGraphic()
+    Graphic:SetCameraTags(CameraTags)
+    Graphic:SetLayer(3)
+    Graphic:SetUpdate(Module.UPDATE.STATIC)
+    
+    Graphic.DrawFunc = function()
+        local resX, resY = render.getGameResolution()
+        
+        local mat = Matrix()
+        mat:setTranslation(Vector(resX * 0.5, resY * 0.5))
+        mat:setScale(Vector(Settings.Scale, Settings.Scale))
+        
+        render.pushMatrix(mat, true)
+            render.drawTexturedRect(-512, -512, 1024, 1024)
+        render.popMatrix()
+        
+        render.setColor(Color(0, 0, 0))
+        API:GetStencil().Mask = function()
+            render.pushMatrix(mat, true)
+                render.drawRect(-512, -512, 1024, 1024)
+            render.popMatrix()
+        end
+        API:GetStencil().Draw = function()
+            render.drawRect(0, 0, resX, resY)
+        end
+        API:GetStencil():InvertedMasked()
+    end
+    
+    Graphic.RefreshFunc = function()
+        render.clear(Color(0, 0, 0, 0))
+        
+        API:GetStencil().Mask = function()
+            render.setColor(Color(0, 0, 0))
+            render.drawFilledCircle(512, 512, Settings.Radius)
+        end
+        API:GetStencil().Draw = function()
+            render.drawRect(0, 0, 1024, 1024)
+        end
+        API:GetStencil():InvertedMasked()
+        
+        render.drawBlurEffect(Settings.Blur, Settings.Blur, 1)
+    end
+end
+
+--[[
+    Tank icon overlayed onto a compass
+    
+    local Settings = {
+        Scale = 0.75,
+        X = 0.02,
+        Y = 0.75,
+        HullIcon = function() HullIcon() end,
+        HullAlign = Angle(0, 0, 0),
+        TurretIcon = function() TurretIcon() end,
+        TurretAlign = Angle(0, 0, -90),
+        TurretOffset = Vector(0, 10),
+    }
+]]
+function Content:AddTankIcon(CameraTags, Settings)
+    local Graphic = Module:AddGraphic()
+    Graphic:SetCameraTags(CameraTags)
+    Graphic:SetLayer(4)
+    Graphic:SetUpdate(Module.UPDATE.FRAME)
+    
+    Graphic.DrawFunc = function()
+        local resX, resY = render.getGameResolution()
+        
+        local mat = Matrix()
+        mat:setTranslation(Vector(resX * Settings.X + 200 * Settings.Scale, resY * Settings.Y))
+        mat:setScale(Vector(Settings.Scale, Settings.Scale))
+        mat:setAngles(Angle(0, render.getAngles().y))
+        
+        render.pushMatrix(mat, true)
+            Ref.Compass:DrawInstanced(-200, -200)
+        render.popMatrix()
+
+        Graphic:ResetMaterial()
+        mat:setAngles(Angle(0, API:GetAngleDelta(API:GetInput("HullReference"), 2, Settings.HullAlign)))
+        render.pushMatrix(mat, true)
+            render.drawTexturedRect(-512, -512, 1024, 1024)
+        render.popMatrix()
+        
+        //render.drawTexturedRect(0, 0, 1024, 1024)
+    end
+    
+    Graphic.RefreshFunc = function()
+        render.clear(Color(0, 0, 0, 0))
+        
+        local mat = Matrix()
+        mat:setTranslation(Vector(512, 512))
+        
+        render.pushMatrix(mat, true)
+            Settings.HullIcon()
+        render.popMatrix()
+        
+        mat:translate(Settings.TurretOffset)
+        local totalYaw = API:GetAngleDelta(API:GetInput("TurretReference"), 2, Settings.TurretAlign) - API:GetAngleDelta(API:GetInput("HullReference"), 2, Settings.HullAlign)
+        mat:setAngles(Angle(0, totalYaw))
+        render.pushMatrix(mat, true)
+            Settings.TurretIcon()
+        render.popMatrix()
+    end
+end
+
+--[[
+    Displays information about a weapon
+    
+    local Settings = {
+        Scale = 0.90,
+        X = 0.5,
+        Y = 1,
+        Gun = "W120",
+        DecoName = "120mm M124",
+        C_Background = Color(0, 0, 0),
+        C_Backlight = Color(5, 25, 5),
+        C_Light = Color(175, 175, 150),
+        C_Warning = Color(150, 100, 25),
+        C_Negative = Color(150, 25, 25),
+    }
+]]
+function Content:AddWeaponPanel(CameraTags, Settings)
+    local Graphic = Module:AddGraphic()
+    Graphic:SetCameraTags(CameraTags)
+    Graphic:SetLayer(4)
+    Graphic:SetUpdate(Module.UPDATE.FRAME)
+    
+    local DrawMunition = Empty
+    
+    Graphic.DrawFunc = function()
+        local resX, resY = render.getGameResolution()
+        local mat = Matrix()
+        mat:setTranslation(Vector(resX * Settings.X, resY * Settings.Y))
+        mat:setScale(Vector(Settings.Scale, Settings.Scale))
+        
+        render.pushMatrix(mat)
+            render.drawTexturedRect(-400, -200, 1024, 1024)
+        render.popMatrix()
+    end
+    
+    Graphic.RefreshFunc = function()
+        render.clear(Color(0, 0, 0, 0))
+        
+        render.setFont(F_Default)
+        
+        // Background
+        render.setColor(Settings.C_Background)
+        render.drawRect(0, 0, 800, 200)
+        
+        // Labels
+        Resource:BacklitText(20, 20, 300, 40, 10, Settings.DecoName, Settings.C_Backlight, Settings.C_Light)
+        
+        local isLoading = API:GetGunState(Settings.Gun) == "Loading"
+        local hasMagRounds = API:GetGunMagRounds(Settings.Gun) > 0
+        local loadedRound = API:GetGunLoadedMunition(Settings.Gun)
+        
+        text = string.format("%.1fs", API:GetGunReloadTimeLeft(Settings.Gun))
+        if not isLoading or hasMagRounds then
+            text = string.format("%.0f / %.0f", API:GetGunMagRounds(Settings.Gun), API:GetGunMagSize(Settings.Gun))
+        end
+        Resource:BacklitText(360, 20, 130, 40, 10, text, Settings.C_Backlight, Settings.C_Light)
+        
+        local col = Settings.C_Light
+        local text = string.format("%.0fm", API:GetComputerRange() / 39.37)
+        if not table.isEmpty(loadedRound) and loadedRound:GetMaxRange() < API:GetComputerRange() and Blinker then
+            col = Settings.C_Warning
+            text = string.format("%.0fm", loadedRound:GetMaxRange() / 39.37)
+        end
+        Resource:BacklitText(530, 20, 120, 40, 10, text, Settings.C_Backlight, col)
+        
+        text = string.format("%.1fs", API:GetGunTOF(Settings.Gun))
+        Resource:BacklitText(660, 20, 120, 40, 10, text, Settings.C_Backlight, Settings.C_Light)
+        
+        // Reload indicator
+        col = Settings.C_Backlight
+        if API:GetGunReady(Settings.Gun) then
+            col = Settings.C_Light
+        elseif isLoading then
+            if hasMagRounds then
+                col = Settings.C_Warning
+            elseif not Blinker then
+                col = Settings.C_Negative
+            end
+        end
+        
+        render.setColor(col)
+        render.drawRoundedBox(10, 330, 20, 20, 40)
+        render.drawRoundedBox(10, 500, 20, 20, 40)
+        
+        // Munitions
+        local curX = 20
+        for _, munition in pairs(API:GetGunMunitions(Settings.Gun)) do
+            DrawMunition(curX, 90, munition)
+            curX = curX + 160
+        end
+    end
+    
+    -- Munition information template
+    function DrawMunition(X, Y, Munition)
+        local mat = Matrix()
+        mat:setTranslation(Vector(X, Y))
+
+        render.pushMatrix(mat, false)
+            local col = Settings.C_Backlight
+            if Munition:GetLoaded() then col = Settings.C_Warning end
+            render.setColor(col)
+            render.drawRoundedBox(10, 110, 5, 40, 10)
+            
+            col = Settings.C_Backlight
+            if Munition:GetSelected() then col = Settings.C_Light end
+            render.setColor(col)
+            render.drawRoundedBox(10, 110, 20, 40, 15)
+        render.popMatrix()
+
+        Resource:BacklitText(0, 0, 100, 40, 10, Munition:GetName(), Settings.C_Backlight, Settings.C_Light, mat, false)
+        Resource:BacklitText(0, 50, 150, 40, 10, Munition:GetAmmoCount(), Settings.C_Backlight, Settings.C_Light, mat, false)
+    end
+end
+
+--[[
+    Display information about drivetrain
+    
+    local Settings = {
+        Scale = 1.0,
+        X = 0.8,
+        Y = 0.9,
+        SpeedUnit = "Mi / h",
+        RPM_Idle = 600,
+        RPM_Band = 2060,
+        RPM_Redline = 2810,
+        RPM_Max = 3000,
+        FuelMax = 900,
+        C_Background = Color(0, 0, 0),
+        C_Backlight = Color(5, 25, 5),
+        C_Light = Color(175, 175, 150),
+        C_Fuel = Color(200, 100, 50),
+        C_Warning = Color(200, 50, 50),
+    }
+]]
+function Content:AddMobilityPanel(CameraTags, Settings)
+    local Graphic = Module:AddGraphic()
+    Graphic:SetCameraTags(CameraTags)
+    Graphic:SetLayer(4)
+    Graphic:SetUpdate(Module.UPDATE.NETWORK)
+    
+    local DrawRPM = Empty; local DrawSpeed = Empty; local DrawFuel = Empty
+    
+    Graphic.DrawFunc = function()
+        local resX, resY = render.getGameResolution()
+        
+        local mat = Matrix()
+        mat:setTranslation(Vector(resX * Settings.X, resY * Settings.Y))
+        mat:setScale(Vector(Settings.Scale, Settings.Scale))
+        
+        render.pushMatrix(mat, true)
+            render.drawTexturedRect(10, -230, 1024, 1024)
+        render.popMatrix()
+    end
+    
+    Graphic.RefreshFunc = function()
+        render.clear(Color(0, 0, 0, 0))
+        
+        // Background
+        render.setColor(Settings.C_Background)
+        render.drawRect(10, 10, 230, 200)
+        
+        DrawSpeed(20, 10)
+        
+        DrawRPM(20, 100)
+        
+        DrawFuel(20, 150)
+    end
+    
+    function DrawSpeed(X, Y)
+        local mat = Matrix()
+        mat:setTranslation(Vector(X, Y))
+        
+        render.pushMatrix(mat, true)
+            render.setColor(Settings.C_Backlight)
+            render.drawRoundedBox(20, 0, 0, 120, 80)
+        render.popMatrix()
+        
+        render.setFont(F_FancySans)
+        render.setColor(Settings.C_Light)
+        API:DrawTextInBox(40, 0, 80, 80, string.format("%.0f", API:GetInput("Speed")), TEXT_ALIGN.CENTER, 10, mat, true)
+        
+        local col = Settings.C_Light
+        if API:GetInput("GearLocked") == 1 and Blinker then col = Settings.C_Warning end
+        render.setColor(col)
+        API:DrawTextInBox(95, 10, 50, 40, API:GetInput("Gear"), TEXT_ALIGN.CENTER, 10, mat, true)
+        
+        render.setFont(F_Fancy)
+        render.setColor(Settings.C_Light)
+        API:DrawTextInBox(95, 40, 50, 40, Settings.SpeedUnit, TEXT_ALIGN.CENTER, 10, mat, true)
+    end
+    
+    function DrawRPM(X, Y)
+        local mat = Matrix()
+        mat:setTranslation(Vector(X, Y))
+        
+        local H_Optimal = 120
+        local H_Suboptimal = 40
+        local H_Warning = 0
+        local V_Lit = 0.75
+        local V_Unlit = 0.25
+        
+        render.pushMatrix(mat, true)
+            render.setColor(Settings.C_Backlight)
+            render.drawRoundedBox(10, 0, 0, 210, 40)
+            
+            local revTicks = 20
+            local width = 200
+            local height = 30
+            local gap = 4
+            local tickWidth = width / revTicks - gap
+            
+            local spacing = tickWidth + gap
+            gap = gap * 0.5
+            
+            local rpm = API:GetInput("EngineRPM")
+            local isRedline = rpm > Settings.RPM_Redline
+            
+            for I = 1, revTicks do
+                local numeric = math.remap(I, 0, revTicks, 0, Settings.RPM_Max)
+                
+                local value = V_Unlit
+                if rpm > numeric then value = V_Lit end
+                
+                local hue = H_Warning
+                if not isRedline and numeric > Settings.RPM_Idle then
+                    if numeric < Settings.RPM_Band then
+                        hue = H_Suboptimal
+                    elseif numeric < Settings.RPM_Redline then
+                        hue = H_Optimal
+                    end
+                end
+                
+                render.setColor(Color(hue, 1, value):hsvToRGB())
+                
+                local x = (I - 1) * spacing
+                render.drawRect(5 + x + gap, 5, tickWidth, height)
+            end
+        render.popMatrix()
+    end
+    
+    function DrawFuel(X, Y)
+        local mat = Matrix()
+        mat:setTranslation(Vector(X, Y))
+        
+        local fuelThreshhold = 0.25
+        local fuelLevel = API:GetInput("Fuel") / Settings.FuelMax
+        
+        render.pushMatrix(mat, true)
+            render.setColor(Settings.C_Backlight)
+            render.drawRoundedBox(10, 0, 0, 210, 40)
+            
+            render.setColor(Settings.C_Background)
+            render.drawRect(5, 5, 200, 14)
+            
+            local width = math.lerp(fuelLevel, 0, 196)
+            render.setColor(Settings.C_Fuel)
+            render.drawRect(7, 7, width, 10)
+            
+            render.setFont(F_Fancy)
+            
+            local col = Settings.C_Light
+            if fuelLevel < fuelThreshhold and Blinker then col = Settings.C_Warning end
+            render.setColor(col)
+        render.popMatrix()
+
+        API:DrawText(0.2, 10, 16, "E", TEXT_ALIGN.CENTER, mat, true)
+        API:DrawText(0.2, 200, 16, "F", TEXT_ALIGN.CENTER, mat, true)
+        
+        render.pushMatrix(mat, true)
+            local tickWidth = 4
+            local halfWidth = tickWidth * 0.5
+            render.drawRect(52.5 - halfWidth, 22, tickWidth, 6)
+            render.drawRect(105 - halfWidth, 22, tickWidth, 12)
+            render.drawRect(157.5 - halfWidth, 22, tickWidth, 6)
+        render.popMatrix()
+    end
+end
+
+--[[
+    A really basic CLIENT performance profiler
+    
+    local Settings = {
+        Scale = 1.0,
+    }
+]]
+function Content:AddProfiler(CameraTags, Settings)
+    local Graphic = Module:AddGraphic()
+    Graphic:SetCameraTags(CameraTags)
+    Graphic:SetLayer(4)
+    Graphic:SetUpdate(Module.UPDATE.FRAME)
+    
+    local ToMS = 10^3
+    local ToUS = 10^6
+    
+    Graphic.DrawFunc = function()
+        local resX, resY = render.getGameResolution()
+        
+        local mat = Matrix()
+        mat:setTranslation(Vector(resX * 0.5, resY * 0.75))
+        mat:setScale(Vector(Settings.Scale, Settings.Scale))
+        
+        render.pushMatrix(mat, true)
+            render.drawTexturedRect(-60, -50, 1024, 1024)
+        render.popMatrix()
+    end
+    
+    Graphic.RefreshFunc = function()
+        render.clear(Color(0, 0, 0, 0))
+        
+        local curAvg = cpuAverage()
+        
+        render.setFont(F_FancySans)
+        Resource:BacklitText(10, 10, 100, 40, 10, string.format("%.0f", curAvg * ToUS), Color(0, 0, 0), Color(255, 0, 0))
+        Resource:BacklitText(10, 60, 100, 40, 10, string.format("%.1f", curAvg * ToMS), Color(0, 0, 0), Color(255, 0, 0))
+    end
+end
+
+-- A little something to print number of reserved textures
+function Content:Debug()
+    if SERVER then return end
+    local msg = string.format("Reserved %.0f render targets (textures)", API:GetTextureCount())
+    print(msg)
+end
+
+-- # # # DONE HERE # # # --
+
+local Counter = 0; local Additive = 0
+if CLIENT then
+    Additive = 10 / API:GetRefreshRate()
+end
+
+API.OnInitialize = function()
+    MFCS.AddPermission("render.effects")
+end
+
+API.OnUpdate = function()
+    Counter = Counter + Additive
+    if Counter > 5 then
+        Blinker = not Blinker
+        Counter = 0
+    end
+end
+
+--[[
+    Texture atlases
+    
+    Re-using a single texture to draw the same thing multiple times
+    If the graphic is small enough, a texture can hold multiple
+    Automatically reserved whether used or not
+]]
+
+-- Cursor, Pointer, Ghost sight, Compass
+function Atlas:MakeGenericA()
+    local DebugTextures = false
+    
+    local Graphic = Module:AddGraphic()
+    Graphic:SetUpdate(Module.UPDATE.STATIC)
+    Graphic.RefreshFunc = function()
+        render.clear(Color(0, 0, 0, 0))
+        Ref.GhostSight:DrawOnTexture()
+        Ref.Cursor:DrawOnTexture()
+        Ref.Pointer:DrawOnTexture()
+        Ref.Compass:DrawOnTexture()
+        Ref.LockMarker:DrawOnTexture()
+    end
+    
+    if DebugTextures then
+        Graphic:SetLayer(1)
+        Graphic:SetCameraTags({"all"})
+        Graphic.DrawFunc = function()
+            render.drawTexturedRect(0, 0, 1024, 1024)
+        end
+    end
+    
+    -- Cursor
+    do
+        Ref.Cursor = UVP.Create(2, 2, 141, 151, Graphic)
+        
+        Ref.Cursor.Render = function()
+            local mat = Matrix()
+            mat:setTranslation(Vector(-430, -420))
+            
+            render.pushMatrix(mat, false)
+                render.setColor(GlobalSettings.C_CursorBorder)
+                render.drawRoundedBox(10, 430, 420, 50, 16)
+                render.drawRoundedBox(10, 430, 555, 50, 16)
+                render.drawRoundedBox(10, 520, 555, 50, 16)
+                render.drawRoundedBox(10, 520, 420, 50, 16)
+                render.drawRoundedBox(10, 430, 420, 16, 50)
+                render.drawRoundedBox(10, 430, 520, 16, 50)
+                render.drawRoundedBox(10, 555, 520, 16, 50)
+                render.drawRoundedBox(10, 555, 420, 16, 50)
+                
+                render.setColor(GlobalSettings.C_CursorBacklight)
+                render.drawRoundedBox(4, 433, 423, 44, 10)
+                render.drawRoundedBox(4, 433, 558, 44, 10)
+                render.drawRoundedBox(4, 523, 423, 44, 10)
+                render.drawRoundedBox(4, 523, 558, 44, 10)
+                render.drawRoundedBox(4, 433, 523, 10, 44)
+                render.drawRoundedBox(4, 433, 423, 10, 44)
+                render.drawRoundedBox(4, 558, 523, 10, 44)
+                render.drawRoundedBox(4, 558, 423, 10, 44)
+            render.popMatrix()
+        end
+        
+        if DebugTextures then Ref.Cursor:Debug() end
+    end
+    
+    -- Pointer
+    do
+        Ref.Pointer = UVP.Create(145, 2, 100, 150, Graphic)
+        
+        Ref.Pointer.Render = function()
+            local top = {
+                { x = 10, y = 50 },
+                { x = 50, y = 10 },
+                { x = 90, y = 50 },
+            }
+            
+            local mid = {
+                { x = 30, y = 90 },
+                { x = 50, y = 70 },
+                { x = 70, y = 90 },
+            }
+            
+            render.setColor(GlobalSettings.C_CursorBorder)
+            FL:DrawLineFromPoints(top, 10, 12)
+            FL:DrawLineFromPoints(mid, 10, 12)
+            FL:DrawLine(50, 130, 50, 20, 10, 12)
+            
+            render.setColor(GlobalSettings.C_CursorBacklight)
+            FL:DrawLineFromPoints(top, 10, 8)
+            FL:DrawLineFromPoints(mid, 10, 8)
+            FL:DrawLine(50, 130, 50, 20, 10, 8)
+        end
+        
+        Ref.Pointer.PostDrawInstance = function()
+            API:GetMaterial():setFloat("$alpha", 1.0)
+        end
+        
+        if DebugTextures then Ref.Pointer:Debug() end
+    end
+    
+    -- Ghost sight
+    do
+        Ref.GhostSight = UVP.Create(250, 2, 150, 150, Graphic)
+        
+        Ref.GhostSight.Render = function()
+            render.setColor(GlobalSettings.C_SightBasic)
+            
+            API:GetStencil().Mask = function()
+                render.drawFilledCircle(75, 75, 45)
+            end
+            API:GetStencil().Draw = function()
+                render.drawFilledCircle(75, 75, 65)
+            end
+            API:GetStencil():InvertedMasked()
+            
+            render.drawBlurEffect(2, 2, 1)
+        end
+        
+        if DebugTextures then Ref.GhostSight:Debug() end
+    end
+    
+    -- Lock marker
+    do
+        Ref.LockMarker = UVP.Create(2, 155, 150, 150, Graphic)
+        
+        Ref.LockMarker.Render = function()
+            local tl = {
+                { x = 10, y = 50 },
+                { x = 10, y = 30 },
+                { x = 30, y = 10 },
+                { x = 50, y = 10 },
+            }
+            
+            local tr = {
+                { x = 140, y = 50 },
+                { x = 140, y = 30 },
+                { x = 120, y = 10 },
+                { x = 100, y = 10 },
+            }
+            
+            local bl = {
+                { x = 10, y = 100 },
+                { x = 10, y = 120 },
+                { x = 30, y = 140 },
+                { x = 50, y = 140 },
+            }
+            
+            local br = {
+                { x = 140, y = 100 },
+                { x = 140, y = 120 },
+                { x = 120, y = 140 },
+                { x = 100, y = 140 },
+            }
+            
+            render.setColor(GlobalSettings.C_LockBorder)
+            FL:DrawLineFromPoints(tl, 10, 12)
+            FL:DrawLineFromPoints(tr, 10, 12)
+            FL:DrawLineFromPoints(bl, 10, 12)
+            FL:DrawLineFromPoints(br, 10, 12)
+            
+            render.setColor(GlobalSettings.C_LockBacklight)
+            FL:DrawLineFromPoints(tl, 10, 8)
+            FL:DrawLineFromPoints(tr, 10, 8)
+            FL:DrawLineFromPoints(bl, 10, 8)
+            FL:DrawLineFromPoints(br, 10, 8)
+        end
+        
+        if DebugTextures then Ref.LockMarker:Debug() end
+    end
+    
+    -- Compass
+    do
+        Ref.Compass = UVP.Create(405, 2, 400, 400, Graphic)
+        
+        Ref.Compass.Render = function()
+            local mat = Matrix()
+            local subMat = Matrix()
+            render.setFont(F_Fancy)
+            
+            mat:setTranslation(Vector(200, 200))
+            
+            render.pushMatrix(mat, false)
+                render.setColor(GlobalSettings.C_CompassBackground)
+                render.drawFilledCircle(0, 0, 198)
+            render.popMatrix()
+            
+            render.setColor(GlobalSettings.C_CompassText)
+            
+            subMat:setAngles(Angle(0, -90))
+            API:DrawTextInBox(0, -200, 40, 40, "N", TEXT_ALIGN.CENTER, 0, mat * subMat)
+            
+            subMat:setAngles(Angle(0, 0))
+            API:DrawTextInBox(0, -200, 40, 40, "E", TEXT_ALIGN.CENTER, 0, mat * subMat)
+            
+            subMat:setAngles(Angle(0, 90))
+            API:DrawTextInBox(0, -200, 40, 40, "S", TEXT_ALIGN.CENTER, 0, mat * subMat)
+            
+            subMat:setAngles(Angle(0, 180))
+            API:DrawTextInBox(0, -200, 40, 40, "W", TEXT_ALIGN.CENTER, 0, mat * subMat)
+            
+            subMat:setScale(Vector(1, 1))
+            
+            local deg = 360 / 24
+            render.setColor(GlobalSettings.C_CompassMark)
+            for i=1, 24 do
+                local rot = deg * i
+                if rot % 90 == 0 then continue end
+                
+                local height = 10
+                if rot % 45 == 0 then height = 20 end
+                
+                subMat:setAngles(Angle(0, rot))
+                render.pushMatrix(mat * subMat, false)
+                    render.drawRect(0, -185, 2, height)
+                render.popMatrix()
+            end
+        end
+        
+        if DebugTextures then Ref.Compass:Debug() end
+    end
+end
+
+function Atlas:MakePrimarySight()
+    local Graphic = Module:AddGraphic()
+    Graphic:SetUpdate(Module.UPDATE.STATIC)
+    Graphic.RefreshFunc = function()
+        render.clear(Color(0, 0, 0, 0))
+        Ref.PrimarySight:DrawOnTexture()
+    end
+    
+    Ref.PrimarySight = UVP.Create(0, 0, 1000, 1000, Graphic)
+    
+    Ref.PrimarySight.Render = function()
+        render.setColor(GlobalSettings.C_SightBorder)
+        render.drawRectOutline(480, 480, 40, 40, 10)
+        render.drawRoundedBox(10, 515, 495, 50, 10)
+        render.drawRoundedBox(10, 435, 495, 50, 10)
+        render.drawRoundedBox(10, 495, 515, 10, 50)
+        render.drawRoundedBox(10, 495, 435, 10, 50)
+        render.drawRoundedBox(10, 615, 495, 100, 10)
+        render.drawRoundedBox(10, 815, 495, 150, 10)
+        render.drawRoundedBox(10, 285, 495, 100, 10)
+        render.drawRoundedBox(10, 35, 495, 150, 10)
+        render.drawRoundedBox(10, 235, 385, 150, 10)
+        render.drawRoundedBox(10, 615, 385, 150, 10)
+        render.drawRoundedBox(10, 235, 605, 150, 10)
+        render.drawRoundedBox(10, 615, 605, 150, 10)
+        render.drawRoundedBox(10, 495, 285, 10, 100)
+        render.drawRoundedBox(10, 495, 135, 10, 100)
+        render.drawRoundedBox(10, 495, 615, 10, 100)
+        render.drawRoundedBox(10, 495, 765, 10, 100)
+        
+        render.setColor(GlobalSettings.C_SightBacklight)
+        render.drawRectOutline(483, 483, 34, 34, 4)
+        render.drawRoundedBox(4, 498, 768, 4, 94)
+        render.drawRoundedBox(4, 498, 618, 4, 94)
+        render.drawRoundedBox(4, 498, 138, 4, 94)
+        render.drawRoundedBox(4, 498, 288, 4, 94)
+        render.drawRoundedBox(4, 498, 438, 4, 47)
+        render.drawRoundedBox(4, 498, 515, 4, 47)
+        render.drawRoundedBox(4, 288, 498, 94, 4)
+        render.drawRoundedBox(4, 618, 498, 94, 4)
+        render.drawRoundedBox(4, 438, 498, 47, 4)
+        render.drawRoundedBox(4, 515, 498, 47, 4)
+        render.drawRoundedBox(4, 818, 498, 144, 4)
+        render.drawRoundedBox(4, 38, 498, 144, 4)
+        render.drawRoundedBox(4, 238, 388, 144, 4)
+        render.drawRoundedBox(4, 618, 388, 144, 4)
+        render.drawRoundedBox(4, 618, 608, 144, 4)
+        render.drawRoundedBox(4, 238, 608, 144, 4)
+    end
+end
+
+function Atlas:MakeSecondarySight()
+    local Graphic = Module:AddGraphic()
+    Graphic:SetUpdate(Module.UPDATE.STATIC)
+    Graphic.RefreshFunc = function()
+        render.clear(Color(0, 0, 0, 0))
+        Ref.SecondarySight:DrawOnTexture()
+    end
+    
+    Ref.SecondarySight = UVP.Create(0, 0, 1000, 1000, Graphic)
+    Ref.SecondarySight.Render = function()
+        render.setColor(GlobalSettings.C_SightBorder)
+        render.drawRectOutline(480, 480, 40, 40, 10)
+        render.drawRoundedBox(10, 370, 485, 10, 30)
+        render.drawRoundedBox(10, 620, 485, 10, 30)
+        render.drawRoundedBox(10, 730, 475, 10, 50)
+        render.drawRoundedBox(10, 260, 475, 10, 50)
+        render.drawRoundedBox(10, 150, 485, 10, 30)
+        render.drawRoundedBox(10, 840, 485, 10, 30)
+        render.drawRoundedBox(10, 485, 370, 30, 10)
+        render.drawRoundedBox(10, 485, 620, 30, 10)
+        render.drawRoundedBox(10, 475, 730, 50, 10)
+        render.drawRoundedBox(10, 475, 260, 50, 10)
+        
+        render.setColor(GlobalSettings.C_SightBacklight)
+        render.drawRectOutline(483, 483, 34, 34, 4)
+        render.drawRoundedBox(4, 373, 488, 4, 24)
+        render.drawRoundedBox(4, 623, 488, 4, 24)
+        render.drawRoundedBox(4, 733, 478, 4, 44)
+        render.drawRoundedBox(4, 263, 478, 4, 44)
+        render.drawRoundedBox(4, 153, 488, 4, 24)
+        render.drawRoundedBox(4, 843, 488, 4, 24)
+        render.drawRoundedBox(4, 488, 373, 24, 4)
+        render.drawRoundedBox(4, 488, 623, 24, 4)
+        render.drawRoundedBox(4, 478, 733, 44, 4)
+        render.drawRoundedBox(4, 478, 263, 44, 4)
+    end
+end
+
+-- >> UVP; helps with making & using texture atlases
+do
+    local UVScale = 1 / 1024
+    
+    function UVP.Create(X, Y, W, H, Graphic)
+        local uvp = {}
+        
+        uvp.Render = Empty
+        uvp.PreDrawInstance = Empty
+        uvp.PostDrawInstance = Empty
+        
+        local drawDebug = false
+        local u1 = X * UVScale
+        local v1 = Y * UVScale
+        local u2 = (X + W) * UVScale
+        local v2 = (Y + H) * UVScale
+                
+        -- # Methods
+        
+        -- Draw onto texture
+        function uvp:DrawOnTexture()
+            local mat = Matrix()
+            mat:setTranslation(Vector(X, Y))
+            
+            render.pushMatrix(mat, true)
+                uvp.Render()
+            render.popMatrix()
+            
+            if not drawDebug then return end
+
+            render.pushMatrix(mat, true)
+                render.setColor(Color(255, 0, 255))
+                render.drawFilledCircle(W * 0.5, H * 0.5, 2)
+                render.drawRectOutline(0, 0, W, H, 4)
+            render.popMatrix()
+        end
+        
+        -- Draw from texture
+        function uvp:DrawInstanced(IX, IY, IW, IH)
+            IW = IW or W
+            IH = IH or H
+            
+            Graphic:ResetMaterial()
+            
+            self.PreDrawInstance()
+            render.drawTexturedRectUV(IX, IY, IW, IH, u1, v1, u2, v2)
+            self.PostDrawInstance()
+        end
+        
+        -- Enable debugged draw
+        function uvp:Debug() drawDebug = true end
+        
+        return uvp
+    end
+end
+
+-- >> FL; fancy lines
+do
+    local DrawLine = Empty
+    
+    -- Draw a line with optional background
+    function FL:DrawLine(X1, Y1, X2, Y2, Radius, Width)
+        local v1 = Vector(X1, Y1)
+        local v2 = Vector(X2, Y2)
+        DrawLine(v1, v2, Radius, Width)
+    end
+    
+    -- Draw an outline from a table(point)
+    -- Point format: { x = number, y = number }
+    function FL:DrawLineFromPoints(Points, Radius, Width)
+        local cnt = #Points
+        if cnt < 2 then return end
+        
+        for k, point in ipairs(Points) do
+            if k == cnt then break end
+            
+            local nextPoint = Points[k + 1]
+            local v1 = Vector(point.x, point.y)
+            local v2 = Vector(nextPoint.x, nextPoint.y)
+            
+            DrawLine(v1, v2, Radius, Width)
+        end
+    end
+    
+    -- Uses a rounded box to draw a line
+    function DrawLine(V1, V2, Radius, Width)
+        local length = V1:getDistance(V2)
+        local hWidth = Width * 0.5
+        
+        local mat = Matrix()
+        mat:setTranslation(V1)
+        mat:setAngles((V2 - V1):getAngle())
+        
+        render.pushMatrix(mat, false)
+            render.drawRoundedBox(Radius, -hWidth, -hWidth, length + Width, Width)
+        render.popMatrix()
+    end
+end
+
+-- >> Resource; miscellaneous draw functions
+do
+    function Resource:BacklitText(X, Y, W, H, R, Text, LightCol, TextCol, VMat, Absolute)
+        if VMat then render.pushMatrix(VMat, Absolute or false) end
+            render.setColor(LightCol)
+            render.drawRoundedBox(R, X, Y, W, H)
+        if VMat then render.popMatrix() end
+        
+        render.setColor(TextCol)
+        API:DrawTextInBox(X + W * 0.5, Y, W, H, Text, TEXT_ALIGN.CENTER, 8, VMat, Absolute)
+    end
+end
+
+return Content

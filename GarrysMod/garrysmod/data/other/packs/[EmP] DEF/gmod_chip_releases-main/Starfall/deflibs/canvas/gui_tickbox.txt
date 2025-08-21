@@ -1,0 +1,119 @@
+--@name deflibs/canvas/GUI_TickBox
+--@author Yours Truly
+
+// TickBox [Extends from GUI_Button]; a toggle button
+
+local CollisionDebug = false
+local StockLeft = 0; local StockTop = 0
+local StockWidth = 40; local StockHeight = 40
+
+local function Empty() end
+local Construct = Empty
+local StockDraw = Empty; local StockTickDraw = Empty
+
+local TickBox = {}
+
+-- Create & get new hitbox
+function TickBox.Create(Canvas, IsToggle)
+    return Construct(Canvas, IsToggle)
+end
+
+function TickBox:DrawCollision(Active)
+    CollisionDebug = Active
+end
+
+-- Instance creation function
+function Construct(Canvas)
+    local btn = GUI.Button.Create(Canvas, true)
+    btn:SetOrigin(StockLeft, StockTop)
+    btn:SetSize(StockWidth, StockHeight)
+    
+    local IDraw = StockDraw; local ITickDraw = StockTickDraw
+    
+    -- Class functions
+    
+    function btn:SetDraw(Func)
+        IDraw = Func
+    end
+    
+    function btn:SetTickDraw(Func)
+        ITickDraw = Func
+    end
+    
+    function btn:Draw()
+        render.pushMatrix(self:GetVMatrix(), false)
+            IDraw(self)
+            ITickDraw(self)
+        render.popMatrix()
+        if CollisionDebug then self:DrawAABB() end
+    end
+    
+    return btn
+end
+
+-- # Default drawing functions
+
+function StockDraw(BTN)
+    local col = Color(100, 100, 100)
+    
+    if BTN:GetPressed() then
+        if BTN:GetHovered() then
+            col = Color(80, 80, 80)
+        else
+            col = Color(60, 60, 60)
+        end
+    elseif BTN:GetHovered() then
+        col = Color(120, 120, 120)
+    end
+    
+    local width, height = BTN:GetSize()
+    local radius = math.min(width, height) * 0.4
+    local mat = Matrix()
+    mat:setScale(Vector(0.25, 0.25))
+    
+    render.pushMatrix(mat, false)
+        render.setColor(Color(0, 0, 0))
+        render.drawRoundedBox(radius, 0, 0, width * 4, height * 4)
+        render.setColor(col)
+        render.drawRoundedBox(radius, 16, 16, (width - 8) * 4, (height - 8) * 4)
+    render.popMatrix()
+end
+
+function StockTickDraw(BTN)
+    if not BTN:GetPressed() then return end
+    
+    local width, height = BTN:GetSize()
+    local size = 16
+    local mat = Matrix()
+    mat:setTranslation(Vector(width * 0.5, height * 0.5))
+    mat:setScale(Vector(0.25, 0.25))
+    mat:setAngles(Angle(0, 45, 0))
+    
+    render.pushMatrix(mat, false)
+        render.setColor(Color(0, 0, 0))
+        render.drawRect(-width, 0 - size * 0.5, width * 2, size)
+        render.drawRect(0 - size * 0.5, -height, size, height * 2)
+    render.popMatrix()
+end
+
+-- # Stock overrides
+
+function TickBox:SetOrigin(X, Y)
+    StockLeft = X
+    StockTop = Y
+end
+
+function TickBox:SetSize(W, H)
+    StockWidth = W
+    StockHeight = H
+end
+
+function TickBox:SetDraw(Func)
+    StockDraw = Func
+end
+
+function TickBox:SetTickDraw(Func)
+    StockTickDraw = Func
+end
+
+return TickBox

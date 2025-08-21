@@ -1,0 +1,638 @@
+--@name mfcs/Core
+--@author Yours Truly
+
+local NULL = game.getWorld()
+local function Empty() end
+
+MFCS = {}
+local Settings = {}
+local PingPeriod = 0.210
+
+local Manager = {}
+local ESC = {}; local ELIST = {}
+local Cord = {}; local EXIO = {}
+
+MFCS.EVENT = {}
+
+MFCS.EVENT.CORD_RECEIVE = "mfcs-cord_receive"
+MFCS.EVENT.CORD_RECEIVE_IMMEDIATE = "mfcs-cord_receive_immediate"
+
+-- Shared definitions
+do
+    function MFCS:SetSettings(Value) Settings = Value end
+    
+    function MFCS:GetTraceRange() return Settings.TraceRange end
+    
+    function MFCS:GetRefreshRate() return Settings.RefreshRate end
+    
+    function MFCS:CreateCord(ID) return Cord.Create(ID) end
+    
+    function MFCS:AddSharedInput(Name, Type) EXIO:AddInput(Name, Type) end
+    
+    function MFCS:AddSharedOutput(Name, Type) EXIO:AddOutput(Name, Type) end
+    
+    function MFCS:GetHoloModel() return "models/props_combine/breenbust.mdl" end
+    
+    function MFCS:GetGraphicsModule()
+        local tab = {}
+        function tab:GetAPI() end
+        return tab
+    end
+end
+
+-- >> ESC [pseudo-class]; entity state checker
+do
+    MFCS.ESC = ESC
+    local Instances = {}
+    
+    -- Instance
+    function ESC.Create(Ent)
+        if Instances[Ent] then return Instances[Ent] end
+        
+        local ent = {}
+        
+        local valid = Ent:isValid()
+        local hookName = "mfcs_esc-" .. Ent:entIndex()
+        
+        local function OnEntityRemoved(InEnt)
+            if InEnt != Ent then return end
+            
+            valid = false
+            hook.run(hookName)
+            hook.remove("EntityRemoved", hookName)
+        end
+        
+        -- # Setup
+        
+        hook.add("EntityRemoved", hookName, OnEntityRemoved)
+        
+        -- # Accessors
+        
+        function ent:GetIsValid() return valid end
+        
+        function ent:GetHookName() return hookName end
+        
+        Instances[Ent] = ent
+        return ent
+    end
+    
+    -- Returns entity checker object
+    function ESC:GetObject(Ent) return Instances[Ent] end
+end
+
+-- >> ELIST; connected entity list
+do
+    local Connections = {}
+    local PurgeEntities = Empty
+    
+    -- Set initial entity list
+    function ELIST:SetEntities(Tab)
+        Connections = Tab
+        //if CLIENT then PurgeEntities() end
+    end
+    
+    -- Remove hooks from EntityRemoved
+    // FUSED OFF
+    function ELIST:RemoveHooks()
+        if SERVER then return end
+        
+        for _, ent in ipairs(Connections) do
+            hook.remove(ESC.Create(ent):GetHookName(), "elist_purge")
+        end
+    end
+    
+    -- Remove destroyed entities from list
+    // FUSED OFF
+    function PurgeEntities()
+        local newConnections = {}
+        for _, ent in ipairs(Connections) do
+            local obj = ESC.Create(ent)
+            if obj:GetIsValid() then
+                hook.add(obj:GetHookName(), "elist_purge", PurgeEntities)
+                table.insert(newConnections, ent)
+            end
+        end
+        Connections = newConnections
+    end
+    
+    -- # Accessors
+    
+    // This is very un-ideal; it removes invalid entities from Connections EVERY time it's called
+    // Reason being (depending on starfall version), an invalid entity in a trace filter cause 'Object no longer valid'
+    // Well, CLIENT doesn't seem to mind too much
+    function MFCS:GetConnections()
+        if SERVER then return Connections end
+        
+        local newConnections = {}
+        for _, ent in ipairs(Connections) do
+            if not ent:isValid() then continue end
+            table.insert(newConnections, ent)
+        end
+        
+        Connections = newConnections
+        return Connections
+    end
+end
+
+-- >> Cord [pseudo-class]; networked table
+do
+    local Instances = {}; local Queue = {}
+    local SendImmediate = Empty
+    local OnReceive = Empty; local OnReceiveImmediate = Empty
+    
+    function Cord.Create(ID)
+        local cord = {}
+        cord.Data = {}
+        cord.OnReceive = Empty
+        
+        -- # Methods
+        
+        -- Queue Data, sending done in main object
+        function cord:Queue()
+            Queue[ID] = self.Data
+        end
+        
+        -- Send instance Data immediately
+        function cord:SendImmediate(Destination)
+            net.start("mfcs_cord-immediate")
+                net.writeString(ID)
+                net.writeTable(self.Data)
+            net.send(Destination)
+        end
+        
+        -- Set data & call OnReceive
+        function cord:RaiseReceived(NewData)
+            self.Data = NewData
+            self.OnReceive()
+        end
+        
+        Instances[ID] = cord
+        return cord
+    end
+    
+    function Cord:Initialize()
+        net.receive("mfcs_cord", OnReceive)
+        net.receive("mfcs_cord-immediate", OnReceiveImmediate)
+    end
+    
+    -- Send list of table data to server or client(s)
+    function Cord:SendAll(Destination)
+        net.start("mfcs_cord")
+            net.writeTable(Queue)
+        net.send(Destination)
+        
+        table.empty(Queue)
+    end
+    
+    -- Listen for list of table data & update data on matching objects
+    function OnReceive()
+        for k, data in pairs(net.readTable()) do
+            Instances[k]:RaiseReceived(data)
+        end
+        hook.run(MFCS.EVENT.CORD_RECEIVE)
+    end
+    
+    -- Listen for list of table data & update data on matching objects
+    function OnReceiveImmediate()
+        local id = net.readString()
+        Instances[id]:RaiseReceived(net.readTable())
+        hook.run(MFCS.EVENT.CORD_RECEIVE_IMMEDIATE, id)
+    end
+end
+
+if SERVER then
+    local Assembly = {}; local Operator = {}
+    
+    MFCS.EVENT.INITIALIZE = "mfcs-initialize"
+    MFCS.EVENT.MAKE_IO = "mfcs-make_io"
+    MFCS.EVENT.BOARD_VEHICLE = "mfcs-board_vehicle"
+    MFCS.EVENT.PING_DRIVER = "mfcs-ping_driver"
+    
+    -- >> Setup functions
+    do
+        function MFCS:Initialize()
+            Manager:MakeIO()
+            Manager:Initialize()
+        end
+    end
+    
+    -- >> Manager; it manages things
+    do
+        local OnEnterChair = Empty; local OnPingDriver = Empty
+        
+        local svMain = MFCS:CreateCord("Core_Main")
+        svMain.Data = {
+            Active = false,
+            Connections = {},
+        }
+        
+        function Manager:Initialize()
+            Assembly:Initialize()
+            Operator:Initialize()
+            Cord:Initialize()
+            hook.run(MFCS.EVENT.INITIALIZE)
+            
+            hook.add("PlayerEnteredVehicle", "mfcs-driver_in", function(Ply, Chair) OnEnterChair(Ply, Chair, true) end)
+            hook.add("PlayerLeaveVehicle", "mfcs-driver_out", function(Ply, Chair) OnEnterChair(Ply, Chair, false) end)
+            timer.create("mfcs-ping_driver", 1 / Settings.NetworkRate, 0, OnPingDriver)
+        end
+        
+        function Manager:MakeIO()
+            Operator:MakeIO()
+            hook.run(MFCS.EVENT.MAKE_IO)
+            EXIO:MakeIO()
+            
+            Assembly:CreateIO()
+        end
+        
+        -- On enter & exit chair
+        function OnEnterChair(Player, Chair, Board)
+            if not Operator:CheckChair(Chair) then return end
+            
+            if Board then
+                Operator:SetDriver(Player)
+            else
+                Operator:SetDriver(NULL)
+            end
+            
+            svMain.Data.Active = Board
+            svMain.Data.Connections = MFCS.GetConnections()
+            svMain:SendImmediate(Player)
+            
+            hook.run(MFCS.EVENT.BOARD_VEHICLE, Player, Board)
+        end
+        
+        -- # Passthroughs
+        
+        function OnPingDriver()
+            if Operator:GetDriver() == NULL then return end
+            
+            hook.run(MFCS.EVENT.PING_DRIVER)
+            EXIO:QueueInputs()
+            Cord:SendAll(Operator:GetDriver())
+        end
+    end
+    
+    -- >> Assembly; io & misc functions for vehicle
+    do
+        local Inputs = {}; local InputTypes = {}; local InputLookup = {}
+        local Outputs = {}; local OutputTypes = {}; local OutputLookup = {}
+        
+        function Assembly:Initialize()
+            ELIST:SetEntities(chip():getAllConstrained())
+        end
+        
+        -- Execute final io creation
+        function Assembly:CreateIO()
+            wire.adjustInputs(Inputs, InputTypes)
+            wire.adjustOutputs(Outputs, OutputTypes)
+        end
+        
+        -- Adds an input
+        function MFCS.AddInput(Name, Type)
+            if InputLookup[Name] then return false end
+            
+            InputLookup[Name] = true
+            table.insert(Inputs, Name)
+            table.insert(InputTypes, Type)
+            return true
+        end
+        
+        -- Adds an output
+        function MFCS.AddOutput(Name, Type)
+            if OutputLookup[Name] then return false end
+            
+            OutputLookup[Name] = true
+            table.insert(Outputs, Name)
+            table.insert(OutputTypes, Type)
+            return true
+        end
+    end
+    
+    -- >> Operator [SV]; container for driver & chair
+    do
+        local Driver = NULL; local ChairEnt = NULL
+        
+        function Operator:Initialize()
+            ChairEnt = wire.ports.Chair
+        end
+        
+        function Operator:MakeIO()
+            MFCS.AddInput("Chair", "Entity")
+        end
+        
+        -- Compare to wired chair entity
+        function Operator:CheckChair(Chair)
+            return ChairEnt:isValid() and ChairEnt == Chair
+        end
+        
+        -- # Accessors
+        
+        function Operator:GetDriver() return Driver end
+        function Operator:SetDriver(Value) Driver = Value end
+        
+        function MFCS.GetDriver() return Driver end
+    end
+    
+    -- >> EXIO [SV]; extra inputs
+    do
+        local svInputs = MFCS:CreateCord("EXIO_Inputs")
+        local clOutputs = MFCS:CreateCord("EXIO_Outputs")
+        
+        local InputDataTypes = {}; local OutputDataTypes = {}
+        
+        function EXIO:MakeIO()
+            for _, dataType in ipairs(InputDataTypes) do
+                MFCS.AddInput(dataType.Name, dataType.Type)
+            end
+            
+            for _, dataType in ipairs(OutputDataTypes) do
+                MFCS.AddOutput(dataType.Name, dataType.Type)
+            end
+        end
+        
+        clOutputs.OnReceive = function()
+            for k, value in pairs(clOutputs.Data) do
+                wire.ports[k] = value
+            end
+        end
+        
+        -- Identify inputs & queue
+        function EXIO:QueueInputs()
+            for _, dataType in ipairs(InputDataTypes) do
+                svInputs.Data[dataType.Name] = wire.ports[dataType.Name]
+            end
+            
+            svInputs:Queue()
+        end
+        
+        -- # Create io
+        function EXIO:AddInput(Name, Type)
+            table.insert(InputDataTypes, { Name = Name, Type = Type })
+        end
+        
+        function EXIO:AddOutput(Name, Type)
+            table.insert(OutputDataTypes, { Name = Name, Type = Type })
+        end
+    end
+end
+
+if CLIENT then
+    local Requestor = {}
+    local Keys = {}
+    
+    local SetActive = Empty
+    
+    local EVENT = {
+        REQUEST_ANSWER = "mfcs_core-request_answer",
+    }
+    
+    -- >> Globals
+    do
+        MFCS.EVENT.AUTHORIZE = "mfcs-authorize"
+        MFCS.EVENT.OPERATOR_KEY = "mfcs-operator_key"
+        MFCS.EVENT.OPERATOR_SCROLL = "mfcs-operator_scroll"
+        MFCS.EVENT.PING_SERVER = "mfcs-ping_server"
+        MFCS.EVENT.LOGIC_TICK = "mfcs-logic_tick"
+        MFCS.EVENT.CAMERA_AIM = "mfcs_camera-aim"
+        MFCS.EVENT.CAMERA_ZOOM = "mfcs_camera-zoom"
+        MFCS.EVENT.CAMERA_SWITCH = "mfcs_camera-switch"
+        MFCS.EVENT.COMPUTER_RANGE = "mfcs_computer-range"
+        MFCS.EVENT.COMPUTER_MANUAL_RANGING = "mfcs_computer-manual_ranging"
+        MFCS.EVENT.COMPUTER_OPTICAL_RANGING = "mfcs_computer-optical_ranging"
+        MFCS.EVENT.COMPUTER_LOCK = "mfcs_computer-lock"
+        
+        -- # Module globals
+        
+        MFCS.Camera = {}
+        
+        function MFCS.Camera:GetTag() return "" end
+        function MFCS.Camera:GetOrigin() return Vector() end
+        function MFCS.Camera:GetPosition() return Vector() end
+        function MFCS.Camera:GetViewDirection() return Vector() end
+        function MFCS.Camera:GetAimDirection() return Vector() end
+        function MFCS.Camera:GetViewAngles() return Angle() end
+        function MFCS.Camera:GetFOV() return 0 end
+        function MFCS.Camera:GetMagnification() return 0 end
+        function MFCS.Camera:GetOpticalRanging() return false end
+        
+        MFCS.Computer = {}
+        
+        function MFCS.Computer:GetWeapon() return {} end
+        function MFCS.Computer:GetAllSystems() return {} end
+        function MFCS.Computer:GetRange() return 0 end
+        function MFCS.Computer:GetPosition() return Vector() end
+        function MFCS.Computer:GetLocked() return false end
+        function MFCS.Computer:GetManualRanging() return false end
+        function MFCS.Computer:GetOpticalRanging() return false end
+        function MFCS.Computer:GetManualRangingKeyDown() return false end
+        
+        MFCS.Graphic = {}
+        
+        function MFCS.Graphic:SetupRangefinder() end
+    end
+    
+    -- >> Setup functions
+    do
+        local OnAuthorize = Empty
+        
+        function MFCS:Initialize()
+            Manager:Initialize()
+            hook.add(EVENT.REQUEST_ANSWER, "mng-authorize", OnAuthorize)
+        end
+        
+        -- Make sure chip can run
+        function OnAuthorize(HasPermissions)
+            if not HasPermissions then return end
+            Manager:Authorize()
+        end
+    end
+    
+    -- >> Manager [CL]; it manages things
+    do
+        local LogicRate = 0
+        local SetActive = Empty; local OnPingServer = Empty
+        
+        local svMain = MFCS:CreateCord("Core_Main")
+        svMain.Data = {
+            Active = false,
+            Connections = {},
+        }
+        
+        function Manager:Initialize()
+            LogicRate = 1 / Settings.RefreshRate
+            Cord:Initialize()
+        end
+        
+        function Manager:Authorize()
+            SetActive()
+            timer.create("mfcs-ping_server", 1 / Settings.NetworkRate, 0, OnPingServer)
+            
+            hook.run(MFCS.EVENT.AUTHORIZE)
+        end
+        
+        -- Entering or leaving vehicle
+        svMain.OnReceive = function()
+            enableHud(player(), svMain.Data.Active)
+            ELIST:SetEntities(svMain.Data.Connections)
+            
+            if svMain.Data.Active and not MFCS.GetReady() then
+                Requestor:SendRequest()
+                return
+            end
+            
+            SetActive()
+        end
+        
+        -- # Passthroughs
+        
+        function SetActive()
+            if svMain.Data.Active then
+                timer.create("mfcs-logic_tick", 1 / Settings.RefreshRate, 0, function() hook.run(MFCS.EVENT.LOGIC_TICK) end)
+            else
+                //ELIST:RemoveHooks()
+                timer.remove("mfcs-logic_tick")
+            end
+            
+            Keys:SetLogging(svMain.Data.Active)
+        end
+        
+        function OnPingServer()
+            if not svMain.Data.Active then return end
+            
+            hook.run(MFCS.EVENT.PING_SERVER)
+            EXIO:QueueOutputs()
+            Cord:SendAll()
+        end
+        
+        -- # Accessors
+        
+        function MFCS:GetTimeStep() return LogicRate end
+    end
+    
+    -- >> Requestor; permissions stuff
+    do
+        local Permissions = {}; local Lookup = {}
+        local CanRequest = true; local Ready = false
+        
+        local RequestAnswer = Empty; local HasAllPerms = Empty
+        
+        -- Try to get the wanted permissions
+        function Requestor:SendRequest()
+            if not CanRequest then return end
+            CanRequest = false
+            
+            if HasAllPerms() then
+                Ready = true
+                hook.run(EVENT.REQUEST_ANSWER, Ready)
+            else
+                setupPermissionRequest(Permissions, "Stuff needed for MFCS", true)
+                hook.add("permissionrequest", "mfcs-req_answer", RequestAnswer)
+                sendPermissionRequest()
+            end
+        end
+        
+        -- Adds permission to request
+        function MFCS.AddPermission(Perm)
+            if Lookup[Perm] then return end
+            
+            table.insert(Permissions, Perm)
+            Lookup[Perm] = true
+        end
+        
+        -- Process answer
+        function RequestAnswer()
+            Ready = permissionRequestSatisfied()
+            hook.run(EVENT.REQUEST_ANSWER, Ready)
+            hook.remove("permissionrequest", "mfcs-req_answer")
+        end
+        
+        -- Check if user has perms already
+        function HasAllPerms()
+            for _, perm in ipairs(Permissions) do
+                local has, reason = hasPermission(perm)
+                if not has and reason != "Entity is invalid" then
+                    return false
+                end
+            end
+            
+            return true
+        end
+        
+        -- # Accessors
+        
+        function MFCS.GetReady() return Ready end
+    end
+    
+    -- >> EXIO [CL]; extra inputs
+    do
+        local svInputs = MFCS:CreateCord("EXIO_Inputs")
+        local clOutputs = MFCS:CreateCord("EXIO_Outputs")
+        
+        local Defaults = {
+            Number = 0,
+            String = "",
+            Entity = NULL,
+            Vector = Vector(),
+            Angle = Angle(),
+            Array = {},
+            Table = {},
+        }
+        
+        -- Queue
+        function EXIO:QueueOutputs()
+            clOutputs:Queue()
+        end
+        
+        -- # Create io
+        
+        function EXIO:AddInput(Name, Type)
+            svInputs.Data[Name] = Defaults[Type]
+        end
+        
+        function EXIO:AddOutput(Name, Type)
+            clOutputs.Data[Name] = Defaults[Type]
+        end
+        
+        -- # Accessors
+        
+        function MFCS:GetInput(Name) return svInputs.Data[Name] end
+        
+        function MFCS:GetOutput(Name) return clOutputs.Data[Name] end
+        function MFCS:SetOutput(Name, Value) clOutputs.Data[Name] = Value end
+    end
+    
+    -- >> Keys; keeps track of & updates user input
+    do
+        local ScrollActive = false
+        local Scroll = Empty; local Input = Empty
+        
+        -- Turns input listening on or off
+        function Keys:SetLogging(Active)
+            if Active then
+                hook.add("inputPressed", "mfcs_core-down", function(Key) Input(Key, true) end)
+                hook.add("inputReleased", "mfcs_core-up", function(Key) Input(Key, false) end)
+                hook.add("mouseWheeled", "mfcs_core-scroll", Scroll)
+                hook.add("tick", "mfcs_core-reset", function() ScrollActive = true end)
+            else
+                hook.remove("inputPressed", "mfcs_core-down")
+                hook.remove("inputReleased", "mfcs_core-up")
+                hook.remove("mouseWheeled", "mfcs_core-scroll")
+                hook.remove("tick", "mfcs_core-reset")
+            end
+        end
+        
+        -- Ran in mouseWheeled; scrolling
+        function Scroll(Dir)
+            if not ScrollActive then return end
+            
+            ScrollActive = false
+            hook.run(MFCS.EVENT.OPERATOR_SCROLL, Dir)
+        end
+        
+        -- Run key functions
+        function Input(Key, Down)
+            hook.run(MFCS.EVENT.OPERATOR_KEY, Key, Down)
+        end
+    end
+end

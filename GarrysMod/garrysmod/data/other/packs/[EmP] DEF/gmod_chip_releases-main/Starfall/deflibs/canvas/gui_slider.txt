@@ -1,0 +1,274 @@
+--@name deflibs/canvas/GUI_Slider
+--@author Yours Truly
+
+// Slider; a draggable knob
+
+local CollisionDebug = false
+local StockLeft = 0; local StockTop = 0
+local StockWidth = 150; local StockHeight = 30
+local StockKnobWidth = 20; local StockKnobHeight = 30
+local StockMin = 0; local StockMax = 100
+local StockDecimals = 1
+
+local function Empty() end
+local Construct = Empty
+local StockDraw = Empty; local StockKnobDraw = Empty
+
+local Slider = {}
+
+-- Create & get new hitbox
+function Slider.Create(Canvas, KnobOnly)
+    return Construct(Canvas, KnobOnly)
+end
+
+-- Hitbox debug
+function Slider:DrawCollision(Active)
+    CollisionDebug = Active
+end
+
+-- Instance creation function
+function Construct(Canvas, KnobOnly)
+    local sld = {}
+    local box = GUI.Hitbox.Create(sld)
+    local can = Canvas
+    
+    local mat = Matrix()
+    mat:setTranslation(Vector(StockLeft, StockTop))
+    local knobMat = Matrix()
+    
+    local w = StockWidth; local h = StockHeight
+    local knobW = StockKnobWidth; local knobH = StockKnobHeight
+    local knobPos = 0
+    local valueMin = StockMin; local valueMax = StockMax
+    local decimals = StockDecimals
+    local knobOnly = KnobOnly or false
+    local pressed = false; local hovered = false
+    
+    local Func = Empty
+    local IDraw = StockDraw; local IKnobDraw = StockKnobDraw
+    
+    local function UpdateHitbox()
+        if knobOnly then
+            local vec1 = mat:getTranslation()
+            local vec2 = knobMat:getTranslation()
+            box:SetOrigin(vec1.x + vec2.x - knobW * 0.5, vec1.y + (h - knobH) * 0.5)
+            box:SetSize(knobW, knobH)
+        else
+            local vec = mat:getTranslation()
+            box:SetOrigin(vec.x, vec.y)
+            box:SetSize(w, h)
+        end
+    end
+    
+    local function MoveKnob(X)
+        knobPos = math.clamp(X or knobPos, 0, w - knobW)
+        knobMat:setTranslation(Vector(knobPos + knobW * 0.5, h * 0.5))
+    end
+    
+    local function FocusSlider()
+        local x, _ = can:GetCursorPos()
+        local vec = mat:getTranslation()
+        local oldPos = knobPos
+        MoveKnob(x - vec.x - knobW * 0.5)
+        if oldPos != knobPos then
+            Func(sld:GetValue())
+            UpdateHitbox()
+            can:QueueDraw()
+        end
+    end
+    
+    -- Class functions
+    
+    function sld:SetOrigin(X, Y)
+        mat:setTranslation(Vector(X, Y))
+        MoveKnob()
+        UpdateHitbox()
+    end
+    
+    function sld:SetSize(W, H)
+        w = W
+        h = H
+        MoveKnob()
+        UpdateHitbox()
+    end
+    
+    function sld:SetKnobSize(W, H)
+        knobW = W
+        knobH = H
+        MoveKnob()
+        UpdateHitbox()
+    end
+    
+    function sld:SetRange(Min, Max)
+        valueMin = Min
+        valueMax = Max
+    end
+    
+    function sld:SetDecimals(Decimals)
+        decimals = Decimals
+    end
+    
+    function sld:SetFunc(NewFunc)
+        Func = NewFunc
+    end
+    
+    function sld:SetValue(Value)
+        local clamped = math.clamp(Value, valueMin, valueMax)
+        clamped = math.round(clamped, decimals)
+        MoveKnob(math.remap(clamped, valueMin, valueMax, 0, w - knobW))
+        UpdateHitbox()
+        can:QueueDraw()
+    end
+    
+    function sld:Trigger(Value)
+        self:SetValue(Value)
+        Func(self:GetValue())
+    end
+    
+    function sld:SetDraw(Func)
+        IDraw = Func
+    end
+    
+    function sld:SetKnobDraw(Func)
+        IKnobDraw = Func
+    end
+    
+    function sld:Press(Pressed)
+        pressed = Pressed
+        if Pressed then
+            hook.add(GUI.EVENT.UPDATE, "slider-update", FocusSlider)
+        else
+            hook.remove(GUI.EVENT.UPDATE, "slider-update")
+        end
+        can:QueueDraw()
+    end
+    
+    function sld:Hover(Hovered)
+        hovered = Hovered
+        can:QueueDraw()
+    end
+    
+    function sld:Draw()
+        render.pushMatrix(mat, false)
+            IDraw(self)
+            render.pushMatrix(knobMat, false)
+                IKnobDraw(self)
+            render.popMatrix()
+        render.popMatrix()
+        if CollisionDebug then self:DrawAABB() end
+    end
+    
+    function sld:DrawAABB()
+        local bx, by, bw, bh = box:GetXYWH()
+        render.setColor(Color(255, 255, 255))
+        render.drawRectOutline(bx, by, bw, bh, 2)
+    end
+    
+    -- # Getters
+    
+    function sld:GetHitbox() return box end
+    
+    function sld:GetOrigin()
+        local vec = mat:getTranslation()
+        return vec.x, vec.y
+    end
+    
+    function sld:GetSize() return w, h end
+    
+    function sld:GetKnobSize() return knobW, knobH end
+    
+    function sld:GetValue()
+        local raw = math.remap(knobPos, 0, w - knobW, valueMin, valueMax)
+        return math.round(raw, decimals)
+    end
+    
+    function sld:GetPressed() return pressed end
+    
+    function sld:GetHovered() return hovered end
+    
+    UpdateHitbox()
+    MoveKnob()
+    return sld
+end
+
+-- Default drawing function
+function StockDraw(SLD)
+    local width, height = SLD:GetSize()
+    local radius = math.min(width, height) * 0.4
+    local trueWidth = width * 4
+    local trueHeight = height * 4
+    
+    local knobWidth, _ = SLD:GetKnobSize()
+    
+    local mat = Matrix()
+    mat:setScale(Vector(0.25, 0.25))
+    
+    render.pushMatrix(mat, false)
+        render.setColor(Color(100, 100, 100))
+        render.drawRoundedBox(radius, 0, 0, trueWidth, trueHeight)
+        render.setColor(Color(40, 40, 40))
+        render.drawRect(knobWidth * 2, trueHeight * 0.45, (trueWidth - knobWidth * 4), trueHeight * 0.1)
+    render.popMatrix()
+end
+
+function StockKnobDraw(SLD)
+    local col = Color(100, 100, 100)
+    
+    if SLD:GetPressed() then
+        if SLD:GetHovered() then
+            col = Color(80, 80, 80)
+        else
+            col = Color(60, 60, 60)
+        end
+    elseif SLD:GetHovered() then
+        col = Color(120, 120, 120)
+    end
+    
+    local width, height = SLD:GetKnobSize()
+    local radius = math.min(width, height) * 0.4
+    local mat = Matrix()
+    mat:setScale(Vector(0.25, 0.25))
+    
+    render.pushMatrix(mat, false)
+        render.setColor(Color(0, 0, 0))
+        render.drawRoundedBox(radius, -width * 2, -height * 2, width * 4, height * 4)
+        render.setColor(col)
+        render.drawRoundedBox(radius, -(width - 8) * 2, -(height - 8) * 2, (width - 8) * 4, (height - 8) * 4)
+    render.popMatrix()
+end
+
+-- # Stock overrides
+
+function Slider:SetOrigin(X, Y)
+    StockLeft = X
+    StockTop = Y
+end
+
+function Slider:SetSize(W, H)
+    StockWidth = W
+    StockHeight = H
+end
+
+function Slider:SetKnobSize(W, H)
+    StockKnobWidth = W
+    StockKnobHeight = H
+end
+
+function Slider:SetRange(Min, Max)
+    StockMin = Min
+    StockMax = Max
+end
+
+function Slider:SetDecimals(Decimals)
+    StockDecimals = Decimals
+end
+
+function Slider:SetDraw(Func)
+    StockDraw = Func
+end
+
+function Slider:SetKnobDraw(Func)
+    StockKnobDraw = Func
+end
+
+return Slider

@@ -1,0 +1,222 @@
+@name ApplyTorque Cross Drive Transmission r101
+@inputs [Crank RightGear LeftGear Base]:entity
+@inputs Gear Clutch RightClutch LeftClutch RightBrake LeftBrake Steer CVTRatio
+@outputs CrankRPM RightRPM LeftRPM RightSlip LeftSlip TotalRatio CrankTorque RightTorque LeftTorque
+@outputs RightInertia LeftInertia DriveAccMax DriveAcc SteerAccMax SteerAcc Ratio:array
+@persist [CrankVec GearVec]:vector GearDirection:vector2
+@persist InertiaMul CrankAxis GearAxis ClutchPower GearInertia GearInertiaMax StockInertia
+@persist DriveAccumRate DriveAccumMax SteerAccumRate SteerAccumDecay FinalDrive
+@outputs OpsCPUus:vector2
+@trigger none
+
+if(duped() | dupefinished()) {reset()}
+
+if(first() | dupefinished()) {
+    
+    local R = 0
+    
+    # # # # # # # # # # # # # # #
+    
+        #~ General ~#
+    
+    CrankAxis = 3       #Crank rototaion axis, check with stacker and remember right hand rule.
+    
+    GearAxis = 2        #Gear rotation axis.
+    
+    GearDirection = vec2(1, -1)      #In case one or both of the gears rotate the wrong way (Left, Right).
+    
+    ClutchPower = 3                 #Literally, (0-1) ^ ClutchPower. Higher numbers engage gear more gradually.
+    
+        #~ Gear strength ~#
+    
+    GearInertia = 150      #Inertia at 1:1.
+    
+    GearInertiaMax = 15         #Maximum gear inertia multiplier.
+    
+    StockInertia = 150      #Inertia out of gear or de-clutched. The brakeforce scales with this!
+    
+    Sensitivity = 0.5          #Error multiplier. (RPM Difference * GearInertia * Sensitivity)
+    
+    # # # Drive accumulator
+    
+    DriveAccumRate = 0       #How fast the drive accumulator accumulates error. (Accumulator = Accumulator + RPM Difference * AccumRate)
+    
+    DriveAccumMax = 0         #Max amount the accumulator is allowed to accumulate at 1:1.
+    
+    # # # Steer accumulator
+    
+    SteerAccumRate = 0.5       #How fast the steering accumulator accumulates error.
+    
+    SteerAccumDecay = 0.35      #How fast the steering accumulator decays.
+    
+        #~ Gear ratios ~#
+    
+    Ratio[-1,number] = 0
+    R++, Ratio[R,number] = 1/4
+    R++, Ratio[R,number] = 2/4
+    R++, Ratio[R,number] = 3/4
+    R++, Ratio[R,number] = 1.0
+    R++, Ratio[R,number] = -1/4
+    R++, Ratio[R,number] = -2/4
+    
+#[    Ratio[-1,number] = 0
+    Ratio[1,number] = 1.0
+    Ratio[2,number] = -1.0]#
+    
+    FinalDrive = 0.3            #Multiplier for all ratios.
+    
+    
+    # # # # # # # # # # # # # # #
+    
+    
+    #Numerical axis to vector converter
+    function vector axis(Num) {
+        
+        local Mag = abs(Num)
+        
+        if(Mag == 1) {return vec(1, 0, 0)}
+        elseif(Mag == 2) {return vec(0, 1, 0)}
+        else {return vec(0, 0, 1)}
+    }
+    
+    CrankVec = axis(CrankAxis)
+    GearVec = axis(GearAxis)
+    
+    #Inertia multiplier
+    local AVtoRAD = (pi()/180)
+    local Con = 23.25 * (1000/15)
+    InertiaMul = Con * AVtoRAD * Sensitivity
+    
+    #You would not believe how much power is lost to drag
+    RightGear:propDrag( 0 )
+    LeftGear:propDrag( 0 )
+    
+    #Accumulator adjustments
+    DriveAccumMax = (DriveAccumRate ? DriveAccumMax / DriveAccumRate : 0)
+    SteerAccumDecay = 1 - SteerAccumDecay
+}
+
+#Calculations executing every other tick
+interval(30)
+
+if(!Crank:isPlayerHolding()) {
+    
+    #Gear ratio
+    local GearRatio = Ratio[Gear,number]
+    
+    #Crank speed and "gear" speeds
+    local CrankAV = Crank:angVelVector()[CrankAxis]
+    CrankRPM = CrankAV / 6
+    
+    local RightAV = RightGear:angVelVector()[GearAxis]
+    local RightAVDir = RightAV * GearDirection[2]
+    RightRPM = RightAV / 6
+    local RightExists = RightGear:isValid()
+    
+    local LeftAV = LeftGear:angVelVector()[GearAxis]
+    local LeftAVDir = LeftAV * GearDirection[1]
+    LeftRPM = LeftAV / 6
+    local LeftExists = LeftGear:isValid()
+    
+    
+    #Clutch for right and left "gears", as well as a separate crankshaft clutch
+    local RightClutchMul = clamp(1 - RightClutch, 0, 1) ^ ClutchPower
+    local LeftClutchMul = clamp(1 - LeftClutch, 0, 1) ^ ClutchPower
+    local PrimaryClutchMul = 0
+    
+    
+    #Differential multipliers
+    local RightDiff = (1 - Steer) * GearDirection[2]
+    local LeftDiff = (1 + Steer) * GearDirection[1]
+    
+    #Neutral steering
+    if(GearRatio==0) {RightDiff = -Steer * GearDirection[2], LeftDiff = Steer * GearDirection[1]}
+    
+    
+    #Initializing ratios, inertias, and output speed out of gear
+    local RightRatio = 1
+    local LeftRatio = 1
+    
+    local FullRight = StockInertia, local FullLeft = StockInertia
+    RightInertia=LeftInertia = StockInertia
+    
+    local OutAV = (RightAVDir + LeftAVDir) / 2
+    
+    
+    #In gear
+    if(Ratio:exists(Gear)) {
+        
+        #Adjustment for pivoting
+        TotalRatio = (GearRatio ? GearRatio : 1) * (->CVTRatio ? CVTRatio : 1) * FinalDrive
+        
+        #Ratio for right and left "gears"
+        RightRatio = TotalRatio * RightDiff
+        LeftRatio = TotalRatio * LeftDiff
+        
+        #"Gear" inertias based on current ratio
+        FullRight = GearInertia / clamp(abs(RightRatio), 1 / GearInertiaMax, GearInertiaMax)
+        RightInertia += (FullRight - StockInertia) * RightClutchMul
+        
+        FullLeft = GearInertia / clamp(abs(LeftRatio), 1 / GearInertiaMax, GearInertiaMax)
+        LeftInertia += (FullLeft - StockInertia) * LeftClutchMul
+        
+        
+        #Separate primary clutch
+        PrimaryClutchMul = clamp(1 - Clutch, 0, 1) ^ ClutchPower
+        
+        #Difference between average "gear" speed and reduced engine speed
+        local DiffAV = (CrankAV * TotalRatio - OutAV) * PrimaryClutchMul
+        
+        #Error speed accumulator
+        local AccMul = abs(GearRatio==0 ? Steer : TotalRatio) * DriveAccumRate
+        DriveAccMax = AccMul * DriveAccumMax * PrimaryClutchMul
+        DriveAcc = clamp(DriveAcc + DiffAV * AccMul, -DriveAccMax, DriveAccMax)
+        
+        #Target average speed
+        OutAV += DiffAV + DriveAcc
+    }
+    
+    
+    #Angular velocity difference, considering gear ratio, for the right and left "gears"
+    local RightError = OutAV * RightDiff - RightAV
+    local LeftError = OutAV * LeftDiff - LeftAV
+    
+    #Cross drive stuff
+    local CDRatio = RightError * GearDirection[2] - LeftError * GearDirection[1]
+    
+    #Steering accumulator
+    SteerAccMax = abs(OutAV)
+    SteerAcc = 0 + clamp(SteerAcc + CDRatio * SteerAccumRate, -SteerAccMax, SteerAccMax) * SteerAccumDecay
+    CDRatio += SteerAcc
+    
+    #Solution
+    local RightSol = (RightError + (CDRatio * GearDirection[2]) - RightAV * max(RightBrake, 0)) * InertiaMul * FullRight * RightClutchMul * RightExists
+    local LeftSol = (LeftError - (CDRatio * GearDirection[1]) - LeftAV * max(LeftBrake, 0)) * InertiaMul * FullLeft * LeftClutchMul * LeftExists
+    
+    #Slip debug
+    RightSlip = RightError / 6
+    LeftSlip = LeftError / 6
+    
+    
+    #Total torque and brakes
+    RightTorque = RightSol
+    LeftTorque = LeftSol
+    CrankTorque = -(RightSol * RightRatio + LeftSol * LeftRatio) * PrimaryClutchMul
+    
+    
+    #Set inertia and apply the torque!
+    local RightTorqueVector = RightTorque * GearVec
+    RightGear:propInertia( vec(RightInertia) )
+    RightGear:applyTorque( RightTorqueVector )
+    
+    local LeftTorqueVector = LeftTorque * GearVec
+    LeftGear:propInertia( vec(LeftInertia) )
+    LeftGear:applyTorque( LeftTorqueVector )
+    
+    
+    #Apply the opposite torque!
+    Crank:applyTorque(CrankTorque * CrankVec)
+    Base:applyTorque( Base:toLocalAxis( RightGear:toWorldAxis(-RightTorqueVector) + LeftGear:toWorldAxis(-LeftTorqueVector) ) )
+}
+
+OpsCPUus = vec2(ops(), cpuUsage()*1000000)

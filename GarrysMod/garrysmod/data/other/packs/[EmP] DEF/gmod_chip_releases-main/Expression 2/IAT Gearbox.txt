@@ -1,0 +1,77 @@
+@name IAT Gearbox
+@inputs Clutch Gear CVTRatio
+@outputs GearboxInfo:table Ratio:array
+@persist ClutchPower
+
+if(first() | dupefinished()) {
+    
+    local R = 0
+    Ratio = array()
+    local FinalDrive = 0
+    
+    
+    # # # # # # # # # # # # # # #
+    
+    
+    #[
+    
+        Instructions:
+        
+        This chip gives extra information to Wheel Assemblies.
+        
+        < Clutch, Gear, CVTRatio > all go to your control chip of choice.
+    
+    ]#
+    
+    
+        #~ Misc ~#
+    
+    ClutchPower = 3         # Offsets how the clutch engages using exponent.
+    
+        #~ Gear ratios ~#
+    
+    Ratio[-1,number] = 0
+    R++, Ratio[R,number] = 1/5
+    R++, Ratio[R,number] = 2/5
+    R++, Ratio[R,number] = 3/5
+    R++, Ratio[R,number] = 4/5
+    R++, Ratio[R,number] = 1.0
+    R++, Ratio[R,number] = -1/4
+    R++, Ratio[R,number] = -2/4
+    R++, Ratio[R,number] = -3/5
+    
+#[    Ratio[-1,number] = 0
+    Ratio[1,number] = 1.0
+    Ratio[2,number] = -1.0]#
+    
+    FinalDrive = 0.5      # Multiplier for all ratios.
+    
+    
+    # # # # # # # # # # # # # # #
+    
+    
+    # Cleanup Ratio entries
+    foreach(K:number, GR:number = Ratio) { Ratio[K,number] = GR * FinalDrive }
+    
+    # Initialization
+    if(Ratio:exists(Gear)) { GearboxInfo["TotalRatio",number] = Ratio[Gear,number] * (->CVTRatio ? CVTRatio : 1) }
+    else { GearboxInfo["TotalRatio",number] = 0 }
+    
+    GearboxInfo["Clutch",number] = Clutch
+}
+
+# Set gear ratio and clutch
+event input(InputName:string) {
+    
+    if(Ratio:exists(Gear)) {
+        GearboxInfo["TotalRatio",number] = Ratio[Gear,number] * (->CVTRatio ? CVTRatio : 1)
+        GearboxInfo["Neutral",number] = (Ratio[Gear,number] == 0)
+    }
+    
+    else {
+        GearboxInfo["TotalRatio",number] = 0
+        GearboxInfo["Neutral",number] = 0
+    }
+    
+    GearboxInfo["Clutch",number] = clamp(1 - Clutch, 0, 1) ^ ClutchPower
+}

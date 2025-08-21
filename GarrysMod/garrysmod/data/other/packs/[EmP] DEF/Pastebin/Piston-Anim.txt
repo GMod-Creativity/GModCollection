@@ -1,0 +1,155 @@
+@name Piston Anim r10
+@inputs [Origin1]:entity
+@inputs [Target1]:entity
+@inputs [Shaft1]:entity
+@inputs [Piston1]:entity
+@persist PistonCount [Axis OriginOffset TargetOffset Origin Target Angling Moving]:array
+@trigger none
+
+#[
+    
+    Instructions:
+    
+        The orientation of the E2 does not matter!
+    
+        You need to add entity inputs so that the expression knows:
+        
+            1. What entity to track from, identified as Origin[P,entity]
+            2. What entity to track, identified as Target[P,entity]
+            3. What gate to parent that looks at the tracked entity, identified as Angling[P,entity]
+            4. What gate to parent that moves to the tracked entity, identified as Moving[P,entity]
+        
+    I.E.
+    
+        @inputs [Origin1 Origin2]:entity
+        @inputs [Target1 Target2]:entity
+        @inputs [Shaft1 Shaft2]:entity
+        @inputs [Piston1 Piston2]:entity
+    
+        It may be easier to write your inputs like this to keep track of what's what.
+        
+        Also, the E2 will setPos and setAng your Angling and Moving entities, even if you didn't set Parent yet!
+    
+]#
+
+if(first() | dupefinished()) {
+    
+    local P = 0
+        
+        #~ Calibration ~#
+        
+    ShowHolos = 1           #Show debug holos?
+    
+        #~ Specifications ~#
+        
+#[
+    
+    This is what a piston looks like:
+    
+    P++
+    OriginOffset[P,vector] = vec(0, 0, 6)
+    TargetOffset[P,vector] = vec(0, 0, 0)
+    Axis[P,vector] = vec(0, 1, 0)
+    
+    Origin[P,entity] = Origin1
+    Target[P,entity] = Target1
+    Angling[P,entity] = Shaft1
+    Moving[P,entity] = Piston1
+    
+    >OriginOffset[P,vector]< is an offset, relative to Origin[P,entity], the the piston starts from.
+    
+    >TargetOffset[P,vector]< is an offset, relative to Target[P,entity], the the piston ends at.
+    
+    >Axis[P,vector]< is needed to prevent what I can only describe as gimbal lock. Pick an axis, relative to Origin[P,entity],
+    that the piston pivots around for the best results.
+    
+]#
+    
+    P++
+    OriginOffset[P,vector] = vec(0, 0, 6)
+    TargetOffset[P,vector] = vec(0, 0, 0)
+    Axis[P,vector] = vec(0, 1, 0)
+    
+    Origin[P,entity] = Origin1
+    Target[P,entity] = Target1
+    Angling[P,entity] = Shaft1
+    Moving[P,entity] = Piston1
+    
+    Parent = 0                  #Parents the Angling and Moving entities. Master caution.
+    
+    
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    
+    
+    PistonCount = Origin:count()
+    
+    for(I=1, PistonCount, 1) {
+        
+        #Angle and position updating holos
+        local OriginEnt = Origin[I,entity]
+        local TargetEnt = Target[I,entity]
+        local TargCoords = TargetEnt:toWorld( TargetOffset[I,vector] )
+        local CoordsRelBase = OriginEnt:toLocal( TargCoords )
+        
+        
+        #Piston_Angle holo
+        local PistonHolo = holoCreate(I, OriginEnt:toWorld( OriginOffset[I,vector] ), vec(1/6), ang(), vec4(255 * ShowHolos), "cube")
+        holoParent(I, OriginEnt)
+        
+        #Calculating once
+        local PitchTo = OriginEnt:toWorld( (CoordsRelBase - OriginOffset[I,vector]):toAngle(Axis[I,vector]) )
+        holoAng(I, PitchTo)
+        
+        
+        #Piston_Moving holo
+        local SlidingHolo = holoCreate(I + 100, TargCoords, vec(1/6), PistonHolo:angles(), vec4(255 * ShowHolos), "cube")
+        holoParent(I + 100, I)
+        
+        #Calculating once
+        local DistanceTo = PistonHolo:pos():distance( TargCoords )
+        holoPos(I + 100, PistonHolo:toWorld( vec( DistanceTo, 0, 0) ))
+        
+        #Little quality of life feature; unfortunately, you cannot parent the gates instantly
+        Angling[I,entity]:deparent()
+        Moving[I,entity]:deparent()
+        
+        Angling[I,entity]:propFreeze(1)
+        Moving[I,entity]:propFreeze(1)
+        
+        Angling[I,entity]:setPos(PistonHolo:pos())
+        Angling[I,entity]:setAng(PistonHolo:angles())
+        
+        Moving[I,entity]:setPos(SlidingHolo:pos())
+        Moving[I,entity]:setAng(PistonHolo:angles())
+        
+        if(Parent) {timer("Parent", 45)}
+    }
+}
+
+
+#Parenting the gates after a delay
+if(clk("Parent")) {
+    
+    for(I=1, PistonCount, 1) {
+        Angling[I,entity]:parentTo(holoEntity(I))
+        Moving[I,entity]:parentTo(holoEntity(I + 100))
+    }
+    
+    print("Animation gates parented!")
+}
+
+
+interval(105)
+
+
+#Updating angle and position
+for(I=1, PistonCount, 1) {
+    
+    local OriginEnt = Origin[I,entity]
+    local TargCoords = Target[I,entity]:toWorld( TargetOffset[I,vector] )
+    
+    #Angle holo
+    local PistonHolo = holoEntity(I)
+    holoAng(I, OriginEnt:toWorld( (OriginEnt:toLocal(TargCoords) - OriginOffset[I,vector]):toAngle(Axis[I,vector]) ))
+    holoPos(I + 100, PistonHolo:toWorld( vec( PistonHolo:pos():distance(TargCoords), 0, 0) ))
+}

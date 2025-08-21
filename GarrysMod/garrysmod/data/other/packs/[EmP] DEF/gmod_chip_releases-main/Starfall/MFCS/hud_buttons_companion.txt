@@ -1,0 +1,136 @@
+--@name mfcs/HUD Buttons Companion
+--@author DEF
+--@server
+
+local Func = {}
+
+local function Empty() end
+local AddOutput = Empty; local BoolToNumber = Empty
+
+-- # # # # # # # # # # # # # # # --
+
+--[[
+    Instructions:
+        
+        Wire an output from your HUD buttons chip to this chip.
+        
+        Make sure to wire up any additional outputs you make!
+]]
+
+local function UserSettings()
+    
+    -- # Outputs
+    
+    --[[
+        You can add an output like this:
+        
+            AddOutput("EngActive", "Number")
+        
+        The first string is the name of the output, the second is the type, most-likely Number.
+    ]]
+    
+    AddOutput("SystemActive", "Number")
+    AddOutput("LightsActive", "Number")
+    AddOutput("DieselActive", "Number")
+    AddOutput("TurbineActive", "Number")
+    AddOutput("VoltageLimit", "Number")
+    AddOutput("MaxForward", "Number")
+    AddOutput("MaxReverse", "Number")
+    
+    -- # Functions
+    
+    --[[
+        You can make a function that works with HUD buttons like this:
+        
+            Func["ENG-IGNITION"] = function(Down)
+                wire.ports.EngActive = BoolToNumber(Down)
+            end
+        
+        Func["ENG-IGNITION"]
+            Every function must be preceeded with < Func >. Inside the square brackets is the
+            ID you expect to get from HUD buttons; this one is linked to the < IGNITION > button
+            in the < ENG > panel, therefore the ID is < ENG-IGNITION >.
+        
+        function(Down) ... end
+            This is how you make a function, make sure you set your function equal to this, I.E.
+                Func["ENG-IGNITION"] = function(Down) ... end
+            We have < Down > as an input, that will tell us the button's state.
+        
+        In this example; I am setting the output < EngActive > to 1 if < Down > is true, and
+        0 if < Down > is false like this:
+            wire.ports.EngActive = BoolToNumber(Down)
+    ]]
+    
+    Func["AUX-SYSTEM"] = function(Down)
+        wire.ports.SystemActive = BoolToNumber(Down)
+    end
+    
+    Func["AUX-LIGHTS"] = function(Down)
+        wire.ports.LightsActive = BoolToNumber(Down)
+    end
+    
+    Func["ENG-DIESEL"] = function(Down)
+        wire.ports.DieselActive = BoolToNumber(Down)
+    end
+    
+    Func["ENG-TURBINE"] = function(Down)
+        wire.ports.TurbineActive = BoolToNumber(Down)
+    end
+    
+    Func["TRN-HI-POWER"] = function(Down)
+        if Down then
+            wire.ports.VoltageLimit = 140
+        else
+            wire.ports.VoltageLimit = 70
+        end
+    end
+    
+    Func["TRN-HI-RANGE"] = function(Down)
+        if Down then
+            wire.ports.MaxForward = 2
+            wire.ports.MaxReverse = 2
+        else
+            wire.ports.MaxForward = 1
+            wire.ports.MaxReverse = 1
+        end
+    end
+end
+
+-- # # # # # # # # # # # # # # # --
+
+local Outputs = {}; local OutputTypes = {}
+
+-- Set-up helpers
+do
+    function AddOutput(Name, Type)
+        if Outputs[Name] then return end
+        table.insert(Outputs, Name)
+        table.insert(OutputTypes, Type)
+    end
+    
+    function BoolToNumber(Bool)
+        if Bool then
+            return 1
+        else
+            return 0
+        end
+    end
+end
+
+UserSettings()
+
+local Initialize = Empty; local OnVisualButtons = Empty
+    
+-- Startup
+function Initialize()
+    wire.adjustOutputs(Outputs, OutputTypes)
+    hook.add("remote", "vb", OnVisualButtons)
+end
+
+-- Run function on visual button
+function OnVisualButtons(Starfall, Player, Name, Val)
+    if Func[Name] then Func[Name](Val) end
+end
+
+-- Call startup
+Initialize()

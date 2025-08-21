@@ -1,6 +1,6 @@
 - Author: Δp (pizza)
 - Steam Profile: https://steamcommunity.com/profiles/76561198433374055
-
+<!-- -->
 - Title: x86 Emulator Optimized
 - Date (dd-mm-yyyy): 21-06-2022
 - Source: Wiremod Discord

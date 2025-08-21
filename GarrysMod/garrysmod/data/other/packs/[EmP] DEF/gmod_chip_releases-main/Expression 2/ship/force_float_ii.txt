@@ -1,0 +1,148 @@
+@name ship/Force Float II
+@inputs Base:entity Anchor
+@outputs Pitch Roll Height Debug
+@persist MMU:table
+
+if(duped() | dupefinished()) { reset() }
+
+if(first() | dupefinished()) {
+    
+    MMU = table()
+    local ShowHolos = 0, local OriginHeight = 0, local Distance = 0
+    local ForceMul = 0, local ForceDMul = 0, local AnchorForce = 0, local AnchorDamping = 0
+    local PitchMul = 0, local PitchDMul = 0, local RollMul = 0, local RollDMul = 0, 
+    local AlignAng = ang()
+    Pitch=Roll=Height = 0
+    
+    # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    
+    local UserSettings = function() {
+        
+        # General
+        
+        ShowHolos = 0
+        
+        AlignAng = ang(0, 0, -90)      # Alignment angle
+        
+        OriginHeight = 100      # Ranger origin height offset
+        
+        Distance = 20          # Ranger max range
+        
+        # Forces
+        
+        ForceMul = 600          # Constant
+        
+        ForceDMul = 150         # Damping
+        
+        # Constants
+        PitchMul = 10 * 2000
+        
+        RollMul = 10 * 600
+        
+        # Dampings
+        PitchDMul = 2 * 2000
+        
+        RollDMul = 2 * 600
+        
+        # Anchor
+        AnchorForce = 5
+        
+        AnchorDamping = 0.5
+    }
+    
+    # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    
+    # Manager
+    if(1) {
+        local M_Holo = noentity(), local M_Up = vec(0, 0, 1)
+        local M_RangerOrigin = vec(), local M_AnchorPos = vec()
+        
+        local M_Force = vec(), local M_Torque = vec()
+        local M_TorqueMul = vec(), local M_TorqueDMul = vec()
+        
+        # Setup
+        MMU["Initialize",function] = function() {
+            M_Holo = holoCreate(
+                1,
+                Base:pos(),
+                vec(1),
+                Base:toWorld(AlignAng),
+                vec4(255) * ShowHolos,
+                "models/sprops/misc/origin.mdl"
+            )
+            M_Holo:parentTo(Base)
+            
+            if(ShowHolos) {
+                holoCreate(
+                    2,
+                    M_Holo:toWorld(vec(0, 0, OriginHeight)),
+                    vec(1, 1, 1),
+                    M_Holo:angles(),
+                    vec4(255, 0, 0, 255),
+                    "sphere"
+                )
+                holoParent(2, Base)
+                
+                holoCreate(
+                    3,
+                    M_Holo:toWorld(vec(0, 0, -Distance)),
+                    vec(24, 24, 0.1),
+                    M_Holo:angles(),
+                    vec4(255),
+                    "cube"
+                )
+                holoParent(3, Base)
+            }
+            
+            rangerPersist(1)
+            rangerHitWater(1)
+            rangerIgnoreWorld(1)
+            rangerHitEntities(0)
+            
+            M_RangerOrigin = vec(0, 0, OriginHeight)
+            Distance += OriginHeight
+            
+            M_TorqueMul = positive(vec(RollMul, PitchMul, 0):rotate(AlignAng))
+            M_TorqueDMul = positive(vec(RollDMul, PitchDMul, 0):rotate(AlignAng))
+        }
+        
+        # Running loop
+        MMU["UpdateForce",function] = function() {
+            local Ranger = rangerOffset(Distance, M_Holo:toWorld(M_RangerOrigin), M_Holo:toWorldAxis(vec(0, 0, -1)))
+            
+            if(!Ranger:hit()) { Height = Distance }
+            else { Height = Ranger:distance() }
+            
+            local Angs = M_Holo:angles()
+            Pitch = Angs[1], Roll = Angs[3]
+            
+            M_Force = max((Distance - Height) * ForceMul - Base:vel()[3] * ForceDMul, 0) * M_Up
+            M_Torque = vec(-Roll, -Pitch, 0):rotate(AlignAng) * M_TorqueMul - Base:angVelVector() * M_TorqueDMul
+            
+            if(Anchor) {
+                M_Force += (M_AnchorPos - Base:pos()) * AnchorForce - Base:vel():setZ(0) * AnchorDamping
+            }
+        }
+        
+        # Events
+        MMU["ApplyForce",function] = function() {
+            Base:applyForce(M_Force)
+            Base:applyTorque(M_Torque)
+        }
+        
+        MMU["Anchor",function] = function() {
+            if(Anchor) { M_AnchorPos = Base:pos() }
+        }
+    }
+    
+    UserSettings()
+    MMU["Initialize",function]()
+}
+
+timer("system-loop", 0.150, 0, MMU["UpdateForce",function])
+
+event tick() { MMU["ApplyForce",function]() }
+
+event input(InputName:string) {
+    if(InputName == "Anchor") { MMU["Anchor",function]() }
+}

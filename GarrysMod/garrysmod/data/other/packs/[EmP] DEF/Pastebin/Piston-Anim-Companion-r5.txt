@@ -1,0 +1,1330 @@
+@name Piston Anim Companion r5
+@inputs Entities:array Loadable:table
+@outputs 
+@persist [DynaTab BoundTab EntitiesLUT Holo Print Prop State]:table
+@persist HoloSize [NextGroup PreviousGroup BaseKey TargetKey HingeKey OriginKey ClearHingeKey]:string SelectionCol:vector CurGroup ForceHoloUpdate
+@persist [Global HoloCol]:array
+@trigger none
+
+if(first() | dupefinished()) {
+    
+    
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    
+    
+    #[
+    
+        Commands:
+            
+            load (Load existing assemblies from main e2.)
+            
+            reserve (Make slots for assemblies.)
+            
+            refresh (Rebuild look-up table for matching entities in advanced entity marker.)
+            
+            save (Save positions of everything in the advanced entity marker.)
+            
+            select (Select one, or multiple assemblies to make changes to.)
+                
+                select all
+                
+                select none
+                
+                select 1
+                
+                select 1,2,3...
+                
+                select 1-9
+            
+            copy (perameter, from assembly. Applies to ALL selected.)
+            
+            < hingepos, sliderpos, originpos, targetpos, hingeang, sliderang, axis, all >
+            
+                copy originpos 5
+                
+                copy hingeang 1
+                
+                copy axis 8
+                
+                copy hingepos 4
+            
+            preview (Move and orient hinges and sliders to preview settings.)
+            
+            print (Write settings in chat for main e2. Takes a while.)
+            
+            cleanup (Despawn helper props.)
+    
+    ]#
+    
+        #~ General ~#
+    
+    NextGroup = "Right"      #Select previous assembly
+    
+    PreviousGroup = "Left"      #Select next assembly
+    
+    BaseKey = "B"       #Select origin entity
+    
+    TargetKey = "T"     #Select tracked entity
+    
+    HingeKey = "G"      #Select hinge(s)
+    
+    OriginKey = "H"     #Press this to bring your origin offset for the selected assembly to your hinge
+    
+    ClearHingeKey = "Up"     #Clear hinges
+    
+        #~ Holo ~#
+    
+    SelectionCol = vec(255, 255, 255)       #Selected holo's color
+    
+    HoloSize = 6        #Size of holos
+    
+    
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    
+    
+    DynaTab = table()
+    BoundTab = table()
+    Holo = table()
+    Print = table()
+    Prop = table()
+    State = table()
+    EntitiesLUT = invert(Entities)
+    Global = array()
+    HoloCol = array()
+    
+    Holo["Status",string] = "Done"
+    Holo["UpdateHolos",array] = array()
+    Holo["PropChildren",array] = array()
+    Holo["GlobalLUT",table] = table()
+    
+    Print["Status",string] = "Done"
+    Print["ActiveTable",table] = table()
+    
+    Prop["ActiveTable",table] = table()
+    Prop["Status",string] = "Done"
+    Prop["Spawned",array] = array()
+    Prop["Descriptor",array] = array()
+    
+    CurGroup = 0
+    
+    HoloSize /= 12
+    
+    #Save positions and agnles of everything in the advanced entity marker
+    for(I=1, Entities:count(), 1) {
+        local Ent = Entities[I,entity]
+        State[I,array] = array(Ent:pos(), Ent:angles())
+    }
+    
+    #Position holos above their selected entity without them being inside of each other
+    function void sortHolos() {
+        
+        local PropChildren = array()
+        
+        for(I=1, DynaTab:count(), 1) {
+            
+            local ActiveTab = DynaTab[I,table]
+            
+            #Origin
+            local Ind = 1 + (I-1) * 4
+            if(holoEntity(Ind):isValid()) {
+                
+                local MasterInd = ActiveTab["OriginEnt",number]
+                PropChildren[MasterInd,number] = PropChildren[MasterInd,number] + 1
+                
+                holoPos(Ind, Entities[MasterInd,entity]:pos() + vec(0, 0, 12 * PropChildren[MasterInd,number]))
+            }
+            
+            #Target
+            Ind++
+            if(holoEntity(Ind):isValid()) {
+                
+                local MasterInd = ActiveTab["TargetEnt",number]
+                PropChildren[MasterInd,number] = PropChildren[MasterInd,number] + 1
+                
+                holoPos(Ind, Entities[MasterInd,entity]:pos() + vec(0, 0, 12 * PropChildren[MasterInd,number]))
+            }
+            
+            #Hinge
+            Ind++
+            if(holoEntity(Ind):isValid()) {
+                
+                local MasterInd = ActiveTab["HingeEnt",number]
+                PropChildren[MasterInd,number] = PropChildren[MasterInd,number] + 1
+                
+                holoPos(Ind, Entities[MasterInd,entity]:pos() + vec(0, 0, 12 * PropChildren[MasterInd,number]))
+            }
+            
+            #Slider
+            Ind++
+            if(holoEntity(Ind):isValid()) {
+                
+                local MasterInd = ActiveTab["SliderEnt",number]
+                PropChildren[MasterInd,number] = PropChildren[MasterInd,number] + 1
+                
+                holoPos(Ind, Entities[MasterInd,entity]:pos() + vec(0, 0, 12 * PropChildren[MasterInd,number]))
+            }
+        }
+    }
+    
+    #Visual aids
+    function void spawnHolos() {
+        
+        switch(Holo["Status",string]) {
+            
+            #Remove all holos
+            case "Done",
+            
+            #holoDeleteAll()
+            
+            Holo["Group",number] = 0
+            Holo["GlobalLUT",table] = invert(Global)
+            Holo["Status",string] = "Building"
+            
+            timer("HoloSpawn", 15)
+            
+            break
+            
+            #Spawn holos
+            case "Building",
+            
+            Holo["Group",number] = Holo["Group",number] + 1
+            local Ind = Holo["Group",number]
+            
+            local IsSelected = 0
+            if(Global:count()) {IsSelected = Holo["GlobalLUT",table]:exists(Ind:toString())}
+            else {IsSelected = (CurGroup == Ind)}
+            
+            local Col = (IsSelected ? SelectionCol : HoloCol[Ind,vector])
+            
+            #Only update this group if it needs it
+            if(Holo["UpdateHolos",array][Ind,number] == 1) {
+                
+                local ActiveTab = DynaTab[Ind,table]
+                
+                # # # Origin
+                local HoloInd = 1 + ((Ind - 1) * 4)
+                if(ActiveTab:exists("OriginEnt")) {
+                    
+                    local Ent = Entities[ActiveTab["OriginEnt",number],entity]
+                    holoCreate(HoloInd, Ent:pos() + vec(0, 0, 12), vec(HoloSize), ang(), vec4(Col, 255), "cube")
+                    holoDisableShading(HoloInd, 0)
+                    if(IsSelected) {holoDisableShading(HoloInd, 1)}
+                }
+                else {holoDelete(HoloInd)}
+                
+                # # # Target
+                HoloInd++
+                if(ActiveTab:exists("TargetEnt")) {
+                    
+                    local Ent = Entities[ActiveTab["TargetEnt",number],entity]
+                    holoCreate(HoloInd, Ent:pos() + vec(0, 0, 12), vec(HoloSize), ang(), vec4(Col, 255), "rcube")
+                    holoDisableShading(HoloInd, 0)
+                    if(IsSelected) {holoDisableShading(HoloInd, 1)}
+                }
+                else {holoDelete(HoloInd)}
+                
+                # # # Hinge
+                HoloInd++
+                if(ActiveTab:exists("HingeEnt")) {
+                    
+                    local Ent = Entities[ActiveTab["HingeEnt",number],entity]
+                    holoCreate(HoloInd, Ent:pos() + vec(0, 0, 12), vec(HoloSize), ang(), vec4(Col, 255), "cone")
+                    holoDisableShading(HoloInd, 0)
+                    if(IsSelected) {holoDisableShading(HoloInd, 1)}
+                }
+                else {holoDelete(HoloInd)}
+                
+                # # # Slider
+                HoloInd++
+                if(ActiveTab:exists("SliderEnt")) {
+                    
+                    local Ent = Entities[ActiveTab["SliderEnt",number],entity]
+                    holoCreate(HoloInd, Ent:pos() + vec(0, 0, 12), vec(HoloSize), ang(), vec4(Col, 255), "cylinder")
+                    holoDisableShading(HoloInd, 0)
+                    if(IsSelected) {holoDisableShading(HoloInd, 1)}
+                }
+                else {holoDelete(HoloInd)}
+            }
+            
+            Holo["UpdateHolos",array][Ind,number] = 0
+            
+            if(Ind < DynaTab:count()) {
+                timer("HoloSpawn", 15)
+            }
+            
+            else {Holo["Status",string] = "Done", sortHolos()}
+            
+            break
+        }
+    }
+    
+    #Force every assembly's holos to update
+    function void forceHoloUpdate() {
+        
+        for(I=1, DynaTab:count(), 1) {
+            Holo["UpdateHolos",array][I,number] = 1
+        }
+    }
+    
+    #Save prop orientations or positions for assembly settings
+    function void savePropData() {
+        
+        local ActiveTab = DynaTab[CurGroup,table]
+        
+        local Base = Entities[ActiveTab["OriginEnt",number],entity]
+        local Hinge = Entities[ActiveTab["HingeEnt",number],entity]
+        local Slider = Entities[ActiveTab["SliderEnt",number],entity]
+        local Target = Entities[ActiveTab["TargetEnt",number],entity]
+        
+        for(I=1, Prop["Spawned",array]:count(), 1) {
+            
+            local TestString = Prop["Descriptor",array][I,string]
+            local Ent = Prop["Spawned",array][I,entity]
+            
+            if(Ent:isValid()) {
+                switch(TestString) {
+                    
+                    case "Axis",
+                    DynaTab[CurGroup,table]["Axis",vector] = Base:toLocalAxis(Ent:forward())
+                    break
+                    
+                    case "HingeAng",
+                    DynaTab[CurGroup,table]["HingeAng",angle] = Hinge:toLocal(Ent:angles())
+                    break
+                    
+                    case "SliderAng",
+                    DynaTab[CurGroup,table]["SliderAng",angle] = Slider:toLocal(Ent:angles())
+                    break
+                    
+                    case "HingePos",
+                    DynaTab[CurGroup,table]["HingePos",vector] = Hinge:toLocal(Ent:pos())
+                    break
+                    
+                    case "SliderPos",
+                    DynaTab[CurGroup,table]["SliderPos",vector] = Slider:toLocal(Ent:pos())
+                    break
+                    
+                    case "TargetPos",
+                    DynaTab[CurGroup,table]["TargetPos",vector] = Target:toLocal(Ent:pos())
+                    break
+                    
+                    case "OriginPos",
+                    DynaTab[CurGroup,table]["OriginPos",vector] = Base:toLocal(Ent:pos())
+                    break
+                }
+            }
+        }
+    }
+    
+    #Interactive aids
+    function void spawnProps() {
+        
+        local ActiveTab = Prop["ActiveTable",table]
+        
+        switch(Prop["Status",string]) {
+            
+            case "Done",
+            
+            Prop["Spawned",array]:propDelete()
+            Prop["Spawned",array] = array()
+            Prop["Descriptor",array] = array()
+            
+            if(!Global:count()) {
+                
+                Prop["ActiveTable",table] = DynaTab[CurGroup,table]
+                ActiveTab = Prop["ActiveTable",table]
+                
+                Prop["Status",string] = "Axis"
+                timer("PropDelay", 300)
+            }
+            
+            break
+            
+            # # # Axis direction
+            case "Axis",
+            
+            if(ActiveTab:exists("TargetEnt") & ActiveTab:exists("OriginEnt")) {
+                
+                local Base = Entities[ActiveTab["OriginEnt",number],entity]
+                
+                local SpawnPos = Entities[ActiveTab["TargetEnt",number],entity]:pos()
+                local SpawnAng = Base:toWorldAxis(ActiveTab["Axis",vector]):toAngle(vec(0, 0, 1))
+                
+                local Ent = propSpawn("models/props_junk/harpoon002a.mdl", SpawnPos, SpawnAng, 1)
+                Ent:setMaterial("sprops/textures/sprops_metal6")
+                
+                Prop["Spawned",array]:pushEntity(Ent)
+                Prop["Descriptor",array]:pushString("Axis")
+            }
+            
+            Prop["Status",string] = "HingeAng"
+            timer("PropDelay", 300)
+            
+            break
+            
+            # # # Hinge calibration angle
+            case "HingeAng",
+            
+            if(ActiveTab:exists("HingeEnt")) {
+                
+                local HingeEnt = Entities[ActiveTab["HingeEnt",number],entity]
+                
+                local SpawnPos = HingeEnt:pos() + vec(0, 0, 24)
+                local SpawnAng = HingeEnt:toWorld(ActiveTab["HingeAng",angle])
+                
+                local Ent = propSpawn("models/sprops/misc/origin.mdl", SpawnPos, SpawnAng, 1)
+                
+                Prop["Spawned",array]:pushEntity(Ent)
+                Prop["Descriptor",array]:pushString("HingeAng")
+            }
+            
+            Prop["Status",string] = "SliderAng"
+            timer("PropDelay", 300)
+            
+            break
+            
+            # # # Slider calibration angle
+            case "SliderAng",
+            
+            if(ActiveTab:exists("SliderEnt")) {
+                
+                local SliderEnt = Entities[ActiveTab["SliderEnt",number],entity]
+                
+                local SpawnPos = SliderEnt:pos() + vec(0, 0, 24)
+                local SpawnAng = SliderEnt:toWorld(ActiveTab["SliderAng",angle])
+                
+                local Ent = propSpawn("models/sprops/misc/origin.mdl", SpawnPos, SpawnAng, 1)
+                
+                Prop["Spawned",array]:pushEntity(Ent)
+                Prop["Descriptor",array]:pushString("SliderAng")
+            }
+            
+            Prop["Status",string] = "HingePos"
+            timer("PropDelay", 300)
+            
+            break
+            
+            # # # Hinge offset position
+            case "HingePos",
+            
+            if(ActiveTab:exists("HingeEnt")) {
+                
+                local SpawnPos = Entities[ActiveTab["HingeEnt",number],entity]:toWorld(ActiveTab["HingePos",vector])
+                
+                local Ent = propSpawn("models/sprops/geometry/sphere_3.mdl", SpawnPos, ang(), 1)
+                Ent:setMaterial("sprops/textures/sprops_metal6")
+                
+                Prop["Spawned",array]:pushEntity(Ent)
+                Prop["Descriptor",array]:pushString("HingePos")
+            }
+            
+            Prop["Status",string] = "SliderPos"
+            timer("PropDelay", 300)
+            
+            break
+            
+            # # # Slider offset position
+            case "SliderPos",
+            
+            if(ActiveTab:exists("SliderEnt")) {
+                
+                local SpawnPos = Entities[ActiveTab["SliderEnt",number],entity]:toWorld(ActiveTab["SliderPos",vector])
+                
+                local Ent = propSpawn("models/sprops/geometry/sphere_3.mdl", SpawnPos, ang(), 1)
+                Ent:setMaterial("sprops/textures/sprops_metal6")
+                
+                Prop["Spawned",array]:pushEntity(Ent)
+                Prop["Descriptor",array]:pushString("SliderPos")
+            }
+            
+            Prop["Status",string] = "TargetPos"
+            timer("PropDelay", 300)
+            
+            break
+            
+            # # # Target tracking offset position
+            case "TargetPos",
+            
+            if(ActiveTab:exists("TargetEnt")) {
+                
+                local Target = Entities[ActiveTab["TargetEnt",number],entity]
+                
+                local SpawnPos = Target:toWorld(ActiveTab["TargetPos",vector])
+                
+                local Ent = propSpawn("models/sprops/cylinders/size_1/cylinder_1_5x12.mdl", SpawnPos, ang(), 1)
+                Ent:setMaterial("sprops/textures/sprops_metal6")
+                
+                Prop["Spawned",array]:pushEntity(Ent)
+                Prop["Descriptor",array]:pushString("TargetPos")
+            }
+            
+            Prop["Status",string] = "OriginPos"
+            timer("PropDelay", 300)
+            
+            break
+            
+            # # # Hinge track from position
+            case "OriginPos",
+            
+            if(ActiveTab:exists("OriginEnt")) {
+                
+                local SpawnPos = Entities[ActiveTab["OriginEnt",number],entity]:toWorld(ActiveTab["OriginPos",vector])
+                
+                local Ent = propSpawn("models/sprops/rectangles_thin/size_0/rect_1_5x12x1_5.mdl", SpawnPos, ang(), 1)
+                Ent:setMaterial("sprops/textures/sprops_metal6")
+                
+                Prop["Spawned",array]:pushEntity(Ent)
+                Prop["Descriptor",array]:pushString("OriginPos")
+            }
+            
+            Prop["Status",string] = "Done"
+            
+            owner():soundPlay(1, 2, "ambient/energy/spark5.wav")
+            
+            break
+        }
+    }
+    
+    #Moves and angles piston assemblies to preview
+    function void pistonPreview() {
+        
+        local HingeHolo = holoCreate(998)
+        local SliderHolo = holoCreate(999)
+        
+        for(I=1, DynaTab:count(), 1) {
+            
+            local ActiveTab = DynaTab[I,table]
+            if(ActiveTab:exists("OriginEnt") & ActiveTab:exists("TargetEnt")) {
+                
+                local Base = Entities[ActiveTab["OriginEnt",number],entity]
+                local Target = Entities[ActiveTab["TargetEnt",number],entity]
+                
+                if(ActiveTab:exists("HingeEnt")) {
+                    
+                    local Ind = ActiveTab["HingeEnt",number]
+                    local Hinge = Entities[Ind,entity]
+                    
+                    local OriginPos = Base:toWorld(ActiveTab["OriginPos",vector])
+                    
+#[                    local OriginCorrection = Base:toLocal(OriginPos)
+                    local TargetCoordsLocal = Base:toLocal(Target:pos()) + ActiveTab["TargetPos",vector]
+                    ]#
+                    
+                    local TargetOffset = Target:toWorld(ActiveTab["TargetPos",vector])
+                    local AngToTarget = (TargetOffset - OriginPos):toAngle(Base:toWorldAxis(ActiveTab["Axis",vector]))
+                    
+                    holoAng(998, AngToTarget)
+                    holoPos(998, OriginPos)
+                    
+                    Hinge:propFreeze(1)
+                    Hinge:setAng(HingeHolo:toWorld( -ActiveTab["HingeAng",angle] ))
+                    Hinge:setPos(Hinge:toWorld(Hinge:toLocal(HingeHolo:pos()) + ActiveTab["HingePos",vector]))
+                    
+                    if(ActiveTab:exists("SliderEnt")) {
+                        
+                        local Ind = ActiveTab["SliderEnt",number]
+                        local Slider = Entities[Ind,entity]
+                        
+                        holoAng(999, AngToTarget)
+                        holoPos(999, TargetOffset)
+                        
+                        Slider:propFreeze(1)
+                        Slider:setAng(SliderHolo:toWorld( -ActiveTab["SliderAng",angle] ))
+                        Slider:setPos(Slider:toWorld(Slider:toLocal(SliderHolo:pos()) + ActiveTab["SliderPos",vector]))
+                    }
+                }
+            }
+        }
+        
+        holoDelete(998)
+        holoDelete(999)
+    }
+    
+    #Resets piston assemblies
+    function void pistonReset() {
+        
+        for(I=1, DynaTab:count(), 1) {
+            
+            local ActiveTab = DynaTab[I,table]
+            if(ActiveTab["HingeEnt",number]) {
+                
+                local Ind = ActiveTab["HingeEnt",number]
+                local Ent = Entities[Ind,entity]
+                local StateArr = State[Ind,array]
+                
+                Ent:propFreeze(1)
+                Ent:setAng(StateArr[2,angle])
+                Ent:setPos(StateArr[1,vector])
+            }
+            
+            if(ActiveTab["SliderEnt",number]) {
+                
+                local Ind = ActiveTab["SliderEnt",number]
+                local Ent = Entities[Ind,entity]
+                local StateArr = State[Ind,array]
+                
+                Ent:propFreeze(1)
+                Ent:setAng(StateArr[2,angle])
+                Ent:setPos(StateArr[1,vector])
+            }
+        }
+    }
+    
+    #Print settings for main e2
+    function void printInstructions() {
+        
+        switch(Print["Status",string]) {
+            
+            case "Done",
+            
+            Print["Status",string] = "Printing"
+            Print["Group",number] = 0
+            Print["Sub",string] = "Finished"
+            timer("PrintDelay", 750)
+            owner():soundPlay(2, 0, "ambient/levels/labs/equipment_printer_loop1.wav")
+            
+            break
+            
+            case "Printing",
+            
+            #[
+                
+            # - - - Assembly 1 - - - #
+            SubList = table()
+            SubList["Axis",vector] = vec(0, 1, 0)
+            
+            SubList["TargetOffset",vector] = vec(0, -8, 0)
+            SubList["OriginOffset",vector] = vec(30, -30, 0)
+            SubList["HingeOrigin",vector] = vec(0, 0, 0)
+            SubList["SliderOrigin",vector] = vec(0, 0, 0)
+            
+            SubList["HingeAng",angle] = ang(0, 0, 0)
+            SubList["SliderAng",angle] = ang(0, 0, 0)
+            
+            SubList["OriginInd",number] = 1
+            SubList["TargetInd",number] = 2
+            SubList["HingeInd",number] = 3
+            SubList["SliderInd",number] = 4
+            
+            BakedList:pushTable(SubList)
+            
+            ]#
+            
+            #Note: toChar(34) is > " <, which is important because you can't print it
+            local Q = toChar(34)
+            local ActiveTab = Print["ActiveTable",table]
+            
+            switch(Print["Sub",string]) {
+                
+                # # # Decide whether or not this is valid
+                case "Finished",
+                
+                Print["Group",number] = Print["Group",number] + 1
+                
+                Print["ActiveTable",table] = DynaTab[Print["Group",number],table]
+                ActiveTab = Print["ActiveTable",table]
+                
+                if(ActiveTab:exists("HingeEnt") & ActiveTab:exists("TargetEnt") & ActiveTab:exists("OriginEnt")) {
+                    Print["Sub",string] = "Type,Axis"
+                }
+                
+                break
+                
+                # # # Type and axis
+                case "Type,Axis",
+                
+                local Axis = ActiveTab["Axis",vector]
+                
+                print("# - - - Assembly " + Print["Group",number] + " - - - #")
+                print("SubList = table()")
+                print("SubList[" + Q + "Axis" + Q + ",vector] = vec(" + round(Axis[1], 3) + ", " + round(Axis[2], 3) + ", " + round(Axis[3], 3) + ")")
+                
+                Print["Sub",string] = "TrackOffsets"
+                
+                break
+                
+                # # # Tracking offsets
+                case "TrackOffsets",
+                
+                local OPos = ActiveTab["OriginPos",vector]
+                local TPos = ActiveTab["TargetPos",vector]
+                
+                print("SubList[" + Q + "TargetOffset" + Q + ",vector] = vec(" + round(TPos[1], 3) + ", " + round(TPos[2], 3) + ", " + round(TPos[3], 3) + ")")
+                print("SubList[" + Q + "OriginOffset" + Q + ",vector] = vec(" + round(OPos[1], 3) + ", " + round(OPos[2], 3) + ", " + round(OPos[3], 3) + ")")
+                
+                Print["Sub",string] = "Offsets"
+                
+                break
+                
+                # # # Position offsets
+                case "Offsets",
+                
+                local HPos = ActiveTab["HingePos",vector]
+                local SPos = ActiveTab["SliderPos",vector]
+                
+                print("SubList[" + Q + "HingeOrigin" + Q + ",vector] = vec(" + round(HPos[1], 3) + ", " + round(HPos[2], 3) + ", " + round(HPos[3], 3) + ")")
+                print("SubList[" + Q + "SliderOrigin" + Q + ",vector] = vec(" + round(SPos[1], 3) + ", " + round(SPos[2], 3) + ", " + round(SPos[3], 3) + ")")
+                
+                Print["Sub",string] = "Angles"
+                
+                break
+                
+                # # # Angle offsets
+                case "Angles",
+                
+                local HAng = ActiveTab["HingeAng",angle]
+                local SAng = ActiveTab["SliderAng",angle]
+                
+                print("SubList[" + Q + "HingeAng" + Q + ",angle] = ang(" + round(HAng[1], 3) + ", " + round(HAng[2], 3) + ", " + round(HAng[3], 3) + ")")
+                print("SubList[" + Q + "SliderAng" + Q + ",angle] = ang(" + round(SAng[1], 3) + ", " + round(SAng[2], 3) + ", " + round(SAng[3], 3) + ")")
+                
+                Print["Sub",string] = "Entities"
+                
+                break
+                
+                # # # Entities of interest
+                case "Entities",
+                
+                print("SubList[" + Q + "OriginInd" + Q + ",number] = " + ActiveTab["OriginEnt",number])
+                print("SubList[" + Q + "TargetInd" + Q + ",number] = " + ActiveTab["TargetEnt",number])
+                print("SubList[" + Q + "HingeInd" + Q + ",number] = " + ActiveTab["HingeEnt",number])
+                print("SubList[" + Q + "SliderInd" + Q + ",number] = " + ActiveTab["SliderEnt",number])
+                
+                Print["Sub",string] = "Push"
+                
+                break
+                
+                # # # Add to main table
+                case "Push",
+                
+                print("BakedList:pushTable(SubList)")
+                
+                Print["Sub",string] = "Finished"
+                
+                break
+            }
+            
+            #Keep going if there are more assemblies; stop if there aren't
+            if(Print["Sub",string] == "Finished") {
+                
+                if(Print["Group",number] < DynaTab:count()) {
+                    timer("PrintDelay", 15)
+                }
+                
+                else {
+                    Print["Status",string] = "Done"
+                    owner():soundPlay(2, 5, "ambient/energy/powerdown2.wav")
+                }
+            }
+            
+            #Keep going
+            else {timer("PrintDelay", 750)}
+            
+            break
+        }
+    }
+    
+    #Start / restart holo building
+    function void updateHolos() {
+        
+        stoptimer("HoloSpawn")
+        Holo["Status",string] = "Done"
+        spawnHolos()
+    }
+    
+    #Start / restart printing
+    function void updatePrint() {
+        
+        stoptimer("PrintDelay")
+        Print["Status",string] = "Done"
+        printInstructions()
+    }
+    
+    #Start / restart prop spawning
+    function void updateProps() {
+        
+        stoptimer("PropDelay")
+        Prop["Status",string] = "Done"
+        spawnProps()
+    }
+    
+    ForceHoloUpdate = 0
+    runOnKeys(owner(), 1)
+    runOnChat(1)
+}
+
+#Chat commands
+if(chatClk(owner())) {
+    
+    local Msg = lastSaid():lower()
+    local StrArr = Msg:explode(" ")
+    local Command = StrArr:string(1)
+    local Arg = StrArr:string(2)
+    
+    switch(Command) {
+        
+        # # # Load setup from existing table
+        case "load",
+        
+        hideChat(1)
+        DynaTab:clear()
+        HoloCol:clear()
+        
+        for(I=1, Loadable:count(), 1) {
+            
+            local SubTab = Loadable[I,table]
+            HoloCol:pushVector(randvec(0, 255))
+            
+            DynaTab:pushTable(
+                table(
+                    "Axis" = SubTab["Axis",vector],
+                    "HingePos" = SubTab["HingeOrigin",vector],
+                    "SliderPos" = SubTab["SliderOrigin",vector],
+                    "TargetPos" = SubTab["TargetOffset",vector],
+                    "OriginPos" = SubTab["OriginOffset",vector],
+                    "HingeAng" = SubTab["HingeAng",angle],
+                    "SliderAng" = SubTab["SliderAng",angle],
+                    "OriginEnt" = SubTab["OriginInd",number],
+                    "TargetEnt" = SubTab["TargetInd",number],
+                    "HingeEnt" = SubTab["HingeInd",number],
+                    "SliderEnt" = SubTab["SliderInd",number],
+                    "t_Link" = 1
+                )
+            )
+            
+            Holo["UpdateHolos",array][I,number] = 1
+        }
+        
+        CurGroup = 1
+        
+        print("Reserved " + Loadable:count() + " assembly slots.")
+        updateProps()
+        updateHolos()
+        
+        break
+        
+        # # # Manual entity marker LUT refresh
+        case "refresh",
+        
+        hideChat(1)
+        print("Made look-up for advanced entity marker!")
+        EntitiesLUT = invert(Entities)
+        
+        break
+        
+        # # # Manual position and orientation save
+        case "save",
+        
+        hideChat(1)
+        
+        #Save positions and agnles of everything in the advanced entity marker
+        State = table()
+        for(I=1, Entities:count(), 1) {
+            local Ent = Entities[I,entity]
+            State[I,array] = array(Ent:pos(), Ent:angles())
+        }
+        
+        break
+        
+        # # # Specify assembly count
+        case "reserve",
+        
+        hideChat(1)
+        
+        if(DynaTab:count()) {print("Added " + Arg + " assembly slots.")}
+        
+        else {
+            CurGroup = 1
+            print("Reserved " + Arg + " assembly slots.")
+        }
+        
+        #Default table
+        for(I=1, Arg:toNumber(), 1) {
+            
+            DynaTab:pushTable(
+                table(
+                    "Axis" = vec(0, 1, 0),
+                    "HingePos" = vec(0, 0, 0),
+                    "SliderPos" = vec(0, 0, 0),
+                    "TargetPos" = vec(0, 0, 0),
+                    "OriginPos" = vec(0, 0, 0),
+                    "HingeAng" = ang(0, 0, 0),
+                    "SliderAng" = ang(0, 0, 0),
+                    "t_Link" = 1
+                )
+            )
+            
+            HoloCol:pushVector(randvec(0, 255))
+        }
+        
+        break
+        
+        # # # Manual assembly selection / globally add entities to assemblies
+        case "select",
+        
+        savePropData()
+        ForceHoloUpdate = 1
+        
+        #Everything
+        if(Arg == "all") {
+            
+            hideChat(1)
+            Global:clear()
+            
+            #Hack to get around not being able to forech(K, V:table)
+            local Keys = DynaTab:keys()
+            foreach(K, V:number = Keys) {
+                Global:pushNumber(V)
+            }
+            
+            print("Switching to global mode, selected " + DynaTab:count() + " assemblies.")
+        }
+        
+        #Off
+        elseif(Arg == "none") {
+            
+            hideChat(1)
+            Global:clear()
+            
+            print("Switching to local mode.")
+        }
+        
+        #Select multiple, specific
+        elseif(Arg:find(",")) {
+            
+            hideChat(1)
+            local Selections = Arg:explode(",")
+            Global:clear()
+            
+            local ActuallySelected = 0
+            for(I=1, Selections:count(), 1) {
+                
+                local GlobalInd = Selections[I,string]:toNumber()
+                
+                if(DynaTab:exists(GlobalInd)) {
+                    ActuallySelected++
+                    Global:pushNumber(GlobalInd)
+                }
+            }
+            
+            print("Selected " + ActuallySelected + " assemblies.")
+        }
+        
+        #Select multiple, through
+        elseif(Arg:find("-")) {
+            
+            hideChat(1)
+            local Selections = Arg:explode("-")
+            Global:clear()
+            
+            local StartInd = Selections[1,string]:toNumber()
+            local EndInd = Selections[2,string]:toNumber()
+            
+            local ActuallySelected = 0
+            for(I=StartInd, EndInd, 1) {
+                
+                if(DynaTab:exists(I)) {
+                    ActuallySelected++
+                    Global:pushNumber(I)
+                }
+            }
+            
+            print("Selected " + ActuallySelected + " assemblies.")
+        }
+        
+        #Manual single selection
+        else {
+            
+            hideChat(1)
+            
+            CurGroup = Arg:toNumber()
+            
+            if(DynaTab:exists(CurGroup)) {
+                print("Assembly " + CurGroup)
+                BoundTab = DynaTab[CurGroup,table]
+                Global:clear()
+            }
+            
+            else {print("No assemblies to select!")}
+        }
+        
+        #Stop weird selection color spill overs
+        if(ForceHoloUpdate) {
+            forceHoloUpdate()
+            ForceHoloUpdate = 0
+        }
+        
+        updateHolos()
+        updateProps()
+        
+        break
+        
+        # # # Copy settings from an assembly to selected assemblies
+        case "copy",
+        
+        local TargetAssembly = StrArr:string(3)
+        
+        if(DynaTab:exists(TargetAssembly:toNumber())) {
+            
+            local CopyFrom = DynaTab[TargetAssembly:toNumber(),table]
+            local Selections = Global:count()
+            hideChat(1)
+            
+            switch(Arg) {
+                
+                # < hingepos, sliderpos, originpos, targetpos, hingeang, sliderang, axis, all >
+                
+                case "hingepos",
+                for(I=1, Selections, 1) {
+                    DynaTab[Global[I,number],table]["HingePos",vector] = CopyFrom["HingePos",vector]
+                }
+                break
+                
+                case "sliderpos",
+                for(I=1, Selections, 1) {
+                    DynaTab[Global[I,number],table]["SliderPos",vector] = CopyFrom["SliderPos",vector]
+                }
+                break
+                
+                case "originpos",
+                for(I=1, Selections, 1) {
+                    DynaTab[Global[I,number],table]["OriginPos",vector] = CopyFrom["OriginPos",vector]
+                }
+                break
+                
+                case "targetpos",
+                for(I=1, Selections, 1) {
+                    DynaTab[Global[I,number],table]["TargetPos",vector] = CopyFrom["TargetPos",vector]
+                }
+                break
+                
+                case "hingeang",
+                for(I=1, Selections, 1) {
+                    DynaTab[Global[I,number],table]["HingeAng",angle] = CopyFrom["HingeAng",angle]
+                }
+                break
+                
+                case "sliderang",
+                for(I=1, Selections, 1) {
+                    DynaTab[Global[I,number],table]["SliderAng",angle] = CopyFrom["SliderAng",angle]
+                }
+                break
+                
+                case "axis",
+                for(I=1, Selections, 1) {
+                    DynaTab[Global[I,number],table]["Axis",vector] = CopyFrom["Axis",vector]
+                }
+                break
+                
+                case "all",
+                for(I=1, Selections, 1) {
+                    
+                    local CurInd = Global[I,number]
+                    
+                    DynaTab[CurInd,table]["HingePos",vector] = CopyFrom["HingePos",vector]
+                    DynaTab[CurInd,table]["SliderPos",vector] = CopyFrom["SliderPos",vector]
+                    DynaTab[CurInd,table]["OriginPos",vector] = CopyFrom["OriginPos",vector]
+                    DynaTab[CurInd,table]["TargetPos",vector] = CopyFrom["TargetPos",vector]
+                    DynaTab[CurInd,table]["HingeAng",angle] = CopyFrom["HingeAng",angle]
+                    DynaTab[CurInd,table]["SliderAng",angle] = CopyFrom["SliderAng",angle]
+                    DynaTab[CurInd,table]["Axis",vector] = CopyFrom["Axis",vector]
+                }
+                break
+            }
+        }
+        
+        break
+        
+        # # # Move assemblies into a preview state
+        case "preview",
+        
+        if(Arg == "off") {
+            hideChat(1)
+            savePropData()
+            pistonReset()
+            forceHoloUpdate()
+            timer("PreviewDelay", 60)
+        }
+        
+        elseif(!Arg) {
+            hideChat(1)
+            savePropData()
+            pistonPreview()
+            forceHoloUpdate()
+            timer("PreviewDelay", 60)
+        }
+        
+        break
+        
+        # # # Print out settings for other e2
+        case "print",
+        hideChat(1)
+        savePropData()
+        updatePrint()
+        break
+        
+        # # # Despawn helper props
+        case "cleanup",
+        
+        hideChat(1)
+        
+        savePropData()
+        Prop["Spawned",array]:propDelete()
+        Prop["Spawned",array] = array()
+        Prop["Descriptor",array] = array()
+        owner():soundPlay(1, 2, "ambient/energy/zap9.wav")
+        
+        print("Hid helper props.")
+        
+        break
+        
+        # # # Debug
+        case "debug",
+        hideChat(1)
+        printTable(State)
+        break
+        
+    }
+}
+
+
+#Key commands
+if(keyClk(owner()) == 1 & DynaTab:count()) {
+    
+    local Selections = Global:count()
+    
+    if(!Selections) {
+        
+        #Stop weird selection color spill overs
+        if(ForceHoloUpdate) {
+            forceHoloUpdate()
+            ForceHoloUpdate = 0
+        }
+        
+        # # # Cycle groups
+        if(owner():keyPressed(NextGroup)) {
+            
+            Holo["UpdateHolos",array][CurGroup,number] = 1
+            savePropData()
+            CurGroup = (CurGroup < DynaTab:count() ? CurGroup + 1 : 1)
+            Holo["UpdateHolos",array][CurGroup,number] = 1
+            
+            print("Assembly " + CurGroup)
+            BoundTab = DynaTab[CurGroup,table]
+            
+            updateHolos()
+            updateProps()
+        }
+        
+        elseif(owner():keyPressed(PreviousGroup)) {
+            
+            Holo["UpdateHolos",array][CurGroup,number] = 1
+            savePropData()
+            CurGroup = (CurGroup > 1 ? CurGroup - 1 : DynaTab:count())
+            Holo["UpdateHolos",array][CurGroup,number] = 1
+            
+            print("Assembly " + CurGroup)
+            BoundTab = DynaTab[CurGroup,table]
+            
+            updateHolos()
+            updateProps()
+        }
+        
+        # # # Mark hinges
+        if(owner():keyPressed(HingeKey)) {
+            
+            local Ent = owner():aimEntity()
+            if(Ent:owner() == owner() & Ent != world()) {
+                
+                local StrEnt = Ent:toString()
+                
+                if(EntitiesLUT:exists(StrEnt)) {
+                    
+                    savePropData()
+                    #There can be up to two entities here; the hinge, and the slider
+                    if(BoundTab["t_Link",number] == 1) {
+                        
+                        BoundTab["HingeEnt",number] = EntitiesLUT[StrEnt,number]
+                        print("Made " + StrEnt + " the hinge entity for assembly " + CurGroup)
+                        
+                        BoundTab["t_Link",number] = 2
+                    }
+                    
+                    else {
+                        
+                        BoundTab["SliderEnt",number] = EntitiesLUT[StrEnt,number]
+                        print("Made " + StrEnt + " the slider entity for assembly " + CurGroup)
+                        
+                        BoundTab["t_Link",number] = 1
+                    }
+                    
+                    DynaTab[CurGroup,table] = BoundTab
+                    Holo["UpdateHolos",array][CurGroup,number] = 1
+                    updateHolos()
+                    updateProps()
+                }
+                
+                else {
+                    print("Either that is not linked to your advanced entity marker or you need to REFRESH the look-up!")
+                }
+            }
+        }
+        
+        # # # Clear hinges
+        if(owner():keyPressed(ClearHingeKey)) {
+            
+            savePropData()
+            
+            BoundTab:remove("HingeEnt")
+            BoundTab:remove("SliderEnt")
+            
+            print("Cleared hinges and sliders for assembly " + CurGroup)
+            
+            BoundTab["t_Link",number] = 1
+            DynaTab[CurGroup,table] = BoundTab
+            
+            Holo["UpdateHolos",array][CurGroup,number] = 1
+            updateHolos()
+            updateProps()
+        }
+    }
+    
+    # # # Bring hinge origin
+    if(owner():keyPressed(OriginKey)) {
+        
+        savePropData()
+        
+        #Multiple selections
+        if(Selections) {
+            
+            local Moved = 0
+            for(I=1, Selections, 1) {
+                
+                local ActiveTab = DynaTab[Global[I,number],table]
+                
+                if(ActiveTab:exists("OriginEnt") & ActiveTab:exists("HingeEnt")) {
+                    
+                    local Base = Entities[ActiveTab["OriginEnt",number],entity]
+                    local Hinge = Entities[ActiveTab["HingeEnt",number],entity]
+                    
+                    DynaTab[Global[I,number],table]["OriginPos",vector] = Base:toLocal(Hinge:pos())
+                    Moved++
+                }
+            }
+            
+            print("Moved " + Moved + " origin offsets.")
+        }
+        
+        #Single selection
+        else {
+            
+            if(BoundTab:exists("OriginEnt") & BoundTab:exists("HingeEnt")) {
+                
+                local Base = Entities[BoundTab["OriginEnt",number],entity]
+                local Hinge = Entities[BoundTab["HingeEnt",number],entity]
+                
+                BoundTab["OriginPos",vector] = Base:toLocal(Hinge:pos())
+                DynaTab[CurGroup,table] = BoundTab
+                
+                print("Moved origin offset.")
+            }
+            
+            else {print("Hinge or Origin required to move origin offset!")}
+        }
+        
+        updateHolos()
+        updateProps()
+    }
+    
+    # # # Mark origin
+    if(owner():keyPressed(BaseKey)) {
+        
+        local Base = owner():aimEntity()
+        if(Base:owner() == owner() & Base != world()) {
+            
+            local StrEnt = Base:toString()
+            
+            if(EntitiesLUT:exists(StrEnt)) {
+                
+                savePropData()
+                BoundTab["OriginEnt",number] = EntitiesLUT[StrEnt,number]
+                
+                #Multiple selections
+                if(Selections) {
+                    
+                    for(I=1, Selections, 1) {
+                        DynaTab[Global[I,number],table]["OriginEnt",number] = EntitiesLUT[StrEnt,number]
+                    }
+                    
+                    #Force update all because of floating holos
+                    for(I=1, DynaTab:count(), 1) {
+                        Holo["UpdateHolos",array][I,number] = 1
+                    }
+                    
+                    print("Made " + StrEnt + " the origin entity for " + Selections + " assemblies. ")
+                }
+                
+                #Single selection
+                else {
+                    DynaTab[CurGroup,table] = BoundTab
+                    print("Made " + StrEnt + " the origin entity for assembly " + CurGroup)
+                    Holo["UpdateHolos",array][CurGroup,number] = 1
+                }
+                
+                updateHolos()
+                updateProps()
+            }
+            
+            else {
+                print("Either that is not linked to your advanced entity marker or you need to REFRESH the look-up!")
+            }
+        }
+    }
+    
+    # # # Mark target
+    if(owner():keyPressed(TargetKey)) {
+        
+        local Ent = owner():aimEntity()
+        if(Ent:owner() == owner() & Ent != world()) {
+            
+            local StrEnt = Ent:toString()
+            
+            if(EntitiesLUT:exists(StrEnt)) {
+                
+                savePropData()
+                BoundTab["TargetEnt",number] = EntitiesLUT[StrEnt,number]
+                
+                if(Selections) {
+                    
+                    for(I=1, Selections, 1) {
+                        DynaTab[Global[I,number],table]["TargetEnt",number] = EntitiesLUT[StrEnt,number]
+                    }
+                    
+                    for(I=1, DynaTab:count(), 1) {
+                        Holo["UpdateHolos",array][I,number] = 1
+                    }
+                    
+                    print("Made " + StrEnt + " the target entity for " + Selections + " assemblies. ")
+                }
+                
+                else {
+                    DynaTab[CurGroup,table] = BoundTab
+                    print("Made " + StrEnt + " the target entity for assembly " + CurGroup)
+                    Holo["UpdateHolos",array][CurGroup,number] = 1
+                }
+                
+                updateHolos()
+                updateProps()
+            }
+            
+            else {
+                print("Either that is not linked to your advanced entity marker or you need to REFRESH the look-up!")
+            }
+        }
+    }
+}
+
+if(clk("HoloSpawn")) {spawnHolos()}
+if(clk("PrintDelay")) {printInstructions()}
+if(clk("PropDelay")) {spawnProps()}
+if(clk("PreviewDelay")) {updateHolos(), spawnProps()}

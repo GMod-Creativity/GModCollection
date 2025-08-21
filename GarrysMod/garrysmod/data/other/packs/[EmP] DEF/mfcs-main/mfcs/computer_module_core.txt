@@ -1,0 +1,1211 @@
+--@name mfcs/Computer Module Core
+--@author Yours Truly
+
+local NULL = game.getWorld()
+local function Empty() end
+
+local Settings = {}; local Module = {}
+local Manager = {}
+local Armament = {}; local Munition = {}
+
+if SERVER then
+    
+    -- >> Setup functions
+    do
+        function Module:AddSystem(ParentName) return Armament.Create(ParentName) end
+        
+        -- Final set up
+        function Module:Initialize(NewSettings)
+            Settings = NewSettings
+            hook.add(MFCS.EVENT.MAKE_IO, "computer-io", function() Manager:MakeIO() end)
+            hook.add(MFCS.EVENT.INITIALIZE, "computer-ini", function() Manager:Initialize() end)
+        end
+    end
+    
+    -- >> Manager [SV]; it manages things
+    do
+        local OnBoard = Empty
+        local OnOwnerReady = Empty; local OnBallisticData = Empty
+        
+        local shMain = MFCS:CreateCord("Computer_Main")
+        shMain.Data = {
+            Active = false,
+            Persist = {
+                Rangefinder = {},
+                Munition = {},
+            },
+            Armament = {},
+            BallisticData = {},
+        }
+        
+        function Manager:Initialize()
+            Munition:Initialize()
+            Armament:Initialize()
+            
+            net.receive("mfcs_computer-owner_ready", OnOwnerReady)
+            net.receive("mfcs_computer-ballistics_build", OnBallisticData)
+            net.receive("mfcs_computer-ammo_select", function() Armament:SelectFeed() end)
+            hook.add(MFCS.EVENT.BOARD_VEHICLE, "computer_mng-board", OnBoard)
+        end
+        
+        function Manager:MakeIO()
+            Armament:MakeIO()
+            MFCS.AddOutput("BallisticData", "Table")
+        end
+        
+        -- Send info to driver
+        function OnBoard(Player, Board)
+            shMain.Data.Active = Board
+            
+            if Board then
+                Armament:SendParents()
+            end
+            
+            shMain:SendImmediate(Player)
+        end
+        
+        -- # Passthroughs
+        
+        function OnOwnerReady()
+            net.start("mfcs_computer-munition_data")
+                net.writeTable(Munition:SendAmmoData())
+            net.send(owner())
+        end
+        
+        function OnBallisticData()
+            shMain.Data.BallisticData = net.readTable()
+            wire.ports.BallisticData = shMain.Data.BallisticData
+        end
+        
+        -- # Accessors
+        
+        function Manager:GetNW() return shMain.Data end
+    end
+    
+    -- >> Armament [SV/pseudo-class]; weapon data
+    do
+        local Instances = {}
+        
+        -- Instance
+        function Armament.Create(ParentName)
+            local armament = {}
+            
+            armament.Alignment = Angle(0, 0, 0)
+            armament.Bypass = {}
+            
+            local weapon = NULL
+            local holo = NULL
+            local telemetryEnt = NULL
+            local aimName = ParentName .. "_AimPos"
+            
+            local munitions = {}
+            local payloadLookup = {}
+            
+            local svCord = MFCS:CreateCord("SV_Armament-" .. ParentName)
+            local clCord = MFCS:CreateCord("CL_Armament-" .. ParentName)
+            
+            svCord.Data = {
+                Ready = true,
+                Payload = "Empty",
+                State = "Empty",
+                ReloadProgress = 1,
+                ReloadTime = 0,
+                MagRounds = 0,
+                MagSize = 1,
+                RelativeVel = Vector(0, 0, 0),
+            }
+            clCord.Data = {
+                Calibration = Vector(0, 0, 0),
+            }
+            
+            -- Spawn alignment holo
+            local function SpawnAlignHolo()
+                holo = hologram.create(
+                    weapon:getPos(),
+                    weapon:localToWorldAngles(armament.Alignment),
+                    MFCS:GetHoloModel()
+                )
+                holo:setParent(weapon)
+                holo:setNoDraw(true)
+            end
+            
+            -- Find last physical parent
+            local function FindVelocityParent()
+                telemetryEnt = weapon
+                while true do
+                    local parent = telemetryEnt:getParent()
+                    if not parent:isValid() then return end
+                    telemetryEnt = parent
+                end
+            end
+            
+            -- Figure out which munition weapon has
+            local function GetPayload()
+                local load = payloadLookup[ weapon:acfAmmoType() .. tostring(math.round(weapon:acfMuzzleVel())) ]
+                if load then return load end
+                return "Empty"
+            end
+            
+            -- Update networked data
+            local function UpdateNetworked()
+                if not weapon:isValid() then return end
+                
+                svCord.Data.Ready = weapon:acfReady()
+                svCord.Data.Payload = GetPayload()
+                svCord.Data.State = weapon:acfState()
+                svCord.Data.ReloadProgress = weapon:acfReloadProgress()
+                svCord.Data.ReloadTime = weapon:acfReloadTime()
+                svCord.Data.MagRounds = weapon:acfMagRounds()
+                
+                svCord.Data.RelativeVel = Vector(0, 0, 0)
+                if telemetryEnt:isValid() then
+                    svCord.Data.RelativeVel = telemetryEnt:getVelocity():getRotated(-holo:getAngles()) / 39.37
+                end
+                
+                svCord:Queue()
+            end
+            
+            clCord.OnReceive = function()
+                wire.ports[aimName] = wire.readOutput(chip(), "AimPos") + clCord.Data.Calibration
+            end
+            
+            -- # Methods
+            
+            -- Add munition to this system
+            function armament:AddMunition(Name)
+                munitions[Name] = Munition.Create(Name, ParentName)
+            end
+            
+            function armament:Initialize()
+                weapon = wire.ports[ParentName]
+                wire.ports[aimName] = Vector(0, 0, 0)
+                
+                for name, munition in pairs(munitions) do
+                    payloadLookup[munition:GenerateID()] = name
+                end
+                
+                for _, name in ipairs(armament.Bypass) do
+                    munitions[name]:Bypass()
+                end
+                
+                hook.add(MFCS.EVENT.PING_DRIVER, "computer_armament-sv_" .. ParentName, UpdateNetworked)
+                
+                if not weapon:isValid() then return end
+                svCord.Data.MagSize = weapon:acfMagSize()
+                SpawnAlignHolo()
+                FindVelocityParent()
+            end
+            
+            function armament:MakeIO()
+                MFCS.AddInput(ParentName, "Entity")
+                MFCS.AddOutput(aimName, "Vector")
+                
+                for _, munition in pairs(munitions) do
+                    munition:MakeIO()
+                end
+            end
+            
+            -- Set outputs so only selected munition feeds
+            function armament:SelectMunition(Name)
+                for _, munition in pairs(munitions) do
+                    munition:SetActive(false)
+                end
+                
+                if munitions[Name] then
+                    munitions[Name]:SetActive(true)
+                end
+            end
+            
+            -- # Accessors
+            
+            function armament:GetParent() return weapon end
+            
+            -- # Definitions
+            
+            function armament:SetCameraTags() end
+            function armament:StartSelected() end
+            
+            Instances[ParentName] = armament
+            return armament
+        end
+        
+        function Armament:Initialize()
+            for _, armament in pairs(Instances) do
+                armament:Initialize()
+            end
+        end
+        
+        function Armament:MakeIO()
+            for _, armament in pairs(Instances) do
+                armament:MakeIO()
+            end
+        end
+        
+        -- Send parents
+        function Armament:SendParents()
+            local parents = {}
+            for k, armament in pairs(Instances) do
+                parents[k] = armament:GetParent()
+            end
+            Manager:GetNW().Armament = { Parents = parents }
+        end
+        
+        -- Toggle ammo crates for specific weapon
+        function Armament:SelectFeed()
+            local ammoID = net.readTable()
+            Instances[ ammoID[1] ]:SelectMunition(ammoID[2])
+        end
+    end
+
+    -- >> Munition [SV/pseudo-class]; ammo data & functions
+    do
+        local Instances = {}; local AmmoCrates = {}
+        local SortAmmoCrates = Empty
+        
+        -- Instance
+        function Munition.Create(Name, ParentName)
+            local munition = {}
+            
+            local codeName = ParentName .. "_" .. Name
+            local mass = 0
+            local muzzleVel = 0
+            local dragCoef = 0
+            local crates = {}
+            local bypassed = false
+            
+            local svCord = MFCS:CreateCord("SV_Munition-" .. codeName)
+            svCord.Data = {
+                AmmoCount = 0,
+            }
+            
+            -- Get ammo counts from crate entities
+            local function GetAmmoCount()
+                if not crates[1] then return 0 end
+                
+                local count = 0
+                for _, crate in ipairs(crates) do
+                    count = count + crate:acfRounds()
+                end
+                return count
+            end
+            
+            -- Watch for removal
+            local function VerifyCrates()
+                local newCrates = {}
+                for _, crate in ipairs(crates) do
+                    local obj = MFCS.ESC.Create(crate)
+                    if not obj:GetIsValid() then continue end
+                    
+                    table.insert(newCrates, crate)
+                    hook.add(obj:GetHookName(), "computer_munition-query_" .. codeName, VerifyCrates)
+                end
+                crates = newCrates
+            end
+            
+            -- Update networked data
+            local function UpdateNetworked()
+                svCord.Data.AmmoCount = GetAmmoCount()
+                svCord:Queue()
+            end
+            
+            function munition:Initialize()
+                wire.ports[codeName] = 0
+                
+                for _, ent in ipairs(AmmoCrates) do
+                    local wirelink = ent:getWirelink()
+                    if codeName == wirelink:getWiredToName("Load") or codeName == wirelink:getWiredToName("Active") then
+                        table.insert(crates, ent)
+                    end
+                end
+                VerifyCrates()
+                
+                if crates[1] then
+                    mass = crates[1]:acfProjectileMass()
+                    muzzleVel = crates[1]:acfMuzzleVel()
+                    dragCoef = crates[1]:acfDragCoef()
+                end
+                
+                hook.add(MFCS.EVENT.PING_DRIVER, "computer_munition-sv_" .. codeName, UpdateNetworked)
+            end
+            
+            function munition:MakeIO()
+                MFCS.AddOutput(codeName, "Number")
+            end
+            
+            -- Toggle feed
+            function munition:SetActive(Active)
+                if Active then
+                    wire.ports[codeName] = 1
+                else
+                    wire.ports[codeName] = 0
+                end
+            end
+            
+            -- Don't calculate for this ammo
+            function munition:Bypass() bypassed = true end
+            
+            -- Return a table for owner to build ballistic data
+            function munition:GenerateFlightSeed()
+                if bypassed then return end
+                if mass == 0 and muzzleVel == 0 and dragCoef == 0 then return end
+                return {
+                    Name = codeName,
+                    Mass = mass,
+                    MuzzleVel = muzzleVel,
+                    DragCoef = dragCoef,
+                }
+            end
+            
+            -- ID to compare weapon payload to
+            function munition:GenerateID()
+                if not crates[1] then return "Failsafe" end
+                return crates[1]:acfAmmoType() .. tostring(math.round(muzzleVel))
+            end
+            
+            -- # Accessors
+            
+            function munition:GetCodeName() return codeName end
+            
+            function munition:GetMass() return mass end
+            
+            function munition:GetMuzzleVel() return muzzleVel end
+            
+            function munition:GetDragCoef() return dragCoef end
+            
+            function munition:GetCrates() return crates end
+            
+            table.insert(Instances, munition)
+            return munition
+        end
+        
+        function Munition:Initialize()
+            SortAmmoCrates()
+            
+            local emptyData = {}
+            for _, munition in ipairs(Instances) do
+                munition:Initialize()
+                munition:SetActive(false)
+                emptyData[munition:GetCodeName()] = {}
+            end
+            
+            wire.ports.BallisticData = emptyData
+        end
+        
+        -- Send ammo properties to owner to build flight tables
+        function Munition:SendAmmoData()
+            local munitionPkg = {}
+            for _, munition in ipairs(Instances) do
+                table.insert(munitionPkg, munition:GenerateFlightSeed())
+            end
+            
+            return munitionPkg
+        end
+        
+        -- Find wired ammo crates
+        function SortAmmoCrates()
+            local candidates = {}
+            for _, ent in ipairs( chip():getAllConstrained({ Wire = true }) ) do
+                if ent != chip() and ent:getClass() == "acf_ammo" then
+                    table.insert(candidates, ent)
+                end
+            end
+            
+            table.empty(AmmoCrates)
+            for _, ent in ipairs(candidates) do
+                local wiredEnt = ent:getWirelink():getWiredTo("Load")
+                if wiredEnt == chip() then
+                    table.insert(AmmoCrates, ent)
+                    continue
+                end
+
+                wiredEnt = ent:getWirelink():getWiredTo("Active")
+                if wiredEnt == chip() then table.insert(AmmoCrates, ent) end
+            end
+        end
+    end
+end
+
+if CLIENT then
+    local Rangefinder = {}
+    local FlightUnit = {}; local BuildUnit = {}
+    local ThreadUnit = {}
+    
+    local EVENT = {
+        BUILD_FINISHED = "build-finished",
+    }
+    
+    -- >> Setup functions
+    do
+        function Module:AddSystem(ParentName) return Armament.Create(ParentName) end
+        
+        -- Final set up
+        function Module:Initialize(NewSettings)
+            Settings = NewSettings
+            Manager:Initialize()
+            hook.add(MFCS.EVENT.AUTHORIZE, "computer-authorize", function() Manager:Authorize() end)
+        end
+    end
+    
+    -- >> Manager [CL]; it manages things
+    do
+        local SetActive = Empty; local OnUserKey = Empty
+        
+        local shMain = MFCS:CreateCord("Computer_Main")
+        shMain.Data = {
+            Active = false,
+            Persist = {
+                Rangefinder = {},
+                Munition = {},
+            },
+            Armament = {},
+            BallisticData = {},
+        }
+        
+        function Manager:Initialize()
+            if player() != owner() then return end
+            
+            net.start("mfcs_computer-owner_ready")
+            net.send()
+            
+            net.receive("mfcs_computer-munition_data", function() Munition:BuildFlightTables() end)
+        end
+        
+        function Manager:Authorize()
+            SetActive()
+            hook.add(MFCS.EVENT.OPERATOR_KEY, "computer_mng-key", OnUserKey)
+            hook.add(MFCS.EVENT.OPERATOR_SCROLL, "computer_mng-scroll", function(Dir) Rangefinder:Dial(Dir) end)
+        end
+        
+        shMain.OnReceive = function()
+            if not MFCS.GetReady() then return end
+            SetActive()
+        end
+        
+        -- # Passthroughs
+        
+        function SetActive()
+            if shMain.Data.Active then
+                Armament:SetParents()
+                Munition:Load()
+                Rangefinder:Load()
+            else
+                Munition:Save()
+                Rangefinder:Save()
+                shMain:SendImmediate()
+            end
+        end
+        
+        function OnUserKey(Key, Down)
+            if not Down then return end
+            
+            Rangefinder:Lase(Key)
+            Armament:SwitchMunition(Key)
+        end
+        
+        -- # Accessors
+        
+        function Manager:GetMainCord() return shMain end
+    end
+    
+    -- >> Armament [CL/pseudo-class]; weapon assemblies
+    do
+        local Instances = {}
+        
+        -- Instance
+        function Armament.Create(ParentName)
+            local armament = {}
+            armament.Alignment = Angle(0, 0, 0)
+            
+            local weapon = NULL
+            local prefix = ParentName .. "_"
+            local updateHook = "mfcs_computer_armament-changed" .. ParentName
+            local cameraLookup = {}
+            local all = false
+            local calAng = Angle(0, 0, 0)
+            
+            local munitions = {}
+            local munitionLookup = {}
+            local orderedMunitions = {}
+            local selectedMunition = {}
+            local loadedMunition = {}
+            
+            local svCord = MFCS:CreateCord("SV_Armament-" .. ParentName)
+            local clCord = MFCS:CreateCord("CL_Armament-" .. ParentName)
+            
+            svCord.Data = {
+                Ready = true,
+                Payload = "Empty",
+                State = "Empty",
+                ReloadProgress = 1,
+                ReloadTime = 0,
+                MagRounds = 0,
+                MagSize = 1,
+                RelativeVel = Vector(0, 0, 0),
+            }
+            clCord.Data = {
+                Calibration = Vector(0, 0, 0),
+            }
+            
+            local reloadTimeLeft = 0
+            local reloadProgress = 0
+            local tof = 0
+            
+            local function GetIsActive()
+                return weapon:isValid() and (all or cameraLookup[MFCS.Camera:GetTag()])
+            end
+            
+            -- Set ballistic offset angle
+            local function Calibrate()
+                if table.isEmpty(loadedMunition) or not weapon:isValid() then return end
+                
+                calAng, tof = loadedMunition:CalculateFlightTermination( svCord.Data.RelativeVel )
+                clCord.Data.Calibration = (Vector(1, 0, 0) - calAng:getForward()) * MFCS.Computer:GetRange()
+            end
+            
+            -- Select a munition, deselect other
+            local function SelectMunition(Name)
+                selectedMunition = munitions[Name]
+                for _, munition in pairs(munitions) do
+                    munition:SetSelected(false)
+                end
+                selectedMunition:SetSelected(true)
+                
+                net.start("mfcs_computer-ammo_select")
+                    net.writeTable({ ParentName, selectedMunition:GetName() })
+                net.send()
+            end
+            
+            -- Check loaded munition & broadcast when different
+            local function IdentifyLoad()
+                local lastLoaded = loadedMunition
+                
+                loadedMunition = {}
+                for k, munition in pairs(munitions) do
+                    if svCord.Data.Payload != k then
+                        munition:SetLoaded(false)
+                        continue
+                    end
+                    
+                    munition:SetLoaded(true)
+                    loadedMunition = munition
+                end
+                
+                if lastLoaded != loadedMunition then hook.run(updateHook) end
+            end
+            
+            -- Things that need to happen freqeuently
+            local function UpdatePeriodic()
+                reloadTimeLeft = math.max(reloadTimeLeft - MFCS:GetTimeStep(), 0)
+                
+                if svCord.Data.State == "Loading" then
+                    reloadProgress = math.remap(reloadTimeLeft, 0, svCord.Data.ReloadTime, 1, 0)
+                end
+
+                Calibrate()
+            end
+            
+            svCord.OnReceive = function()
+                reloadProgress = svCord.Data.ReloadProgress
+                reloadTimeLeft = math.remap(reloadProgress, 0, 1, svCord.Data.ReloadTime, 0)
+                IdentifyLoad()
+            end
+            
+            -- # Methods
+            
+            -- Set rendering for specific camera tags
+            function armament:SetCameraTags(CameraTags)
+                for _, tag in ipairs(CameraTags) do
+                    if string.lower(tag) != "all" then
+                        cameraLookup[tag] = true
+                        continue
+                    end
+                    
+                    all = true
+                    table.empty(cameraLookup)
+                    return
+                end
+            end
+            
+            -- Add munition to this system
+            function armament:AddMunition(Name, Key)
+                munitions[Name] = Munition.Create(Name, ParentName)
+                munitionLookup[Key] = Name
+                table.insert(orderedMunitions, munitions[Name])
+            end
+            
+            -- Start with a munition pre-selected
+            function armament:StartSelected(Name)
+                if player() != owner() then return end
+                
+                if not munitions[Name] then
+                    print("Could not find ammo type [" .. Name .. "] for [" .. ParentName .. "]")
+                    return
+                end
+                
+                SelectMunition(Name)
+            end
+            
+            -- Miscellaneous set up
+            function armament:Setup()
+                if not weapon:isValid() then return end
+                
+                local objID = "mfcs_computer_armament-" .. ParentName
+                hook.add(MFCS.EVENT.LOGIC_TICK, objID, UpdatePeriodic)
+                hook.add(MFCS.EVENT.PING_SERVER, objID, function() clCord:Queue() end)
+            end
+            
+            -- Select ammo
+            function armament:SelectMunition(Key)
+                if not (GetIsActive() and munitionLookup[Key]) then return end
+                SelectMunition(munitionLookup[Key])
+            end
+            
+            -- #  Accessors
+            
+            function armament:SetParent(Value) weapon = Value end
+            
+            function armament:GetWeapon() return weapon end
+            
+            function armament:GetSelectedMunition() return selectedMunition end
+            
+            function armament:GetLoadedMunition() return loadedMunition end
+            
+            function armament:GetAdjustment() return calAng end
+            
+            function armament:GetIsUsable() return weapon:isValid() end
+            
+            function armament:GetUpdateHook() return updateHook end
+            
+            function armament:GetReady() return svCord.Data.Ready end
+            
+            function armament:GetState() return svCord.Data.State end
+            
+            function armament:GetReloadProgress() return reloadProgress end
+            
+            function armament:GetReloadTime() return svCord.Data.ReloadTime end
+            
+            function armament:GetReloadTimeLeft() return reloadTimeLeft end
+            
+            function armament:GetMagRounds() return svCord.Data.MagRounds end
+            
+            function armament:GetMagSize() return svCord.Data.MagSize end
+            
+            function armament:GetTOF() return tof end
+            
+            function armament:GetPayload() return svCord.Data.Payload end
+            
+            function armament:GetOrderedMunitions() return orderedMunitions end
+            
+            Instances[ParentName] = armament
+            return armament
+        end
+        
+        -- Get parents from server
+        function Armament:SetParents()
+            for k, armament in pairs(Instances) do
+                armament:SetParent(Manager:GetMainCord().Data.Armament.Parents[k])
+                armament:Setup()
+            end
+        end
+        
+        -- Ammo switching
+        function Armament:SwitchMunition(Key)
+            for k, armament in pairs(Instances) do
+                armament:SelectMunition(Key)
+            end
+        end
+        
+        -- #  Accessors
+        
+        function MFCS.Computer:GetWeapon(WeaponName) return Instances[WeaponName] end
+        
+        function MFCS.Computer:GetAllSystems() return Instances end
+    end
+    
+    -- >> Munition [CL/pseudo-class]; holds shell properties
+    do
+        local Instances = {}
+        
+        -- Instance
+        function Munition.Create(Name, ParentName)
+            local munition = {}
+            
+            local codeName = ParentName .. "_" .. Name
+            local flightData = {}
+            local selected = false
+            local loaded = false
+            local maxRange = 0
+            
+            local svCord = MFCS:CreateCord("SV_Munition-" .. codeName)
+            svCord.Data = {
+                AmmoCount = 0,
+            }
+            
+            -- # Methods
+            
+            -- Get shell displacement & time
+            function munition:CalculateFlightTermination(LocalVel)
+                if table.isEmpty(flightData) then
+                    return Angle(0, 0, 0), 0
+                end
+                
+                local metric = math.clamp(Rangefinder:GetRange(), 0, maxRange) / 39.37
+                local ratio = metric / (BuildUnit:GetGraduation() / 39.37)
+                local fraction = ratio % 1
+                
+                local floor = math.max(math.floor(ratio), 0)
+                local ceil = math.max(math.ceil(ratio), 1)
+                
+                local minData = flightData[floor] or { Drop = 0, Time = 0 }
+                local drop = math.lerp(fraction, minData.Drop, flightData[ceil].Drop)
+                local time = math.lerp(fraction, minData.Time, flightData[ceil].Time)
+                
+                return (Vector(metric, 0, drop) + LocalVel * time):getAngle(), time
+            end
+            
+            -- # Accessors
+            
+            function munition:GetName() return Name end
+            
+            function munition:GetCodeName() return codeName end
+            
+            function munition:GetFlightData() return flightData end
+            function munition:SetFlightData(Value)
+                flightData = Value
+                maxRange = BuildUnit:GetGraduation() * #flightData
+            end
+            
+            function munition:GetMaxRange() return maxRange end
+            
+            function munition:GetAmmoCount() return svCord.Data.AmmoCount end
+            
+            function munition:GetSelected() return selected end
+            function munition:SetSelected(Value) selected = Value end
+            
+            function munition:GetLoaded() return loaded end
+            function munition:SetLoaded(Value) loaded = Value end
+            
+            Instances[codeName] = munition
+            return munition
+        end
+        
+        -- Property-only Instance
+        function Munition.CreateBasic(Properties)
+            local munition = {}
+            
+            local name = Properties.Name
+            local mass = Properties.Mass or 0
+            local muzzlevel = Properties.MuzzleVel or 0
+            local dragCoef = Properties.DragCoef or 0
+            local flightData = {}
+            
+            -- # Accessors
+            
+            function munition:GetName() return name end
+            
+            function munition:GetMass() return mass end
+            
+            function munition:GetMuzzleVel() return muzzlevel end
+            
+            function munition:GetDragCoef() return dragCoef end
+            
+            function munition:GetFlightData() return flightData end
+            
+            return munition
+        end
+        
+        -- Have owner build ballistic data
+        function Munition:BuildFlightTables()
+            for _, ammo in ipairs(net.readTable()) do
+                FlightUnit:AddToQueue( Munition.CreateBasic(ammo) )
+            end
+            FlightUnit:BuildAll()
+        end
+        
+        -- # Serialization
+        
+        function Munition:Load()
+            for k, data in pairs(Manager:GetMainCord().Data.BallisticData) do
+                Instances[k]:SetFlightData(data)
+            end
+            
+            local memory = Manager:GetMainCord().Data.Persist.Munition
+            if table.isEmpty(memory) then return end
+            
+            for k, munition in pairs(Instances) do
+                munition:SetSelected(memory[k].Selected)
+            end
+        end
+        
+        function Munition:Save()
+            local memory = {}
+            for k, munition in pairs(Instances) do
+                memory[k] = {
+                    Selected = munition:GetSelected(),
+                }
+            end
+            
+            Manager:GetMainCord().Data.Persist.Munition = memory
+        end
+    end
+    
+    -- >> Rangefinder; sets range for armaments
+    do
+        local Position = Vector(0, 0, 0)
+        local Range = 0; local Locked = false
+        local OffsetRange = 0
+        local IsManualRanging = false; local IsOpticalRanging = false
+        
+        local SetRange = Empty; local SetLocked = Empty
+        local SetManualRanging = Empty; local GetTrace = Empty
+        
+        -- Lase or toggle manual rangefinding
+        function Rangefinder:Lase(Key)
+            if Key != Settings.Lase then return end
+            
+            if not Settings.LaserRanging then
+                if input.isKeyDown(Settings.PosLock) then
+                    SetLocked(true)
+                elseif input.isKeyDown(Settings.DumpLase) then
+                    if Locked then
+                        SetLocked(false)
+                    else
+                        SetRange(Settings.BattleRange)
+                    end
+                else
+                    SetManualRanging(not IsManualRanging)
+                end
+                
+                return
+            end
+            
+            if input.isKeyDown(Settings.PosLock) then
+                SetLocked(true)
+            elseif input.isKeyDown(Settings.DumpLase) then
+                if Locked then
+                    SetLocked(false)
+                    SetRange(GetTrace().Fraction * MFCS:GetTraceRange())
+                else
+                    SetRange(Settings.BattleRange)
+                end
+            else
+                if Locked then SetLocked(false) end
+                SetRange(GetTrace().Fraction * MFCS:GetTraceRange())
+            end
+        end
+        
+        -- Increment range
+        function Rangefinder:Dial(Dir)
+            if not IsManualRanging then return end
+            
+            local step = 0
+            if input.isKeyDown(Settings.PosLock) then
+                step = Settings.RangeStepLarge
+            elseif input.isKeyDown(Settings.DumpLase) then
+                step = Settings.RangeStepSmall
+            end
+            
+            if step == 0 then return end
+            
+            if Locked then
+                OffsetRange = math.max(OffsetRange + Dir * step, -Range)
+                return
+            end
+            
+            SetRange(Range + Dir * step)
+        end
+        
+        -- Set range & broadcast
+        function SetRange(NewRange)
+            Range = math.max(NewRange + OffsetRange, Settings.RangeMin)
+            hook.run(MFCS.EVENT.COMPUTER_RANGE, Range)
+        end
+        
+        -- Toggle position range
+        function SetLocked(Active)
+            Locked = Active
+            OffsetRange = 0
+            
+            if Active then
+                if Settings.LaserRanging then
+                    Position = GetTrace().HitPos
+                else
+                    Position = MFCS.Camera:GetPosition() + MFCS.Camera:GetViewDirection() * Range
+                end
+                
+                hook.run(MFCS.EVENT.COMPUTER_LOCK, Position)
+                hook.add(MFCS.EVENT.LOGIC_TICK, "computer-update_range", function() SetRange(MFCS.Camera:GetPosition():getDistance(Position)) end)
+            else
+                hook.run(MFCS.EVENT.COMPUTER_LOCK, nil)
+                hook.remove(MFCS.EVENT.LOGIC_TICK, "computer-update_range")
+            end
+        end
+        
+        -- Toggle manual range dialing
+        function SetManualRanging(Active)
+            IsManualRanging = Active
+            hook.run(MFCS.EVENT.COMPUTER_MANUAL_RANGING, IsManualRanging)
+            
+            if Settings.OpticalRanging then
+                IsOpticalRanging = Active
+                hook.run(MFCS.EVENT.COMPUTER_OPTICAL_RANGING, IsOpticalRanging)
+            end
+        end
+        
+        -- Get a trace from center of player's screen
+        function GetTrace()
+            local traceResult = trace.line(
+                MFCS.Camera:GetPosition(),
+                MFCS.Camera:GetPosition() + MFCS.Camera:GetAimDirection() * MFCS:GetTraceRange(),
+                MFCS:GetConnections(),
+                nil,
+                nil,
+                false
+            )
+            return traceResult
+        end
+        
+        -- # Serialization
+        
+        function Rangefinder:Load()
+            local memory = Manager:GetMainCord().Data.Persist.Rangefinder
+            if table.isEmpty(memory) then
+                SetRange(Settings.BattleRange)
+                return
+            end
+            
+            SetManualRanging(false)
+
+            SetRange(memory.Range)
+            //SetManualRanging(memory.IsManualRanging)
+            Locked = memory.Locked
+            Position = memory.Position
+        end
+        
+        function Rangefinder:Save()
+            Manager:GetMainCord().Data.Persist.Rangefinder = {
+                Range = Range,
+                //IsManualRanging = IsManualRanging,
+                Locked = Locked,
+                Position = Position,
+            }
+        end
+        
+        -- # Accessors
+        
+        function Rangefinder:GetRange() return Range end
+        function MFCS.Computer:GetRange() return Range end
+        
+        function MFCS.Computer:GetPosition() return Position end
+        
+        function MFCS.Computer:GetLocked() return Locked end
+        
+        function MFCS.Computer:GetManualRanging() return IsManualRanging end
+        
+        function MFCS.Computer:GetOpticalRanging() return IsOpticalRanging end
+        
+        function MFCS.Computer:GetManualRangingKeyDown()
+            if input.isKeyDown(Settings.PosLock) or input.isKeyDown(Settings.DumpLase) then return true end
+            return false
+        end
+    end
+    
+    -- >> FlightUnit; queue munitions to build data
+    do
+        local Queue = {}; local FinishedData = {}
+        local GenerateNext = Empty
+        local NWSendToServer = Empty
+        
+        -- Add munition to build list
+        function FlightUnit:AddToQueue(NewMunition)
+            table.insert(Queue, NewMunition)
+        end
+        
+        -- Begin building all ballistic data
+        function FlightUnit:BuildAll()
+            GenerateNext()
+            hook.add(EVENT.BUILD_FINISHED, "computer_flight-continue", GenerateNext)
+        end
+        
+        -- Generate data for next munition
+        
+        function GenerateNext()
+            if #Queue == 0 then
+                NWSendToServer()
+                hook.remove(EVENT.BUILD_FINISHED, "computer_flight-continue")
+                return
+            end
+            
+            local munition = table.remove(Queue, 1)
+            table.insert(FinishedData, munition)
+            BuildUnit:CalcMunitionData(munition)
+        end
+        
+        -- Send ballistic data to server
+        function NWSendToServer()
+            local data = {}
+            for _, munition in ipairs(FinishedData) do
+                data[munition:GetName()] = munition:GetFlightData()
+            end
+            
+            net.start("mfcs_computer-ballistics_build")
+                net.writeTable(data)
+            net.send()
+        end
+    end
+    
+    -- >> BuildUnit; computes shell properties
+    do
+        local TimeStep = game.getTickInterval(); local TotalTime = 0
+        local Position = Vector(0, 0, 0); local PrevPos = Vector(0, 0, 0)
+        local Velocity = Vector(0, 0, 0); local PrevVel = Vector(0, 0, 0)
+        local Gravity = physenv.getGravity()
+        local RunLoop = false; local TryStep = false
+        
+        local TestMunition = {}
+        
+        local Graduation = 100 * 39.37; local RangeGate = 0; local MaxRange = 800 * 39.37
+        local AngleCutoff = 40
+        local TestVec = Vector(1, 0, 0)
+        
+        local StartFlight = Empty; local ObserveFlight = Empty
+        local Integrate = Empty; local PlotFlight = Empty
+        local GetAng = Empty
+        
+        -- Start generating table for new munition
+        function BuildUnit:CalcMunitionData(NewMunition)
+            TestMunition = NewMunition
+            StartFlight()
+        end
+        
+        -- Reset measurements
+        function StartFlight()
+            table.empty(TestMunition:GetFlightData())
+            
+            if TestMunition:GetMass() == 0 or TestMunition:GetMuzzleVel() == 0 then
+                hook.run(EVENT.BUILD_FINISHED)
+                return
+            end
+            
+            TotalTime = 0
+            RunLoop = true
+            TryStep = true
+            
+            Position = Vector(0, 0, 0)
+            Velocity = Vector(1, 0, 0) * TestMunition:GetMuzzleVel() * 39.37
+            PrevPos = Position
+            PrevVel = Velocity
+            
+            RangeGate = Graduation
+            
+            ThreadUnit:Execute(ObserveFlight, "think")
+            ThreadUnit:OnFinished(function() hook.run(EVENT.BUILD_FINISHED) end)
+        end
+        
+        -- Run flight & save trajectory data
+        function ObserveFlight()
+            while RunLoop do
+                ThreadUnit:AutoYield(0.5)
+                
+                -- # Step along to get raw data
+                if TryStep then Integrate() end
+                
+                -- # Make a table index
+                TryStep = true
+                if Position[1] >= RangeGate then PlotFlight() end
+                
+                -- # Done
+                local overRange = Position[1] >= MaxRange and RangeGate > MaxRange
+                local overAngle = GetAng(Position) > AngleCutoff and TryStep
+                if overRange or overAngle then RunLoop = false end
+            end
+        end
+        
+        -- Euler integration
+        function Integrate()
+            PrevVel = Velocity
+            PrevPos = Position
+            
+            --local drag = PrevVel:getNormalized() * (PrevVel:getLengthSqr() * TestMunition:GetDragCoef()) --/ acf.dragDivisor() * 20
+            local drag = PrevVel:getNormalized() * (PrevVel:getLengthSqr() * TestMunition:GetDragCoef())
+            local Correction = 0.5 * (Gravity - drag) * TimeStep
+            
+            Velocity = PrevVel + (Gravity - drag) * TimeStep
+            Position = PrevPos + (PrevVel + Correction) * TimeStep
+            
+            TotalTime = TotalTime + TimeStep
+        end
+        
+        -- Major data point
+        function PlotFlight()
+            TryStep = false
+            local mix = (RangeGate - PrevPos[1]) / (Position[1] - PrevPos[1])
+            
+            local dataPoint = {
+                Range = math.lerp(mix, PrevPos[1], Position[1]) / 39.37,
+                Drop = math.lerp(mix, PrevPos[3], Position[3]) / 39.37,
+                Time = math.lerp(mix, TotalTime - TimeStep, TotalTime)
+            }
+            
+            table.insert(TestMunition:GetFlightData(), dataPoint)
+            RangeGate = RangeGate + Graduation
+        end
+        
+        -- Get numerical angle between two vectors
+        function GetAng(Vec)
+            return math.deg( math.atan2(Vec[3], Vec[1]) )
+        end
+        
+        -- # Accessors
+        
+        function BuildUnit:GetGraduation() return Graduation end
+        
+        function BuildUnit:GetMaxRange() return MaxRange end
+        
+        function BuildUnit:GetSteps() return MaxRange / Graduation end
+    end
+    
+    -- >> ThreadUnit; manages coroutines
+    do
+        local LiveRoutine = nil; local HookName = ""; local YieldCalls = 0
+        
+        local ResumeRoutine = Empty; local Finished = Empty
+        
+        -- Set & run a coroutine
+        function ThreadUnit:Execute(Func, Hook)
+            Finished = Empty
+            LiveRoutine = coroutine.create(Func)
+            HookName = Hook
+            hook.add(HookName, "mfcs_computer-run_coroutine", ResumeRoutine)
+        end
+        
+        -- Callback when loop finishes
+        function ThreadUnit:OnFinished(Func)
+            Finished = Func
+        end
+        
+        -- Yield based on performance limits
+        function ThreadUnit:AutoYield(Limit)
+            YieldCalls = YieldCalls + 1
+            
+            if YieldCalls > 50 then
+                YieldCalls = 0
+            elseif chip():getQuotaUsed() > chip():getQuotaMax() * Limit then
+                coroutine.yield()
+            end
+        end
+        
+        -- Run coroutine until it is finished
+        function ResumeRoutine()
+            if coroutine.status(LiveRoutine) != "dead" then
+                coroutine.resume(LiveRoutine)
+            else
+                hook.remove(HookName, "mfcs_computer-run_coroutine")
+                YieldCalls = 0
+                Finished()
+            end
+        end
+    end
+end
+
+return Module

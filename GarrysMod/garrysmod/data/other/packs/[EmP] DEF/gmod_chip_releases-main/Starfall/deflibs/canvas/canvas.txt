@@ -1,0 +1,204 @@
+--@name deflibs/canvas/Canvas
+--@author Yours Truly
+
+// Canvas; stores GUI elements & draws to a texture
+
+local ToUV = 1 / 1024
+local function Empty() end
+local Construct = Empty
+
+local Canvas = {}
+
+-- Create & get new canvas
+function Canvas.Create(Name)
+    return Construct(Name)
+end
+
+-- Instance creation function
+function Construct(Name)
+    local can = {}
+    local tex = GUI.Texture.Create(Name)
+    local box = GUI.Hitbox.Create(can)
+    
+    local mat = Matrix()
+    mat:setScale(Vector(1, 1))
+    local texMatrix = Matrix()
+    local elements = {}
+    local boxes = {}
+    local lookup = {}
+    
+    local w = 0; local h = 0; local p = 0
+    local uv0 = 0; local u1 = 1; local v1 = 1
+    local cx = 0; local cy = 0
+    local writeQueued = false
+    
+    local TextureRender = Empty; local BackgroundDraw = Empty
+    tex.Render = function() TextureRender() end
+    
+    local function UpdateHitbox()
+        local vec = mat:getTranslation()
+        box:SetOrigin(vec.x, vec.y)
+        box:SetSize(w, h)
+    end
+    
+    local function GetLookup()
+        table.empty(lookup)
+        for k, element in ipairs(elements) do
+            lookup[element] = k
+        end
+    end
+    
+    local function AddElement(Item)
+        table.insert(elements, Item)
+        table.insert(boxes, Item:GetHitbox())
+        lookup[Item] = #elements
+    end
+    
+    local function RemoveElement(Item)
+        if lookup[Item] then
+            local index = lookup[Item]
+            table.remove(elements, index)
+            table.remove(boxes, index)
+            GetLookup()
+        end
+    end
+    
+    -- Class functions
+    
+    function can:SetOrigin(X, Y)
+        mat:setTranslation(Vector(X, Y))
+        UpdateHitbox()
+    end
+    
+    function can:SetScale(X, Y)
+        mat:setScale(Vector(X, Y))
+        UpdateHitbox()
+    end
+    
+    function can:SetTextureSpace(W, H)
+        w = W
+        h = H
+        UpdateHitbox()
+        u1 = math.min(w + p, 1024 - p) * ToUV
+        v1 = math.min(h + p, 1024 - p) * ToUV
+    end
+    
+    function can:SetPadding(Padding)
+        p = Padding
+        uv0 = p * ToUV
+        texMatrix:setTranslation(Vector(p, p))
+    end
+    
+    function can:SetBackground(Func)
+        BackgroundDraw = Func
+        writeQueued = true
+    end
+    
+    function can:Draw()
+        render.pushMatrix(mat, false)
+            render.setRenderTargetTexture(Name)
+            render.setColor(Color(255, 255, 255))
+            render.drawTexturedRectUV(0, 0, w, h, uv0, uv0, u1, v1)
+        render.popMatrix()
+    end
+    
+    function can:DoCollision()
+        local cx, cy = self:GetCursorPos()
+        return GUI.Hitbox.GetItem(cx, cy, boxes)
+    end
+    
+    function can:QueueDraw()
+        writeQueued = true
+    end
+    
+    function can:Update()
+        if writeQueued then
+            //print(Name .. " Updated")
+            tex:Write()
+            writeQueued = false
+        end
+    end
+    
+    -- # Passthroughs
+    
+    function can:CreateButton(IsToggle)
+        local btn = GUI.Button.Create(self, IsToggle)
+        AddElement(btn)
+        return btn
+    end
+    
+    function can:CreateTextButton(IsToggle)
+        local textbtn = GUI.TextButton.Create(self, IsToggle)
+        AddElement(textbtn)
+        return textbtn
+    end
+    
+    function can:CreateTickBox()
+        local tickbtn = GUI.TickBox.Create(self)
+        AddElement(tickbtn)
+        return tickbtn
+    end
+    
+    function can:CreateSlider(KnobOnly)
+        local sld = GUI.Slider.Create(self, KnobOnly)
+        AddElement(sld)
+        return sld
+    end
+    
+    function can:CreateInput(Numeric)
+        local inp = GUI.Input.Create(self, Numeric)
+        AddElement(inp)
+        return inp
+    end
+    
+    function can:CreateDropdown()
+        local dd = GUI.Dropdown.Create(self)
+        AddElement(dd)
+        return dd
+    end
+    
+    function can:CreateSliderCombo(KnobOnly)
+        local cmb = GUI.SliderCombo.Create(self, KnobOnly)
+        //AddElement(cmb:GetSlider())
+        //AddElement(cmb:GetInput())
+        return cmb
+    end
+    
+    function can:Remove(Item)
+        RemoveElement(Item)
+    end
+    
+    -- Private / helper functions
+    
+    function TextureRender()
+        render.pushMatrix(texMatrix)
+            render.clear(Color(0, 0, 0, 0))
+            BackgroundDraw()
+            
+            for _, elem in ipairs(elements) do
+                elem:Draw()
+            end
+        render.popMatrix()
+    end
+    
+    -- # Getters
+    
+    function can:GetHitbox() return box end
+    
+    function can:GetTexture() return tex end
+    
+    function can:GetCursorPos()
+        local cx, cy = GUI.Cursor:GetPosition()
+        local vec = mat:getTranslation()
+        local scale = mat:getScale()
+        
+        local canX = math.remap(cx, vec.x, vec.x + scale.x * w, 0, w)
+        local canY = math.remap(cy, vec.y, vec.y + scale.y * h, 0, h)
+        
+        return canX, canY
+    end
+    
+    return can
+end
+
+return Canvas

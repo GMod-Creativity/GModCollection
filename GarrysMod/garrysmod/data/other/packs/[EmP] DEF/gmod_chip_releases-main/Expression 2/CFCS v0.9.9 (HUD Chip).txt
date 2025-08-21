@@ -1,0 +1,1321 @@
+@name CFCS v0.9.9 (HUD)
+
+#Community Fire Control System, a HUD E2 by DEF.
+
+# Video tutorial can be found here - https://youtu.be/erPAjQGK7yM #
+
+@inputs [Pod Cam EGP]:wirelink PrevWeapon NextWeapon Lase [MainGun Secondary HullBase TurretBase Engine]:entity Speed GearNum GearStr:string
+@inputs Ter1 Ter2 Ter3 Ter4 Ter5
+@outputs MGReload SGReload MA1 MA2 MA3 SA1 [MGOffset SGOffset]:angle MGRange MGToF SGRange SGToF FilterEnts:array
+@trigger PrevWeapon NextWeapon
+
+#Cam stuff
+@persist [ViewShift IRKey]:string [Ent Pos Dis]:array Mag:table BaseFOV FOV FLIRKey CI MI 
+
+#Ballsitics stuff
+@persist DataGun:entity DataK DataMaxRng DataInd DataTime DataDebug DataVM:vector2 DropTab:table [Projectile MaxRanges]:vector4 BuilderStatus:string
+
+@persist [User]:entity [LaseKey MGRelKey SGMGRelKey MGName SGName Font]:string [EGPInd TC AmK AmC Module]:array [MA Crts AmID]:table
+@persist [Grav MuzzleDistance BalInd Zeroing Sight LaseData]:vector2 HUDStatus:string EI TUSx TUSy
+@persist ResX ResY StaticCross SpdMul AmQ AmL AmU MAC TAC BgAlpha BgScale TextSize RTTextSize MGAU SGAU
+@persist PwrBndMin PwrBndMax MGLoadTime SGLoadTime SelectedGun DiagramScale MGAmmoWired
+
+#Colors and positions
+@persist [BgCol MGStatCol AmSelCol SGStatCol TerCol RPMColIdle RPMColPwBand RPMColRedLine EngClustCol RFCCol MGSCol SGSCol]:vector
+@persist [AimCol DiagramHullCol DiagramTurretCol MGDatCol SGDatCol RTPipCol]:vector
+@persist [MGStatPos AmSelPos SGStatPos TerPos EngClustPos RFCPos DiagramPos]:vector2
+
+#Debug
+@outputs OpsCPUus:vector2
+
+if(duped() | dupefinished()) {reset()}
+
+if(first() | dupefinished()) {
+    
+    local AmInd = 0, local TerAmInd = 0, CI = 0, SA1 = 1, SelectedGun = 1
+    
+        # ~ Common ~ #
+    
+    #Preset color grouping. You can chage these or you can change all the Col variables with custom RGB vec() vectors.
+    ColorGroup1 = vec(175, 0, 0)
+    ColorGroup2 = vec(175, 85, 0)
+    ColorGroup3 = vec(175, 175, 0)
+    
+    # # # Alignment
+    
+    ShowHolos = 0                   #Show alignment holos
+    
+    BaseAng = ang(0, 0, 0)          #HullBase alignment angle
+    
+    TurretAng = ang(0, 0, 0)        #TurretBase alignment angle
+    
+    MGAng = ang(0, 0, 0)            #MainGun alignment angle
+    
+    SGAng = ang(0, 0, 0)            #Secondary alignment angle
+    
+    # # # Other
+    
+    BgAlpha = 100               #Bubble opacity
+    
+    BgCol = vec(0, 0, 0)        #Bubble color
+    
+    TextSize = 30               #Text size
+    
+    BgScale = 30                #How big the bubbles should be
+    
+    Font = "Consolas"
+    
+    
+        # ~ Camera ~ #
+    
+    
+    #>Requires Cam Controller<#
+    
+    # http://wiki.garrysmod.com/page/Enums/KEY #
+    
+    BaseFOV = 90                #Default FOV
+    
+    ViewShift = "LShift"        #Cycle view
+    
+    IRKey = "5"                 #FLIRKey toggle
+    
+    #Cam parents, positions, distances, and magnifications.
+    
+    #This is what a thirdperson setup without zooming would roughly look like
+    #Ent[1,entity] = HullBase
+    #Pos[1,vector] = vec(0, 0, 60)
+    #Dis[1,number] = 270
+    #Mag[1,array] = array(1.4)
+    
+    #This is what a firsperson/commander's hatch setup with zooming would roughly look like
+    #Ent[2,entity] = TurretBase
+    #Pos[2,vector] = vec(0, 21, 21)
+    #Dis[2,number] = 0
+    #Mag[2,array] = array(1, 3, 12)
+    
+    Ent[1,entity] = HullBase
+    Pos[1,vector] = vec(0, 0, 60)
+    Dis[1,number] = 270
+    Mag[1,array] = array(1.4)
+    
+    Ent[2,entity] = TurretBase
+    Pos[2,vector] = vec(0, 21, 21)
+    Dis[2,number] = 0
+    Mag[2,array] = array(1, 3, 12)
+    
+    
+        # ~ MainGun and Secondary ~ #
+    
+    
+    DataDebug = 0           #Ballistic data debug
+    
+    StaticCross = 1         #Static crosshair
+    
+    AimCol = ColorGroup1        #Static crosshair color
+    
+    RTPipCol = ColorGroup1      #Rangetable solution position color
+    
+    RTTextSize = 15         #Text size for rangetable
+    
+    LaseKey = ""            #Lase key, if the Lase input is not wired
+    
+    # # # Extra
+    
+    #Type >r< or >r 0< to removed lase data and uncalibrate the guns
+    #Type >r [NUMBER]< to manually lase and calibrate the guns
+    #Type >sight< to toggle which gunsight gets fully rendered
+    
+    
+    # # # MainGun sight and ballistics
+    
+    #>Requires MainGun. MA1 OR MA2 OR MA3 optional<#
+    
+    MGSight = 2         #No sight (0), + (1), Rangetanble (2), or Abrams (3)
+    
+    MGZeroing = 1       #Sight calibration for lasing
+    
+    MGRelKey = "R"      #Reload key
+    
+    MGRotOffset = vec(0, 0, 0)      #New rotation point for guns that don't rotate around their center of mass.
+    
+    MGSCol = ColorGroup2            #Sight color
+    
+    # # # Maingun info-bubble
+    
+    #>Requires MainGun. MA1 OR MA2 OR MA3, Cam Controller optional<#
+    
+    MGBubble = 1        #MainGun status; ammo counts, reload time (if enabled), and lase data (if enabled).
+    
+    MGName = ""         #Gun name
+    
+    MGReloadTimer = 1       #Reload timer
+    
+    MGLaseData = 1          #Range and time (Lase Data)
+    
+    MGDatCol = ColorGroup2      #Lase data color
+    
+    MGStatCol = ColorGroup1     #MainGun info-bubble text color
+    
+    MGStatPos = vec2(0, -0.55)      #MainGun info-bubble position
+    
+    # # # Selectable Ammo
+    
+    #>Requires MainGun AND MA1 OR MA2 OR MA3<#
+    
+    #Main ammo keys and names
+    #>>> AmInd++, MA[AmInd,array] = array("1", "APDS") <<<
+    #The > 1 < key is used to queue/reload the ammo, and > APDS < is the ammo name.
+    
+    AmInd++, MA[AmInd,array] = array("1", "AP")
+    AmInd++, MA[AmInd,array] = array("2", "HEAT")
+    
+    AmSelCol = ColorGroup2          #Ammo-selector text color
+    
+    AmSelPos = vec2(0, -0.77)       #Ammo-selector info-bubble position
+    
+    
+    # # # Secondary sight and ballistics
+    
+    #>Requires Secondary. SA1 optional<#
+    
+    SGSight = 1         #No sight (0), X (1), Rangetanble (2), or Abrams (3)
+    
+    SGZeroing = 1       #Sight calibration for lasing
+    
+    SGMGRelKey = "T"    #Reload key
+    
+    SGRotOffset = vec(0, 0, 0)      #New rotation point for guns that don't rotate around their center of mass.
+    
+    SGSCol = ColorGroup3            #Sight color
+    
+    # # # Secondary info-bubble
+    
+    #>Requires Secondary. SA1, Cam Controller optional<#
+    
+    SGBubble = 1        #Secondary status; ammo counts, reload time (if enabled), and lase data (if enabled).
+    
+    SGName = ""         #Gun name
+    
+    SGReloadTimer = 1       #Reload timer
+    
+    SGLaseData = 1          #Range and time
+    
+    SGDatCol = ColorGroup3      #Lase data color
+    
+    SGStatCol = ColorGroup1     #Secondary info-bubble text color
+    
+    SGStatPos = vec2(0.44, -0.55)     #Secondary info-bubble position
+    
+    
+        # ~ Tertiary Ammo Counts ~ #
+    
+    
+    #>Requires Ter1 OR Ter2 OR Ter3 OR Ter4 OR Ter5<#
+    
+    TCBubble = 1        #Tertiary counts bubble (if applicable).
+    
+    #Tertiary ammo names
+    #>>> TerAmInd++, TC[TerAmInd,string] = "7.62" <<<
+    #A number next to text that says 7.62
+    
+    TerAmInd++, TC[TerAmInd,string] = "Fuel"
+    TerAmInd++, TC[TerAmInd,string] = "Coax"
+    
+    TerCol = ColorGroup1        #Tertiary info-bubble text color
+    
+    TerPos = vec2(0.7, 0.81)    #Tertiary info-bubble position
+    
+    
+        # ~ Rangefinder and Compass ~ #
+    
+    
+    #>Requires Cam Controller<#
+    
+    RFCBubble = 1       #Range and heading info-bubble
+    
+    RFCCol = ColorGroup1        #Range and heading info-bubble text color
+    
+    RFCPos = vec2(0, 0.77)      #Range and heading info-bubble position
+    
+    
+        # ~ Tank Diagram ~ #
+    
+    
+    #>Requires Cam Controller AND HullBase. TurretBase optional<#
+    
+    Diagram = 1         #Tank diagram (if applicable).
+    
+    Turret = 1          #Tank diagram includes turret orientation.
+    
+    DiagramScale = 1                #Tank diagram scale
+    
+    DiagramHullCol = ColorGroup1        #Diagram hull color
+    
+    DiagramTurretCol = ColorGroup2      #Diagram turret color
+    
+    DiagramPos = vec2(-0.7, 0)          #Diagram position
+    
+    
+        # ~ Engine and Gearbox ~ #
+    
+    
+    #>Requires HullBase OR Engine OR GearNum OR GearStr OR Speed<#
+    
+    ENGBubble = 1       #Drivetrain info-bubble
+    
+    SpdMul = 1/17.6                 #Speed multiplier
+    
+    EngClustCol = ColorGroup1       #Drivetrain text color
+    
+    EngClustPos = vec2(-0.7, 0.77)      #Drivetrain info-bubble position
+    
+    RPMColIdle = ColorGroup3            #RPM text idle color
+    RPMColPwBand = ColorGroup1          #... powerband color
+    RPMColRedLine = ColorGroup2         #... redline color
+    
+    
+    
+                    # ~ You are done editing here! ~ #
+    
+    
+    
+    #Array of switches that turns off the various features of the HUD
+    local MGExists = ->MainGun, local SGExists = ->Secondary, local CamExists = ->Cam
+    MGAmmoWired = (->MA1 | ->MA2 | ->MA3), LaseData = vec2(MGLaseData, SGLaseData)
+    Module = array(
+            MGSight & MGExists,
+            MGBubble & MGExists,
+            MGReloadTimer & MGExists,
+            SGBubble & SGExists,
+            TCBubble & (->Ter1 | ->Ter2 | ->Ter3 | ->Ter4 | ->Ter5),
+            ENGBubble & (->HullBase | ->Engine | ->GearNum | ->GearStr | ->Speed),
+            RFCBubble & CamExists,
+            SGSight & SGExists,
+            SGReloadTimer & SGExists,
+            Diagram & CamExists & ->HullBase,
+            Turret & ->TurretBase,
+            MGExists,
+            SGExists
+    )
+    
+    #Holo stuff
+    local ConEnts = entity():getConnectedEntities()
+    rangerPersist(1), rangerFilter(ConEnts), FilterEnts = ConEnts
+    
+    holoCreate(2, TurretBase:toWorld(vec()), vec(1), TurretBase:toWorld(TurretAng), vec4(255*ShowHolos), "models/sprops/misc/origin.mdl")
+    holoParent(2, TurretBase)
+    
+    holoCreate(3, MainGun:toWorld(vec()), vec(1), MainGun:toWorld(MGAng), vec4(255*ShowHolos), "models/sprops/misc/origin.mdl")
+    holoParent(3, MainGun)
+    
+    holoCreate(5, Secondary:toWorld(vec()), vec(1), Secondary:toWorld(SGAng), vec4(255*ShowHolos), "models/sprops/misc/origin.mdl")
+    holoParent(5, Secondary)
+    
+    holoCreate(6, HullBase:toWorld(vec()), vec(1), HullBase:toWorld(BaseAng), vec4(255*ShowHolos), "models/sprops/misc/origin.mdl")
+    holoParent(6, HullBase)
+    
+    if(Module[1,number]) {holoCreate(1, vec()), holoAlpha(1, 0)}, if(Module[8,number]) {holoCreate(4, vec()), holoAlpha(4, 0)}
+    
+    #Camera magnification
+    for(K=1, Mag:count(), 1) {
+        
+        local NFOV = array()
+        for(I=1, Mag[K,array]:count(), 1) {NFOV[I,number] = atan(tan(BaseFOV/2)/Mag[K,array][I,number])*2}
+        Mag[K,array] = NFOV
+    }
+    
+    #Camera initialization
+    Cam["Position",vector] = Pos[1,vector], Cam["Distance",number] = Dis[1,number], Cam["Parent",entity] = Ent[1,entity]
+    FOV = Mag[1,array][1,number], Cam["FOV",number] = FOV, CI=MI = 1
+    
+    #Miscellaneous variables pre-adjusted or pre-defined
+    Zeroing = vec2(MGZeroing, SGZeroing), Sight = vec2(MGSight, SGSight)
+    
+    PwrBndMin = Engine:acfPowerbandMin(), PwrBndMax = Engine:acfPowerbandMax()
+    
+    MGName = (!MGName ? MainGun:acfNameShort() : MGName), SGName = (!SGName ? Secondary:acfNameShort() : SGName)
+    MAC = min(MA:count(), 3), TAC = min(TC:count(), 5)
+    
+    Grav = vec2(0, propGravity()[3])
+    MuzzleDistance = vec2(MainGun:toWorld(MGRotOffset):distance(MainGun:attachmentPos("Muzzle")) / 39.37,
+    Secondary:toWorld(SGRotOffset):distance(Secondary:attachmentPos("Muzzle")) / 39.37)
+    
+    #Finding all the wired ammo crates
+    local Am1 = ioOutputEntities("MA1"), Crts:pushArray(Am1), local Am2 = ioOutputEntities("MA2"), Crts:pushArray(Am2)
+    local Am3 = ioOutputEntities("MA3"), Crts:pushArray(Am3), local AmS = ioOutputEntities("SA1"), Crts:pushArray(AmS)
+    
+    #Ammo identification
+    for(K=1, Crts:count(), 1) {
+        
+        local Grp = array(), local SubAm = 1
+        
+        for(I=1, Crts[K,array]:count(), 1) {
+            
+            local Am = Crts[K,array][I,entity], local ID = vec2(Am:acfProjectileMass(), Am:acfMuzzleVel())
+            if(ID!=Grp[1,vector2] & ID!=Grp[2,vector2]) {Grp[SubAm,vector2] = ID, SubAm++}
+            if(SubAm==4) {break}
+        }
+        
+        AmID[K,array] = Grp
+    }
+    
+    #Ammo naming
+    for(I=1, MAC, 1) {
+        
+        if(MA[I,array][2,string] == "") {MA[I,array][2,string] = Crts[I,array][1,entity]:acfAmmoType()}
+        AmK[I,string] = MA[I,array][1,string]
+    }
+    
+    
+    #Custom ACF functions
+    function number entity:hasAmmo() {
+        
+        if(This:acfAmmoCount() | This:acfProjectileMass()) {return 1}
+        else {return 0}
+    }
+    function number entity:rtf() {
+        
+        if(!This:acfReady() | !This:acfProjectileMass()) {return 0}
+        else {return 1}
+    }
+    function number entity:loaded() {
+        
+        if(!This:acfReady() & (This:acfMagRounds()==This:acfMagSize() | !This:acfMagRounds()) | !This:acfProjectileMass()) {return 0}
+        else {return 1}
+    }
+    function number entity:rounds() {
+        
+        if(This:loaded()) {return min(This:acfAmmoCount()+1, This:acfMagRounds())}
+        else {return 0}
+    }
+    function number entity:loading() {
+        
+        if(This:hasAmmo() & !This:acfReady() & (This:acfMagRounds()==This:acfMagSize() | !This:acfMagRounds())) {return 1}
+        else {return 0}
+    }
+    
+    
+    #Standard normalize and linear interpolation functions
+    function number norm(Val, Min, Max) {return (Val - Min)/(Max - Min)}
+    function number lerp(Norm, Min, Max) {return (Max - Min)*Norm + Min}
+    
+    #Checks what ammo is in the gun
+    function void ammoLoaded() {
+        
+        if(!MainGun:hasAmmo()) {AmL = 0 return}
+        
+        else {
+            
+            local ID = vec2(MainGun:acfProjectileMass(), MainGun:acfMuzzleVel())
+            for(K=1, min(AmID:count(), 3), 1) {
+                
+                local Arr = AmID[K,array]
+                for(I=1, Arr:count(), 1) {if(ID==Arr[I,vector2]) {AmL = K return}}
+            }
+            AmL = 1
+        }
+    }
+    
+    #Queues ammo crates
+    function void selectAmmo(ID) {
+        
+        local AmI = max(AmQ, 1), AmQ = ID
+        if(MGAmmoWired & Module[2,number]) {EGP:egpAlpha(EGPInd[2+AmI,number]-2, 0), EGP:egpAlpha(EGPInd[2+ID,number]-2, 255)}
+        
+        switch(ID) {
+            case 1, MA1 = 1, MA2=MA3 = 0, break
+            case 2, MA2 = 1, MA1=MA3 = 0, break
+            case 3, MA3 = 1, MA1=MA2 = 0, break
+        }
+    }
+    
+    #Returns ammount of a group of ammo
+    function number table:stock(Ind) {
+        
+        local Arr = This[Ind,array], local Tot = 0
+        for(I=1, Arr:count(), 1) {Tot+=Arr[I,entity]:acfRounds()}
+        return Tot
+    }
+    AmC[1,number] = Crts:stock(1), AmC[2,number] = Crts:stock(2), AmC[3,number] = Crts:stock(3)
+    
+    
+    #Returns new position and velocity after drag and gravity.
+    function vector4 vector4:runTrajectory() {
+        
+        #Intitial velocity and position
+        local InitVel = vec2(This[3], This[4])
+        local InitPos = vec2(This[1], This[2])
+        
+        #Final velocity from and position
+        local FinVel = InitVel + 0.066 * (Grav - (DataK * InitVel * InitVel:length() / acfDragDiv()))
+        local FinPos = InitPos + (InitVel + FinVel) / 2 * 0.066
+        return vec4(FinPos, FinVel)
+    }
+    
+    #Saves ballistic data to a table
+    function void writeData() {
+        
+        switch(BuilderStatus) {
+            
+            case "Initialize",
+            
+            DataK = (pi() * (DataGun:acfCaliber()/20)^2) / 10000 / DataVM[2], DataTime = 0
+            DataMaxRng = min(floor(DataVM[1]^2 / Grav:length() * 39.37, -2), 1200) * 39.37
+            MaxRanges[DataInd] = round(DataMaxRng/39.37, 1)
+            Projectile = vec4(vec2(), DataVM[1]*39.37 * vec2(1,0))
+            BuilderStatus = "Shell Flight"
+            
+            break
+            
+            case "Shell Flight",
+            
+            local Dist = (DropTab[DataInd,array]:count() + 1) * 100 * 39.37, local DataArr = array(), local Ind = 1
+            for(I=1, 5, 1) {
+                
+                local VecP = vec2(Projectile), Projectile = Projectile:runTrajectory(), local Vec = vec2(Projectile)
+                DataTime += 0.066
+                
+                if(Vec:length() >= Dist) {
+                    
+                    local Mix = norm(Dist, VecP[1], Vec[1])
+                    DataArr[Ind,vector2] = vec2(lerp(Mix, VecP[2], Vec[2]) / 39.37, lerp(Mix, DataTime - 0.066, DataTime))
+                    
+                    if(Dist == DataMaxRng) {BuilderStatus = "Done", break}
+                    else {Dist+=100*39.37, Ind++}
+                }
+            }
+            DropTab[DataInd,array] = DropTab[DataInd,array]:add(DataArr)
+            
+            break
+        }
+    }
+    
+    #Ballistic builder initialization, finds first wired ammo
+    BuilderStatus = "Done"
+    if(MGAmmoWired | ->SA1) {
+        
+        DataInd=1
+        for(I=DataInd, 4, 1) {
+            
+            DataVM = vec2(AmID[I,array][1,vector2][2], AmID[I,array][1,vector2][1])
+            if(DataVM != vec2() & !DropTab[I,array][1,vector2]) {DataInd = I, DataGun = (I < 4 ? MainGun : Secondary), BuilderStatus = "Initialize" break}
+        }
+        timer("AmmoData", 15)
+    }
+    
+    elseif(DataDebug) {print("No ammo wires found!")}
+    
+    
+    #Makes the various gun sights
+    function void number:sightPattern(Pattern) {
+        
+        local ActFov = FOV*0.73, local WidthMul = ResX * (ResY/ResX) * 1.049
+        local FOVtoMil = ActFov * pi()/180 * 1000, local Scale = 0.5
+        
+        switch(Pattern) {
+            
+            case 1,
+            
+            EGP:egpRoundedBox(This, vec2(), vec2(20 * Scale / FOVtoMil * WidthMul, 2))
+            EGP:egpRoundedBox(This - 1, vec2(), vec2(2, 20 * Scale / FOVtoMil * ResY))
+            
+            break
+            
+            case 2,
+            
+            #Table info array and other misc stuff
+            local Arr = DropTab[(SelectedGun==1 ? AmL : 4),array], local Height = 0, local Div = tan(ActFov/2)
+            local MilWidth1 = 10 * Scale / FOVtoMil * WidthMul
+            local HeightRatio = -Arr[Arr:count(),vector2][1] / (Arr:count()*100) / Div * ResY / 2 / ResY
+            
+            #Drop table elements
+            for(I=1, min(Arr:count(), 10), 1) {
+                
+                local Drop = Arr[I,vector2][1], local Range = I*100, local Odd = I%2
+                Height = -Drop / Range / Div * ResY / 2
+                local MilWidth2 = 200 / I * Scale / FOVtoMil * WidthMul
+                
+                EGP:egpRoundedBox(This + I, vec2(0, Height), vec2(Odd ? MilWidth1 : MilWidth2, 2))
+                
+                #100-meter marks
+                if(Odd & (HeightRatio >= 0.05 & MilWidth1/ResX >= 0.005)) {EGP:egpAlpha(This + I, 255)}
+                
+                #200-meter marks
+                elseif(!Odd & (HeightRatio >= 0.03 | I==10)) {
+                    
+                    EGP:egpAlpha(This + I, 255)
+                    EGP:egpPos(This + 10 + I/2, vec2(MilWidth2/2 + 15, Height)), EGP:egpAlpha(This + 10 + I/2, 255)
+                }
+            }
+            
+            #Range table cross
+            local MilHeight = 20 * Scale / FOVtoMil * ResY / 2
+            EGP:egpRoundedBox(This, vec2(), vec2(20 * Scale / FOVtoMil * WidthMul, 2)), EGP:egpAngle(This, 0)
+            EGP:egpRoundedBox(This - 1, vec2(0, Height - MilHeight)/2, vec2(2, MilHeight + Height)), EGP:egpAngle(This - 1, 0)
+            EGP:egpSize(This + 16, vec2(max(MilWidth1, 2), 2)), EGP:egpSize(This + 17, vec2(2, max(MilWidth1, 2)))
+            
+            #Solution for lasing
+            if(BalInd[SelectedGun] & Zeroing[SelectedGun]) {
+                
+                local Range = BalInd[SelectedGun]
+                local SolHeight = lerp(Range%1, EGP:egpPos(This + floor(Range))[2], EGP:egpPos(This + ceil(Range))[2])
+                
+                EGP:egpPos(This + 16, vec2(0, SolHeight)), EGP:egpAlpha(This + 16, 255), EGP:egpAlpha(This + 17, 255)
+            }
+            
+            break
+            
+            case 3,
+            
+            EGP:egpRoundedBox(This, vec2(), vec2(50 * Scale / FOVtoMil * WidthMul, 2)), EGP:egpAngle(This, 0)
+            EGP:egpRoundedBox(This - 1, vec2(), vec2(2, 20 * Scale / FOVtoMil * ResY)), EGP:egpAngle(This - 1, 0)
+            
+            local CSX = 25 * Scale / FOVtoMil * WidthMul, local CPX = 37.5 * Scale / FOVtoMil * WidthMul, local CPY = 12.5 * Scale / FOVtoMil * ResY
+            EGP:egpRoundedBox(This + 1, vec2(CPX, -CPY), vec2(CSX, 2)), EGP:egpAlpha(This + 1, 255)
+            EGP:egpRoundedBox(This + 2, vec2(-CPX, -CPY), vec2(CSX, 2)), EGP:egpAlpha(This + 2, 255)
+            
+            EGP:egpRoundedBox(This + 3, vec2(CPX, CPY), vec2(CSX, 2)), EGP:egpAlpha(This + 3, 255)
+            EGP:egpRoundedBox(This + 4, vec2(-CPX, CPY), vec2(CSX, 2)), EGP:egpAlpha(This + 4, 255)
+            
+            local CPX = 87.5 * Scale / FOVtoMil * WidthMul
+            EGP:egpRoundedBox(This + 5, vec2(CPX, 0), vec2(CSX, 2)), EGP:egpAlpha(This + 5, 255)
+            EGP:egpRoundedBox(This + 6, vec2(-CPX, 0), vec2(CSX, 2)), EGP:egpAlpha(This + 6, 255)
+            
+            local CSY = 10 * Scale / FOVtoMil * ResY, local CPY = 25 * Scale / FOVtoMil * ResY
+            EGP:egpRoundedBox(This + 7, vec2(0, -CPY), vec2(2, CSY)), EGP:egpAlpha(This + 7, 255)
+            EGP:egpRoundedBox(This + 8, vec2(0, CPY), vec2(2, CSY)), EGP:egpAlpha(This + 8, 255)
+            
+            break
+            
+            case 4,
+            
+            EGP:egpRoundedBox(This, vec2(), vec2(20 * Scale / FOVtoMil * WidthMul, 2)), EGP:egpAngle(This, 45)
+            EGP:egpRoundedBox(This - 1, vec2(), vec2(2, 20 * Scale / FOVtoMil * ResY)), EGP:egpAngle(This - 1, 45)
+            
+            break
+        }
+    }
+    
+    
+    #Tells sight builder which sight to build
+    function void buildTable() {
+        
+        local MGInd = EGPInd[20,number], local SGInd = EGPInd[22,number]
+        
+        if(Module[1,number]) {
+            
+            if(Sight[1]==2) {for(I=1, 17, 1) {EGP:egpAlpha(MGInd + I, 0)}}
+            elseif(Sight[1]==3) {for(I=1, 8, 1) {EGP:egpAlpha(MGInd + I, 0)}}
+            
+            MGInd:sightPattern( (SelectedGun==1 ? (Sight[1]==2 & !DropTab[AmL,array][1,vector2] | Sight[1]==1 ? 1 : Sight[1]) : 1) )
+        }
+        
+        if(Module[8,number]) {
+            
+            if(Sight[2]==2) {for(I=1, 17, 1) {EGP:egpAlpha(SGInd + I, 0)}}
+            elseif(Sight[2]==3) {for(I=1, 8, 1) {EGP:egpAlpha(SGInd + I, 0)}}
+            
+            SGInd:sightPattern( (SelectedGun==2 ? (Sight[2]==2 & !DropTab[4,array][1,vector2] | Sight[2]==1 ? 4 : Sight[2]) : 4) )
+        }
+    }
+    
+    
+    #Loads the hud elements
+    function void buildHUD() {
+        
+        switch(HUDStatus) {
+            
+            case "Sights",
+            
+            #MainGun sight
+            if(Module[1,number]) {
+                
+                #Sight parent and common marks
+                EGP:egp3DTracker(EI, vec()), EGP:egpParent(EI, holoEntity(1)), EGPInd[19,number] = EI, EI++
+                local Master = EGPInd[19,number]
+                EGP:egpBox(EI, vec2(), vec2()), EGP:egpParent(EI, Master), EI++
+                
+                EGP:egpRoundedBox(EI, vec2(), vec2()), EGP:egpColor(EI, MGSCol), EGP:egpParent(EI,Master), EI++
+                EGP:egpRoundedBox(EI, vec2(), vec2()), EGP:egpColor(EI, MGSCol), EGP:egpParent(EI,Master), EGPInd[20,number] = EI, EI++
+                
+                #Extra marks
+                switch(Sight[1]) {
+                    
+                    #Rangetable
+                    case 2,
+                    for(I=1, 10, 1) {EGP:egpRoundedBox(EI, vec2(), vec2()), EGP:egpColor(EI, MGSCol), EGP:egpParent(EI,Master), EI++}
+                    for(I=1, 5, 1) {
+                        
+                        EGP:egpText(EI, (I*2):toString(), vec2()), EGP:egpFont(EI, Font, RTTextSize)
+                        EGP:egpAlign(EI, 0, 1), EGP:egpColor(EI, MGSCol), EGP:egpParent(EI,Master), EI++
+                    }
+                    EGP:egpRoundedBox(EI, vec2(), vec2()), EGP:egpColor(EI, RTPipCol), EGP:egpParent(EI, Master), EI++
+                    EGP:egpRoundedBox(EI, vec2(), vec2()), EGP:egpColor(EI, RTPipCol), EGP:egpParent(EI, EI-1), EGP:egpAngle(EI-1, 45), EI++
+                    break
+                    
+                    #Abrams sight
+                    case 3,
+                    for(I=1, 8, 1) {EGP:egpRoundedBox(EI, vec2(), vec2()), EGP:egpColor(EI, MGSCol), EGP:egpParent(EI, Master), EI++}
+                    break
+                }
+            }
+            
+            #Secondary sight
+            if(Module[8,number]) {
+                
+                EGP:egp3DTracker(EI, vec()), EGP:egpParent(EI, holoEntity(4)), EGPInd[21,number] = EI, EI++
+                local Master = EGPInd[21,number]
+                EGP:egpBox(EI, vec2(), vec2()), EGP:egpParent(EI, Master), EI++
+                
+                EGP:egpRoundedBox(EI, vec2(), vec2()), EGP:egpColor(EI, SGSCol), EGP:egpParent(EI,Master), EGP:egpAngle(EI, 45), EI++
+                EGP:egpRoundedBox(EI, vec2(), vec2()), EGP:egpColor(EI, SGSCol), EGP:egpParent(EI,Master), EGP:egpAngle(EI, 45), EGPInd[22,number] = EI
+                EI++
+                
+                #Extra marks
+                switch(Sight[2]) {
+                    
+                    case 2,
+                    for(I=1, 10, 1) {EGP:egpRoundedBox(EI, vec2(), vec2()), EGP:egpColor(EI, SGSCol), EGP:egpParent(EI,Master), EI++}
+                    for(I=1, 5, 1) {
+                        
+                        EGP:egpText(EI, (I*2):toString(), vec2()), EGP:egpFont(EI, Font, RTTextSize)
+                        EGP:egpAlign(EI, 0, 1), EGP:egpColor(EI, SGSCol), EGP:egpParent(EI,Master), EI++
+                    }
+                    EGP:egpRoundedBox(EI, vec2(), vec2()), EGP:egpColor(EI, RTPipCol), EGP:egpParent(EI, Master), EI++
+                    EGP:egpRoundedBox(EI, vec2(), vec2()), EGP:egpColor(EI, RTPipCol), EGP:egpParent(EI, EI-1), EGP:egpAngle(EI-1, 45), EI++
+                    break
+                    
+                    case 3,
+                    for(I=1, 8, 1) {EGP:egpRoundedBox(EI, vec2(), vec2()), EGP:egpColor(EI, SGSCol), EGP:egpParent(EI,Master), EI++}
+                    break
+                }
+            }
+            
+            #Croshair
+            if(StaticCross) {
+                
+                EGP:egpRoundedBox(EI, vec2(ResX/2,ResY/2), vec2(15,2)), EGP:egpColor(EI, AimCol), EI++
+                EGP:egpRoundedBox(EI, vec2(ResX/2,ResY/2), vec2(2,15)), EGP:egpColor(EI, AimCol), EI++
+            }
+            
+            buildTable(), HUDStatus = "Gun Bubbles"
+            
+            break
+            
+            
+            case "Gun Bubbles",
+            
+            #MainGun cluster
+            ammoLoaded(), selectAmmo(!AmL ? 1 : AmL)
+            if(Module[2,number]) {
+                
+                #Used for variable sizing
+                local SzN = MGName:length()*TUSx
+                local SzM = (MainGun:acfMagSize():toString():length() + 6 + 5*Module[3,number])*TUSx
+                local SzG = max(SzN, SzM, LaseData[1] * 8)
+                
+                #Translation, size, and position
+                local SX = BgScale*SzG, local SY = BgScale*(LaseData[1] ? 3 : 2)*TUSy
+                local PX = ResX * (0.5 + MGStatPos[1]/2), local PY = ResY * (0.5 - MGStatPos[2]/2)
+                
+                #Background, gun name, loaded rounds, lase data, and reload timer.
+                EGP:egpRoundedBox(EI, vec2(PX, PY), vec2(SX + 4, SY + 4)), EGP:egpColor(EI, vec4(BgCol, BgAlpha)), EGP:egpFidelity(EI, 4), EI++
+                
+                EGP:egpText(EI, MGName, vec2(PX, PY - SY/2 + BgScale*0.5*TUSy)), EGP:egpFont(EI, Font, TextSize), EGP:egpAlign(EI, 1, 1)
+                EGP:egpColor(EI, MGStatCol), EGPInd[1,number] = EI, EI++
+                
+                local GunCounts = MainGun:rounds():toString() + "/" + MainGun:acfMagSize()
+                EGP:egpText(EI, GunCounts, vec2(PX - (Module[3,number] ? SX * 0.25 : 0), PY - SY/2 + BgScale*1.5*TUSy))
+                EGP:egpFont(EI, Font, TextSize), EGP:egpAlign(EI, 1, 1), EGP:egpColor(EI, MGStatCol), EGPInd[2,number] = EI, EI++
+                
+                if(LaseData[1]) {
+                    
+                    EGP:egpText(EI, "0 M | 0 S", vec2(PX, PY - SY/2 + BgScale*2.5*TUSy))
+                    EGP:egpFont(EI, Font, TextSize), EGP:egpAlign(EI, 1, 1), EGP:egpColor(EI, MGDatCol), EGPInd[60,number] = EI, EI++
+                }
+                
+                if(Module[3,number]) {
+                    
+                    local Status = MainGun:rtf() ? "Ready" : "Empty"
+                    EGP:egpText(EI, Status, vec2(PX + SX * 0.25, PY - SY/2 + BgScale*1.5*TUSy)), EGP:egpFont(EI, Font, TextSize)
+                    EGP:egpColor(EI, MGStatCol), EGP:egpAlign(EI, 1, 1), EGPInd[30,number] = EI, EI++
+                }
+                
+                #Ammo bubble sizes and positions
+                if(MGAmmoWired) {
+                    
+                    local BSX = array()
+                    for(I=1, MAC, 1) {BSX[I,number] = max(MA[I,array][2,string]:length(), 4) * BgScale * TUSx}
+                    SX = BSX[1,number] + BSX[2,number] + BSX[3,number], SY = BgScale*2*TUSy
+                    PX = ResX * (0.5 + AmSelPos[1]/2), PY = ResY * (0.5 - AmSelPos[2]/2)
+                    local Upper = PY - SY * 0.25, local Lower = PY + SY * 0.25, local LPX = PX - SX/2, local Spacing = 0.5 * BgScale * TUSx
+                        
+                    for(I=1, MAC, 1) {
+                        
+                        local CPX = LPX + BSX[I,number]/2, LPX += BSX[I,number] + Spacing
+                        local Col = (AmL==I ? AmSelCol : MGStatCol)
+                        
+                        EGP:egpBoxOutline(EI, vec2(CPX, PY), vec2(BSX[I,number]+ 8, SY + 8))
+                        EGP:egpColor(EI, vec4(AmSelCol, (AmQ==I ? 255 : 0))), EGP:egpSize(EI,4), EI++
+                        
+                        EGP:egpBox(EI, vec2(CPX, PY), vec2(BSX[I,number] + 4, SY + 4)), EGP:egpColor(EI, vec4(BgCol, BgAlpha)), EI++
+                        
+                        EGPInd[2+I,number] = EI
+                        
+                        EGP:egpText(EI, MA[I,array][2,string], vec2(CPX, Upper)), EGP:egpFont(EI, Font, TextSize)
+                        EGP:egpAlign(EI, 1, 1), EGP:egpColor(EI, Col), EI++
+                        
+                        EGP:egpText(EI, AmC[I,number]:toString(), vec2(CPX, Lower)), EGP:egpFont(EI, Font, TextSize)
+                        EGP:egpAlign(EI, 1, 1), EGP:egpColor(EI, Col), EI++
+                    }
+                }
+            }
+            
+            #Secondary cluster
+            if(Module[4,number]) {
+                
+                local SzN = SGName:length()*TUSx
+                local SzM = (Secondary:acfMagSize():toString():length() + 6 + 5*Module[9,number])*TUSx
+                local SzG = max(SzN, SzM, LaseData[2] * 8)
+                
+                local SX = BgScale*SzG, local SY = BgScale*(LaseData[2] ? 3 : 2)*TUSy
+                local PX = ResX * (0.5 + SGStatPos[1]/2), local PY = ResY * (0.5 - SGStatPos[2]/2)
+                
+                EGP:egpRoundedBox(EI, vec2(PX, PY), vec2(SX + 4, SY + 4)), EGP:egpColor(EI, vec4(BgCol, BgAlpha)), EGP:egpFidelity(EI, 4), EI++
+                
+                EGP:egpText(EI, SGName, vec2(PX, PY - SY/2 + BgScale*0.5*TUSy)), EGP:egpFont(EI, Font, TextSize)
+                EGP:egpAlign(EI, 1, 1), EGP:egpColor(EI, SGStatCol), EI++
+                
+                local SecAmC = (Secondary:acfAmmoCount() + (Secondary:acfProjectileMass() > 0)):toString()
+                EGP:egpText(EI, Secondary:rounds() + "/" + SecAmC, vec2(PX - (Module[9,number] ? SX * 0.25 : 0), PY - SY/2 + BgScale*1.5*TUSy))
+                EGP:egpFont(EI, Font, TextSize), EGP:egpAlign(EI, 1, 1), EGP:egpColor(EI, SGStatCol), EGPInd[18,number] = EI, EI++
+                
+                if(LaseData[2]) {
+                    
+                    EGP:egpText(EI, "0 M | 0 S", vec2(PX, PY - SY/2 + BgScale*2.5*TUSy))
+                    EGP:egpFont(EI, Font, TextSize), EGP:egpAlign(EI, 1, 1), EGP:egpColor(EI, SGDatCol), EGPInd[61,number] = EI, EI++
+                }
+                
+                if(Module[9,number]) {
+                    
+                    local Status = Secondary:rtf() ? "Ready" : "Empty"
+                    EGP:egpText(EI, Status, vec2(PX + SX * 0.25, PY - SY/2 + BgScale*1.5*TUSy)), EGP:egpFont(EI, Font, TextSize)
+                    EGP:egpColor(EI, SGStatCol), EGP:egpAlign(EI, 1, 1), EGPInd[31,number] = EI, EI++
+                }
+            }
+            HUDStatus = "Auxiliary"
+            
+            break
+            
+            
+            case "Auxiliary",
+            
+            #Tertiary counts
+            if(Module[5,number]) {
+                
+                #Variable sizing
+                local SzG = 0
+                for(I=1, TAC, 1) {SzC = TC[I,string]:length(), if(SzC > SzG) {SzG = SzC}}
+                
+                #Translation, size, and position
+                local SX = BgScale*(4+SzG)*TUSx, local SY = BgScale*TAC*TUSy, local XCenter = SzG / (4+SzG)
+                local PX = ResX * (0.5 + TerPos[1]/2), local PY = ResY * (0.5 - TerPos[2]/2) + (BgScale*(TAC-1)*0.5)
+                
+                #Background and counts
+                EGP:egpRoundedBox(EI, vec2(PX, PY), vec2(SX + 4, SY + 4)), EGP:egpColor(EI, vec4(BgCol, BgAlpha)), EGP:egpFidelity(EI, 4), EI++
+                
+                for(I=1, TAC, 1) {
+                    
+                    local CPY = PY - SY/2 + BgScale*(I-0.5)*TUSy
+                    EGP:egpText(EI, TC[I,string], vec2(PX - SX/2 + lerp(XCenter/2, 0, SX), CPY)), EGP:egpFont(EI, Font, TextSize)
+                    EGP:egpAlign(EI, 1, 1), EGP:egpColor(EI, TerCol), EI++
+                    EGPInd[6+I,number] = EI
+                    EGP:egpText(EI, "", vec2(PX + SX/2 - lerp((1-XCenter) / 2, 0, SX), CPY)), EGP:egpFont(EI, Font, TextSize)
+                    EGP:egpAlign(EI, 1, 1), EGP:egpColor(EI, TerCol), EI++
+                }
+                
+                #Initial secondary ammo counts
+                EGP:egpSetText(EGPInd[7,number], round(Ter1):toString()), EGP:egpSetText(EGPInd[8,number], round(Ter2):toString())
+                EGP:egpSetText(EGPInd[9,number], round(Ter3):toString()), EGP:egpSetText(EGPInd[10,number], round(Ter4):toString())
+                EGP:egpSetText(EGPInd[11,number], round(Ter5):toString())
+            }
+            
+            #Powerpack cluster
+            if(Module[6,number]) {
+                
+                #Size and position
+                local SX = BgScale*8.5*TUSx, local SY = BgScale*2*TUSy
+                local PX = ResX * (0.5 + EngClustPos[1]/2), local PY = ResY * (0.5 - EngClustPos[2]/2)
+                local Left = PX - SX/2 + 10, local Right = PX + SX/2 - 10
+                local Upper = PY - SY * 0.25, local Lower = PY + SY * 0.25
+                
+                #Background, speed, and RPM
+                EGP:egpRoundedBox(EI, vec2(PX,PY), vec2(SX + 4,SY + 4)), EGP:egpColor(EI, vec4(BgCol, BgAlpha)), EGP:egpFidelity(EI, 4), EI++
+                
+                EGP:egpText(EI, "SPD", vec2(Left, Upper)), EGP:egpFont(EI, Font, TextSize)
+                EGP:egpAlign(EI, 0, 1), EGP:egpColor(EI, EngClustCol), EI++
+                EGP:egpText(EI, "", vec2(Right, Upper)), EGP:egpFont(EI, Font, TextSize)
+                EGP:egpAlign(EI, 2, 1), EGP:egpColor(EI, EngClustCol), EGPInd[12,number] = EI, EI++
+                
+                EGP:egpText(EI, "RPM", vec2(Left, Lower)), EGP:egpFont(EI, Font, TextSize)
+                EGP:egpAlign(EI, 0, 1), EGP:egpColor(EI, EngClustCol), EI++
+                EGP:egpText(EI, "", vec2(Right, Lower)), EGP:egpFont(EI, Font, TextSize)
+                EGP:egpAlign(EI, 2, 1), EGP:egpColor(EI, EngClustCol), EGPInd[13,number] = EI, EI++
+            }
+            
+            #Range and Heading cluster
+            if(Module[7,number]) {
+                
+                #Size and position
+                local SX = BgScale*6*TUSx, local SY = BgScale*2*TUSy
+                local PX = ResX * (0.5 + RFCPos[1]/2), local PY = ResY * (0.5 - RFCPos[2]/2)
+                
+                #Background, range, and compass
+                EGP:egpRoundedBox(EI, vec2(PX, PY), vec2(SX + 4,SY + 4)), EGP:egpColor(EI, vec4(BgCol, BgAlpha)), EGP:egpFidelity(EI, 4), EI++
+                
+                EGP:egpText(EI, "M", vec2(PX, PY - SY * 0.25)), EGP:egpFont(EI, Font, TextSize)
+                EGP:egpAlign(EI, 1, 1), EGP:egpColor(EI, RFCCol), EGPInd[14,number] = EI, EI++
+                
+                EGP:egpText(EI, "", vec2(PX, PY + SY * 0.25)), EGP:egpFont(EI, Font, TextSize)
+                EGP:egpAlign(EI, 1, 1), EGP:egpColor(EI, RFCCol), EGPInd[15,number] = EI, EI++
+            }
+            
+            #Diagram cluster
+            if(Module[10,number]) {
+                
+                #Size and position
+                local SV2 = vec2(ResY/10*DiagramScale), local LineWidth = DiagramScale * 3
+                local PX = ResX * (0.5 + DiagramPos[1]/2), local PY = ResY * (0.5 - DiagramPos[2]/2)
+                local DiaHullSz = SV2 * vec2(0.8, 1.6), local DiaHullSz2 = DiaHullSz * 0.85
+                local DiaTurrSz = SV2 * vec2(0.32, 0.43), local DiaTurrSz2 = DiaTurrSz * 0.85
+                
+                #Background and Hull
+                if(->HullBase) {
+                    
+                    EGP:egpCircle(EI, vec2(PX, PY), SV2), EGP:egpColor(EI, vec4(BgCol, BgAlpha)), EI++
+                    
+                    EGP:egpRoundedBoxOutline(EI, vec2(PX, PY), DiaHullSz), EGPInd[40,number] = EI, local Master = EI
+                    EGP:egpColor(EI, DiagramHullCol), EGP:egpSize(EI, LineWidth), EGP:egpFidelity(EI, 10), EI++
+                    
+                    EGP:egpRoundedBoxOutline(EI, vec2(0, DiaHullSz[2]/2 - DiaHullSz2[2]/2), DiaHullSz2)
+                    EGP:egpColor(EI, DiagramHullCol), EGP:egpSize(EI, LineWidth), EGP:egpFidelity(EI, 10), EGP:egpParent(EI, Master), EI++
+                    
+                    EGP:egpBoxOutline(EI, SV2 * vec2(0, 0.61), SV2 * vec2(0.5, 0.2))
+                    EGP:egpColor(EI, DiagramHullCol), EGP:egpSize(EI, LineWidth), EGP:egpParent(EI, Master), EI++
+                    
+                    EGP:egpRoundedBoxOutline(EI, SV2 * vec2(-0.15, -0.45), SV2 * vec2(0.18, 0.11))
+                    EGP:egpColor(EI, DiagramHullCol), EGP:egpSize(EI, LineWidth), EGP:egpFidelity(EI, 10), EGP:egpParent(EI, Master), EI++
+                    
+                    #Turret
+                    if(->TurretBase & Module[11,number]) {
+                        
+                        EGP:egpBox(EI, SV2 * vec2(0, 0.04), vec2())
+                        EGP:egpParent(EI, Master), EGPInd[41,number] = EI, local MasterT = EI, EI++
+                        
+                        EGP:egpCircleOutline(EI, vec2(), DiaTurrSz)
+                        EGP:egpColor(EI, DiagramTurretCol), EGP:egpSize(EI, LineWidth), EGP:egpFidelity(EI, 16), EGP:egpParent(EI, MasterT), EI++
+                        
+                        EGP:egpCircleOutline(EI, vec2(0, DiaTurrSz[2]/2 - DiaTurrSz2[2] * 0.43), DiaTurrSz2)
+                        EGP:egpColor(EI, DiagramTurretCol), EGP:egpSize(EI, LineWidth), EGP:egpFidelity(EI, 16), EGP:egpParent(EI, MasterT), EI++
+                        
+                        EGP:egpCircleOutline(EI, SV2 * vec2(0.11, 0.05), SV2 * 0.12)
+                        EGP:egpColor(EI, DiagramTurretCol), EGP:egpSize(EI, LineWidth), EGP:egpFidelity(EI, 8), EGP:egpParent(EI, MasterT), EI++
+                        
+                        EGP:egpRoundedBoxOutline(EI, SV2 * vec2(-0.14, 0.05), SV2 * vec2(0.18, 0.11))
+                        EGP:egpColor(EI, DiagramTurretCol), EGP:egpSize(EI, LineWidth), EGP:egpFidelity(EI, 10), EGP:egpParent(EI, MasterT), EI++
+                        
+                        EGP:egpRoundedBox(EI, SV2 * vec2(0, -0.65), SV2 * vec2(0.05, 0.58))
+                        EGP:egpColor(EI, DiagramTurretCol), EGP:egpParent(EI, MasterT), EI++
+                    }
+                }
+            }
+            HUDStatus = "Done"
+            
+            break
+        }
+    }
+}
+
+
+
+
+
+#HUD initialization; New user, resolution, and text scaling
+local Active = Pod["Active",normal]
+if(changed(Active) & Active) {
+    
+    User = Pod["Entity",entity]:driver(), ResX = egpScrW(User), ResY = egpScrH(User), EGP:egpClear()
+    EI = 1, TUSx = TextSize/44, TUSy = TextSize/22, HUDStatus = "Sights", buildHUD(), timer("BuildHUD", 15)
+    MGRange=MGToF=SGRange=SGToF = 0, BalInd = vec2()
+}
+
+
+#Update cycle
+interval(165), runOnChat(1)
+if(Active & HUDStatus=="Done") {
+    
+    #Chat triggers
+    if(chatClk(owner())) {
+        
+        local Chat = User:lastSaid():lower()
+        local Split  = Chat:sub(1, Chat:length()):explode(" ")
+        local Group1 = Split:string(1), local Group2 = Split:string(2)
+        
+        #Manual lase
+        if(Group1 == "r") {
+            
+            hideChat(1)
+            if(!Group2 | Group2 == "0") {
+                
+                BalInd = vec2(0)
+                if(Sight[1]==2) {EGP:egpAlpha(EGPInd[20,number] + 16, 0), EGP:egpAlpha(EGPInd[20,number] + 17, 0)}
+                if(Sight[2]==2) {EGP:egpAlpha(EGPInd[22,number] + 16, 0), EGP:egpAlpha(EGPInd[22,number] + 17, 0)}
+            }
+            
+            else {BalInd = vec2(Group2:toNumber()/100)}
+        }
+        
+        #Sight toggling
+        elseif(Group1 == "sight") {hideChat(1), SelectedGun = (SelectedGun==1 ? 2 : 1), buildTable()}
+    }
+    
+    
+    #Other HUD stuff
+    if(clk("interval")) {
+        
+        #Common
+        if(!(->Lase)) {Lase = User:keyPressed(LaseKey)}
+        local UpdateData = (changed(BalInd) | changed(SelectedGun) | changed(AmL) | Lase ? 1 : 0)
+        
+        
+        #MainGun
+        if(Module[12,number]) {
+            
+            #Misc gun data
+            ammoLoaded(), local MGDropData = DropTab[AmL,array], local Clip = MainGun:rounds(), local MagSize = MainGun:acfMagSize()
+            local CanGetAmmo = MainGun:acfProjectileMass() & MainGun:acfMuzzleVel()
+            
+            #Egp elements
+            if(Module[2,number]) {
+                
+                #More gun data
+                local RTF = MainGun:rtf(), local Loaded = MainGun:loaded(), local HasAmmo = MainGun:hasAmmo()
+                
+                #Ammo group indicator
+                if(changed(AmL) & MGAmmoWired) {
+                    
+                    for(I=1, MAC, 1) {
+                        
+                        local Col = (AmL==I ? AmSelCol : MGStatCol)
+                        EGP:egpColor(EGPInd[2+I,number], Col), EGP:egpColor(EGPInd[2+I,number] + 1, Col)
+                    }
+                }
+                
+                #Ammo counts
+                MGAU++
+                if(changed(RTF) & RTF | MGAU==4) {
+                    
+                    MGAU = 0, local Denom = (!MGAmmoWired ? MainGun:acfAmmoCount() + HasAmmo : MagSize):toString()
+                    EGP:egpSetText(EGPInd[2,number], Clip:toString() + "/" + Denom)
+                    
+                    if(MGAmmoWired) {
+                        
+                        for(I=1, MAC, 1) {
+                            
+                            AmC[I,number] = Crts:stock(I) + (AmL==I & HasAmmo)
+                            EGP:egpSetText(EGPInd[2+I,number] + 1, (AmC[I,number]):toString())
+                        }
+                    }
+                }
+                
+                #LoadTimer
+                if(Module[3,number]) {
+                    
+                    local Loading = MainGun:loading(), local Status = ""
+                    
+                    #Custom time for magazines
+                    if(changed(Loading) & Loading & MagSize > 1 & !AmU) {MGLoadTime = MainGun:acfMagReloadTime(), timer("MG_AddTime", 105)}
+                    
+                    if(RTF) {Status = "Ready"}
+                    elseif(Loading | Loaded) {
+                        
+                        local TotTime = (MGLoadTime ? MGLoadTime : MainGun:acfReloadTime() * (1 - MainGun:acfReloadProgress()))
+                        Debug = TotTime
+                        Status = (MGLoadTime | MainGun:acfReloadProgress() ? round(TotTime, 1):toString() : "Loading")
+                    }
+                    else {Status = "Empty", MGLoadTime = 0}
+                    
+                    if(changed(Status) | changed(Active)) {EGP:egpSetText(EGPInd[30,number], Status)}
+                }
+            }
+            
+            
+            #Ballistic builder initialization for wire-less ammo
+            if(!MGAmmoWired & CanGetAmmo & !AmID[1,array][1,vector2] & BuilderStatus=="Done") {
+                
+                DataVM = vec2(MainGun:acfMuzzleVel(), MainGun:acfProjectileMass())
+                AmID[1,array][1,vector2] = shift(DataVM), DataInd = 1
+                DataGun = MainGun, BuilderStatus = "Initialize", timer("AmmoData", 15)
+            }
+            
+            #Lase range, interpolated ballistic data, and calibration angles
+            if(MGDropData) {
+                
+                if(Lase) {BalInd[1] = min(MainGun:attachmentPos("Muzzle"):distance(Cam["HitPos",vector]) / 39.37 / 100, MGDropData:count())}
+                
+                local MGSol = mix( MGDropData[floor(BalInd[1]),vector2], MGDropData[ceil(BalInd[1]),vector2], 1-(BalInd[1]%1) ), local MGRange = BalInd[1]*100
+                if(UpdateData) {
+                    
+                    MGRange = BalInd[1]*100, MGToF = MGSol[2]
+                    if(LaseData[1]) {EGP:egpSetText(EGPInd[60,number], round(MGRange) + " M | " + round(MGToF, 1) + " S")}
+                }
+                
+                if(MGRange > 0) {
+                    
+                    local MGSol = mix( MGDropData[floor(BalInd[1]),vector2], MGDropData[ceil(BalInd[1]),vector2], 1-(BalInd[1]%1) )
+                    local Vel = (Sight[1]!=2 ? holoEntity(3):toLocalAxis(HullBase:vel()) / 39.37 * MGSol[2] : vec())
+                    local DistForwad = MGRange + Vel[1], local Drop = MGSol[1] - Vel[3]
+                    
+                    local UpAng = atan(Drop / DistForwad), local LatAng = atan(-Vel[2] / MGRange)
+                    UpAng = atan((Drop - sin(UpAng)*MuzzleDistance[1]) / DistForwad)
+                    LatAng = atan((-Vel[2] - sin(LatAng)*MuzzleDistance[1]) / MGRange)
+                    
+                    MGOffset = -ang(UpAng, LatAng, 0):rotateAroundAxis(vec(1, 0, 0), -holoEntity(3):angles()[3]):setRoll(0)
+                }
+                else {MGOffset = ang()}
+            }
+            
+            #Range-table zeroing and gun sight
+            if(Module[1,number]) {
+                
+                    if(MGDropData & UpdateData & Zeroing[1] & Sight[1]==2 & SelectedGun==1) {
+                    
+                    local Ind = EGPInd[20,number], local Range = BalInd[1], local Alpha = (BalInd[1] ? 255 : 0)
+                    local SolHeight = lerp(Range%1, EGP:egpPos(Ind + floor(Range))[2], EGP:egpPos(Ind + ceil(Range))[2])
+                    EGP:egpPos(Ind + 16, vec2(0, SolHeight)), EGP:egpAlpha(Ind + 16, Alpha), EGP:egpAlpha(Ind + 17, Alpha)
+                }
+                
+                local Dir = (Sight[1]!=2 & Zeroing[1] ? holoEntity(3):toWorld(MGOffset):forward() : MainGun:forward())
+                local GunHitPos = rangerOffset(1200*39.37, MainGun:pos(), Dir):pos()
+                holoPos(1, GunHitPos)
+            }
+            
+            
+            #Ammo selection
+            if(MGAmmoWired) {
+                
+                if(changed(User:keyPressed(AmK[1,string])) & User:keyPressed(AmK[1,string]) & AmC[1,number]) {AmU = AmQ==1, selectAmmo(1)}
+                if(changed(User:keyPressed(AmK[2,string])) & User:keyPressed(AmK[2,string]) & AmC[2,number]) {AmU = AmQ==2, selectAmmo(2)}
+                if(changed(User:keyPressed(AmK[3,string])) & User:keyPressed(AmK[3,string]) & AmC[3,number]) {AmU = AmQ==3, selectAmmo(3)}
+            }
+            
+            #Unload for ammo switch
+            if(AmU & AmL & AmL!=AmQ) {MGReload = 1}
+            else {MGReload=AmU = 0}
+            
+            #Reloading
+            if(changed(User:keyPressed(MGRelKey)) & User:keyPressed(MGRelKey) & (Clip < MainGun:acfMagSize() | AmL!=AmQ)) {MGReload = 1}
+        }
+        
+        
+        
+        #Secondary
+        if(Module[13,number]) {
+            
+            local SGDropData = DropTab[4,array], local CanGetAmmo = Secondary:acfProjectileMass() & Secondary:acfMuzzleVel()
+            
+            #Egp elements
+            if(Module[4,number]) {
+                
+                local RTF = Secondary:rtf(), local HasAmmo = Secondary:hasAmmo()
+                
+                #Ammo count
+                SGAU++
+                if(changed(RTF) & RTF | SGAU==4) {
+                    
+                    SGAU = 0, local Denom = (Secondary:acfAmmoCount() + HasAmmo):toString()
+                    EGP:egpSetText(EGPInd[18,number], Secondary:rounds() + "/" + Denom)
+                }
+                
+                #LoadTimer
+                if(Module[9,number]) {
+                    
+                    local Loading = Secondary:loading(), local Status = ""
+                    if(changed(Loading) & Loading & Secondary:acfMagSize() > 1) {SGLoadTime = Secondary:acfMagReloadTime(), timer("SG_AddTime", 105)}
+                    
+                    if(RTF) {Status = "Ready"}
+                    elseif(Loading | Secondary:loaded()) {
+                        
+                        local TotTime = Secondary:acfReloadTime() * (1 - Secondary:acfReloadProgress()) + SGLoadTime
+                        Status = (SGLoadTime | Secondary:acfReloadProgress() ? round(TotTime, 1):toString() : "Loading")
+                    }
+                    else {Status = "Empty", SGLoadTime = 0}
+                    
+                    if(changed(Status) | changed(Active)) {EGP:egpSetText(EGPInd[31,number], Status)}
+                }
+            }
+            
+            
+            if(!->SA1 & CanGetAmmo & !AmID[4,array][1,vector2] & BuilderStatus=="Done") {
+                
+                DataVM = vec2(Secondary:acfMuzzleVel(), Secondary:acfProjectileMass())
+                AmID[4,array][1,vector2] = shift(DataVM), DataInd = 4
+                DataGun = Secondary, BuilderStatus = "Initialize", timer("AmmoData", 15)
+            }
+            
+            if(SGDropData) {
+                
+                if(Lase) {BalInd[2] = min(Secondary:attachmentPos("Muzzle"):distance(Cam["HitPos",vector]) / 39.37 / 100, SGDropData:count())}
+                
+                local SGSol = mix( SGDropData[floor(BalInd[2]),vector2], SGDropData[ceil(BalInd[2]),vector2], 1-(BalInd[2]%1) ), local SGRange = BalInd[2]*100
+                if(UpdateData) {
+                    
+                    SGRange = BalInd[2]*100, SGToF = SGSol[2]
+                    if(LaseData[2]) {EGP:egpSetText(EGPInd[61,number], round(SGRange) + " M | " + round(SGToF, 1) + " S")}
+                }
+                
+                if(SGRange > 0) {
+                    
+                    local Vel = (Sight[2]!=2 ? holoEntity(5):toLocalAxis(HullBase:vel()) / 39.37 * SGSol[2] : vec())
+                    local DistForwad = SGRange + Vel[1], local Drop = SGSol[1] - Vel[3]
+                    
+                    local UpAng = atan(Drop / DistForwad), local LatAng = atan(-Vel[2] / SGRange)
+                    UpAng = atan((Drop - sin(UpAng)*MuzzleDistance[2]) / DistForwad)
+                    LatAng = atan((-Vel[2] - sin(LatAng)*MuzzleDistance[2]) / SGRange)
+                    
+                    SGOffset = -ang(UpAng, LatAng, 0):rotateAroundAxis(vec(1, 0, 0), -holoEntity(5):angles()[3]):setRoll(0)
+                }
+                else {SGOffset = ang()}
+            }
+            
+            if(Module[8,number]) {
+                
+                if(SGDropData & UpdateData & Zeroing[2] & Sight[2]==2 & SelectedGun==2) {
+                    
+                    local Ind = EGPInd[22,number], local Range = BalInd[2], local Alpha = (BalInd[2] ? 255 : 0)
+                    local SolHeight = lerp(Range%1, EGP:egpPos(Ind + floor(Range))[2], EGP:egpPos(Ind + ceil(Range))[2])
+                    EGP:egpPos(Ind + 16, vec2(0, SolHeight)), EGP:egpAlpha(Ind + 16, Alpha), EGP:egpAlpha(Ind + 17, Alpha)
+                }
+                
+                local Dir = (Sight[2]!=2 & Zeroing[2] ? holoEntity(5):toWorld(SGOffset):forward() : Secondary:forward())
+                local GunHitPos = rangerOffset(1200*39.37, Secondary:pos(), Dir):pos()
+                holoPos(4, GunHitPos)
+            }
+            
+            
+            #Reloading
+            if(changed(User:keyPressed(SGMGRelKey)) & User:keyPressed(SGMGRelKey) & (Secondary:rounds() < Secondary:acfMagSize())) {SGReload = 1}
+            else {SGReload = 0}
+        }
+        
+        #Range-table update
+        if(changed(AmL)) {buildTable()}
+        
+        
+        #Tertiary ammo counts
+        if(Module[5,number]) {
+            
+            if(changed(round(Ter1))) {EGP:egpSetText(EGPInd[7,number], round(Ter1):toString())}
+            if(changed(round(Ter2))) {EGP:egpSetText(EGPInd[8,number], round(Ter2):toString())}
+            if(changed(round(Ter3))) {EGP:egpSetText(EGPInd[9,number], round(Ter3):toString())}
+            if(changed(round(Ter4))) {EGP:egpSetText(EGPInd[10,number], round(Ter4):toString())}
+            if(changed(round(Ter5))) {EGP:egpSetText(EGPInd[11,number], round(Ter5):toString())}
+        }
+        
+        
+        #Powerpack
+        if(Module[6,number]) {
+            
+            local DispSpeed = (->Speed ? Speed : holoEntity(6):toLocalAxis(HullBase:vel())[1] * SpdMul)
+            EGP:egpSetText(EGPInd[12,number], (->GearStr ? GearStr : GearNum:toString()) + ":" + round(DispSpeed))
+            
+            local Ind = EGPInd[13,number], local RPM = Engine:acfRPM()
+            local Col = (RPM > PwrBndMax ? RPMColRedLine : (RPM < PwrBndMin ? RPMColIdle : RPMColPwBand))
+            
+            if(Col!=EGP:egpColor(Ind)) {EGP:egpColor(Ind, Col)}
+            EGP:egpSetText(Ind, round(RPM,-2):toString())
+        }
+        
+        
+        #Range and Heading
+        if(Module[7,number]) {
+            
+            local Dist = (->MainGun ? MainGun:attachmentPos("Muzzle") : Cam["CamPos",vector]):distance(Cam["HitPos",vector])/39.37
+            EGP:egpSetText(EGPInd[14,number], round(Dist) + " M")
+            
+            local CamAng = Cam["CamAng",angle]
+            local Bear = (CamAng:yaw() <= 90 ? 90 : 450) - round(CamAng:yaw(),0)
+            EGP:egpSetText(EGPInd[15,number], floor(Bear/100) + "-" + floor(Bear/10%10) + "-" + round(Bear%10))
+        }
+        
+        
+        #Tank diagram
+        if(Module[10,number]) {
+            
+            local HullAngle = -holoEntity(6):toLocal(Cam["CamAng",angle])[2]
+            EGP:egpAngle(EGPInd[40,number], HullAngle)
+            
+            if(Module[11,number]) {
+                
+                local TurretAngle = -holoEntity(6):toLocal(holoEntity(2):angles())[2]
+                EGP:egpAngle(EGPInd[41,number], TurretAngle)
+            }
+        }
+        
+        
+        #View shifting and FLIR
+        if(changed(User:keyPressed(ViewShift)) & User:keyPressed(ViewShift)) {
+            
+            CI = (CI==2 ?: 2)
+            local Arr = Mag[CI,array], MI = clamp(MI, 1, Arr:count()), FOV = Arr[MI,number]
+            
+            Cam["Position",vector] = Pos[CI,vector], Cam["Distance",number] = Dis[CI,number]
+            Cam["Parent",entity] = Ent[CI,entity], Cam["FOV",number] = FOV, buildTable()
+        }
+        
+        if(changed(User:keyPressed(IRKey)) & User:keyPressed(IRKey)) {FLIRKey = !FLIRKey, Cam["FLIR",number] = FLIRKey}
+    }
+    
+    
+    #Zooming
+    if(~PrevWeapon & PrevWeapon | ~NextWeapon & NextWeapon) {
+        
+        local Arr = Mag[CI,array], MI = clamp(MI + (PrevWeapon-NextWeapon),1,Arr:count()), FOV = Arr[MI,number]
+        Cam["FOV",number] = FOV, buildTable()
+    }
+}
+
+
+#Ballistic builder loop
+if(clk("AmmoData")) {
+    
+    if(BuilderStatus != "Done") {writeData(), timer("AmmoData", 15)}
+    
+    else {
+        
+        #Loop for wired ammo
+        if(DataInd < 4 & (MGAmmoWired | ->SA1)) {
+            
+            DataInd++
+            for(I=DataInd, 4, 1) {
+                
+                DataVM = vec2(AmID[I,array][1,vector2][2], AmID[I,array][1,vector2][1])
+                if(DataVM != vec2() & !DropTab[I,array][1,vector2]) {DataInd = I, DataGun = (I < 4 ? MainGun : Secondary), BuilderStatus = "Initialize" break}
+            }
+            timer("AmmoData", 15)
+        }
+        
+        elseif(DataDebug) {buildTable(), print("Got shell data; " + DropTab:count() + " tables made."), print("Max ranges : " + MaxRanges:toString())}
+    }
+}
+
+
+#HUD builder loop
+if(clk("BuildHUD") & HUDStatus != "Done") {buildHUD(), timer("BuildHUD", 15)}
+
+
+#Manual reload timers
+if(clk("MG_AddTime")) {MGLoadTime = max(MGLoadTime - 0.105, 0), if(MGLoadTime > 0) {timer("MG_AddTime", 105)}}
+if(clk("SG_AddTime")) {SGLoadTime = max(SGLoadTime - 0.105, 0), if(SGLoadTime > 0) {timer("SG_AddTime", 105)}}
+
+OpsCPUus = vec2(ops(), cpuUsage()*1000000)

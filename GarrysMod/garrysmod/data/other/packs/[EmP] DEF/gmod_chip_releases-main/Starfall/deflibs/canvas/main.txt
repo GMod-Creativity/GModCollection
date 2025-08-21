@@ -1,0 +1,158 @@
+--@name deflibs/canvas/Main
+--@author Yours Truly
+--@includedir deflibs/canvas
+
+GUI = {}
+
+local MainCanvas = {}; local MainBoxes = {}
+local DefaultFont = render.createFont("Arial",100,1000,true,false,false,false,1,false,0)
+
+GUI.EVENT = {
+    UPDATE = "update",
+    MOUSE_SCROLL = "mouse-scroll",
+}
+
+GUI.Hitbox = require("deflibs/canvas/hitbox.txt")
+GUI.Texture = require("deflibs/canvas/texture.txt")
+GUI.Canvas = require("deflibs/canvas/canvas.txt")
+GUI.Cursor = require("deflibs/canvas/cursor.txt")
+GUI.Stencil = require("deflibs/canvas/stencil.txt")
+GUI.Button = require("deflibs/canvas/gui_button.txt")
+GUI.TextButton = require("deflibs/canvas/gui_textbutton.txt")
+GUI.TickBox = require("deflibs/canvas/gui_tickbox.txt")
+GUI.Slider = require("deflibs/canvas/gui_slider.txt")
+GUI.Input = require("deflibs/canvas/gui_input.txt")
+GUI.Dropdown = require("deflibs/canvas/gui_dropdown.txt")
+GUI.SliderCombo = require("deflibs/canvas/gui_slidercombo.txt")
+
+GUI.Cursor:SetCanvasGroup(MainBoxes)
+
+local function Empty() end
+local TryLockControls = Empty
+
+-- >> Primary functions
+
+-- Cursor collision testing & texture updates
+function GUI:Update()
+    hook.run(GUI.EVENT.UPDATE)
+    GUI.Cursor:DoCollision()
+    for _, can in ipairs(MainCanvas) do
+        can:Update()
+    end
+end
+
+-- # Cursor passthroughs
+
+function GUI:SetCursorPosition(X, Y)
+    GUI.Cursor:SetPosition(X, Y)
+end
+
+function GUI:CursorLeftClick(Down)
+    GUI.Cursor:LeftClick(Down)
+end
+
+function GUI:GetCursorObject()
+    return GUI.Cursor:GetObject()
+end
+
+-- Make a new canvas
+function GUI.CreateCanvas(Name)
+    local can = GUI.Canvas.Create(Name)
+    table.insert(MainCanvas, can)
+    table.insert(MainBoxes, can:GetHitbox())
+    return can
+end
+
+-- Draw all canvases
+function GUI:Draw()
+    for _, can in ipairs(MainCanvas) do
+        can:Draw()
+    end
+end
+
+-- Turn control-locking on & off
+function GUI:AutoLockControls(Active)
+    if Active then
+        TryLockControls()
+        timer.create("re-lock", 1, 0, TryLockControls)
+    else
+        input.lockControls(false)
+        timer.stop("re-lock")
+    end
+end
+
+-- Have elements draw hitbox outlines
+function GUI:DrawCollision(Active)
+    GUI.Button:DrawCollision(Active)
+    GUI.TextButton:DrawCollision(Active)
+    GUI.TickBox:DrawCollision(Active)
+    GUI.Slider:DrawCollision(Active)
+    GUI.Input:DrawCollision(Active)
+    GUI.Dropdown:DrawCollision(Active)
+end
+
+-- Get default font object
+function GUI:GetFont()
+    return DefaultFont
+end
+
+-- >> Utilities
+
+-- Get scale factor to fit text inside a rectangle
+function GUI.ScaleText(Text, Width, Height, MaxScale)
+    local tw, th = render.getTextSize(Text)
+    return math.min(Width / tw, Height / th, MaxScale), tw, th
+end
+
+function TryLockControls()
+    if input.canLockControls() then
+        input.lockControls(true)
+    end
+end
+
+-- >> Debug
+
+function GUI:AlignTest()
+    
+    local can = GUI.Canvas.Create("Amogus")
+    can:SetOrigin(0, 0)
+    can:SetScale(0.5, 0.5)
+    can:SetPadding(8)
+    can:SetTextureSpace(1000, 1000)
+    
+    local function Draw()
+        render.setColor(Color(0, 255, 255))
+        render.drawRect(-8, -8, 1024, 1024)
+        render.setColor(Color(255, 0, 255))
+        render.drawRect(0, 0, 1000, 1000)
+        render.setColor(Color(0, 0, 0))
+        render.drawRect(250, 250, 500, 500)
+        
+        render.setColor(Color(255, 255, 255))
+        render.drawRectOutline(0, 0, 1000, 1000, 8)
+        render.setColor(Color(255, 255, 0))
+        render.drawRectOutline(0, 0, 500, 500, 8)
+    end
+    
+    can:SetBackground(Draw)
+    can:Update()
+    
+    local DrawAll = function()
+        can:Draw()
+        can:GetTexture()
+        render.drawTexturedRect(500, 0, 512, 512)
+    end
+    
+    local full = false
+    local function Alternate()
+        if full then
+            can:SetTextureSpace(500, 500)
+        else
+            can:SetTextureSpace(1000, 1000)
+        end
+        full = not full
+    end
+    
+    timer.create("alternate", 1, 0, Alternate)
+    hook.add("drawhud", "shitfuck2", DrawAll)
+end

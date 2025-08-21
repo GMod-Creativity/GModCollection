@@ -1,0 +1,404 @@
+--@name mfcs_interfaces/Test Tank Basic
+--@author DEF
+
+local function GlobalSettings()
+    --@include mfcs/core.txt
+    require("mfcs/core.txt")
+    local SH = {}
+    
+    -- # # # # # # # # # # # # # # # --
+    
+    -- # General
+    
+    SH.TraceRange = 10^5        // Just leave this to whatever it is, m'kay
+    
+    SH.RefreshRate = 30         // "Tick" rate and Graphic frame rate
+    
+    SH.NetworkRate = 10         // Network rate. DO NOT SET THIS TOO HIGH!
+    
+    -- # # # # # # # # # # # # # # # --
+    
+    MFCS:SetSettings(SH)
+end
+
+local function CameraSettings()
+    --@include mfcs/camera_module_core.txt
+    local Camera = require("mfcs/camera_module_core.txt")
+    local SH = {}; local View = {}
+    
+    -- # # # # # # # # # # # # # # # --
+    
+    -- # Misc
+    
+    SH.MouseSensitivity = 0.0225        // If you touch this, I will come for you.
+    
+    SH.MultiKey = KEY.LSHIFT            // Hold for view shifting
+    
+    SH.ModeToggle = MOUSE.MIDDLE        // Switch between gyro and relative camera modes
+    
+    -- # View point settings
+    
+    SH.ElevationLimit = 80              // Pitch limit of camera
+    
+    SH.BaseFOV = 90                     // Standard fov
+    
+    --[[
+        View = Camera:AddView("Baseplate", "Thirdperson")
+        View.Origin = Vector(0, 0, 110)
+        View.Alignment = Angle(0, 0, 0)
+        View.Distance = 380
+        View.Magnification = { 1.4 }
+        
+        ~ ~ ~
+        
+        View = Camera:AddView(string EntityInput, string CameraTag)
+            Adds a new perspective
+        
+        View.Distance = number Distance
+            How far away the camera is
+            default: 0
+            Optional
+        
+        View.Magnification = table(number) Magnification
+            Zoom levels
+            default: { 1 }
+            Optional
+        
+        View:ViewLimits(number Pitch, number Yaw, number Mouse)
+            Rotational limits
+            default: 80, 180, 0
+            Optional
+        
+        View:SetMotionViewMotion(number Constant, number Damping, number AccelerationMul, number VelocityMul, number Limit)
+            Adds motion to this view using a spring on a hologram
+            default: 0, 0, 0, 0, 0
+            Optional
+    ]]
+    
+    View = Camera:AddView("Baseplate", "Thirdperson")
+    View.Origin = Vector(0, 0, 110)
+    View.Alignment = Angle(0, 0, 0)
+    View.Distance = 380
+    View.Magnification = { 1.4 }
+    
+    View = Camera:AddView("TurretRing", "Commander")
+    View.Origin = Vector(2.75, 40, 26.15)
+    View.Alignment = Angle(0, 0, -90)
+    View.Magnification = { 1 }
+    View:SetMotion(0.4, 0.8, 0.4, 0.01, 4.5)
+    
+    View = Camera:AddView("TurretRing", "PrimarySight")
+    View.Origin = Vector(35.75, 23.25, -17.75)
+    View.Alignment = Angle(0, 0, -90)
+    View.Magnification = { 2.5, 6, 18 }
+    View:SetLimits(16, 10, 20)
+    
+    -- # Special view points
+    
+    --[[
+        View = Camera:AddRangefinder("TurretRing")
+        View.Alignment = Angle(0, 0, -90)
+        View.Magnification = { 12, 48 }
+        View.Left = Vector(0, 28, -46)
+        View.Right = Vector(0, 28, 46)
+        View:SetLimits(10, 5, 20)
+        
+        ~ ~ ~
+        
+        Similar to regular camera perspectives.
+        
+        View = Camera:AddRangefinder(string EntityInput)
+            Makes an optical rangefinder
+            The camera tag is automatically set to "rangefinder"
+    ]]
+    
+    View = Camera:AddRangefinder("TurretRing")
+    View.Alignment = Angle(0, 0, -90)
+    View.Magnification = { 12, 48 }
+    View.Left = Vector(0, 28, -46)
+    View.Right = Vector(0, 28, 46)
+    View:SetLimits(10, 5, 20)
+    
+    -- # # # # # # # # # # # # # # # --
+    
+    Camera:Initialize(SH)
+end
+
+local function ComputerSettings()
+    --@include mfcs/computer_module_core.txt
+    local Computer = require("mfcs/computer_module_core.txt")
+    local SH = {}; local System = {}
+    
+    -- # # # # # # # # # # # # # # # --
+    
+    -- # Armaments
+    
+    --[[
+        System = Computer:AddSystem("W120")
+        System.Alignment = Angle(0, 0, 0)
+        System:SetCameraTags({ "PrimarySight", "BackupSight" })
+        System:AddMunition("AP", KEY.KEY1)
+        System:AddMunition("HE", KEY.KEY2)
+        System:StartSelected("AP")
+        System.Bypass = { "HE" }
+        
+        ~ ~ ~
+        
+        System = Computer:AddSystem(string OutputName)
+            Adds a new weapon system
+            Chip will make all relevent outputs
+        
+        System.Alignment = Angle(...)
+            Gun calibration angles
+        
+        System:SetCameraTags(table(string) CameraTags)
+            Activates ammo selection for these views
+            { "all" } with make it always active
+        
+        System:AddMunition(string Name, KEY Keybind)
+            Add an ammo type, linked via a keybinding
+            Gun needs to be active to switch ammo
+        
+        System:StartSelected(string AmmoName)
+            Starts off with this ammo type selected
+            Optional
+        
+        System.Bypass = table(string) AmmoNames
+            Ignore building shell flight table for these munitions
+            Optional
+    ]]
+    
+    System = Computer:AddSystem("W120")
+    System.Alignment = Angle(0, 0, 0)
+    System:SetCameraTags({ "PrimarySight", "BackupSight" })
+    System:AddMunition("HE", KEY.KEY1)
+    System:StartSelected("HE")
+    
+    -- # Rangefinding
+    
+    SH.LaserRanging = true          // Use trace for ranging ?
+    
+    SH.BattleRange = 100 * 39.37    // Default zeroing range
+    
+    SH.Lase = MOUSE.RIGHT           // Lase (rangefinder)
+    
+    SH.PosLock = KEY.LSHIFT         // Position-lock (hold + Lase)
+    
+    SH.DumpLase = KEY.LCONTROL      // Reset range (hold + Lase)
+    
+    -- # Manual rangefinding
+    
+    SH.OpticalRanging = true        // Use optical rangefinder ?
+    
+    SH.RangeMin = 50 * 39.37        // Minimum allowed range
+    
+    SH.RangeStepSmall = 1 * 39.37   // Fine range step
+    
+    SH.RangeStepLarge = 20 * 39.37  // Large range step
+    
+    -- # # # # # # # # # # # # # # # --
+    
+    Computer:Initialize(SH)
+end
+
+local function GraphicSettings()
+    --@include mfcs/graphic_module_core.txt
+    local Graphics = require("mfcs/graphic_module_core.txt")
+    local SH = {}
+    
+    -- # # # # # # # # # # # # # # # --
+    
+    -- # General
+    
+    SH.QuotaRatioMax = 0.75      // Renderview will skip when over this
+    
+    SH.RangefinderScale = 1.0    // Rangefinder texture scale
+    
+    --[[
+        (--)@include mfcs_content/default.txt
+        local Content = require("mfcs_content/default.txt")
+        
+        Content:Initialize()
+        
+        ~ ~ ~
+        
+        local Content = require(string FilePath)
+            Lowercase only
+            [ ] spaces replaced with [_] underscores
+            Also needs to be [@include], same format
+            Pass any neccessary parameters in [Content:Initialize]
+    ]]
+    
+    --@include mfcs_content/basic.txt
+    local Content = require("mfcs_content/basic.txt")
+    Content:Initialize()
+    
+    local CameraTags = { "all" }
+    local Settings = {
+        Scale = 0.15,
+        UsePointer = true,
+        C_All = Color(255, 120, 0),
+    }
+    Content:AddCursor(CameraTags, Settings)
+    
+    local CameraTags = { "all" }
+    local Settings = {
+        Scale = 0.1,
+        C_All = Color(255, 120, 0),
+    }
+    Content:AddTracker(CameraTags, Settings)
+    
+    local CameraTags = { "PrimarySight" }
+    local Settings = {
+        Gun = "W120",
+        Scale = 0.15,
+        Correction = true,
+        ScaleOnZoom = false,
+        C_All = Color(255, 120, 0),
+    }
+    Content:AddSight(CameraTags, Settings)
+    
+    local CameraTags = { "Thirdperson", "Commander", "rangefinder" }
+    local Settings = {
+        Gun = "W120",
+        Scale = 0.05,
+        Correction = true,
+        C_All = Color(150, 150, 150, 200),
+    }
+    Content:AddGhostSight(CameraTags, Settings)
+    
+    local CameraTags = { "PrimarySight", "rangefinder" }
+    local Settings = {
+        Scale = 1.15,
+        Radius = 400,
+        Blur = 5,
+    }
+    Content:AddScopeEffect(CameraTags, Settings)
+    
+    local CameraTags = { "PrimarySight", "rangefinder" }
+    local Settings = {
+        Scale = 0.90,
+        X = 0.5,
+        Y = 1,
+        Gun = "W120",
+        DecoName = "120mm M124",
+        C_Background = Color(0, 0, 0, 150),
+        C_Light = Color(175, 175, 150),
+        C_Warning = Color(150, 100, 25),
+        C_Negative = Color(150, 25, 25),
+    }
+    Content:AddWeaponPanel(CameraTags, Settings)
+    
+    local CameraTags = { "PrimarySight", "rangefinder" }
+    local Settings = {
+        Scale = 1.0,
+        X = 0.9,
+        Y = 0.5,
+        C_Background = Color(0, 0, 0, 150),
+        C_Light = Color(175, 175, 150),
+    }
+    Content:AddMobilityPanel(CameraTags, Settings)
+    
+    local HullIcon = function() end
+    local TurretIcon = function() end
+    
+    local CameraTags = { "PrimarySight", "rangefinder" }
+    local Settings = {
+        Scale = 0.75,
+        X = 0.1,
+        Y = 0.5,
+        HullIcon = function() HullIcon() end,
+        HullAlign = Angle(0, 0, 0),
+        TurretIcon = function() TurretIcon() end,
+        TurretAlign = Angle(0, 0, -90),
+        TurretOffset = Vector(0, 10),
+    }
+    Content:AddTankIcon(CameraTags, Settings)
+    
+    //Content:Debug()
+    
+    HullIcon = function()
+        local mat = Matrix()
+        mat:setTranslation(Vector(-70, -135))
+        render.pushMatrix(mat, false)
+            render.setColor(Color(178, 178, 151, 255))
+            render.drawRoundedBox(40, 0, 0, 140, 180)
+            
+            render.setColor(Color(178, 178, 151, 255))
+            render.drawRoundedBox(20, 0, 90, 140, 180)
+            
+            render.setColor(Color(152, 152, 129, 255))
+            render.drawRoundedBox(10, 25, 40, 90, 35)
+            
+            render.setColor(Color(152, 152, 129, 255))
+            render.drawRoundedBox(10, 25, 210, 90, 55)
+            
+            render.setColor(Color(128, 128, 109, 255))
+            render.drawRoundedBox(10, 37, 230, 15, 15)
+            
+            render.setColor(Color(128, 128, 109, 255))
+            render.drawRoundedBox(10, 88, 230, 15, 15)
+            
+            render.setColor(Color(128, 128, 109, 255))
+            render.drawRect(35, 215, 20, 10)
+            
+            render.setColor(Color(128, 128, 109, 255))
+            render.drawRect(85, 215, 20, 10)
+            
+            render.setColor(Color(128, 128, 109, 255))
+            render.drawRect(35, 250, 20, 10)
+            
+            render.setColor(Color(128, 128, 109, 255))
+            render.drawRect(85, 250, 20, 10)
+            
+            render.setColor(Color(128, 128, 109, 255))
+            render.drawRoundedBox(5, 30, 47, 30, 20)
+            
+            render.setColor(Color(128, 128, 109, 255))
+            render.drawRoundedBox(5, 80, 47, 30, 20)
+        render.popMatrix()
+    end
+    
+    TurretIcon = function()
+        local mat = Matrix()
+        mat:setTranslation(Vector(-60, -165))
+        render.pushMatrix(mat, false)
+            render.setColor(Color(190, 190, 162, 255))
+            render.drawRect(10, 90, 100, 150)
+            
+            render.setColor(Color(166, 166, 141, 255))
+            render.drawRect(20, 120, 80, 110)
+            
+            render.setColor(Color(190, 190, 162, 255))
+            render.drawRect(0, 130, 120, 20)
+            
+            render.setColor(Color(141, 141, 120, 255))
+            render.drawRect(55, 0, 10, 110)
+            
+            render.setColor(Color(166, 166, 141, 255))
+            render.drawRoundedBox(10, 45, 95, 30, 20)
+            
+            render.setColor(Color(166, 166, 141, 255))
+            render.drawRoundedBox(10, 50, 85, 20, 30)
+            
+            render.setColor(Color(139, 139, 118, 255))
+            render.drawRoundedBox(20, 25, 155, 30, 30)
+            
+            render.setColor(Color(139, 139, 118, 255))
+            render.drawRoundedBox(20, 65, 165, 25, 25)
+        render.popMatrix()
+    end
+    
+    -- # # # # # # # # # # # # # # # --
+    
+    Graphics:Initialize(SH)
+end
+
+-- # # # DONE HERE # # # --
+
+GlobalSettings()
+CameraSettings()
+ComputerSettings()
+GraphicSettings()
+
+MFCS:Initialize()

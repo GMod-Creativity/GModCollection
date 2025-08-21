@@ -1,0 +1,428 @@
+--@name mirage/Core
+--@author DEF
+--@shared
+
+local NULL = game.getWorld()
+local Empty = function() end
+
+local Mirage = {}; local SH = {}
+
+local Manager = {}; local IOU = {}
+
+-- Definitions [SH]
+do
+    function Mirage:CreateImage() return {} end
+    
+    function Mirage:CreateInput(Name, Type) return IOU.CreateInput(Name, Type) end
+end
+
+if SERVER then
+    
+    local Operator = {}
+    
+    -- >> Definitions [SV]
+    do
+        function Mirage:Initialize()
+            Manager:MakeIO()
+            Manager:Initialize()
+        end
+    end
+    
+    -- >> Manager [SV]; it manages things
+    do
+        local OnSendData = Empty
+        
+        function Manager:Initialize()
+            Operator:Initialize()
+            timer.create("mng-send-data", 0.210, 0, OnSendData)
+        end
+        
+        function Manager:MakeIO()
+            Operator:MakeIO()
+            
+            IOU:CreateIO()
+        end
+        
+        -- # Passthroughs
+        
+        function OnSendData() IOU:SendInputs() end
+    end
+    
+    -- >> Operator; driver functions
+    do
+        local Driver = NULL; local ChairEnt = NULL
+        local OnEnterChair = Empty
+        
+        function Operator:Initialize()
+            ChairEnt = wire.ports.Chair
+            hook.add("PlayerEnteredVehicle", "op-in", function(Ply, Chair) OnEnterChair(Ply, Chair, true) end)
+            hook.add("PlayerLeaveVehicle", "op-out", function(Ply, Chair) OnEnterChair(Ply, Chair, false) end)
+        end
+        
+        function Operator:MakeIO()
+            IOU:AddInput("Chair", "Entity")
+        end
+        
+        -- On enter & exit chair
+        function OnEnterChair(Player, Chair, Board)
+            if not ChairEnt:isValid() or ChairEnt != Chair then return end
+            
+            if Board then
+                Driver = Player
+            else
+                Driver = NULL
+            end
+            
+            net.start("chair-event")
+                net.writeBool(Board)
+            net.send(Player)
+        end
+        
+        -- # Getters
+        
+        function Operator:GetDriver() return Driver end
+    end
+    
+    -- >> IOU [pseudo-class, SV]; create and deal with inputs & outputs
+    
+    -- Instance
+    function IOU.CreateInput(Name, Type)
+        local inp = {
+            Value = nil
+        }
+        
+        function inp:MakeIO() IOU:AddInput(Name, Type) end
+        
+        function inp:UpdateValue() self.Value = wire.ports[Name] end
+        
+        IOU:AddInputObj(Name, inp)
+        return inp
+    end
+    
+    -- Static
+    do
+        local InputInstances = {}
+        local InputValues = {}
+        local Inputs = {}; local InputTypes = {}; local InputLookup = {}
+        local Outputs = {}; local OutputTypes = {}; local OutputLookup = {}
+        
+        function IOU:AddInputObj(Name, Obj)
+            InputInstances[Name] = Obj
+        end
+        
+        -- Add an input
+        function IOU:AddInput(Name, Type)
+            if InputLookup[Name] then return end
+            
+            table.insert(Inputs, Name)
+            table.insert(InputTypes, Type)
+        end
+        
+        -- Add an output
+        function IOU:AddOutput(Name, Type)
+            if OutputLookup[Name] then return end
+            
+            table.insert(Outputs, Name)
+            table.insert(OutputTypes, Type)
+        end
+        
+        -- Create all requested inputs & outputs
+        function IOU:CreateIO()
+            for name, inp in pairs(InputInstances) do
+                inp:MakeIO()
+            end
+            
+            wire.adjustInputs(Inputs, InputTypes)
+            wire.adjustOutputs(Outputs, OutputTypes)
+        end
+        
+        -- Send custom input values to client
+        function IOU:SendInputs()
+            for name, inp in pairs(InputInstances) do
+                inp:UpdateValue()
+                InputValues[name] = inp.Value
+            end
+            
+            if Operator:GetDriver() == NULL then return end
+            
+            net.start("iou-inputs")
+                net.writeTable(InputValues)
+            net.send(Operator:GetDriver())
+        end
+    end
+end
+
+if CLIENT then
+    
+    local Renderer = {}; local Requestor = {}
+    local Image = {}
+    
+    local EVENT = {
+        RENDERER_DRAW = "renderer-draw",
+        RENDERER_REFRESH = "renderer-refresh",
+        REQUESTOR_ANSWER = "requestor-answer"
+    }
+    
+    -- Definitions [CL]
+    do
+        function Mirage:CreateImage(IsStatic) return Image.Create(IsStatic) end
+        
+        function Mirage:Initialize()
+            Manager:PreInitialize()
+        end
+    end
+    
+    -- >> Manager [CL]; it manages things
+    do
+        local Initialize = Empty
+        local OnEnterChair = Empty; local OnReceiveInputs = Empty
+        
+        function Manager:PreInitialize()
+            net.receive("chair-event", OnEnterChair)
+            net.receive("iou-inputs", OnReceiveInputs)
+            
+            Requestor:AddPermission("material.create")
+            Requestor:AddPermission("render.offscreen")
+            
+            hook.add(EVENT.REQUESTOR_ANSWER, "man-get-perms", Initialize)
+        end
+        
+        function Initialize()
+            if not Requestor:GetReady() then return end
+            Image:Initialize()
+            Renderer:SetActive(true)
+        end
+        
+        -- Entering or exitting chair
+        function OnEnterChair()
+            local Active = net.readBool()
+            enableHud(player(), Active)
+            
+            if not Requestor:GetReady() then
+                Requestor:SendRequest()
+                return
+            end
+            
+            Renderer:SetActive(Active)
+        end
+        
+        -- # Passthroughs
+        
+        function OnReceiveInputs() IOU:Receive() end
+    end
+    
+    -- >> Renderer; drawing events
+    do
+        local OnRefresh = Empty; local OnDraw = Empty
+        
+        function Renderer:SetActive(Active)
+            if Active then
+                timer.create("ren-tick", 1 / SH.RefreshRate, 0, OnRefresh)
+                hook.add("DrawHUD", "ren-draw", OnDraw)
+            else
+                timer.stop("ren-tick")
+                hook.remove("DrawHUD", "ren-draw")
+            end
+        end
+        
+        function OnRefresh()
+            hook.run(EVENT.RENDERER_REFRESH)
+        end
+        
+        function OnDraw()
+            hook.run(EVENT.RENDERER_DRAW)
+        end
+    end
+    
+    -- >> Requestor; permissions stuff
+    do
+        local Permissions = {}; local Lookup = {}
+        local CanRequest = true; local Ready = false
+        
+        local RequestAnswer = Empty; local HasAllPerms = Empty
+        
+        -- Try to get the wanted permissions
+        function Requestor:SendRequest()
+            if not CanRequest then return end
+            CanRequest = false
+            
+            if HasAllPerms() then
+                Ready = true
+                hook.run(EVENT.REQUESTOR_ANSWER)
+            else
+                setupPermissionRequest(Permissions, "Stuff needed for Mirage", true)
+                hook.add("permissionrequest", "req-answer", RequestAnswer)
+                sendPermissionRequest()
+            end
+        end
+        
+        -- Adds permission to request
+        function Requestor:AddPermission(Perm)
+            if Lookup[Perm] then return end
+            
+            table.insert(Permissions, Perm)
+            Lookup[Perm] = true
+        end
+        
+        -- Process answer
+        function RequestAnswer()
+            Ready = permissionRequestSatisfied()
+            hook.run(EVENT.REQUESTOR_ANSWER)
+            hook.remove("permissionrequest", "req-answer")
+        end
+        
+        -- Check if user has perms already
+        function HasAllPerms()
+            for _, perm in ipairs(Permissions) do
+                local has, reason = hasPermission(perm)
+                if not has and reason != "Entity is invalid" then
+                    return false
+                end
+            end
+            
+            return true
+        end
+        
+        -- # Getters
+        
+        function Requestor:GetReady() return Ready end
+    end
+    
+    -- >> IOU [pseudo-class, CL]; receive & send data to server
+    
+    -- Instance
+    function IOU.CreateInput(Name, Type)
+        local inp = {
+            Value = IOU:GetDefaults()[Type]
+        }
+        
+        IOU:AddInputObj(Name, inp)
+        return inp
+    end
+    
+    -- Static
+    do
+        local InputInstances = {}
+        
+        local Defaults = {
+            Number = 0,
+            String = "",
+            Entity = NULL,
+            Vector = Vector(),
+            Angle = Angle(),
+            Array = {},
+            Table = {},
+        }
+        
+        function IOU:AddInputObj(Name, Obj)
+            InputInstances[Name] = Obj
+        end
+        
+        -- Set client vars from server inputs
+        function IOU:Receive()
+            for name, value in pairs(net.readTable()) do
+                InputInstances[name].Value = value
+            end
+        end
+        
+        -- # Getters
+        function IOU:GetDefaults() return Defaults end
+    end
+    
+    -- >> Image [pseudo-class]; graphics items
+    
+    -- Instance
+    function Image.Create(IsStatic)
+        local image = {}
+        
+        local IsStatic = IsStatic or false
+        local textureName = "Image-" .. Image:AddInstance(image)
+        local written = false
+        
+        image.DrawFunc = Empty
+        image.RefreshFunc = Empty
+        
+        local function TextureWrite()
+            render.selectRenderTarget(textureName)
+            image.RefreshFunc()
+            written = true
+            hook.remove("RenderOffscreen", textureName)
+        end
+        
+        -- # Methods
+        
+        function image:Initialize()
+            render.createRenderTarget(textureName)
+        end
+        
+        -- Draw texture
+        function image:DrawTexture()
+            Image:ResetMaterial()
+            render.setMaterial(Image:GetMaterial())
+            Image:GetMaterial():setTextureRenderTarget("$basetexture", textureName)
+            
+            self.DrawFunc()
+        end
+        
+        -- Write contents to texture
+        function image:RefreshTexture()
+            if IsStatic and written then return end
+            
+            self:ForceRefreshTexture()
+        end
+        
+        -- Write contents to texture, even if static
+        function image:ForceRefreshTexture()
+            hook.add("RenderOffscreen", textureName, TextureWrite)
+        end
+        
+        return image
+    end
+    
+    -- Static
+    do
+        local Instances = {}
+        local Material = nil
+        local OnRendererRefresh = Empty; local OnRendererDraw = Empty
+        
+        function Image:AddInstance(Obj)
+            return table.insert(Instances, Obj)
+        end
+        
+        function Image:Initialize()
+            Material = material.create("gmodscreenspace")
+            
+            for _, image in ipairs(Instances) do
+                image:Initialize()
+            end
+            
+            hook.add(EVENT.RENDERER_REFRESH, "img-refresh", OnRendererRefresh)
+            hook.add(EVENT.RENDERER_DRAW, "img-draw", OnRendererDraw)
+        end
+        
+        function Image:ResetMaterial()
+            Material:setFloat("$texturealpha", 1.0)
+            Material:setFloat("$alpha", 1.0)
+        end
+        
+        -- Draw contents onto textures
+        function OnRendererRefresh()
+            for _, image in ipairs(Instances) do
+                image:RefreshTexture()
+            end
+        end
+        
+        -- Draw all image texturess
+        function OnRendererDraw()
+            for _, image in ipairs(Instances) do
+                image:DrawTexture()
+            end
+        end
+        
+        -- # Getters
+        
+        function Image:GetMaterial() return Material end
+    end
+end
+
+return { Mirage, SH }

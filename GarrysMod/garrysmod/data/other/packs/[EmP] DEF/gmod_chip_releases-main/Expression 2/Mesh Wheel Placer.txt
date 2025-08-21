@@ -1,0 +1,141 @@
+@name Mesh Wheel Placer
+@inputs [Entities]:array
+@outputs 
+@persist 
+@trigger none
+
+if(first()) {
+    
+    local W = 0
+    local GroupColor = array(), local PosOffset = array(), local AngOffset = array()
+    
+    local P2MController = table(), local PropToReplace = table()
+    
+    # # # # # # # # # # # # # # # # # #
+    
+#[    
+    Instructions:
+    
+        Spawn this chip and an advanced entity marker. Link the wheels you want replaced and the P2M mesh controllers
+    all in the same advanced entity marker... in no particular order.
+    
+        When you update the chip again, it will move the P2M mesh controllers to the wheels.
+        
+        The mesh controller entities need to be the same RGB color (alpha does not matter) as the wheels!
+]#
+    
+    MoveP2MControllers = 1      #Move the P2M controllers to the wheels? This does not work if you parent them at the same time!
+    
+    ParentP2MControllers = 0    #Parent P2M controllers to the wheels?
+    
+    P2MAlpha = 0        #Alpha of the P2M controller.
+    
+#[    
+    This is what a color group looks like:
+    
+    W++
+    GroupColor[W,vector] = vec(0, 0, 0)
+    PosOffset[W,vector] = vec(0, 0, 0)
+    AngOffset[W,angle] = ang(0, 0, 0)
+    
+    >GroupColor[W,vector]< is the color of the wheels AND mesh controllers you want to move to those wheels.
+    
+    >PosOffset[W,vector]< is the relative position offset of the mesh controllers to the wheels.
+    
+    >AngOffset[W,vector]< is the relative angular offset of the mesh controllers to the wheels.
+]#
+    
+    # ~ Groups ~ #
+    
+    W++
+    GroupColor[W,vector] = vec(255)
+    PosOffset[W,vector] = vec(0, 0, 0)
+    AngOffset[W,angle] = ang(0, -90, 0)
+    
+    W++
+    GroupColor[W,vector] = vec(218)
+    PosOffset[W,vector] = vec(0, 0, 0)
+    AngOffset[W,angle] = ang(0, -90, 0)
+    
+    W++
+    GroupColor[W,vector] = vec(182)
+    PosOffset[W,vector] = vec(0, 0, 0)
+    AngOffset[W,angle] = ang(0, -90, 0)
+    
+    W++
+    GroupColor[W,vector] = vec(145)
+    PosOffset[W,vector] = vec(0, 0, 0)
+    AngOffset[W,angle] = ang(0, -90, 0)
+    
+    # # # # # # # # # # # # # # # # # #
+    
+    local P2MCount = 0, local PropCount = 0
+    
+    #Make more arrays for each color group and store them in a table
+    for(I=1, W, 1) {
+        
+        local ColorTag = GroupColor[I,vector]
+        local P2MArr = array(), local PropArr = array()
+        
+        #Mark the thing in the entity marker as P2M controller or prop to replace
+        for(J=1, Entities:count(), 1) {
+            
+            local Ent = Entities[J,entity]
+            
+            #Does the thing belong in this color group
+            if(Ent:getColor() == ColorTag) {
+                
+                #P2M controller
+                if(Ent:type() == "sent_prop2mesh") {P2MArr:pushEntity(Ent)}
+                
+                #Prop
+                else {PropArr:pushEntity(Ent)}
+            }
+        }
+        
+        #Add the arrays to their respective tables
+        P2MController:pushArray(P2MArr)
+        PropToReplace:pushArray(PropArr)
+        
+        #Save entity counts for debug reasons
+        P2MCount += P2MArr:count()
+        PropCount += PropArr:count()
+    }
+    
+    
+    #Warn if there are more props than P2M controllers vise versa
+    if(P2MCount != PropCount) {
+        
+        local Greater = "P2M controllers", local Lesser = "props"
+        if(P2MCount < PropCount) {Greater = "props", Lesser = "P2M controllers"}
+        
+        print("Warning, you have linked more " + Greater + " than " + Lesser + "!")
+    }
+    
+    
+    #Go through each group and move the P2M controllers to the props
+    for(I=1, W, 1) {
+        
+        local P2MArr = P2MController[I,array], local PropArr = PropToReplace[I,array]
+        
+        for(J=1, P2MArr:count(), 1) {
+            
+            #Check if the entity exists first
+            if(PropArr[J,entity]:isValid()) {
+                
+                local P2M = P2MArr[J,entity], local Prop = PropArr[J,entity]
+                
+                #Move P2M controller onto prop
+                if(MoveP2MControllers) {
+                    P2M:deparent()
+                    P2M:propFreeze(1)
+                    P2M:setPos(Prop:toWorld( PosOffset[I,vector] ))
+                    P2M:setAng(Prop:toWorld( AngOffset[I,angle] ))
+                }
+                
+                P2M:setAlpha(P2MAlpha)
+                if(ParentP2MControllers) {P2M:parentTo(Prop)}
+            }
+        }
+    }
+}

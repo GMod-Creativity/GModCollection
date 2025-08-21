@@ -1,0 +1,776 @@
+--@name mfcs/Graphic Module Core
+--@author Yours Truly
+
+local NULL = game.getWorld()
+local function Empty() end
+
+local Settings = {}; local Module = {}
+local Manager = {}
+
+-- >> Definitions
+do
+    function Module:AddGraphic()
+        local tab = {}
+        function tab:SetCameraTags() end
+        function tab:SetLayer() end
+        function tab:SetUpdate() end
+        return tab
+    end
+    
+    function Module:GetAPI() return {} end
+    
+    Module.UPDATE = {
+        STATIC = "mfcs_graphics-update_static",
+        FRAME = "mfcs_graphics-update_frame",
+        NETWORK = "mfcs_graphics-update_network",
+        SIGHT = "mfcs_graphics-update_sight",
+    }
+    
+    function MFCS:GetGraphicsModule() return Module end
+end
+
+if SERVER then
+    
+    -- >> Setup functions
+    do
+        -- Final set up
+        function Module:Initialize(NewSettings)
+            Settings = NewSettings
+            hook.add(MFCS.EVENT.INITIALIZE, "graphics-ini", function() Manager:Initialize() end)
+        end
+    end
+    
+    -- >> Manager [SV]; it manages things
+    do
+        local OnBoard = Empty
+        
+        local svMain = MFCS:CreateCord("Graphics_Main")
+        svMain.Data = { Active = false }
+        
+        function Manager:Initialize()
+            hook.add(MFCS.EVENT.BOARD_VEHICLE, "graphics_mng-board", OnBoard)
+        end
+        
+        -- Send info to driver
+        function OnBoard(Player, Board)
+            svMain.Data.Active = Board
+            svMain:SendImmediate(Player)
+        end
+    end
+end
+
+if CLIENT then
+    local API = {}
+    local Renderer = {}; local Graphic = {}
+    local Rangefinder = {}
+    local StencilUnit = {}; local RVU = {}
+    
+    local EVENT = {}
+    EVENT.SPECIAL_DRAW = "mfcs_graphics_renderer-special_draw"
+    EVENT.DRAW = "mfcs_graphics_renderer-default_draw"
+    
+    -- >> Setup functions
+    do
+        function Module:AddGraphic(NoTexture) return Graphic.Create(NoTexture) end
+        
+        function Module:GetAPI() return API end
+        
+        -- Final set up
+        function Module:Initialize(NewSettings)
+            Settings = NewSettings
+            Manager:Initialize()
+            hook.add(MFCS.EVENT.AUTHORIZE, "graphics-authorize", function() Manager:Authorize() end)
+        end
+    end
+    
+    -- >> Manager [CL]; it manages things
+    do
+        local SetActive = Empty
+        local OnCordReceive = Empty; local OnLogicTick = Empty
+        
+        local svMain = MFCS:CreateCord("Graphics_Main")
+        svMain.Data = { Active = false }
+        
+        function Manager:Initialize()
+            MFCS.AddPermission("hologram.create")
+            MFCS.AddPermission("entities.setRenderProperty")
+            MFCS.AddPermission("material.create")
+            MFCS.AddPermission("render.hud")
+            MFCS.AddPermission("render.renderView")
+            MFCS.AddPermission("render.offscreen")
+            
+            API.OnInitialize()
+        end
+        
+        function Manager:Authorize()
+            SetActive()
+            Graphic:Initialize()
+            API.OnAuthorize()
+            
+            hook.add(MFCS.EVENT.LOGIC_TICK, "graphics_mng-ev_frame", OnLogicTick)
+            hook.add(MFCS.EVENT.CORD_RECEIVE, "graphics_mng-ev_net_get", OnCordReceive)
+            hook.add(MFCS.EVENT.PING_SERVER, "graphics_mng-ev_net_send", function() API.OnSendNet() end)
+            hook.add(MFCS.EVENT.CAMERA_SWITCH, "graphics_mng-rangefinder_toggle", function() Rangefinder:Toggle() end)
+            hook.add(MFCS.EVENT.OPERATOR_KEY, "graphics_mng-on_key", function(Key, Down) API.OnKey(Key, Down) end)
+        end
+        
+        svMain.OnReceive = function()
+            if not MFCS.GetReady() then return end
+            SetActive()
+        end
+        
+        -- # Passthroughs
+        
+        function SetActive()
+            if svMain.Data.Active then
+                API.OnEnterChair()
+            else
+                API.OnExitChair()
+            end
+            Renderer:SetActive(svMain.Data.Active)
+            Graphic:SetActive(svMain.Data.Active)
+            Rangefinder:SetActive(svMain.Data.Active)
+        end
+        
+        function OnCordReceive()
+            hook.run(Module.UPDATE.NETWORK)
+            API.OnReceiveNet()
+        end
+        
+        function OnLogicTick()
+            hook.run(Module.UPDATE.FRAME)
+            Renderer:ComputeBudget()
+            API.OnUpdate()
+        end
+    end
+    
+    -- >> API; information for user-made drawing functions :D
+    do
+        API.OnInitialize = Empty
+        API.OnAuthorize = Empty
+        API.OnEnterChair = Empty
+        API.OnExitChair = Empty
+        API.OnKey = Empty
+        API.OnUpdate = Empty
+        API.OnReceiveNet = Empty
+        API.OnSendNet = Empty
+        
+        -- Draws text, scaled
+        function API:DrawText(Scale, X, Y, Text, Align, VMat, Absolute)
+            local mat = Matrix()
+            mat:setTranslation(Vector(X, Y))
+            mat:setScale(Vector(Scale, Scale))
+
+            if VMat then mat = VMat * mat end
+            
+            render.pushMatrix(mat, Absolute or false)
+                render.drawText(0, 0, Text, Align)
+            render.popMatrix()
+        end
+        
+        -- Draws text, fitting in an imaginary box
+        function API:DrawTextInBox(X, Y, W, H, Text, Align, Padding, VMat, Absolute)
+            Padding = Padding or 0
+            
+            local width, height = render.getTextSize(Text)
+            local scale = math.min((W - Padding) / width, (H - Padding) / height)
+            local offsetY = math.remap(height * scale, 0, H, H * 0.5, 0)
+            
+            local mat = Matrix()
+            mat:setTranslation(Vector(X, Y + offsetY))
+            mat:setScale(Vector(scale, scale))
+
+            if VMat then mat = VMat * mat end
+            
+            render.pushMatrix(mat, Absolute or false)
+                render.drawText(0, 0, Text, Align)
+            render.popMatrix()
+        end
+        
+        -- Matrix to position cursor
+        function API:GetCursorAimMatrix()
+            local toScreen = (MFCS.Camera:GetPosition() + MFCS.Camera:GetAimDirection() * MFCS.Computer:GetRange()):toScreen()
+            
+            local mat = Matrix()
+            mat:setTranslation(Vector(toScreen.x, toScreen.y))
+            return mat
+        end
+        
+        -- Matrix to position cursor
+        function API:GetCursorPointer(Mix, DoRotation)
+            DoRotation = DoRotation or false
+            
+            local toScreen = (MFCS.Camera:GetPosition() + MFCS.Camera:GetAimDirection() * MFCS.Computer:GetRange()):toScreen()
+            local cursorVec = Vector(toScreen.x, toScreen.y)
+            local cX, cY = render.getGameResolution()
+            local centerVec = Vector(cX * 0.5, cY * 0.5)
+            
+            local mixedPos = math.lerpVector(Mix, centerVec, cursorVec)
+            
+            local mat = Matrix()
+            mat:setTranslation(mixedPos)
+            if DoRotation then
+                mat:setAngles((cursorVec - centerVec):getAngle() + Angle(0, 90))
+            end
+            
+            return mat, centerVec:getDistance(cursorVec)
+        end
+        
+        -- Position weapon sight
+        function API:GetWeaponAimMatrix(WeaponName, CounterDrop)
+            local weaponObj = MFCS.Computer:GetWeapon(WeaponName)
+            if not weaponObj then return end
+            
+            local weaponEnt = weaponObj:GetWeapon()
+            if not weaponEnt:isValid() then return end
+            
+            local adjustment = Angle(0, 0, 0)
+            if CounterDrop then adjustment = weaponObj:GetAdjustment() end
+            
+            local dir = ( weaponEnt:getAngles() + adjustment ):getForward()
+            local pos = weaponEnt:getPos() + dir * MFCS.Computer:GetRange()
+            local toScreen = pos:toScreen()
+            
+            local matrix = Matrix()
+            matrix:setTranslation(Vector(toScreen.x, toScreen.y))
+            return matrix
+        end
+        
+        -- Marks for rangetable sight
+        function API:GetMunitionDropMatrices(Munition)
+            if table.isEmpty(Munition) then return {} end
+            
+            local matrices = {}
+            local forward = MFCS.Camera:GetViewDirection() * 39.37
+            local down = MFCS.Camera:GetViewAngles():getUp() * 39.37
+            local _, cY = render.getGameResolution()
+            cY = cY * 0.5
+            
+            for _, data in ipairs(Munition:GetFlightData()) do
+                local screenPos = (MFCS.Camera:GetPosition() + forward * data.Range + down * data.Drop):toScreen()
+                local mat = Matrix()
+                mat:setTranslation(Vector(screenPos.x, screenPos.y - cY))
+                table.insert(matrices, mat)
+            end
+            
+            return matrices
+        end
+        
+        -- Matrix to position rangefinder lock
+        function API:GetComputerPosMatrix()
+            local toScreen = MFCS.Computer:GetPosition():toScreen()
+            
+            local mat = Matrix()
+            mat:setTranslation(Vector(toScreen.x, toScreen.y))
+            return mat
+        end
+        
+        -- Get the difference in angle component from camera to entity
+        function API:GetAngleDelta(Ent, Index, Alignment, Default)
+            if not Ent:isValid() then return Default or 0 end
+            
+            return MFCS.Camera:GetViewAngles()[Index] - Ent:localToWorldAngles(Alignment or Angle(0, 0, 0))[Index]
+        end
+        
+        -- # Passthroughs to Armament properties
+        
+        function API:GetGunReady(WeaponName)
+            if not MFCS.Computer:GetWeapon(WeaponName) then return true end
+            return MFCS.Computer:GetWeapon(WeaponName):GetReady()
+        end
+        
+        function API:GetGunState(WeaponName)
+            if not MFCS.Computer:GetWeapon(WeaponName) then return "Empty" end
+            return MFCS.Computer:GetWeapon(WeaponName):GetState()
+        end
+        
+        function API:GetGunReloadProgress(WeaponName)
+            if not MFCS.Computer:GetWeapon(WeaponName) then return 1 end
+            return MFCS.Computer:GetWeapon(WeaponName):GetReloadProgress()
+        end
+        
+        function API:GetGunReloadTime(WeaponName)
+            if not MFCS.Computer:GetWeapon(WeaponName) then return 0 end
+            return MFCS.Computer:GetWeapon(WeaponName):GetReloadTime()
+        end
+        
+        function API:GetGunReloadTimeLeft(WeaponName)
+            if not MFCS.Computer:GetWeapon(WeaponName) then return 0 end
+            return MFCS.Computer:GetWeapon(WeaponName):GetReloadTimeLeft()
+        end
+        
+        function API:GetGunTOF(WeaponName)
+            if not MFCS.Computer:GetWeapon(WeaponName) then return 0 end
+            return MFCS.Computer:GetWeapon(WeaponName):GetTOF()
+        end
+        
+        function API:GetGunMagRounds(WeaponName)
+            if not MFCS.Computer:GetWeapon(WeaponName) then return 0 end
+            return MFCS.Computer:GetWeapon(WeaponName):GetMagRounds()
+        end
+        
+        function API:GetGunMagSize(WeaponName)
+            if not MFCS.Computer:GetWeapon(WeaponName) then return 1 end
+            return MFCS.Computer:GetWeapon(WeaponName):GetMagSize()
+        end
+        
+        function API:GetGunSelectedName(WeaponName)
+            local gun = MFCS.Computer:GetWeapon(WeaponName)
+            if not gun or table.isEmpty(gun:GetSelectedMunition()) then return "None" end
+            return gun:GetSelectedMunition():GetName()
+        end
+        
+        function API:GetGunLoadedName(WeaponName)
+            local gun = MFCS.Computer:GetWeapon(WeaponName)
+            if not gun or table.isEmpty(gun:GetLoadedMunition()) then return "Empty" end
+            return gun:GetLoadedMunition():GetName()
+        end
+        
+        function API:GetGunSelectedMunition(WeaponName)
+            if not MFCS.Computer:GetWeapon(WeaponName) then return {} end
+            return MFCS.Computer:GetWeapon(WeaponName):GetSelectedMunition()
+        end
+        
+        function API:GetGunLoadedMunition(WeaponName)
+            if not MFCS.Computer:GetWeapon(WeaponName) then return {} end
+            return MFCS.Computer:GetWeapon(WeaponName):GetLoadedMunition()
+        end
+        
+        // Should always be used in a loop. If not, oh well!
+        function API:GetGunMunitions(WeaponName)
+            if not MFCS.Computer:GetWeapon(WeaponName) then return {} end
+            return MFCS.Computer:GetWeapon(WeaponName):GetOrderedMunitions()
+        end
+        
+        -- # Other passthroughs
+        
+        function API:GetRefreshRate() return MFCS:GetRefreshRate() end
+        
+        function API:GetInput(Name) return MFCS:GetInput(Name) end
+        
+        function API:GetOutput(Name) return MFCS:GetOutput(Name) end
+        function API:SetOutput(Name, Value) MFCS:SetOutput(Name, Value) end
+        
+        function API:GetCameraFOV() return MFCS.Camera:GetFOV() end
+        function API:GetCameraMagnification() return MFCS.Camera:GetMagnification() end
+        
+        function API:GetComputerRange() return MFCS.Computer:GetRange() end
+        function API:GetComputerLocked() return MFCS.Computer:GetLocked() end
+        function API:GetComputerManualRanging() return MFCS.Computer:GetManualRanging() end
+        
+        function API:GetStencil() return StencilUnit end
+        
+        function API:GetMaterial() return Graphic:GetMaterial() end
+        
+        function API:ResetMaterial() Graphic:ResetMaterial() end
+        
+        function API:GetTextureCount() return Graphic:GetTextureCount() end
+    end
+    
+    -- >> Renderer; some render events & loose layer system
+    do
+        local ScrX = 0; local ScrY = 0
+        local OverBudget = false
+        
+        local Draw = Empty
+        
+        -- Turn on & off
+        function Renderer:SetActive(Active)
+            if Active then
+                hook.run(Module.UPDATE.STATIC)
+                hook.add("drawhud", "mfcs-graphics-draw", Draw)
+            else
+                hook.remove("drawhud", "mfcs-graphics-draw")
+            end
+        end
+        
+        -- Determine if over budget
+        function Renderer:ComputeBudget()
+            OverBudget = ( cpuTotalAverage() / cpuMax() ) > Settings.QuotaRatioMax
+        end
+        
+        -- Broadcast drawing events
+        function Draw()
+            hook.run(EVENT.SPECIAL_DRAW)
+            hook.run(EVENT.DRAW)
+        end
+        
+        -- # Accessors
+        
+        function Renderer:GetOverBudget() return OverBudget end
+    end
+    
+    -- >> Graphic [pseudo-class]; manages renderTargets
+    do
+        local Instances = {}; local Material = nil
+        local TextureCount = 2
+        local Layers = {}
+        local LayerPrefix = "mfcs_graphics-layer_"
+        local DefineLayer = Empty; local DefineSightHooks = Empty
+        
+        -- Instance
+        function Graphic.Create(NoTexture)
+            local graphic = {}
+            NoTexture = NoTexture or false
+            if not NoTexture then TextureCount = TextureCount + 1 end
+            
+            local textureName = "mfcs_graphic-" .. table.insert(Instances, graphic)
+            local cameraLookup = {}
+            local layerHookName = textureName .. "_layer"
+            local updateType = "NONE"; local updateHookName = textureName .. "_update"
+            local all = false
+            
+            graphic.DrawFunc = Empty
+            graphic.RefreshFunc = Empty
+            
+            -- Write to texture
+            local function TextureWrite()
+                if not render.renderTargetExists(textureName) then return end
+                
+                render.selectRenderTarget(textureName)
+                graphic.RefreshFunc()
+                hook.remove("RenderOffscreen", textureName)
+            end
+            
+            -- Return if this graphic should draw or update
+            local function GetShouldDraw()
+                return all or cameraLookup[MFCS.Camera:GetTag()]
+            end
+            
+            -- # Methods
+            
+            function graphic:Initialize()
+                if NoTexture then TextureWrite = Empty end
+            end
+            
+            -- Makes texture, if applicable
+            function graphic:CreateTexture()
+                if NoTexture then return end
+                
+                render.createRenderTarget(textureName)
+            end
+            
+            -- Frees texture, if applicable
+            function graphic:DestroyTexture()
+                hook.remove("RenderOffscreen", textureName)
+                
+                if NoTexture then return end
+                if not render.renderTargetExists(textureName) then return end
+                
+                render.destroyRenderTarget(textureName)
+            end
+            
+            -- Set rendering for specific camera tags
+            function graphic:SetCameraTags(CameraTags)
+                for _, tag in ipairs(CameraTags) do
+                    if string.lower(tag) != "all" then
+                        cameraLookup[tag] = true
+                        continue
+                    end
+                    
+                    all = true
+                    table.empty(cameraLookup)
+                    return
+                end
+            end
+            
+            -- Numeric draw layer to use
+            function graphic:SetLayer(LayerNum)
+                hook.add(LayerPrefix .. LayerNum, layerHookName, function() self:DrawTexture() end)
+                DefineLayer(LayerNum)
+            end
+            
+            -- Update type to use
+            function graphic:SetUpdate(UpdateEnum, weaponName)
+                hook.remove(updateType, updateHookName)
+                
+                updateType = UpdateEnum
+                if UpdateEnum == Module.UPDATE.SIGHT then
+                    updateType = updateType .. "_" .. weaponName
+                end
+                
+                hook.add(updateType, updateHookName, function() self:RefreshTexture() end)
+            end
+            
+            -- Draw texture
+            function graphic:DrawTexture()
+                if not GetShouldDraw() then return end
+                self:ResetMaterial()
+                self.DrawFunc()
+            end
+            
+            -- Write contents to texture
+            function graphic:RefreshTexture()
+                if not GetShouldDraw() and updateType != Module.UPDATE.STATIC then return end
+                
+                if NoTexture then
+                    graphic.RefreshFunc()
+                    return
+                end
+                
+                hook.add("RenderOffscreen", textureName, TextureWrite)
+            end
+            
+            -- Reassign this texture to material
+            function graphic:ResetMaterial()
+                Graphic:ResetMaterial()
+                render.setMaterial(Material)
+                
+                if NoTexture then return end
+                
+                Material:setTextureRenderTarget("$basetexture", textureName)
+            end
+            
+            return graphic
+        end
+        
+        function Graphic:Initialize()
+            for _, graphic in ipairs(Instances) do
+                graphic:Initialize()
+            end
+            
+            table.sort(Layers)
+            DefineSightHooks()
+        end
+        
+        function Graphic:SetActive(Active)
+            if Active then
+                Material = material.create("gmodscreenspace")
+                self:ResetMaterial()
+                
+                for _, graphic in ipairs(Instances) do
+                    graphic:CreateTexture()
+                end
+                
+                hook.add(EVENT.DRAW, "graphics_graphic-draw_hud", function() self:DrawLayers() end)
+            else
+                hook.remove(EVENT.DRAW, "graphics_graphic-draw_hud")
+                if Material then Material:destroy() end
+                
+                for _, graphic in ipairs(Instances) do
+                    graphic:DestroyTexture()
+                end
+            end
+        end
+        
+        -- Render items by layer
+        function Graphic:DrawLayers()
+            for _, num in ipairs(Layers) do
+                hook.run(LayerPrefix .. num)
+            end
+        end
+        
+        -- Reset material parameters
+        function Graphic:ResetMaterial()
+            Material:setFloat("$texturealpha", 1.0)
+            Material:setFloat("$alpha", 1.0)
+            Material:setFloat("$blur", 0.0)
+        end
+        
+        -- Make a new layer if it doesn't already exist
+        function DefineLayer(LayerNum)
+            for _, num in ipairs(Layers) do
+                if LayerNum == num then return end
+            end
+            
+            table.insert(Layers, LayerNum)
+        end
+        
+        -- Generate hooks for UPDATE.SIGHT
+        function DefineSightHooks()
+            for k, weapon in pairs(MFCS.Computer:GetAllSystems()) do
+                local hookName = Module.UPDATE.SIGHT .. "_" ..k
+                local id = "mfcs_graphics-ev_sight_" .. k
+                local Event = function() hook.run(hookName) end
+                
+                hook.add(MFCS.EVENT.CAMERA_ZOOM, id, function() timer.create(id, 0.015, 1, Event) end)
+                hook.add(weapon:GetUpdateHook(), id, Event)
+                hook.add(MFCS.EVENT.COMPUTER_RANGE, id, Event)
+            end
+        end
+        
+        -- # Accessors
+        
+        function Graphic:GetMaterial() return Material end
+        
+        function Graphic:GetTextureCount() return TextureCount end
+    end
+    
+    -- >> Rangefinder; intersect two renderviews
+    do
+        local LeftOptic = NULL; local RightOptic = NULL
+        local textureLeft = "mfcs_graphic-rng_left"
+        local textureRight = "mfcs_graphic-rng_right"
+        
+        local SetConvergence = Empty; local Capture = Empty; local DrawTextures = Empty
+        
+        function Rangefinder:SetActive(Active)
+            if Active then
+                render.createRenderTarget(textureLeft)
+                render.createRenderTarget(textureRight)
+            else
+                if not render.renderTargetExists(textureLeft) then return end
+                
+                render.destroyRenderTarget(textureLeft)
+                render.destroyRenderTarget(textureRight)
+            end
+        end
+        
+        -- Set parent & positions
+        function MFCS.Graphic:SetupRangefinder(Parent, Alignment, Left, Right)
+            LeftOptic = hologram.create(Parent:localToWorld(Left), Angle(), MFCS:GetHoloModel())
+            LeftOptic:setParent(Parent)
+            LeftOptic:setNoDraw(true)
+            
+            RightOptic = hologram.create(Parent:localToWorld(Right), Angle(), MFCS:GetHoloModel())
+            RightOptic:setParent(Parent)
+            RightOptic:setNoDraw(true)
+        end
+        
+        -- Toggle coincidence display
+        function Rangefinder:Toggle()
+            if MFCS.Camera:GetOpticalRanging() then
+                hook.add(MFCS.EVENT.CAMERA_AIM, "graphics_rng-toggle", SetConvergence)
+                hook.add(Module.UPDATE.FRAME, "graphics_rng-update", Capture)
+                hook.add(EVENT.SPECIAL_DRAW, "graphics_rng-draw", DrawTextures)
+            else
+                hook.remove(MFCS.EVENT.CAMERA_AIM, "graphics_rng-toggle")
+                hook.remove(Module.UPDATE.FRAME, "graphics_rng-update")
+                hook.remove(EVENT.SPECIAL_DRAW, "graphics_rng-draw")
+            end
+        end
+        
+        -- Update rangefinder optics
+        function SetConvergence()
+            local focusPos = MFCS.Camera:GetPosition() + MFCS.Camera:GetViewDirection() * MFCS.Computer:GetRange()
+            local up = Vector(0, 0, 1)
+            
+            LeftOptic:setAngles( (focusPos - LeftOptic:getPos()):getAngleEx(up) )
+            RightOptic:setAngles( (focusPos - RightOptic:getPos()):getAngleEx(up) )
+        end
+        
+        -- Save renderViews to textures
+        function Capture()
+            if Renderer:GetOverBudget() then return end
+            
+            RVU:SetAspect(1)
+            RVU:SetFOV(MFCS.Camera:GetFOV())
+            
+            RVU:CaptureTo(textureLeft, "left", LeftOptic)
+            RVU:CaptureTo(textureRight, "right", RightOptic)
+        end
+        
+        -- Superimpose right onto left
+        function DrawTextures()
+            local scrW, scrH = render.getGameResolution()
+            
+            Graphic:ResetMaterial()
+            render.setMaterial(Graphic:GetMaterial())
+            
+            local mat = Matrix()
+            mat:setTranslation(Vector(scrW * 0.5, scrH * 0.5))
+            mat:setScale(Vector(Settings.RangefinderScale, Settings.RangefinderScale))
+            
+            render.pushMatrix(mat, true)
+                Graphic:GetMaterial():setFloat("$alpha", 1.0)
+                Graphic:GetMaterial():setTextureRenderTarget("$basetexture", textureLeft)
+                render.drawTexturedRect(-512, -512, 1024, 1024)
+                
+                Graphic:GetMaterial():setFloat("$alpha", 0.5)
+                Graphic:GetMaterial():setTextureRenderTarget("$basetexture", textureRight)
+                render.drawTexturedRect(-512, -512, 1024, 1024)
+            render.popMatrix()
+        end
+    end
+    
+    -- >> StencilUnit; useful stencil operations
+    do
+        StencilUnit.Mask = Empty
+        StencilUnit.Draw = Empty
+        local Reset = Empty
+        
+        -- Draw graphic in areas where mask does not appear
+        function StencilUnit:InvertedMasked()
+            render.setStencilEnable( true )
+            Reset()
+            
+            render.setStencilReferenceValue( 1 )
+            render.setStencilCompareFunction( STENCIL.NEVER )
+            render.setStencilFailOperation( STENCIL.REPLACE )
+            StencilUnit.Mask()
+            
+            render.setStencilCompareFunction( STENCIL.GREATER )
+            render.setStencilFailOperation( STENCIL.KEEP )
+            StencilUnit.Draw()
+            
+            render.setStencilEnable( false )
+        end
+        
+        -- Draw graphic in areas where mask appears
+        function StencilUnit:Masked()
+            render.setStencilEnable( true )
+            Reset()
+            
+            render.setStencilReferenceValue( 1 )
+            render.setStencilCompareFunction( STENCIL.NEVER )
+            render.setStencilFailOperation( STENCIL.REPLACE )
+            StencilUnit.Mask()
+            
+            render.setStencilCompareFunction( STENCIL.EQUAL )
+            render.setStencilFailOperation( STENCIL.KEEP )
+            StencilUnit.Draw()
+            
+            render.setStencilEnable( false )
+        end
+        
+        -- Reset stencil
+        function Reset()
+            render.setStencilWriteMask( 0xFF )
+            render.setStencilTestMask( 0xFF )
+            render.setStencilReferenceValue( 0 )
+            render.setStencilPassOperation( STENCIL.KEEP )
+            render.setStencilZFailOperation( STENCIL.KEEP )
+            render.clearStencil()
+        end
+    end
+    
+    -- >> RVU; functionality for render view camera stuff
+    do
+        local Aspect = 1; local FOV = 90
+        local SaveView = Empty
+        
+        -- Save image to texture
+        function RVU:CaptureTo(Tex, Name, Transform)
+            local id = "mfcs_graphics-rvu_" .. Name
+            hook.add("renderscene", id, function() SaveView(Tex, id, Transform) end)
+        end
+        
+        -- Capture frame from camera to texture
+        function SaveView(Tex, ID, Transform)
+            render.selectRenderTarget(Tex)
+            
+            render.renderView(
+                {
+                    origin = Transform:getPos(),
+                    angles = Transform:getAngles(),
+                    aspectratio = Aspect,
+                    x = 0,
+                    y = 0,
+                    w = 1024,
+                    h = 1024,
+                    fov = FOV
+                }
+            )
+            
+            hook.remove("renderscene", ID)
+        end
+        
+        -- # Accessors
+        
+        function RVU:SetAspect(NewAspect) Aspect = NewAspect end
+        
+        function RVU:SetFOV(NewFOV) FOV = NewFOV end
+    end
+end
+
+return Module

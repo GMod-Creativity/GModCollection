@@ -1,0 +1,350 @@
+@name CGC v1.4.1 r2 (Gun Chip)
+
+#Community Gun Chip, a Gun E2 by DEF.
+
+# Video tutorial can be found here - https://youtu.be/uoSOOtdY3UA #
+
+@inputs Active [MGAimPos SGAimPos]:vector [PodEnt MainGun MGBase SecondaryGun SGBase]:entity
+@inputs [MGRingGate SGRingGate]:entity [MGAngOffset SGAngOffset]:angle LockMG LockSG
+@outputs MGLatch SGLatch FilterEnts:array [MGRelative MGError MGErrorClamped SGRelative SGError SGErrorClamped]:angle
+
+@persist [Operator MGBaseHolo SGBaseHolo]:entity [MGLatchkey SGLatchkey]:string [SideArc DepFS DepSR MGRotLim SGRotLim]:vector2
+@persist [MGInertia MGRotSpd SGInertia SGRotSpd]:angle [MGRotCor SGRotCor]:vector
+@persist [LaySpd Elevation]:vector2 FrontArc RearArc SGDepression DGtoAV DGSnap
+@persist MGParented SGParented
+@persist [MGAng SGAng]:angle
+
+#Debug
+@outputs Ops_CPUsage:vector2 Debug:angle
+@trigger none
+
+if(first() | dupefinished()) {
+    
+        #~ Common ~#
+    
+    
+    ShowHolos = 0               #Displays all the alignment holos.
+    
+    MGAng = ang(0, 0, 0)        #MainGun alignment angle. Green X should point forward, Red Y should point left,
+                                #and Blue Z should point up.
+    
+    MGBaseAng = ang(0, 0, 0)        #MainGun base alignment angle.
+    
+    SGAng = ang(0, 0, 0)        #Secondary alignment angle.
+    
+    SGBaseAng = ang(0, 0, 0)        #Secondary base alignment angle.
+    
+    
+        #~ Main Gun ~#
+    
+    
+    MGParented = 0              #Set to 1 for a parented gun (parents the gates to holos).
+    
+    MGLatchkey = "F"            #Aiming toggle
+    
+    MGOffset = vec(0, 0, 0)     #An offset to the Gun's aimpoint; useful for if you have two guns.
+    
+    MGRotSpd = ang(35, 20, 0)   #How quickly the turret rotates in Dg/s, roll should always be zero.
+    
+    MGLaySpd = 5.5               #How quickly the main gun gets accurately on target.
+    
+    MGRotLim = vec2(180, 180)   #Horizontal gun traverse limits (left, right).
+    
+    MGElevation = 20            #Elevation limit
+    
+    # # # Depression zones sub-divisor
+    
+    MGDepression = vec(10, 10, 0)     #Depression limits over the front, side, and rear, respectively.
+    
+    FrontArc = 20               #The limit over the front of the tank; corresponds to the front depression.
+    
+    SideArc = vec2(25, 155)     #The start and end of the side of the tank; corresponds to the side depression.
+    
+    RearArc = 170               #The start of the rear of the tank; corresponds to the rear depression.
+    
+    # # # MainGun Applyforce
+    
+    #These increase the aiming strength of the ApplyAngForce
+    
+    MGRotCorrection = 10000         #Force increase with respect to the turret ring.
+    
+    MGConCorrection = vec(0)      #Force increase with respect to the gun ring.
+    
+    MGInertiaOverride = vec(0)       #Replace original inertia on the gun with this; set to 0 to leave default
+                                        
+    # # # MainGun Holo-Parented
+    
+    MGRingPos = vec(0, 0, 0)    #Traversing gate position (I.E. Turret Ring). Offset relative to MGBase.
+    
+    
+        #~ Secondary Gun ~#
+    
+    
+    SGParented = 0              #Set to 1 for a parented gun.
+    
+    SGLatchkey = "G"            #Aiming toggle
+    
+    SGOffset = vec(0, 0, 0)     #An offset to the gun's aimpoint.
+    
+    SGRotSpd = ang(45, 45, 0)   #How quickly the turret rotates in Dg/s, roll should always be zero.
+    
+    SGLaySpd = 3.5              #How quickly the secondary gun gets accurately on target.
+    
+    SGRotLim = vec2(180, 180)   #Horizontal gun traverse limits.
+    
+    SGElevation = 75            #Elevation limit
+    
+    SGDepression = 3            #Depression limit
+    
+    # # # Secondary Applyforce
+    
+    SGRotCorrection = 0         #Force increase with respect to the turret ring.
+    
+    SGConCorrection = vec(0, 0, 0)      #Force increase with respect to the gun ring.
+    
+    SGInertiaOverride = vec(0)       #Replace original inertia on the gun with this; set to 0 to leave default
+    
+    # # # Secondary Holo-Parented
+    
+    SGRingPos = vec(0, 0, 0)    #Parented Secondary's rotating gate position.
+    
+    
+                # ~ You are done editing here! ~ #
+    
+    
+    #Orientation holos
+    local Mdl = "models/sprops/misc/origin.mdl"
+    
+    #MGBase holo
+    MGBaseHolo = holoCreate(1, MGBase:toWorld(vec()), vec(1), MGBase:toWorld(MGBaseAng), vec4(255*ShowHolos), Mdl)
+    holoParent(1, MGBase)
+    
+    #MainGun holo
+    holoCreate(2, MainGun:toWorld(MGOffset), vec(1), MainGun:toWorld(MGAng), vec4(255*ShowHolos), Mdl)
+    
+    #SGBase holo
+    SGBaseHolo = holoCreate(3, SGBase:toWorld(vec()), vec(1), SGBase:toWorld(SGBaseAng), vec4(255*ShowHolos), Mdl)
+    holoParent(3, SGBase)
+    
+    #SecondaryGun holo
+    holoCreate(4, SecondaryGun:toWorld(SGOffset), vec(1), SecondaryGun:toWorld(SGAng), vec4(255*ShowHolos), Mdl)
+    
+    #Additional ring holo for parented gun
+    if(MGParented) {
+        
+        #Gun holo angles minus the elevation.
+        local AngleYawOnly = MGBaseHolo:toWorld(clamp(MGBaseHolo:toLocal(holoEntity(2):angles()), -ang(0, 180, 0), ang(0, 180, 0)))
+        
+        holoCreate(5, MGBase:toWorld(MGRingPos), vec(1), AngleYawOnly, vec4(vec(255, 0, 0), 255*ShowHolos), Mdl)
+        holoParent(5, MGBase), holoMaterial(5, "models/debug/debugwhite"), holoParent(2, holoEntity(5))
+        
+        #Unparenting then re-parenting. Now you can update the chip with holoParent guns!
+        if(MGParented) {
+            MainGun:deparent(), MGRingGate:deparent()
+            MainGun:parentTo(holoEntity(2)), MGRingGate:parentTo(holoEntity(5))
+        }
+    }
+    
+    else {holoParent(2, MainGun)}
+    
+    #Secondary
+    if(SGParented) {
+        
+        local AngleYawOnly = SGBaseHolo:toWorld(clamp(SGBaseHolo:toLocal(holoEntity(4):angles()), -ang(0, 180, 0), ang(0, 180, 0)))
+        
+        holoCreate(6, SGBase:toWorld(SGRingPos), vec(1), AngleYawOnly, vec4(vec(0, 255, 0), 255*ShowHolos), Mdl)
+        holoParent(6, SGBase), holoMaterial(6, "models/debug/debugwhite"), holoParent(4, holoEntity(6))
+        
+        if(SGParented) {
+            SecondaryGun:deparent(), SGRingGate:deparent()
+            SecondaryGun:parentTo(holoEntity(4)), SGRingGate:parentTo(holoEntity(6))
+        }
+    }
+    
+    else {holoParent(4, SecondaryGun)}
+    
+    
+    #Main depression zones.
+    DepFS = vec2(MGDepression[1], MGDepression[2])
+    DepSR = vec2(MGDepression[2], MGDepression[3])
+    
+    #Layspeeds and elevations.
+    LaySpd = vec2(MGLaySpd, SGLaySpd)
+    Elevation = vec2(MGElevation, SGElevation)
+    
+    #MainGun and Secondary inertias for use in apply force.
+    local PreMul = 23.25 * 1000/15 * (pi()/180)
+    
+    MGRotCor = vec():setY(MGRotCorrection) * PreMul
+    SGRotCor = vec():setY(SGRotCorrection) * PreMul
+    
+    if(MGInertiaOverride) {MainGun:propInertia(MGInertiaOverride)}
+    MGInertia = ang(shiftL(MainGun:inertia() + MGConCorrection)) * PreMul
+    
+    if(SGInertiaOverride) {SecondaryGun:propInertia(SGInertiaOverride)}
+    SGInertia = ang(shiftL(SecondaryGun:inertia() + SGConCorrection)) * PreMul
+    
+    #Degree error to desired angular velocity multiplier.
+    DGtoAV = 1, DGSnap = 60/1000
+    MGRotSpd = MGRotSpd * (MGParented ? DGSnap : DGtoAV)
+    SGRotSpd = SGRotSpd * (SGParented ? DGSnap : DGtoAV)
+    
+    FilterEnts = entity():getConnectedEntities()
+    rangerPersist(1), rangerFilter(FilterEnts)
+}
+
+interval(60)
+
+#Gets the new player
+if(changed(Active)) {Operator = PodEnt:driver()}
+
+#Gun and Secondary locking
+if(->LockMG) {MGLatch = LockMG}
+elseif(changed(Operator:keyPressed(MGLatchkey)) & Operator:keyPressed(MGLatchkey)) {MGLatch = !MGLatch}
+
+if(->LockSG) {SGLatch = LockSG}
+elseif(changed(Operator:keyPressed(SGLatchkey)) & Operator:keyPressed(SGLatchkey)) {SGLatch = !SGLatch}
+
+#Aiming
+if(Active) {
+    
+    #MainGun aiming
+    if(->MainGun & !MGLatch) {
+        
+        #Common things between applyAngForce and holo turret
+        local GunHolo = holoEntity(2)
+        local ParSpd = shiftL(ang( GunHolo:toLocalAxis( MGBase:toWorldAxis(MGBase:angVelVector()) ) ))
+        local CurAng = MGBaseHolo:toLocal(GunHolo:angles())
+        MGError = GunHolo:heading(MGAimPos) + MGAngOffset
+        
+        #Maingun angles relative to MGBase and depression zones
+        MGRelative = MGBaseHolo:toLocal(GunHolo:angles())
+        local GunYaw = abs(MGRelative[2])
+        local Dep = 0
+        
+        if(GunYaw < FrontArc) {Dep = DepFS[1]}
+        elseif(GunYaw < SideArc[1]) {Dep = (DepFS[2] - DepFS[1]) * (GunYaw - FrontArc) / (SideArc[1] - FrontArc) + DepFS[1]}
+        elseif(GunYaw < SideArc[2]) {Dep = DepFS[2]}
+        elseif(GunYaw < RearArc) {Dep = (DepSR[2] - DepSR[1]) * (GunYaw - SideArc[2]) / (RearArc - SideArc[2]) + DepSR[1]}
+        else {Dep = DepSR[2]}
+        
+        #ApplyAngForce for physical gun
+        if(!MGParented) {
+            
+            #Yaw inertia constant
+            local TotInertia = MGInertia + ang( mix(MGRotCor, vec():setZ(MGRotCor[2]), 1 - abs(MGRelative[1] / 90)) )
+            
+            #Attached entity speed and speed limit.
+            local ParentSpd = (-ParSpd * DGtoAV) / LaySpd[1]
+            local TrueSpd = mix(MGRotSpd, MGRotSpd:setYaw(0):setRoll(MGRotSpd[2]), 1 - abs(CurAng[1] / 90)) / LaySpd[1]
+            local SpeedClamp = clamp(-MGError, (-TrueSpd - ParentSpd), (TrueSpd - ParentSpd)) - CurAng * ang(0, 0, 1)
+            
+            #For if the yaw is limited
+            if(MGRotLim[1] != 180 | MGRotLim[2] != 180) {
+                local ErrYaw = (CurAng - MGError):yaw()
+                SpeedClamp = (ErrYaw >= 180 | ErrYaw <= -180 ? clamp(MGError, -TrueSpd - ParentSpd, TrueSpd - ParentSpd) : SpeedClamp)
+            }
+            
+            #Clamping angles relative to base
+            local LimOffset = ParentSpd:setYaw(MGRotLim[1]>=180 & MGRotLim[2]>=180 ? 0 : ParentSpd[2])
+            local Limit = clamp(MGBaseHolo:toLocal(GunHolo:toWorld(SpeedClamp)), -ang(Elevation[1], MGRotLim[2], 0) - LimOffset, ang(Dep, MGRotLim[1], 0) - LimOffset)
+            MGErrorClamped = GunHolo:toLocal(MGBaseHolo:toWorld(Limit))
+            
+            #Apply the force!
+            local RelPar = shiftL(ang(GunHolo:parent():toLocalAxis( GunHolo:toWorldAxis(shiftR(vec(MGErrorClamped))) )))
+            MainGun:applyAngForce((RelPar*LaySpd[1] - MainGun:angVel()) * TotInertia)
+        }
+        
+        #HoloAng for parented gun
+        else {
+            
+            #Attached entity speed, angle to aimpoint, and speed limit.
+            local ParentSpd = ParSpd * DGSnap / 2
+            local SpeedClamp = -clamp(MGError, -MGRotSpd - ParentSpd, MGRotSpd - ParentSpd)
+            
+            #For if the yaw is limited
+            if(MGRotLim[1] != 180 | MGRotLim[2] != 180) {
+                local ErrYaw = (CurAng - MGError):yaw()
+                SpeedClamp = (ErrYaw >= 180 | ErrYaw <= -180 ? -clamp(-MGError, -MGRotSpd - ParentSpd, MGRotSpd - ParentSpd) : SpeedClamp)
+            }
+            
+            #Clamping angles relative to base
+            local LocalToBase = MGBaseHolo:toLocal(GunHolo:toWorld(SpeedClamp))
+            local ClampMin = -ang(Elevation[1], MGRotLim[2], 0) + ParentSpd
+            local ClampMax = ang(Dep, MGRotLim[1], 0) + ParentSpd
+            
+            #Elevation holo angle, also needed for the clamped gun error output
+            local GunWorldError = MGBaseHolo:toWorld( clamp(LocalToBase, ClampMin, ClampMax))
+            
+            #Traverse and elevation holo angles
+            holoAng(5, MGBaseHolo:toWorld( clamp(LocalToBase, ClampMin:setPitch(0), ClampMax:setPitch(0))) )
+            holoAng(2, GunWorldError )
+            
+            #Useful info
+            MGErrorClamped = GunHolo:toLocal(GunWorldError)
+        }
+    }
+    
+    #Secondary aiming; similar to aiming the MainGun
+    if(->SecondaryGun & !SGLatch) {
+        
+        local GunHolo = holoEntity(4)
+        local ParSpd = GunHolo:toLocalAxis( SGBase:toWorldAxis(SGBase:angVelVector()) )
+        local CurAng = SGBaseHolo:toLocal(GunHolo:angles())
+        SGError = GunHolo:heading(SGAimPos) + SGAngOffset
+        
+        SGRelative = SGBaseHolo:toLocal(GunHolo:angles())
+        
+        if(!SGParented) {
+            
+            local TotInertia = SGInertia + ang( mix(SGRotCor, vec():setZ(SGRotCor[2]), 1 - abs(SGRelative[1] / 90)) )
+            
+            local ParentSpd = shiftL(ang(-ParSpd * DGtoAV)) / LaySpd[2]
+            local TrueSpd = mix(SGRotSpd, SGRotSpd:setYaw(0):setRoll(SGRotSpd[2]), 1 - abs(CurAng[1] / 90)) / LaySpd[2]
+            local SpeedClamp = clamp(-SGError, (-TrueSpd - ParentSpd), (TrueSpd - ParentSpd)) - CurAng * ang(0, 0, 1)
+            
+            if(SGRotLim[1] != 180 | SGRotLim[2] != 180) {
+                local ErrYaw = (CurAng - SGError):yaw()
+                SpeedClamp = (ErrYaw >= 180 | ErrYaw <= -180 ? clamp(SGError, -TrueSpd - ParentSpd, TrueSpd - ParentSpd) : SpeedClamp)
+            }
+            
+            local LimOffset = ParentSpd:setYaw(SGRotLim[1]>=180 & SGRotLim[2]>=180 ? 0 : ParentSpd[2])
+            local Limit = clamp(SGBaseHolo:toLocal(GunHolo:toWorld(SpeedClamp)), -ang(Elevation[2], SGRotLim[2], 0) - LimOffset, ang(SGDepression, SGRotLim[1], 0) - LimOffset)
+            SGErrorClamped = GunHolo:toLocal(SGBaseHolo:toWorld(Limit))
+            
+            local RelPar = shiftL(ang(GunHolo:parent():toLocalAxis( GunHolo:toWorldAxis(shiftR(vec(SGErrorClamped))) )))
+            SecondaryGun:applyAngForce((RelPar*LaySpd[2] - SecondaryGun:angVel()) * TotInertia)
+        }
+        
+        else {
+            
+            local ParentSpd = shiftL(ang(ParSpd * DGSnap / 2))
+            local SpeedClamp = -clamp(SGError, -SGRotSpd - ParentSpd, SGRotSpd - ParentSpd)
+            
+            if(SGRotLim[1] != 180 | SGRotLim[2] != 180) {
+                local ErrYaw = (CurAng - SGError):yaw()
+                SpeedClamp = (ErrYaw >= 180 | ErrYaw <= -180 ? -clamp(-SGError, -SGRotSpd - ParentSpd, SGRotSpd - ParentSpd) : SpeedClamp)
+            }
+            
+            local LocalToBase = SGBaseHolo:toLocal(GunHolo:toWorld(SpeedClamp))
+            local ClampMin = -ang(Elevation[2], SGRotLim[2], 0) + ParentSpd
+            local ClampMax = ang(SGDepression, SGRotLim[1], 0) + ParentSpd
+            
+            local GunWorldError = SGBaseHolo:toWorld( clamp(LocalToBase, ClampMin, ClampMax))
+            
+            holoAng(6, SGBaseHolo:toWorld( clamp(LocalToBase, ClampMin:setPitch(0), ClampMax:setPitch(0))) )
+            holoAng(4, GunWorldError )
+            
+            SGErrorClamped = GunHolo:toLocal(GunWorldError)
+        }
+    }
+}
+
+#Lock the gun when not active
+else {
+    
+    MGLatch = (->LockMG ? LockMG : 1)
+    SGLatch = (->LockSG ? LockSG : 1)
+}
+
+Ops_CPUsage=vec2(ops(),cpuUsage()*1000000)

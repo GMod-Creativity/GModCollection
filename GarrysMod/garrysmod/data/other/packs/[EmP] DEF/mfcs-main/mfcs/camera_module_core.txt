@@ -1,0 +1,880 @@
+--@name mfcs/Camera Module Core
+--@author Yours Truly
+
+local NULL = game.getWorld()
+local function Empty() end
+
+local Settings = {}; local Module = {}
+local Manager = {}
+local View = {}
+
+if SERVER then
+    local ViewSpring = {}
+    
+    -- >> Setup functions
+    do
+        function Module:AddView(ParentName) return View.Create(ParentName) end
+        
+        function Module:AddRangefinder(ParentName) return View.Create(ParentName) end
+        
+        -- Final set up
+        function Module:Initialize(NewSettings)
+            Settings = NewSettings
+            hook.add(MFCS.EVENT.MAKE_IO, "camera-io", function() Manager:MakeIO() end)
+            hook.add(MFCS.EVENT.INITIALIZE, "camera-ini", function() Manager:Initialize() end)
+        end
+    end
+    
+    -- >> Manager; guess what this bad-boy does
+    do
+        local Cycle = 0
+        local OnBoard = Empty; local OnLogicTick = Empty
+        
+        local shMain = MFCS:CreateCord("Camera_Main")
+        
+        shMain.Data = {
+            Active = false,
+            View = {},
+            Persist = {
+                View = {},
+                Orientor = {},
+            },
+        }
+        
+        function Manager:Initialize()
+            ViewSpring:Initialize()
+            View:Initialize()
+            
+            net.receive("mfcs_camera-set_motion_holo", function() ViewSpring:SetHolo() end)
+            hook.add(MFCS.EVENT.BOARD_VEHICLE, "camera_mng-board", OnBoard)
+            hook.add("tick", "camera_mng-logic_tick", OnLogicTick)
+        end
+        
+        function Manager:MakeIO()
+            MFCS:AddSharedOutput("Angles", "Angle")
+            MFCS:AddSharedOutput("HitPos", "Vector")
+            MFCS:AddSharedOutput("AimPos", "Vector")
+            View:MakeIO()
+        end
+        
+        -- Send info to driver
+        function OnBoard(Player, Board)
+            shMain.Data.Active = Board
+            
+            if Board then
+                View:SendParents()
+            end
+            
+            shMain:SendImmediate(Player)
+        end
+        
+        -- # Passthroughs
+        
+        function OnLogicTick()
+            Cycle = Cycle + 1
+            if Cycle != 5 then return end
+            
+            ViewSpring:UpdateHolo()
+            Cycle = 0
+        end
+        
+        -- # Accessors
+        
+        function Manager:GetMainCord() return shMain end
+    end
+    
+    -- >> View [SV/pseudo-class]; data container for perspective
+    do
+        local Instances = {}
+        
+        -- Create & return instance
+        function View.Create(ParentName)
+            local view = {}
+            
+            local parentName = ParentName
+            local parent = NULL
+            
+            -- # Methods
+            
+            function view:Initialize()
+                parent = wire.ports[parentName]
+            end
+            
+            function view:MakeIO()
+                MFCS.AddInput(parentName, "Entity")
+            end
+            
+            -- # Accessors
+            
+            function view:GetParent() return parent end
+            
+            -- # Definitions
+            
+            function view:SetLimits() end
+            function view:SetMotion() end
+            function view:SetRangefinder() end
+            
+            table.insert(Instances, view)
+            return view
+        end
+        
+        function View:Initialize()
+            for _, view in ipairs(Instances) do
+                view:Initialize()
+            end
+        end
+        
+        function View:MakeIO()
+            for _, view in ipairs(Instances) do
+                view:MakeIO()
+            end
+        end
+        
+        -- Send parents to driver
+        function View:SendParents()
+            local parents = {}
+            for _, view in ipairs(Instances) do
+                table.insert(parents, view:GetParent())
+            end
+            Manager:GetMainCord().Data.View.Parents = parents
+        end
+    end
+    
+    -- >> ViewSpring; holo that responds to vehicle motion
+    do
+        local MotionHolo = NULL; local Anchor = NULL
+        local ParentOBJ = NULL
+        local SpringVel = Vector(); local SpringPos = Vector()
+        local OldVel = Vector()
+        local KMul = 0; local DMul = 0
+        local AMul = 0; local VMul = 0
+        local Limit = 0
+        
+        local SendHolo = Empty
+        
+        function ViewSpring:Initialize()
+            Anchor = hologram.create(Vector(), Angle(), MFCS:GetHoloModel())
+            Anchor:setNoDraw(true)
+            MotionHolo = hologram.create(Vector(), Angle(), MFCS:GetHoloModel())
+            MotionHolo:setColor(Color(0, 0, 0, 0))
+        end
+        
+        -- Holo movement
+        function ViewSpring:UpdateHolo()
+            if not Anchor:isValid() then return end
+            
+            local newVel = ParentOBJ:getVelocity()
+            local acc = newVel - OldVel
+            OldVel = newVel
+            
+            local target = acc * -AMul + newVel * -VMul
+            
+            SpringVel = (SpringVel + (target - SpringPos) * KMul) * DMul
+            SpringPos = SpringPos + SpringVel
+            
+            SpringPos[1] = math.approach(0, SpringPos[1], Limit)
+            SpringPos[2] = math.approach(0, SpringPos[2], Limit)
+            SpringPos[3] = math.approach(0, SpringPos[3], Limit)
+            
+            MotionHolo:setPos(Anchor:getPos() + SpringPos)
+        end
+        
+        -- Change properties
+        function ViewSpring:SetHolo()
+            local tab = net.readTable()
+            
+            local parent = tab.Parent
+            local origin = parent:localToWorld(tab.Origin)
+            local alignment = parent:localToWorldAngles(tab.Alignment)
+            ParentOBJ = parent:getPhysicsObject()
+            KMul = tab.KMul; DMul = 1 - tab.DMul
+            AMul = tab.AMul; VMul = tab.VMul
+            Limit = tab.MotionLimit
+            
+            Anchor:setParent(parent)
+            Anchor:setPos(origin)
+            Anchor:setAngles(alignment)
+            
+            MotionHolo:setParent(parent)
+            MotionHolo:setAngles(alignment)
+            
+            SpringPos = Vector()
+            OldVel = Vector()
+            SpringVel = Vector()
+            
+            timer.create("mfcs_camera-holo_delay", 0.5, 1, SendHolo)
+        end
+        
+        -- Send holo to client
+        function SendHolo()
+            if MFCS.GetDriver() == NULL then return end
+            
+            net.start("mfcs_camera-send_motion_holo")
+                net.writeEntity(MotionHolo)
+            net.send(MFCS.GetDriver())
+        end
+    end
+end
+
+if CLIENT then
+    local Orientor = {}; local ViewUnit = {}
+    local GyroCamera = {}; local RelativeCamera = {}; local TrackCamera = {}
+    
+    local EVENT = {
+        VIEW_ACTIVE = "mfcs-camera-view-active"
+    }
+    
+    local CAMERA = {
+        GYRO = 1,
+        RELATIVE = 2,
+        TRACKING = 3
+    }
+    
+    -- >> Setup functions
+    do
+        function Module:AddView(ParentName, Tag) return View.Create(ParentName, Tag) end
+        
+        function Module:AddRangefinder(ParentName)
+            local view = View.Create(ParentName, "rangefinder")
+            view:SetRangefinder()
+            return view
+        end
+        
+        -- Final setup
+        function Module:Initialize(NewSettings)
+            Settings = NewSettings
+            Manager:Initialize()
+            hook.add(MFCS.EVENT.AUTHORIZE, "camera-authorize", function() Manager:Authorize() end)
+        end
+    end
+    
+    -- >> Manager; it manages things
+    do
+        local SetActive = Empty; local OnUserKey = Empty
+        local OnCameraSwitch = Empty; local OnCameraZoom = Empty
+        local OnViewActive = Empty
+        
+        local shMain = MFCS:CreateCord("Camera_Main")
+        
+        shMain.Data = {
+            Active = false,
+            View = {},
+            Persist = {
+                View = {},
+                Orientor = {},
+            },
+        }
+        
+        function Manager:Initialize()
+            MFCS:AddSharedOutput("Angles", "Angle")
+            MFCS:AddSharedOutput("HitPos", "Vector")
+            MFCS:AddSharedOutput("AimPos", "Vector")
+            
+            View:Initialize()
+            Orientor:Initialize()
+            
+            MFCS.AddPermission("input")
+            MFCS.AddPermission("render.calcview")
+            MFCS.AddPermission("hologram.create")
+            MFCS.AddPermission("entities.setRenderProperty")
+            
+            net.receive("mfcs_camera-send_motion_holo", function() View:SetMotionHolo() end)
+        end
+        
+        function Manager:Authorize()
+            hook.add(MFCS.EVENT.OPERATOR_KEY, "camera_mng-key", OnUserKey)
+            hook.add(MFCS.EVENT.OPERATOR_SCROLL, "camera_mng-scroll", function(Dir) View:OnScroll(Dir) end)
+            hook.add(MFCS.EVENT.COMPUTER_LOCK, "camera_mng-lock", function(Pos) Orientor:OnPositionLock(Pos) end)
+            hook.add(MFCS.EVENT.COMPUTER_OPTICAL_RANGING, "camera_mng-rangefind", function(On) View:OnRangefinder(On) end)
+            hook.add(MFCS.EVENT.PING_SERVER, "camera_mng-outputs", function() Orientor:SendNW() end)
+            
+            hook.add(MFCS.EVENT.CAMERA_SWITCH, "camera_mng-view-switch", OnCameraSwitch)
+            hook.add(MFCS.EVENT.CAMERA_ZOOM, "camera_mng-view-zoom", OnCameraZoom)
+            hook.add(EVENT.VIEW_ACTIVE, "mng-view_active", OnViewActive)
+            
+            SetActive()
+        end
+        
+        shMain.OnReceive = function()
+            if not MFCS.GetReady() then return end
+            SetActive()
+        end
+        
+        -- # Passthroughs
+        
+        function SetActive()
+            if shMain.Data.Active then
+                View:Load()
+                Orientor:Load()
+            else
+                View:Save()
+                Orientor:Save()
+                shMain:SendImmediate()
+            end
+            View:SetActive(shMain.Data.Active)
+        end
+        
+        function OnUserKey(Key, Down)
+            if not Down then return end
+            Orientor:OnKey(Key)
+        end
+        
+        function OnViewActive(Active)
+            ViewUnit:SetActive(Active)
+            Orientor:SetActive(Active)
+        end
+        
+        function OnCameraSwitch()
+            ViewUnit:SetAnchor(View:GetVMHolo())
+            ViewUnit:SetDistance(View:GetLiveView().Distance)
+            Orientor:SetLimits(View:GetLiveView():GetLimits())
+            Orientor:Slew(0, 0)
+        end
+        
+        function OnCameraZoom()
+            ViewUnit:SetFOV(View:GetCurFOV())
+            Orientor:SetSensitivity(Settings.MouseSensitivity / View:GetCurMagnification())
+        end
+        
+        -- # Accessors
+        
+        function Manager:GetMainCord() return shMain end
+    end
+    
+    -- >> View [CL/pseudo-class]; data container for perspective
+    do
+        local Instances = {}; local Lookup = {}
+        local VMHolo = NULL
+        local LiveView = {}; local ValidViews = {}
+        local ViewIndex = 1; local MagIndex = 1; local HalfFOV = 0
+        local CurMagnification = 0; local CurFOV = 0
+        local IsOpticalRanging = true
+        
+        local SwitchView = Empty
+        local SetZoom = Empty; local Zoom = Empty
+        
+        -- Instance
+        function View.Create(ParentName, Tag)
+            local view = {}
+            
+            view.Origin = Vector()
+            view.Alignment = Angle()
+            view.Distance = 0
+            view.Magnification = { 1 }
+            
+            local parent = NULL
+            local parentName = ParentName
+            local tag = Tag
+            local pitchLim = 80; local yawLim = 180; local cursorLim = 0
+            local kMul = 0; local dMul = 0
+            local aMul = 0; local vMul = 0
+            local springLim = 0
+            local hasMotion = false
+            local isSpecial = false
+            
+            local parentChecker = MFCS.ESC.Create(NULL)
+            
+            -- Send settings for motion holo to server
+            local function RequestMotionHolo()
+                local settings = {
+                    Origin = view.Origin,
+                    Alignment = view.Alignment,
+                    Parent = parent,
+                    KMul = kMul,
+                    DMul = dMul,
+                    AMul = aMul,
+                    VMul = vMul,
+                    MotionLimit = springLim,
+                }
+                
+                net.start("mfcs_camera-set_motion_holo")
+                    net.writeTable(settings)
+                net.send()
+            end
+            
+            -- Switch from this view when it breaks
+            local function AutoSwitch()
+                if LiveView != view then return end
+                SwitchView()
+            end
+            
+            -- # Methods
+            
+            -- Rotations limits
+            function view:SetLimits(Pitch, Yaw, Cursor)
+                pitchLim = Pitch
+                yawLim = Yaw
+                cursorLim = Cursor
+            end
+            
+            -- Motion limits
+            function view:SetMotion(KMul, DMul, AMul, VMul, Limit)
+                kMul = KMul
+                dMul = DMul
+                aMul = AMul
+                vMul = VMul
+                springLim = Limit
+                hasMotion = (Limit != 0)
+            end
+            
+            -- Mark this view as coincidence rangefinder
+            function view:SetRangefinder()
+                isSpecial = true
+            end
+            
+            -- Set current view to this
+            function view:MakeActive()
+                LiveView = self
+                
+                local origin = parent:localToWorld(view.Origin)
+                local alignment = parent:localToWorldAngles(view.Alignment)
+                
+                VMHolo = hologram.create(origin, alignment, MFCS:GetHoloModel())
+                VMHolo:setParent(parent)
+                VMHolo:setNoDraw(true)
+                
+                hook.run(MFCS.EVENT.CAMERA_SWITCH)
+                SetZoom()
+                
+                if hasMotion then RequestMotionHolo() end
+            end
+            
+            -- # Accessors
+            
+            function view:SetParent(Value)
+                parent = Value
+                parentChecker = MFCS.ESC.Create(Value)
+                hook.add(parentChecker:GetHookName(), "camera-auto_switch", AutoSwitch)
+            end
+            function view:GetParent() return parent end
+            
+            function view:GetIsUsable() return parentChecker:GetIsValid() end
+            
+            function view:GetTag() return tag end
+            
+            function view:GetLimits() return pitchLim, yawLim, cursorLim end
+            
+            function view:GetIsSpecial() return isSpecial end
+            
+            function view:GetHasMotion() return hasMotion end
+            
+            table.insert(Instances, view)
+            Lookup[tag] = view
+            return view
+        end
+        
+        function View:Initialize()
+            HalfFOV = math.tan(math.rad(Settings.BaseFOV * 0.5))
+        end
+        
+        -- Toggle on & off
+        function View:SetActive(Active)
+            hook.run(EVENT.VIEW_ACTIVE, Active)
+        end
+        
+        -- Parent to motion holo
+        function View:SetMotionHolo()
+            if not LiveView:GetHasMotion() then return end
+            
+            local holo = net.readEntity()
+            VMHolo:setPos(holo:getPos())
+            VMHolo:setAngles(holo:getAngles())
+            VMHolo:setParent(holo)
+        end
+        
+        -- Switch to rangefinder view
+        function View:OnRangefinder(Active)
+            if Active then
+                local view = Lookup["rangefinder"]
+                if not view or not view:GetIsUsable() then return end
+                
+                IsOpticalRanging = true
+                view:MakeActive()
+            else
+                SwitchView()
+            end
+        end
+        
+        -- Switch view or magnification
+        function View:OnScroll(Dir)
+            if MFCS.Computer:GetManualRanging() then
+                if not MFCS.Computer:GetManualRangingKeyDown() then
+                    Zoom(Dir)
+                end
+                
+                return
+            end
+            
+            if input.isKeyDown(Settings.MultiKey) then
+                SwitchView(ViewIndex + Dir)
+            else
+                Zoom(Dir)
+            end
+        end
+        
+        -- Switch perspective based on index
+        function SwitchView(Slot)
+            IsOpticalRanging = false
+            table.empty(ValidViews)
+            for _, view in ipairs(Instances) do
+                if not view:GetIsUsable() or view:GetIsSpecial() then continue end
+                table.insert(ValidViews, view)
+            end
+            
+            if #ValidViews == 0 then
+                View:SetActive(false)
+                return
+            end
+            
+            ViewIndex = math.clamp(Slot or ViewIndex, 1, #ValidViews)
+            ValidViews[ViewIndex]:MakeActive()
+        end
+        
+        -- Set magnification
+        function SetZoom(Slot)
+            MagIndex = math.clamp(Slot or MagIndex, 1, #LiveView.Magnification)
+            
+            CurMagnification = LiveView.Magnification[MagIndex]
+            CurFOV = math.deg( math.atan(HalfFOV / CurMagnification) * 2 )
+            
+            hook.run(MFCS.EVENT.CAMERA_ZOOM, CurMagnification, CurFOV)
+        end
+        
+        -- Set magnification as delta
+        function Zoom(Delta)
+            SetZoom(MagIndex + Delta)
+        end
+        
+        -- # Serialization
+        
+        function View:Load()
+            for k, view in ipairs(Instances) do
+                view:SetParent(Manager:GetMainCord().Data.View.Parents[k])
+            end
+            
+            local rfv = Lookup["rangefinder"]
+            if rfv and rfv:GetIsUsable() then
+                rfv.Origin = math.lerpVector(0.5, rfv.Left, rfv.Right)
+                MFCS.Graphic:SetupRangefinder(rfv:GetParent(), rfv.Alignment, rfv.Left, rfv.Right)
+            end
+            
+            local memory = Manager:GetMainCord().Data.Persist.View
+            if table.isEmpty(memory) then
+                SwitchView()
+                return
+            end
+            
+            SwitchView(memory.ViewIndex)
+            SetZoom(memory.ZoomLevel)
+        end
+        
+        function View:Save()
+            Manager:GetMainCord().Data.Persist.View = {
+                ViewIndex = ViewIndex,
+                ZoomLevel = MagIndex,
+            }
+        end
+        
+        -- # Accessors
+        
+        function View:GetLiveView() return LiveView end
+        
+        function View:GetVMHolo() return VMHolo end
+        
+        function View:GetCurMagnification() return CurMagnification end
+        function MFCS.Camera:GetMagnification() return CurMagnification end
+        
+        function View:GetCurFOV() return CurFOV end
+        function MFCS.Camera:GetFOV() return CurFOV end
+        
+        function MFCS.Camera:GetOpticalRanging() return IsOpticalRanging end
+        
+        function MFCS.Camera:GetTag()
+            if table.isEmpty(LiveView) then return "" end
+            return LiveView:GetTag() or ""
+        end
+    end
+    
+    -- >> GyroCamera; gyroscopic mode for Orientor
+    do
+        local Up = Vector(0, 0, 1); local WorldAng = Angle(0, 0, 0)
+        
+        function GyroCamera:Enter()
+            WorldAng = Orientor:GetAimWorld()
+        end
+            
+        function GyroCamera:MouseMoved(X, Y)
+            WorldAng = Orientor:GetAimWorld()
+            WorldAng = WorldAng:rotateAroundAxis(Up, X)
+            WorldAng = WorldAng:rotateAroundAxis(WorldAng:getRight(), Y)
+        end
+        
+        function GyroCamera:PassiveMoved()
+            return WorldAng:setR(0)
+        end
+    end
+    
+    -- >> RelativeCamera; relative mode for Orientor
+    do
+        local Up = Vector(0, 0, 1); local RelAng = Angle(0, 0, 0)
+        
+        function RelativeCamera:Enter()
+            RelAng = Orientor:GetAimWorld():clone()
+            RelAng = ViewUnit:GetAnchor():worldToLocalAngles(RelAng)
+        end
+        
+        function RelativeCamera:MouseMoved(X, Y)
+            RelAng = Orientor:GetAimWorld():clone()
+            RelAng = ViewUnit:GetAnchor():worldToLocalAngles(RelAng)
+            
+            RelAng = RelAng:rotateAroundAxis(Up, X)
+            RelAng = RelAng:rotateAroundAxis(RelAng:getRight(), Y)
+        end
+        
+        function RelativeCamera:PassiveMoved()
+            return ViewUnit:GetAnchor():localToWorldAngles(RelAng:setR(0))
+        end
+    end
+    
+    -- >> TrackCamera; tracking mode for Orientor
+    do
+        local Up = Vector(0, 0, 1); local RelAng = Angle(0, 0, 0)
+        
+        function TrackCamera:Enter()
+            RelAng = Angle(0, 0, 0)
+        end
+        
+        function TrackCamera:MouseMoved(X, Y)
+            RelAng = RelAng:rotateAroundAxis(Up, X)
+            RelAng = RelAng:rotateAroundAxis(RelAng:getRight(), Y)
+        end
+        
+        function TrackCamera:PassiveMoved()
+            return (Orientor:GetTargetPos() - ViewUnit:GetAnchor():getPos()):getAngleEx(Up) + RelAng
+        end
+    end
+    
+    -- >> Orientor; functionality for camera movement
+    do
+        local Sensitivity = 1
+        local PitchLimit = 0; local YawLimit = 0; local AimLimit = 0
+        local CurrentMode = CAMERA.GYRO
+        local LiveCamera = GyroCamera
+        
+        local AimWorld = Angle(0, 0, 0); local ViewWorld = Angle(0, 0, 0)
+        local AimDir = Vector(1, 0, 0); local AimDist = 0
+        local TargetPos = Vector(0, 0, 0)
+        
+        local SetViewAngles = Empty
+        
+        function Orientor:Initialize()
+            self:SetMode(CAMERA.GYRO)
+            self:SetSensitivity(Settings.MouseSensitivity)
+            // Move to viewunit
+            ViewUnit:SetPreOverride(SetViewAngles)
+        end
+        
+        -- Toggle on & off
+        function Orientor:SetActive(Active)
+            if Active then
+                self:SetMode()
+                hook.add("mousemoved", "mfcs_camera-slew", function(X, Y) Orientor:Slew(X, Y) end)
+            else
+                hook.remove("mousemoved", "mfcs_camera-slew")
+            end
+        end
+        
+        -- Rotate the camera
+        function Orientor:Slew(X, Y)
+            LiveCamera:MouseMoved(-X * Sensitivity, -Y * Sensitivity)
+        end
+        
+        -- Client camera angles to server
+        function Orientor:SendNW()
+            local traceResult = trace.line(
+                ViewUnit:GetPosition(),
+                ViewUnit:GetPosition() + AimDir * MFCS:GetTraceRange(),
+                MFCS:GetConnections(),
+                nil,
+                nil,
+                false
+            )
+            
+            AimDist = MFCS.Computer:GetRange()
+            if CurrentMode == CAMERA.TRACKING then
+                AimDist = ViewUnit:GetOrigin():getDistance(TargetPos)
+            end
+            
+            MFCS:SetOutput("HitPos", traceResult.HitPos)
+            MFCS:SetOutput("Angles", ViewUnit:GetAngles())
+            MFCS:SetOutput("AimPos", ViewUnit:GetPosition() + AimDir * (AimDist + ViewUnit:GetDistance()))
+        end
+        
+        -- Set camera mode from keybinds
+        function Orientor:OnKey(Key)
+            if self:GetMode() == CAMERA.TRACKING then return end
+            
+            if Key == Settings.ModeToggle then
+                if self:GetMode() != CAMERA.GYRO then
+                    self:SetMode(CAMERA.GYRO)
+                else
+                    self:SetMode(CAMERA.RELATIVE)
+                end
+            end
+        end
+        
+        -- Get tracked position from computer
+        function Orientor:OnPositionLock(Position)
+            if Position then
+                self:SetTargetPos(Position)
+                self:SetMode(CAMERA.TRACKING)
+            elseif self:GetMode() == CAMERA.TRACKING then
+                self:SetMode(CAMERA.GYRO)
+            end
+        end
+        
+        -- Viewing angles function
+        function SetViewAngles()
+            AimWorld = LiveCamera:PassiveMoved()
+            
+            AimWorld[1] = math.approach(0, AimWorld[1], Settings.ElevationLimit)
+            local relative = ViewUnit:GetAnchor():worldToLocalAngles(AimWorld)
+            
+            local aim = relative:clone()
+            aim:setP(math.approach(0, aim.p, PitchLimit + AimLimit))
+            aim:setY(math.approach(0, aim.y, YawLimit + AimLimit))
+            AimWorld = ViewUnit:GetAnchor():localToWorldAngles(aim)
+            
+            relative:setP(math.approach(0, relative.p, PitchLimit))
+            relative:setY(math.approach(0, relative.y, YawLimit))
+            ViewWorld = ViewUnit:GetAnchor():localToWorldAngles(relative)
+            
+            AimDir = AimWorld:getForward()
+            ViewUnit:SetAngles(ViewWorld)
+            hook.run(MFCS.EVENT.CAMERA_AIM, ViewUnit:GetPosition(), AimDir, AimDist)
+        end
+        
+        -- # Serialization
+        
+        function Orientor:Load()
+            local memory = Manager:GetMainCord().Data.Persist.Orientor
+            if table.isEmpty(memory) then return end
+            
+            TargetPos = memory.TargetPos
+            ViewWorld = memory.ViewWorld
+            AimAng = memory.AimAng
+            AimWorld = memory.AimWorld
+            AimDir = memory.AimDir
+            self:SetMode(memory.Mode)
+        end
+        
+        function Orientor:Save()
+            Manager:GetMainCord().Data.Persist.Orientor = {
+                TargetPos = TargetPos,
+                ViewWorld = ViewWorld,
+                AimAng = AimAng,
+                AimWorld = AimWorld,
+                AimDir = AimDir,
+                Mode = CurrentMode,
+            }
+        end
+        
+        -- # Accessors
+        
+        function Orientor:GetMode() return CurrentMode end
+        function Orientor:SetMode(CameraEnum)
+            CurrentMode = CameraEnum or CurrentMode
+            
+            if CameraEnum == CAMERA.GYRO then
+                LiveCamera = GyroCamera
+            elseif CameraEnum == CAMERA.RELATIVE then
+                LiveCamera = RelativeCamera
+            elseif CameraEnum == CAMERA.TRACKING then
+                LiveCamera = TrackCamera
+            end
+            
+            LiveCamera:Enter()
+        end
+        
+        function Orientor:SetLimits(Pitch, Yaw, Aim)
+            PitchLimit = Pitch
+            YawLimit = Yaw
+            AimLimit = Aim
+        end
+        
+        function Orientor:SetSensitivity(Value) Sensitivity = Value end
+        
+        function Orientor:GetTargetPos() return TargetPos end
+        function Orientor:SetTargetPos(Value) TargetPos = Value end
+        
+        function Orientor:GetAimWorld() return AimWorld end
+        
+        function MFCS.Camera:GetViewAngles() return ViewWorld end
+        
+        function MFCS.Camera:GetAimDirection() return AimDir end
+    end
+    
+    -- >> ViewUnit; functionality for calcView
+    do
+        local Anchor = NULL; local FOV = Settings.BaseFOV
+        local Origin = Vector(0, 0, 0); local Position = Vector(0, 0, 0)
+        local Angles = Angle(0, 0, 0)
+        
+        local Distance = 0; local Direction = Vector(1, 0, 0)
+        
+        local Override = Empty; local PreOverride = Empty
+        
+        -- Toggle view overriding on or off
+        function ViewUnit:SetActive(Active)
+            if Active then
+                hook.add("calcview", "mfcs_camera-view", Override)
+            else
+                hook.remove("calcview", "mfcs_camera-view")
+            end
+        end
+        
+        -- Ran in calcView; run functions to orient & position camera
+        function Override()
+            PreOverride()
+            
+            Direction = Angles:getForward()
+            Origin = Anchor:getPos()
+            Position = Origin - Direction * Distance
+            
+            return {
+                origin = Position,
+                angles = Angles,
+                fov = FOV,
+            }
+        end
+        
+        -- # Accessors
+        
+        function ViewUnit:GetDistance() return Distance end
+        function ViewUnit:SetDistance(Value) Distance = Value end
+        
+        function ViewUnit:SetFOV(Value) FOV = Value end
+        
+        function ViewUnit:GetAngles() return Angles end
+        function ViewUnit:SetAngles(Value) Angles = Value end
+        
+        function ViewUnit:SetPreOverride(Value) PreOverride = Value end
+        
+        function ViewUnit:GetAnchor() return Anchor end
+        function ViewUnit:SetAnchor(Value)
+            if Anchor:isValid() then Anchor:remove() end
+            Anchor = Value
+        end
+        
+        function ViewUnit:GetOrigin() return Origin end
+        function MFCS.Camera:GetOrigin() return Origin end
+        
+        function ViewUnit:GetPosition() return Position end
+        function MFCS.Camera:GetPosition() return Position end
+        
+        function ViewUnit:GetDirection() return Direction end
+        function MFCS.Camera:GetViewDirection() return Direction end
+    end
+end
+
+return Module

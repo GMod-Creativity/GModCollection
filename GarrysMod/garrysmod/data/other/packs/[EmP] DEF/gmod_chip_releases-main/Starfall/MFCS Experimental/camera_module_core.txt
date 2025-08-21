@@ -1,0 +1,839 @@
+--@name mfcs/includes/Camera Module Core
+--@author Yours Truly
+--@include mfcs/includes/MFCS_Common_Core.txt
+--@include deflibs/live texture.txt
+
+local cl_ChairEnter = "Chair-Enter"
+local cl_ChairExit = "Chair-Exit"
+local sv_CameraIO = "Camera-IO"
+require("mfcs/includes/MFCS_Common_Core.txt")
+
+local function Empty() end
+
+if SERVER then
+    
+    local Data = {
+        View = {},
+        Camera = {}
+    }
+    local View = {}; local Camera = {}
+    
+    local Initialize = Empty; local MakeIO = Empty
+    local EnterChair = Empty; local CameraIO = Empty
+    local SignalJunction = Empty
+    
+    -- >> Global implements
+    do
+        -- View
+        function NewView(Name)
+            View = { parentName = Name }
+            table.insert(Data.View, View)
+        end
+        
+        function ViewOffset(Vec)
+            View.offset = Vec
+        end
+        
+        function ViewRotation(Ang)
+            View.rotation = Ang
+        end
+        
+        function ViewDistance(Dist)
+            View.distance = Dist
+        end
+        
+        function ViewMagnification(Mag)
+            View.magnification = Mag
+        end
+        
+        -- Camera
+        function NewCamera(Name)
+            Camera = { parentName = Name }
+            table.insert(Data.Camera, Camera)
+        end
+        
+        function CameraOffset(Vec)
+            Camera.offset = Vec
+        end
+        
+        function CameraRotation(Ang)
+            Camera.rotation = Ang
+        end
+        
+        -- Final set up
+        function CoreSetup()
+            
+            -- # Convert magnification to fov
+            local halfFOV = math.tan(math.rad(SH.BaseFOV * 0.5))
+            for _, view in ipairs(Data.View) do
+                view.fov = {}
+                for i = 1, #view.magnification do
+                    local fov = math.deg( math.atan(halfFOV / view.magnification[i]) * 2 )
+                    table.insert(view.fov, fov)
+                end
+            end
+            
+            MakeIO()
+            timer.create("init-delay", 0.1, 1, Initialize)
+        end
+    end
+    
+    -- >> Primary functions
+    do
+        -- Setup
+        function Initialize()
+            Data.connections = chip():getAllConstrained()
+            Data.Core = wire.ports.Core
+            
+            -- # Get parent entities
+            for _, view in ipairs(Data.View) do
+                view.parent = wire.ports[view.parentName]
+            end
+            for _, camera in ipairs(Data.Camera) do
+                camera.parent = wire.ports[camera.parentName]
+            end
+            
+            MFCS.IdentifyOnPing(Data.Core, MODULE.CAMERA)
+            MFCS.MakeJunction(Data.Core, SignalJunction)
+            
+            net.receive(sv_CameraIO, CameraIO)
+        end
+        
+        -- IO
+        function MakeIO()
+            local inputs = { "Core" }
+            local inputTypes = { "Entity" }
+            
+            local outputs = { "Angle", "HitPos" }
+            local outputTypes = { "Angle", "Vector" }
+            
+            local inputsLUT = {}
+            
+            for _, view in ipairs(Data.View) do
+                if inputsLUT[view.parentName] then continue end
+                table.insert(inputs, view.parentName)
+                table.insert(inputTypes, "Entity")
+                inputsLUT[view.parentName] = true
+            end
+            
+            for _, camera in ipairs(Data.Camera) do
+                if inputsLUT[camera.parentName] then continue end
+                table.insert(inputs, camera.parentName)
+                table.insert(inputTypes, "Entity")
+                inputsLUT[camera.parentName] = true
+            end
+            
+            wire.adjustInputs(inputs, inputTypes)
+            wire.adjustOutputs(outputs, outputTypes)
+        end
+        
+        -- Send data to new driver or clear old driver
+        function EnterChair(Ply, Board)
+            if Board then
+                net.start(cl_ChairEnter)
+                    net.writeTable(Data)
+                net.send(Ply)
+            else
+                net.start(cl_ChairExit)
+                net.send(Ply)
+            end
+        end
+        
+        -- Respond to core signals server-side
+        function SignalJunction(Args)
+            if Args[1] == "Enter-Chair" then
+                EnterChair(Args[2], Args[3])
+            end
+        end
+        
+        -- Receives message from client; update camera outputs
+        function CameraIO()
+            for k, v in pairs(net.readTable()) do
+                wire.ports[k] = v
+            end
+        end
+    end
+end
+
+if CLIENT then
+    
+    -- >> Initialization
+    local Data = {}
+    local View = {}
+    local CCTV = {}
+    require("deflibs/live texture.txt")
+    
+    local CAMERA = {
+        GYRO = 1,
+        RELATIVE = 2,
+        TRACKING = 3
+    }
+    
+    local EVENT = {
+        SLOW_TICK = "slow-tick"
+    }
+    
+    local GetValid = Empty
+    
+    -- >> Primary functions
+    do
+        local SignalJunction = Empty; local SetHooks = Empty
+        
+        -- Final set up
+        function CoreSetup()
+            View:Initialize()
+            CCTV:Initialize()
+            
+            -- # In case something dumb happens
+            local function Terminate(Starfall)
+                if Starfall == chip() then enableHud(player(), false) end
+            end
+            //hook.add("StarfallError", "terminate", Terminate)
+        end
+        
+        -- Entering & exiting the vehicle
+        local function EnterChair(Board)
+            if Board then
+                Data = net.readTable()
+                MFCS.MakeJunction(Data.Core, SignalJunction)
+                
+                -- # Remove invalid views & cameras
+                for k, view in ipairs(Data.View) do
+                    if not GetValid(view.parent) then Data.View[k] = nil end
+                end
+                Data.View = table.clearKeys(Data.View)
+                
+                for k, camera in ipairs(Data.Camera) do
+                    if not GetValid(camera.parent) then Data.Camera[k] = nil end
+                end
+                Data.Camera = table.clearKeys(Data.Camera)
+            end
+            
+            enableHud(player(), Board)
+            SetHooks(Board)
+            View:SetEnabled(Board)
+            CCTV:SetEnabled(Board)
+        end
+        net.receive(cl_ChairEnter, function() EnterChair(true) end)
+        net.receive(cl_ChairExit, function() EnterChair(false) end)
+        
+        -- Respond to core signals client-side
+        function SignalJunction(Args)
+            if Args[1] == "User-Key" then
+                View.OnUserKey(Args[2], Args[3])
+            elseif Args[1] == "User-Scroll" then
+                View.OnScroll(Args[2])
+                hook.runRemote(Data.Core)
+            end
+        end
+        
+        -- Turn hooks on or off
+        function SetHooks(Active)
+            if Active then
+                local Count = 0
+                
+                local function OnTick()
+                    Count = Count + 1
+                    if Count == 4 then
+                        hook.run(EVENT.SLOW_TICK)
+                        Count = 0
+                    end
+                end
+                
+                hook.add("tick", "slow-tick", OnTick)
+            else
+                hook.remove("tick", "slow-tick")
+            end
+        end
+        
+        -- Valid entity checking
+        function GetValid(Ent)
+            return Ent != nil and Ent:isValid()
+        end
+    end
+    
+    -- >> View; manages camera perspective
+    do
+        local Anchor = nil
+        local Mode = {}
+        local IO = {
+            Ang = Angle(0, 0, 0),
+            HitPos = Vector(0, 0, 0)
+        }
+        
+        local Activated = false
+        local FOV = 90
+        local Offset = Vector(0, 0, 0); local Direction = Vector(1, 0, 0)
+        local Up = Vector(0, 0, 1); local Right = Vector(0, 1, 0)
+        
+        local Parent = nil
+        local Position = Vector(0, 0, 0); local OffsetPos = Vector(0, 0, 0); local TargetPos = Vector(0, 0, 0)
+        local Distance = 0
+        local Rotation = Angle(0, 0, 0); local LocalAng = Angle(0, 0, 0)
+        local Index = 1; local MagLevel = 1; local Sensitivity = 1
+        local CurrentMode = CAMERA.GYRO
+        local CurrentView = {}
+        local Keybind = {}
+        
+        local RotateFunc = Empty; local PreOverrideFunc = Empty; local PostSwitchFunc = Empty
+        local EnableHooks = Empty; local Override = Empty; local Slew = Empty;
+        local MakeReference = Empty; local EntityCheck = Empty; local RemoveView = Empty
+        local OnUserKey = Empty; local OnScroll = Empty
+        local FreeRotation = Empty; local RelativeRotation = Empty; local TargetRotation = Empty
+        local RelativeOverride = Empty; local TargetOverride = Empty
+        local SetWorld = Empty; local SetLocal = Empty
+        local SmoothAxis = Empty; local GenericLimit = Empty; local SolveOffset = Empty
+        local SendData = Empty
+        
+        -- Set up some local variables
+        function View:Initialize()
+            FOV = SH.BaseFOV
+            Sensitivity = SH.MouseSensitivity
+            
+            -- # Keybind functions
+            
+            -- Activate position-lock camera
+            Keybind[SH.TrackPos] = function(Down)
+                View:SetMode(CAMERA.TRACKING)
+            end
+            
+            -- Toggle relative or gyroscopic camera
+            Keybind[SH.ModeToggle] = function(Down)
+                if Down then
+                    if CurrentMode != CAMERA.GYRO then View:SetMode(CAMERA.GYRO)
+                    else View:SetMode(CAMERA.RELATIVE) end
+                end
+            end
+        end
+        
+        -- Toggle view overriding on or off
+        function View:SetEnabled(Active)
+            Activated = Active
+            
+            if Activated then
+                Anchor = MakeReference(Vector(0, 0, 0), Angle(0, 0, 0))
+                self:SetMode(CurrentMode)
+                self:SetPerspective()
+            else
+                Anchor:remove()
+            end
+            
+            EnableHooks(Activated)
+        end
+        
+        -- Set camera mode
+        function View:SetMode(CameraEnum)
+            Mode[CameraEnum]()
+        end
+        
+        -- Switch current camera view settings
+        function View:SetPerspective(Slot)
+            
+            -- # Don't go out of bounds
+            if #Data.View > 0 then
+                Index = math.clamp(Slot or Index, 1, #Data.View)
+            else
+                EnableHooks(false)
+                return
+            end
+            
+            -- # Set settings
+            CurrentView = Data.View[Index]
+            Parent = CurrentView.parent
+            Offset = CurrentView.offset
+            Rotation = CurrentView.rotation
+            Distance = CurrentView.distance
+            
+            -- # Prepare holo
+            Anchor:setPos(Parent:localToWorld(Offset))
+            Anchor:setAngles(Parent:localToWorldAngles(CurrentView.rotation))
+            Anchor:setParent(Parent)
+            
+            -- # Force update
+            PostSwitchFunc()
+            Slew(0, 0)
+            self:SetMagnification(MagLevel)
+        end
+        
+        -- Switch magnification
+        function View:SetMagnification(Slot)
+            if #Data.View == 0 then return end
+            
+            MagLevel = math.clamp(Slot, 1, #CurrentView.fov)
+            FOV = CurrentView.fov[MagLevel]
+            Sensitivity = SH.MouseSensitivity / CurrentView.magnification[MagLevel]
+        end
+        
+        -- Run keybinds
+        function View.OnUserKey(Key, Down)
+            if Keybind[Key] then Keybind[Key](Down) end
+        end
+        
+        -- Switch viewpoint or magnification
+        function View.OnScroll(Dir)
+            if input.isKeyDown(SH.MultiKey) then View:SetPerspective(Index + Dir)
+            else View:SetMagnification(MagLevel + Dir) end
+        end
+        
+        -- Turn hooks on or off
+        function EnableHooks(Active)
+            if Active then
+                hook.add("calcview", "cam-view", Override)
+                hook.add("mousemoved", "cam-slew", Slew)
+                hook.add("EntityRemoved", "validate-parent", EntityCheck)
+                hook.add("remote", "key", OnUserKey)
+                hook.add("remote", "scroll", OnScroll)
+            else
+                hook.remove("calcview", "cam-view")
+                hook.remove("mousemoved", "cam-slew")
+                hook.remove("EntityRemoved", "validate-parent")
+                hook.remove("remote", "key")
+                hook.remove("remote", "scroll")
+            end
+        end
+        
+        -- Ran in mouseMoved; rotate the camera
+        function Slew(X, Y)
+            RotateFunc(-X * Sensitivity, -Y * Sensitivity)
+        end
+        
+        -- Ran in calcView; run functions to orient & position camera
+        function Override()
+            PreOverrideFunc()
+            Position = Anchor:getPos() - OffsetPos
+            
+            return {
+                origin = Position,
+                angles = IO.Ang,
+                fov = FOV
+            }
+        end
+        
+        -- Make a holo used for orientation
+        function MakeReference(Pos, Ang, Parent)
+            local reference = hologram.create(
+                Pos,
+                Ang,
+                "models/sprops/cuboids/height12/size_1/cube_12x12x12.mdl",
+                Vector(1, 1, 1)
+            )
+            reference:setNoDraw(true)
+            if Parent then reference:setParent(Parent) end
+            
+            return reference
+        end
+        
+        -- Remove perspective if parent dies
+        function EntityCheck(Ent)
+            if Ent == Parent then
+                RemoveView(Index)
+                View:SetPerspective()
+            end
+        end
+        
+        -- Remove perspective
+        function RemoveView(Slot)
+            Data.View[Slot] = nil
+            Data.View = table.clearKeys(Data.View)
+        end
+        
+        -- Helper functions
+        do
+            -- Camera mode implementations
+            Mode[CAMERA.GYRO] = function()
+                IO.Ang:setR(0)
+                RotateFunc = FreeRotation
+                PreOverrideFunc = Empty
+                PostSwitchFunc = Empty
+                CurrentMode = CAMERA.GYRO
+            end
+            
+            Mode[CAMERA.RELATIVE] = function()
+                LocalAng = Anchor:worldToLocalAngles(IO.Ang)
+                
+                RotateFunc = RelativeRotation
+                PreOverrideFunc = RelativeOverride
+                PostSwitchFunc = Empty
+                CurrentMode = CAMERA.RELATIVE
+            end
+            
+            Mode[CAMERA.TRACKING] = function()
+                IO.Ang:setR(0)
+                LocalAng = Angle(0, 0, 0)
+                TargetPos = IO.HitPos
+                
+                RotateFunc = TargetRotation
+                PreOverrideFunc = TargetOverride
+                PostSwitchFunc = Empty
+                CurrentMode = CAMERA.TRACKING
+            end
+            
+            -- Camera angle relative to world
+            function FreeRotation(X, Y)
+                IO.Ang = IO.Ang:rotateAroundAxis(Up, X)
+                IO.Ang = IO.Ang:rotateAroundAxis(IO.Ang:getRight(), Y)
+                IO.Ang = GenericLimit(IO.Ang)
+                SolveOffset()
+            end
+            
+            -- Camera angle relative to parent
+            function RelativeRotation(X, Y)
+                LocalAng = LocalAng:rotateAroundAxis(Up, X)
+                LocalAng = LocalAng:rotateAroundAxis(LocalAng:getRight(), Y)
+                LocalAng = GenericLimit(LocalAng:setR(0))
+            end
+            
+            -- Camera angle offset
+            function TargetRotation(X, Y)
+                LocalAng = LocalAng:rotateAroundAxis(Up, X)
+                LocalAng = LocalAng:rotateAroundAxis(LocalAng:getRight(), Y)
+            end
+            
+            -- Mix camera angles based on parent angles; kinda hacky
+            function RelativeOverride()
+                IO.Ang = Anchor:localToWorldAngles(LocalAng)
+                SolveOffset()
+            end
+            
+            -- Look at target
+            function TargetOverride()
+                IO.Ang = (TargetPos - Anchor:getPos()):getAngleEx(Up) + LocalAng
+                SolveOffset()
+            end
+            
+            -- Get camera direction as a world vector
+            function SetWorld()
+                IO.Ang = Anchor:localToWorldAngles(LocalAng):setR(0)
+                SolveOffset()
+            end
+            
+            -- Get camera direction local to the parent
+            function SetLocal()
+                LocalAng = Anchor:worldToLocalAngles(IO.Ang)
+            end
+            
+            -- New target value depending on target
+            function SmoothAxis(Target, Threshold)
+                Target = math.lerp(math.min(math.abs(Target / Threshold), 1), 0, Target)
+                return Target
+            end
+            
+            -- Simple elevation limit
+            function GenericLimit(Ang)
+                local limited = Ang
+                if math.abs(Ang[1]) > SH.ElevationLimit then
+                    Ang = Ang:setP( math.clamp(Ang[1], -SH.ElevationLimit, SH.ElevationLimit) )
+                end
+                return limited
+            end
+            
+            -- Update direction & offset position
+            function SolveOffset()
+                Direction = IO.Ang:getForward()
+                OffsetPos = Direction * Distance
+            end
+            
+            -- Camera hitpos & send camera IO to server
+            function SendData()
+                local traceResult = trace.line(
+                    Position,
+                    Position + Direction * SH.TraceRange,
+                    Data.connections,
+                    nil,
+                    nil,
+                    false
+                )
+                
+                IO.HitPos = traceResult.HitPos
+                
+                net.start(sv_CameraIO)
+                    net.writeTable(IO)
+                net.send()
+            end
+            
+            hook.add(EVENT.SLOW_TICK, "send-cam-data", SendData)
+        end
+    end
+    
+    -- >> CCTV; render view camera stuff
+    do
+        local CameraTexture = "Camera-Texture"
+        local CameraMaterial = material.create("gmodscreenspace")
+        local CameraGUI = LiveTexture:new("Camera-GUI")
+        
+        local LogicInterval = "Logic-Interval"
+        local DelayRenderView = "Delay-Render-View"
+        local RenderViewRate = 1 / 30
+        
+        local Index = 1
+        local Parent = nil
+        local OffsetPos = Vector(0, 0, 0)
+        local OffsetAng = Angle(0, 0, 0)
+        local FOV = 90
+        
+        local Left = 0; local Top = 0
+        local Width = 0; local Height = 0
+        local CameraFuncs = {}
+        local Power = false
+        local RearFacing = false
+        local AutoSwitch = false
+        
+        local EnableHooks = Empty; local SetCamera = Empty
+        local EntityCheck = Empty; local RemoveCamera = Empty
+        local StartCCTV = Empty; local WriteCCTV = Empty
+        local DrawCCTV = Empty
+        
+        local DrawCameraGUI = Empty; local DrawRearIndicator = Empty
+        local OnVisualButtons = Empty; local SetAutomatic = Empty
+        local ManualSwitch = Empty; local AutoLoop = Empty
+        
+        -- Set up some local variables
+        function CCTV:Initialize()
+            render.createRenderTarget(CameraTexture)
+            CameraMaterial:setTextureRenderTarget("$basetexture", CameraTexture)
+            local screenWidth, screenHeight = render.getGameResolution()
+            local texSize = 1024 * SH.UIScale
+            
+            CameraGUI.X = screenWidth - texSize
+            CameraGUI.Y = screenHeight - texSize
+            CameraGUI.W = texSize; CameraGUI.H = texSize
+            
+            CameraGUI:Queue("GUI", function() DrawCameraGUI(454, 779) end)
+            CameraGUI:Bake(Color(0, 0, 0, 0))
+            
+            FOV = SH.CameraMaxFOV
+            
+            Left = CameraGUI.X + (80 + 454) * SH.UIScale
+            Top = CameraGUI.Y + (30 + 779) * SH.UIScale
+            Width = 350 * SH.UIScale
+            Height = 200 * SH.UIScale
+        end
+        
+        -- Toggle listening for visual buttons on or off
+        function CCTV:SetEnabled(Active)
+            if Active then
+                hook.add("remote", "camera-vb", OnVisualButtons)
+                EnableHooks(Power)
+                SetAutomatic(AutoSwitch)
+                SetCamera()
+            else
+                EnableHooks(false)
+                SetAutomatic(false)
+                hook.remove("remote", "camera-vb")
+            end
+        end
+        
+        -- Switch between cameras
+        function SetCamera(Slot)
+            
+            -- # Don't go out of bounds
+            if #Data.Camera > 0 then
+                Index = math.clamp(Slot or Index, 1, #Data.Camera)
+            else
+                EnableHooks(false)
+                return
+            end
+            
+            Parent = Data.Camera[Index].parent
+            OffsetPos = Data.Camera[Index].offset
+            OffsetAng = Data.Camera[Index].rotation
+            
+            CameraGUI:Queue("GUI-Indicator", function() DrawRearIndicator(454, 779) end)
+            CameraGUI:Bake()
+        end
+        
+        -- Turn cameras on or off
+        function EnableHooks(Active)
+            if Active then
+                timer.create(DelayRenderView, RenderViewRate, 0, StartCCTV)
+                hook.add("drawhud", "draw-cctv", DrawCCTV)
+            else
+                timer.stop(DelayRenderView)
+                hook.remove("drawhud", "draw-cctv")
+            end
+        end
+        
+        -- Remove perspective if parent dies
+        function EntityCheck(Ent)
+            if Ent == Parent then
+                RemoveCamera(Index)
+                SetCamera(Index)
+            end
+        end
+        
+        -- Remove perspective
+        function RemoveCamera(Slot)
+            Data.Camera[Slot] = nil
+            Data.Camera = table.clearKeys(Data.Camera)
+        end
+        
+        -- Begin camera frame capture
+        function StartCCTV()
+            hook.add("renderscene", "start-cctv", WriteCCTV)
+        end
+        
+        -- Capture frame from camera to texture
+        function WriteCCTV()
+            render.selectRenderTarget(CameraTexture)
+            
+            local origin = Parent:localToWorld(OffsetPos)
+            local angles = Parent:localToWorldAngles(OffsetAng)
+            local normal = angles:getForward()
+            
+            render.enableClipping(true)
+            render.pushCustomClipPlane(normal, origin:dot(normal))
+            
+            render.renderView(
+                {
+                    origin = origin,
+                    angles = angles,
+                    aspectratio = 7 / 4,
+                    x = 0,
+                    y = 0,
+                    w = 1024,
+                    h = 1024,
+                    fov = FOV
+                }
+            )
+            
+            render.popCustomClipPlane()
+            hook.remove("renderscene", "start-cctv")
+        end
+        
+        -- Render the CCTV camera
+        function DrawCCTV()
+            CameraGUI:Draw()
+            
+            render.setMaterial(CameraMaterial)
+            render.pushViewMatrix({ type = "2D" })
+            render.setColor(Color(255, 255, 255))
+            render.drawTexturedRect(Left, Top, Width, Height)
+            render.popViewMatrix()
+        end
+        
+        -- Drawing
+        do
+            local FontObject = render.createFont("Arial", 42, 1000, true, false, false, false, 0, false, 0)
+            
+            local ColAbyss = Color(0, 0, 0, 255)
+            
+            local ColTan = Color(102, 93, 77, 255)
+            local ColTanDWN = Color(85, 80, 65, 255)
+            local ColHighTan = Color(87, 83, 76, 255)
+            local ColLowTan = Color(45, 43, 40, 255)
+            
+            local ColGreen = Color(0, 70, 0, 255)
+            local ColHighGreen = Color(0, 120, 0, 255)
+            local ColLowGreen = Color(25, 40, 25, 255)
+            
+            -- Fancy interface for camera
+            function DrawCameraGUI(X, Y)
+                // Panel BG
+                render.setColor(ColLowTan)
+                render.drawRoundedBoxEx(60, X, Y, 570, 245, true, false, false, false)
+                // Panel
+                render.setColor(ColTan)
+                render.drawRoundedBoxEx(70, X + 10, Y + 10, 560, 235, true, false, false, false)
+                // Camera Border
+                render.setColor(ColLowTan)
+                render.drawRect(X + 70, Y + 20, 370, 220)
+                // DT
+                render.setColor(ColLowTan)
+                render.drawRoundedBox(10, X + 450, Y + 30, 110, 10)
+                render.drawRoundedBox(10, X + 450, Y + 60, 110, 10)
+                render.drawRoundedBox(10, X + 450, Y + 90, 110, 10)
+                render.drawRoundedBox(10, X + 450, Y + 120, 110, 10)
+                // DTL
+                render.setColor(ColLowTan)
+                render.drawRoundedBox(10, X + 20, Y + 120, 40, 10)
+                render.drawRoundedBox(10, X + 20, Y + 150, 40, 10)
+                render.drawRoundedBox(10, X + 20, Y + 180, 40, 10)
+                render.drawRoundedBox(10, X + 20, Y + 210, 40, 10)
+                render.drawRoundedBox(10, X + 20, Y + 90, 40, 10)
+                render.drawRoundedBox(10, X + 25, Y + 60, 35, 10)
+                render.drawRoundedBox(10, X + 40, Y + 30, 20, 10)
+                // Indicator BG
+                render.setColor(ColLowTan)
+                render.drawRoundedBox(15, X + 450, Y + 140, 40, 40)
+                // Indicator
+                render.setColor(ColGreen)
+                render.drawRoundedBox(10, X + 457, Y + 147, 26, 26)
+                // Text
+                render.setColor(ColLowTan)
+                render.setFont(FontObject)
+                render.drawText(X + 450, Y + 180, "REAR", TEXT_ALIGN.LEFT)
+            end
+            
+            function DrawRearIndicator(X, Y)
+                local col = ColGreen
+                if Index == 2 then col = ColHighGreen end
+                render.setColor(col)
+                render.drawRoundedBox(10, X + 457, Y + 147, 26, 26)
+            end
+        end
+        
+        -- Camera functionality
+        do
+            -- Test
+            function OnVisualButtons(Starfall, Player, Name, Val)
+                if CameraFuncs[Name] then CameraFuncs[Name](Val) end
+            end
+            
+            -- Test implementations
+            CameraFuncs["CAM-POWER"] = function(Down)
+                Power = Down
+                EnableHooks(Down)
+            end
+            
+            CameraFuncs["CAM-BACK"] = function(Down)
+                RearFacing = Down
+                ManualSwitch()
+            end
+            
+            CameraFuncs["CAM-ZOOM"] = function(Down)
+                if Down then FOV = SH.CameraMinFOV
+                else FOV = SH.CameraMaxFOV end
+            end
+            
+            CameraFuncs["CAM-AUTO"] = function(Down)
+                AutoSwitch = Down
+                SetAutomatic(AutoSwitch)
+                ManualSwitch()
+            end
+            
+            -- Automatic camera switching on or off
+            function SetAutomatic(Active)
+                if Active then
+                    timer.create(LogicInterval, 0.5, 0, AutoLoop)
+                else
+                    timer.stop(LogicInterval)
+                end
+            end
+            
+            -- Switch camera depending on automatic switching
+            function ManualSwitch()
+                if not AutoSwitch then
+                    if RearFacing then SetCamera(2)
+                    else SetCamera(1) end
+                end
+            end
+            
+            -- Set active camera depending on speed
+            function AutoLoop()
+                local speed = Parent:getVelocity():getRotated(-Parent:getAngles())[1] / 17.6
+                local tolerance = 5
+                local newIndex = 0
+                
+                if RearFacing then 
+                     if speed > tolerance then newIndex = 1
+                    else newIndex = 2 end
+                else
+                    if speed < -tolerance then newIndex = 2
+                    else newIndex = 1 end
+                end
+                
+                if newIndex != Index then SetCamera(newIndex) end
+            end
+        end
+    end
+end

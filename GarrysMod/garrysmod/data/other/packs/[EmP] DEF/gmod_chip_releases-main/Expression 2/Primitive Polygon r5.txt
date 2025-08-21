@@ -1,0 +1,300 @@
+@name Primitive Polygon r7_toAngle fix
+@model models/sprops/misc/origin.mdl
+@inputs [Props]:array
+@outputs 
+@persist PolyDepth PolyOffset PolyPos [TriangulateKey PolyMaterial]:string PolyColor:vector4 PolyDebug
+@persist [Points TempPoints Primitives]:array Triangles:table CurTriangle
+@trigger none
+
+if(duped() | dupefinished()) { reset() }
+
+if(first() | dupefinished()) {
+    
+    #[
+    
+            This E2 triangulates polygons using the ear-clipping algorythm. The videos I copied are:
+        
+        "Polygon Triangulation [1] - Overview of Ear Clipping" - https://www.youtube.com/watch?v=QAdfkylpYwc
+        "Polygon Triangulation [2] - Ear Clipping Implementation in Code" - https://www.youtube.com/watch?v=hTJFcHutls8
+        
+            To use this E2, you will need an advanced entity marker. You need to link both your "vertices", which are
+        just regular props, not primitives, used to signal to the chip where vertices would be; and "triangles", which are
+        primitives that make up your final shape when the E2 executes.
+        
+            It is very important that you link your "vertices" in a clockwise order!
+            
+            It is equally as important that you don't use primitives as "vertices", because the chip uses entity:type() to
+        find the primitives. Speaking of primitives, you don't need to bother adjusting the primitives at all, this E2 can
+        (and will) change the type of primitive.
+        
+            Finally, the orientation of this E2 is important, but only about it's up-axis. The position of the E2 has no
+        bearing on where the shape will spawn - that's determined by the positions of your "vertices".
+        
+            That's it, I hope this E2 is useful to you!
+    
+    ]#
+    
+    PolyDepth = 1       #How thick the triangles are
+    
+    PolyOffset = 0     #How far away the assembled shape spawns away from where it should
+    
+    PolyDebug = 0       #Show triangle order with color (darkest first)
+    
+    #Polygon material
+    PolyMaterial = "sprops/sprops_grid_12x12"
+    
+    PolyColor = vec4(255, 255, 255, 255)        #R, G, B, A
+    
+    TriangulateKey = "T"        #Press this to begin triangulation
+    
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+    
+    Primitives = array()
+    Points = array()
+    TempPoints = array()
+    Triangles = table()
+    
+    #This runs two tests on the vertices to see if they are valid triangles
+    function void triangleTest() {
+        
+        for(I=1, TempPoints:count(), 1) {
+            
+            local PointA = TempPoints[I,vector2]
+            local PointB = TempPoints[(I == 1 ? TempPoints:count() : I - 1),vector2]
+            local PointC = TempPoints[(I == TempPoints:count() ? 1 : I + 1),vector2]
+            
+            local DirVecAB = PointB - PointA
+            local DirVecAC = PointC - PointA
+            
+            #Failed the reflex angle check
+            if(DirVecAB:cross(DirVecAC) < 0) {continue}
+            
+            local PointInTriangle = 0
+            
+            #Interior vertex check
+            for(J=1, Points:count(), 1) {
+                
+                local TestPoint = Points[J,vector2]
+                
+                #Don't test own vertices
+                if(TestPoint == PointA | TestPoint == PointB | TestPoint == PointC) {continue}
+                
+                #I'm so sorry; notice how A and B are swapped on the right side over the next 6 lines? Yeah...
+                local VecAB = PointA - PointB
+                local VecBC = PointC - PointA
+                local VecCA = PointB - PointC
+                
+                local CrossAB = VecAB:cross(TestPoint - PointB)
+                local CrossBC = VecBC:cross(TestPoint - PointA)
+                local CrossCA = VecCA:cross(TestPoint - PointC)
+                
+                #Failed interior vertex check
+                if(CrossAB < 0 & CrossBC < 0 & CrossCA < 0) {PointInTriangle = 1, break}
+            }
+            
+            #Passed both checks, added to triangule list
+            if(!PointInTriangle) {
+                
+                Triangles:pushArray( array(PointA, PointB, PointC) )
+                TempPoints:remove(I)
+                
+                break
+            }
+        }
+    }
+
+    # Does the same thing vec2:toAngle() does... or was it toAngle(vec2)? I can't tell anymore.
+    function number v2Angle(Vec2:vector2) {
+        return atan2(Vec2[2], Vec2[1]) * 180 / _PI
+    }
+    
+    runOnKeys(owner(), 1)
+}
+
+
+#Beginning triangulation
+if(changed(owner():keyPressed(TriangulateKey)) & owner():keyPressed(TriangulateKey)) {
+    
+    # # # Separating vertices from primitives
+    Primitives:clear()
+    Points:clear()
+    TempPoints:clear()
+    Triangles:clear()
+    
+    PolyPos = 0
+    
+    for(I=1, Props:count(), 1) {
+        
+        local Ent = Props[I,entity]
+        
+        #Primitive
+        if(Ent:type() == "primitive_shape") {Primitives:pushEntity(Ent)}
+        
+        #2D points
+        else {
+            
+            local PointPos = entity():toLocal(Ent:pos())
+            PolyPos += PointPos[3]
+            Points:pushVector2( vec2(PointPos) )
+        }
+    }
+    
+    PolyPos /= Points:count()
+    PolyPos += PolyOffset
+    
+    # # # Debug
+    print("Sorted props. Found " + Points:count() + " vertices and " + Primitives:count() + " primitives.")
+    
+    if(Primitives:count() < (Points:count() - 2)) {
+        
+        local Difference = (Points:count() - 2) - Primitives:count()
+        print("You need " + Difference + " more primitives!")
+    }
+    
+    # # # Ear clipping start
+    if(Points:count() >= 3) {
+        
+        #Single triangle
+        if(Points:count() == 3) {
+            
+            print("Moving triangles... ")
+            
+            Triangles:pushArray( array(Points[1,vector2], Points[2,vector2], Points[3,vector2]) )
+            CurTriangle = 0
+            
+            timer("MoveTriangles", 30)
+        }
+        
+        else {
+            
+            print("Running triangle tests... ")
+            
+            TempPoints = Points
+            triangleTest()
+            
+            timer("EarClipping", 30)
+        }
+    }
+    
+    else {print("You need at least 3 points to form a polygon to triangulate!")}
+}
+
+#Ear clipping continuation
+if(clk("EarClipping")) {
+    
+    #Single triangle
+    if(TempPoints:count() == 3) {
+        
+        print("Moving triangles... ")
+        
+        Triangles:pushArray( array(TempPoints[1,vector2], TempPoints[2,vector2], TempPoints[3,vector2]) )
+        CurTriangle = 0
+        
+        timer("MoveTriangles", 30)
+    }
+    
+    else {
+        
+        triangleTest()
+        timer("EarClipping", 30)
+    }
+}
+
+#Move primitives into place
+if(clk("MoveTriangles")) {
+    
+    CurTriangle++
+    
+    # # # Get longest length
+    local PointA = Triangles[CurTriangle,array][1,vector2]
+    local PointB = Triangles[CurTriangle,array][2,vector2]
+    local PointC = Triangles[CurTriangle,array][3,vector2]
+    
+    local LengthAB = vec2(PointA:distance(PointB), 3)
+    local LongestLength = LengthAB
+    
+    local LengthAC = vec2(PointA:distance(PointC), 2)
+    if(LengthAC[1] > LongestLength[1]) {LongestLength = LengthAC}
+    
+    local LengthBC = vec2(PointB:distance(PointC), 1)
+    if(LengthBC[1] > LongestLength[1]) {LongestLength = LengthBC}
+    
+    # # # Get dimensions
+    local OriginPoint = vec2()
+    local Normal = vec2()
+    local ToFlat = 0
+    
+    local RotatedLongest = vec2()
+    local RotatedShortest = vec2()
+    
+    switch(LongestLength[2]) {
+        
+        # # # Longest side is PointB to PointC
+        case 1,
+        
+        OriginPoint = PointB
+        Normal = (PointC - OriginPoint):normalized()
+        ToFlat = -v2Angle(Normal)
+        
+        RotatedLongest = (PointC - OriginPoint):rotate(ToFlat)
+        RotatedShortest = (PointA - OriginPoint):rotate(ToFlat)
+        
+        break
+        
+        # # # Longest side is PointA to PointC
+        case 2,
+        
+        OriginPoint = PointA
+        Normal = (PointC - OriginPoint):normalized()
+        ToFlat = -v2Angle(Normal)
+        
+        RotatedLongest = (PointC - OriginPoint):rotate(ToFlat)
+        RotatedShortest = (PointB - OriginPoint):rotate(ToFlat)
+        
+        break
+        
+         # # # Longest side is PointA to PointB
+        case 3,
+        
+        OriginPoint = PointA
+        Normal = (PointB - OriginPoint):normalized()
+        ToFlat = -v2Angle(Normal)
+        
+        RotatedLongest = (PointB - OriginPoint):rotate(ToFlat)
+        RotatedShortest = (PointC - OriginPoint):rotate(ToFlat)
+        
+        break
+    }
+    
+    #print(round(ToFlat, 2))
+    #print(round(RotatedLongest, 2))
+    #print(round(RotatedShortest, 2))
+    
+    local TriangleCoords = vec((RotatedLongest / 2 + RotatedShortest:setX(0) / 2):rotate(-ToFlat) + OriginPoint, PolyPos)
+    local TriangleSize = vec(LongestLength[1], PolyDepth, abs(RotatedShortest[2]))
+    local TriangleSkew = 0.5 - RotatedShortest[1] / LongestLength[1]
+    local TriangleAngle = ang(0, -ToFlat, -90 * sign(RotatedShortest[2]))
+    
+    # # # Adjust triangle
+    local Primitive = Primitives[CurTriangle,entity]
+    
+    if(Primitive:isValid()) {
+        
+        Primitive:propFreeze(1)
+        Primitive:setPos(entity():toWorld(TriangleCoords))
+        Primitive:setAng(entity():toWorld(TriangleAngle))
+        
+        local PrimCol = (PolyDebug ? vec4(vec(255 * CurTriangle / Triangles:count()), 255) : PolyColor)
+        Primitive:setColor(PrimCol)
+        Primitive:setMaterial(PolyMaterial)
+        
+        primitiveEdit(Primitive, "PrimTYPE", "wedge")
+        primitiveEdit(Primitive, "PrimSIZE", TriangleSize)
+        primitiveEdit(Primitive, "PrimTX", TriangleSkew)
+    }
+    
+    # # # Continue
+    if(CurTriangle < Triangles:count()) {timer("MoveTriangles", 30)}
+    
+    else {print("Done!")}
+}

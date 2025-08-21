@@ -1,0 +1,517 @@
+--@name Constraint Replicator
+--@author DEF
+--@shared
+
+--[[
+
+        This Expre- Starfall chip is meant to replicate the constraints you attach to the < Samples >
+    between each of the entities in the < Entities > and < Baseplate >.
+    
+]]
+
+-- # # # Settings
+
+
+local HideConstraints = true        -- Sets ropes to 0 width, etc.
+
+local DoConstraints = KEY.G         -- Press this to replicate constraints!
+
+
+-- # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+
+-- Commands
+local arg_Test = "test"
+local arg_PrintEntities = "entities"
+local arg_SiftConstraints = "constraints"
+
+-- Messages
+local sv_Constraints = "sv_Constraints"
+
+-- Set up wire io
+if SERVER then
+    
+    local Inputs = {"SampleEntity", "SampleBase", "Entities", "Base"}
+    local InputTypes = {"Entity", "Entity", "Array", "Entity"}
+    
+    wire.adjustInputs(Inputs, InputTypes)
+end
+
+if CLIENT and player() == owner() then
+    
+    -- Check for key commands
+    local function OnKey(Key)
+        
+        if Key == DoConstraints then
+            net.start(sv_Constraints)
+            net.send()
+        end
+    end
+    
+    hook.add("inputPressed", "OnKeyPress", OnKey)
+end
+
+if SERVER then
+    
+    local CleanConstraints = {}
+    local Constraint = {}
+    
+    local SFC = wire.self():entity()
+    local Base = nil
+    
+    constraint.setConstraintClean(false)
+    
+    -- Check if this constraint is connected between the two samples
+    local function IsValidSample()
+        
+        local SampleEntity = wire.ports.SampleEntity
+        local SampleBase = wire.ports.SampleBase
+        
+        Entity1 = Constraint.Ent1
+        Entity2 = Constraint.Ent2
+        
+        return (SampleEntity == Entity1 and SampleBase == Entity2) or (SampleEntity == Entity2 and SampleBase == Entity1)
+    end
+    
+        -- # Simplification
+    
+    -- Simplify weld data
+    local function CleanupWeld()
+        
+        local Simplified = {
+            Type = "Weld",
+            forcelimit = Constraint.forcelimit,
+            nocollide = Constraint.nocollide
+        }
+        
+        table.insert(CleanConstraints, Simplified)
+    end
+    
+    -- Simplify axis data
+    local function CleanupAxis()
+        
+        local EntityFirst = Constraint.Ent1 == wire.ports.SampleEntity
+        local Offset = Vector(0, 0, 0)
+        
+        -- Offset is always based on Entity's position, even if it's not first
+        if EntityFirst then
+            Offset = SFC:getPos() - Constraint.Ent1:getPos()
+        else
+            Offset = SFC:getPos() - Constraint.Ent2:getPos()
+        end
+        
+        -- Mostly just making positions relative to Starfall chip
+        local WorldOffset1 = Constraint.Ent1:localToWorld(Constraint.LPos1) + Offset
+        local LPos1 = SFC:worldToLocal( WorldOffset1 )
+        
+        local WorldOffset2 = Constraint.Ent2:localToWorld(Constraint.LPos2) + Offset
+        local LPos2 = SFC:worldToLocal( WorldOffset2 )
+        
+        local LocalAxis = Constraint.Ent1:localToWorldVector( Constraint.LocalAxis - Constraint.LPos1 )
+        
+        local Simplified = {
+            Type = "Axis",
+            EntityFirst = EntityFirst,
+            LPos1 = LPos1,
+            LPos2 = LPos2,
+            forcelimit = Constraint.forcelimit,
+            torquelimit = Constraint.torquelimit,
+            friction = Constraint.friction,
+            nocollide = Constraint.nocollide,
+            LocalAxis = LocalAxis
+        }
+        
+        table.insert(CleanConstraints, Simplified)
+    end
+    
+    -- Simplify rope; lots of stuff borrowed from axis
+    local function CleanupRope()
+        
+        local EntityFirst = Constraint.Ent1 == wire.ports.SampleEntity
+        
+        local Width = 0
+        if not HideConstraints then Width = Constraint.width end
+        
+        local Offset = Vector(0, 0, 0)
+        
+        if EntityFirst then
+            Offset = SFC:getPos() - Constraint.Ent1:getPos()
+        else
+            Offset = SFC:getPos() - Constraint.Ent2:getPos()
+        end
+        
+        local WorldOffset1 = Constraint.Ent1:localToWorld(Constraint.LPos1) + Offset
+        local LPos1 = SFC:worldToLocal( WorldOffset1 )
+        
+        local WorldOffset2 = Constraint.Ent2:localToWorld(Constraint.LPos2) + Offset
+        local LPos2 = SFC:worldToLocal( WorldOffset2 )
+        
+        local Simplified = {
+            Type = "Rope",
+            EntityFirst = EntityFirst,
+            LPos1 = LPos1,
+            LPos2 = LPos2,
+            length = Constraint.length,
+            addlength = Constraint.addlength,
+            forcelimit = Constraint.forcelimit,
+            width = Width,
+            material = Constraint.material,
+            rigid = Constraint.rigid
+        }
+        
+        table.insert(CleanConstraints, Simplified)
+    end
+    
+    -- Simplify elastic; lots of stuff borrowed from rope and axis
+    local function CleanupElastic()
+        
+        local EntityFirst = Constraint.Ent1 == wire.ports.SampleEntity
+        
+        local Width = 0
+        if not HideConstraints then Width = Constraint.width end
+        
+        local Offset = Vector(0, 0, 0)
+        
+        if EntityFirst then
+            Offset = SFC:getPos() - Constraint.Ent1:getPos()
+        else
+            Offset = SFC:getPos() - Constraint.Ent2:getPos()
+        end
+        
+        local WorldOffset1 = Constraint.Ent1:localToWorld(Constraint.LPos1) + Offset
+        local LPos1 = SFC:worldToLocal( WorldOffset1 )
+        
+        local WorldOffset2 = Constraint.Ent2:localToWorld(Constraint.LPos2) + Offset
+        local LPos2 = SFC:worldToLocal( WorldOffset2 )
+        
+        local Simplified = {
+            Type = "Elastic",
+            EntityFirst = EntityFirst,
+            LPos1 = LPos1,
+            LPos2 = LPos2,
+            constant = Constraint.constant,
+            damping = Constraint.damping,
+            rdamping = Constraint.rdamping,
+            width = Width,
+            stretchonly = Constraint.stretchonly
+        }
+        
+        table.insert(CleanConstraints, Simplified)
+    end
+    
+    -- Simplify ballsocket
+    local function CleanupBallsocket()
+        
+        local EntityFirst = Constraint.Ent1 == wire.ports.SampleEntity
+        
+        local Offset = Vector(0, 0, 0)
+        
+        if EntityFirst then
+            Offset = SFC:getPos() - Constraint.Ent1:getPos()
+        else
+            Offset = SFC:getPos() - Constraint.Ent2:getPos()
+        end
+        
+        local WorldOffset2 = Constraint.Ent2:localToWorld(Constraint.LPos) + Offset
+        local LPos = SFC:worldToLocal( WorldOffset2 )
+        
+        local Simplified = {
+            Type = "Ballsocket",
+            EntityFirst = EntityFirst,
+            LPos = LPos,
+            forcelimit = Constraint.forcelimit,
+            torquelimit = Constraint.torquelimit,
+            nocollide = Constraint.nocollide
+        }
+        
+        table.insert(CleanConstraints, Simplified)
+    end
+    
+    -- Simplify advanced ballscocket
+    local function CleanupAdvBallsocket()
+        
+        local EntityFirst = Constraint.Ent1 == wire.ports.SampleEntity
+        
+        local Offset = Vector(0, 0, 0)
+        
+        if EntityFirst then
+            Offset = SFC:getPos() - Constraint.Ent1:getPos()
+        else
+            Offset = SFC:getPos() - Constraint.Ent2:getPos()
+        end
+        
+        local WorldOffset1 = Constraint.Ent1:localToWorld(Constraint.LPos1) + Offset
+        local LPos1 = SFC:worldToLocal( WorldOffset1 )
+        
+        local WorldOffset2 = Constraint.Ent2:localToWorld(Constraint.LPos2) + Offset
+        local LPos2 = SFC:worldToLocal( WorldOffset2 )
+        
+        local Simplified = {
+            Type = "AdvBallsocket",
+            EntityFirst = EntityFirst,
+            LPos1 = LPos1,
+            LPos2 = LPos2,
+            forcelimit = Constraint.forcelimit,
+            torquelimit = Constraint.torquelimit,
+            minimum = Vector(Constraint.xmin, Constraint.ymin, Constraint.zmin),
+            maximum = Vector(Constraint.xmax, Constraint.ymax, Constraint.zmax),
+            friction = Vector(Constraint.xfric, Constraint.yfric, Constraint.zfric),
+            onlyrotation = Constraint.onlyrotation,
+            nocollide = Constraint.nocollide
+        }
+        
+        table.insert(CleanConstraints, Simplified)
+    end
+    
+    -- Identify if this constraint is supported; run cleanup if so
+    local function IdentifyConstraint()
+        
+        if Constraint.Type == "Weld" then
+            
+            CleanupWeld()
+            
+        elseif Constraint.Type == "Axis" then
+            
+            CleanupAxis()
+            
+        elseif Constraint.Type == "Rope" then
+            
+            CleanupRope()
+            
+        elseif Constraint.Type == "Elastic" then
+            
+            CleanupElastic()
+            
+        elseif Constraint.Type == "Ballsocket" then
+            
+            CleanupBallsocket()
+            
+        elseif Constraint.Type == "AdvBallsocket" then
+            
+            CleanupAdvBallsocket()
+            
+        end
+    end
+    
+        -- # Creation
+    
+    -- Create weld
+    local function CreateWeld(Entity)
+        
+        constraint.weld(Entity, Base, nil, nil, Constraint.forcelimit, Constraint.nocollide)
+    end
+    
+    -- Create axis; gave me the most problems
+    local function CreateAxis(Entity)
+        
+        local Offset = Entity:getPos() - SFC:getPos()
+        
+        -- Remember local position is saved on the Starfall
+        local WorldOffset1 = SFC:localToWorld(Constraint.LPos1) + Offset
+        local WorldOffset2 = SFC:localToWorld(Constraint.LPos2) + Offset
+        
+        local E1 = nil
+        local E2 = nil
+        
+        if Constraint.EntityFirst then
+            
+            E1 = Entity
+            E2 = Base
+        else
+            
+            E1 = Base
+            E2 = Entity
+        end
+        
+        local V1 = E1:worldToLocal( WorldOffset1 )
+        local V2 = E2:worldToLocal( WorldOffset2 )
+        
+        local HingeAxis = E1:worldToLocalVector( Constraint.LocalAxis ) + V1
+        
+        constraint.axis(E1, E2, nil, nil, V1, V2, Constraint.forcelimit, Constraint.torquelimit,
+        Constraint.friction, Constraint.nocollide, HingeAxis)
+    end
+    
+    -- Create rope; lots of stuff borrowed from axis
+    local function CreateRope(Entity)
+        
+        local Offset = Entity:getPos() - SFC:getPos()
+        
+        -- Remember local position is saved on the Starfall
+        local WorldOffset1 = SFC:localToWorld(Constraint.LPos1) + Offset
+        local WorldOffset2 = SFC:localToWorld(Constraint.LPos2) + Offset
+        
+        local E1 = nil
+        local E2 = nil
+        
+        if Constraint.EntityFirst then
+            
+            E1 = Entity
+            E2 = Base
+        else
+            
+            E1 = Base
+            E2 = Entity
+        end
+        
+        local V1 = E1:worldToLocal( WorldOffset1 )
+        local V2 = E2:worldToLocal( WorldOffset2 )
+        
+        constraint.rope(0, E1, E2, nil, nil, V1, V2,
+        Constraint.length, Constraint.addlength, Constraint.forcelimit, Constraint.width, Constraint.material,
+        Constraint.rigid, nil)
+    end
+    
+    -- Create elastic
+    local function CreateElastic(Entity)
+        
+        local Offset = Entity:getPos() - SFC:getPos()
+        
+        -- Remember local position is saved on the Starfall
+        local WorldOffset1 = SFC:localToWorld(Constraint.LPos1) + Offset
+        local WorldOffset2 = SFC:localToWorld(Constraint.LPos2) + Offset
+        
+        local E1 = nil
+        local E2 = nil
+        
+        if Constraint.EntityFirst then
+            
+            E1 = Entity
+            E2 = Base
+        else
+            
+            E1 = Base
+            E2 = Entity
+        end
+        
+        local V1 = E1:worldToLocal( WorldOffset1 )
+        local V2 = E2:worldToLocal( WorldOffset2 )
+        
+        constraint.elastic(0, E1, E2, nil, nil, V1, V2,
+        Constraint.constant, Constraint.damping, Constraint.rdamping, Constraint.width, Constraint.stretchonly)
+    end
+    
+    -- Create ballsocket
+    local function CreateBallsocket(Entity)
+        
+        local Offset = Entity:getPos() - SFC:getPos()
+        
+        -- Remember local position is saved on the Starfall
+        local WorldOffset = SFC:localToWorld(Constraint.LPos) + Offset
+        
+        local E1 = nil
+        local E2 = nil
+        
+        if Constraint.EntityFirst then
+            
+            E1 = Entity
+            E2 = Base
+        else
+            
+            E1 = Base
+            E2 = Entity
+        end
+        
+        local V2 = E2:worldToLocal( WorldOffset )
+        
+        constraint.ballsocket(E1, E2, nil, nil,
+        V2, Constraint.forcelimit, Constraint.torquelimit, Constraint.nocollide)
+    end
+    
+    -- Create advanced ballsocket
+    local function CreateAdvBallsocket(Entity)
+        
+        local Offset = Entity:getPos() - SFC:getPos()
+        
+        -- Remember local position is saved on the Starfall
+        local WorldOffset1 = SFC:localToWorld(Constraint.LPos1) + Offset
+        local WorldOffset2 = SFC:localToWorld(Constraint.LPos2) + Offset
+        
+        local E1 = nil
+        local E2 = nil
+        
+        if Constraint.EntityFirst then
+            
+            E1 = Entity
+            E2 = Base
+        else
+            
+            E1 = Base
+            E2 = Entity
+        end
+        
+        local V1 = E1:worldToLocal( WorldOffset1 )
+        local V2 = E2:worldToLocal( WorldOffset2 )
+        
+        constraint.ballsocketadv(E1, E2, nil, nil, V1, V2,
+        Constraint.forcelimit, Constraint.torquelimit, Constraint.minimum, Constraint.maximum, Constraint.friction,
+        Constraint.onlyrotation, Constraint.nocollide)
+    end
+    
+    -- Create appropriate constraint
+    local function CreateConstraints(Entity)
+        
+        if Constraint.Type == "Weld" then
+            
+            CreateWeld(Entity)
+            
+        elseif Constraint.Type == "Axis" then
+            
+            CreateAxis(Entity)
+            
+        elseif Constraint.Type == "Rope" then
+            
+            CreateRope(Entity)
+            
+        elseif Constraint.Type == "Elastic" then
+            
+            CreateElastic(Entity)
+            
+        elseif Constraint.Type == "Ballsocket" then
+            
+            CreateBallsocket(Entity)
+            
+        elseif Constraint.Type == "AdvBallsocket" then
+            
+            CreateAdvBallsocket(Entity)
+            
+        end
+    end
+    
+        -- # Commands
+    
+    -- Get relevent information to recreate constraints
+    local function SiftConstraints()
+        
+        local DirtyConstraints = constraint.getTable(wire.ports.SampleEntity)
+        local Entities = wire.ports.Entities
+        
+        CleanConstraints = {}
+        Base = wire.ports.Base
+        
+        -- Find all constraints connected between Samples and of a certain type
+        for Ind, Element in pairs(DirtyConstraints) do
+            
+            Constraint = Element
+            
+            if not IsValidSample() then continue end
+            
+            IdentifyConstraint()
+        end
+        
+        -- Create the constraints
+        for Ind, Entity in pairs(Entities) do
+            
+            for Ind2, Element in pairs(CleanConstraints) do
+                
+                Constraint = Element
+                
+                CreateConstraints(Entity)
+            end
+        end
+        
+        print("Created all constraints!")
+    end
+    
+    net.receive(sv_Constraints, SiftConstraints)
+end

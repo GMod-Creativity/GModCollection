@@ -1,0 +1,173 @@
+--@name deflibs/canvas/GUI_Button
+--@author Yours Truly
+
+// Button; a clickable button
+
+local CollisionDebug = false
+local StockLeft = 0; local StockTop = 0
+local StockWidth = 40; local StockHeight = 40
+
+local function Empty() end
+local Construct = Empty
+local StockDraw = Empty
+
+local Button = {}
+
+-- Create & get new hitbox
+function Button.Create(Canvas, IsToggle)
+    return Construct(Canvas, IsToggle)
+end
+
+-- Hitbox debug
+function Button:DrawCollision(Active)
+    CollisionDebug = Active
+end
+
+-- Instance creation function
+function Construct(Canvas, IsToggle)
+    local btn = {}
+    local box = GUI.Hitbox.Create(btn)
+    local can = Canvas
+    
+    local mat = Matrix()
+    mat:setTranslation(Vector(StockLeft, StockTop))
+    
+    local w = StockWidth; local h = StockHeight
+    local isToggle = IsToggle or false
+    local pressed = false; local hovered = false
+    
+    local Func = Empty
+    local IDraw = StockDraw
+    
+    local function UpdateHitbox()
+        local vec = mat:getTranslation()
+        box:SetOrigin(vec.x, vec.y)
+        box:SetSize(w, h)
+    end
+    
+    -- Class functions
+    
+    function btn:SetOrigin(X, Y)
+        mat:setTranslation(Vector(X, Y))
+        UpdateHitbox()
+    end
+    
+    function btn:SetSize(W, H)
+        w = W
+        h = H
+        UpdateHitbox()
+    end
+    
+    function btn:SetFunc(NewFunc)
+        Func = NewFunc
+    end
+    
+    function btn:SetDown(Pressed)
+        pressed = Pressed
+    end
+    
+    function btn:Trigger(Pressed)
+        btn:Press(Pressed)
+    end
+    
+    function btn:SetDraw(Func)
+        IDraw = Func
+    end
+    
+    function btn:Press(Pressed)
+        if isToggle then
+            if Pressed then
+                pressed = not pressed
+                Func(pressed)
+                can:QueueDraw()
+            end
+        else
+            pressed = Pressed
+            Func(pressed)
+            can:QueueDraw()
+        end
+    end
+    
+    function btn:Hover(Hovered)
+        hovered = Hovered
+        can:QueueDraw()
+    end
+    
+    function btn:Draw()
+        render.pushMatrix(mat, false)
+            IDraw(self)
+        render.popMatrix()
+        if CollisionDebug then self:DrawAABB() end
+    end
+    
+    function btn:DrawAABB()
+        local bx, by, bw, bh = box:GetXYWH()
+        render.setColor(Color(255, 255, 255))
+        render.drawRectOutline(bx, by, bw, bh, 2)
+    end
+    
+    -- # Getters
+    
+    function btn:GetHitbox() return box end
+
+    function btn:GetOrigin()
+        local vec = mat:getTranslation()
+        return vec.x, vec.y
+    end
+    
+    function btn:GetSize() return w, h end
+    
+    function btn:GetVMatrix() return mat end
+    
+    function btn:GetPressed() return pressed end
+    
+    function btn:GetHovered() return hovered end
+    
+    UpdateHitbox()
+    return btn
+end
+
+-- Default drawing function
+function StockDraw(BTN)
+    local col = Color(100, 100, 100)
+    
+    if BTN:GetPressed() then
+        if BTN:GetHovered() then
+            col = Color(80, 80, 80)
+        else
+            col = Color(60, 60, 60)
+        end
+    elseif BTN:GetHovered() then
+        col = Color(120, 120, 120)
+    end
+    
+    local width, height = BTN:GetSize()
+    local radius = math.min(width, height) * 0.4
+    local mat = Matrix()
+    mat:setScale(Vector(0.25, 0.25))
+    
+    render.pushMatrix(mat, false)
+        render.setColor(Color(0, 0, 0))
+        render.drawRoundedBox(radius, 0, 0, width * 4, height * 4)
+        render.setColor(col)
+        render.drawRoundedBox(radius, 16, 16, (width - 8) * 4, (height - 8) * 4)
+    render.popMatrix()
+end
+
+-- # Stock overrides
+
+function Button:SetOrigin(X, Y)
+    StockLeft = X
+    StockTop = Y
+end
+
+function Button:SetSize(W, H)
+    StockWidth = W
+    StockHeight = H
+end
+
+function Button:SetDraw(Func)
+    StockDraw = Func
+end
+
+return Button

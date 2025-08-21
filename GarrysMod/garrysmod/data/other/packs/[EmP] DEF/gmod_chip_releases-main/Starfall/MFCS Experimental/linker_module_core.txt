@@ -1,0 +1,185 @@
+--@name mfcs/includes/Linker Module Core
+--@author Yours Truly
+--@include mfcs/includes/MFCS_Common_Core.txt
+
+local cl_ChairEnter = "Chair-Enter"
+local cl_ChairExit = "Chair-Exit"
+require("mfcs/includes/MFCS_Common_Core.txt")
+local Modules = {
+    Cameras = {},
+    Drives = {},
+    Computers = {},
+    All = {},
+    Lookup = {}
+}
+
+local function Empty() end
+local Broadcast = Empty; local OnRequest = Empty
+
+-- Shared functions
+do
+    -- Send signals to specific entities
+    function Broadcast(EntTab, Args)
+        for _, ent in ipairs(EntTab) do
+            hook.runRemote(ent, Args)
+        end
+    end
+    
+    -- Receive requests from linked modules
+    function OnRequest(Starfall, Player, Args)
+        if Modules.Lookup[Starfall] then
+            //print("Received request from " .. tostring(Starfall))
+        end
+    end
+end
+
+if SERVER then
+    local ChairEnt = nil
+    
+    local Initialize = Empty; local MakeIO = Empty
+    local OnRequest = Empty; local GetModules = Empty; local EnterChair = Empty
+    
+    -- >> Primary functions
+    do
+        -- Final set up
+        function CoreSetup()
+            MakeIO()
+            Initialize()
+        end
+        
+        -- Setup
+        function Initialize()
+            ChairEnt = wire.ports.Chair
+            wire.ports.Core = chip()
+            GetModules()
+            
+            hook.add("PlayerEnteredVehicle", "chair-enter", function(Ply, Chair) EnterChair(Ply, Chair, true) end)
+            hook.add("PlayerLeaveVehicle", "chair-exit", function(Ply, Chair) EnterChair(Ply, Chair, false) end)
+            hook.add("remote", "module-requests", OnRequest)
+            //timer.create("work-you-little-shit", 1, 1, function() hook.add("remote", "module-requests", OnRequest) end)
+        end
+        
+        -- Make new IO
+        function MakeIO()
+            local inputs = { "Chair" }
+            local inputTypes = { "Entity" }
+            
+            local outputs = { "Core" }
+            local outputTypes = { "Entity" }
+            
+            wire.adjustInputs(inputs, inputTypes)
+            wire.adjustOutputs(outputs, outputTypes)
+        end
+        
+        -- Find all modules via remote hooks
+        function GetModules()
+            local candidates = {}; local candidatesLookup = {}
+            for _, ent in ipairs(chip():getAllConstrained({ Wire = true })) do
+                if ent != chip() and ent:getClass() == "starfall_processor" then
+                    table.insert(candidates, ent)
+                    candidatesLookup[ent] = true
+                end
+            end
+            
+            local function PingModules()
+                for _, ent in ipairs(candidates) do
+                    hook.runRemote(ent, "Ping-Modules")
+                end
+            end
+            
+            local function ModuleReturn(Starfall, Player, ModuleEnum)
+                if candidatesLookup[Starfall] then
+                    table.insert(Modules.All, Starfall)
+                    Modules.Lookup[Starfall] = true
+                    
+                    if ModuleEnum == MODULE.CAMERA then
+                        table.insert(Modules.Cameras, Starfall)
+                    elseif ModuleEnum == MODULE.DRIVE then
+                        table.insert(Modules.Drives, Starfall)
+                    elseif ModuleEnum == MODULE.COMPUTER then
+                        table.insert(Modules.Computers, Starfall)
+                    end
+                end
+            end
+            
+            local function TerminalSetup()
+                hook.remove("remote", "setup-modules")
+                //printTable(Modules)
+            end
+            
+            hook.add("remote", "setup-modules", ModuleReturn)
+            timer.create("ping", 0.2, 1, PingModules)
+            timer.create("return", 0.3, 1, TerminalSetup)
+        end
+        
+        -- Entering & exiting the vehicle
+        function EnterChair(Ply, Chair, Board)
+            if ChairEnt:isValid() and ChairEnt == Chair then
+                if Board then
+                    net.start(cl_ChairEnter)
+                        net.writeTable(Modules)
+                    net.send(Ply)
+                else
+                    net.start(cl_ChairExit)
+                    net.send(Ply)
+                end
+                
+                Broadcast(Modules.All, { "Enter-Chair", Ply, Board })
+            end
+        end
+    end
+end
+
+if CLIENT then
+    local Keys = {}
+    
+    -- >> Primary functions
+    do
+        -- Entering & exiting the vehicle
+        local function EnterChair(Board)
+            if Board then
+                Modules = net.readTable()
+                hook.add("remote", "module-requests", OnRequest)
+            else
+                hook.remove("remote", "module-requests")
+            end
+            Keys:SetLogging(Board)
+        end
+        net.receive(cl_ChairEnter, function() EnterChair(true) end)
+        net.receive(cl_ChairExit, function() EnterChair(false) end)
+    end
+    
+    -- >> Keys; keeps track of & updates user input
+    do
+        local ScrollActive = false
+        
+        local Scroll = Empty; local Input = Empty
+        
+        -- Turns input listening on or off
+        function Keys:SetLogging(Active)
+            if Active then
+                hook.add("inputPressed", "input-down", function(Key) Input(Key, true) end)
+                hook.add("inputReleased", "input-up", function(Key) Input(Key, false) end)
+                hook.add("mouseWheeled", "mouse-scroll", Scroll)
+                hook.add("tick", "scroll-reset", function() ScrollActive = true end)
+            else
+                hook.remove("inputPressed", "input-down")
+                hook.remove("inputReleased", "input-up")
+                hook.remove("mouseWheeled", "mouse-scroll")
+                hook.remove("tick", "scroll-reset")
+            end
+        end
+        
+        -- Ran in mouseWheeled; scrolling
+        function Scroll(Dir)
+            if not ScrollActive then return end
+            ScrollActive = false
+            Broadcast(Modules.Cameras, { "User-Scroll", Dir })
+        end
+        
+        -- Run key functions
+        function Input(Key, Down)
+            Broadcast(Modules.All, { "User-Key", Key, Down })
+        end
+    end
+end

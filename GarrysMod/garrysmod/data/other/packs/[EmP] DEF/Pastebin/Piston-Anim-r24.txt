@@ -1,0 +1,191 @@
+@name Piston Anim r24
+@inputs Entities:array
+@outputs BakedList:table
+@persist [Mechanism]:table HC
+@trigger none
+
+if(first() | dupefinished()) {
+    
+    HC = 0
+    BakedList = table()
+    local SubList = table()
+    Mechanism = table()
+    
+        #~ General ~#
+    
+    ShowHolos = 1       #Show debug holos?
+    
+    MoveGates = 1       #Setpos and setang prop into position
+    
+    HideGates = 1       #Make gates transparent?
+    
+    Parent = 1          #Parents the Angling and Moving entities. Master caution.
+    
+        #~ Specifications ~#
+    
+    #[
+    
+    This is what a typical assembly looks like
+    
+    SubList = table()
+    SubList["Axis",vector] = vec(0, 1, 0)
+    SubList["TargetOffset",vector] = vec(-10, 0, 0)
+    SubList["OriginOffset",vector] = vec(-92.495, 41, 0)
+    SubList["HingeOrigin",vector] = vec(0, 0, 0)
+    SubList["SliderOrigin",vector] = vec(0, 0, 0)
+    SubList["HingeAng",angle] = ang(0, 0, -90)
+    SubList["SliderAng",angle] = ang(0, 0, 0)
+    SubList["OriginInd",number] = 1
+    SubList["TargetInd",number] = 2
+    SubList["HingeInd",number] = 3
+    SubList["SliderInd",number] = 0
+    BakedList:pushTable(SubList)
+    
+    ]#
+    
+    # - - - Assembly 1 - - - #
+    SubList = table()
+    SubList["Axis",vector] = vec(0, -1, 0)
+    SubList["TargetOffset",vector] = vec(0, 14.2, 0)
+    SubList["OriginOffset",vector] = vec(69.404, -44.773, 18.045)
+    SubList["HingeOrigin",vector] = vec(0, 0, 0)
+    SubList["SliderOrigin",vector] = vec(0, 0, 0)
+    SubList["HingeAng",angle] = ang(0, -90, 0)
+    SubList["SliderAng",angle] = ang(0, -90, 0)
+    SubList["OriginInd",number] = 1
+    SubList["TargetInd",number] = 2
+    SubList["HingeInd",number] = 14
+    SubList["SliderInd",number] = 0
+    BakedList:pushTable(SubList)
+    
+    
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    
+    
+    MechanismCount = BakedList:count()
+    HC = 0
+    
+    #Setting up holos
+    for(I=1, MechanismCount, 1) {
+        
+        local CurTab = BakedList[I,table]
+        local Component = table()
+        
+        # # # Random positions
+        local OriginEnt = Entities[CurTab["OriginInd",number],entity]
+        local TargetEnt = Entities[CurTab["TargetInd",number],entity]
+        local TargetCoords = TargetEnt:toWorld(CurTab["TargetOffset",vector])
+        
+        # # # Rotational holo
+        HC++
+        local HingeHolo = holoCreate(HC, OriginEnt:toWorld(CurTab["OriginOffset",vector]), vec(1/6), ang(), vec4(255 * ShowHolos), "models/sprops/misc/origin.mdl")
+        holoParent(HC, OriginEnt)
+        
+        #Calculating once
+        holoAng(HC, (TargetCoords - OriginEnt:toWorld(CurTab["OriginOffset",vector])):toAngle(OriginEnt:toWorldAxis(CurTab["Axis",vector])))
+        
+        #Little quality of life feature; unfortunately, you cannot parent the gates instantly
+        local HingeEnt = Entities[CurTab["HingeInd",number],entity]
+        
+        if(MoveGates) {
+            
+            HingeEnt:deparent()
+            HingeEnt:propFreeze(1)
+            
+            HingeEnt:setPos(HingeEnt:toWorld(HingeEnt:toLocal(HingeHolo:pos()) + CurTab["HingeOrigin",vector]))
+            HingeEnt:setAng(HingeHolo:toWorld( -CurTab["HingeAng",angle] ))
+        }
+        
+        if(HideGates) {HingeEnt:setAlpha(0)}
+        else {HingeEnt:setAlpha(255)}
+        
+        Component["HingeHolo",entity] = HingeHolo
+        Component["HingeInd",number] = HC
+        Component["HingeEnt",entity] = HingeEnt
+        
+        # # # Translational holo
+        if(CurTab["SliderInd",number] != 0) {
+            
+            HC++
+            local SliderHolo = holoCreate(HC, TargetCoords, vec(1/6), HingeHolo:angles(), vec4(255 * ShowHolos), "models/sprops/misc/origin.mdl")
+            holoParent(HC, HC - 1)
+            
+            #Calculating once
+            holoPos(HC, TargetCoords)
+            
+            local SliderEnt = Entities[CurTab["SliderInd",number],entity]
+            
+            if(MoveGates) {
+                
+                SliderEnt:deparent()
+                SliderEnt:propFreeze(1)
+                
+                SliderEnt:setPos(SliderEnt:toWorld(SliderEnt:toLocal(SliderHolo:pos()) + CurTab["SliderOrigin",vector]))
+                SliderEnt:setAng(SliderHolo:toWorld( -CurTab["SliderAng",angle] ))
+            }
+            
+            if(HideGates) {SliderEnt:setAlpha(0)}
+            else {SliderEnt:setAlpha(255)}
+            
+            Component["SliderHolo",entity] = SliderHolo
+            Component["SliderInd",number] = HC
+            Component["SliderEnt",entity] = SliderEnt
+            Component["AnimType",string] = "Piston"
+        }
+        
+        else {Component["AnimType",string] = "Hinge"}
+        
+        # # # Saving all required information
+        Component["OriginEnt",entity] = OriginEnt
+        Component["TargetEnt",entity] = TargetEnt
+        
+        Component["Axis",vector] = CurTab["Axis",vector]
+        Component["OriginOffset",vector] = CurTab["OriginOffset",vector]
+        Component["TargetOffset",vector] = CurTab["TargetOffset",vector]
+        
+        Mechanism:pushTable(Component)
+        
+        # # # Delayed parent
+        if(Parent) {timer("Parent", 45)}
+    }
+}
+
+interval(105)
+
+#Delayed parent
+if(clk("Parent")) {
+    
+    for(I=1, Mechanism:count(), 1) {
+        
+        local Component = Mechanism[I,table]
+        Component["HingeEnt",entity]:parentTo(Component["HingeHolo",entity])
+        
+        if(Component["AnimType",string] == "Piston") {
+            Component["SliderEnt",entity]:parentTo(Component["SliderHolo",entity])
+        }
+    }
+}
+
+#Holo updates
+if(getTimers():count() < 2) {
+    
+   for(I=1, Mechanism:count(), 1) {
+        
+        local Component = Mechanism[I,table]
+        
+        local OriginEnt = Component["OriginEnt",entity]
+        local TargetEnt = Component["TargetEnt",entity]
+        
+        if(OriginEnt:isValid() & TargetEnt:isValid()) {
+            
+            local TargetCoords = TargetEnt:toWorld(Component["TargetOffset",vector])
+            local HoloAngs = (TargetCoords - OriginEnt:toWorld(Component["OriginOffset",vector])):toAngle(OriginEnt:toWorldAxis(Component["Axis",vector]))
+            
+            holoAng(Component["HingeInd",number], HoloAngs)
+            
+            if(Component["AnimType",string] == "Piston") {
+                holoPos(Component["SliderInd",number], TargetCoords)
+            }
+        }
+    }
+}

@@ -2,6 +2,12 @@
 - Date: 04-04-2015
 - Title: Chastiefol [E2]
 
+- Source: https://web.archive.org/web/20160315140124/http://www.wiremod.com:80/forum/finished-contraptions/34253-chastiefol-e2.html
+- Source: 
+
+- Source: https://www.reddit.com/r/wiremod/comments/63p4zm/chastifol_e2_fix/
+- Source: https://pastebin.com/Qbd7FnLi
+
 *Chastiefol [E2]*
 
 ! Sorry for my English !

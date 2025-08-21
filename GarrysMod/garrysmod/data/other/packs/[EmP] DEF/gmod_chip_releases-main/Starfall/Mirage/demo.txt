@@ -1,0 +1,129 @@
+--@name mirage/interfaces/Demo
+--@author Yours Truly
+--@shared
+--@include mirage/core.txt
+
+local Tab = require("mirage/core.txt")
+local Mirage = Tab[1]; local SH = Tab[2]
+
+-- # # # # # # # # # # # # # # # # # # # # # # # # --
+
+--[[
+
+    Spawn this chip, then wire 'Chair' to a seat.
+    
+    Sit in the chair and you will see some instructions!
+    
+]]
+
+SH.RefreshRate = 30     // Frames-per-second max
+
+-- # # # # # # # # # # # # # # # # # # # # # # # # --
+
+-- Gradient
+
+local Img = Mirage:CreateImage(true)
+
+Img.DrawFunc = function()
+    local resX, resY = render.getGameResolution()
+    local mat = Matrix()
+    
+    mat:setTranslation(Vector(resX * 0.5, resY * 0.5))
+    
+    render.pushMatrix(mat, true)
+        render.drawTexturedRect(-512, -512, 1024, 1024)
+    render.popMatrix()
+end
+
+Img.RefreshFunc = function()
+    render.clear(Color(0, 0, 0, 0))
+    
+    local colStart = Color(50, 0.5, 1):hsvToRGB()
+    local colEnd =  Color(50, 1.0, 0.5):hsvToRGB()
+    colEnd:setA(100)
+    
+    local divisions = 64
+    local height = 1024 / divisions
+    
+    for i=1, divisions do
+        local mix = i / divisions
+        local col = Color(
+            math.lerp(mix, colStart.r, colEnd.r),
+            math.lerp(mix, colStart.g, colEnd.g),
+            math.lerp(mix, colStart.b, colEnd.b),
+            math.lerp(mix, colStart.a, colEnd.a)
+        )
+        render.setColor(col)
+        render.drawRect(0, (i-1) * height, 1024, height)
+    end
+    
+    render.drawBlurEffect(5, 5, 1)
+end
+
+-- Text
+
+local fontArial96 = nil
+local Cycler = 0
+
+if CLIENT then
+    fontArial96 = render.createFont("Arial",96,1000,true,false,false,false,0,false,0)
+end
+
+local TextImg = Mirage:CreateImage(false)
+
+TextImg.DrawFunc = function()
+    local resX, resY = render.getGameResolution()
+    local mat = Matrix()
+    
+    mat:setTranslation(Vector(resX * 0.5, resY * 0.5))
+    
+    render.pushMatrix(mat, true)
+        render.drawTexturedRect(-512, -512, 1024, 1024)
+    render.popMatrix()
+end
+
+TextImg.RefreshFunc = function()
+    render.clear(Color(0, 0, 0, 0))
+    
+    local text = "Welcome to Mirage\n"
+    text = text .. "Here's 4 useful functions to know:\n\n"
+    
+    text = text .. "[ SH.RefreshRate ]\n"
+    text = text .. "Frames/sec maximum of this chip, also determines performance.\n"
+    text = text .. "Generally not a problem\n\n"
+    
+    text = text .. "[ Table = Mirage:CreateImage(boolean) ]\n"
+    text = text .. "Makes a new image.\n"
+    text = text .. "If 'true'; allows refreshing\n"
+    text = text .. "If 'false'; only gets updated once\n\n"
+    
+    text = text .. "[ Table.DrawFunc ]\n"
+    text = text .. "Instructions to render image.\n"
+    text = text .. "Use 'render.drawTexturedRect(X, Y, W, H)' here to see your image!\n\n"
+    
+    text = text .. "[ Table.RefreshFunc ]\n"
+    text = text .. "Instructions to make image.\n"
+    text = text .. "This is usually were you make your graphics.\n"
+    text = text .. "Also, runs with 'SH.RefreshRate'.\n\n"
+    
+    text = text .. "You can also make inputs, which are auto-networked!\n"
+    text = text .. "[ Table = Mirage:CreateInput(string Name, string Type) ]\n"
+    text = text .. "Then do 'Table.Value' to get the value of your input.\n"
+    
+    Cycler = Cycler + 2.5
+    if Cycler > 360 then Cycler = 0 end
+    
+    local size = 0.35 + math.sin(math.rad(Cycler)) * 0.015
+    
+    local mat = Matrix()
+    mat:setTranslation(Vector(512, 512))
+    mat:setScale(Vector(size, size))
+    
+    render.pushMatrix(mat, true)
+        render.setColor(Color(240, 1.0, 0):hsvToRGB())
+        render.setFont(fontArial96)
+        render.drawText(0, -1200, text, TEXT_ALIGN.CENTER)
+    render.popMatrix()
+end
+
+Mirage:Initialize()

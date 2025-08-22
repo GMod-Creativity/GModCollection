@@ -1,0 +1,74 @@
+@name XDOOR - Turret
+@inputs TW:wirelink
+@persist T:entity Tar:entity GT:gtable On R Dist
+@autoupdate
+interval(100)
+if(first()|dupefinished()){
+    if(!TW){
+        printColor(vec(230,0,255),"[Turret]["+entity():id()+"]",vec(255),": Please link a turret!")
+    }    
+    else{
+        T = TW:entity()
+    }
+    entity():propDraw(0)
+    holoCreate(1)
+    holoModel(1, "models/mechanics/robotics/claw.mdl")
+    holoScale(1, vec(0.5))
+    holoAng(1,entity():forward():toAngle()+ang(0,0,90))
+    holoPos(1,entity():toWorld(-entity():forward()*10))
+    
+    GT = gTable(owner():steamID())
+    
+    if(GT["ready",number]==0){
+        R = 0
+        timer("reset",2500)
+        #print("not ready")
+    }else{R = 1}
+    T:setAng(ang(0))
+    Dist = 1500
+}
+if(T:isValid()&R){
+    for(I=1,players():count()){
+        Ply = players()[I,entity]
+        if(Ply:pos():distance(T:pos())<Dist){
+            if(!GT["players",table]:exists(Ply:steamID())){
+                Ranger = rangerOffset(Dist,T:pos(),Ply:boxCenterW()-T:pos()) #if we can see the player
+                if(Ranger:entity()==Ply){
+                    On = 1
+                    Tar = Ply
+                    
+                }
+            }
+        }
+    }
+}
+if(On){
+    T:setPos(entity():toWorld(vec(-4,0,24)))
+    T:setAng(((Tar:boxCenterW()+Tar:vel()/10.1)-T:pos()):toAngle())
+    TW["Fire",number] = 1
+    if(!Tar:isAlive()|(Tar:pos():distance(T:pos())<Dist)){
+        On = 0
+    }
+    timer("checktarget",1000)
+    if(clk("checktarget")){
+        Ranger = rangerOffset(Dist,T:pos(),Tar:boxCenterW()-T:pos())
+        if(Ranger:hitWorld()){
+            On = 0
+        }
+    }
+}
+else{
+    TW["Fire",number] = 0
+    T:setPos(entity():toWorld(vec(-4,0,24)))
+    T:propFreeze(1)
+}
+if(~TW&(T:isValid()==0)){
+    #printColor(vec(230,0,255),"[Turret]["+entity():id()+"]",vec(255),": Turret was linked! Reseting!")
+    reset()
+}
+if(clk("reset")){
+    if(GT["ready",number]==0){
+        R = 0
+        timer("reset",2500)
+    }else{R = 1}
+}

@@ -1,0 +1,268 @@
+@name homemade raytracer
+@inputs DS:wirelink
+@outputs X Y I
+@persist I
+@persist Res PPM:string SD:vector PPMF:string Saving AOL AS GRS Lights:array
+@model models/dav0r/camera.mdl
+#[
+    Made by Xandertron5000 with help from many others ;) - STEAM_0:1:42942061 - github.com/Xandertron
+    I'm releasing this due to the small amount of info out there on how to do things. Like godrays, 
+    transparency, ppm file format, and ambient occlusion.
+    Some things may be broken, unstable, or just plain mean (fuck you transparency) :^)
+]#
+if(first()){
+    runOnTick(1)
+    runOnChat(1)
+    rangerPersist(1)
+    Res = 512 
+    AOL = 15 #ambient occ. length
+    AS = 10 #ambient occ. number of samples (rangers)
+    GRS = 0 #amout of godray checks
+    DS[1048572]=Res 
+    DS[1048573]=Res 
+    DS[1048569]=2
+    I = 0
+    SD = vec(0.3523,1.4323,0.7542324)
+    rangerFilter(players())
+    rangerHitEntities(0)
+    rangerHitWater(1)
+    for(I=1,10){
+        PPMF+=toChar(randint(65,90))
+    }
+    Saving = 1
+    function finished(){
+        if(fileCanWrite()&Saving){
+            fileAppend(">e2shared/ppm/raytracing/"+PPMF+".txt",PPM)
+            PPM=""
+        }
+        else{
+            timer("wait",1000)
+        }
+    }
+    function number godray(Raystart:vector,Rayend:vector,Sundirection:vector,Amount:number){
+        local A = (Rayend-Raystart)/Amount
+        local L = 0 #stupid range should be 0 to 1
+        for(I=1,Amount){
+            local GodrayPos = (Raystart+A*I)
+            local R = rangerOffset(GodrayPos,GodrayPos+(Sundirection)*20000)
+            L = L + (R:hitSky())/Amount
+        }
+        return L
+    }
+    function ranger stupidfuckiNGREFLECTNOWDAMNIT(R:ranger,V:vector)
+    {
+        STUPIDRANGER = rangerOffset(1000000000000,R:pos()+-V:rotateAroundAxis(R:hitNormal(), 180),-V:rotateAroundAxis(R:hitNormal(), 180))
+        return STUPIDRANGER
+    }   
+    #make lots of rays pointing to sun along the ur trace, add 1/numofrays each time it hits sun, then add to ur final rgb value when you raytrace
+    holoCreate(1)
+    holoModel(1,"models/hunter/blocks/cube8x8x8.mdl")
+    holoMaterial(1,"models/debug/debugwhite")
+    holoScaleUnits(1, vec(entity():pos():distance(entity():pos()+SD*100),0.1,0.1))
+    holoPos(1,(entity():pos()+(entity():pos()+SD*100))/2)
+    holoColor(1,vec(255,255,0))
+    holoAng(1,(entity():pos()-(entity():pos()+SD*100)):normalized():toAngle())
+    PPM = "P3\n"+Res+" "+Res+"\n255\n" 
+    ###findIncludePlayerProps(owner())
+    ###findByModel("models/props_junk/plasticbucket001a.mdl")
+    ###Lights = findToArray() 
+}
+if(clk("wait")& !fileCanWrite()){
+    timer("wait",1000)
+}
+elseif(fileCanWrite()){
+    fileAppend(">e2shared/ppm/raytracing/"+PPMF+".txt",PPM)
+    PPM=""
+}
+while(cpuUsage() < 13000/1000000 & opcounter() < softQuota() & I<Res^2){
+    X=floor(I%Res)
+    Y=floor(I/Res) 
+    
+    RGB=vec()
+    P=entity():pos() # Get the entity pos
+    ST = 0.5
+    V = (vec(1,1-(X/Res)-0.5,1-(Y/Res)-0.5)):normalized():rotate(entity():angles())
+    EC=rangerOffset(65536,P,V)
+    if(EC:matType()=="slosh"){
+        REFLECTING = 1
+        Ranger = stupidfuckiNGREFLECTNOWDAMNIT(EC,V)  
+        RGB = vec(255,255,0)
+    }
+    else{
+        REFLECTING = 0
+        Ranger = rangerOffset(65536,P,V)
+    }
+    REH = Ranger:entity()
+    RHP = Ranger:position()
+    Shadow=rangerOffset(99999,Ranger:position(),SD)
+    ##AO
+    AO = 0
+    for(I=1,AS){
+        AOR = rangerOffset(AOL,Ranger:position(),mix(Ranger:hitNormal(), vec(random(-1,1),random(-1,1),random(-1,1)), 0.5))
+        AO += AOR:distance()
+    }
+    AvgAO = (AO/AS)/AOL
+    ##
+    ##DEFINE COLOR
+    if(Ranger:entity():isValidPhysics()){
+        RGB = Ranger:entity():getColor()*Ranger:hitNormal():dot(-SD)
+        RGB = vec(abs(RGB:x()),abs(RGB:y()),abs(RGB:z()))
+    }
+    else{
+        RGB = vec(255)*Ranger:hitNormal():dot(-SD)
+        RGB = vec(abs(RGB:x()),abs(RGB:y()),abs(RGB:z()))
+    }
+    if(REFLECTING){
+        RGB = RGB*0.2
+    }
+    ##
+    if(REH:isValidPhysics() & REH:getAlpha()<255){
+        
+        rangerFilter(REH)
+        if(REFLECTING){
+            TRANS = stupidfuckiNGREFLECTNOWDAMNIT(EC,V)  
+        }
+        else{
+            TRANS=rangerOffset(65536,P,V)
+        }
+        TEH = TRANS:entity()
+        if(TEH:isValidPhysics()){
+            TRGB = TRANS:entity():getColor()
+        }
+        else{
+            TRGB = vec(REH:getAlpha())*TRANS:hitNormal():dot(-SD)
+            TRGB = vec(abs(RGB:x()),abs(RGB:y()),abs(RGB:z()))
+        }
+        RGB = mix(REH:getColor(),TRGB,REH:getAlpha()/255)
+        RGB = vec(abs(RGB:x()),abs(RGB:y()),abs(RGB:z()))
+        rangerReset()
+        rangerFilter(players())
+        rangerHitEntities(1)
+        TRANSShadow=rangerOffset(99999,TRANS:position(),SD)
+        if(!TRANSShadow:hitSky()){
+            RGB = RGB*vec(0.2)
+        }
+        if(TRANS:hitSky()){
+            RGB = mix(RGB,vec(40,180,255),REH:getAlpha()/255)
+        }
+    }
+    ##MIX COLOR WITH AO
+    RGB = RGB * round(AvgAO,1)
+    ##
+    ##LIGHTS
+    LRGB = vec(0)
+    for(L=1,Lights:count()){
+        Light = Lights[L,entity]
+        LMD = Light:mass()
+        LR = rangerOffset(LMD,RHP,Light:boxCenterW()-RHP)
+        LD = Light:boxCenterW():distance(RHP)
+        LC = Light:getColor()/255
+        #if(LR:distance()>=LD){
+        if(LR:entity()==Light){
+            LRGB += vec(LMD/LD)*LC
+        }
+    }
+    #RGB = RGB+LRGB*50
+    ##
+    ##DO SHADOWS
+    if(!Shadow:hitSky()){
+        RGB = RGB*vec(0.2)
+    }
+    ##
+    ##DO BLUE SKY
+    if(Ranger:hitSky()){
+        RGB = vec(40,180,255)
+    }
+    ##
+    ##DO WATER
+    #if(pointHasContent(Ranger:position(),"water")){
+    #   RGB = vec(0,0,255) 
+    #}
+    ##
+    RGB = clamp(RGB+vec(godray(P,RHP,SD,GRS))*45,0,255)
+    ##DRAW TO SCREEN
+    DS[I]=rgb2digi(RGB,2)
+    I++
+    setName(round(I/Res^2*100,2)+"%")
+    ##
+    ##SAVE SYSTEM
+    if(Saving){
+        PPM += (ceil(abs(RGB[1])):toString() + " " + ceil(abs(RGB[2])):toString() + " " + ceil(abs(RGB[3])):toString() + "\n")
+        finished()
+        if(I==Res^2){
+            print("Done!\nFile saved to: >e2shared/ppm/raytracing/"+PPMF+".txt")
+            runOnTick(0)
+        }
+    }
+    ##
+    if(I==Res^2){
+        print("Done!")
+        #owner():plySetPos(DS:entity():pos())
+    }
+}
+#if(Ranger:entity():getColor()!=vec(255)&!Ranger:hitWorld()){ #color detection thing
+#    RGB = clamp(((Ranger:entity():getColor()*3.5)+Ranger:distance()):normalized()*255,0,255)+vec(random(-4,4))
+#}
+#[if(I==floor((Res^2)*0.7)){
+    print(RGB)
+    print(round(AvgAO,1))
+    RGB = vec(255,0,0)
+}]#
+#[#BEGIN TRANSPARENCY
+    if(REH:isValidPhysics() & REH:getAlpha()<255){
+        
+        rangerFilter(REH)
+        TRANS=rangerOffset(65536,P,V)
+        TEH = TRANS:entity()
+        if(TEH:isValidPhysics()){
+            TRGB = TRANS:entity():getColor()
+        }
+        else{
+            TRGB = vec(REH:getAlpha())*TRANS:hitNormal():dot(-SD)
+            TRGB = vec(abs(RGB:x()),abs(RGB:y()),abs(RGB:z()))
+        }
+        RGB = mix(REH:getColor(),TRGB,REH:getAlpha()/255)
+        RGB = vec(abs(RGB:x()),abs(RGB:y()),abs(RGB:z()))
+        rangerReset()
+        rangerFilter(players())
+        rangerHitEntities(1)
+        TRANSShadow=rangerOffset(99999,TRANS:position(),SD)
+        if(!TRANSShadow:hitSky()){
+            RGB = RGB*vec(0.5)
+        }
+        if(TRANS:hitSky()){
+            RGB = mix(RGB,vec(40,180,255),REH:getAlpha()/255)
+        }
+    }
+#]#
+if(chatClk(owner())){
+    Said = lastSaid()
+    if(Said=="!start"){
+        if(Saving){
+            PPM = "P3\n"+Res+" "+Res+"\n255\n" 
+            PPMF = ""
+            for(I=1,10){
+                PPMF+=toChar(randint(65,90))
+            }
+        }
+        runOnTick(1)
+        I = 0
+        print("starting")
+    }
+    elseif(Said=="!stop"){
+        I = Res^2+1
+        print("stopped the draw")
+    }
+    elseif(Said=="!clear"){
+        DS[1048574]=1
+        DS[1048574]=0
+        print("cleared!")
+    }
+
+    elseif(Said=="!initscreen"){
+        DS[1048572]=Res 
+        DS[1048573]=Res 
+        DS[1048569]=2
+        print("restarted the screen")
+    }
+}

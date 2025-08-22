@@ -1,0 +1,49 @@
+--@name
+--@author
+--@shared
+if SERVER then
+    T = {}
+    cur = #find.allPlayers()
+    start = timer.curtime()
+    net.receive("bruh",function()
+        table.insert(T,net.readTable())
+    end)
+    hook.add("Think","results",function()
+        if #T>=cur or timer.curtime()>=start+5 then
+            table.sort(T,function(a,b)
+                return a[2] < b[2]
+            end)
+            out = {}
+            for i=1, #T do
+                table.insert(out,"Rank: " .. tostring(i) .." | Time: " .. T[i][2] .. "ms | TB: " ..T[i][3].." | Player: " .. T[i][1])
+            end
+            print(table.concat(out,"\n"))
+            hook.remove("Think","results")
+        end
+    end)
+elseif CLIENT then
+    function canRun()
+        return quotaTotalAverage()<quotaMax()*0.75
+    end
+    max = 1000000
+    stime = timer.systime()
+    i = 1
+    hook.add("Think","post",function()
+        while canRun() do 
+            for I = 1, 100 do
+                i = i + 1
+            end
+            if i >= max then
+                net.start("bruh")
+                --net.writeString("Count: " .. tostring(i) .. " | Time taken: " .. tostring(math.round(timer.systime()-stime,5)) .. "s | Player: " .. player():getName())
+                time = math.round(timer.systime()-stime,4)*1000
+                player = player():getName()
+                local T = {player,time,math.round(quotaMax(),5)}
+                net.writeTable(T)
+                net.send(nil,false)
+                hook.remove("Think","post")
+                break
+            end
+        end
+    end)
+end

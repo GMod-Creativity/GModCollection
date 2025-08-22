@@ -1,0 +1,908 @@
+@name spawnpoint
+@persist O:entity PrevPos:vector Prefix:string DupMod Sunken
+#various commands like alt teleport or antifire that have toggle go below:
+@persist Dead DPos:vector DAng:angle 
+@persist FBCR:array Shield:entity
+@persist [AF AT DR SpawnTimeout Firetimer VT VI ST Spectating]:number 
+@persist [Warps WarpNames]:array WarpCounter Exit
+@persist Org:vector MapX MapY SafeSpotRetry SafeSpotRetryWall SafeChecking
+@persist SpawnPoints:array
+@persist MLA:array MLI MLRefreshing MLLog ML
+@persist BarredP:entity BarredPly:entity
+@persist LockSaber:entity LockSpawn:entity
+@persist FS:array
+@persist SM:string SMP:vector SMA:angle
+@persist GT:gtable
+@persist CB NB #abx
+@model models/props_combine/combine_mine01.mdl
+@autoupdate
+
+
+
+
+
+#[
+    INFO FOR GITHUB UPLOAD
+    tldr, old e2, old code, old style, writing a better one soon(tm)
+    
+    commands:
+    
+    ,goto <player> #teleport to a player
+    ,bring <player> #brings a player
+    ,return #goes to your previous location, sometimes...
+    ,gotopos <x> <y> <z> #teleports to a world coordinate
+    ,alttele #press alt to teleport to where your cursor is looking at, press right alt to teleport through walls
+    ,selfd #deletes the spawnpoint e2
+    ,reset #resets/reloads the spawnpoint e2
+    ,home #teleports you to the spawnpoint
+    ,ignite <player> <seconds> #sets a player on fire
+    ,explode <player> #explodes a player with a barrel prop
+    ,setwarp <name> #sets a warp
+    ,listwarp #lists warps
+    ,delwarp <name> #deletes a warp
+    ,exportwarp #exports a single warp into a string
+    ,importwarp <warpstring> #imports a warp from exportwarp
+    ,warp <name> warps to a warp
+    ,findbyclass <class> #counts things, try "prop_physics"
+    ,vanish <number> #various vanish modes, use a camera to see what they do
+    ,shield [case] #shield, case prevents crossbolts and pulse orbs
+    ,propcount [name] #counts props, give a player name to count theirs
+    ,spectate [name] #spectates a player
+    ,safespot #tries to put you on a random spot in the map, probably wont work
+    ,strip [name] #strips you or a player if you have admin
+    ,spawn #attempts to teleport you to a spawnpoint on the map, may not always work
+    ,masslog #disables or enables the e2 stats logger
+    ,reconnect #reconnects you
+    ,teleportbehind #nothing personal kid
+    ,bar <name> #welds a prop to a player, prevents them from building or moving
+    ,trustswho <name> #gets the friends or prop protection trusted players of a player
+    ,whotrusts <name> #opposite of the above
+    ,spawnat <mode> #home = spawnpoint, spawn = map spawn, death = where you died, pos = where you stand
+]#
+
+
+
+
+
+interval(66)
+if(duped()|dupefinished()){
+    E = entity()
+    E["Sunken",number] = 1
+    Sunken = 1
+}
+if(first()){
+    #handle sinking the chip once
+    E = entity()
+    if(entity():isWeldedTo()){
+        E:constraintBreak("weld",entity():isWeldedTo())
+        E:propFreeze(1)
+    }
+    if(E["Sunken",number]!=1&Sunken==0){
+        E["Sunken",number] = 1
+        entity():setPos(entity():pos()+vec(0,0,-8))
+    }
+    
+    runOnChat(1)
+    O = owner()
+    
+    Prefix = ","
+    
+    Org = vec(0)
+    rangerHitEntities(0)
+    Height = rangerOffset(20000,Org,vec(0,0,1)):position():z()
+    MapY = rangerOffset(20000,Org,vec(0,1,0)):distance()
+    MapX = rangerOffset(20000,Org,vec(1,0,0)):distance()
+    function number entity:negateFallDamage(){
+        #ifdef entity:applyPlayerForce(vector)
+            if(This:isPlayer()){
+                This:applyPlayerForce(-This:vel())
+                return 1
+            }
+            else{
+                return 0
+            }
+        #endif
+        
+    }
+    #used for servers where teleport is broken
+    function vector entity:setPlayerPos(V:vector){
+        #ifdef entity:getLimit(string)
+            This:plySetPos(V)
+        #else
+            This:teleport(V)
+        #endif
+        return V
+    }
+    function void entity:respawnAt(V:vector,A:angle){
+        This:setPlayerPos(V)
+        #ifdef entity:plySetAng(angle)
+            This:plySetAng(A)
+        #endif
+    }
+    function string string:realNum(){
+        if(((This:toNumber()/2)*2)==This:toNumber()&This:toNumber()!=0){
+            return This
+        }
+        elseif(This:toNumber()==0){
+            local ThisL = This:lower()
+            ThisLA = ThisL:explode("")
+            for(I=1,ThisLA:count()){
+                if(inrange(toByte(ThisL,I),98,123)){
+                    return "fakenum"
+                    break
+                }
+            }
+        }
+    }
+    function string nicePos(V:vector){
+        return "["+round(V:x())+","+round(V:y())+","+round(V:z())+"]"
+    }
+    #ifndef entity:ignite()
+    function entity:ignite(){
+        This:ignite()
+    }
+    #endif
+    #ifndef entity:extinguish()
+    function entity:extinguish(){
+        This:extinguish()
+    }
+    #endif
+    
+    function string goodTime(){
+        local UTCMod = -5
+        return (time("hour")+UTCMod)%12+":"+(time("min")<=9 ? "0" : "")+time("min")+(((time("hour")+UTCMod)>=12) ? "PM" : "AM")
+    }
+    Commands = array("antifire","goto","return","pos","gotopos","alttele","selfd","dr","h")
+    
+    #ifdef abxGetBalance(entity)
+        timer("abxscratch",0)
+    #endif
+    timer("MLrefresh",0)
+    ML = 1
+    findByClass("gmod_wire_expression2")
+    MLA = findToArray()
+    MLI=1
+    MLRefreshing=1
+    printColor(vec(255),"[Spawnpoint] ",vec(255,150,0),"Mass Logger Startup")
+    SM = "home"
+    GT = gTable(owner():steamID())
+}
+Pos = O:pos()
+Ang = O:angles()
+#is the owner pressing their alt key? and alt teleporting is off?
+if(changed(O:keyWalk())&!AT&!Dead&!first()){
+    O:negateFallDamage()
+    O:respawnAt(entity():pos()+vec(0,0,entity():boxSize():z()-1),owner():angles())
+}
+if(chatClk(owner())){
+    #explode whatever the owner said into a array
+    Said = lastSaid():lower():explode(" ")
+    Cmd = Said[1,string]
+    Sub = Said[2,string]
+    Sub2 = Said[3,string]
+    Sub3 = Said[4,string]
+    Sub4 = Said[5,string]
+    PLAYER = findPlayerByName(Sub)
+    if(Cmd == Prefix+"af"|Cmd == Prefix+"antifire"){
+        AF = !AF
+        printColor(vec(255),"[Spawnpoint] ",vec(255,150,0),"AntiFire " + (AF ? "on" : "off"))
+    }
+    elseif(Cmd == Prefix+"goto"){ 
+        if(Sub){
+            PrevPos = O:pos()
+            Ply = findPlayerByName(Sub)
+            if(Ply){
+                O:negateFallDamage()
+                O:setPlayerPos(Ply:pos()+vec(0,0,Ply:boxCenter():z()+36))
+            }
+            else{
+                printColor(vec(255),"[Spawnpoint] ",vec(255,0,0),"Player '" + Sub + "' not found.")
+            }
+        } 
+        else{
+            printColor(vec(255),"[Spawnpoint] ",vec(255,0,0),"You must enter a name.")
+        }
+    }
+    elseif(Cmd == Prefix+"bring"){
+        if(Sub){
+            Ply = findPlayerByName(Sub)
+            #PrevPos = Ply:pos()
+            if(Ply){
+                Ply:negateFallDamage()
+                Ply:setPlayerPos(O:pos()+vec(0,0,O:boxCenter():z()+36))
+            }
+            else{
+                printColor(vec(255),"[Spawnpoint] ",vec(255,0,0),"Player '" + Sub + "' not found.")
+            }
+        } 
+        else{
+            printColor(vec(255),"[Spawnpoint] ",vec(255,0,0),"You must enter a name.")
+        }
+    }
+    elseif(Cmd == Prefix+"return"){
+        O:negateFallDamage()
+        O:setPlayerPos(PrevPos+vec(0,0,5))
+    }
+    elseif(Cmd == Prefix+"pos"){
+        print(O:pos())
+    }
+    elseif(Cmd == Prefix+"gotopos"){
+        PrevPos = O:pos()
+        O:setPlayerPos(vec(Sub:toNumber(),Sub2:toNumber(),Sub3:toNumber()))
+    }
+    elseif(Cmd == Prefix+"alttele"){
+        AT = !AT
+        printColor(vec(255),"[Spawnpoint] ",vec(255,150,0),"Alt Teleport " + (AT ? "on" : "off"))
+    }
+    elseif(Cmd == Prefix+"selfd"|Cmd == Prefix+"selfdestruct"){
+        printColor(vec(255),"[Spawnpoint] ",vec(255,0,0),"Self destructing...")
+        selfDestruct()
+    }
+    elseif(Cmd == Prefix+"reset"|Cmd == Prefix+"restart"){
+        printColor(vec(255),"[Spawnpoint] ",vec(255,0,0),"RESTARTING...")
+        hideChat(1)
+        reset()
+    }
+    
+    elseif(Cmd == Prefix+"h"|Cmd == Prefix+"home"){
+        PrevPos = O:pos()
+        O:negateFallDamage()
+        O:setPlayerPos(entity():pos()+vec(0,0,entity():boxSize():z()-1))
+    }
+    elseif(Cmd == Prefix+"ignite"){
+        if(findPlayerByName(Sub):isPlayer()){
+            Ply = findPlayerByName(Sub)
+            Seconds = Sub2:toNumber()
+            Name = Ply:name()
+        }
+        elseif(Sub:realNum()!="fakenum"){
+            Ply = O:aimEntity()
+            Seconds = Sub:toNumber()
+            Name = Ply:model()
+        }
+        if(Ply:isValid()&!Firetimer){
+            holoCreate(1)
+            holoEntity(1):propDraw(0)
+            holoPos(1,Ply:pos())
+            holoEntity(1):ignite()
+            holoParent(1,Ply)
+            timer("fire",Seconds*1000)
+            Firetimer = 1
+            Name 
+            printColor(vec(255),"[Spawnpoint] ",vec(255,150,0),"\""+Name+"\" has been set on fire for "+Seconds+" second(s)!")
+        }
+        else{
+            printColor(vec(255),"[Spawnpoint] ",vec(255,0,0),"Was unable to ignite \""+Name+"\"")
+        }
+    }
+    elseif(Cmd == Prefix+"ex"|Cmd == Prefix+"explode"){
+        Ply = findPlayerByName(Sub)
+        if(Ply:isValid()&propCanCreate()){
+            Bomb = propSpawn("models/props_phx/mk-82.mdl",Ply:pos(),1)
+            Bomb:propBreak()
+            printColor(vec(255),"[Spawnpoint] ",vec(255,150,0),"\""+Ply:name()+"\" has been exploded!")
+        }
+        else{
+            printColor(vec(255),"[Spawnpoint] ",vec(255,0,0),"Was unable to explode \""+Ply:name()+"\"")
+        }
+    }
+    elseif(Cmd == Prefix+"setwarp"){
+        local Pos = O:pos()
+        Warps:pushVector(Pos)
+        if(Sub == ""){
+            WarpName = "untitled"+WarpNames:count()
+            WarpNames:pushString(WarpName)
+        }
+        elseif(Sub){
+            WarpName = Sub:lower()
+            WarpNames:pushString(WarpName)
+        }
+        NicePos = "["+round(O:pos():x())+","+round(O:pos():y())+","+round(O:pos():z())+"]"
+        printColor(vec(255),"[Spawnpoint] ",vec(255,150,0),"Created warp \""+WarpName+"\" at position "+NicePos)
+    }
+    elseif(Cmd == Prefix+"listwarps"|Cmd == Prefix+"warps"){
+        if(WarpNames:count()==0&Warps:count()==0){
+            printColor(vec(255),"[Spawnpoint] ",vec(255,0,0),"No valid warps!")
+        }
+        elseif(WarpNames:count()!=Warps:count()){
+            printColor(vec(255),"[Spawnpoint] ",vec(255,0,0),"Something has gone wrong, and Warp positions and names are out of sync!")
+        }
+        else{
+            print(WarpNames)
+        }
+    }
+    elseif(Cmd == Prefix+"delwarp"){
+        for(X=1,WarpNames:count()){
+            if(Sub:lower()==WarpNames[X,string]){ 
+                NicePos = "["+round(Warps[X,vector]:x())+","+round(Warps[X,vector]:y())+","+round(Warps[X,vector]:z())+"]"
+                printColor(vec(255),"[Spawnpoint] ",vec(255,10,0),"Deleted warp \""+WarpNames[X,string]+"\" at position "+NicePos+"!")
+                WarpNames:removeString(X)
+                Warps:removeVector(X)
+                Exit = 1
+                break
+            }
+        }
+        if(!Exit){
+            printColor(vec(255),"[Spawnpoint] ",vec(255,0,0),"Not a valid warp!")
+            Exit = 0
+        }
+    }
+    elseif(Cmd == Prefix+"exportwarp"){
+        for(X=1,WarpNames:count()){
+            if(Sub:lower()==WarpNames[X,string]){
+                print("v"+Warps[X,vector]:toString():sub(2,Warps[X,vector]:toString():length()-1)+";#"+WarpNames[X,string]+"v")
+                Exit = 1
+                break
+            }
+        }
+        if(!Exit){
+            printColor(vec(255),"[Spawnpoint] ",vec(255,0,0),"Not a valid warp!")
+            Exit = 0
+        }
+    }
+    elseif(Cmd == Prefix+"importwarp"){
+        ImportE = Sub:explode("#")
+        ImportPos = ImportE[1,string]:explode(",")
+        ImportPos:unshiftString(ImportPos:removeString(1):sub(2,100))
+        ImportPos:pushString(ImportPos[3,string]:sub(1,ImportPos[3,string]:length()-1))
+        ImportPos:removeString(3)
+        FinalPos = vec(ImportPos[1,string]:toNumber(),ImportPos[2,string]:toNumber(),ImportPos[3,string]:toNumber())
+        FinalName = ImportE[2,string]:sub(1,ImportE[2,string]:length()-1)
+        Warps:pushVector(FinalPos)
+        WarpNames:pushString(FinalName)
+        printColor(vec(255),"[Spawnpoint] ",vec(255,150,0),"Imported a warp at "+nicePos(FinalPos)+" with the name of \""+FinalName+"\"")
+    }
+    elseif(Cmd == Prefix+"warp"){
+        PrevPos = O:pos()
+        for(X=1,WarpNames:count()){
+            if(Sub:lower()==WarpNames[X,string]){
+                WarpingPos = Warps[X,vector]
+                O:setPlayerPos(WarpingPos)
+                printColor(vec(255),"[Spawnpoint] ",vec(255,150,0),"Warped to \""+WarpNames[X,string]+"\"")
+                Exit = 1
+                break
+            }
+        }
+        if(!Exit){
+            printColor(vec(255),"[Spawnpoint] ",vec(255,0,0),"Not a valid warp!")
+            Exit = 0 
+        }
+    } 
+    elseif(Cmd == Prefix+"findbyclass"|Cmd == Prefix+"fbc"){
+        findClearWhiteList()
+        FBC = array()
+        FBCR = array()
+        findByClass(Sub)
+        FBC = findToArray()
+        for(I=1,FBC:count()){
+            FBCR:pushString(FBC[I,entity]:owner():name()+" ["+FBC[I,entity]:id()+"]"+" ["+FBC[I,entity]:type()+"]")
+        }
+        printTable(FBCR)
+        
+    }
+    elseif(Cmd == Prefix+"v"|Cmd == Prefix+"vanish"){
+        VI=Sub:toNumber()
+        if(VI){
+            VT = 1
+            if(VI==1){
+                O:setMaterial("Models/effects/comball_sphere")
+                O:weapon():setMaterial("Models/effects/comball_sphere")
+            }
+            elseif(VI==2){
+                O:setMaterial("models/effects/vol_light001")
+                O:weapon():setMaterial("models/effects/vol_light001")
+            }
+            elseif(VI==3){
+                O:setMaterial("models/effects/muzzleflash/blurmuzzle")
+                O:weapon():setMaterial("models/effects/muzzleflash/blurmuzzle")
+            }
+        }
+        elseif(VI==0){
+            VT = !VT
+            if(!VT){
+                O:setMaterial("")
+                O:weapon():setMaterial("")
+            }
+            else{
+                VI=3
+                O:setMaterial("models/effects/muzzleflash/blurmuzzle")
+                O:weapon():setMaterial("models/effects/muzzleflash/blurmuzzle")
+            }
+        }
+        else{
+            O:setMaterial("")
+            O:weapon():setMaterial("")
+        }
+        printColor(vec(255),"[Spawnpoint] ",vec(255,150,0),"Vanish " + (VT ? "on" : "off"))
+    }
+    elseif(Cmd == Prefix+"shield"|Cmd == Prefix+"s"){
+        ST = !ST
+        printColor(vec(255),"[Spawnpoint] ",vec(255,150,0),"Shield " + (ST ? "on" : "off") + (Sub:toNumber() ? " with" : " without") + " case")
+        if(ST){
+            Shield = propSpawn("models/hunter/misc/sphere375x375.mdl",O:pos(),1)
+            Shield:parentTo(O)
+            Shield:setMaterial("Models/effects/comball_sphere")
+            if(Sub:toNumber()==1){
+                ShieldCase = propSpawn("models/hunter/misc/shell2x2.mdl",O:pos(),1)
+                ShieldCase:parentTo(O)
+                ShieldCase:setMaterial("Models/effects/comball_sphere")
+            }
+            noCollideAll(Shield,1)
+        }
+        elseif(!ST){
+            Shield:propDelete()  
+            ShieldCase:propDelete()  
+        }
+    } 
+    elseif(Cmd == Prefix+"propcount"|Cmd == Prefix+"pc"){
+        if(Sub=="*"){
+            findClearWhitePlayerPropList()
+            findByClass("prop_physics")
+            PropCount = findToArray():count()
+            printColor(vec(255),"[Spawnpoint] ",vec(255,150,0),"There are "+PropCount+" total prop(s)")
+        }
+        else{
+            Ply = findPlayerByName(Sub)
+            if(Ply:isPlayer()){
+                findClearWhitePlayerPropList()
+                findIncludePlayerProps(Ply)
+                findByClass("prop_physics")
+                PropCount = findToArray():count()
+                printColor(vec(255),"[Spawnpoint] ",vec(255,150,0),Ply:name()+" has "+PropCount+" prop(s)")
+            }
+            else{
+                printColor(vec(255),"[Spawnpoint] ",vec(255,0,0),"Player \""+Ply:name()+"\" not found")
+            }
+        }
+    } 
+    elseif(Cmd == Prefix+"spectate"|Cmd == Prefix+"spec"|Cmd == Prefix+"sp"){
+        if(Sub!=""){
+            Ply = findPlayerByName(Sub)
+            if(Ply:isPlayer()){
+                holoCreate(2)
+                holoAlpha(2,0)
+                cameraCreate(2)
+                cameraParent(2,holoEntity(2))
+                holoPos(2,Ply:attachmentPos("eyes"))
+                holoAng(2,Ply:attachmentAng("eyes"))
+                holoParentAttachment(2,Ply,"eyes")
+                cameraToggle(2,1)
+                Spectating = 1
+            }
+        }
+        else{
+            Spectating = 0
+            cameraRemove(2)
+            holoDelete(2)
+        }
+    }      
+    elseif(Cmd == Prefix+"safespot"|Cmd == Prefix+"ss"){
+        
+        SafeSpotRetry=0
+        SafeSpotRetryWall = 0
+            
+        Pos = randvec(vec(-MapX,-MapY,Height),vec(MapX,MapY,Height))
+        DBeam = rangerOffset(20000,Pos,vec(0,0,-1))
+        
+        SafeSpotY = rangerOffset(40,DBeam:position(),vec(0,1,0)):distance()
+        SafeSpotX = rangerOffset(40,DBeam:position(),vec(1,0,0)):distance()
+        SafeSpotMY = rangerOffset(40,DBeam:position(),vec(0,-1,0)):distance()
+        SafeSpotMX = rangerOffset(40,DBeam:position(),vec(-1,0,0)):distance()
+        if(SafeSpotY<40|SafeSpotX<40|SafeSpotMY<40|SafeSpotMX<40){
+            SafeSpotRetryWall = 1
+            printColor(vec(255),"[Spawnpoint] ",vec(255,0,0),"Found an unsafe spot! Retrying...")
+        }
+        else{
+            PrevPos = O:pos()
+            owner():setPlayerPos(DBeam:position())
+            printColor(vec(255),"[Spawnpoint] ",vec(255,150,0),"Found a safe spot!")
+            SafeSpotRetry=0
+            SafeSpotRetryWall = 0
+        }
+        timer("wasitsafe",3*1000)
+        SafeChecking = 1
+    }
+    elseif(Cmd == Prefix+"strip"){
+        if(Sub == ""){
+            findClearWhitePlayerPropList()
+            findIncludePlayerProps(owner())
+            findByClass("weapon_*")
+            findToArray():propDelete()
+            findByClass("gmod_tool")
+            findToArray():propDelete()
+            findByClass("gmod_camera")
+            findToArray():propDelete()
+            findByClass("m9k_*")
+            findToArray():propDelete()
+            printColor(vec(255),"[Spawnpoint] ",vec(255,150,0),"Attempting to strip your weapons")
+        }
+        else{
+            Ply = findPlayerByName(Sub)
+            if(Ply:isPlayer()){
+                findClearWhitePlayerPropList()
+                findIncludePlayerProps(Ply)
+                findByClass("weapon_*")
+                findToArray():propDelete()
+                findByClass("gmod_tool")
+                findToArray():propDelete()
+                findByClass("gmod_camera")
+                findToArray():propDelete()
+                findByClass("m9k_*")
+                findToArray():propDelete()
+                printColor(vec(255),"[Spawnpoint] ",vec(255,150,0),"Attempting to strip "+Ply:name()+"'s weapons")
+            }
+        }
+    }
+    elseif(Cmd == Prefix+"spawn"){
+        PrevPos = O:pos()
+        if(map()=="gm_excess_island"){
+            SPID=286	
+            owner():setPlayerPos(entity(SPID):pos())
+        }
+        elseif(map()=="gm_dddustbowl2"){
+            SPIDS = array(344,345,346,347,348,349)
+            owner():setPlayerPos(entity(SPIDS[randint(1,SPIDS:count()),number]):pos())
+        }
+        elseif(map()=="gm_construct_flatgrass_v6-2"){
+            SPIDS = array(488,489,490,491)
+            owner():setPlayerPos(entity(SPIDS[randint(1,SPIDS:count()),number]):pos())
+        }
+        elseif(map()=="gm_construct_flatgrass_v6-2"){
+            SPIDS = array(812,893,894,895,896,897,898,899,900,901,902,903,904,905,906)
+            owner():setPlayerPos(entity(SPIDS[randint(1,SPIDS:count()),number]):pos())
+        }
+        else{
+            if(SpawnPoints:count()==0){
+                for(I=1,240){
+                    if(entity(I):type()=="info_player_start") {
+                        SpawnPoints:pushVector(entity(I):pos())
+                    } 
+                }
+                printColor(vec(255),"[Spawnpoint] ",vec(255,150,0),"Attempting to get the map's spawns (first time only)")
+                if(SpawnPoints:count()!=0){
+                    owner():setPlayerPos(SpawnPoints[randint(1,SpawnPoints:count()),vector])
+                }
+                else{
+                    printColor(vec(255),"[Spawnpoint] ",vec(255,0,0),"Unable to get spawnpoints! Retrying...")
+                    SpawnPointRetry = 1
+                }
+            }
+            else{
+                owner():setPlayerPos(SpawnPoints[randint(1,SpawnPoints:count()),vector])
+            }
+        }
+    }
+    elseif(Cmd == Prefix+"ml"|Cmd == Prefix+"masslog"){
+        if(ML==0){
+            timer("MLrefresh",0)
+        }
+        ML = !ML
+        printColor(vec(255),"[Spawnpoint] ",vec(255,150,0),"Mass Logger " + (ML ? "on" : "off"))
+    }
+    elseif(Cmd == Prefix+"reconnect"){
+        concmd("connect " + hostip())
+    }
+    elseif(Cmd == Prefix+"teleportbehind"|Cmd == Prefix+"tb"){
+        #concmd("say *teleports behind you* nothing personal kid")
+        PrevPos = O:pos()
+        if(Sub!=""){
+            Ply = findPlayerByName(Sub)
+            if(Ply:isPlayer()){
+                owner():setPlayerPos(Ply:pos()-(Ply:eye()*75))
+            }
+        }
+    }
+    elseif(Cmd == Prefix+"bar"){
+        if(Sub!=""){
+            Ply = findPlayerByName(Sub)
+            if(Ply:isPlayer()){
+                BarredP = propSpawn("models/hunter/blocks/cube2x2x2.mdl",Ply:pos()+vec(0,0,25),1)
+                BarredPly = Ply
+            }
+        }
+        else{
+            BarredP:propDelete()
+        }
+    }
+    elseif(Cmd == Prefix+"locksaber"){
+        LockSaber = owner():aimEntity()
+        LockSaber:propFreeze(1)
+        LockSaber:setAng(ang(90,0,0))
+    }
+    elseif(Cmd == Prefix+"lockspawn"|Cmd == Prefix+"ls"){
+        if(Sub=="unlock"|Sub=="un"){
+            stoptimer("lockspawn")
+        }
+        else{
+            timer("lockspawn",100)
+            LockSpawn = owner():aimEntity()
+        }
+    }
+    elseif(Cmd == Prefix+"trustswho" | Cmd == Prefix+"tw"){
+        Ply = findPlayerByName(Sub)
+        if(Ply){
+            print(Ply:friends())
+        }
+    }
+    elseif(Cmd == Prefix+"whotrusts" | Cmd == Prefix+"wt"){
+        Ply = findPlayerByName(Sub)
+        if(Ply){
+            print("Target: "+Ply:name())
+            foreach(I, P:entity = players()){
+                if(Ply:isAdmin()&!P:isAdmin()){
+                    FS:pushString(P:name())
+                }
+                if(P:trusts(Ply)){
+                    FS:pushString(P:name())
+                } 
+            }
+        }
+        print(FS)
+        FS = array()
+    }
+    elseif(Cmd == Prefix+"spawnat" | Cmd == Prefix+"sa"){
+        if(Sub == "home"| Sub == "h"){
+            SM = "home"
+        }
+        elseif(Sub == "spawn" | Sub == "s"){
+            SM = "spawn"
+        }
+        elseif(Sub == "death" | Sub == "d"){
+            SM = "death"
+        }
+        elseif(Sub == "pos" | Sub == "p"){
+            SM = "pos"
+            SMP = O:pos()
+            SMA = O:angles()
+        }
+        else{
+             printColor(vec(255),"[Spawnpoint] ",vec(255,0,0),"Invalid mode!")   
+        }
+        printColor(vec(255),"[Spawnpoint] ",vec(255,150,0),"Mode set to: "+SM)
+    }     
+    elseif(Cmd == Prefix+"dooradd" | Cmd == Prefix+"da"){
+        Ply = findPlayerByName(Sub)
+        if(Ply){
+            if(GT["Players",table]:exists(Ply:steamID())){
+                printColor(vec(225,30,30),"Base Chip: Player '" + Ply:name() + "' is already whitelisted.") 
+            }
+            else{
+                Players = GT["Players",table]
+                TPS = Ply:steamID()
+                TPN = Ply:name()
+                Players[TPS,string] = TPN
+            }
+        }
+    }
+    elseif(Cmd == Prefix+"doorremove" | Cmd == Prefix+"dr"){
+        Ply = findPlayerByName(Sub)
+        if(Ply){
+            if(!GT["Players",table]:exists(Ply:steamID())){
+                printColor(vec(225,30,30),"Base Chip:  Player '" + Ply:name() + "' is not whitelisted.")
+            }
+            else{
+                GT["Players",table]:remove(Ply:steamID())
+            }
+        }
+   } 
+    elseif(Cmd == Prefix+"doorlist" | Cmd == Prefix+"dl"){
+        Players = GT["Players",table]
+        if(Players:count()>0){   
+            printColor(vec(30,190,225),"Base Chip Player Whitelist:") 
+            for(I=1,Players:count())
+            {
+                K = Players:keys()[I,string]
+                V = Players[K,string]
+                printColor(vec(30,190,225),V + "   ::   " + K)
+            }
+        }
+    }
+    #[#
+    #
+    #
+    #
+    #
+    end of commands
+    #
+    #
+    #
+    #
+    #]#
+    elseif(Cmd:sub(1,1)==Prefix){
+        printColor(vec(255),"[Spawnpoint] ",vec(255,0,0),"Command \""+lastSaid()+"\" does not exist!")
+    }
+    if(Cmd:sub(1,1)==Prefix|Cmd:sub(1,1)=="."){
+        hideChat(1)
+    }
+}
+if(AF){
+    O:extinguish()
+}
+if(AT){
+    if(changed(owner():keyPressed("lalt"))&owner():keyPressed("lalt")&AT){
+        O:negateFallDamage()
+        O:setPlayerPos(owner():aimPos())
+    }
+    if(changed(owner():keyPressed("ralt"))&owner():keyPressed("ralt")){
+        rangerHitEntities(0)
+        R = rangerOffset(10000,owner():shootPos(),owner():eye())
+        O:negateFallDamage()
+        O:setPlayerPos(R:position())
+    }
+}
+
+if(changed(owner():isAlive())&!first()){ #might be a bug in here
+    Dead = !Dead
+    if(Dead){
+        DPos = Pos
+        DAng = Ang
+    }
+}
+if(changed(Dead)&Dead==0&!first()&owner():isAlive()==1){
+    if(SM=="home"){
+        O:negateFallDamage()
+        O:respawnAt(entity():pos()+vec(0,0,entity():boxSize():z()-1),owner():angles())
+    }
+    if(SM=="death"){
+        owner():respawnAt(DPos,DAng)
+        print(DPos)
+    }
+    if(SM=="spawn"){
+        #do nothing lol the server will do it
+    }
+    if(SM=="pos"){
+        O:respawnAt(SMP,SMA)
+        printColor(vec(255),"[Spawnpoint] ",vec(255,150,0),"Spawning at: "+nicePos(SMP))
+    }
+    else{
+        printColor(vec(255),"[Spawnpoint] ",vec(255,150,0),"Spawning at: "+SM)
+    }
+}
+#  ^  #
+#     #
+#  ^  #
+#     #
+#  ^  #
+#     #
+#  ^  #
+if(clk("respawn")){
+    Shield:propDelete()
+    ShieldCase:propDelete() 
+}
+if(clk("fire")&Firetimer){
+    holoUnparent(1)
+    if(holoEntity(1):isValid()){
+        holoEntity(1):extinguish()
+    }
+    holoDelete(1)
+    Firetimer=0
+}
+if(changed(O:weapon():type())&VT){
+    if(VI==1){
+        O:weapon():setMaterial("Models/effects/comball_sphere")
+    }
+    elseif(VI==2){
+        O:weapon():setMaterial("models/effects/vol_light001")
+    }
+    elseif(VI==3){
+        O:weapon():setMaterial("models/effects/muzzleflash/blurmuzzle")
+    }
+    if(changed(O:weapon():type())&O:weapon():type()!="weapon_lightsaber"){
+        findIncludePlayerProps(owner())
+        findByClass("weapon_lightsaber")
+        A = findToArray()
+        for(I=1,A:count()){
+            if(A[I,entity]:type()=="weapon_lightsaber"){
+                A[I,entity]:propDelete()
+                printColor(vec(255),"[Spawnpoint] ",vec(255,0,0),"Lightsaber has been removed to maintain vanish!")
+                break
+            }
+        }
+    }
+}
+elseif(changed(O:weapon():type())&!VT){
+    O:weapon():setMaterial("")
+}
+if(Spectating){
+    if(O:keyAttack1()){
+        cameraRemove(2)
+        Spectating = 0
+        holoDelete(2)
+    }
+}
+if(SafeChecking==1){
+    if(owner():isUnderWater()){ 
+        SafeSpotRetry=1
+    }
+    if(clkName()=="wasitsafe"){
+        SafeChecking=0
+        #print(12)
+    }
+}
+if(SafeSpotRetry|SafeSpotRetryWall){
+    SafeSpotRetry=0
+    SafeSpotRetryWall = 0
+    
+    Pos = randvec(vec(-MapX,-MapY,Height),vec(MapX,MapY,Height))
+    DBeam = rangerOffset(20000,Pos,vec(0,0,-1))
+    
+    SafeSpotY = rangerOffset(40,DBeam:position(),vec(0,1,0)):distance()
+    SafeSpotX = rangerOffset(40,DBeam:position(),vec(1,0,0)):distance()
+    SafeSpotMY = rangerOffset(40,DBeam:position(),vec(0,-1,0)):distance()
+    SafeSpotMX = rangerOffset(40,DBeam:position(),vec(-1,0,0)):distance()
+    
+    if(SafeSpotY<40|SafeSpotX<40|SafeSpotMY<40|SafeSpotMX<40){
+        SafeSpotRetryW = 1
+        printColor(vec(255),"[Spawnpoint] ",vec(255,0,0),"Found an unsafe spot! Retrying...")
+    }
+    else{
+        PrevPos = O:pos()
+        owner():setPlayerPos(DBeam:position())
+        printColor(vec(255),"[Spawnpoint] ",vec(255,150,0),"Found a safe spot!")
+        SafeSpotRetry=0
+        SafeSpotRetryW = 0
+    }
+    
+    timer("wasitsafe",3*1000)
+    SafeChecking = 1
+}
+if(ML){
+    if(clk("MLrefresh")){
+        timer("MLrefresh",15000)
+        findByClass("gmod_wire_expression2")
+        MLB = findToArray()
+        #print("refresh")
+        if(MLA:count()!=MLB:count()){
+            printColor(vec(255),"[Spawnpoint] [ML] ",vec(255,150,0),"Change detected! Refreshing now... ETR: "+MLB:count()*300 + "ms")
+            MLRefreshing = 1
+        }
+        MLA = MLB
+    }
+    if(MLRefreshing){
+                MLN = MLA[MLI,entity]:getName()
+        MLDate = time("month")+"-"+time("day")+"-"+time("year")+" @ "+goodTime()
+        Data = "~~~~
+"+MLDate+"
+Owner: "+MLA[MLI,entity]:owner():name()+"
+Owner SteamID: "+MLA[MLI,entity]:owner():steamID()+"
+CPU/OPS: "+floor(MLA[MLI,entity]:cpuUsage()*1000000)+"/"+MLA[MLI,entity]:ops()+"\n"
+        if(fileCanWrite()){
+            fileAppend(">e2shared/e2logger/"+MLN[1]+"/"+MLN+".txt",Data)
+            MLI++
+        }
+        if(MLI>MLA:count()){
+            MLI=1
+            MLRefreshing=0
+            printColor(vec(255),"[Spawnpoint] [ML] ",vec(255,150,0),"Refresh complete, " + MLA:count() + " entries written")
+        }
+    }
+}
+if(SpawnPointRetry){
+    for(I=1,240){
+        if(entity(I+240):type()=="info_player_start") {
+            SpawnPoints:pushVector(entity(I):pos())
+        } 
+    }
+    printColor(vec(255),"[Spawnpoint] ",vec(255,150,0),"Attempting to get the map's spawns")
+    if(SpawnPoints:count()!=0){
+        owner():setPlayerPos(SpawnPoints[randint(1,SpawnPoints:count()),vector])
+    }
+}  
+if(BarredPly:isPlayer()){
+    BarredP:setPos(BarredPly:pos()+vec(0,0,30))
+}
+if(clk("lockspawn")){
+    LockSaber:setPos(LockSpawn:pos()+vec(0,0,100))
+}
+#ifdef abxGetBalance(entity)
+    if(clk("abxscratch")){
+        CB = abxGetBalance(owner())
+        concmd("say @scratch")
+        timer("abxscratch",15*60*1000)
+        timer("checkbal",1000)
+    }
+    elseif(clk("checkbal")){
+        NB = abxGetBalance(owner())
+        printColor(vec(100,100,255),"[AutoScratcher]",vec(255)," Scratched ",NB-CB," autobux!")
+    }
+#endif

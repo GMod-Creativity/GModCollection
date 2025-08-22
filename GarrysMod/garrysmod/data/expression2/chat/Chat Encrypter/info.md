@@ -1,4 +1,4 @@
-- Author: XninjazXxx (gato) (Devoided)
+- Author: XninjazXxx (gato) (Devoided) (Azule)
 - Youtube: https://www.youtube.com/channel/UC-6WOjHUNpGwkk3fVCfrhGQ
 <!-- -->
 - Title: [E2] Chat Encrypter

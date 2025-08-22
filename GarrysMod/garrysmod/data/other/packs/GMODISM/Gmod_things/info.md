@@ -6,12 +6,14 @@
 
 **ACF-CAR-S MODS**
 - Date (dd-mm-yyyy): 18-03-2018
+- Source: https://www.youtube.com/watch?v=TowkUy26GyQ
 - Source: https://www.mediafire.com/folder/hy0ru085a3ogo/Gmod_things
 - Source: https://www.mediafire.com/file/d9hctb697i5szv8/ACF-Car-S_MODS.zip/file
 - Source Accessed (dd-mm-yyyy): 18-07-2025
 
 **Deathrace**
 - Date (dd-mm-yyyy): 13-07-2019
+- Source: https://www.youtube.com/watch?v=JFyVaNU833Y
 - Source: https://www.mediafire.com/folder/hy0ru085a3ogo/Gmod_things
 - Source: https://www.mediafire.com/file/j5q7n5blsijninz/Deathrace.zip/file
 - Source Accessed (dd-mm-yyyy): 18-07-2025

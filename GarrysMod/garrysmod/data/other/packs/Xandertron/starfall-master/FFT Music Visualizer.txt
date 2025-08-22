@@ -1,0 +1,47 @@
+--@name FFT Music Visualizer
+--@author Xandertron
+--@shared
+
+if CLIENT then
+    holos = {}
+    local cv = chip():getPos()
+    local c = 32
+    for i = 1, c do
+        a = ((i/c)*360)-((1/c)*360)
+        v = Vector(math.sin(math.rad(a)),math.cos(math.rad(a)),0.5)*40
+        holo = holograms.create(cv+v, Angle(), "models/holograms/hq_cylinder.mdl", Vector(0.33))
+        holo:setColor(Color(a,1,1):hsvToRGB())
+        holo:suppressEngineLighting(true)
+        table.insert(holos,holo)
+    end
+    local function dofft()
+        if isValid(sound) then
+            local fft = sound:getFFT(0)
+            for i = 1, c do
+                holo = holos[i*2]
+                CHS = holo:getScale()[3]
+                NS = fft[(i)]*12.5
+                holos[i]:setScale(Vector(0.15,0.15,math.clamp(fft[(i)]*6,0.03,6)))
+                if CHS<NS then
+                    holo:setScale(Vector(0.15,0.15,math.clamp(NS,0.03,2)))
+                else
+                    holo:setScale(Vector(0.15,0.15,math.clamp(CHS-0.25,0,2)+0.03))
+                end
+                a = (((i/c)*360)-((1/c)*360)) + timer.systime()*20
+                holo:setColor(Color(a,1,1):hsvToRGB()) 
+            end
+        end
+    end
+    URL = ""
+    //if player() == owner() then
+        bass.loadURL(URL,"3d",function(snd)
+            sound = snd
+            if sound then
+                sound:setPos(chip():getPos()+Vector(0,0,150))
+                sound:setVolume(1)
+                pcall(sound.setLooping, sound, true)
+                hook.add("tick","",dofft)
+            end
+        end)
+    //end
+end

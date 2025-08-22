@@ -1,0 +1,247 @@
+@name EGP Board
+@persist A:array Menu:number Players:table X [B B2 C C2]:array SEG:entity TimeMul:number Go
+@inputs E:wirelink U:entity
+@outputs Menu
+@trigger U
+@autoupdate
+#[
+    Xandertron5000 - STEAM_0:1:42942061 - github.com/Xandertron
+]#
+interval(800)
+if(dupefinished()|duped()){reset()}
+if(first()){
+    entity():createWire(entity():isWeldedTo(),"E","wirelink")
+    entity():createWire(entity():isWeldedTo(),"U","User")
+    setName("e2 board")
+    E:egpClear()
+    GTable = gTable(owner():steamID())
+    #create a inner players table
+    Players = GTable["Players",table]
+    GTable["Players",table] = Players
+    function number entity:getAimObject(EGP:wirelink){
+        local Out = 0
+        for (I = 1, EGP:egpNumObjects()){
+            Cursor = EGP:egpCursor(U)
+            TL = EGP:egpPos(I) - ((0.5) * EGP:egpSize(I))
+            BR = EGP:egpPos(I) + ((0.5) * EGP:egpSize(I))
+            if (inrange(Cursor, TL, BR)){
+                Out = I
+                break
+            }
+        }
+        return Out
+    }
+    function number egpClick(Ply:entity,ID){
+        return inrange(E:egpCursor(Ply),E:egpPos(ID)-(E:egpSize(ID)/2),E:egpPos(ID)+(E:egpSize(ID)/2))
+    }
+    function string nicenumber(N) {
+        local Str = N:toString()
+        local OldStr = Str
+        while(1){
+            Str = Str:replaceRE("^(-?%d+)(%d%d%d)", "%1,%2")
+            if (Str == OldStr) {break}
+            OldStr = Str
+        }
+    
+        return Str
+    }
+    function number entity:getKDR(){
+        if(isnan(This:frags()/This:deaths())==1){
+            return 0
+        }
+        elseif(isinf(This:frags()/This:deaths())==1){
+            return This:frags()
+        }
+        else{
+            return floor(This:frags()/This:deaths(),3)
+        }
+    }
+    function array sortKDR(Players:array,Kdr:array,Dir){
+        Out = array()
+        for(I=1,Players:count()){
+            LowestKdrI = Kdr:minIndex()
+            LowestKdrPlayer = Players[Kdr:minIndex(),entity]
+            if(Dir==1){
+                Out:pushEntity(LowestKdrPlayer)
+            }
+            elseif(Dir==-1){
+                Out:unshiftEntity(LowestKdrPlayer)
+            }
+            Kdr:remove(LowestKdrI)
+            Players:remove(LowestKdrI)
+        }
+        return Out
+    }
+    
+    function number constrain(N, Low, High){return max(min(N, High), Low)}
+    function number map(N, Start1, Stop1, Start2, Stop2, WithinBounds) {
+        Newval = (N - Start1) / (Stop1 - Start1) * (Stop2 - Start2) + Start2
+        if (!WithinBounds) {
+            return Newval
+        }
+        if (Start2 < Stop2) {return constrain(Newval, Start2, Stop2)} 
+        else {return constrain(Newval, Stop2, Start2)}
+    }
+    Menu = 0
+    #SEG = entity()
+}
+if(Menu == 0){
+    timer("refresh",10000)
+    if(clk("refresh")|first()|Go==1){
+        setName("e2 board, Menu: " + Menu)
+        Go=0
+        E:egpClear()
+        E:egpBox(1,vec2(256,128),vec2(512-32,240))
+        E:egpBox(2,vec2(256,128*3),vec2(512-32,240))
+        
+        E:egpText(5,"E2 List",vec2(256,128))
+        E:egpColor(5,vec(0))
+        E:egpAlign(5,1,1)
+        E:egpSize(5,72)
+        E:egpOrderAbove(3,1)
+        
+        E:egpText(6,"Player",vec2(256,128*3-32))
+        E:egpColor(6,vec(0))
+        E:egpAlign(6,1,1)
+        E:egpSize(6,72)
+        E:egpOrder(6)
+        
+        E:egpText(7,"Stats",vec2(256,128*3))
+        E:egpColor(7,vec(0))
+        E:egpAlign(7,1,-1)
+        E:egpSize(7,72)
+        E:egpOrder(7)
+        
+    }
+    if(U:getAimObject(E)==1){
+        Menu = 1
+        E:egpClear()
+        Go = 1
+        stopAllTimers()
+    }
+    if(U:getAimObject(E)==2){
+        Menu = 2
+        E:egpClear()
+        Go = 1
+        stopAllTimers()
+    }
+}
+if(Menu == 1){
+    timer("refresh",600*(TimeMul+1))
+    if(clk("refresh")|Go == 1){
+        if(findCanQuery()){
+            #findIncludePlayerProps(owner())
+            findByClass("gmod_wire_expression2")
+            A2 = findToArray()
+            A2:pushEntity(entity())
+            E2L = array()
+            for(I=1,A2:count()){
+                E2L:pushNumber(A2[I,entity]:cpuUsage()*1000000)
+            }
+            A = sortKDR(A2,E2L,-1)
+            setName("e2 board, Menu: " + Menu + "\nE2 Count: " + A:count())
+            Size = 12
+        }
+        if(changed(A:count())|Go == 1){
+            E:egpClear()
+            
+            E:egpBox(1,vec2(490,20),vec2(32))
+            E:egpText(296,">",vec2(485,10))
+            E:egpColor(296,vec(0))
+            E:egpOrder(1,296)
+            
+            E:egpText(298,"Name",vec2(10,10))
+            E:egpText(299,"Owner",vec2(256,10))
+            E:egpText(300,"CPU/OPS",vec2(398,10))
+        }
+        Go = 0
+        if(A:count()>15){
+            TimeMul = 2
+        }
+        else{
+            TimeMul = 0
+        }
+        for(I=1,A:count()){
+            if(I<30){
+                E:egpText(I+1,A[I,entity]:getName(),vec2(20,I*Size+Size*2))
+                E:egpText(I+51,A[I,entity]:owner():name(),vec2(256,I*Size+Size*2))
+                E:egpColor(I+51,teamColor(A[I,entity]:owner():team()))
+                if(A[I,entity]:owner():name()==""){
+                    E:egpText(I+51,"DISCONNECTED",vec2(256,I*Size+Size*2))
+                }
+                E:egpText(I+101,floor(A[I,entity]:cpuUsage()*1000000)+"/"+A[I,entity]:ops(),vec2(400,I*Size+Size*2))
+                CPU = floor(A[I,entity]:cpuUsage()*1000000)
+                if(CPU>200){
+                    if(CPU>1500){
+                        E:egpColor(I+101,vec(255,0,0))
+                    }
+                    else{
+                        Map = map(CPU, 200, 1500, 0, 120, 0)
+                        Color = hsv2rgb(abs(Map-60),1,1)
+                        E:egpColor(I+101,Color)
+                    }
+                }
+                #[if(!SimpleMode){
+                    E:egpBox(I+150,vec2(9,I*20+30),vec2(15,15))
+                    E:egpMaterial(I+150,"gui/info")
+                    if(changed(egpClick(U,I+150))&egpClick(U,I+150)&changed(U:keyUse())&U:keyUse()){
+                        E:egpClear()
+                        Menu = 4
+                        Go = 1
+                        X=516
+                        SEG = A[I,entity]
+                    }
+                }]#
+                E:egpSize(I+1,Size)
+                E:egpSize(I+51,Size)
+                E:egpSize(I+101,Size)
+            }
+        }
+    }
+    if(U:getAimObject(E)==1){
+        timer("refresh",10000)
+        Menu = 0
+        E:egpClear()
+        Go = 1
+    }
+}
+
+elseif(Menu==2){
+    timer("refresh",5000)
+    if(clk("refresh")|Go == 1){
+        Go = 0  
+        E:egpClear()
+        E:egpBox(1,vec2(490,20),vec2(32))
+        E:egpText(296,">",vec2(485,10))
+        E:egpColor(296,vec(0))
+        E:egpOrder(1,296)
+        
+        E:egpText(298,"Name",vec2(10,10))
+        E:egpText(299,"Kills/Deaths",vec2(256,10))
+        E:egpText(300,"KDR",vec2(398,10))
+        KDR = array()
+        for(I=1,players():count()){
+            KDR:pushNumber(players()[I,entity]:getKDR())
+        }
+        
+        A = sortKDR(players(),KDR,-1)
+        
+        for(I=1,A:count()){
+            if(A[I,entity]:name():length()>20){
+                E:egpText(I+1,A[I,entity]:name():sub(1,30)+"...",vec2(10,I*20+20))
+                E:egpColor(I+1,teamColor(A[I,entity]:team()))
+            }
+            else{
+                E:egpText(I+1,A[I,entity]:name(),vec2(10,I*20+20))
+                E:egpColor(I+1,teamColor(A[I,entity]:team()))
+            }
+            E:egpText(I+50,toString(A[I,entity]:frags())+" / "+toString(A[I,entity]:deaths()),vec2(256,I*20+20))
+            E:egpText(I+101,toString(A[I,entity]:getKDR()),vec2(400,I*20+20))
+        } 
+    }
+    if(U:getAimObject(E)==1){
+        Menu = 0
+        E:egpClear()
+        Go = 1
+    }
+}

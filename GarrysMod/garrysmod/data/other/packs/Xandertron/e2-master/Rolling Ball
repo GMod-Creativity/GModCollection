@@ -1,0 +1,182 @@
+@name Rolling Ball
+@inputs ManualSeat:entity
+@persist [Seat Ball O E2]:entity [Size Force NewForce RM RMT ManualWire]:number BallColor:vector [Sizes]:array [Prefix]:string
+#[
+    Xandertron5000 - STEAM_0:1:42942061 - github.com/Xandertron
+    Old E2 I made back in 2018-ish. Some things are horribly made when i was awful at E2.
+]#
+if(first()){
+    Sizes = array(3,6,9,12,18,24,30,36,42,48,60,72,84,96,108,120,132,144)
+    ManualWire=0
+    MakeSpherical=1
+    E2 = entity()
+    O = owner()
+    Size = 72
+    Prefix = "-"
+    BallColor = vec(255,255,255)
+    if(!ManualWire){
+        Seat = seatSpawn("",1)
+        Seat:setAng(ang(0))
+        Seat:setMaterial("models/debug/debugwhite")
+        Seat:setColor(vec(0))
+    }
+    Ball = propSpawn("models/sprops/geometry/sphere_"+toString(Size)+".mdl",0)
+    Ball:setMaterial("models/debug/debugwhite") 
+    #ifdef entity:makeSpherical(number)
+        if(MakeSpherical){
+            Ball:makeSpherical(Size/2) 
+        }
+    #endif
+    Ball:setMass(100)
+    Ball:setPos(Ball:pos()+vec(0,0,Size+18))  
+    NewForce = 10
+    holoCreate(1)
+    holoAlpha(1,0)
+    if(!ManualWire){
+        E2:setAlpha(0)
+        E2:propNotSolid(1)
+    }
+    RMT = 1 # toggler for rainbow
+    holoCreate(5)
+    holoAlpha(5,0)
+    holoPos(5,Ball:pos()+vec(0,0,0))
+    holoParent(5,Ball)
+    holoEntity(5):soundPlay(0,0,"ambient/machines/fluorescent_hum_1.wav")
+}
+runOnTick(1)
+runOnChat(1)
+holoAng(1,ang(0,Seat:driver():eyeAngles():yaw(),0))
+if(!Ball){Seat:printDriver("Ball was removed"),selfDestruct(),Seat:propDelete()}
+else{
+    Seat:setPos(Ball:pos()+(Ball:vel()*tickInterval())+vec(0,0,Size/2+18))
+    Seat:propFreeze(1)
+}
+if(changed(ManualSeat)&ManualSeat&ManualWire==1){
+    Seat = ManualSeat
+    Seat:setAng(ang(0))
+    Seat:setMaterial("models/debug/debugwhite")
+    Seat:setColor(vec(0))
+    noCollideAll(Seat,1)
+    E2:setAlpha(0)
+    E2:propNotSolid(1)
+}
+if(changed(Seat:driver())&Seat:driver()){
+    Seat:printDriver("
+[Rolling Ball] - "+Prefix+"h1 or "+Prefix+"h2 for help on using the ball")
+}
+if(RM==1){Ball:setColor(hsv2rgb(100*curtime()%360,1,1))}else{Ball:setColor(BallColor)}
+if (chatClk(Seat:driver())) {
+    local Said = Seat:driver():lastSaid():trim()
+    local Find = Said:explode(" ")
+    local Cmd = Find[1,string]
+    local SubCmd = Find[2,string]
+    local SubCmd2 = Find[3,string]
+    local SubCmd3 = Find[4,string]
+    if (Cmd==Prefix+"rm") {
+        if(RMT==0){
+        RM = 0 
+        RMT = 1
+        }
+        else{
+        RM = 1
+        RMT = 0
+        }
+        hideChat(1)
+    }
+    elseif(Cmd==Prefix+"sm"){
+        Ball:setMass(SubCmd:toNumber(10))
+        hideChat(1)
+        Seat:printDriver("
+[Rolling Ball] - Ball mass was set to " + Ball:mass())
+    }
+    elseif(Cmd==Prefix+"ss"){
+        NewForce = SubCmd:toNumber(10)
+        hideChat(1)
+        Seat:printDriver("
+[Rolling Ball] - Ball force was set to " + NewForce)
+    }
+    elseif(Cmd==Prefix+"sc"){
+        Ball:setColor(vec(SubCmd:toNumber(10),SubCmd2:toNumber(10),SubCmd3:toNumber(10)))
+        BallColor = vec(SubCmd:toNumber(10),SubCmd2:toNumber(10),SubCmd3:toNumber(10))
+        Seat:printDriver("
+[Rolling Ball] - Ball was set to "+BallColor)
+        hideChat(1)
+    }
+    elseif(Cmd==Prefix+"size"){
+        if(findNumberInArray(SubCmd:toNumber(10),Sizes)){
+        hideChat(1)
+        local Pos = Ball:pos()
+        Mass = Ball:mass()
+        holoUnparent(5)
+        Ball:propDelete()
+        Size = SubCmd:toNumber(10)
+        Ball = propSpawn("models/sprops/geometry/sphere_"+toString(Size)+".mdl",0)
+        Ball:setMaterial("models/debug/debugwhite") 
+        #ifdef entity:makeSpherical(number)
+            Ball:makeSpherical(Size/2) 
+        #endif
+        Ball:setMass(Mass)
+        Ball:setPos(Pos+vec(0,0,Size+18))
+        holoPos(5,Ball:pos())
+        holoParent(5,Ball)
+        Seat:printDriver("
+[Rolling Ball] - Ball size was set to "+Size+" units")  
+        }
+        else{
+            Seat:printDriver("
+[Rolling Ball] - Invalid Size")
+        }
+    }
+    elseif(Cmd==Prefix+"h1"){
+        hideChat(1)
+        Seat:printDriver("
+[Rolling Ball] - "+Prefix+"bb - Brings the ball
+[Rolling Ball] - "+Prefix+"rm - Toggles rainbow mode
+[Rolling Ball] - "+Prefix+"sm - Sets the mass of the ball
+[Rolling Ball] - "+Prefix+"sc - Sets the color of the ball ex. !sc 255 0 0
+[Rolling Ball] - "+Prefix+"h1 - Prints this list again")
+    }
+    elseif(Cmd==Prefix+"h2"){
+        hideChat(1)
+        Seat:printDriver("
+[Rolling Ball] - "+Prefix+"ss - Sets the speed of the ball
+[Rolling Ball] - "+Prefix+"size - Sets the size of the ball
+[Rolling Ball] - Sizes can be: 3 6 9 12 18 24 30 36 42 48 60 72 84 96 108 120 132 144
+[Rolling Ball] - "+Prefix+"h2 - Prints this list again")
+    }
+}
+if (chatClk(owner())) {
+    local Said = owner():lastSaid():trim()
+    local Find = Said:explode(" ")
+    local Cmd = Find[1,string]
+    local SubCmd = Find[2,string]
+    local SubCmd2 = Find[3,string]
+    local SubCmd3 = Find[4,string]
+    if (Cmd==Prefix+"bb") {
+        Ball:setPos(O:pos())
+        hideChat(1)
+    }
+}
+if(Seat:driver():keyPressed("W")){
+Ball:applyForce(holoEntity(1):forward()*Ball:mass()*Force)}
+
+if(Seat:driver():keyPressed("S")){
+Ball:applyForce(-holoEntity(1):forward()*Ball:mass()*Force)}
+
+if(Seat:driver():keyPressed("A")){
+Ball:applyForce(-holoEntity(1):right()*Ball:mass()*Force)}
+
+if(Seat:driver():keyPressed("D")){
+Ball:applyForce(holoEntity(1):right()*Ball:mass()*Force)}
+
+if(Seat:driver():keyPressed("space")){
+Ball:applyAngForce(-Ball:angVel()*Ball:mass()*3)}
+
+if(changed(Seat:driver():keyPressed("lalt"))&Seat:driver():keyPressed("lalt")){
+    Ball:applyForce(vec(0,0,Ball:mass()*Force*100))}
+if(Seat:driver():keyPressed("lshift")){
+    Force = NewForce * 3
+}
+else{Force = NewForce}
+Speed = Ball:vel():length() 
+soundPitch(0, sqrt(Speed/3))

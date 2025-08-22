@@ -1,0 +1,271 @@
+@name text editor
+@inputs E:wirelink KeyboardMemory
+@persist Cursor CursorX CursorY
+@persist Line:string LineTexts:array UC LineNumber WC LnOff
+@outputs Cursor Line:string LineTexts:array
+@trigger 
+#[
+    Made by Xandertron5000 - STEAM_0:1:42942061 - github.com/Xandertron
+    Some things may be broken.
+]#
+interval(350)
+if(duped()|dupefinished()){reset()}
+if(first()){
+    E:egpClear()
+    function vector2 vec(N,N2){
+        return vec2(N,N2)
+    }
+    function void wirelink:egpC2CBox(Idx,Pos1:vector2,Pos2:vector2){
+        local Points = array()
+        Points[1,vector2] = Pos1
+        Points[2,vector2] = vec2(Pos2:x(),Pos1:y())
+        Points[3,vector2] = Pos2
+        Points[4,vector2] = vec2(Pos1:x(),Pos2:y())
+        This:egpPoly(Idx,Points)
+    }
+    function number validChar(N){
+        if(inrange(N,32,137)){
+            return 1
+        }
+        else{
+            return 0
+        }
+    }
+    function void wirelink:applyTextSettings(N){
+        E:egpAlign(N,0,1)
+        E:egpSize(N,14)
+        E:egpFont(N,"Lucida Console")
+    }
+    function void redraw(N){
+        #set 30 to whatever the max is later for scrolling
+        for(I=1,24){
+            E:egpRemove(I+2)
+            E:egpText(I+2,LineTexts[I+N,string],vec2(20,I*20+10))
+            E:applyTextSettings(I+2)
+            
+        }
+    }
+    
+    WC = 0 
+    Cursor=0 
+    CursorX = Cursor+2
+    CursorY = 30
+    LineNumber = 1
+    #LineTexts = "somebody once told me the world was gonna roll me":explode(",")
+    #Line = LineTexts[1,string]
+    G = getCode():explode("\n")
+    Line = G[1,string]
+    LineTexts=G
+    E:egpC2CBox(2,vec2(0,0),vec2(512,512))
+    E:egpColor(2,vec(35))
+    E:egpLine(1,vec2(9*CursorX+2,CursorY-15),vec2(9*CursorX+2,CursorY+15))
+    for(I=1,LineTexts:count()){
+        WC+=LineTexts[I,string]:explode(" "):count()
+    }
+    E:egpText(300,"Csr: "+Cursor+" | Ln: "+LineNumber+" | WC: "+WC,vec2(512,0))
+    E:egpAlign(300,2,0)
+    E:egpText(LineNumber+2,Line,vec2(20,CursorY))
+    E:egpAlign(LineNumber+2,0,1)
+    E:egpSize(LineNumber+2,14)
+    E:egpFont(LineNumber+2,"Lucida Console")
+    LnOff=0
+    redraw(LnOff)
+}
+
+if(~KeyboardMemory&KeyboardMemory){
+    Memory = KeyboardMemory
+    if(UC){
+        C=(toChar(Memory)):upper() 
+    }
+    else{
+        C=toChar(Memory)
+    }
+    #prevent weird characters
+    if(Memory==155|Memory==175|Memory==176|Memory==177){}
+    #left arrow
+    elseif(Memory==19){
+        Cursor--
+        if(Cursor<=0){
+            Cursor=0
+        }
+    }
+    #right arrow
+    elseif(Memory==20){
+        Cursor++
+        if(Cursor>=Line:length()){
+            Cursor=Line:length()
+        }
+    }
+    #up arrow
+    elseif(Memory==17){
+        if(LineNumber!=1){
+            LineTexts[LineNumber,string]=Line
+            LineNumber--
+            Line=LineTexts[LineNumber,string]
+            CursorY -= 20
+            #if the line above is smaller than the one we were on
+            if(Cursor>=Line:length()){
+                Cursor=Line:length()
+            }
+            E:egpText(LineNumber+2,LineTexts[LnOff+LineNumber,string],vec2(20,CursorY))
+            #dont think we need this E:egpLine(1,vec2(9*CursorX+2,CursorY-15),vec2(9*CursorX+2,CursorY+15))
+        }
+    }
+    #down arrow
+    elseif(Memory==18){
+        if(LineTexts:count()>=LineNumber+1){
+            LineTexts[LineNumber,string]=Line
+            LineNumber++
+            Line=LineTexts[LineNumber,string]
+            CursorY += 20
+            if(Cursor>=Line:length()){
+                Cursor=Line:length()
+            }
+            E:egpText(LineNumber+2,LineTexts[LnOff+LineNumber,string],vec2(20,CursorY))
+            #dont think we need thisE:egpLine(1,vec2(9*CursorX+2,CursorY-15),vec2(9*CursorX+2,CursorY+15))
+        }
+    }
+    #backspace
+    elseif(Memory==127){
+        if(Cursor>0){
+            Line=Line:sub(1,Cursor-1)+Line:sub(Cursor+1,Line:length())
+            Cursor--
+        }
+        elseif(LineNumber!=1){
+            #move the cursor to the end of the last line
+            Cursor=LineTexts[LineNumber-1,string]:length()
+            #set the last line to itself plus the current line
+            BackLine = LineTexts[LineNumber-1,string]+Line
+            print(BackLine)
+            Line = BackLine
+            #remove the line that we moved to the last line
+            LineTexts:removeString(LineNumber)
+            redraw(LnOff)
+            LineNumber--
+            CursorY -= 20
+            
+        }
+    }
+    #enter key
+    elseif(Memory==13|Memory==10){
+        #what i want so if the cursor is before the end of the line, split it so the text before the line stays
+        #and the text after the line gets pushed down
+        if(Cursor<Line:length()){
+            #split the current line where we pressed enter at
+            LineTexts[LineNumber,string]=Line:sub(1,Cursor)
+            E:egpText(LineNumber+2,LineTexts[LineNumber,string],vec2(20,CursorY))
+            Line = Line:sub(Cursor+1,Line:length())
+            LineTexts:insertString(LineNumber+1,Line)
+            redraw(LnOff)
+            Cursor=0
+            CursorY += 20
+            LineNumber++
+            E:applyTextSettings(LineNumber+2)
+        }
+        else{
+            #move the cursor down and to the start
+            Cursor=0
+            CursorY += 20
+            #save the line for later
+            LineTexts[LineNumber,string]=Line
+            LineTexts:insertString(LineNumber+1,"")
+            redraw(LnOff)
+            #increment the line number
+            LineNumber++
+            #clear the currently stored line
+            Line = ""
+            E:applyTextSettings(LineNumber+2)
+        }
+    }
+    #capslock
+    elseif(Memory==144){
+        if(UC){UC=0}
+        else{UC=1}
+    }
+    elseif(Memory==151){
+        if(LnOff!=0){
+            LineTexts[LnOff+LineNumber,string]=Line
+            LnOff--
+            redraw(LnOff)
+            Line = LineTexts[LnOff+LineNumber,string]
+            E:egpText(LineNumber+2,LineTexts[LnOff+LineNumber,string],vec2(20,CursorY))
+        }
+    }
+    elseif(Memory==152){
+        LineTexts[LnOff+LineNumber,string]=Line
+        LnOff++
+        redraw(LnOff)
+        Line = LineTexts[LnOff+LineNumber,string]
+        E:egpText(LineNumber+2,LineTexts[LnOff+LineNumber,string],vec2(20,CursorY))
+    }
+    #typing
+    else{
+        #when the text is falling off the screen
+        #explode it, and push the last index down
+        if(validChar(Memory)){
+            if(Cursor>53){
+                #move the cursor down and to the start
+                Cursor=0
+                CursorY += 20
+                #save the line for later
+                TA = Line:explode(" ")
+                TS = TA[TA:count(),string]
+                TA:pop()
+                LineTexts[LineNumber,string]=TA:concat(" ")
+                redraw(LnOff)
+                #increment the line number
+                LineNumber++
+                #clear the currently stored line
+                E:applyTextSettings(LineNumber+2)
+                #Te=LineTexts[LineTexts[LineNumber-1,string]:explode(" "):count(),string]
+                Line=TS+C
+                #print(LineTexts[LineTexts[LineNumber-1,string]:explode(" "):count(),string]
+                Cursor=TS:length()+1
+            }
+            else{
+                Line=Line:sub(1,Cursor)+C+Line:sub(Cursor+1,Line:length())
+                Cursor++
+            }
+        }
+    }
+    CursorX = Cursor+2
+    E:egpLine(1,vec2(9*CursorX+2,CursorY-15),vec2(9*CursorX+2,CursorY+15))
+    E:egpText(LineNumber+2,Line,vec2(20,CursorY))
+    WC=0
+    WC+=Line:explode(" "):count()
+    for(I=1,LineTexts:count()){
+        if(I!=LineNumber){
+            WC+=LineTexts[I,string]:explode(" "):count()
+        }
+    }
+    E:egpText(300,"Csr: "+Cursor+" | Ln: "+LineNumber+" | WC: "+WC,vec2(512,0))
+    E:egpAlign(300,2,0)
+    E:applyTextSettings(LineNumber+2)
+    if(Cursor<Line:length()){
+        E:egpColor(1,vec(255,0,0))
+    }
+    else{
+        E:egpColor(1,vec(255))
+    }
+    #print(LineNumber)
+}
+if(floor(2*curtime()%2)==1|~KeyboardMemory){
+    E:egpAlpha(1,255)
+}
+else{
+    E:egpAlpha(1,0)
+}
+#[
+for scrolling idk lol figure this out later
+
+
+when the up arrow is pressed, keep Cursor the same, if the cursor is bigger than LineTexts[Line,string] 
+then set it to that 
+DONE
+
+check for if theres more lines instead of just checking ""
+DONE
+
+also push down the other lines when enter is pressed
+possibly redraw all the lines too
+DONE

@@ -1,0 +1,109 @@
+@name Mandera's Hover Board
+@inputs APC:wirelink
+@outputs E:entity  Ang:angle AngVel:angle  Coo:vector CooZ  DistF DistB  InAir Jump Turn  Seat:entity HoverEnt:entity  EnteredSeat
+runOnTick(1)
+
+
+# Changeable Variables
+Height = 40
+Gravity = 14000
+TurnSpeed = 110
+PitchSpeed = 400
+RollSpeed = 400
+ForwardSpeed = 1000
+
+
+# ------------------------------------------------------------------
+# Don't change stuff under this line :)
+
+
+# The board
+E = entity():isWeldedTo()
+
+# E2 Color
+entity():setColor(vec(30,25,25))
+
+
+# Rangers
+rangerHitWater(1)
+# Front Ranger
+F = rangerOffset(99999,E:pos() + E:right() * -48,-E:up())
+DistF = F:distance()
+
+# Back Ranger
+B = rangerOffset(99999,E:pos() + E:right() * 48,-E:up())
+DistB = B:distance()
+
+# Hover Entity
+if(DistF < DistB) {HoverEnt = F:entity()}
+if(DistB < DistF) {HoverEnt = B:entity()}
+
+
+# Hint
+# Getting the Seat entity
+if(E:isConstrainedTo(1):type() == "prop_vehicle_prisoner_pod") {Seat = E:isConstrainedTo(1)}
+if(E:isConstrainedTo(2):type() == "prop_vehicle_prisoner_pod") {Seat = E:isConstrainedTo(2)}
+if(E:isConstrainedTo(3):type() == "prop_vehicle_prisoner_pod") {Seat = E:isConstrainedTo(3)}
+if(E:isConstrainedTo(4):type() == "prop_vehicle_prisoner_pod") {Seat = E:isConstrainedTo(4)}
+if(E:isConstrainedTo(5):type() == "prop_vehicle_prisoner_pod") {Seat = E:isConstrainedTo(5)}
+if(E:isConstrainedTo(6):type() == "prop_vehicle_prisoner_pod") {Seat = E:isConstrainedTo(6)}
+if(E:isConstrainedTo(7):type() == "prop_vehicle_prisoner_pod") {Seat = E:isConstrainedTo(7)}
+
+# Writing the Hints
+if(first()) {EnteredSeat = 1}
+if(!APC["Active", number]) {EnteredSeat = 1}
+
+if(APC["Active", number] & EnteredSeat) {
+    Seat:hintDriver("Mandera's Hover Board",20)
+    Seat:hintDriver("Controls On Ground:",20)
+    Seat:hintDriver("W, A, S And D.",20)
+    Seat:hintDriver("Shift To Activate The Drift Function.",20)
+    Seat:hintDriver("Space To Jump.",20)
+    Seat:hintDriver("Controls In Air:",20)
+    Seat:hintDriver("A And D For Turning.",20)
+    Seat:hintDriver("Mouse 1 And 2 For Roll.",20)
+    Seat:hintDriver("Shift And R For Flip.",20)
+    EnteredSeat = 0
+}
+
+
+# Angles
+InAir = ((Height - min(DistF,DistB)) < 0)
+
+# Pitch and Roll angles when on ground
+Ang = -E:angles():setYaw(0) * 15000 * ang(1,4,4) * !InAir
+
+# Accumulating Turning Speed
+Turn += (APC["A", number] - APC["D", number]) / 10 * (Turn < 1 & Turn > -1)
+if(!APC["A", number] & !APC["D", number] | (APC["A", number] & APC["D", number]) | (APC["A", number] & Turn < 0) | (APC["D", number] & Turn > 0)) {Turn = 0}
+
+# Angles based on velocity in air, also turning on ground
+AngVel = ang(
+    (RollSpeed * (APC["Mouse2", number] - APC["Mouse1", number]) - E:angVel():pitch()) * 375 * InAir,
+    (TurnSpeed * Turn * !InAir + TurnSpeed * (APC["A", number] - APC["D", number]) * InAir * 2 - E:angVel():yaw()) * 1500,
+    (PitchSpeed * (APC["R", number] - APC["Shift", number]) * InAir - E:angVel():roll()) * 1500 * InAir)
+
+# Angular Force
+E:applyAngForce(AngVel + Ang + $Ang * 5)
+
+
+# Vector
+# Jumping Function
+if(APC["Space", number] & !InAir) {
+    Jump = 1
+    timer("StopJump",50)
+}
+if(Jump) {
+    Gravity = -100000
+}
+if(clk("StopJump")) {
+    Jump = 0
+}
+
+# Forward / Backward Speed, Strafe Resistance and also Drifting function
+Coo = (E:right() * ForwardSpeed * !InAir * (APC["S", number] - APC["W", number]) - E:vel()):setZ(0) * (100 - InAir * 95 - APC["Shift", number] * !InAir * 80)
+# Height force
+CooZ = (Height - min(DistF,DistB)) * 7000 * !InAir
+
+# Vector Force
+E:applyForce(Coo + vec(0,0,CooZ) + vec(0,0,$CooZ) * 5 + vec(0,0,-Gravity))

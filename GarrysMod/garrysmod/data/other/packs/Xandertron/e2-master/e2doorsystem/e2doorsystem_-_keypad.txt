@@ -1,0 +1,120 @@
+@name XDOOR - Keypad
+@inputs FadingDoor:wirelink
+@outputs A B
+@persist LOCKED NOREPEAT GT:gtable REOPEN RELOCK  KP:entity  Players:table
+@trigger
+@autoupdate
+interval(80)
+if(first()|duped()){
+    ##Welcome to Xander's door system!
+    #A will output 1 when the player is allowed (door controllers)
+    #B will output 1 when the player is denied (ex: turrets, explosives, etc)
+    #Wirelink fading doors with the "FadingDoor" input, this is so you can have multiple keypads per door!
+    #More stuff will come later such as open and close times being dependant on the color of the chip 
+    
+    
+    entity():propDraw(0)
+    #printColor(vec(230,0,255),"[Keypad]["+entity():id()+"]",vec(255),": Starting...")
+    ##Access Table
+    GT = gTable(owner():steamID())
+    Players = GT["players",table]
+    ##
+    if(GT["ready",number]==0){
+        #printColor(vec(230,0,255),"[Keypad]["+entity():id()+"]",vec(255),": Warning the main base chip has not started yet... Retrying in 5s")
+        timer("reset",5000)
+        LOCKED = 1
+    }
+    else{
+        LOCKED = 0
+    }
+    ##Holos
+    holoCreate(1)
+    holoModel(1,"models/mechanics/solid_steel/u_beam_8.mdl")
+    holoScale(1,vec(0.5,0.075,0.2))
+    holoPos(1,entity():toWorld(vec(0,0,1)))
+    holoAng(1,entity():toWorld(ang(0,90,0)))
+    holoCreate(2)
+    holoScale(2,vec(0.145,0.425,0.175))
+    holoPos(2,entity():toWorld(vec(-2.5,0,1.1)))
+    holoColor(2,vec(0,255,0))
+    holoDisableShading(2,1)
+    holoCreate(3)
+    holoScale(3,vec(0.425,0.425,0.175))
+    holoPos(3,entity():toWorld(vec(0.9,0,1.1)))
+    holoColor(3,vec(170))
+    holoMaterial(3,"models/props_canal/canal_bridge_railing_01a")
+    holoCreate(4)
+    holoScale(4,vec(0.3,0.3,0.2))
+    holoModel(4,"cylinder")
+    holoPos(4,entity():toWorld(vec(1,0,1.2)))
+    holoColor(4,vec(255))
+    holoMaterial(4,"models/props_combine/masterinterface_alert")
+    REOPEN = 1
+    KP = entity()
+}
+if(!LOCKED){
+    for(I=1,players():count()){
+        Ply = players()[I,entity]
+        if(Ply:shootPos():distance(KP:pos())<80){
+            if(changed(Ply:keyUse())&Ply:keyUse()&Ply:aimEntity()==KP&(!NOREPEAT)){#if e is hit
+                if(Players:exists(Ply:steamID())){
+                    holoColor(2,vec(0,255,255))
+                    entity():soundPlay(1,2,"buttons/button3.wav")
+                    NOREPEAT = 1
+                    timer("clr",1750)
+                    FadingDoor["Fade",number] = 1
+                    A = 1
+                }
+                else{
+                    holoColor(2,vec(255,0,0))
+                    entity():soundPlay(1,4,"buttons/button11.wav")
+                    NOREPEAT = 1
+                    timer("clr",4000)
+                    B = 1
+                }
+            }
+        }
+    }                                                                
+}
+else{
+    holoColor(2,vec(255,0,0))
+}
+if(GT["lockall",number] == 0&REOPEN == 1){
+    holoColor(2,vec(0,255,255))
+    NOREPEAT = 1
+    FadingDoor["Fade",number] = 1
+    A = 1
+    RELOCK = 1
+    REOPEN = 0
+}
+elseif(GT["lockall",number]==1&RELOCK == 1){
+    NOREPEAT = 0
+    holoColor(2,vec(0,255,0))
+    FadingDoor["Fade",number] = 0
+    A = 0
+    B = 0
+    RELOCK = 0
+    REOPEN = 1
+}
+if(clk("clr")){
+    NOREPEAT = 0
+    holoColor(2,vec(0,255,0))
+    FadingDoor["Fade",number] = 0
+    A = 0
+    B = 0
+}
+if(clk("reset")){
+    if(GT["ready",number]==0){
+        printColor(vec(230,0,255),"[Keypad]["+entity():id()+"]",vec(255),": Warning the main base chip has not started yet... Retrying in 10s")
+        timer("reset",10000)
+    }
+    else{
+        Players = GT["players",table]
+        LOCKED = 0
+        holoColor(2,vec(0,255,0))
+    }
+}
+
+
+
+

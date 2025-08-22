@@ -1,0 +1,110 @@
+--@name physics
+--@author Xandertron
+--@client
+
+--[[
+Original engine: https://github.com/ivansergeev/matter-lua
+Ported by Xandertron to Starfall (and generally normal lua)
+
+<!> Requires https://github.com/Xandertron/starfall/tree/master/lib/matter
+
+Work done so far:
+
+Converted Playdate's lua fork additions to normal lua
+Library more or less generally works, some functions might be missing if you use more of the library
+The built in renderer was stripped out, not useful here
+Polyfills for import and table.clone (shallow copy)
+
+Vertices.fromPath in lib/matter/geometry/vertices.txt was changed to not use regex cause of Starfall's restrictions
+
+Probably forgetting something, but it mostly works even under the great "constraints" of StarfallEx
+
+]]
+
+print("Press E on the screen to spawn boxes, Right click to spawn circles")
+
+--@includedir lib/matter/
+--@includedir lib/matter/body/
+--@includedir lib/matter/collision/
+--@includedir lib/matter/constraint/
+--@includedir lib/matter/core/
+--@includedir lib/matter/factory/
+--@includedir lib/matter/geometry/
+--@includedir lib/matter/libs/
+
+path = "/lib/"
+
+--polyfills
+function import(filePath)
+    require(path .. filePath .. ".txt")
+end
+
+function table.clone(tbl)
+    return {unpack(tbl)}
+end
+
+require("lib/matter/matter.txt")
+
+local engine = Engine.create()
+local world = engine.world
+local runner = Runner.create()
+
+World.add(world, {
+    -- Walls
+    Bodies.rectangle(256,    16,     512, 32, { isStatic= true }),
+    Bodies.rectangle(256,    512-16, 512, 32, { isStatic= true }),
+    Bodies.rectangle(16,     256,    32, 512, { isStatic= true }),
+    Bodies.rectangle(512-16, 256,    32, 512, { isStatic= true }),
+
+    -- Falling blocks
+    Bodies.rectangle(100, 75, 30, 30, { frictionAir = 0.005 }),
+    Bodies.rectangle(110, 25, 30, 30, { frictionAir = 0.05 }),
+    Bodies.rectangle(300, 50, 30, 30, { frictionAir = 0.3 }),
+})
+
+TICK = 1
+
+function tick()
+    Runner.tick(runner, engine, TICK)
+    TICK = TICK + 1
+end
+
+local doTick = false
+local held = false
+
+hook.add( "render", "draw", function()
+    --slow the engine by half of the user's framerate, could be better, but its so slow under starfall i dont care for it
+    if doTick then tick() end
+    doTick = not doTick
+    
+    local bodies = Composite.allBodies(world)
+    
+    --draw rectangles and circles, other types not yet implemented
+    for idx, body in ipairs(bodies) do
+        if body.size then
+            render.drawRectRotated(body.position.x, body.position.y, body.size.width, body.size.height, math.deg(body.angle))
+        elseif body.circleRadius then
+            render.drawCircle(body.position.x, body.position.y, body.circleRadius) 
+        end
+    end
+    
+    local cX, cY = render.cursorPos()
+    
+    if cX then
+        if player():keyDown(IN_KEY.USE) then
+            if not held then
+                World.add(world, {Bodies.rectangle(cX, cY, 30, 30, { frictionAir = 0.05 })})
+                print(#bodies)
+                held = true
+            end
+        elseif player():keyDown(IN_KEY.ATTACK2) then
+            if not held then
+                World.add(world, {Bodies.circle(cX, cY, 30, { frictionAir = 0.05 })})
+                print(#bodies)
+                held = true
+            end
+        else
+            held = false
+        end
+    end
+end)

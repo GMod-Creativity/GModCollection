@@ -1,0 +1,277 @@
+--@name drawing board v1
+--@author Xandertron
+--@shared
+
+--
+--    Made by Xandertron - STEAM_0:1:42942061 - github.com/Xandertron
+--    drawing board v1, adding a better ui later
+--
+
+--config
+local screenSize = 512
+local penSize = 2
+local cursorSize = 3
+local penRate = 1/10000
+local interpSteps = 40
+local useDistance = 1500
+local pens = {
+    [1] = {
+        color = Color(255,255,255),
+        size = penSize
+    },
+    [2] = {
+        color = Color(255,0,0),
+        size = penSize
+    },
+    [3] = {
+        color = Color(255,255,0),
+        size = penSize
+    },
+    [4] = {
+        color = Color(0,255,0),
+        size = penSize
+    },
+    [5] = {
+        color = Color(0,0,255),
+        size = penSize
+    },
+    [6] = {
+        color = Color(0,0,0),
+        size = penSize * 6
+    },
+}
+--
+
+if SERVER then 
+    local penBuffer = {}
+    local penStorage = {}
+
+    net.receive("penData", function(_, ply)
+        --if ply == owner() then ply = chip() end --for debugging delay
+        local data = {
+            player = ply,
+            x = net.readUInt(10),
+            y = net.readUInt(10),
+            pen = net.readUInt(4),
+            done = net.readBool()
+        }
+        table.insert(penBuffer, data)
+        
+        data = {
+            player = data.player,
+            pos = Vector(data.x, data.y),
+            pen = data.pen,
+            done = data.done   
+        }
+        table.insert(penStorage, data)
+    end)
+    
+    timer.create("a",5,0,function()
+        print(string.format("%d mb out of max %d mb used (%d%%), %d points", ramUsed()/1000, ramMax()/1000, math.round(ramUsed()/ramMax())*100, #penStorage))
+    end)
+    
+    local function consume(n)
+        if net.getBitsLeft() > 100 and n ~= 0 then
+            local data = table.remove(penBuffer,1)
+            if data then
+                net.start("penData")
+                net.writeEntity(data.player)
+                net.writeUInt(data.x, 10)
+                net.writeUInt(data.y, 10)
+                net.writeUInt(data.pen, 4)
+                net.writeBool(data.done)
+                net.send()
+                consume(n-1)
+            end
+        end
+    end
+    
+    hook.add("tick", "consumeBuffer", function()
+        consume(200)
+    end)
+    
+    return --client code after this point
+end
+
+render.createRenderTarget("screenRT")
+render.createRenderTarget("canvas")
+local screenMat = material.create("UnlitGeneric") 
+screenMat:setTextureRenderTarget("$basetexture", "screenRT") 
+screenMat:setInt("$flags", 0)
+
+-- Create the screen hologram
+local screen = holograms.create(chip():localToWorld(Vector(0, 0, screenSize/2)), Angle(90,-90,0), "models/holograms/plane.mdl")
+screen:setSize(Vector(screenSize, screenSize, screenSize))
+screen:setParent(chip())
+screen:setMaterial("!" .. screenMat:getName())
+
+local players = {}
+timer.create("refresh",1,0,function()
+    table.empty(players)
+    for k, ply in pairs(find.allPlayers()) do
+        table.insert(players, ply)
+    end
+end)
+
+local function screenAim(ply)
+    local intersect = trace.intersectRayWithPlane(
+        ply:getShootPos(),
+        ply:getAimVector(),
+        chip():localToWorld(Vector(0, 0, screenSize/2)),
+        chip():getRight()
+    )
+        
+    if intersect then
+        local localIntersect = chip():worldToLocal(intersect)
+        return (localIntersect.x+screenSize/2)/screenSize*1024, (screenSize-localIntersect.z)/screenSize*1024
+    end
+    
+    return nil
+end
+
+local buffer = {}
+local pensInUse = {}
+
+net.receive("penData", function()
+    local data = {
+        player = net.readEntity(),
+        x = net.readUInt(10),
+        y = net.readUInt(10),
+        pen = net.readUInt(4),
+        done = net.readBool(),
+        fromNet = true
+    }
+    pensInUse[data.player] = data.pen
+    table.insert(buffer, data)
+end)
+
+local drawing = false
+local lastPoint = {}
+local currentPen = 1
+local ply = player()
+local alreadyPressed = false --broken fucking addon, keyrelease and keypress hooks are called multiple times
+
+hook.add("think","controls",function()
+    if ply:keyDown(IN_KEY.RELOAD) then
+        if alreadyPressed then return end
+        alreadyPressed = true
+        currentPen = currentPen + 1
+        if currentPen > #pens then
+            currentPen = 1
+        end
+    else
+        alreadyPressed = false
+    end
+end)
+
+timer.create("pen",penRate,0,function()
+    if ply:getPos():getDistance(chip():getPos()) > useDistance then return end
+    if ply:keyDown(IN_KEY.USE) or ply:keyDown(IN_KEY.ATTACK) or ply:keyDown(IN_KEY.ATTACK2) then
+        local cursorX, cursorY = screenAim(ply)
+        if cursorX and cursorX <= 1024 and cursorX >= 0 and cursorY <= 1024 and cursorY >= 0 then
+            lastPoint.x, lastPoint.y = cursorX, cursorY
+            drawing = true
+            table.insert(buffer, { --forgive me
+                player = ply,
+                x = math.floor(cursorX),
+                y = math.floor(cursorY),
+                pen = currentPen,
+                done = false,
+                fromNet = false
+            })
+            net.start("penData")
+            net.writeUInt(math.floor(cursorX), 10)
+            net.writeUInt(math.floor(cursorY), 10)
+            net.writeUInt(currentPen, 4)
+            net.writeBool(false)
+            net.send()
+        end
+    elseif drawing == true then
+        table.insert(buffer, {
+            player = ply,
+            x = math.floor(lastPoint.x),
+            y = math.floor(lastPoint.y),
+            pen = currentPen,
+            done = true,
+            fromNet = false
+        })
+        net.start("penData")
+        net.writeUInt(math.floor(lastPoint.x), 10)
+        net.writeUInt(math.floor(lastPoint.y), 10)
+        net.writeUInt(currentPen, 4)
+        net.writeBool(true)
+        net.send()
+        drawing = false
+    end
+end)
+
+local function drawInterpLine(v1, v2, size)
+    for i = 1, interpSteps do
+        local v3 = math.lerpVector(i/interpSteps, v1, v2)
+        render.drawFilledCircle(v3.x, v3.y, size)
+    end
+end
+
+local penData = {}
+
+local function consume(n)
+    if #buffer >= 1 then
+        local data = table.remove(buffer, 1)
+        
+        if data.player == ply and data.fromNet == true then
+            consume(n-1)
+        else
+            if not penData[data.player] then
+                penData[data.player] = data
+            end
+            local v1 = Vector(penData[data.player].x, penData[data.player].y)
+            local v2 = Vector(data.x, data.y)
+            
+            render.setColor(pens[data.pen].color)
+            --if not data.fromNet then render.setColor(Color(255,0,0)) end
+            drawInterpLine(v1, v2, pens[data.pen].size)
+            penData[data.player] = data
+            if data.done then
+                penData[data.player] = nil
+            end
+            consume(n-1)
+        end
+    end
+end
+
+local delta = timer.curtime()
+local lastPoint = {}
+
+hook.add("renderoffscreen", "", function()
+    render.selectRenderTarget("screenRT")
+    render.clear()
+    render.setFilterMag(TEXFILTER.POINT)
+    render.setRenderTargetTexture("canvas")
+    render.drawTexturedRect(0,0,1024,1024)
+    
+    render.selectRenderTarget("canvas")
+    consume(10)
+    render.selectRenderTarget("screenRT")
+    
+    for k, ply in pairs(players) do
+        if not ply:isValid() then continue end
+        
+        local cursorX, cursorY = screenAim(ply)
+        if cursorX then
+            if ply == player() then
+                render.setColor(pens[currentPen or 1].color)
+                render.drawFilledCircle(cursorX, cursorY, pens[currentPen or 1].size)
+                render.setColor(Color(255,255,255))
+                render.drawCircle(cursorX, cursorY, pens[currentPen or 1].size+1)
+            else
+                render.setColor(pens[pensInUse[ply] or 1].color)
+                render.drawCircle(cursorX, cursorY, cursorSize)
+                render.setFont("DermaDefault")
+                render.drawText(cursorX+8, cursorY-7, ply:getName(), TEXT_ALIGN.LEFT)
+            end
+        end
+    end
+    
+    render.setColor(Color(255,255,255))
+    render.drawText(0, 0, "Use or Mouse 1 or 2 to paint\nPress Reload to change pen color")
+end)

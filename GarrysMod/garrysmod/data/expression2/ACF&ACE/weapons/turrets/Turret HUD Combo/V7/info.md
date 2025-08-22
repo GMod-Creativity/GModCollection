@@ -1,3 +1,8 @@
+- Author: Spider0804
+- Steam Profile: https://steamcommunity.com/profiles/76561197996888024
+- Youtube: https://www.youtube.com/user/spider0804
+- Pastebin: https://pastebin.com/u/Spider0804
+<!-- -->
 - Publisher: DeadlyMouse (DatDeadlyMouse)
 - Steam Profile: https://steamcommunity.com/profiles/76561198153057765
 - Youtube: https://www.youtube.com/channel/UCIbxVLSXiOJs-X4xF4Cd2QQ

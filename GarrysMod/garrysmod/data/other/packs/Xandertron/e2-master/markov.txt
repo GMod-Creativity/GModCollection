@@ -1,0 +1,157 @@
+@name Markov
+@inputs 
+@outputs 
+@persist Data:table TE:array I C Done ST AD AOut:array
+@trigger
+@model models/props_c17/FurnitureWashingmachine001a.mdl
+if(first()){
+    #include "text"
+    runOnTick(1)
+    runOnChat(1)
+    Data = table()
+    function string msToTime(S) {
+        local Ms = S % 1000
+        local S = (S - Ms) / 1000
+        local Secs = S % 60
+        local S = (S - Secs) / 60
+        local Mins = S % 60
+        local Hrs = (S - Mins) / 60
+        return Hrs+":"+(Mins<10 ? "0"+Mins : ""+Mins)+":"+(Secs<10 ? "0"+Secs : ""+Secs)
+    }
+    function number table:handleString(S:string){
+        E = S:explode(" ")
+        if(E:count()==1){
+            return 0
+        }
+        else{
+            for(I=1,E:count()-1){
+                Key = E[I,string]
+                if(This[Key,table][1,string]==""){
+                    This[Key,table] = table()
+                }
+                This[Key,table]:pushString(E[I+1,string])   
+            }
+            return 1
+        }
+    }
+    function string table:generateString(S:string){
+        Out = ""
+        Keys = Data:keys()
+        if(S==""){
+            Start = Keys[randint(1,Keys:count()),string]
+        }
+        else{
+            Start = S
+        }
+        Out += Start+" "
+        for(I=1,20){
+            Next = Data[Start,table][randint(1,Data[Start,table]:count()),string]
+            Start = Next
+            Out += Next+" "
+        }  
+        if(Out:explode(" "):count()>1){
+            return Out
+        }
+        else{
+            return ""
+        }
+    }
+    function string string:cleanString(){
+        Str = This
+        Str = Str:replace("?","")
+        Str = Str:replace("!","")
+        Str = Str:replace(".","")
+        Str = Str:replace(",","")
+        return Str
+    }
+    function number validateString(S:string){
+        if(S:explode(" "):count()<=1){
+            return 0
+        }
+        Str = S:lower()
+        Count = 0
+        B = toByte(Str[1])
+        if((B >= 97 & B <= 122)|B >= 48 & B <= 57){
+            for(I=1,Str:length()){
+                B = toByte(Str[I])
+                if((( B >= 97 & B <= 122) | B==32)|B >= 48 & B <= 57){
+                    Count++
+                }
+            }
+            if(Count>=Str:length()){
+                return 1
+            }
+            else{
+                return 0
+            }
+        }
+        return 0
+    }
+    #Test = "god damnit what the fuck is wrong with you, fuck off you fucking dumbass, god how fucking old are you, 10? get a fucking life loser lmao, and by the way, i have your credit card details so get hacked ayylmfao"
+    #print(Test)
+    #print(Test:length())
+    #print(validateString(Test:cleanString()))
+    TE = S:explode("\n")
+    C = TE:count()
+    I = 1
+    ST = systime()
+    Done = 0
+}
+if(I<C){
+    for(J=1,5){
+        if(Data:handleString(TE[I,string]:lower())){
+            #AOut:pushString(TE[I,string]:lower())
+            AD++
+        }
+        if(I>=C){
+            break
+        }
+        I++
+    }
+    setName("Markov Bot\nHandling strings "+I+" of "+TE:count())
+}
+elseif(Done==0){
+    #fileWrite("markovtestout.txt","S ="+AOut:concat("\n")+"\"")
+    timer("gen",100)
+    print("Took "+msToTime(systime()*1000-ST*1000)+" seconds to read "+TE:count()+" strings!\n"+AD+" have been actually created.")
+    Done = 1
+    runOnTick(0)
+}
+if(clk("gen")){
+    #print(_HUD_PRINTCONSOLE,Data:generateString())
+    #chatPrint(vec(0),"[",vec(48,241,255),"Binary Lifeforms",vec(0),"] ",vec(48,241,255),"Markov",vec(255),": "+Data:generateString(""))
+    #print(Data:generateString(""))
+    #concmd("say [Markov Bot]: "+Data:generateString(""))
+    sendMessageColor(players(),vec(210,230,255),"Markov",vec(255),": "+Data:generateString(""))
+    timer("gen",30000)
+}
+if(chatClk(owner())){
+    LS = lastSaid()
+    LSE = LS:explode(" ")
+    CMD = LSE[1,string]
+    SUB = LSE[2,string]
+    if(CMD=="!ask"){
+        print("Asking for "+SUB)
+        R = Data:generateString(SUB)
+        if(R==SUB+" "){
+            print("Bot couldn't find any matches!")
+        }
+        else{
+            #chatPrint(vec(0),"[",vec(48,241,255),"Binary Lifeforms",vec(0),"] ",vec(48,241,255),"Markov",vec(255),": "+R)
+        }
+        hideChat(1)
+    }
+}
+if(chatClk()){
+    #print(Data:handleString(lastSaid()))
+    #print(_HUD_PRINTCONSOLE,Data:toString())
+    Clean = lastSaid():cleanString()
+    if(validateString(Clean)){
+        Data:handleString(Clean)
+        TE:pushString(Clean)
+        C++
+        setName("Markov Bot\n"+C+" strings total!")
+        #print(Clean)
+    }
+}
+    

@@ -1,0 +1,137 @@
+@name egp sha256 calculator
+@inputs KeyboardUser:entity E:wirelink KeyboardMemory
+@persist Msg:string Cursor Msgs MsgsA:array UC Bypass
+@trigger 
+interval(500)
+if(duped()|dupefinished()){reset()}
+if(first()){
+    runOnHTTP(1)
+    E:egpClear()
+    function vector2 vec(N,N2){
+        return vec2(N,N2)
+    }
+    function void wirelink:egpC2CBox(Idx,Pos1:vector2,Pos2:vector2){
+        local Points = array()
+        Points[1,vector2] = Pos1
+        Points[2,vector2] = vec2(Pos2:x(),Pos1:y())
+        Points[3,vector2] = Pos2
+        Points[4,vector2] = vec2(Pos1:x(),Pos2:y())
+        This:egpPoly(Idx,Points)
+    }
+    function number validChar(N){
+        if(inrange(N,32,137)){
+            return 1
+        }
+        else{
+            return 0
+        }
+    }
+        
+    Cursor=2
+    E:egpC2CBox(2,vec2(0,430),vec2(512,512))
+    E:egpColor(2,vec(40))
+    E:egpLine(3,vec2(9*Cursor+2,455),vec2(9*Cursor+2,485))
+    E:egpText(1,Msg,vec2(20,470))
+    E:egpAlign(1,0,1)
+    E:egpSize(1,14)
+    E:egpFont(1,"Lucida Console")
+}
+
+if(~KeyboardMemory&KeyboardMemory){
+    Memory = KeyboardMemory
+    if(UC){
+        C=(toChar(Memory)):upper() 
+    }
+    else{
+        C=toChar(Memory)
+    }
+    if(Memory==155|Memory==175|Memory==176|Memory==177){}
+    elseif(Memory==19){
+        Cursor--
+        if(Cursor==0){
+            Cursor=1
+        }
+        E:egpLine(3,vec2(9*Cursor+2,455),vec2(9*Cursor+2,485))
+    }
+    elseif(Memory==20){
+        Cursor++
+        if(Cursor>=Msg:length()+2){
+            Cursor=Msg:length()+2
+        }
+        E:egpLine(3,vec2(9*Cursor+2,455),vec2(9*Cursor+2,485))
+    }
+    elseif(Memory==127){
+        if(Cursor>2){
+            Msg=Msg:sub(1,Cursor-3)+Msg:sub(Cursor-1,Msg:length())
+            Cursor--
+        }
+    }
+    elseif(Memory==13|Memory==10){
+        if(Msg!=""&httpCanRequest()){
+            Program = Msg
+            RU = "https://rextester.com/rundotnet/api?"
+            VU = "LanguageChoice=14&Program="+httpUrlEncode(Program)+"&Input=&CompilerArgs="
+            httpRequest(RU+VU)
+            Cursor=2
+            E:egpLine(3,vec2(9*Cursor+2,455),vec2(9*Cursor+2,485))
+        }
+    }
+    elseif(Memory==144){
+        if(UC){UC=0}
+        else{UC=1}
+    }
+    else{
+        if(validChar(Memory)){
+            Msg=Msg:sub(1,Cursor-2)+C+Msg:sub(Cursor-1,Msg:length())
+            Cursor++
+        }
+    }
+    E:egpLine(3,vec2(9*Cursor+2,455),vec2(9*Cursor+2,485))
+    E:egpText(1,Msg,vec2(20,470))
+}
+if(floor(2*curtime()%2)==1|~KeyboardMemory){
+    E:egpAlpha(3,255)
+}
+else{
+    E:egpAlpha(3,0)
+}
+if(httpClk()|Bypass){
+    if(!Bypass){
+        D = jsonDecode(httpData())
+        #printTable(D)
+        if(D["Errors",string]){
+            Msg = "Error"
+        }
+        else{
+            Msg = "Result: "+D["Result",string]
+            printTable(D)
+        }
+    }
+    if(Msgs==20){
+        MsgsA:shiftString()
+        for(I=1,20){
+            E:egpRemove(I+10)
+            E:egpText(I+10,MsgsA[I,string],vec2(256,20*I))
+            E:egpAlign(I+10,1)
+            E:egpSize(I+10,14)
+        }
+        E:egpRemove(20)
+        E:egpText(10,MsgsA[10,string],vec2(256,200))
+        E:egpAlign(10,1)
+        E:egpSize(10,14)
+        Msgs=19
+    }
+    Msgs++
+    E:egpText(Msgs+10,Msg,vec2(256,20*Msgs))
+    E:egpAlign(Msgs+10,1)
+    E:egpSize(Msgs+10,14)
+    MsgsA:pushString(Msg)
+    Msg = ""   
+    E:egpText(1,"",vec2(20,470))
+    Bypass = 0
+}
+
+
+
+
+

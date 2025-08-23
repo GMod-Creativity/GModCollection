@@ -7,5 +7,6 @@
 - Description: This is the re release of my tank pack that I did a while back.
 - Date (dd-mm-yyyy): 03-11-2013
 - Source: https://www.youtube.com/watch?v=PsJAop-pIqg
+- Source: https://web.archive.org/web/20150508101939/http://www.wiremod.com/forum/finished-contraptions/32364-tank-pack-v2-my-old-tanks-redone.html
 - Source: https://www.mediafire.com/download/3pgq43fyjrh9mmm/Tank_Pack_V2.rar
 - Source Accessed (dd-mm-yyyy): 21-08-2025

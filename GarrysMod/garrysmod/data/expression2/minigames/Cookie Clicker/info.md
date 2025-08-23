@@ -9,9 +9,9 @@
 ---
 
 - GMOD COLLECTION COMMENT:
-  1) Spawn POD controller and paste E2 onto the POD controller.
-  2) Connect POD controller to seat.
-  3) Read the keys below for usage.
+  1. Spawn POD controller and paste E2 onto the POD controller.
+  2. Connect POD controller to seat.
+  3. Read the keys below for usage.
 
 ---
 

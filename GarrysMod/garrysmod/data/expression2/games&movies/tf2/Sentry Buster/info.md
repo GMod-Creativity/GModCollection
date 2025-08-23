@@ -1,4 +1,4 @@
-- Author: Chaquator
+- Author: Chaquator (Sly Fox)
 - Github: https://github.com/chaquator
 - Steam Profile: https://steamcommunity.com/profiles/76561198025785592
 - Youtube: https://www.youtube.com/@chaquator
@@ -6,6 +6,9 @@
 - Title: [E2] Sentry Buster
 - Date (dd-mm-yyyy): 01-08-2014
 - Source: https://web.archive.org/web/20150429022125/http://www.wiremod.com:80/forum/finished-contraptions/33383-e2-sentry-buster.html
+- Source: https://www.youtube.com/watch?v=2EzHftiPSLg
+- Source: https://www.youtube.com/watch?v=d99gYJPF3v0
+- Source: https://www.youtube.com/watch?v=IjCSfdeljsw
 - Source Accessed (dd-mm-yyyy): 10-08-2025
 
 ## [E2] Sentry Buster
@@ -15,5 +18,11 @@ Nearly 2 years ago - I make a Sentry Buster E2 because someone else made one bec
 4 months ago - I remake my Sentry Buster because my old one was horrendously bad.
 1 month ago - I release a third Sentry Buster video because I felt like it.
 Today - I release that E2 for like 1 person to download it.
+
+https://www.youtube.com/watch?v=2EzHftiPSLg
+
+https://www.youtube.com/watch?v=d99gYJPF3v0
+
+https://www.youtube.com/watch?v=IjCSfdeljsw
 
 Enjoy!

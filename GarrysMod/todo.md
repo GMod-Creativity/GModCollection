@@ -1,13 +1,13 @@
 ## TODO
-- [ ] data/other/packs/GMODISM add Pastebin: https://pastebin.com/u/Gmodism
-- [ ] Add info.md for GMODISM stuff in data/expression2
+- [x] data/other/packs/GMODISM add Pastebin: https://pastebin.com/u/Gmodism
+- [x] Add info.md for GMODISM stuff in data/expression2
 - [ ] Add stuff from Metacore91: https://www.youtube.com/@Metacore91
 - [ ] Add stuff from wiremod: https://web.archive.org/web/*/http://www.wiremod.com/forum/finished-contraptions/*
 - [x] Add stuff from leghumper: https://github.com/sailingtheseasjoe/E2
 - [x] Add stuff from leghumper: https://github.com/sailingtheseasjoe/advdupe2
 - [ ] Add sources to info.md in data/expression2
 - [ ] Update sources of info.md in data/expression2
-- [ ] Add stuff from [EmP] DEF: https://www.youtube.com/@FUNC_DEF
+- [x] Add stuff from [EmP] DEF: https://www.youtube.com/@FUNC_DEF
 - [x] Add kolore's car minigame
 - [ ] Add stuff from Bonzoye: https://github.com/Bonyoze, https://www.youtube.com/@Bonyoze
 - [ ] Add stuff from Rusketh: https://www.youtube.com/watch?v=wabnoAJXlrc
@@ -16,4 +16,4 @@
 - [x] Add stuff from DGrouse: https://dg-collection.weebly.com/expression-2.html 
 - [x] Add simplicity stuff: https://gmods.org/?q=Simplicity and https://web.archive.org/web/20110220205658/http://www.wiremod.com:80/forum/finished-contraptions/15285-simplicity-computer.html
 - [] Add imageloader: https://github.com/NiTrO0FuN/e2-imageloader
-- [] Add stuff from ARaccoonNamedDEF: https://github.com/ARaccoonNamedDEF, https://www.youtube.com/@FUNC_DEF
+- [x] Add stuff from ARaccoonNamedDEF: https://github.com/ARaccoonNamedDEF, https://www.youtube.com/@FUNC_DEF

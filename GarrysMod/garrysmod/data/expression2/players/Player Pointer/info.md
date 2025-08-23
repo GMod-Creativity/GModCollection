@@ -1,7 +1,7 @@
 - Author: [IJWTB]FallenMaverick
 <!-- -->
 - Title: [E2] Player Tracking Chip(not as cool as it sounds...)
-- Date: 06-09-2014
+- Date (dd-mm-yyyy): 06-09-2014
 - Source: https://web.archive.org/web/20150429062826/http://www.wiremod.com/forum/finished-contraptions/33515-e2-player-tracking-chip-not-cool-sounds.html
 - Source Accessed (dd-mm-yyyy): 23-08-2025
 

@@ -1,0 +1,213 @@
+@name Podracer - 2 engined - Event Edition
+@inputs [Cockpit Eng_L Eng_R]:entity W A S D Brake
+@outputs Distance_between_engines_Readout Distance_between_cockpit_and_engines_Readout
+@persist Hover_Height Hover_Eng_L Hover_Eng_R Leaning_Counter Thrust Reverse_Thrust Gravity Grip Drag Steering_Speed
+@persist Eng_Ang_Force Lower_Counter Bleh Extra_Turning_Thrust Lean_Angle Sound_Base_Pitch_L Sound_Base_Pitch_R
+@persist Sound_Volume_L Sound_Volume_R Sound_Pitch_Change_L Sound_Pitch_Change_R Cockpit_Height Engine_Lower
+@persist Hovering_Height Cockpit_Lower Test_Min Test Test_Max Lean_Speed
+@trigger none
+
+#   By Meta - Enjoy.
+
+if(first() | dupefinished())
+{
+
+#   Instructions
+
+#   This was made with a player-ish scaled driver in mind
+
+#   Part examples are:
+#   Engines  -  models/sprops/rectangles/size_5/rect_48x192x3.mdl 
+#   Cockpit  -  models/sprops/rectangles/size_4/rect_36x72x3.mdl
+
+#   Make sure the cockpit and engine parts are facing north at a 0,-90,0 angle
+
+#   Place your seat and pod controller - These and any other physical objects must be parented
+
+#   Wire up the e2
+
+#   Refresh the e2
+
+#   Debug the e2 for the part distance readouts
+
+#   v Make sure this number is equal to the Distance_between_engines_Readout while frozen in its original position
+    Distance_between_engines = 120
+
+#   v Make sure this number is equal to the Distance_between_cockpit_and_engines_Readout while frozen in its original position
+    Distance_between_cockpit_and_engines = 208
+
+#   Once the distances have been set, refresh the e2
+
+#   Apply a non-rigid rope from the mass center of the cockpit to the mass center of both engines
+
+#   Done!
+
+
+
+#   v Settings
+
+    Thrust                = 40000
+    Reverse_Thrust        = 10000
+    Gravity               = 14000    # Raises the maximum downward hovering force
+    Cockpit_Height        = 35       # Determines the cockpit hover height above the engines
+    Hover_Height          = 100
+    Engine_Lower          = 50       # Distance the engines will lower near standstill
+    Cockpit_Lower         = 50       # Distance the cockpit will lower relative to engines near standstill
+    Grip                  = 110
+    Drag                  = 9.1
+    Steering_Speed        = 50
+    Lean_Speed            = 0.3
+    Lean_Angle            = 55
+    Eng_Ang_Force         = 4        # Determines the force with which the engines lean and stay upright
+    Extra_Turning_Thrust  = 10000    # Raises outer engine thrust and lowers inner engine thrust when steering - helps keep them together
+    Engine_Left_Sound     = "ambient/cp_harbor/indoor_lp_02.wav"
+    Engine_Right_Sound    = "ambient/atmosphere/city_rumble_loop1.wav"
+    Sound_Volume_L        = 1
+    Sound_Volume_R        = 0.75
+    Sound_Base_Pitch_L    = 50       # Engine Left sound starting pitch
+    Sound_Base_Pitch_R    = 75       # Engine Right sound starting pitch
+    Sound_Pitch_Change_L  = 80       # Speed is divided by this number and added to Sound_Base_Pitch_L
+    Sound_Pitch_Change_R  = 65       # Speed is divided by this number and added to Sound_Base_Pitch_R
+    Holo_Alpha            = 0        # Makes magical cubes appear
+
+#   End of settings
+
+    holoCreate(1)
+    holoAlpha(1,Holo_Alpha)
+
+    # Eng_L
+    holoCreate(2)
+    holoPos(2,holoEntity(1):toWorld(vec(0,-Distance_between_engines/2,0)))
+    holoParent(2,holoEntity(1))
+    holoAlpha(2,Holo_Alpha)
+    Eng_L:propInertia(vec(500))
+
+    # Eng_R
+    holoCreate(3)
+    holoPos(3,holoEntity(1):toWorld(vec(0,Distance_between_engines/2,0)))
+    holoParent(3,holoEntity(1))
+    holoAlpha(3,Holo_Alpha)
+    Eng_R:propInertia(vec(500))
+
+    # Cockpit
+    holoCreate(4)
+    holoPos(4,holoEntity(1):toWorld(vec(Distance_between_cockpit_and_engines - Cockpit_Height/9,0,0)))
+    holoParent(4,holoEntity(1))
+    holoAlpha(4,Holo_Alpha)
+    Cockpit:propInertia(vec(500))
+
+    Array = Cockpit:getConnectedEntities()
+    rangerHitWater(1)
+    rangerHitEntities(1)
+    rangerPersist(1)
+    rangerFilter(Array)
+
+    holoCreate(10,Eng_L:toWorld(vec(0,0,0)))
+    holoCreate(11,Eng_R:toWorld(vec(0,0,0)))
+    holoParent(10,Eng_L)
+    holoParent(11,Eng_R)
+    holoAlpha(10,Holo_Alpha)
+    holoAlpha(11,Holo_Alpha)
+
+    Eng_L:soundPlay(1,0,Engine_Left_Sound)
+    Eng_R:soundPlay(2,0,Engine_Right_Sound)
+    soundVolume(1,Sound_Volume_L)
+    soundVolume(2,Sound_Volume_R)
+
+    Test_Min  = Distance_between_engines/30
+    Test      = Distance_between_engines/17       #7
+    Test_Max  = Distance_between_engines/13.5
+
+    Distance_between_engines_Readout              = round(Eng_L:pos() - Eng_R:pos()):length()
+    Distance_between_cockpit_and_engines_Readout  = round(((Eng_L:pos() + Eng_R:pos())/2 - Cockpit:pos()):length())
+
+    Cockpit:setMass(50)
+    Cockpit:propGravity(0)
+    Cockpit:propDrag(0)
+
+    Eng_L:setMass(500)
+    Eng_L:propGravity(0)
+    Eng_L:propDrag(0)
+
+    Eng_R:setMass(500)
+    Eng_R:propGravity(0)
+    Eng_R:propDrag(0)
+
+    Lower_Counter = Engine_Lower
+
+    Engine_X = -((Eng_L:boxSize():x() + Eng_R:boxSize():x())/4 - 4)
+    Engine_Z = (Eng_L:boxSize():z() + Eng_R:boxSize():z())/4
+    Hovering_Height = Hover_Height + Engine_Z
+
+}
+
+interval(60)
+
+
+# Stuff
+Angles           = Eng_L:toLocal(Eng_R:angles())/2
+Leaning_Counter  = clamp(Leaning_Counter + (A-D)*Lean_Speed - clamp(Leaning_Counter,-Lean_Speed,Lean_Speed)*(!A&!D),-1,1)
+Speed_Mul        = clamp(Cockpit:vel():length()/1000,0,1)
+Speed_Mul_2      = clamp(Cockpit:vel():length()/2000,0.05,1)
+Lower_Counter    = clamp(Lower_Counter + (Speed_Mul < 0.2)*!W*0.01 - W*0.05,0,1)
+Extra_Height     = clamp(-Cockpit:vel():z()/3,0,500) - Lower_Counter
+Bleh             = Bleh + 10
+Cos              = Test*cos(Bleh)*Speed_Mul_2
+Sin              = Test_Max*sin(Bleh)*Speed_Mul_2
+X_Vel            = Cockpit:velL():x() < 0
+Lean             = Lean_Angle*Leaning_Counter*Speed_Mul*X_Vel
+Thingamagic      = Engine_Lower*Lower_Counter
+holoPos(1,(Eng_L:pos() + Eng_R:pos())/2)
+holoAng(1,(Eng_L:toWorld(Angles)))
+if(changed(Cos > 0) & Cos > 0){Test = randint(Test_Min,Test_Max)}
+
+
+# Engine_Left_Numbers
+holoAng(10,ang(Eng_L:angles():pitch(),Eng_L:angles():yaw(),0))
+Eng_L_Vel       = Eng_L:vel()
+Holo_Local_Y_L  = holoEntity(10):right():dot(Eng_L_Vel)
+Holo_Local_Z_L  = holoEntity(10):up():dot(Eng_L_Vel)
+Eng_Vel_L       = Eng_L:vel() - Eng_R:vel()
+Ranger_L        = rangerOffset(99999,Eng_L:toWorld(vec(Engine_X,0,0)),vec(0,0,-1)):distance()
+Hover_Eng_L     = clamp(((Hovering_Height + Extra_Height - Thingamagic) - Ranger_L)*300,-Gravity,99999999)
+Eng_L_Pitch     = Eng_L:angles():pitch() + randint(-100,100)/35*Speed_Mul_2
+Eng_L_Yaw       = holoEntity(1):toLocal(Eng_L:angles()):yaw()
+Eng_L_Roll      = Eng_L:angles():roll() - Lean + randint(-100,100)/(25 - 15*Speed_Mul_2)
+soundPitch(1,Sound_Base_Pitch_L + Eng_L_Vel:length()/Sound_Pitch_Change_L)
+
+
+# Engine_Right_Numbers
+holoAng(11,ang(Eng_R:angles():pitch(),Eng_R:angles():yaw(),0))
+Eng_R_Vel       = Eng_R:vel()
+Holo_Local_Y_R  = holoEntity(11):right():dot(Eng_R_Vel)
+Holo_Local_Z_R  = holoEntity(11):up():dot(Eng_R_Vel)
+Eng_Vel_R       = Eng_R:vel() - Eng_L:vel()
+Ranger_R        = rangerOffset(99999,Eng_R:toWorld(vec(Engine_X,0,0)),vec(0,0,-1)):distance()
+Hover_Eng_R     = clamp(((Hovering_Height + Extra_Height - Thingamagic) - Ranger_R)*300,-Gravity,99999999)
+Eng_R_Pitch     = Eng_R:angles():pitch() + randint(-100,100)/35*Speed_Mul_2
+Eng_R_Yaw       = holoEntity(1):toLocal(Eng_R:angles()):yaw()
+Eng_R_Roll      = Eng_R:angles():roll() - Lean + randint(-100,100)/(25 - 15*Speed_Mul_2)
+soundPitch(2,Sound_Base_Pitch_R + Eng_R_Vel:length()/Sound_Pitch_Change_R)
+
+
+# Engine_L
+Eng_L:applyForce(-(Eng_L_Vel*Brake*10)-holoEntity(10):right()*Holo_Local_Y_L*Grip + ((holoEntity(2):pos() + holoEntity(2):right()*Cos + holoEntity(2):up()*Sin)- Eng_L:pos())*750 - Eng_Vel_L*100 + vec(0,0,clamp(Hover_Eng_L + $Hover_Eng_L*4,-Gravity,99999999)) - Eng_L:vel()*Drag - Eng_L:forward()*(W*Thrust - S*Reverse_Thrust + (D-A)*Extra_Turning_Thrust*Speed_Mul))
+Eng_L:applyOffsetForce(-holoEntity(10):right()*(A-D)*Steering_Speed + Eng_L:up()*(Eng_L_Pitch*Eng_Ang_Force - Holo_Local_Z_L/3*X_Vel + Eng_L:angVel():pitch()) + Eng_L:right()*(Eng_L_Yaw*2 + Eng_L:angVel():yaw()),Eng_L:toWorld(vec(10000,0,0)))
+Eng_L:applyOffsetForce(-Eng_L:up()*(Eng_L_Roll*Eng_Ang_Force + Eng_L:angVel():roll()),Eng_L:toWorld(vec(0,10000,0)))
+
+
+# Engine_R
+Eng_R:applyForce(-(Eng_R_Vel*Brake*10)-holoEntity(11):right()*Holo_Local_Y_R*Grip + ((holoEntity(3):pos() - holoEntity(3):right()*Cos + holoEntity(3):up()*Cos) - Eng_R:pos())*750 - Eng_Vel_R*100 + vec(0,0,clamp(Hover_Eng_R + $Hover_Eng_R*4,-Gravity,99999999)) - Eng_R:vel()*Drag - Eng_R:forward()*(W*Thrust - S*10000 + (A-D)*Extra_Turning_Thrust*Speed_Mul))
+Eng_R:applyOffsetForce(-holoEntity(11):right()*(A-D)*Steering_Speed + Eng_R:up()*(Eng_R_Pitch*Eng_Ang_Force - Holo_Local_Z_R/3*X_Vel + Eng_R:angVel():pitch()) + Eng_R:right()*(Eng_R_Yaw*2 + Eng_R:angVel():yaw()),Eng_R:toWorld(vec(10000,0,0)))
+Eng_R:applyOffsetForce(-Eng_R:up()*(Eng_R_Roll*Eng_Ang_Force + Eng_R:angVel():roll()),Eng_R:toWorld(vec(0,10000,0)))
+
+
+# Cockpit
+Cockpit_Extra_Vel  = (Eng_L:vel() + Eng_R:vel())/2
+Cockpit_Pitch      = (Eng_L:toLocal(Cockpit:angles()):pitch() + Eng_L:toLocal(Cockpit:angles()):pitch())/2
+Cockpit_Yaw        = holoEntity(1):toLocal(Cockpit:angles()):yaw()
+Cockpit_Roll       = Cockpit:angles():roll() - Lean*0.35
+Cockpit_Vel        = Cockpit:vel()
+Cockpit_Stuff      = Cockpit_Extra_Vel - Cockpit_Vel
+Cockpit:applyAngForce(-ang(Cockpit_Pitch,Cockpit_Yaw,Cockpit_Roll)*25000 - Cockpit:angVel()*5000)
+Cockpit:applyForce((holoEntity(4):pos() - Cockpit:pos() + vec(0,0,Cockpit_Height - Cockpit_Lower*Lower_Counter))*50 + Cockpit_Stuff*15 - Cockpit_Vel*(Drag + Brake) + Cockpit_Extra_Vel*8.5)

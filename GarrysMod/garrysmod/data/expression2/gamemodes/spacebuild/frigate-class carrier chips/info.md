@@ -5,7 +5,9 @@
 - Title: Fearsome spacebuild frigate-class carrier
 - Date (dd-mm-yyyy): 06-04-2010
 - Source: https://web.archive.org/web/20110425081431/http://www.wiremod.com/forum/finished-contraptions/19276-fearsome-spacebuild-frigate-class-carrier.html
+- Source: https://www.youtube.com/watch?v=48gGbpWWWrM
 - Source: https://www.youtube.com/watch?v=8eaJpYEybpw
+- Source: https://www.youtube.com/watch?v=SE7PfgocE6o
 - Source Accessed (dd-mm-yyyy): 25-08-2025
 
 ## Fearsome spacebuild frigate-class carrier
@@ -68,13 +70,16 @@ Then use the Adv. Dupe Tool in-game to upload it to the server and paste it.
 
 **Three Battle Videos!**
 
-Thanks to opponent spaceship commanders D4RK3_54B3R.dat and Katelyn
+*Thanks to opponent spaceship commanders D4RK3_54B3R.dat and Katelyn*
 
 Newest Video:
+https://www.youtube.com/watch?v=48gGbpWWWrM
 
 Somewhat New Video:
+https://www.youtube.com/watch?v=8eaJpYEybpw
 
 Old Video:
+https://www.youtube.com/watch?v=SE7PfgocE6o
 
 **E2 Code**
 

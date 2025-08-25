@@ -1,0 +1,356 @@
+/////////Define Stuff//////////
+input wirelink Console
+static table SBank,TData,NoteData,Converter,Channels,CText,Holos,Playback,NBank,Muted
+static string DataStr
+global number SpeedA,Pdiv,Perc
+static number Idx,Tempo,BLen,StartTime,BInc,BTime,LSnd
+output number MIDX,PBIDX
+static sound Loading,Generic,Error,Halt,Drum  = sound("items/tf_music_upgrade_machine.wav"), sound("items/cart_explode_trigger.wav"), sound("items/bomb_warning.wav"), sound("items/cart_explode_falling.wav"),sound("instruments/snare.wavboolean PlayB,IsLoading = false,false
+///INIT
+Pdiv,LSnd = 1,1
+
+
+
+for (number I=1;I <= 20;I++) {
+    Holos[I,hologram] = hologram("cube")
+    Holos[I,hologram]:scale(vec(1)*0.1) 
+    Holos[I,hologram]:setPos(self():toWorld(vec(5+I*1.4,0,0)))
+    Holos[I,hologram]:setAng(self():ang())
+    Holos[I,hologram]:parent(self())
+    Holos[I,hologram]:setColor(color(0,0,0))
+    
+    NoteData[I,table] = {}
+    NoteData[I,table]["HasNotes",boolean] = false
+    
+}
+//load http://dl.dropboxusercontent.com/u/40443211/_S/OPPY/src/cs.mid
+function loadingBar() {
+     if (->Console) {
+          if (IsLoading==true) {
+          
+            for (number I=1;I<=floor(Perc*38);I++) {
+                Console:writeString(" ",I-1,7,0,190)
+            }
+             Console:writeString("LOAD " + round(Perc*100) + "%",10,7,911,0)
+            
+        }
+    }
+    
+}
+    
+function wrscr(string Text) {
+    if (->Console) {
+    
+        CText[#CText + 1,string] = Text
+        
+        if (#CText > 15) {
+            
+             CText:remove(1)
+             CText:shift()}
+            
+       // print(#CText)    
+    
+        Console[2041]=1
+        Console:writeString("Compiler Window",8,0,911,18)
+        
+        
+        for (number I=1;I < #CText + 1;I++) {
+            
+            Console:writeString(CText[I,string],0,I)
+            
+           // print(I + ":" + #CText)
+        }
+        loadingBar()
+        
+    } 
+       else {
+        
+            print(Text)
+            
+        }
+    
+    
+}
+wrscr("LGMIDI Version:")
+wrscr("Freezebug is flaming homo")
+wrscr("          -Credits- ")
+wrscr("Rusketh")
+wrscr("Made lemongate, parser loop")
+wrscr("----------")
+wrscr("Artik - Hologram equalizer.")
+wrscr("----------")
+wrscr("Freezebug - PHP and LG code")
+
+function halt() {
+        for (number I=1;I<=#Holos;I++) {
+            Holos[I,hologram]:setColor(color(0,0,0))
+        }
+        
+        wrscr("Stoppen geluid...")
+        
+         for (number I=1;I<=#SBank;I++) {
+            
+            if (SBank:exists(I)) {
+                
+                SBank[I,sound]:stop()
+                        
+            }
+            NBank[I,boolean] = false
+        }
+        PlayB = false
+        
+        MIDX,BInc,BLen,StartTime,Tempo,Idx = 0,0,0,0,0,1
+        
+        DataStr = ""
+        
+        TData,NoteData,Channels = {},{},{}
+        
+        for (number I=1;I<=16;I++) {
+            
+                NoteData[I,table] = {}
+                
+                NoteData[I,table]["HasNotes",boolean] = false
+        }
+        
+        Halt:restart()
+        
+        Loading:stop()
+        
+        
+        timerRemove("Process")
+        
+        timerRemove("PlayBack")
+        
+        wrscr("   =====System Halted=====")
+      
+}
+method Converter:convert(string Data) {
+    halt()
+    
+    wrscr("Beginnen conversie...")
+    
+    PlayB = false
+    
+    Loading:restart()
+    Loading:pitch(115)
+    
+    TData = Data:explode("\n")
+    
+    Tempo = (number)TData[1,string]
+    
+    Idx = 1 // we preset it to 1 to make it skip a line. (the first line is where the tempo is contained)
+    
+    BLen = TData:count() // this is for later, sorry for putting it here. I am ashamed. I just got pissed off.
+    
+    wrscr("Hardware timebase " + Tempo)
+    wrscr("Program Length" + #TData)
+    IsLoading =true
+    timerCreate("LoadingBar",0.5,0,loadingBar)
+    
+    timerCreate( "Process", 0.001, 0, function( ) {
+         if ( (boolean) Converter:m_Tick()) {
+            IsLoading = false
+            timerRemove("Process")
+            timerRemove("LoadingBar")
+            Loading:stop()
+            sound("buttons/button18.wav"):play()
+            wrscr("Conversion complete!")
+            wrscr("start playing.")
+            StartTime = realtime() // set the real time tracker to where we started
+            Playback:play()
+        }
+    })
+        
+    
+}
+
+method Converter:m_Tick() {
+    while ( softPerf( ) > (10000) ) {
+        Idx = Idx + 1
+        string Row = TData[Idx,string]
+        table RowTab = Row:explode(" ")
+        if ((number)RowTab[1,string] > 0) {
+        if (RowTab[2,string]=="Meta" || RowTab[2,string]=="Tempo" || RowTab[2,string]=="KeySig"|| RowTab[2,string]=="TimeSig" || RowTab[2,string]=="SysEx" || RowTab[2,string]=="SeqSpec") {wrscr("Garb: " + RowTab[2,string]); return false}
+        if (RowTab[2,string]=="Par") {return false;}
+            boolean E = (RowTab[2,string]=="On")
+            number Time = (number)RowTab[1,string]
+            number Chan = (number)RowTab[3,string]:sub(4,#RowTab[3,string])
+            number Pitch = (number)RowTab[4,string]:sub(3,#RowTab[4,string])
+            number Vol = (number)RowTab[5,string]:sub(3,#RowTab[5,string])
+           try { 
+            if (Vol==0) {Time = Time - 2}
+            NoteData[Chan,table][Time,table] = {E,Pitch,Vol}
+            NoteData[Chan,table]["HasNotes",boolean] = true
+            } catch(Ex) {
+                wrscr(Ex:message())
+                wrscr("Storing in data sorteer-algoritme.")
+                halt()                            
+            }
+           
+        
+        } else {
+            if (RowTab[2,string]=="") {wrscr("Garb: " + RowTab[1,string])}
+        }
+        number RPerc = floor((Idx / #TData) * #Holos)
+        Perc = Idx / #TData
+        color Colvec =  color(0,clamp(((Idx - 200) / #TData*255),0,Idx+1)*255,0)
+        for (number I=1;I<=RPerc;I++) {
+            Holos[I,hologram]:setColor(Colvec)
+        }
+        if (Idx==#TData) {
+            try {
+              for (number I=1;I<=#NoteData;I++) {
+                    if (NoteData[I,table]["HasNotes",boolean]==false) {
+                       NoteData:remove(I)
+                    }
+                }
+            } catch(Ex) {
+                wrscr(Ex:message())
+                halt()
+            }
+            return true
+        }    
+    }
+    return false
+}
+
+method Playback:play() {
+      for (number I=1;I<=#Holos;I++) {
+            Holos[I,hologram]:setColor(color(0,0,0))
+      }
+    LSnd = 1
+    PlayB = true  
+}
+function onDataSuccess(string X) {
+    wrscr("Request success. Checking for header....")
+    if (X:find("MFile")) {
+        wrscr("Found header.")
+        Converter:convert(X)
+    }  else {
+        wrscr("Could not find the header. (UHOH)")
+        Error:restart()
+    }
+}                                                                                                              
+
+function onDataFail() {
+    wrscr("There was an issue connecting to the server.")
+}
+
+
+event playerChat(entity Player, string Text) {
+    if (Player!=owner()) {return false}
+    table LText = Text:explode(" ");
+    boolean Hide = false;
+    if (LText[1,string]=="load") { 
+        wrscr("GET: " + LText[2,string])
+        httpRequest("http://192.3.115.241/lgmidi.php?fn=" + LText[2,string]:replace("https://","http://"),onDataSuccess,onDataFail) 
+        Generic:restart()
+        Hide = true
+    }
+    if (LText[1,string]=="invoke") {
+        if (LText[2,string]=="halt") {
+            halt()
+            Hide = true
+        }
+         if (LText[2,string]=="restart") {
+            StartTime = realtime()
+            PBIDX = 1
+            MIDX = 0
+            Hide = true
+        }
+    }
+     if (LText[1,string]=="set") {
+        if (LText[2,string]=="ta") {
+            SpeedA = (number)LText[3,string]
+            StartTime = realtime()
+            PBIDX = 1
+            MIDX = 0
+            Hide = true
+        }
+        if (LText[2,string]=="fd") {
+            Pdiv = (number)LText[3,string]
+        }
+    }
+   if (LText[1,string]=="mute") {
+            Muted[(number)LText[2,string],boolean] = true   
+    }
+   if (LText[1,string]=="unmute") {
+            Muted[(number)LText[2,string],boolean] = false  
+    }
+    if (LText[1,string]=="pause") {
+            PlayB = false
+    }
+    if (LText[1,string]=="continue") {
+            PlayB = true
+    }
+}
+
+event tick() {
+    if (PlayB==false) { return false}
+        
+    PBIDX = round((Tempo + SpeedA) *(realtime() - StartTime))
+    while (softPerf()) { // Yes, this will use a lot of CPU time, but it allows for the set ta command to work
+           if (MIDX==PBIDX) {return false}
+           if (MIDX!=PBIDX) {
+            MIDX = MIDX + 1
+  
+            try{
+                for (number I=1;I<=#NoteData;I++) {
+                    if (NoteData:exists(I)) {
+                        if (NoteData[I,table]:exists(MIDX)) {
+                            number Freq = ((440 / 32) * (2^((NoteData[I,table][MIDX,table][2,number] - 9) / 12))) / Pdiv
+                            number Pitch = round( Freq * 5 / 22 )
+                            if (Pitch > 255) {
+                                Pitch = round( (Freq / 2) * 5 / 22 )
+                            }
+                            number Vol = NoteData[I,table][MIDX,table][3,number] / 2
+                            if (NoteData[I,table][MIDX,table][1,boolean] == false ) {Vol = 0}
+                            if (Muted[I,boolean]==true) {} else {
+                                if (NBank[I,boolean]==false) {
+                                    if (LSnd==1) {
+                                        SBank[I,sound] = sound((entity)Holos[I,hologram],"synth/12_5_pwm_440.wav")
+                                        LSnd=2
+                                    } elseif (LSnd==2) {
+                                        SBank[I,sound] = sound((entity)Holos[I,hologram],"synth/25_pwm_440.wav")
+                                        LSnd=3
+                                    }elseif (LSnd==3) {
+                                        SBank[I,sound] = sound((entity)Holos[I,hologram],"synth/75_pwm_440.wav")
+                                        LSnd=4
+                                    }elseif (LSnd==4) {
+                                        SBank[I,sound] = sound((entity)Holos[I,hologram],"synth/saw_440.wav")
+                                        LSnd=5
+                                    }  elseif (LSnd==5) {
+                                        SBank[I,sound] = sound((entity)Holos[I,hologram],"synth/saw_inverted_440.wav")
+                                        LSnd=1
+                                    }
+                                
+                                //
+                            SBank[I,sound]:play()
+                            NBank[I,boolean] = true
+                            }
+                            if (Vol==0) { 
+                                SBank[I,sound]:pitch(0) 
+                                Holos[I,hologram]:setColor(color(0,0,0))
+                                Holos[I,hologram]:scale(vec(0.1,0.1,0.1))
+                                    
+                            } else {
+                                SBank[I,sound]:volume(Vol/100)
+                                SBank[I,sound]:pitch(Pitch)
+                                Holos[I,hologram]:setColor(color( (255 * (Vol/50)),0,0))
+                                Holos[I,hologram]:scale(vec(5*(Pitch/255),0.1,0.1))
+                        //Holos[I,hologram]:setPos(self():toWorld(vec(5+I*1.4,(5*(Pitch/255)) * 2,0,   )))
+                        }    
+                    }
+                }                
+            }
+        }
+     } 
+    catch(Ex) {
+        wrscr("=====fout afspelen======")
+        wrscr(Ex:message())
+        wrscr("=========================")
+        halt()
+    }
+  }
+ }
+}

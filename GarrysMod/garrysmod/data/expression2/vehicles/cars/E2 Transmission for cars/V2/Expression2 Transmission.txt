@@ -1,0 +1,213 @@
+@name Universal Prop Transmission V2
+@inputs [WheelFL WheelFR WheelRL WheelRR RotatingObject]:entity Gearup Geardown Base:entity MaxRPM RPMIn ClutchINOUT ThrottleIn AutoKickdown DiffLock
+@outputs Gear Ratio Clutch ThrottleOut GPSSpeed WheelSpeed FullRatio RPMToSpeed Shifted FrntTransferCaseDif RearTransferCaseDif
+@persist Wheels:array RotatingObjectWeight PistonWeight FullRatio FinalRotational RAngVelocity DefinedClutch DifRat
+@persist Ratio Gear FinalMass AngVelMult Clutch AngVel1 AngVel2 GearV WheelMass Gears:array Shifted DifferentialType WheelRatios:array FrntSlip RearSlip RearAngVel
+@persist StaticCalc Ratios:array AutoRatio GearAmount AutoOrManual ShiftSound:string ClutchSensitivity SensitivityMath GPSSpeed ShiftTime MaxSlip:array TransferCaseOptions Realistic
+@trigger
+runOnTick(1)
+if(first() | dupefinished()) {
+    #LINK EVERY WHEEL EVEN IF YOU WANT RWD OR FWD
+    
+    #Diffential Math and tranmission prerequisets 
+    DifRat = 1/3.98 #Overall Differential Ratio
+    AngVelMult = 1
+    FinalMass = 1480 #Change mass based on your All the mass your vehicle is equal up too, If you dont wanna do math be safe and do your baseplate mass + 200
+    Realistic = 0 #Changes it so its physically realistic THIS WILL PUT STRAIN ON THE ENGINE A LOT #You will also need to change ratios after doing this
+    #Transmission Options
+    
+    TransferCaseOptions = 0 #0 is RWD 1 is FWD 2 is AWD 3 is 4WD
+    GearAmount = 6 #How many gears you want your car to have
+    Ratios = array((1/0.08),(1/0.1),(1/0.14),(1/0.19),(1/0.25),(1/0.3),(1/0.4)) #ALWAYS GOES (reverse 1 2...) FOR RATIOS
+    ShiftSound = "acf_extra/vehiclefx/trans/default_shift.wav"
+    ClutchSensitivity = 1.1 #Determines how light or how hard the clutch is going to be in reverse or first DOES NOT MATTER IF MANUAL OR AUTOMATIC  (Adjust to biting point of your engine if possible)
+    ShiftTime = 20 #In MS for manual or auto how long it takes to shift to the next gear
+    AutoOrManual = 1 #Auto is 0 Manual is 1
+    AutoRatio = 0 #If 1 will determine ratios automatically based on ShiftRPM #Does not work yet
+    ShiftRPM = 5000 #This is what your rpm would be at from each shift from max rpm #Does not work yet
+    DifferentialType = 4 #1 is open dif,2 locked dif, 3 locking diff,4 limited slip dif, 5 welded dif
+    #End of config
+    
+    Wheels = array(WheelFL,WheelRL,WheelFR,WheelRR)
+    RotatingObjectWeight = (RotatingObject:mass()/RotatingObject:inertia():z())
+    WheelMass = WheelFL:mass()
+    MaxSlip = array(600,100,400,600,50)
+    
+    if(TransferCaseOptions == 0) {
+        Wheels = array(WheelRL,WheelRR)
+    }
+    elseif(TransferCaseOptions == 1) {
+        Wheels = array(WheelFL,WheelFR)
+    }
+}
+ClutchINOUT = !ClutchINOUT
+
+#GearChanging
+if(changed(Gearup)&Gearup) {
+    if(Gear == 0) {
+        GearV = 1
+        RotatingObject:soundPlay(1,1,ShiftSound)
+    }
+    if(Gear < GearAmount) {
+        Gear++
+        Clutch = 0
+        Shifted = 0
+        ThrottleOut = 0
+    }
+}
+elseif(changed(Geardown)&Geardown) {
+    if(Gear != -1) {
+        if(Gear == 0) {        
+            GearV = -1
+            RotatingObject:soundPlay(1,1,ShiftSound)
+        }
+        Gear--
+        Clutch = 0
+        Shifted = 0
+        ThrottleOut = 0
+    }
+}
+elseif(Gear == 0) {
+    GearV = 0
+    Calc = 0
+    ThrottleOut = ThrottleIn
+}
+#End Of Gear Changing
+
+#Start of Transmission Math and application
+if(GearV != 0) {
+      Ratio = Ratios[clamp(Gear+1,1,GearAmount+1),number]
+      FullRatio = (1/(DifRat+Ratio))
+      if(RotatingObject:angVel():yaw() < 100) { GearV = 0 Gear = 0 Clutch = 0 ThrottleOut = ThrottleIn exit()}
+      
+      #Wheel Speed Calculation
+      GPSSpeed = toUnit("mi/h",sqrt(Base:velL():x()^2+Base:velL():y()^2+Base:velL():z()^2))
+      WheelSpeed = ((StaticCalc * -Wheels[1,entity]:angVel():pitch())*0.90691344583)*GearV
+      if(GPSSpeed >= 5&StaticCalc == 0&ThrottleIn == 0) {
+        StaticCalc = (GPSSpeed/-Wheels[1,entity]:angVel():pitch())
+        ThrottleOut = ThrottleIn  
+      }
+      #Clutch Math
+      #RPMToSpeed = StaticCalc*((FullRatio*(RPMIn*6))/1.5)
+      #ALL MANUAL MODE
+      if(Gear == 1|Gear == -1) {
+           #Clutch Unedited will fully go in around half the max speed of 1st or reverse
+           ThrottleOut = ThrottleIn
+           #If Throttle is pressed in
+           if(ThrottleIn > 0) {  
+              if(!StaticCalc) {
+                SensitivityMath = clamp(GPSSpeed/(((FullRatio*(MaxRPM/ClutchSensitivity))*0.026)),0.1*ClutchSensitivity,1)
+              }
+              else{
+                SensitivityMath = clamp(-WheelSpeed/(((FullRatio*(MaxRPM/ClutchSensitivity))*StaticCalc)),0.1*ClutchSensitivity,1)
+              } 
+           }
+           #Idle
+           else{
+            if(!StaticCalc) {
+            SensitivityMath = clamp((GPSSpeed/(((FullRatio*(MaxRPM/ClutchSensitivity))*0.026))),0.1*ClutchSensitivity,1)
+            }
+            else{SensitivityMath = clamp(-WheelSpeed/(((FullRatio*(MaxRPM/ClutchSensitivity))*StaticCalc)),0.1*ClutchSensitivity,1)} 
+        }
+        Clutch = clamp(SensitivityMath,0,1)
+      }
+    elseif(Gear > 1) {
+        #For the rest of the gears and shift time
+        if(Clutch == 0) {
+            timer("ShiftTime",ShiftTime)
+            Shifted = 0
+            ThrottleOut = 0
+        }
+        elseif(Shifted >= 1) {
+            ThrottleOut = ThrottleIn
+        }
+   }
+    #End Of Manual Mode
+    
+    
+      #Wheel and Rotating object application
+        if(DifferentialType == 1) {
+                  #open dif
+                if(TransferCaseOptions < 2) {
+                  WheelRatios[2,number] = abs(1-clamp(((Wheels[1,entity]:angVel():pitch()-(-Wheels[2,entity]:angVel():pitch()))/MaxSlip[DifferentialType,number]),0,1)) WheelRatios[2,number] = WheelRatios[1,number]+abs(1-WheelRatios[2,number])
+                  WheelRatios[1,number] = abs(1-clamp(((-Wheels[2,entity]:angVel():pitch()-(Wheels[1,entity]:angVel():pitch()))/MaxSlip[DifferentialType,number]),0,1)) WheelRatios[1,number] = WheelRatios[2,number]+abs(1-WheelRatios[1,number])
+                  WheelRatios[4,number] = abs(1-clamp(((Wheels[3,entity]:angVel():pitch()-(-Wheels[4,entity]:angVel():pitch()))/MaxSlip[DifferentialType,number]),0,1)) WheelRatios[4,number] = WheelRatios[3,number]+abs(1-WheelRatios[4,number])
+                  WheelRatios[3,number] = abs(1-clamp(((-Wheels[4,entity]:angVel():pitch()-(Wheels[3,entity]:angVel():pitch()))/MaxSlip[DifferentialType,number]),0,1)) WheelRatios[3,number] = WheelRatios[4,number]+abs(1-WheelRatios[3,number])
+           }
+        else{
+            WheelRatios[3,number] = abs(1-clamp(((Wheels[1,entity]:angVel():pitch()-(-Wheels[3,entity]:angVel():pitch()))/MaxSlip[DifferentialType,number]),0,1)) WheelRatios[3,number] = WheelRatios[1,number]+abs(1-WheelRatios[3,number])
+            WheelRatios[1,number] = abs(1-clamp(((-Wheels[3,entity]:angVel():pitch()-(Wheels[1,entity]:angVel():pitch()))/MaxSlip[DifferentialType,number]),0,1)) WheelRatios[1,number] = WheelRatios[3,number]+abs(1-WheelRatios[1,number])
+            WheelRatios[4,number] = abs(1-clamp(((Wheels[2,entity]:angVel():pitch()-(-Wheels[4,entity]:angVel():pitch()))/MaxSlip[DifferentialType,number]),0,1)) WheelRatios[4,number] = WheelRatios[2,number]+abs(1-WheelRatios[4,number])
+            WheelRatios[2,number] = abs(1-clamp(((-Wheels[4,entity]:angVel():pitch()-(Wheels[2,entity]:angVel():pitch()))/MaxSlip[DifferentialType,number]),0,1)) WheelRatios[2,number] = WheelRatios[4,number]+abs(1-WheelRatios[2,number])
+        
+    }
+        
+        }
+        else{
+            #other difs
+            FrntAngVel = Wheels[1,entity]:angVel():pitch()+(-Wheels[3,entity]:angVel():pitch())
+            RearAngVel = Wheels[2,entity]:angVel():pitch()+(-Wheels[4,entity]:angVel():pitch())
+            FrntSlip = 1-(FrntAngVel-RearAngVel)/600
+            RearSlip = 1-(RearAngVel-FrntAngVel)/600
+            FrntSlip = clamp(FrntSlip+(1-RearSlip),0,1)
+            RearSlip = clamp(RearSlip+(1-FrntSlip),0,1)
+            if(TransferCaseOptions == 3) {
+            FrntTransferCaseDif = clamp(TransferCaseOptions-2,0,1)*FrntSlip
+            RearTransferCaseDif = clamp(TransferCaseOptions-2,0,1)*RearSlip
+            }
+            else{FrntTransferCaseDif = 1 RearTransferCaseDif = 1}
+            if(TransferCaseOptions < 2) {
+            WheelRatios[1,number] = abs(1-clamp(((Wheels[1,entity]:angVel():pitch()-(-Wheels[2,entity]:angVel():pitch()))/MaxSlip[DifferentialType,number]),0,1)) WheelRatios[1,number] = WheelRatios[1,number]+abs(1-WheelRatios[2,number])
+            WheelRatios[2,number] = abs(1-clamp(((-Wheels[2,entity]:angVel():pitch()-(Wheels[1,entity]:angVel():pitch()))/MaxSlip[DifferentialType,number]),0,1)) WheelRatios[2,number] = WheelRatios[2,number]+abs(1-WheelRatios[1,number])
+            WheelRatios[3,number] = abs(1-clamp(((Wheels[3,entity]:angVel():pitch()-(-Wheels[4,entity]:angVel():pitch()))/MaxSlip[DifferentialType,number]),0,1)) WheelRatios[3,number] = WheelRatios[3,number]+abs(1-WheelRatios[4,number])
+            WheelRatios[4,number] = abs(1-clamp(((-Wheels[4,entity]:angVel():pitch()-(Wheels[3,entity]:angVel():pitch()))/MaxSlip[DifferentialType,number]),0,1)) WheelRatios[4,number] = WheelRatios[4,number]+abs(1-WheelRatios[3,number])
+            
+            }
+            else{
+                WheelRatios[1,number] = abs(1-clamp(((Wheels[1,entity]:angVel():pitch()-(-Wheels[3,entity]:angVel():pitch()))/MaxSlip[DifferentialType,number]),0,1))*FrntTransferCaseDif WheelRatios[1,number] = (WheelRatios[1,number]+abs(1-WheelRatios[3,number]))
+                WheelRatios[3,number] = abs(1-clamp(((-Wheels[2,entity]:angVel():pitch()-(Wheels[1,entity]:angVel():pitch()))/MaxSlip[DifferentialType,number]),0,1))*FrntTransferCaseDif WheelRatios[3,number] = (WheelRatios[3,number]+abs(1-WheelRatios[1,number]))
+                WheelRatios[2,number] = abs(1-clamp(((Wheels[3,entity]:angVel():pitch()-(-Wheels[4,entity]:angVel():pitch()))/MaxSlip[DifferentialType,number]),0,1))*RearTransferCaseDif WheelRatios[2,number] = (WheelRatios[2,number]+abs(1-WheelRatios[4,number]))
+                WheelRatios[4,number] = abs(1-clamp(((-Wheels[4,entity]:angVel():pitch()-(Wheels[2,entity]:angVel():pitch()))/MaxSlip[DifferentialType,number]),0,1))*RearTransferCaseDif WheelRatios[4,number] = (WheelRatios[4,number]+abs(1-WheelRatios[2,number]))
+            
+            }
+        }
+        for(A=1,Wheels:count(),1) {  
+                if(A <= Wheels:count()/2) {
+                    WAngVelocity = Wheels[A,entity]:angVel():pitch()   
+                    RAngVelocity = (RotatingObject:angVel():yaw()*6)*(FullRatio)
+                    PercentageDifference = 1 - abs(WAngVelocity) / (RAngVelocity + 0.1) #Prevent division issues
+                    RotationalDifference = abs(abs(WAngVelocity)-RAngVelocity)
+                    FinalRotational = ((RotationalDifference*((RotationalDifference+(RotatingObjectWeight))/RotationalDifference))*PercentageDifference)
+                    FinalWheel = (RotationalDifference * PercentageDifference) * (FinalMass / WheelMass) * (1/FullRatio)
+            
+                    Wheels[A,entity]:applyAngForce(ang(FinalWheel*Clutch*GearV,0,0)*WheelRatios[A,number])  #EDIT THIS LINE IF WHEELS ARNT SPINNING IN SAME DIRECTION
+            }
+              else{
+                    WAngVelocity = -Wheels[A,entity]:angVel():pitch()   
+                    RAngVelocity = (RotatingObject:angVel():yaw()*6)*(FullRatio)
+                    PercentageDifference = 1 - abs(WAngVelocity) / (RAngVelocity + 0.1) #Prevent division issues
+                    RotationalDifference = abs(abs(WAngVelocity)-RAngVelocity)
+                    FinalRotational = ((RotationalDifference*((RotationalDifference+(RotatingObjectWeight))/RotationalDifference))*PercentageDifference)
+                    FinalWheel = (RotationalDifference * PercentageDifference) * (FinalMass / WheelMass) * (1/FullRatio)
+            
+                    Wheels[A,entity]:applyAngForce(ang(-FinalWheel*Clutch*GearV,0,0)*WheelRatios[A,number]) #also this line
+            }
+            RotatingObject:applyAngForce(ang(0,(-FinalRotational*Clutch),0))
+    }
+}
+WheelSpeed = ((StaticCalc * -Wheels[1,entity]:angVel():pitch())*0.90691344583)*GearV
+#Timers
+#ShiftTimer
+if(clk("ShiftTime")) {
+    if(AutoOrManual == 1) {
+        if(Shifted < 1) {
+            Shifted+=(ShiftTime/100)
+            Clutch = clamp(Shifted,0,1) 
+            timer("ShiftTime",ShiftTime)
+        }
+        else{stoptimer("ShiftTime") RotatingObject:soundPlay(1,1,ShiftSound)}
+        
+    
+    }
+}
+

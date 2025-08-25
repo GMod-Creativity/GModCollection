@@ -1,0 +1,194 @@
+--@name starfall car
+--@author GDOGS
+--@server
+    
+    local E = prop.create(chip():localToWorld(Vector(0,0,0)), chip():localToWorldAngles(Angle(0,0,0)), "models/sprops/rectangles_thin/size_66/rect_66x120x1_5.mdl", false) 
+    chip():setParent(E)
+    E:setMass(3500) E:setMaterial("sprops/sprops_grid_12x12")
+    E:setColor(Color(255,255,255,0))
+    
+    local Speed, Height, Accel = 245, 30, 0.2 -- Accel max is 1
+    local Length, Width = 50, 30
+    
+    local Holos = {}
+    
+    function getSurfaceAngle(Base, FL, FR, BL, BR)
+                
+        local FrontAvg = Base:worldToLocal((FR.HitPos + FL.HitPos) / 2)
+        local BackAvg  = Base:worldToLocal((BR.HitPos + BL.HitPos) / 2)
+        local Pitch    = (180/math.pi)*math.atan((FrontAvg[3]-BackAvg[3]) / (FrontAvg[1] - BackAvg[1]))
+        
+        local RightAvg = Base:worldToLocal((FR.HitPos + BR.HitPos) / 2)
+        local LeftAvg  = Base:worldToLocal((FL.HitPos + BL.HitPos) / 2)
+        local Roll     = (180/math.pi)*math.atan((RightAvg[3]-LeftAvg[3]) / (RightAvg[2] - LeftAvg[2]))
+        
+        return Angle(-Pitch, Base:getAngles()[2], Roll)
+    
+    end
+    
+    function hit(Ranger)
+        if Ranger.Hit == true then return 1 else return 0 end end
+    
+        -- ranger length
+    function rangerLength(ranger)
+        return (ranger.HitPos - ranger.StartPos):getLength() end
+        
+    function rangerOffset(length, pos, dir, filter)
+        if filter then
+            return trace.trace(pos, pos + dir:getNormalized() * length, filter)
+        else
+            return trace.trace(pos, pos + dir:getNormalized() * length)
+        end
+    end
+    
+    -- holoCreate(tbl:table, index:number, pos:vector, scale:vector, ang:angle, color:color, model:string, parent:entity, mat:string, disableshading:boolean)
+    function holoCreate(tbl, index, pos, scale, ang, color, model, parent, mat, disableshading)
+        if tbl == nil then
+            local holo = holograms.create(pos, ang, model, scale)
+            holo:setColor(color)
+            holo:setMaterial(mat)
+            holo:suppressEngineLighting(disableshading)
+            holo:setParent(parent)
+            
+            return holo
+        else
+            tbl[index] = holograms.create(pos, ang, model, scale)
+            tbl[index]:setColor(color)
+            tbl[index]:setMaterial(mat)
+            tbl[index]:suppressEngineLighting(disableshading)
+            tbl[index]:setParent(parent)
+        end
+    end
+    
+    function lerpN(A,B,C)
+        return A + (B - A) * C   
+    end
+    
+    -- converts an entity pos to world axis
+    function toWorldAxis(ent, localAxis)
+    
+        if not ent:isValid() then return Vector(0,0,0) end
+        return ent:localToWorld(Vector(localAxis[1],localAxis[2],localAxis[3]))-ent:getPos()
+        
+    end
+    
+    function velL(ent)
+        if not ent:isValid() then return Vector(0,0,0) end
+        return ent:worldToLocal(ent:getVelocity() + ent:getPos())
+    end
+    
+    function shiftLA(rv1)
+        return Angle(rv1[2], rv1[3], rv1[1])
+    end
+    
+    -- Wheel parents
+    holoCreate(Holos, 1, E:localToWorld(Vector(0)), Vector(1), E:localToWorldAngles(Angle(0)), Color(255,255,255,0), "models/sprops/misc/axis_plane.mdl", E, "", false)
+    holoCreate(Holos, 2, E:localToWorld(Vector(0)), Vector(1), E:localToWorldAngles(Angle(0)), Color(255,255,255,0), "models/sprops/misc/axis_plane.mdl", E, "", false)
+    holoCreate(Holos, 3, E:localToWorld(Vector(0)), Vector(1), E:localToWorldAngles(Angle(0)), Color(255,255,255,0), "models/sprops/misc/axis_plane.mdl", E, "", false)
+    holoCreate(Holos, 4, E:localToWorld(Vector(0)), Vector(1), E:localToWorldAngles(Angle(0)), Color(255,255,255,0), "models/sprops/misc/axis_plane.mdl", E, "", false)
+    
+    -- Actual wheel holos
+    holoCreate(Holos, 5, Holos[1]:localToWorld(Vector(0)), Vector(1,0.65,1), Angle(0), Color(255), "models/sprops/trans/wheel_d/t_wheel25.mdl", Holos[1], "", false)Holos[5]:setBodygroup(1,9)
+    holoCreate(Holos, 6, Holos[2]:localToWorld(Vector(0)), Vector(1,0.65,1), Angle(0), Color(255), "models/sprops/trans/wheel_d/t_wheel25.mdl", Holos[2], "", false)Holos[6]:setBodygroup(1,9)
+    holoCreate(Holos, 7, Holos[3]:localToWorld(Vector(0)), Vector(1,0.65,1), Angle(0), Color(255), "models/sprops/trans/wheel_d/t_wheel25.mdl", Holos[3], "", false)Holos[7]:setBodygroup(1,9)
+    holoCreate(Holos, 8, Holos[4]:localToWorld(Vector(0)), Vector(1,0.65,1), Angle(0), Color(255), "models/sprops/trans/wheel_d/t_wheel25.mdl", Holos[4], "", false)Holos[8]:setBodygroup(1,9)
+    
+    -- Debug holo for surface angle
+    holoCreate(Holos, 9, E:localToWorld(Vector(-50,0,5)), Vector(0.5), Angle(0), Color(255), "models/sprops/misc/axis_plane.mdl", E, "", true)
+    
+    -- Frame holos and detail holos
+    holoCreate(Holos, 10, E:localToWorld(Vector(0,0,0)), Vector(1), Angle(0), Color(255), "models/sprops/cuboids/height06/size_1/cube_6x6x6.mdl", E, "", false) Holos[10]:setSize(Vector(Length*2.2, 2, 2))
+    holoCreate(Holos, 11, E:localToWorld(Vector(Length,0,0)), Vector(1), Angle(0), Color(255), "models/sprops/cuboids/height06/size_1/cube_6x6x6.mdl", E, "", false) Holos[11]:setSize(Vector(2, Width*1.9, 2))
+    holoCreate(Holos, 12, E:localToWorld(Vector(-Length,0,0)), Vector(1), Angle(0), Color(255), "models/sprops/cuboids/height06/size_1/cube_6x6x6.mdl", E, "", false) Holos[12]:setSize(Vector(2, Width*1.9, 2))
+    
+    -- Steering wheel holos
+    holoCreate(Holos, 13, E:localToWorld(Vector(8,0,8)), Vector(1), Angle(-60,0,0), Color(255), "models/sprops/cuboids/height06/size_1/cube_6x6x6.mdl", E, "", false) Holos[13]:setSize(Vector(2, 2, 35))
+    holoCreate(Holos, 14, Holos[13]:localToWorld(Vector(0,0,17)), Vector(0.8), Angle(210,0,180), Color(255), "models/sprops/trans/stwheels/stwheel_4.mdl", Holos[13], "sprops/sprops_grid_12x12", false)
+    
+    -- Engine bolos
+    holoCreate(Holos, 18, E:localToWorld(Vector(45,0,3)), Vector(0.65,0.65,1), Angle(0,0,90), Color(255,255,255,0), "models/sprops/cylinders/size_2/cylinder_3x24.mdl", E, "", false)
+    holoCreate(Holos, 19, E:localToWorld(Vector(45,0,3)), Vector(0.65,0.65,1), Angle(0,0,0), Color(255), "models/sprops/cylinders/size_2/cylinder_3x24.mdl", Holos[18], "", false)
+    -- Piston bolos
+    holoCreate(Holos, 20, Holos[18]:localToWorld(Vector(0,5,10)), Vector(0.7,0.7,0.5), Angle(0,0,0), Color(255), "models/sprops/cylinders/size_3/cylinder_6x3.mdl", Holos[18], "", false)
+    holoCreate(Holos, 21, Holos[18]:localToWorld(Vector(0,5,3.5)), Vector(0.7,0.7,0.5), Angle(0,0,0), Color(255), "models/sprops/cylinders/size_3/cylinder_6x3.mdl", Holos[18], "", false)
+    holoCreate(Holos, 22, Holos[18]:localToWorld(Vector(0,5,-3.5)), Vector(0.7,0.7,0.5), Angle(0,0,0), Color(255), "models/sprops/cylinders/size_3/cylinder_6x3.mdl", Holos[18], "", false)
+    holoCreate(Holos, 23, Holos[18]:localToWorld(Vector(0,5,-10)), Vector(0.7,0.7,0.5), Angle(0,0,0), Color(255), "models/sprops/cylinders/size_3/cylinder_6x3.mdl", Holos[18], "", false)
+    
+    local EngineSound = sounds.create(E, "vehicles/apc/apc_cruise_loop3.wav", false) EngineSound:play()
+    
+    -- spawn and initialize seat
+    if !Seat then Seat = prop.createSeat(E:localToWorld(Vector(-30,0,0)), E:localToWorldAngles(Angle(0,-90,0)), "models/nova/airboat_seat.mdl", false, nil) Seat:setParent(E) Seat:setMaterial("sprops/sprops_grid_12x12") Seat:setColor(Color(255)) end
+    
+    WheelSpin = 0 oldv = Vector(0) Sp = 0
+    
+    timer.create("interval", 0.04, 0, function()
+    
+        local FL = rangerOffset(Height+14, E:localToWorld(Vector(Length, Width, 0)), -E:getUp(), {E,Seat,chip()})
+        Holos[1]:setPos(FL.HitPos + (E:getUp() * 12.5))
+        local FR = rangerOffset(Height+14, E:localToWorld(Vector(Length, -Width, 0)), -E:getUp(), {E,Seat,chip()})
+        Holos[2]:setPos(FR.HitPos + (E:getUp() * 12.5))
+        local BL = rangerOffset(Height+14, E:localToWorld(Vector(-Length, Width, 0)), -E:getUp(), {E,Seat,chip()})
+        Holos[3]:setPos(BL.HitPos + (E:getUp() * 12.5))
+        local BR = rangerOffset(Height+14, E:localToWorld(Vector(-Length, -Width, 0)), -E:getUp(), {E,Seat,chip()})
+        Holos[4]:setPos(BR.HitPos + (E:getUp() * 12.5))
+        
+        WheelSpin = WheelSpin + velL(E)[1] / 3.5
+        vel = velL(E)
+        deltav = oldv-vel if deltav[1] > 0 then deltav[1] = deltav[1]/3 end
+        oldv = vel
+        
+        local driver = Seat:getDriver()
+        if driver:isValid() then
+        
+            w, a, s, d =
+            driver:keyDown(IN_KEY.FORWARD), driver:keyDown(IN_KEY.MOVELEFT), driver:keyDown(IN_KEY.BACK), driver:keyDown(IN_KEY.MOVERIGHT)
+            if w then w = 1 else w = 0 end if a then a = 1 else a = 0 end if s then s = 1 else s = 0 end if d then d = 1 else d = 0 end
+            
+            Turn = lerpN(Turn, ((55)-math.clamp(vel[1]/40,-30,30))*(a-d), 0.3)
+        else
+        
+            Turn = 0
+            w, a, s, d = 0, 0, 0, 0
+            
+        end
+        
+        local Hit      = (hit(FL) + hit(FR) + hit(BL) + hit(BR)) / 4
+        local Distance = (rangerLength(FL) + rangerLength(FR) + rangerLength(BL) + rangerLength(BR)) / 4
+        
+        if Hit > 0.5 then E:enableGravity(false) else E:enableGravity(true) end
+        
+        if w or s then Sp = lerpN(Sp, Speed, Accel) else Sp = lerpN(Sp, 0, Accel) end
+        
+        local SurfaceAngle = getSurfaceAngle(E, FL, FR, BL, BR)
+        local Jerk         = Angle(math.clamp(deltav[1]/9,-12,18), 0, math.clamp(-vel[2]/150, -12, 12))
+        local MaxTurn      = ((math.clamp(vel[1]/10,-55,55))-(math.clamp(vel[1]/90, -33, 33))) * (a-d)
+        local Yaw          = E:getAngles()[2]+(MaxTurn*0.9)
+        
+        Holos[1]:setAngles(E:localToWorldAngles(Angle(0,Turn,0)))
+        Holos[2]:setAngles(E:localToWorldAngles(Angle(0,Turn,0)))
+        Holos[14]:setAngles(E:localToWorldAngles(Angle(210,0,180+(Turn*3))))
+        
+        Holos[5]:setAngles(Holos[1]:localToWorldAngles(Angle(WheelSpin,0,0)))
+        Holos[6]:setAngles(Holos[2]:localToWorldAngles(Angle(WheelSpin,0,0)))
+        Holos[7]:setAngles(Holos[3]:localToWorldAngles(Angle(WheelSpin,0,0)))
+        Holos[8]:setAngles(Holos[4]:localToWorldAngles(Angle(WheelSpin,0,0)))
+        
+        -- Pistons + Engine
+        local PistonTime = (timer.curtime()*400)
+        local PistonAdd  = math.abs(WheelSpin/2)
+        Holos[19]:setAngles(Holos[18]:localToWorldAngles(Angle(0,-(PistonTime*2)-PistonAdd,0)))
+        Holos[20]:setPos(Holos[18]:localToWorld(Vector(0,7+3*math.sin(PistonTime+PistonAdd/2),10)))
+        Holos[21]:setPos(Holos[18]:localToWorld(Vector(0,7+3*math.sin(PistonTime+180+PistonAdd/2),3.5)))
+        Holos[22]:setPos(Holos[18]:localToWorld(Vector(0,7+3*math.sin(PistonTime+90+PistonAdd/2),-3.5)))
+        Holos[23]:setPos(Holos[18]:localToWorld(Vector(0,7+3*math.sin(PistonTime+270+PistonAdd/2),-10)))
+        
+        local Force = toWorldAxis(E, Vector((-vel[1]/6)+(Sp*(w-(s/3))),(-vel[2]/1.1),(((Height) - Distance) * (22) - (vel[3] * 1.5))))
+        local Ang   = (E:worldToLocalAngles((SurfaceAngle+E:getAngles()+Jerk):setY(Yaw)))*200
+        
+        E:applyAngForce((Ang * 500 - (E:getAngleVelocityAngle() * 10) * shiftLA(E:getInertia())) * Hit)
+        E:applyForceCenter(Force * (E:getMass() / 3) * Hit)
+        
+        EngineSound:setPitch(70+math.clamp(math.abs(vel[1]/10),0,255-70))
+        Holos[9]:setAngles(E:localToWorldAngles(SurfaceAngle:setY(0)))
+    
+    end)

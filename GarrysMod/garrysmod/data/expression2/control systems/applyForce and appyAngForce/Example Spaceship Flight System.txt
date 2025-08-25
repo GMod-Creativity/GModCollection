@@ -1,0 +1,44 @@
+@name Paper Carrier Flight System
+@inputs Seat:entity W A S D
+@outputs CamEnable CamPos:vector CamDir:vector
+@persist Prop:entity
+@trigger 
+
+if( first() | duped() ){
+   Prop = entity():isWeldedTo(1)
+   Prop:setMass(50000)
+}
+interval(50)
+
+if( Seat:driver() )
+{
+    ### ADDED cam-controller settings
+    CamEnable = 1
+    CamPos = Seat:pos() + 25*Seat:right() # View from 50 units forward, and 50 units up from the seat
+    CamDir = Seat:right()*1000
+    
+    # Perform the accurate angle calculation
+    EyeVector = vec(Seat:forward():dot(Seat:driver():eye()),-Seat:right():dot(Seat:driver():eye()),Seat:up():dot(Seat:driver():eye()))
+    DesiredDirectionRight = EyeVector:cross(vec(0,0,1)) ####<--- Changed to:###
+    DesiredDirection = EyeVector:cross(DesiredDirectionRight)
+    
+  
+    LocalDifference1 = vec(Prop:forward():dot(DesiredDirection),Prop:right():dot(DesiredDirection),Prop:up():dot(DesiredDirection))
+    LocalDifference2 = vec(Prop:forward():dot(DesiredDirectionRight),Prop:right():dot(DesiredDirectionRight),Prop:up():dot(DesiredDirectionRight))
+    DifAngle = angnorm(ang( LocalDifference1:toAngle():pitch(), LocalDifference1:toAngle():yaw(), LocalDifference2:toAngle():pitch() ))
+    
+    # Apply angular force
+    Prop:applyAngForce(-ang(-25294650.909335*DifAngle:pitch() + 1470277.0417309*Prop:angVel():pitch(),19412328.545875*DifAngle:yaw() + 1143146.4811801*Prop:angVel():yaw(),-24924383.24183*DifAngle:roll() + 1466070.9603029*Prop:angVel():roll()))
+    
+    # Apply positional force
+    Force = (W-S)*90000000*Prop:up() + (D-A)*90000000*Prop:right() - 50000*Prop:vel()
+    Prop:applyForce(Force)
+}else{
+    CamEnable = 0
+    
+    # Cancel all angular velocity
+    DifAngle = ang(0,0,0)
+    Prop:applyAngForce(-ang(-25294650.909335*DifAngle:pitch() + 1470277.0417309*Prop:angVel():pitch(),19412328.545875*DifAngle:yaw() + 1143146.4811801*Prop:angVel():yaw(),-24924383.24183*DifAngle:roll() + 1466070.9603029*Prop:angVel():roll()))
+    Force = -50000*Prop:vel()
+    Prop:applyForce(Force)
+}

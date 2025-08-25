@@ -1,8 +1,11 @@
-Author: Tech Mage
-Date: 09-11-2014
-Title: Dimension Door E2
+- Author: Tech Mage
+<!-- -->
+- Title: Dimension Door E2
+- Date (dd-mm-yyyy): 11-09-2014
+- Source: https://web.archive.org/web/20150501095121/http://www.wiremod.com/forum/finished-contraptions/33538-dimension-door-e2.html
+- Source Accessed (dd-mm-yyyy): 14-08-2025
 
-*Dimension Door*
+## Dimension Door E2
 
 Welcome, new Aethernauts! Here a most important tool in the young Cadet's toolbelt! I present to you, the Dimension Door.
 

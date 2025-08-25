@@ -1,7 +1,7 @@
 - Author: liixx
 <!-- -->
 - Title: [E2/Syth Music] Painful History Intro (Hanako's theme)
-- Date: 03-02-2013
+- Date (dd-mm-yyyy): 03-02-2013
 - Source: https://web.archive.org/web/20150304052458/http://www.wiremod.com:80/forum/finished-contraptions/31319-e2-syth-music-painful-history-intro-hanakos-theme.html
 - Source Accessed (dd-mm-yyyy): 14-08-2025
 

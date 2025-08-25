@@ -1,4 +1,5 @@
-- Author: <Unkown Author:0> reason: <Deleted User>
+- Author: SnowWhalez
+- Steam Profile: https://steamcommunity.com/profiles/76561198144736770
 <!-- -->
 - Title: prop2holoE2
 - Date (dd-mm-yyyy): 14-07-2022

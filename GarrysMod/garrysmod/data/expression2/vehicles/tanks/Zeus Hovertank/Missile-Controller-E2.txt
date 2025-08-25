@@ -1,0 +1,274 @@
+@name Paper Hovertank Missiles
+@inputs Active Fire FireDumb SpawnA1:array SpawnA2:array TargetDirection:wirelink
+@inputs 
+@outputs Spawn1 Spawn2 Target:entity
+@outputs Undo TargetPos:vector Locked Missiles:array Targets:array
+@persist ClearCount MissileDelayCount FireCount FireIndex Sound Count Pushes:array Targets:array FireType:array LFire Loop
+@persist SpawnA1L SpawnA2L FireTypeLast TargettingProp:entity
+@trigger Fire SpawnA1 SpawnA2
+
+
+if( first() | duped() )
+{
+    timer("init",2000)
+    exit()
+}elseif( clk("init") ){
+    AARange = 1000000
+    Missiles = array()
+    Targets = array()
+    Pushes = array()
+    FireType = array()
+    Count = 0
+    Loop = 1
+    Target = entity(9999999)
+    Sound = random(1,1000)
+    Lock = 0
+    Undo = 0
+    
+    MissileDelayCount = 0
+    if( TargetDirection:entity() )
+    {
+        TargettingProp = TargetDirection:entity()
+    }else{
+        TargettingProp = entity()
+    }
+}
+interval(50)
+
+if( Active )
+{
+    
+    
+    if( ~SpawnA1 | ~SpawnA2 )
+    {
+        # Load the entity ids of the new missiles
+        if( ~SpawnA1 )
+        {
+            if( SpawnA1:count() > SpawnA1L )
+            {
+                # Process new spawned missiles
+                Missiles:pushEntity(SpawnA1[1,entity])
+                SpawnA1[1,entity]:setMass(50000)
+                SpawnA1[1,entity]:soundPlay(1,0,"weapons/gauss/fire1.wav")
+                soundPitch(1,125)
+                
+                Pushes:pushNumber(10)
+                if( FireTypeLast )
+                {
+                    Targets:pushEntity(owner())
+                }else{
+                    Targets:pushEntity(Target)
+                }
+                
+                FireType:pushNumber(FireTypeLast)
+                
+                # Set the trail
+                SpawnA1[1,entity]:setTrails(40,20,5,"models/alyx/emptool_glow",vec(255,0,0),250)
+                
+                # Create the plasma hologram
+                holoCreate(SpawnA1[1,entity]:id(),SpawnA1[1,entity]:pos(),vec(5,5,5),SpawnA1[1,entity]:angles(),vec(255,0,255),"hqicosphere")
+                holoCreate(SpawnA1[1,entity]:id()+10000,SpawnA1[1,entity]:pos(),vec(3,3,3),SpawnA1[1,entity]:angles(),vec(0,0,0),"hqicosphere")
+                holoMaterial(SpawnA1[1,entity]:id(),"models/alyx/emptool_glow")
+                
+                holoParent(SpawnA1[1,entity]:id(),SpawnA1[1,entity])
+                holoParent(SpawnA1[1,entity]:id()+10000,SpawnA1[1,entity])
+                #SpawnA1[1,entity]:setAlpha(255)
+                SpawnA1[1,entity]:setMaterial("models/alyx/emptool_glow")
+                SpawnA1[1,entity]:setColor(0,0,255)
+                
+            }else{
+                # Do nothing
+            }
+            
+            SpawnA1L = SpawnA1:count()
+        }elseif( ~SpawnA2 )
+        {
+            if( SpawnA2:count() > SpawnA2L )
+            {
+                # Process new spawned missiles
+                Missiles:pushEntity(SpawnA2[1,entity])
+                SpawnA2[1,entity]:setMass(50000)
+                #SpawnA2[1,entity]:soundPlay(2,1000,"weapons/flaregun/burn.wav")
+                SpawnA2[1,entity]:soundPlay(2,0,"weapons/gauss/fire1.wav")
+                soundPitch(2,125)
+                Pushes:pushNumber(35)
+                if( FireTypeLast )
+                {
+                    Targets:pushEntity(owner())
+                }else{
+                    Targets:pushEntity(Target)
+                }
+                
+                
+                FireType:pushNumber(FireTypeLast)
+                #SpawnA2[1,entity]:setTrails(40,20,5,"trails/smoke",randvec(0,255),250)
+                SpawnA2[1,entity]:setTrails(40,20,5,"models/alyx/emptool_glow",vec(255,0,0),250)
+                
+                 # Create the plasma hologram
+                holoCreate(SpawnA2[1,entity]:id(),SpawnA2[1,entity]:pos(),vec(5,5,5),SpawnA2[1,entity]:angles(),vec(255,0,255),"hqicosphere")
+                holoCreate(SpawnA2[1,entity]:id()+10000,SpawnA2[1,entity]:pos(),vec(3,3,3),SpawnA2[1,entity]:angles(),vec(0,0,0),"hqicosphere")
+                holoMaterial(SpawnA2[1,entity]:id(),"models/alyx/emptool_glow")
+                
+                holoParent(SpawnA2[1,entity]:id(),SpawnA2[1,entity])
+                holoParent(SpawnA2[1,entity]:id()+10000,SpawnA2[1,entity])
+                #SpawnA1[1,entity]:setAlpha(255)
+                SpawnA2[1,entity]:setMaterial("models/alyx/emptool_glow")
+                SpawnA2[1,entity]:setColor(0,0,255)
+            }else{
+                # Do nothing
+            }
+            
+            SpawnA2L = SpawnA2:count()
+        }
+    }else{
+        TargetPos = Target:pos()
+        Count++
+        
+        # Reload the targetted entity
+        if( mod(Count, 10 ) == 0 )
+        {
+            # Reload target
+            #findClearWhiteList()
+            #findClearBlackList()
+            Dir = TargettingProp:forward()
+            Count = findInCone( TargettingProp:pos() + Dir*300, Dir, 20000, 20 )
+            
+            # Find the closest to the centre-line target
+            TmpTargets = findToArray()
+            Index = 1
+            MinDist = 10000000
+            while( Index <= TmpTargets:count() )
+            {
+                if( TmpTargets[Index,entity]:model() != "models/props_phx/ww2bomb.mdl" & TmpTargets[Index,entity]:model() != "models/holograms/hqicosphere.mdl" & TmpTargets[Index,entity]:model() != "models/alyx/emptool_glow.vmt" )
+                {
+                    DifPos = TmpTargets[Index,entity]:pos()-TargettingProp:pos()
+                    Dist = (DifPos-DifPos:dot(Dir)*DifPos:normalized()):length()
+                    if( Dist < MinDist )
+                    {
+                        Target = TmpTargets[Index,entity]
+                        #print(TmpTargets[Index,entity]:model())
+                        MinDist = Dist
+                    }
+                }
+                Index++
+            }
+            #Target = findClosest( TargetDirection:entity():pos()  )
+            Locked = 1
+        }
+        
+        # Spawn new missiles if required
+        if( Fire | FireDumb )
+        {
+            FireTypeLast = FireDumb
+            Undo = 0
+            ClearCount = 0
+            FireCount++
+            if( mod(FireCount,7) == 0 )
+            {
+                if( Target | FireDumb )
+                {
+                    if( mod(FireIndex,2) == 0 )
+                    {
+                        Spawn1 = 1
+                        Spawn2 = 0
+                    }elseif( mod(FireIndex,2) == 1 )
+                    {
+                        Spawn1 = 0
+                        Spawn2 = 1
+                    }
+                    
+                    #entity():soundPlay(Sound+2,2000,"physics/cardboard/cardboard_box_break3.wav")
+                    FireIndex++
+                }else{
+                    print( "Error: No Missile Lock." )
+                }
+            }
+        }else{
+            ClearCount++
+            if( ClearCount == 800 )
+            {
+                # Clean up
+                MissileDelayCount = 0
+                Missiles = array()
+                Targets = array()
+                Pushes = array()
+                soundPurge()
+            }elseif( ClearCount > 800 )
+            {
+                Undo = !Undo
+            }
+            
+            FireCount = 0
+            Spawn1 = 0
+            Spawn2 = 0
+            FindIndex = 0
+        }
+        
+        # Apply force to the existing missiles
+        Loop = 1
+        
+        while( (Loop <= Missiles:count()) )
+        {
+            CurMis = Missiles[Loop,entity]
+            CurTar = Targets[Loop,entity]
+            Push = Pushes[Loop,number]
+            if( FireType[Loop,number] == 0 )
+            {
+                
+                if( Push > 0  & CurMis & CurMis:health() > 0)
+                {
+                    # Push this missile away
+                    CurMis:applyForce(CurMis:forward()*1000000000+1000000000*TargettingProp:up())
+                    Push--
+                    Pushes[Loop,number] = Push
+                }else{
+                    if( !CurMis | !CurTar  | CurMis:health() < 0 )
+                    {
+                        if( !CurTar )
+                        {
+                            # Fire this missile straight for the rest of the time
+                            FireType[Loop,number] = 1
+                        }else{
+                            # Remove this missile from our list
+                            holoDelete(Missiles[Loop,entity]:id())
+                            holoDelete(Missiles[Loop,entity]:id()+10000)
+                            Missiles:removeEntity(Loop)
+                            Targets:removeEntity(Loop)
+                            Pushes:removeNumber(Loop)
+                            FireType:removeNumber(Loop)
+                            Loop--
+                        }
+                    }else{
+                        # Apply force to this missile
+                        Dir = (CurTar:pos()-CurMis:pos())
+                        CurMis:applyForce(Dir*10000000)
+                        
+                        #CurMis:applyOffsetForce(Dir*100000000,CurMis:pos()+CurMis:forward()*1000)
+                        #CurMis:applyAngForce(-CurMis:angVel()*0.001)
+                    }
+                }
+            }else{
+                if( CurMis & CurMis:health() > 0 )
+                {
+                    # Apply force to this missile
+                    CurMis:applyForce(CurMis:forward()*1000000000)
+                    #CurMis:applyOffsetForce(Dir*100000000,CurMis:pos()+CurMis:forward()*1000)
+                    #CurMis:applyAngForce(-CurMis:angVel()*0.001)
+                }else{
+                    # Remove this missile from our list
+                    holoDelete(Missiles[Loop,entity]:id())
+                    holoDelete(Missiles[Loop,entity]:id()+10000)
+                    Missiles:removeEntity(Loop)
+                    Targets:removeEntity(Loop)
+                    Pushes:removeNumber(Loop)
+                    FireType:removeNumber(Loop)
+                    Loop--
+                }
+            }
+            Loop++
+        }
+        
+        LFire = Fire
+    }
+
+}

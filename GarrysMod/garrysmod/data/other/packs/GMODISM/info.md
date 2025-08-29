@@ -11,6 +11,12 @@
 - Source: https://www.mediafire.com/folder/hy0ru085a3ogo/Gmod_things
 - Source Accessed (dd-mm-yyyy): 21-08-2025
 
+**Gmodism_mega_dupe_pack**
+- Source: https://www.youtube.com/watch?v=fPc3RKAm7Uk
+- Source: https://web.archive.org/web/20230701000459/https://garrysmods.org/download/60205/gmodisms-mega-advdupe-2-pack
+- Source: Thanks to a player for sharing the files :>
+- Source Accessed (dd-mm-yyyy): 29-08-2025
+
 **moddb**
 - Description: [GMod] Adv.Dupe2 Dupelications (Builds)
 - Source: https://gmodism.com/resources/

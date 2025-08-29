@@ -1,6 +1,9 @@
-Author: RedReaper
+- Author: RedReaper
+- Youtube: https://www.youtube.com/@redreaper-xe6so
+<!-- -->
+- Title: [RELEASE] Red's Flight Chip
 
-*[RELEASE] Red's Flight Chip*
+## [RELEASE] Red's Flight Chip
 
 This is a multipurpose, multifeature flight chip, with surprisingly good capabilities and modularity. It not as high in ops as some chips, but still runs at a relatively low interval, by optimizing code and pertick executions. Flight is incredibly easy, and setup is a breeze--just read the annotations!
 New for v3.2d is an in-cockpit "realistic" flight mode, for those who feel particularly masochistic, a (hopefully) fixed autopilot, altitude hold with "hold", "aim" autopilot waypoint settings (just goes forward x amount and sets a point there), and a few minor fixes. If there are any bugs or possible optimizations, let me know.

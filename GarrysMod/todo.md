@@ -1,7 +1,7 @@
 ## TODO
 - [x] data/other/packs/GMODISM add Pastebin: https://pastebin.com/u/Gmodism
 - [x] Add info.md for GMODISM stuff in data/expression2
-- [ ] Add stuff from Metacore91: https://www.youtube.com/@Metacore91
+- [x] Add stuff from Metacore91: https://www.youtube.com/@Metacore91
 - [ ] Add stuff from wiremod: https://web.archive.org/web/*/http://www.wiremod.com/forum/finished-contraptions/*
 - [x] Add stuff from leghumper: https://github.com/sailingtheseasjoe/E2
 - [x] Add stuff from leghumper: https://github.com/sailingtheseasjoe/advdupe2
@@ -17,3 +17,4 @@
 - [x] Add simplicity stuff: https://gmods.org/?q=Simplicity and https://web.archive.org/web/20110220205658/http://www.wiremod.com:80/forum/finished-contraptions/15285-simplicity-computer.html
 - [] Add imageloader: https://github.com/NiTrO0FuN/e2-imageloader
 - [x] Add stuff from ARaccoonNamedDEF: https://github.com/ARaccoonNamedDEF, https://www.youtube.com/@FUNC_DEF
+- [ ] Check cipher ultra instant chassis if its version 1 or 2?

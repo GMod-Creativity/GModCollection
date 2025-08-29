@@ -1,6 +1,13 @@
-- Author: failcake
-- Date: 07-30-2014
+- Author: FailCake
+- Youtube: https://www.youtube.com/@edunad
+- Steam Profile: https://steamcommunity.com/profiles/76561198001836909
+- Github: https://github.com/edunad
+<!-- -->
 - Title: [E2 Tutorial] Let's Create! - Abe's oddysee Mine!
+- Date (dd-mm-yyyy): 30-07-2014
+- Source: https://web.archive.org/web/20150429021515/http://www.wiremod.com:80/forum/finished-contraptions/33369-e2-tutorial-lets-create-abes-oddysee-mine.html
+- Source: https://www.youtube.com/watch?v=b1C6sfQS5FA
+- Source Accessed (dd-mm-yyyy): 29-08-2025
 
 ## [E2 Tutorial] Let's Create! - Abe's oddysee Mine!
 

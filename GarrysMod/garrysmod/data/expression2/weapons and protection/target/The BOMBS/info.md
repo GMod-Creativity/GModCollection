@@ -1,6 +1,9 @@
 - Author: 31337
-- Date: 08-29-2014
+<!-- -->
 - Title: Explosives Are fun aren't they
+- Date: 29-08-2014
+- Date (dd-mm-yyyy): https://web.archive.org/web/20150429092422/http://www.wiremod.com:80/forum/finished-contraptions/33500-explosives-fun-arent-they.html
+- Source Accessed (dd-mm-yyyy): 29-08-2025
 
 ## Explosives Are fun aren't they
 

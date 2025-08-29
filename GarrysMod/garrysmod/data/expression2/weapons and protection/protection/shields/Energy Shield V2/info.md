@@ -1,9 +1,12 @@
-- Author: AJ10017 (Seris)
-- Date: 06-29-2014
+- Author: Seris (AJ10017)
+- Steam Profile: https://steamcommunity.com/profiles/76561198000118795
+- Youtube: https://www.youtube.com/@Seris_/
+<!-- -->
 - Title: [E2 Release] Energy Shield V2
-- custom info: 
-  - https://steamcommunity.com/sharedfiles/filedetails/?id=390889254 
-  - https://www.youtube.com/@Seris_
+- Date (dd-mm-yyyy): 29-06-2014
+- Source: https://web.archive.org/web/20160414061729/http://www.wiremod.com:80/forum/finished-contraptions/33242-e2-release-energy-shield-v2.html
+- Source: https://steamcommunity.com/sharedfiles/filedetails/?id=390889254 
+- Source Accessed (dd-mm-yyyy): 29-08-2025
 
 ## [E2 Release] Energy Shield V2
 

@@ -4,9 +4,21 @@
 <!-- -->
 - Title: New and Improved [Instant Base]
 - Date (dd-mm-yyyy): 07-10-2017
-- Source: Wiremod Discord
+- Source: Wiremod Discord: Contraptions Archived
 - Source Accessed (dd-mm-yyyy): 25-08-2025
 
 ## New and Improved [Instant Base]
 
+4 that special kitty in u
+
 you save a base with it using /save command (saves within a radius) and then it spawns the base with /load. The base regenerates so if someone destroys a prop it comes back.
+
+<!-- -->
+- Title: Some old E2s I made a while ago that I found
+- Date (dd-mm-yyyy): 02-04-2018
+- Source: Wiremod Discord: Contraptions Archived
+- Source Accessed (dd-mm-yyyy): 29-08-2025
+
+## New and Improved [Instant Base]
+
+Some old E2s I made a while ago that I found

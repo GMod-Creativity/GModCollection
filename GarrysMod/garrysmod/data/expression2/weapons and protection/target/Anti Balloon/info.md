@@ -1,8 +1,12 @@
-Author: Stress
-Date: 12-29-2014
-Title: [E2] Anti Balloon
+- Author: Stress
+- Steam Profile: https://steamcommunity.com/profiles/76561197998048547
+<!-- -->
+- Date (dd-mm-yyyy): 29-12-2014
+- Title: [E2] Anti Balloon
+- Source: https://web.archive.org/web/20150429002013/http://www.wiremod.com/forum/finished-contraptions/33852-e2-anti-balloon.html
+- Source Accessed (dd-mm-yyyy): 29-08-2025
 
-*[E2] Anti Balloon*
+## [E2] Anti Balloon
 
 Hello guys,
 
@@ -13,7 +17,7 @@ This Expression 2 is pretty helpfull to me when I play on multiplayer servers, a
 
 Just make sure to not place it behind walls or it will shoot the walls.
 
-How to use it :
+**How to use it :**
 
 First step : Create a wire turret.
 Second step : Spawn the e2 chip.
@@ -21,7 +25,7 @@ Third step : Place the e2 chip where you want with your physgun.
 
 You can also use this for the Fire = 1 & 0.
 
-Code:
+```
 O = owner()
 
 if ( changed( O:keyPressed("X") ) & O:keyPressed("X") ) {
@@ -29,18 +33,25 @@ if ( changed( O:keyPressed("X") ) & O:keyPressed("X") ) {
 } else {
     Fire = 0
 }
+```
 
-Edit Note :
+**Edit Note :**
     Moved :
-        Code:
-        E = entity()
-        EP = entity():pos()
+
+    ```
+    E = entity()
+    EP = entity():pos()
+    ```
+
     Added :
-        Code:
-        Turret:createWire(E,"Fire","Fire")
+
+    ```
+    Turret:createWire(E,"Fire","Fire")
+    ```
+
     Removed :
         4th step from "How to use it :" .
 
 Informations :
-OPS : 40-55
-Addon(s) used : setPos
+    OPS : 40-55
+    Addon(s) used : setPos

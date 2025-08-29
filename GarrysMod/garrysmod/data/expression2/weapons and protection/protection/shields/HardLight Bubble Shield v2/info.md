@@ -1,6 +1,11 @@
 - Author: SinkableSea
-- Date: 01-25-2016
+- Youtube: https://www.youtube.com/@sinkablesea2634
+<!-- -->
 - Title: HardLight Bubble Shield v2 [PUBLIC RELEASE:ADV DUPE 2]
+- Date (dd-mm-yyyy): 25-01-2016
+- Source: https://web.archive.org/web/20160430003421/http://www.wiremod.com:80/forum/finished-contraptions/35456-hardlight-bubble-shield-v2-public-release-adv-dupe-2-a.html
+- Source: https://www.youtube.com/watch?v=JSQ7N1btUAc
+- Source Accessed (dd-mm-yyyy): 29-08-2025
 
 ## HardLight Bubble Shield v2 [PUBLIC RELEASE:ADV DUPE 2]
 
@@ -11,20 +16,31 @@ OLD VIDEO OF v1 SO YOU MOSTLY UNDERSTAND WHAT THIS DOES AND LOOKS LIKE:
 
 TO USE: Just stand still, press your walk key, AND your use key AT THE SAME TIME, and it will deploy. DO NOT MOVE, JUMP, OR DUCK INSIDE THE SHIELD, OR ATTEMPT TO INFLICT DAMAGE INSIDE THE SHIELD OR IT WILL POP. Due to how the player interacts w/ the shield w/ motion, I decided it would be better for if you move, to disable the shield, rather than you duck and your head pops out the top of the shield while you float in the middle. :/
 
-Features:
--8192hp: a nice round binary number (2^13) I thought might be ok. I know this is an insane amount of HP, but this is meant to be defensive gear, not offensive, and for a group of players to take it on.
+**Features:**
 
--30 second duration: If the HP wasn't drained in 30 secs, the bubble will pop after this amount of time.
+- 8192hp: a nice round binary number (2^13) I thought might be ok. I know this is an insane amount of HP, but this is meant to be defensive gear, not offensive, and for a group of players to take it on.
 
--15 second recharge: vs the old V1 5 second.
+- 30 second duration: If the HP wasn't drained in 30 secs, the bubble will pop after this amount of time.
 
--Audio Cues: Not only can you see the health of the shield, you can now hear it, listen carefully to the ambient hum as its pitch goes down w/ the HP. Also, after the shield pops + 15 seconds later, a little bloop will go off telling you it's ready.
+- 15 second recharge: vs the old V1 5 second.
 
--Smaller shield size: FPP doesn't really like it when you spawn in a big 375x375 sphere most times so I shrunk it to a 2x2 sphere. Still plenty big to hold a player.
+- Audio Cues: Not only can you see the health of the shield, you can now hear it, listen carefully to the ambient hum as its pitch goes down w/ the HP. Also, after the shield pops + 15 seconds later, a little bloop will go off telling you it's ready.
 
--Explosive RESISTANT not IMMUNE: Decrease in shield size means it's more likely for splash damage to leak into the shield, hurting you, but the shield does in fact soak up a good bit of it. Better some than none amirite?
+- Smaller shield size: FPP doesn't really like it when you spawn in a big 375x375 sphere most times so I shrunk it to a 2x2 sphere. Still plenty big to hold a player.
 
-One final note:
+- Explosive RESISTANT not IMMUNE: Decrease in shield size means it's more likely for splash damage to leak into the shield, hurting you, but the shield does in fact soak up a good bit of it. Better some than none amirite?
+
+**One final note:**
 DO NOT MESS WITH THE BOX: You can dupe it in anywhere you like, but after it spawns, it stays. Do not try to delete the box, do not try to recolor the box, do not try to move the box w/ physgun. There is code set in place to keep you from doing those things so it's pointless to try.
 
 Have fun!
+
+## Re: HardLight Bubble Shield v2 [PUBLIC RELEASE:ADV DUPE 2]
+
+CHANGELOG:
+
+2.0.0 1/26/2016-2:00am: Initial Release
+
+2.0.1 1/26/2016-6:11pm: Optimized a chunk of code I forgot to add in last second that ate up a chunk of quota.
+
+2.0.2 1/27/2016-5:13am: Fixed a glitch where you can activate the chip entering a vehicle, and fixed a graphical glitch where the shield bubble still casts a shadow after it pops. Also some cleanup and a few revisions.

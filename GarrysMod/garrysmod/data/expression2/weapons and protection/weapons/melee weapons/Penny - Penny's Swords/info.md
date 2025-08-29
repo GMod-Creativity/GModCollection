@@ -1,6 +1,15 @@
 - Author: Alix1723
-- Date: Nov 17, 2014
+- Steam Profile: https://steamcommunity.com/profiles/76561197991851508
+- Youtube: https://www.youtube.com/@Alix1723
+- Github: https://github.com/Alix1723
+<!-- -->
 - Title: Penny - Penny's Swords
-- Extra_Info: from American animated web series: RWBY
+- Date (dd-mm-yyyy): 17-11-2014
+- Source: https://github.com/Alix1723/RWBY-E2-Weapons/blob/master/Penny%20-%20Penny's%20Swords.txt
+- Source Accessed (dd-mm-yyyy): 29-08-2025
+
+## Penny - Penny's Swords
+
+from American animated web series: RWBY
 
 http://rwby.wikia.com/wiki/Penny%27s_Swords

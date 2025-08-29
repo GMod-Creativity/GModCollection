@@ -18,3 +18,4 @@
 - [] Add imageloader: https://github.com/NiTrO0FuN/e2-imageloader
 - [x] Add stuff from ARaccoonNamedDEF: https://github.com/ARaccoonNamedDEF, https://www.youtube.com/@FUNC_DEF
 - [ ] Check cipher ultra instant chassis if its version 1 or 2?
+- [ ] Add stuff from Chris Nate: https://www.youtube.com/@CrishNate

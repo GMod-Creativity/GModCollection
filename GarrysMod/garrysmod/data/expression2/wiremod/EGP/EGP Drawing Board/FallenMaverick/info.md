@@ -1,12 +1,15 @@
 - Author: [IJWTB]FallenMaverick
-- Date: 09-16-2014
+<!-- -->
 - Title: [E2] - Expression 2 EGP Drawing Board
+- Date (dd-mm-yyyy): 16-09-2014
+- Source: https://web.archive.org/web/20150428224952/http://www.wiremod.com:80/forum/finished-contraptions/33550-e2-expression-2-egp-drawing-board.html
+- Source Accessed (dd-mm-yyyy): 30-08-2025
 
 ## [E2] - Expression 2 EGP Drawing Board
 
 A simple drawing board make in Expression 2 & EGP. Been sorta bored lately so I'm just making random things. I probably won't finish this cause I never finish anything, so I thought I would release it to someone who could use it.
 
-How to use:
+**How to use:**
 
 1. Wirelink the chip to an EGP Screen.
 2. The Use key creates a pixel on screen.

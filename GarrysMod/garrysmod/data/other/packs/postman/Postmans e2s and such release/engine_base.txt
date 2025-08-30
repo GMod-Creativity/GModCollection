@@ -1,0 +1,74 @@
+@name Engine_Base
+@inputs W Start Active Shift S Alt
+@outputs T1 T2 T3 T4 RPM Throttle ST On
+@persist A B C Bearing AllowOn NoCrackle CC Max Min Idle
+@trigger all
+@model models/mechanics/wheels/wheel_smooth_24f.mdl
+interval(10)
+RPM=abs(entity():angVel():yaw()/6)
+
+if(first()|duped())
+{
+    Throttle=0
+    On=0
+    
+    Max=8000
+    Min=-3000
+    Idle=50
+
+    hint("Made by [TEC TBU]THE POSTMAN+[TEC]MrWhite",7)
+    
+    soundPlay(2,0,"engines/l6/e49_ext_offmid.wav")
+    
+    #fan
+    holoCreate(1)
+    holoModel(1,"models/XQM/jetenginepropeller.mdl")
+    holoAng(1,entity():toWorld(ang(90,0,0)))
+    holoPos(1,entity():massCenter()+(entity():up()*5))
+    holoParent(1,entity())
+    
+    #base for gps
+    holoCreate(2)
+    holoAlpha(2,0)
+
+}
+holoPos(2,entity():massCenter() + vec(-20,0,0):rotate(entity():up():toAngle() + ang(90,0,0)))
+
+
+A=Throttle*On
+B=-A
+Bearing=entity():bearing(holoEntity(2):pos())
+
+if(Bearing>-180&Bearing<0){T1=A}else{T1=B}
+T2=-T1
+if(Bearing>-90&Bearing<90){T3=A}else{T3=B}
+T4=-T3
+
+
+if(changed(Start)&Start&!On&Active){On=1,AllowOn=0,timer("ao",1000)}
+if(clk("ao")){AllowOn=1}
+if(changed(Start)&Start&On&Active&AllowOn){On=0}
+
+#if(changed(On)&On){soundPlay(1,0,"engines/v8/cu2_startup_ex.wav")}
+soundPitch(2,(1/5*round(RPM)*NoCrackle))
+
+if(RPM<=20){NoCrackle=0.1}else{NoCrackle=1}
+
+
+if(W&On&!Shift){CC=0,ST=Max-1000}
+elseif(W&Shift&On){CC=0,ST=Max}
+elseif(S&On){CC=0,ST=Min}
+elseif(!W&!S&On&!CC){ST=Idle}
+elseif(!W&!S&!On&!CC){ST=0}
+if(!W&!Shift&!S&On&changed(Alt)&Alt){CC=1,ST=ST+500}
+if(!W&Shift&!S&On&changed(Alt)&Alt){CC=1,ST=ST-500}
+
+if(Throttle>0&Throttle<=300&!On){Throttle-=1}
+elseif(Throttle>300&!On){Throttle-=20}
+
+
+if(ST>=Max){ST=Max}
+if(ST<=Min){ST=Min}
+
+if(Throttle>=ST&On){Throttle-=50}
+if(Throttle<=ST&On){Throttle+=50}

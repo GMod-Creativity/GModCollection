@@ -1,7 +1,12 @@
-Auhtor: redreaper2020
-Date: 23 apr 2011
+- Author: RedReaper (redreaper2020)
+- Youtube: https://www.youtube.com/@redreaper-xe6so
+<!-- -->
+- Title: Hydraulic active suspension
+- Date (dd-mm-yyyy): 23-04-2011
+- Source: https://www.youtube.com/watch?v=zve8d-UtNfA
+- Source Accessed (dd-mm-yyyy): 30-08-2025
 
-*Hydraulic active suspension*
+## Hydraulic active suspension
 
 https://www.youtube.com/watch?v=zve8d-UtNfA
 

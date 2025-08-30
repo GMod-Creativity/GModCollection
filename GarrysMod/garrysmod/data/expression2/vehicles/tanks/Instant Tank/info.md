@@ -2,7 +2,7 @@
 - Youtube: https://www.youtube.com/user/CipherUltra
 - Steam Profile: https://steamcommunity.com/profiles/76561197978513282
 <!-- -->
-- Edited: Unknown
+- Edited: <Unknown Author>
 <!-- -->
 - Title: [E2] Instant Chassis V2
 - Date (mm-yyyy): 08-10-2011

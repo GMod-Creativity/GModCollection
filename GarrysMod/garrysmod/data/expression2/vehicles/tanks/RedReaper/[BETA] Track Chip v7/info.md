@@ -1,6 +1,14 @@
-Author: RedReaper
-Date: 10-27-2014
-Title: [BETA] Track Chip v7
+- Author: Red Reaper (RedReaper) (redreaper2020)
+- Youtube: https://www.youtube.com/@redreaper-xe6so
+<!-- -->
+- Title: [BETA] Track Chip v7
+- Date (dd-mm-yyyy): 27-10-2014
+- Source: https://web.archive.org/web/20150816135752/http://www.wiremod.com:80/forum/finished-contraptions/33679-beta-track-chip-v7.html
+- Source: https://www.youtube.com/watch?v=U4-j4Cu0wtE
+- Source: https://www.dropbox.com/scl/fi/kn8p5ee334e099cuw9px8/Adv_Track_Chip.txt?rlkey=u7xm2x82p94alypwlly0r6ob0&e=1&dl=0
+- Source Accessed (dd-mm-yyyy): 30-08-2025
+
+## [BETA] Track Chip v7
 
 This is a beta of release of my track chip, a new version which is a total rewrite. It is still being worked on. To-dos are minor efficiency enhancements, and possibly writing a plugin with the camo chip to recolor treads based off terrain (like grass terrain will make your tracks green a bit from ripping up grass, etc).
 
@@ -23,6 +31,6 @@ Technical mumbo-jumbo for people who mod e2s: this is a lot easier to use, I swi
 
 The goods.
 
-You'll have to copy and paste "Adv_Track_Chip.txt" into your gmod e2 folder
+You'll have to copy and paste this to a text file then save it into your gmod e2 folder, or you can use this [dropbox link here](https://www.dropbox.com/scl/fi/kn8p5ee334e099cuw9px8/Adv_Track_Chip.txt?rlkey=u7xm2x82p94alypwlly0r6ob0&e=1&dl=0).
 
 "VarLib.txt" is the variable library. You spawn this chip and update it on your vehicle, and link it to the main track chip. This way when the track chip auto-updates, it always gets the right variables.

@@ -1,4 +1,4 @@
-- Author: RedReaper
+- Author: Red Reaper (RedReaper) (redreaper2020)
 - Youtube: https://www.youtube.com/@redreaper-xe6so
 <!-- -->
 - Title: [BETA] GTMP v1.0 -- Practical Topographical maps

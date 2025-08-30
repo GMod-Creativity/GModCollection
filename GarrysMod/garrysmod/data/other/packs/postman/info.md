@@ -8,14 +8,6 @@
 
 ## Stargate portal v3
 
-Now i decided to release a bunch more e2's today, I just finished the "AI release thread (check sig), and now i have 3 more e2's
-
-Really these e2's deserve their own threads, but i didnt think posting 4 separate threads would be a great idea.
-
-Im going to split this into 3 sections, each E2 will have instructions, description, code, and pictures.
-
----
-
 Description:
 As you can imagine, this one was really hard to make, and still has quite a few glitches, but it is REALLY fancy.
 (if you dont know what stargate is, get of the internet.)

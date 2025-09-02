@@ -1,0 +1,194 @@
+@name 
+@model models/hunter/plates/plate05x05.mdl
+@persist Prop:entity Target:entity Active Vector:vector Angle:angle 
+@persist Mode:string Mass Owner:entity
+@persist Explode:array   LS:string
+@persist OExplode:array OLS:string Log:string Logging
+@trigger 
+if (first()) {
+    Prop = entity()
+    Target = owner()
+    Mode = "follow"
+    Active = 1
+    Mass = 100
+    Prop:setMass(Mass)
+    Owner = owner()
+}
+
+runOnTick(1)
+runOnChat(1)
+
+if (chatClk()) {
+
+    LS = Owner:lastSaid()
+    OLS = owner():lastSaid()
+    Explode = LS:explode(" ")
+    OExplode = OLS:explode(" ")
+
+
+    if (OLS == "-me") {
+        Owner = owner()
+        Target = Owner
+        Mode = "follow"
+    }
+
+    if (OExplode[1,string] == "-owner") {
+        Owner = findPlayerByName(OExplode[2,string])
+
+        if (!Owner) {
+            print("Invalid player")
+        Owner = owner()
+        }
+
+    Target = Owner
+    Mode = "follow"
+    }
+
+if (Explode[1,string] == "-follow") {
+    Target = findPlayerByName(Explode[2,string])
+
+    if (!Target) {
+        print("Invalid player")
+        Target = owner()
+    }
+
+    Mode = "follow"
+}
+
+    if (LS == "-off") {
+        Active = 0
+    }
+
+    if (LS == "-on") {
+        Active = 1
+    }
+
+    if (Explode[1,string] == "-colors") {
+        Mode = "colors"
+    }
+
+    if (Explode[1,string] == "-color") {
+        R = Explode[2,string]:toNumber()
+        G = Explode[3,string]:toNumber()
+        B = Explode[4,string]:toNumber()
+        Prop:setColor(R,G,B)
+    }
+
+
+    if (Explode[1,string] == "-trail") {
+
+        if (Explode[2,string] == "on") {
+            Prop:setTrails(50,10,250,"trails/laser",Prop:getColor(),150)
+        } else {
+            Prop:removeTrails()
+        }
+
+}
+
+    if (Explode[1,string] == "-mass") {
+        Prop:setMass(OExplode[2,string]:toNumber())
+    }
+
+    if (Explode[1,string] == "-att") {
+        Target = findPlayerByName(Explode[2,string])
+        Mode = "attack"
+    }
+
+    if (LS == "-aim") {
+        Mode = "aim"
+    }
+
+    if (LS == "-walk") {
+        Mode = "walk"
+    }
+
+    if (Explode[1,string] == "-play") {
+        soundPlay(0,0,Explode[2,string])
+    }
+
+    if (LS == "-guard") {
+        Mode = "guard"
+    }
+
+    if (OExplode[1,string] == "-log") {
+        if (OExplode[2,string] == "on") {Logging = 1}
+        if (OExplode[2,string] == "all") {Logging = 2}
+        if (OExplode[2,string] == "off") {Logging = 0}
+        if (OExplode[2,string] == "save") {
+            fileWrite("followbot_log/"+OExplode[3,string]+".txt",Log)
+        }
+
+        if (OExplode[2,string] == "print") {
+            for (Loop = 1, Log:explode(";<br />"):count()) {
+            print(Log:explode(";<br />")[Loop,string])
+        }
+
+    }
+
+}
+
+
+
+    if (owner():lastSaid():index(1) == "-") {hideChat(1)} else {hideChat(0)}
+
+}
+####################################modes##############################
+
+if (Logging) {
+    if (Logging == 1) {
+        if (OLS:index(1) == "-" & chatClk(Owner)) {Log += Owner:name() + ": " + Owner:lastSaid() +";<br />"}
+    } elseif (Logging == 2) {
+        if (chatClk()) {Log += lastSpoke():name() + ": " + lastSaid() +";<br />"}
+    }
+}
+
+if (Mode == "guard") {
+    Vector = Owner:pos() + vec(0,0,40) + vec(sin(curtime()*1000)*300,cos(curtime()*1000)*300,cos(curtime()*20)*200)
+    Angle = owner():angles()
+}
+
+
+if (Mode == "walk") {
+    Vector = Owner:pos() - vec(0,0,20) + Owner:vel()/20
+if (Owner:keyAttack2()) {
+    Vector += vec(0,0,22)
+}elseif (Owner:keyAttack1()) {
+    Vector += vec(0,0,-0.1)
+} else {
+    Vector += vec(0,0,19.5)
+}
+    Angle = owner():angles():setPitch(0):setYaw(0)
+
+}elseif (Mode == "aim") {
+    if (changed(Mode)) {print(Owner:name())}
+    if (Owner:keyAttack2()) {
+        Vector = Owner:aimPos() + vec(0,0,10) 
+        Angle = ang(0,curtime(),0)
+    } else {
+        Vector = Owner:pos() + vec(0,0,120)
+        Angle = ang(0,0,0)
+    }
+} elseif (Mode == "attack") {
+    if (!Target | !Target:health()) {
+        print("no target")
+        Target = Owner
+        Mode = "follow"
+    } else {
+        Vector = Target:pos() + vec(0,0,30) + Target:vel()/20
+        Anglele = ang(0,curtime()*0,0)
+    }
+}elseif (Mode == "follow") {
+    Vector = Target:pos() + vec(0,0,120) + Target:vel()/20
+    Anglele = ang(0,0,0)
+}elseif (Mode == "colors") {
+    Prop:setColor(random(255),random(255),random(255))
+}
+
+
+
+############################applyforce################################
+if (Active) {                                                        #
+    Prop:applyForce(((Vector -Prop:pos())*20 - Prop:vel())*Mass)         #
+    Prop:applyAngForce(((Angle -Prop:angles())*20 - Prop:angVel())*Mass) #
+}                                                                    #
+######################################################################

@@ -1,0 +1,105 @@
+@name HoloReflector by Hitman271
+@inputs Link:vector
+@outputs HolosCreated Active PosDebug:vector PDis
+@persist Trace:ranger PointOn HolosCreated
+@persist BeamStart:vector NewBeamDir:vector SurfaceNormal:vector IncidentVector:vector
+@persist Active MaxPoints MaxBeamDis 
+@trigger all
+
+interval( 100 )	#Keep this over 30 for quota reasons
+
+#Get self/World data
+E = entity()
+Ew = E:isWeldedTo()
+EF = E:up() #The vector the beam starts out from
+
+rangerFilter( Ew ), rangerFilter( E )
+
+GlobalBeamStart =  E:pos() + EF*20
+MaxBeamDis = 10000 #Set wire_hologram_size_max to about 1000 for the best beam length
+MaxPoints = 20 #how many points to calculate for
+
+#PointLoop
+if ( first() ) {
+	Active = 1
+    CVec1 = E:pos() + vec( 0,0,50 )
+    CScale1 = vec( 1,1,1 ) * 0.6
+    CAngle = ang( 0,0,0 )
+    
+	while ( HolosCreated < MaxPoints ) {	#Holos on Loop 
+		holoCreate( HolosCreated, CVec1, CScale1, CAngle, vec( 0,0,255)  )
+		holoModel( HolosCreated, "sphere3" )
+		
+		holoCreate( HolosCreated + MaxPoints, CVec1, CScale1, CAngle , vec( 255, 0,0) )
+		holoMaterial( HolosCreated + MaxPoints, "models/XQM/LightLinesRed" )
+
+		HolosCreated++
+	} 
+
+}
+
+#Chat Commands!
+OwnerSaid = owner():lastSaid():lower():trim():explode(" ")
+
+	if ( OwnerSaid:string(1) == "lasor.active" ) {
+		Active = clamp( abs(OwnerSaid:string(2):toNumber()), 0, 1 )
+	}
+
+#############################################################
+#Do loop for all holos
+if ( Active ) {
+		
+	Trace = rangerOffset( MaxBeamDis, GlobalBeamStart, EF )
+
+	BeamStart = Trace:position()
+	SurfaceNormal = Trace:hitNormal()
+	IncidentVector = EF
+	NewBeamDir = IncidentVector - 2*( SurfaceNormal:dot( IncidentVector ) * SurfaceNormal )
+
+	#Buggy last laser
+	#FIXME - Maybe have the first holo be the eg2 itself?
+	
+	V1 = E:pos()
+	V2 = holoEntity( 0  ):pos()
+	DV=V2-V1
+
+	LaserHoloIndex = MaxPoints
+	
+	holoPos( LaserHoloIndex, ( V1+V2)/2 ) 
+	holoScaleUnits( LaserHoloIndex , vec(DV:length()*1.042,1,1) )
+	holoAng( LaserHoloIndex, DV:toAngle())
+
+	#Do all points	
+	while ( HolosCreated >= MaxPoints & PointOn < MaxPoints ) {
+
+		#Point Calculation
+		holoPos( PointOn, BeamStart )
+			
+		NewBeamDir = IncidentVector - 2*( SurfaceNormal:dot( IncidentVector ) * SurfaceNormal )
+		
+		Trace = rangerOffset( MaxBeamDis, BeamStart , NewBeamDir )
+		
+		BeamStart = Trace:position()
+		SurfaceNormal = Trace:hitNormal()
+		IncidentVector = NewBeamDir
+		
+		#######################
+		#Laser Calculation
+		
+		if ( PointOn + 1 < MaxPoints ) {
+			V1 = holoEntity( PointOn ):pos()
+			V2 = holoEntity( PointOn + 1  ):pos()
+			
+			DV=V2-V1
+			LaserHoloIndex = 1 + PointOn + MaxPoints
+			holoPos( LaserHoloIndex, ( V1+V2)/2 ) 
+			holoScaleUnits( LaserHoloIndex , vec(DV:length()*1.045,1,1) )
+			holoAng( LaserHoloIndex, DV:toAngle())	
+		}
+		
+		PointOn++
+		
+	}
+
+}
+PointOn = 0

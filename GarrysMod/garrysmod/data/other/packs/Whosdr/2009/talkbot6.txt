@@ -1,0 +1,165 @@
+#   Talkbot v6 by Filipe Dobreira
+#   A text file named "talkbot6" must be present in your 'e2files' folder!
+@name talkbot v6
+#   Might need this for debugging:
+@outputs
+#   Shortcuts:
+@persist [Prefix FileName]:string [Col1 Col2 Col3 Col4 Col5]:vector LoadFail
+#   Database:
+@persist [Q A]:array
+#   Caches:
+@persist [Cache]:string Busy Get SEQ
+@trigger 
+
+#   Settings...
+if(first() | duped()) {
+
+
+    Prefix = " [talkbot]: "
+    
+#   Print colors:
+    Col1 = vec(255,255,255) Col2 = vec(255,0,0) 
+    Col3 = vec(70,200,250)  Col4 = vec(255,255,0)
+    Col5 = vec(100,200,100)
+    printColor(Col3,"Talkbot v6 activated. Please stand by...")
+    runOnChat(1)
+}
+
+#   Look for a question:
+IN = lastSaid()
+if(!Busy & !Get & chatClk() & IN:find("?") & !IN:find("[") &IN:length()>2 & !IN:find("/") & (IN:explode(" "):count()<6 | IN:length()<80) ) {
+    Cache = IN:lower()    Busy = 1   print(2,">>"+IN)
+    timer("giveup",1000)
+    #   Cleanup (remove small words):
+    PARSE = Cache:explode(" ")
+    for(I=1,PARSE:count()) {
+        if(PARSE[I,string]:length()<=2) {PARSE:remove(I) I--}
+    }
+    Cache = PARSE:concat(" ") print(2,"Cleanup 1>>"+Cache)  
+    PARSE = Cache:explode("")
+    
+    for(I=1,PARSE:count()) {
+        if(PARSE[I,string]==".") {PARSE[I,string]=" "}
+        elseif(PARSE[I,string]==",") {PARSE[I,string]=" "}
+        elseif(PARSE[I,string]=="?") {PARSE[I,string]=" "}
+        elseif(PARSE[I,string]=="!") {PARSE[I,string]=" "}
+        elseif(PARSE[I,string]=="'") {PARSE[I,string]=" "}
+        if(PARSE[I-1,string]==" "&PARSE[I+1,string]==" ") {PARSE[I,string]=""}
+    }
+    for(I=1,PARSE:count()) {
+        if(PARSE[I,string]==" "&PARSE[I-1,string]==" ") {PARSE[I,string]=""}
+    }
+    #   Check if anything survived the cleanup:
+    if(PARSE:concat():length()<=5) {
+    printColor(Col2,"Not enough data to continue! Discarding question...") 
+    Busy = 0
+    }
+    else{
+    Cache = PARSE:concat()  print(2,"Cleanup 2>>"+Cache)
+    }
+    
+    # The Cache now contains the keywords extracted from the query
+    # the next step is to match them against the database!
+    # Ouch.
+    
+if(Busy) { 
+    KeyLevel=Cache:explode(" ")   TOTAL=array()
+    print(2,">> Searching "+KeyLevel:count()+" keywords...")
+    print(2,"+++++++++++++++++++++++++++++++++++++++++++++")
+    GOT = ""
+    for(B=1,KeyLevel:count()) {
+        Key=KeyLevel[B,string]
+     for(C=1,Q:count()) {
+        QLevel=Q[C,string]
+        print(2,">> key: "+Key+" in question: "+Q[C,string])
+        if(QLevel:find(Key)&Key!=""&Key!=" ") {
+            print(2,">> found: '"+Key+"' in question: "+QLevel)
+            TOTAL[C,number] = TOTAL[C,number] + 1 +(Key:length()>7)+SEQ
+            if(GOT == QLevel) {
+                SEQ++ print(2,"SEQ: "+SEQ)
+            }
+            
+            GOT = QLevel
+            }
+        elseif(!QLevel:find(Key)&SEQ) {
+            SEQ=0 TOTAL[C,number] = TOTAL[C,number] - 1
+            }
+        }
+    }
+
+    Average = TOTAL:average()   MaxHits = TOTAL:max()   MaxIndex  = TOTAL:maxIndex()
+    AnswerCandidate=A[TOTAL:maxIndex(),string] Words = Cache:explode(" "):count()  
+    printTable(TOTAL)  printColor(Col3,AnswerCandidate)
+    
+} #   if Busy
+} #   END question processing
+
+
+
+# Final result handling...
+
+if(clk("timeout")&Busy) {
+    Busy = 0    Get = 0
+    print(2,">>> no answer, cancelling...")
+}
+
+
+if(clk("giveup")&Busy&!Get) {
+    Busy = 0    Get = 0
+    print(2,">>> timed out, cancelling...")
+}
+
+if(Get==1&chatClk()) {
+    if(IN:length()<=4 & IN:find("no")) {
+        Get = 0   Busy = 0  print(2,">>> negative answer, discarding...")
+    }
+    elseif(IN:length()<=4 & (IN:find("ye") | IN:find("su") | IN:find("ok"))) {
+        Get = 1   print(2,">>> positive answer, waiting...")
+    }   
+    elseif(!IN:find("?") & !IN:find("[") &IN:length()>4 & !IN:find("/")) {
+        Q:pushString(Cache) A:pushString(IN)
+        print(2,">>> answer: "+IN+" saved!")
+        Get = 0   Busy = 0  timer("save",500)
+    } 
+}
+elseif(Get==2&chatClk()&lastSpoke()!=owner()) {
+    if(!IN:find("?") & !IN:find("[") &IN:length()>4 & !IN:find("/")) {
+        Q:pushString(Cache) A:pushString(IN)
+        print(2,">>> answer: "+IN+" saved!")
+        Get = 0   Busy = 0  timer("save",500)
+    } 
+}
+
+if(clk("save")&!Busy&!Get) {
+    STR1=glonEncode(Q) STR2=glonEncode(A)
+    STRING=STR1+"%"+STR2    fileWrite(FileName,STRING)
+    print(2,">>>>>>    Database saved!    <<<<<<<<")
+}
+
+#   Load the database from the text file...
+if(first() | clk("load") )  {
+    FileName = "talkbot6.txt"
+    fileLoad(FileName)
+    if(fileLoaded(FileName)) {
+        printColor(Col1,"'"+FileName+"' loaded successfully!")
+       # concmd("say"+Prefix+"My name is talkbot, version 6. I am now actively learning from your conversations.")
+        
+        #   Load data into the arrays!
+        print(2,">>Preparing to load array data!")
+        BULK=fileRead(FileName)   PARSE=BULK:explode("%")
+        Q=glonDecode(PARSE[1,string]) A=glonDecode(PARSE[2,string]) print(2,">> Q:"+Q:count()+" A:"+A:count())
+        
+    }
+    else{
+        if(LoadFail<3) {
+        LoadFail++  # This variable counts to 3, if the file isn't loaded by then, the script ends.
+        printColor(Col2,"("+LoadFail+") Failed to load '"+FileName+"', retrying...")
+        timer("load",3000)
+        }
+        elseif(LoadFail>=3) {
+        printColor(Col2,"Failed to load '"+FileName+"', please make sure the file exists...")
+        exit()
+        fileWrite("talkbot6.txt","")
+        }
+    }
+}

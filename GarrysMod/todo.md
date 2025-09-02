@@ -17,8 +17,10 @@
 - [x] Add simplicity stuff: https://gmods.org/?q=Simplicity and https://web.archive.org/web/20110220205658/http://www.wiremod.com:80/forum/finished-contraptions/15285-simplicity-computer.html
 - [] Add imageloader: https://github.com/NiTrO0FuN/e2-imageloader
 - [x] Add stuff from ARaccoonNamedDEF: https://github.com/ARaccoonNamedDEF, https://www.youtube.com/@FUNC_DEF
-- [ ] Check cipher ultra instant chassis if its version 1 or 2?
+- [x] Check cipher ultra instant chassis if its version 1 or 2?
 - [ ] Add stuff from Chris Nate: https://www.youtube.com/@CrishNate
-- [ ] add thewitish stuff from packs into expression 2 folder
+- [x] add thewitish stuff from packs into expression 2 folder
 - [ ] put links of packs on video's
 - [ ] Add stuff from: https://web.archive.org/web/20101018185146/http://www.facepunch.com:80/showthread.php?828901-Divran-s-E2-Thread
+- [ ] Add stuff from acf discord
+- [ ] Add stuff from https://github.com/ACF-Team/ACF-3/wiki/Public-E2-Collection

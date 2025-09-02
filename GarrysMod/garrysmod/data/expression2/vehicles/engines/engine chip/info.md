@@ -1,4 +1,7 @@
-- Author: xxxmags
+- Author: XXXmags (RCmags)
+- Steam Profile: https://steamcommunity.com/profiles/76561197991496783
+- Youtube: https://www.youtube.com/@XXXmags
+- Github: https://github.com/RCmags
 <!-- -->
 - Edited: Spider0804
 - Steam Profile: https://steamcommunity.com/profiles/76561197996888024

@@ -1,0 +1,64 @@
+@name 
+@inputs W A S D Space Ent:entity Shift Alt
+@outputs Cam:vector Dir:vector
+@persist [DR UR LR RR FR BR Crouch]:ranger
+@persist [Pos]:vector Holo:entity CanJump Gravity Jump Speed Walk
+@trigger 
+if (first()) {
+Pos = entity():pos() + vec(0,0,100)
+holoCreate(1)
+holoPos(1,Pos)
+holoScaleUnits(1,vec(10,10,10))
+
+
+rangerHitEntities(1)#hit entities
+rangerIgnoreWorld(0)#ignoor world
+rangerDefaultZero(0)#defult to distance
+Holo = holoEntity(1)
+holoModel(1,"hqcylinder")
+
+
+Gravity = 0.9 #1/Gravity = units/s
+Jump = 2 #seconds to go up
+Speed = 2 #units/s to jump
+Walk = 1 #speed in units at wich you walk. double for run.
+}
+runOnTick(1)
+
+DR = rangerOffset(1,Pos - vec(0,0,5/(1+Alt)),Holo:up())
+UR = rangerOffset(1,Pos + vec(0,0,5),-Holo:up())
+Crouch = rangerOffset(2.5,Pos + vec(0,0,5),Holo:up())
+Pos -= vec(0,0,(!DR:hit()/Gravity))
+
+
+
+if (Space & !CanJump & DR:hit() & !UR:hit()) {timer("Sjump",Jump*1000),CanJump = 1}
+
+if (CanJump) {Pos += vec(0,0,Speed)}
+if (CanJump & DR:hit() & !Space) {CanJump = 0}
+if (clk("Sjump")) {CanJump = 0}
+if (UR:hit()) {CanJump = 0}
+
+
+LR = rangerOffset(1,Pos + -Holo:right()*5 + vec(0,0,5/(1+Alt)),-Holo:right())
+RR = rangerOffset(1,Pos +  Holo:right()*5 + vec(0,0,5/(1+Alt)), Holo:right())
+
+if (A & !LR:hit()) {Pos += -Holo:right()*Walk*(1+Shift)}
+if (D & !RR:hit()) {Pos +=  Holo:right()*Walk*(1+Shift)}
+
+
+
+FR = rangerOffset(1,Pos +  Holo:forward()*5 + vec(0,0,5/(1+Alt)) , Holo:forward())
+BR = rangerOffset(1,Pos + -Holo:forward()*5 + vec(0,0,5/(1+Alt)),-Holo:forward())
+
+if (W & !FR:hit()) {Pos +=  Holo:forward()*Walk*(1+Shift)}
+if (S & !BR:hit()) {Pos += -Holo:forward()*Walk*(1+Shift)}
+
+
+Dir = Ent:driver():eye()
+Cam = Pos + vec(0,0,15) - Holo:forward()*10
+
+holoAng(1,Ent:driver():eyeAngles():setPitch(0))
+holoPos(1,Pos)
+
+if (Alt) {holoScaleUnits(1,vec(10,10,5))} elseif (!Alt & !Crouch:hit()){holoScaleUnits(1,vec(10,10,10))}

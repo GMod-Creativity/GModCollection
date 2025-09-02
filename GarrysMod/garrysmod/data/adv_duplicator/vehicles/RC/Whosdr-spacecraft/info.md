@@ -1,5 +1,6 @@
-- Author: Whosdr (Whosdr [SASFur])
+- Author: Whosdr (Whosy) (Whosdr [SASFur])
 - Steam Profile: https://steamcommunity.com/profiles/76561197999166057
+- Youtube: https://www.youtube.com/@whosdr
 <!-- -->
 - Title: Re: Hologram Dogfighter
 - Date (dd-mm-yyyy): 23-01-2010

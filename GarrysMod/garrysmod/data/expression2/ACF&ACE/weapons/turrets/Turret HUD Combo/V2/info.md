@@ -28,6 +28,7 @@ If you can not figure out how to copy and paste from there this is the e2 in tex
 <!-- -->
 - Title: Garry's Mod ACF Turret HUD Combo V2
 - Date (dd-mm-yyyy): 18-09-2016
+- Source: https://www.youtube.com/watch?v=C0x_YI5V7h0
 - Source: https://pastebin.com/KPqKGPC6
 - Source Accessed (dd-mm-yyyy): 06-08-2025
 

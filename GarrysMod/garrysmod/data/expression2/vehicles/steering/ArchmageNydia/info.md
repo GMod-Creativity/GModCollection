@@ -1,6 +1,14 @@
-- Author: ArchmageNydia
-- Date: 07-11-2014
+- Author: <Unknown Author>
+<!-- -->
+- Edited: ArchmageNydia
+- Edited Date (dd-mm-yyyy): 11-07-2014
+- Steam Profile: https://steamcommunity.com/profiles/76561198043159088
+- Youtube: https://www.youtube.com/user/ArchmageNydia
+<!-- -->
 - Title: [E2] Fully Customizable User Friendly SetAng Steering Chip for Land Vehicles.
+- Date (dd-mm-yyyy): 11-07-2014
+- Source: https://web.archive.org/web/20150428203221/http://www.wiremod.com:80/forum/finished-contraptions/33307-e2-fully-customizable-user-friendly-setang-steering-chip-land-vehicles.html
+- Source Accessed (dd-mm-yyyy): 02-09-2025
 
 Disclaimer: This chip was NOT originally created by me. I only take 10% of the credit for this chip. I simply cleaned it up and made it more user friendly. I personally do not know the original creator of the chip, so if you are the original creator I will happily remove this if you would so prefer.
 
@@ -34,4 +42,4 @@ Thanks,
 
 - Arch
 
-Edit - Eek, forgot a big issue. Remember to ALWAYS have your contraption facing north-south, otherwise the ballsockets will glitch out! You can find the north-south direction by spraying your spray on the ground. The side of the spray facing upwards will be the north-south direction.
+Edit - Eek, forgot a big issue. Remember to **ALWAYS** have your contraption facing **north-south**, otherwise the ballsockets will glitch out! You can find the north-south direction by spraying your spray on the ground. The side of the spray facing upwards will be the north-south direction.

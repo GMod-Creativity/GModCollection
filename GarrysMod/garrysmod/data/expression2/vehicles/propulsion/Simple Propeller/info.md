@@ -1,14 +1,14 @@
-- Publisher: GMODISM
+- Author: GMODISM
 - Website: https://gmodism.com
 - Reddit: https://www.reddit.com/r/GMODISM/
 - Steam Profile: http://steamcommunity.com/profiles/76561198056037449
 - Youtube: https://www.youtube.com/Gmodism
 - Pastebin: https://pastebin.com/u/Gmodism
 <!-- -->
-- Title: Garry's Mod Setang Steering Light
+- Title: Garry's Mod Simple Propeller
 - Date (dd-mm-yyyy): 18-09-2016
-- Source: https://pastebin.com/baX1fgcu
+- Source: https://pastebin.com/kszNnrr8
 - Source: https://www.youtube.com/watch?v=p-cm2zwp9gI
-- Source Accessed (dd-mm-yyyy): 02-09-2025
+- Source Accessed (dd-mm-yyyy): 03-09-2025
 
-## Setang Steering Light
+## Simple Propeller

@@ -1,6 +1,12 @@
 - Author: Dakota
-- Date: 02-20-2016
+<!-- -->
 - Title: New Mech Chip
+- Date (dd-mm-yyyy): 20-02-2016
+- Source: https://web.archive.org/web/20160615113708/http://www.wiremod.com:80/forum/finished-contraptions/35508-new-mech-chip.html
+- Source: https://pastebin.com/QgAPi2ua
+- Source: https://pastebin.com/DBMQNxHZ
+- Source: https://pastebin.com/QufKKDCP
+- Source Accessed (dd-mm-yyyy): 04-09-2025
 
 ## New Mech Chip
 
@@ -13,7 +19,7 @@ This mech chip is for bipedal walkers only, in the future I may release a versio
 Contact information is also provided in the chip.
 
 Pastebin Link:
-Dakmek 2016
+[Dakmek 2016](https://pastebin.com/QgAPi2ua)
 
 I would like to hear any feedback you have.
 
@@ -39,73 +45,7 @@ Added torso chip link and code to post.
 
 **Mech Torso stuff**
 
-Code:
-@name Mech Torso stuff
-@inputs Torso:entity Pod:wirelink Cam:wirelink Ded
-@outputs
-@persist AngleOffset:angle RotationSpeed Elevation Depression FlipPitch FlipRoll SwapRollAndPitch
-@trigger 
-interval(1)
-
-#NOTES
-#Make this E2 point forward
-#This should be welded to the HIP
-#The e2 finds the angle of the torso when you refresh it
-#Only refresh the e2 when you have the torso angle where you want it
-#Make sure to refresh the e2 after spawning it
-#Wire Ded to the Ded output on the DakMek 2016 chip
-
-if(first()|dupefinished()){
-AngleOffset=entity():toLocal(Torso:angles())
-
-############
-#EDIT START#
-############
-
-RotationSpeed = 15 #Speed of Rotation
-Elevation = 25 #max Pitch
-Depression = 25 #min Pitch
-FlipPitch = 0
-SwapRollAndPitch = 1
-FlipRoll = 0
-
-###########
-#EDIT STOP#
-###########
-}
-
-Active = Pod["Active",number]
-
-
-if(Ded==0){
-    if(Active==1){
-        CA = Cam["CamAng", angle]
-        if(FlipPitch){Pitch = -CA:pitch()}else{Pitch = CA:pitch()}
-        if(FlipRoll){Roll = -CA:roll()}else{Roll = CA:roll()}
-        if(SwapRollAndPitch){CAMANG = ang(Roll,CA:yaw(),Pitch)}else{CAMANG = ang(Pitch,CA:yaw(),Roll)}
-        TorsoPos = Torso:pos()
-        TorsoAng = Torso:toLocal(CAMANG+AngleOffset)*ang(1,1,1)
-        ANGLE = clamp(TorsoAng,ang(-RotationSpeed),ang(RotationSpeed))
-        YAW = abs(TorsoAng:yaw())
-        if(YAW >45){ANGLE = clamp(ANGLE,ang(-180,-180,-180),ang(180,180,180))*ang(1,1,1)
-        }else{ANGLE = clamp(TorsoAng,ang(-RotationSpeed),ang(RotationSpeed))}
-        if(SwapRollAndPitch){CLAMPANG = clamp(Torso:toWorld(ANGLE),ang(0 ,-180,-min(Elevation,abs(CAMANG:roll()))),ang(0,180,min(Depression,abs(CAMANG:roll()))))}
-        else{CLAMPANG = clamp(Torso:toWorld(ANGLE),ang(-min(Elevation,abs(CAMANG:pitch())) ,-180,0),ang(min(Depression,abs(CAMANG:pitch())),180,0))}
-        Torso:applyAngForce((Torso:toLocal(CLAMPANG) * 250 - Torso:angVel() * 30) * shiftL(ang(Torso:inertia())))
-    }
-    
-    if(Active==0){
-        CAMANG = entity():angles()
-        TorsoPos = Torso:pos()
-        TorsoAng = Torso:toLocal(CAMANG+AngleOffset)*ang(1,1,1)
-        ANGLE = clamp(TorsoAng,ang(-RotationSpeed),ang(RotationSpeed))
-        YAW = abs(TorsoAng:yaw())
-        if(YAW >45){ANGLE = clamp(ANGLE,ang(-180,-180,0),ang(180,180,0))*ang(1,1,1)
-        }else{ANGLE = clamp(TorsoAng,ang(-RotationSpeed),ang(RotationSpeed))}
-        CLAMPANG = clamp(Torso:toWorld(ANGLE),ang(-min(Elevation,abs(CAMANG:pitch())) ,-180,0),ang(min(Depression,abs(CAMANG:pitch())),180,0))    
-        Torso:applyAngForce((Torso:toLocal(CLAMPANG) * 250 - Torso:angVel() * 30) * shiftL(ang(Torso:inertia())))
-    }
-}
+[Mech Torso Stuff](https://pastebin.com/DBMQNxHZ)
 
 EDIT 7:
 Released an update for the torso chip for a variable to swap the roll and pitch in cases in which it is needed.
@@ -127,49 +67,7 @@ Included gun control chip.
 
 **Mech Gun Stuff**
 
-Code:
-@name Mech Gun stuff
-@inputs Gun:entity Pod:wirelink Cam:wirelink
-@outputs ANG2:angle Test GunAng:angle
-@persist AngleOffset:angle RotationSpeed Elevation Depression YawMin YawMax
-@trigger 
-interval(100)
-
-#Place this chip on the prop that the gun is ballsocketed to
-#Make sure the arrow is pointing forward on the chip.
-
-if(first()|dupefinished()){
-AngleOffset=ang(0,0,0) #edit the third value here to change the gun's rotation, 180 will flip it over.
-RotationSpeed = 25
-Elevation = 15
-Depression = 15
-YawMin = 15
-YawMax = 15
-}
-
-
-Active = Pod["Active",number]
-    
-if(Active==1){
-    CAM1 = Cam["CamPos", vector]
-    CAM2 = Cam["HitPos", vector]
-    CAMANG = Cam["CamAng", angle]
-    GunPos = Gun:massCenter()
-    GunAng = (rangerOffset(9999999999,CAM2,CAMANG:forward()):pos() - GunPos):toAngle() 
-    ANGLE = clamp(Gun:toLocal(GunAng),ang(-RotationSpeed),ang(RotationSpeed))
-    CLAMPANG = clamp(entity():toLocal(Gun:toWorld(ANGLE)),ang(-min(Elevation,abs(CAMANG:pitch())) ,-YawMin,0),ang(min(Depression,abs(CAMANG:pitch())),YawMax,0))
-    Gun:applyAngForce((Gun:toLocal(entity():toWorld(CLAMPANG+ AngleOffset)) * 250 - Gun:angVel() * 30) * shiftL(ang(Gun:inertia())))
-}
-
-if(Active==0){
-    ANG=entity():toWorld(ang(0,0,0)+AngleOffset)
-    Q=quat(ANG)/quat(Gun)
-    Torque=Gun:toLocal(rotationVector(Q) + Gun:pos())
-    Torque=((Torque*250) -Gun:angVelVector()* 50)*Gun:inertia()
-    Gun:applyTorque(Torque)
-    Gun:applyTorque(-Gun:angVelVector()*pi()/180*Gun:inertia()*1550.1*1/2)
-}
-Mech Gun Stuff
+[Mech Gun Stuff](https://pastebin.com/QufKKDCP)
 
 EDIT 13:
 Added variables for the torso chip to allow flipping of various angles.

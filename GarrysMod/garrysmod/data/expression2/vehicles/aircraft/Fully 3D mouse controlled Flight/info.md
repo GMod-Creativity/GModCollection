@@ -3,8 +3,8 @@
 - Youtube: https://www.youtube.com/@Technicolour777
 <!-- -->
 - Title: Fully 3D mouse controlled Flight
-- Date (dd-mm-yyyy): https://web.archive.org/web/20121114023129/http://www.wiremod.com/forum/finished-contraptions/14446-fully-3d-mouse-controlled-flight.html
-- Source: 20-09-2009
+- Date (dd-mm-yyyy): 20-09-2009
+- Source: https://web.archive.org/web/20121114023129/http://www.wiremod.com/forum/finished-contraptions/14446-fully-3d-mouse-controlled-flight.html
 - Source Accessed (dd-mm-yyyy): 23-08-2025
 
 ## Fully 3D mouse controlled Flight

@@ -25,3 +25,6 @@
 - [ ] Add stuff from acf discord
 - [ ] Add stuff from https://github.com/ACF-Team/ACF-3/wiki/Public-E2-Collection
 - [ ] Add youtube stuff enyx
+- [ ] Add stuff from https://steamcommunity.com/id/ardiscothyssen/myworkshopfiles/?p=1
+- [ ] Move drones to machines or unmanned vehicles
+- [ ] Add stuff from SirDobbers: https://www.youtube.com/@SirDobbers

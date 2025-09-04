@@ -1,0 +1,74 @@
+@name Technis A* v4 -- PathFinder
+@inputs GPS:vector 
+@persist HoloCounter Index On Finished VecCounter
+@persist GridSize Weight E:entity [StartPos TargetPos]:vector
+@persist [CostArray PositionArray RootArray VecArray PathArray]:array
+
+if (first()){
+    GridSize = 100
+    E = entity()
+    StartPos = E:pos()
+    TargetPos = GPS
+    HoloCounter = 0
+    H = StartPos:distance(TargetPos)
+    Index = 0
+    G = 0
+    PositionArray[0,vector] = StartPos
+    PathArray[0,number] = G
+    CostArray[0,number] = H+G
+    RootArray[0,number] = 0
+    Weight = 0.7
+    On = 0
+    Finished = 0
+    VecArray:pushVector( vec(1,0,0)*GridSize     )
+    VecArray:pushVector( vec(-1,0,0)*GridSize    )
+    VecArray:pushVector( vec(0,1,0)*GridSize     )
+    VecArray:pushVector( vec(0,-1,0)*GridSize    )
+    VecArray:pushVector( vec(0,0,1)*GridSize     )
+    VecArray:pushVector( vec(0,0,-1)*GridSize    )
+}
+if (On & !Finished) {  
+    interval(50)
+    VecCounter = 0
+    PositionTable = invert(PositionArray)
+    Index = CostArray:minIndex()
+    IndexPos = PositionArray[Index,vector]
+    IndexF = CostArray[Index,number]
+    IndexPath = PathArray[Index,number]
+    IndexR = RootArray[Index,number]
+    CostArray[Index,number] = CostArray:max()*99
+    while (VecCounter <= VecArray:count()) {
+        VecCounter += 1 
+        rangerFilter(E:isWeldedTo())
+        rangerFilter(E)  
+        rangerFilter(E:owner()) 
+        Vec = VecArray[VecCounter,vector]
+        RD = rangerOffset(IndexPos,IndexPos+Vec)
+        RDPos = RD:position() 
+        RDHit = RD:hit()
+        RDDis = RD:distance()
+        if (!RDHit & PositionTable[RDPos:toString(),number] == 0 ) {
+            H = RDPos:distance(TargetPos)
+            G = IndexPath + GridSize*Weight
+            F = G + H
+            CostArray:pushNumber(F)
+            PathArray:pushNumber(G)
+            RootArray:pushNumber(Index)
+            PositionArray:pushVector(RDPos)
+        }
+    }
+#holoCreate(HoloCounter,IndexPos,vec(1,1,1),ang(0,0,0),vec(255,255,0)) 
+#holoDelete(HoloCounter-50) 
+}
+if ((IndexPos:distance(TargetPos) < GridSize/1) & !Finished) {
+    print("Path Found, extrapolating...")
+    Finished = 1
+}
+HoloCounter += 1
+if (Finished & Index > 0) {
+    interval(300)
+    IndexPos = PositionArray[Index,vector]
+    Index = RootArray[Index,number]
+    holoCreate(HoloCounter,IndexPos,vec(2,2,2),ang(0,0,0),vec(0,0,255))
+    holoDelete(HoloCounter-50)
+}

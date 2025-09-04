@@ -1,4 +1,6 @@
-Author: SirDobbers
+- Publisher: SirDobbers
+- Steam Profile: https://steamcommunity.com/profiles/76561197973187542
+- Youtube: https://www.youtube.com/@SirDobbers
 <!-- -->
 - Title: Garry's Mod - Set Ang Steering Turotial
 - Date (dd-mm-yyyy): 03-10-2015

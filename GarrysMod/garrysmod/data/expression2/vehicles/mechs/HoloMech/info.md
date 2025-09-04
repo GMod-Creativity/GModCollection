@@ -1,10 +1,14 @@
-- Author: steak knife
-- Date: 02-18-2010
+- Author: steak knife (Dr. Awkward)
+<!-- -->
 - Title: HoloMech
+- Date (dd-mm-yyyy): 02-18-2010
+- Source: https://web.archive.org/web/20160504221317/http://www.wiremod.com:80/forum/finished-contraptions/18274-holomech.html
+- Source Accessed (dd-mm-yyyy): 04-09-2025
 
 ## HoloMech
 
-Features:
+**Features:**
+
 - runs off chat commands
 - spawns a random color but color can be changed as well as hsv2rgb values with !color, !hue, !sat, !v
 - can follow people say !follow
@@ -24,7 +28,7 @@ Features:
 Thanks to Omicron for helping me pick materials!
 and to many others from Drunkie's server and the [W.I.R.E] server who motivated/inspired me and helped me along the way.
 
-Ktccd's Edited version:
+**Ktccd's Edited version:**
 Lol XD.
 KK, this is really very simple, I planned on more fixes, but flieboy caught me in his holo-creations trap, and now I gotta make some too XD.
 

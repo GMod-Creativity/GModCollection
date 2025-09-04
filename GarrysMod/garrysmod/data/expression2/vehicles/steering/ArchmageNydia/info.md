@@ -1,4 +1,4 @@
-- Author: <Unknown Author>
+- Author: \<Unknown Author\>
 <!-- -->
 - Edited: ArchmageNydia
 - Edited Date (dd-mm-yyyy): 11-07-2014

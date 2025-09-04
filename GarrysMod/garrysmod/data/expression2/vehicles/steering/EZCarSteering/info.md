@@ -1,3 +1,5 @@
+- Author: \<Unknown Author\>
+<!-- -->
 - Publisher: SirDobbers
 - Steam Profile: https://steamcommunity.com/profiles/76561197973187542
 - Youtube: https://www.youtube.com/@SirDobbers

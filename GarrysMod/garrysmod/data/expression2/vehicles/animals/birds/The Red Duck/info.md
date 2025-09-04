@@ -1,6 +1,14 @@
-- Author: [podie45](https://steamcommunity.com/profiles/76561198136318087)
-- Date: 1 Aug, 2014 @ 5:13am
+- Author: <Unknown Author>
+<!-- -->
+- Publisher: podie45
+- Steam Profile: https://steamcommunity.com/profiles/76561198136318087
+<!-- -->
 - Title: DUCKY BEST FRIEND V 1.0 ( 5 YEARS OLD, V2.0 SOON! )
+- Date (mm-yyyy): 01-08-2014
+- Source: https://steamcommunity.com/sharedfiles/filedetails/?id=294243127
+- Source Accessed (dd-mm-yyyy): 04-09-2025
+
+## The Red Duck
 
 5 YRS ANNIVERSARY - I know this was published in 2014, but the duck who inspired the Ducky Best Friend V1.0 is now 5 Yrs old, so technically this version is also 5 yrs old. V 2.0 remaster is coming.
 

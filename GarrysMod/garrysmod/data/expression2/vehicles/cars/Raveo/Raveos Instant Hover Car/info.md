@@ -1,6 +1,9 @@
-- Author: Raveo
-- Date: 12-19-2013
+- Author: Raveo (Chey)
+<!-- -->
 - Title: Raveos Instant Hover Car
+- Date (mm-yyyy): 19-12-2013
+- Source: https://web.archive.org/web/20150304055733/http://www.wiremod.com:80/forum/finished-contraptions/32513-raveos-instant-hover-car.html
+- Source Accessed (dd-mm-yyyy): 04-09-2025
 
 ## Raveos Instant Hover Car
 

@@ -1,4 +1,4 @@
-- Author: <Unknown Author>
+- Author: \<Unknown Author\>
 <!-- -->
 - Publisher: GMODISM
 - Website: https://gmodism.com

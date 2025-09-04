@@ -1,4 +1,4 @@
-- Author: <Unknown Author>
+- Author: \<Unknown Author\>
 <!-- -->
 - Title: Visualize skybox boundaries
 - Date (dd-mm-yyyy): 24-10-2019

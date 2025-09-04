@@ -1,4 +1,4 @@
-- Author: <Unknown Author>
+- Author: \<Unknown Author\>
 <!-- -->
 - Title: Translator - V1
 - Date (dd-mm-yyyy): 16-03-2020

@@ -1,6 +1,9 @@
-- Author: Raveo
-- Date: 04-25-2014
+- Author: Raveo (Chey)
+<!-- -->
 - Title: [E2] Raveos Instant F22 Raptor
+- Date (dd-mm-yyyy): 25-04-2014
+- Source: https://web.archive.org/web/20150501095010/http://www.wiremod.com/forum/finished-contraptions/32981-e2-raveos-instant-f22-raptor.html
+- Source Accessed (dd-mm-yyyy): 04-09-2025
 
 ## [E2] Raveos Instant F22 Raptor
 

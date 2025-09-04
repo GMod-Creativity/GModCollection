@@ -1,4 +1,5 @@
-- Author: 31337
+- Author: 31337 (Excidium De Corona)
+- Steam Profile: STEAM_0:1:7175408 (Deleted Account)
 <!-- -->
 - Title: Explosives Are fun aren't they
 - Date: 29-08-2014

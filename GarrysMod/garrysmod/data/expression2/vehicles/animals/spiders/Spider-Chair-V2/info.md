@@ -1,10 +1,16 @@
-- Author: Meetric (Mee)
+- Author: ❤LinkShire❤
+- Steam Profile: https://steamcommunity.com/id/LinkShire
+<!-- -->
+- Edited: Meetric (Mee)
 - Steam Profile: https://steamcommunity.com/profiles/76561198390576907
+<!-- -->
+- Title: The amazing Spider Chair V2!
 - Date (dd-mm-yyyy): 23-10-2019
 - Source: https://catalogue.smods.ru/archives/235528
 - Source: https://steamcommunity.com/workshop/filedetails/?id=1896417111
 - Source Accessed (dd-mm-yyyy): 06-06-2025
-- Title: The amazing Spider Chair V2!
+
+## The amazing Spider Chair V2!
 
 Description:
 This long legged spider chair allows anybody to climb walls, wherever you want!

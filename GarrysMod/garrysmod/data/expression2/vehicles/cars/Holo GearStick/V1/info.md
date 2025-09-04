@@ -1,8 +1,12 @@
-- Author: // Dak
-- Date: 01-22-2015
+- Author: Monskiller (// Dak)
+- Steam Profile: https://steamcommunity.com/profiles/76561198034202243
+<!-- -->
 - Title: [E2] Holo GearStick
+- Date (dd-mm-yyyy): 22-01-2015
+- Source: https://web.archive.org/web/20150429010953/http://www.wiremod.com:80/forum/finished-contraptions/33970-e2-holo-gearstick.html
+- Source Accessed (dd-mm-yyyy): 04-09-2025
 
-## Holo GearStick
+## [E2] Holo GearStick
 
 Been working on this lately, and though about releasing it.
 As the title sais, it's a car gearstick. But instead of changing the angles of a rod, it'll change it's position accordingly to the gear, in a semi-decent smooth animation without the stick jumping around.

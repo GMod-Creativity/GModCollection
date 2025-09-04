@@ -1,4 +1,4 @@
-- Author: <Unknown Author>
+- Author: \<Unknown Author\>
 <!-- -->
 - Title: Random walker script (navmesh)
 - Date (dd-mm-yyyy): 20-10-2019

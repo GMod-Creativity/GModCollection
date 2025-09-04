@@ -1,4 +1,4 @@
-- Author: MythicGhost
+- Author: Benislol37
 <!-- -->
 - Publisher: GMODISM
 - Website: https://gmodism.com
@@ -7,10 +7,11 @@
 - Youtube: https://www.youtube.com/Gmodism
 - Pastebin: https://pastebin.com/u/Gmodism
 <!-- -->
-- Title: Garry's Mod Aiming Hologram by MythicGhost
+- Title: Garry's Mod Bike Lean by Benislol37
 - Date (dd-mm-yyyy): 18-09-2016
-- Source: https://pastebin.com/p97ZB84v
+- Source: https://pastebin.com/zmMFjhf1
+- Source: https://www.youtube.com/watch?v=gm-eQ9bJmEs
 - Source: https://www.youtube.com/watch?v=p-cm2zwp9gI
-- Source Accessed (dd-mm-yyyy): 21-08-2025
+- Source Accessed (dd-mm-yyyy): 04-09-2025
 
-## Aiming Hologram by MythicGhost
+## Bike Lean by Benislol37

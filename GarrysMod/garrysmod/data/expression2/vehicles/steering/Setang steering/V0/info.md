@@ -1,3 +1,5 @@
+- Author: \<Unknown Author\>
+<!-- -->
 - Publisher: GMODISM
 - Website: https://gmodism.com
 - Reddit: https://www.reddit.com/r/GMODISM/

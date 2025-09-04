@@ -1,4 +1,5 @@
-- Author: 31337
+- Author: 31337 (Excidium De Corona)
+- Steam Profile: STEAM_0:1:7175408 (Deleted Account)
 <!-- -->
 - Title: Bombs AGAIN! :D
 - Date (dd-mm-yyyy): 07-12-2014

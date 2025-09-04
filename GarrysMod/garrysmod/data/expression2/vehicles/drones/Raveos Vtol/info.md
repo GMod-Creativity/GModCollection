@@ -1,6 +1,9 @@
-- Author: Raveo
-- Date: 02-25-2013
+- Author: Raveo (Chey)
+<!-- -->
 - Title: Raveos Vtol
+- Date (dd-mm-yyyy): 25-02-2013
+- Source: https://web.archive.org/web/20150318001034/http://www.wiremod.com:80/forum/finished-contraptions/31438-raveos-vtol.html
+- Source Accessed (dd-mm-yyyy): 04-09-2025
 
 ## Raveos Vtol
 

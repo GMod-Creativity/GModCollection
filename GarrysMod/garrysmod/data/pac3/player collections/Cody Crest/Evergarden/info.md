@@ -1,8 +1,9 @@
 - Author: Cody Crest
 - Steam Profile: http://steamcommunity.com/profiles/76561198077799720
 - Youtube: https://www.youtube.com/@CodyCrestpac3
-- Date (dd-mm-yyyy): 12-08-2018
+<!-- -->
 - Title: [Gmod] Pac3 Evergarden
+- Date (dd-mm-yyyy): 12-08-2018
 - Source: https://www.youtube.com/watch?v=Xm-6_0N2uJg
 - Source: https://pastebin.com/rdrTtQ12
 - Source Accessed (dd-mm-yyyy): 19-06-2025

@@ -28,3 +28,4 @@
 - [ ] Add stuff from https://steamcommunity.com/id/ardiscothyssen/myworkshopfiles/?p=1
 - [ ] Move drones to machines or unmanned vehicles
 - [ ] Add stuff from SirDobbers: https://www.youtube.com/@SirDobbers
+- [ ] Add stuff from IceWolf94: https://www.youtube.com/@HOODINIOWL/videos, https://pastebin.com/u/IceWolf94

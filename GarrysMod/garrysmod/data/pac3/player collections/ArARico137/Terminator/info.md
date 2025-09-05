@@ -1,8 +1,9 @@
 - Author: ArARico137
 - Steam Profile: http://steamcommunity.com/profiles/76561198144839158
 - Youtube: https://www.youtube.com/@ArARico137
-- Date (dd-mm-yyyy): 27-10-2019
+<!-- -->
 - Title: Terminator
+- Date (dd-mm-yyyy): 27-10-2019
 - Source: https://www.youtube.com/watch?v=UoTwAJGyhlA
 - Source: https://www.dropbox.com/scl/fi/lyjvo3ules9e5s4ape8yk/terminatoryt.txt?rlkey=szg8zvof9gi5pp3mwj4xybmbk&e=1&dl=0
 - Source Accessed (dd-mm-yyyy): 19-06-2025

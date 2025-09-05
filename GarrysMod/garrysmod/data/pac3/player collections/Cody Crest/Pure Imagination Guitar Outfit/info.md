@@ -1,8 +1,9 @@
 - Author: Cody Crest
 - Steam Profile: http://steamcommunity.com/profiles/76561198077799720
 - Youtube: https://www.youtube.com/@CodyCrestpac3
-- Date (dd-mm-yyyy): 12-12-2016
+<!-- -->
 - Title: [Gmod] Pac3 Pure Imagination Guitar Outfit {Download}
+- Date (dd-mm-yyyy): 12-12-2016
 - Source: https://www.youtube.com/watch?v=P7H3r1MWKlo
 - Source: https://pastebin.com/QTp04Edm
 - Source Accessed (dd-mm-yyyy): 19-06-2025

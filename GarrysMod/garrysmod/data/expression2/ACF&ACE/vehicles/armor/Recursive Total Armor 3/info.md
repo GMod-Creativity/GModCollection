@@ -1,3 +1,5 @@
+- Author: \<Unknown Author\>
+<!-- -->
 - Publisher: GMODISM
 - Website: https://gmodism.com
 - Reddit: https://www.reddit.com/r/GMODISM/
@@ -6,8 +8,9 @@
 - Pastebin: https://pastebin.com/u/Gmodism
 <!-- -->
 - Title: Garry's Mod ACF Recursive Total Armor 3
-- Date: 18-09-2016
+- Date (dd-mm-yyyy): 18-09-2016
 - Source: https://pastebin.com/He80TetL
+- Source: https://www.youtube.com/watch?v=p-cm2zwp9gI
 - Source Accessed (dd-mm-yyyy): 06-08-2025
 
 ## Garry's Mod ACF Recursive Total Armor 3

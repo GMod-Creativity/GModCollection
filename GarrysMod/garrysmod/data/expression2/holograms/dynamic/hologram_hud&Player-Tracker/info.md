@@ -1,13 +1,17 @@
 - Author: GliTcHed
 <!-- -->
-- Title: Blink Indication
+- Title: M_997
 - Date (dd-mm-yyyy): 01-01-2015
+- Source: https://web.archive.org/web/20150429021624/http://www.wiremod.com/forum/finished-contraptions/33866-m_997-a.html
+- Source Accessed (dd-mm-yyyy): 05-09-2025
 
 ## Blink Indication
 
 A tracker and a health indicator that allows for the monitoring of other players
 
-E.R.C
+**E.R.C**
 
 With the first of a line of the new HOLO series comes Model_997.
 Equipped for tracking and keeping "tabs" on the target at hand, it has the ability to monitor the vital signs of an individual of choice. 997 is lacking in the capability to kill and injure other players, whether intentional or not. it has been given the ability to keep track of all players and updates its many holograms in order to accompany the growing or shrinking of any server. Sadly it lacks the ability to track more then one player to to the confusion the extra holograms may cause to the owner and surrounding players.
+
+ENVISION. REVISE. CREATE

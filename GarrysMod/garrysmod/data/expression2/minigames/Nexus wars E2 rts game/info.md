@@ -17,7 +17,7 @@ If you create your own unit tree or ai strategy, please post it!
 https://www.youtube.com/watch?v=e29cnWGgWz4
 
 **CODE**
-Click on this link for the e2 code: [[C] Garry's Mod Nexus Wars e2 - Pastebin.com](https://web.archive.org/web/20160519203211/http://pastebin.com/fLAPkH6A)
+Click on this link for the e2 code: [[C] Garry's Mod Nexus Wars e2 - Pastebin.com](https://pastebin.com/fLAPkH6A)
 A whopping 2000 lines of code, I seem unable to include it in this post because it is so big. The attached files at the bottom of this post are dupes where the e2 chip is already wired up.
 
 Input wiring instructions:

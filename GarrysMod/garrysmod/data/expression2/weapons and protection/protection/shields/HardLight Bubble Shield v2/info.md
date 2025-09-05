@@ -18,20 +18,20 @@ TO USE: Just stand still, press your walk key, AND your use key AT THE SAME TIME
 
 **Features:**
 
-- 8192hp: a nice round binary number (2^13) I thought might be ok. I know this is an insane amount of HP, but this is meant to be defensive gear, not offensive, and for a group of players to take it on.
+- **8192hp:** a nice round binary number (2^13) I thought might be ok. I know this is an insane amount of HP, but this is meant to be defensive gear, not offensive, and for a group of players to take it on.
 
-- 30 second duration: If the HP wasn't drained in 30 secs, the bubble will pop after this amount of time.
+- **30 second duration:** If the HP wasn't drained in 30 secs, the bubble will pop after this amount of time.
 
-- 15 second recharge: vs the old V1 5 second.
+- **15 second recharge:** vs the old V1 5 second.
 
-- Audio Cues: Not only can you see the health of the shield, you can now hear it, listen carefully to the ambient hum as its pitch goes down w/ the HP. Also, after the shield pops + 15 seconds later, a little bloop will go off telling you it's ready.
+- **Audio Cues:** Not only can you see the health of the shield, you can now hear it, listen carefully to the ambient hum as its pitch goes down w/ the HP. Also, after the shield pops + 15 seconds later, a little bloop will go off telling you it's ready.
 
-- Smaller shield size: FPP doesn't really like it when you spawn in a big 375x375 sphere most times so I shrunk it to a 2x2 sphere. Still plenty big to hold a player.
+- **Smaller shield size:** FPP doesn't really like it when you spawn in a big 375x375 sphere most times so I shrunk it to a 2x2 sphere. Still plenty big to hold a player.
 
-- Explosive RESISTANT not IMMUNE: Decrease in shield size means it's more likely for splash damage to leak into the shield, hurting you, but the shield does in fact soak up a good bit of it. Better some than none amirite?
+- **Explosive RESISTANT not IMMUNE:** Decrease in shield size means it's more likely for splash damage to leak into the shield, hurting you, but the shield does in fact soak up a good bit of it. Better some than none amirite?
 
 **One final note:**
-DO NOT MESS WITH THE BOX: You can dupe it in anywhere you like, but after it spawns, it stays. Do not try to delete the box, do not try to recolor the box, do not try to move the box w/ physgun. There is code set in place to keep you from doing those things so it's pointless to try.
+**DO NOT MESS WITH THE BOX:** You can dupe it in anywhere you like, but after it spawns, it stays. Do not try to delete the box, do not try to recolor the box, do not try to move the box w/ physgun. There is code set in place to keep you from doing those things so it's pointless to try.
 
 Have fun!
 

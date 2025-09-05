@@ -50,5 +50,8 @@ Commands:
 /help 6
 Code: (~610 lines)
 
+VIDEO:
+https://web.archive.org/web/20160720113003/https://www.youtube.com/watch?v=IAl7q--Y7dA
+
 EASTER EGG COMMAND!!!!
 /attach /suicide

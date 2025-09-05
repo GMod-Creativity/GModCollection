@@ -4,7 +4,7 @@
 <!-- -->
 - Title: E2 Text API
 - Date (dd-mm-yyyy): 25-11-2016
-- Source: Wiredmod Discord
+- Source: Wiredmod Discord: code-review Archive
 - Source: https://pastebin.com/T97SKZ7x
 - Source Accessed (dd-mm-yyyy): 11-08-2025
 

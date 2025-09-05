@@ -20,3 +20,5 @@ Extremely simple chatless interface that uses only one button (default H), but c
 Features thought out performance control, that limits functions of the chip as the ops limit is approached, and will purge mines to maintain control before the real hard limit is reached.
 
 Extremely customizable and modular; options at the top.
+
+https://web.archive.org/web/20161010171318/https://www.youtube.com/watch?v=TiKSMkBrIHM

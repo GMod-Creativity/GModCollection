@@ -5,6 +5,8 @@
 - Title: [E2]Instant Base That Regenerates
 - Date (dd-mm-yyyy): 24-08-2014
 - Source: https://web.archive.org/web/20150429084844/http://www.wiremod.com/forum/finished-contraptions/33486-e2-instant-base-regenerates.html
+- Source: https://gist.githubusercontent.com/anonymous/1f5b3fe88f417c981e4b/raw/3cacaf4c447abf216194c4b06b9c22521eb3e815/aaaa
+- Source: https://gist.githubusercontent.com/anonymous/80f3bfc39370dbd6c887/raw/874c645c54ecbb588b807d3a092fa1bb5fe441c2/bunker2.txt
 - Source Accessed (dd-mm-yyyy): 22-08-2025
 
 ## [E2]Instant Base That Regenerates
@@ -29,8 +31,11 @@ COMMANDS:
 /clear - clears all people excluded from kill aura except for you
 
 **Bunker Saver:**
-The bunker saver is intended for single player as you can change the hard quota with wire_expression2_quotahard 10000000, wire_expression2_unlimited 1 also helps and wire_expression2_quotatick 10000000
+Video:
+https://web.archive.org/web/20170104233012/https://www.youtube.com/watch?v=cat78XP_h9k
 
 bunker.txt:
 [Pastebin is for scrubs](https://gist.githubusercontent.com/anonymous/1f5b3fe88f417c981e4b/raw/3cacaf4c447abf216194c4b06b9c22521eb3e815/aaaa)
 [Second Bunker](https://gist.githubusercontent.com/anonymous/80f3bfc39370dbd6c887/raw/874c645c54ecbb588b807d3a092fa1bb5fe441c2/bunker2.txt)
+
+The bunker saver is intended for single player as you can change the hard quota with wire_expression2_quotahard 10000000, wire_expression2_unlimited 1 also helps and wire_expression2_quotatick 10000000

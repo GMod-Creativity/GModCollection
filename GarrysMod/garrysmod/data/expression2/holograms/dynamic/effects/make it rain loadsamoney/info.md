@@ -12,4 +12,7 @@
 ## [e2] make it rain loadsamoney
 
 I noticed that there hasn't been an E2 that makes it rain LOADSAMONEY on your head. I decided to make my own.
+
+https://www.youtube.com/watch?v=Yd2J5uXW09w
+
 Requires: CS:S

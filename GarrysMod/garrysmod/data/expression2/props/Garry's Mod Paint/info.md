@@ -46,3 +46,6 @@ Step 3. Type !save [number from 1-20] to save your vector.
 Step 4. Type !select [umber from 1-20] to select the array you want to color with.
 Step 5. Now press the Use Key or Reload on a prop to color that prop with the array.
 Side Notes: !clear will not get rid of those saved arrays, removing it however will clear the array. To remove the !record just simply type !record again. If you plan to save to another array after already saving it once. Type !save 0 then resume with step 2.
+
+VIDEO:
+https://web.archive.org/web/20160404022219/https://www.youtube.com/watch?v=Xr0zFy2HOug

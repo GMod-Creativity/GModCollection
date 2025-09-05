@@ -14,6 +14,14 @@
 
 ZeroG sent me a PM a week or two back that inspired me to do better in my chips that I release..
 
+    To show you why that chip you threw together has such great potential, I'd like to show you two contraptions me and an admin of my server made.
+
+    - First, a working ACF hovertank using the chip as a base:
+        see izz8Ifv.jpg
+
+    - And second, a better version of the hoverbike I showed on the thread:
+        see 7nNOVra.jpg, yQlc3DM.jpg
+
 This guy deserves a lot of props for that.
 
 Anyways, I was inspired to remake my prop-to-holo chip once again. This time around, I optimized it in terms of e2 performance (in the e2 itself, not purposely, if at all, in the export) and readability (in both the e2 and export, so you can add extra props after the fact). The instructions are simple: Take your grav gun out, select your base prop and props you want to export, type "-save <name>", and use that export to your liking. If you need more help, go ahead and ask, since I'm too conceited to see a problem, and I'm putting this statement here to counter it.

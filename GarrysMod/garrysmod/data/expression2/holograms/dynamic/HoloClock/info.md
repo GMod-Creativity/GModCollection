@@ -3,7 +3,7 @@
 <!-- -->
 - Title: HoloClock
 - Date (dd-mm-yyyy): 03-11-2019
-- Source: Wiremod Discord
+- Source: Wiremod Discord: Contraptions Archived
 - Source Accessed (dd-mm-yyyy): 11-08-2025
 
 ## HoloClock

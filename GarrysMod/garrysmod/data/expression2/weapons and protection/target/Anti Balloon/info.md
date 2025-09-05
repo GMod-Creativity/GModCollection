@@ -36,22 +36,22 @@ if ( changed( O:keyPressed("X") ) & O:keyPressed("X") ) {
 ```
 
 **Edit Note :**
-    Moved :
+Moved :
 
-    ```
+```
     E = entity()
     EP = entity():pos()
-    ```
+```
 
-    Added :
+Added :
 
-    ```
+```
     Turret:createWire(E,"Fire","Fire")
-    ```
+```
 
-    Removed :
-        4th step from "How to use it :" .
+Removed :
+4th step from "How to use it :" .
 
 Informations :
-    OPS : 40-55
-    Addon(s) used : setPos
+OPS : 40-55
+Addon(s) used : setPos

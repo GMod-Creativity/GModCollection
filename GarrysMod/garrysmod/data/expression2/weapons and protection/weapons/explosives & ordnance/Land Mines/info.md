@@ -12,3 +12,6 @@
 This E2 is fairly simple in concept and the coding is my lazy work so enjoy this E2!
 
 Mine Destroyer (Place on top of a mine)
+
+Video
+https://web.archive.org/web/20161117110359/https://www.youtube.com/watch?v=TOLZhxRdykg

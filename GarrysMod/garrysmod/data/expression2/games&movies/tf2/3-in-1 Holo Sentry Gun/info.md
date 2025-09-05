@@ -10,7 +10,7 @@
 
 ## 3-in-1 Holo Sentry Gun
 
-Description:
+**Description:**
 a TF2 Sentry Gun made entirely of holograms using E2
 made with all 3 levels built in, line of sight detection and distance prioritisation
 

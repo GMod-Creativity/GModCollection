@@ -7,6 +7,7 @@
 - Title: Securitron MK 2
 - Date: 06-09-2015
 - Source: https://web.archive.org/web/20160429160435/http://www.wiremod.com:80/forum/finished-contraptions/34500-securitron-mk-2-a.html
+- Source: https://www.youtube.com/watch?v=QMzBkPavZeI
 - Source Accessed (dd-mm-yyyy): 12-08-2025
 
 ## Securitron MK 2

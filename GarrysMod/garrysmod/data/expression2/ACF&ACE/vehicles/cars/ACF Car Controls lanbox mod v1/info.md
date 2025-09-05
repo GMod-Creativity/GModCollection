@@ -1,4 +1,8 @@
-- Author: buder5
+- Author: blaknite
+- Steam Profile: https://steamcommunity.com/profiles/76561197969308510
+- Github: https://github.com/blaknite
+<!-- -->
+- Edited: buder5
 - Steam Profile: https://steamcommunity.com/profiles/76561198010059730
 - Youtube: https://www.youtube.com/@buder5116
 <!-- -->

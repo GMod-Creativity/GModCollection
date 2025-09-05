@@ -28,4 +28,8 @@ Enough wall of text, pretty 1bit pictures and videos time.
 
 https://www.youtube.com/watch?v=UwcfBp-5UeI
 
+https://imgur.com/hXp0f
+https://imgur.com/CHEZe
+https://imgur.com/jnKch
+
 And the E2 code, no ROM included for obvious reasons, so it's really just for looking.

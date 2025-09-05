@@ -5,7 +5,7 @@
 - Title: Garry's Mod Spacecraft Thruster Controller E2
 - Date (dd-mm-yyyy): 11-02-2023
 - Source: https://www.youtube.com/watch?v=DLy6NUSoNts
-- Source: Papa Marsh Industries Discord
+- Source: Papa Marsh Industries Discord: the-archives
 - Source Accessed (dd-mm-yyyy): 15-08-2025
 
 ## Garry's Mod Spacecraft Thruster Controller E2

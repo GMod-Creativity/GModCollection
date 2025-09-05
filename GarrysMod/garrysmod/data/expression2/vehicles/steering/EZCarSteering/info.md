@@ -1,6 +1,6 @@
 - Author: \<Unknown Author\>
 <!-- -->
-- Publisher: SirDobbers
+- Publisher: SirDobbers (Dman) (Dmanbiker)
 - Steam Profile: https://steamcommunity.com/profiles/76561197973187542
 - Youtube: https://www.youtube.com/@SirDobbers
 <!-- -->

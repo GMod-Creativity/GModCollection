@@ -23,6 +23,7 @@
 - [ ] put links of packs on video's
 - [ ] Add stuff from: https://web.archive.org/web/20101018185146/http://www.facepunch.com:80/showthread.php?828901-Divran-s-E2-Thread
 - [ ] Add stuff from acf discord
+- [ ] Add stuff from wiremod discord
 - [ ] Add stuff from https://github.com/ACF-Team/ACF-3/wiki/Public-E2-Collection
 - [ ] Add youtube stuff enyx
 - [ ] Add stuff from https://steamcommunity.com/id/ardiscothyssen/myworkshopfiles/?p=1

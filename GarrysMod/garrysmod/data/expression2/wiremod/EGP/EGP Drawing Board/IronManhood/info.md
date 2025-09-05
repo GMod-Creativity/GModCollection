@@ -13,6 +13,12 @@
 **EGP Drawing Board v2.4**
 Feel like playing gmod and drawing on something. Well now you can do both at the same time!!! Introducing the EGP Drawing Board v2. It's pretty much an egp sandbox. You WILL need to download the textures for this to work on your machine. I've uploaded a zip file containing the e2 and the texture files used.
 
+[YouTube - EGP Drawing Board v2.1](https://web.archive.org/web/20161208231719/https://www.youtube.com/watch?v=FeTPmPANZLY)
+
+[YouTube - EGP Drawing Board v2.4](https://web.archive.org/web/20161208231717/https://www.youtube.com/watch?v=mH9sip6Ha0Y)
+
+[YouTube - Drawing Tool](https://web.archive.org/web/20161208231720/https://www.youtube.com/watch?v=xgmHJT7NUEA)
+
 **Controls**
 1 = Box tool
 2 = Circle tool

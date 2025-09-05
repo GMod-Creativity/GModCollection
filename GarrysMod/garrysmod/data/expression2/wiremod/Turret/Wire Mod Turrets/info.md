@@ -12,3 +12,16 @@
 I lied.
 NEW TURRETS ADDED: AUTO 2; DRONE
 This E2 file contains 3 E2's that i made. Credit also goes to a steam user by the name of Turtleren for helping me out with making this E2.
+Video:
+https://web.archive.org/web/20161123061046/https://www.youtube.com/watch?v=9Bc9iYMt9Vc
+
+FYI there's no audio since i used ezvid instead of fraps
+Also in the video I will be seen editing the coding. Don't do that because that was for an example on how it would work so i set it to target me but sadly, it failed.
+There should be attached file(s) on this post
+If you don't like downloading here's the codes:
+
+- Auto
+- Auto 2
+- Drone
+- Manual
+- Manual 2

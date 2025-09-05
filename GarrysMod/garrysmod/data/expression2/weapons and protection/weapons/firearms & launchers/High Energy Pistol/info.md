@@ -11,3 +11,6 @@
 
 This is the part where I learned how to make a SWEP in Lua.
 You hold down your secondary attack button and click the use key to change modes. To add a prop, hold down right mouse button then press the walk key. To remove a prop hold down right mouse button then duck. Added props will be available as a mode.
+
+Video:
+https://web.archive.org/web/20161104094719/https://www.youtube.com/watch?v=zDD_jLnQPjo

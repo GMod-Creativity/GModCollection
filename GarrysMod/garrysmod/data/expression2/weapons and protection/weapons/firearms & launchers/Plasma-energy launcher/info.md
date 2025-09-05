@@ -17,3 +17,5 @@ how to use:
 -to fire, either hold the right click or just click
 -the longer you hold down the fire, the more powerful the shot will be
 -Extract the folders for the audio files in your sounds/weapons folder
+Video:
+https://web.archive.org/web/20161204031438/https://www.youtube.com/watch?v=dY6vlX36UqA

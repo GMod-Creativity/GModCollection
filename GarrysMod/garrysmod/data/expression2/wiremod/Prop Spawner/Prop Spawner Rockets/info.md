@@ -10,8 +10,8 @@
 <!-- -->
 - Title: Garry's Mod Prop Spawner Rockets
 - Date (dd-mm-yyyy): 18-09-2016
-- Source: https://pastebin.com/u/Gmodism
 - Source: https://pastebin.com/bAbsyp05
+- Source: https://www.youtube.com/watch?v=p-cm2zwp9gI
 - Source Accessed (dd-mm-yyyy): 23-08-2025
 
 ## Garry's Mod Prop Spawner Rockets

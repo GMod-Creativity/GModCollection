@@ -1,0 +1,80 @@
+@name Segway - Accelerometer stabilization
+@inputs W S A D
+@inputs [Wheel1 Wheel2 Body]:entity
+@outputs Angle
+@persist Vel:vector 
+@persist Angle Angle_rate
+@persist Vel_est Pos_est
+
+# 0. timer
+DT = 10
+interval(DT)
+DT *= 1e-3
+
+# 1. state 
+E = entity()
+
+    # acceleration
+Vel_new = E:vel()
+Acc = (Vel_new - Vel)/DT
+Vel = Vel_new
+
+    # include gravity
+GRAVITY_MAG = 900
+GRAVITY = vec(0, 0, 1)
+Acc = Acc/GRAVITY_MAG + GRAVITY
+        # local acceleration [accelerometer]
+Acc_local = E:toLocal( E:pos() + Acc )
+
+    # components
+Angvel = -E:angVelVector() * 90/60   # need to correct scale
+Angvel_y = Angvel:y()
+Acc_x = Acc_local:x()
+Acc_z = Acc_local:z()
+
+# 2. sensor fusion [modified mahony filter]
+KP = 0.001          # sensor fusion gain
+KC = sqrt(2*KP) 
+
+Angle_acc = atan(Acc_x, Acc_z) 
+Angle_rate += (Angle_acc - Angle)*KP - Angle_rate*KC
+Angle += Angle_rate*DT
+Angle += Angvel_y*DT
+
+# 3. PID loop
+
+# Loop #1: horizontal displacement 
+GAIN_VEL = 0        # lateral damping
+GAIN_POS = 0       # position spring
+
+X_input = (W - S)*500 
+
+Angle_t = Angle + GAIN_VEL*Vel_est + GAIN_POS*Pos_est
+
+# Loop #2: vertical angle    
+GAIN_P = 0.0
+GAIN_D = 0.0
+
+Output = GAIN_P*Angle_t + GAIN_D*Angvel_y + tan(Angle)*30
+Output /= cos(Angle)
+
+# 4. angular velocity [for given acceleration] 
+ANGVEL_MAX = 2500           # deg/s
+
+    # estimated position/velocity
+Vel_est += Output*DT
+Pos_est += Vel_est*DT
+
+# 5. motor torque [free response]
+Y_input = ( (A - D)*20 + Angvel:z() )*0.1
+Target_1 = Output + Y_input 
+Target_2 = Output - Y_input
+
+Target_1 *= 0.5 * 1e3
+Target_2 *= 0.5 * 1e3
+Target = Target_1 + Target_2
+
+    # Torques
+Wheel1:applyAngForce( ang(Target_1,0,0) ) 
+Wheel2:applyAngForce( ang(Target_2,0,0) )   
+Body:applyAngForce( ang(0,-Target,0) )

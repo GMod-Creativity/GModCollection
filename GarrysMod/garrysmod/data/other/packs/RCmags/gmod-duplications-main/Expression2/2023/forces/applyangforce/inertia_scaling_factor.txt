@@ -1,0 +1,77 @@
+@name Moment of Inertia scaling factor
+@inputs E:entity
+# Kinematics
+@outputs [AngVel AngAcc]:angle 
+# Inertias
+@outputs Inertia:vector 
+@outputs Inertia_ex:angle
+@outputs [Ratio Ratio_av]:vector
+# Constants
+@persist DT_MS DT Alpha
+@persist Torque:angle
+# Past values
+@persist AngVel_1:angle Ratio_av:vector Ncount
+@trigger 
+
+# Constants
+if( first() ) {
+    # Interval time step
+    DT_MS = 20
+    DT = DT_MS * 1e-3
+    
+    # Local force vector
+    Torque = ang(1e3, 0, 0)    
+    
+    # Average samples
+    Ncount = 100
+    
+    # Initialize
+    Ratio_av = vec(0,0,0)
+    AngVel_1 = ang(0,0,0)
+}
+
+# Update script
+interval(DT_MS)
+
+# 1. Measure state:
+    # Measure angular velocity
+AngVel = E:angVel() * pi() / 180    # Convert to radians
+
+    # Estimate angular acceleration
+AngAcc = (AngVel - AngVel_1)/DT
+
+    # Store past velocity
+AngVel_1 = AngVel
+
+# 2. Determine Inertia
+    # get value
+Inertia = E:inertia()
+
+    # Measure value
+Inertia_ex = ang(Torque:pitch()/ AngAcc:pitch(), 
+                 Torque:yaw()  / AngAcc:yaw(),
+                 Torque:roll() / AngAcc:roll() )
+
+# 3. Measure scaling factor
+Ratio = vec(Inertia_ex:pitch() / Inertia:y(),
+            Inertia_ex:roll()  / Inertia:x(),
+            Inertia_ex:yaw()   / Inertia:z() )
+
+    # Filter ratio
+Ratio_av = Ratio_av + (Ratio - Ratio_av)/Ncount
+    # display value
+print(Ratio_av)
+
+# 4. Apply Torque [scale by mass]
+E:applyAngForce( Torque*DT )
+
+# Axis to angle mapping:
+    # (x, y, z) -> (roll, pitch, yaw)
+    
+    # Note: 1. ApplyAngForce applies a local torque with a 1:1 scaling factor.
+    #       2. Prop must be in motion for filter to work
+    #       3. ApplyTorque is less consistent than ApplyAngForce [no axis conversion]
+    
+# Measured Scaling factor:
+#   Radians/s: K ~ 1550
+#   Degree/s:  K ~ 27.05

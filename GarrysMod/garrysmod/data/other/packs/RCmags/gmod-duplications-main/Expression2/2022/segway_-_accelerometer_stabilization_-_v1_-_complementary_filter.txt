@@ -1,0 +1,76 @@
+@name Segway - Accelerometer stabilization - complementary filter - v1
+@inputs [Wheel1 Wheel2 Body]:entity
+@outputs Angle
+@persist Vel:vector Angle Integral Target_angvel Position
+
+DT = 10
+interval(DT)
+DT *= 1e-3
+
+E = entity()
+
+# 1. state 
+    # acceleration
+Vel_new = E:vel()
+Acc = (Vel_new - Vel)/DT
+Vel = Vel_new
+
+    # include gravity
+GRAVITY_MAG = 900
+GRAVITY = vec(0, 0, 1)
+Acc = Acc/GRAVITY_MAG + GRAVITY
+        # local acceleration [accelerometer]
+Acc_local = E:toLocal( E:pos() + Acc )
+
+    # components
+Angvel = -E:angVelVector() * 90/60   # need to correct scale
+Angvel_y = Angvel:y()
+Acc_x = Acc_local:x()
+Acc_z = Acc_local:z()
+
+# 2. sensor fusion
+Angle_acc = atan(Acc_x, Acc_z)
+
+Angle += Angvel_y*DT
+Angle += (Angle_acc - Angle)*0.001 
+
+# pid loop
+GAIN_P = 100
+GAIN_D = 20
+GAIN_I = 5
+INT_MAX = 500
+
+GAIN_VEL = 0.01
+GAIN_POS = 0.005
+    # target
+Angle_t = Angle + GAIN_VEL*Target_angvel + GAIN_POS*Position
+    
+    # integral term
+Integral += GAIN_I * (Angle_t*DT)
+Integral = clamp(Integral, -INT_MAX, INT_MAX)
+
+    # net output
+Output = GAIN_P*Angle_t + GAIN_D*Angvel_y + Integral
+
+# target angular velocity [for given acceleration] 
+ANGVEL_MAX = 2500           # deg/s
+
+Target_angvel += Output*DT
+Target_angvel = clamp(Target_angvel, -ANGVEL_MAX, ANGVEL_MAX)
+
+Position += Target_angvel*DT
+
+# motor torque output [reaction forces]
+GAIN_MOTOR = 5e1
+
+Target_1 = ( Target_angvel - Wheel1:angVel():pitch() )*GAIN_MOTOR
+Target_2 = ( Target_angvel - Wheel2:angVel():pitch() )*GAIN_MOTOR
+
+Target_1 *= 0.5
+Target_2 *= 0.5
+Target = Target_1 + Target_2
+
+    # Torques
+Wheel1:applyAngForce( ang(Target_1,0,0) ) 
+Wheel2:applyAngForce( ang(Target_2,0,0) )   
+Body:applyAngForce( ang(0,-Target,0) )

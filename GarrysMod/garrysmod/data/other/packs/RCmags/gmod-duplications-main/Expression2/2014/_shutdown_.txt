@@ -1,0 +1,76 @@
+@name Swashless - Helicopter control
+@inputs H:entity
+@inputs W S A D Ri Space Shift Mouse1 Mouse2 
+@outputs H1 H2 T
+@outputs Constant Damping Wp Wr
+@persist C Ap Ar Q Th
+
+interval(10)
+
+#E2 entity
+E = entity()
+
+#Hydraulic settings:
+Constant = 25000
+Damping = 200
+
+#Collective input
+C = clamp( (Space - Shift)/10 + C , -3 , 10 )
+
+#Rotor collective input:
+L = 110.18 + C 
+
+#Master stabilizatio gain:
+J = 0.007
+
+#Pitch and roll angular velocities:
+Wp = E:angVel():pitch()*J
+Wr = -E:angVel():roll()*J
+
+#Rotor angular velocity
+Wb = H:angVel():yaw()*0.001
+
+#Stabilization gain control:
+G = ( Wb^8 )/sqrt( 1 + Wb^16 )
+
+#Maximum cyclic deflection:
+M = 10
+
+#Target rotational velocity:
+U = 40
+
+#Pitch and roll target angle approximations:
+Ap = clamp( Wp + (S - W)*J*U + Ap , -M , M )*G
+Ar = clamp( Wr + (D - A)*J*U + Ar , -M , M )*G
+
+#Net Pitch and roll inputs:
+P = clamp( Ap + 2*Wp + 2*$Wp , -M , M )*G
+R = clamp( Ar + 2*Wr + 2*$Wr , -M , M )*G
+
+#Phase angle:
+F = -32
+
+#Nutation Gain:
+N = 0.07/J
+
+#Rotor Pitch and roll outputs:
+Po = cos(F)*P - sin(F)*R + Wr*N*G
+Ro = cos(F)*R + sin(F)*P - Wp*N*G
+
+#Rotor bearing and control inputs:
+B = H:bearing( E:pos() )
+
+#Rotor length outputs:
+H1 = L + sin(B)*Po + cos(B)*Ro
+H2 = L + sin(B + 180)*Po + cos(B + 180)*Ro
+
+#RPM control:
+if( ~Ri & Ri ) { Q = !Q }
+Th = clamp( Q*0.005 + Th , 0 , 1 )*Q
+
+#Torque control:
+H:applyAngForce( ang( 0 , Th*2000 - H:angVel():yaw() , 0 )*Q*1000 )
+
+#Tail thruster control
+T = ( (Mouse1 - Mouse2)*70 - E:angVel():yaw() )*-2
+

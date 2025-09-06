@@ -1,0 +1,56 @@
+@name Horizontal stabilizer Yaw control
+@inputs Input
+
+# wing hydros
+@outputs Beta AoA
+
+@outputs LengthL LengthR
+@outputs Constant Damping
+
+# state
+@persist Beta Beta_deriv 
+
+DT = 10
+interval(DT)
+DT *= 1e-3
+
+# --- Vehicle state
+E = entity()
+
+# velocity
+Vel = E:velL()
+Vel_mag = Vel:length()
+
+# Tail angle of attack
+AoA_zero = toRad(-3)
+AoA = atanr( -Vel:z(), Vel:x() ) - AoA_zero
+
+# Side-slip angle
+Beta_new = atanr( -Vel:y(), Vel:x() ) 
+Beta_deriv = (Beta_new - Beta)/DT
+Beta = Beta_new
+
+# --- PID controller
+Beta_zero = Input * toRad(20)
+
+Kp = 4  # Proportional
+Kd = 2  # Derivative
+Torque = (Beta - Beta_zero)*Kp + Beta_deriv*Kd
+
+# --- Control output
+Vel_trans = 1400 # Transistion velocity
+Xmax = 20        # Max deflection
+
+# angle of attack gain
+Gain = AoA == 0 ? 0 : 1/AoA
+
+# deflection
+X = Torque * Gain
+X = clamp(X, -Xmax, Xmax)
+
+# --- Actuator output
+Constant = 3000
+Damping = 200
+
+LengthL = 100 + X 
+LengthR = 100 - X 

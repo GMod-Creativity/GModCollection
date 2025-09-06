@@ -1,0 +1,72 @@
+@name UH-1 MK-3
+@inputs Alt W S A D SHF SPC Ri M1 M2 Hub:wirelink
+@outputs Ch Dh H1 H2 H3 H4 T V Pitch Roll Percent J
+@persist C Q L P R
+
+interval(10)
+
+#-Hydraulic settings:
+
+Ch = 40000
+Dh = 600
+
+#- Pitch and roll variables:
+
+#Dual rates increase:
+if(~Alt & Alt) {J = !J*6}
+
+#Angular velocity: 
+
+E = entity()
+
+Ang = E:angVel()
+
+Sp = Ang:pitch()
+Sy = Ang:yaw()
+Sr = Ang:roll()
+
+#Pitch and roll inputs:
+
+P = clamp( P + ( 2*(S - W) - sign(P) )/20 ,-1,1)
+
+R = clamp( R + ( 2*(A - D) - sign(R) )/20  ,-1,1)
+
+#Pitch and roll outputs:
+Po = clamp( P*(6 + J) + Sp/20 + $Sp/8,-6,6) 
+Ro = clamp( R*(6 + J) + Sr/20 + $Sr/8,-6,6)
+
+#- Tail thruster:
+
+T = (M1 - M2)*200 - (Sy + $Sy*2)
+
+#- Collective control:
+
+C = clamp( (SPC - SHF)*0.06 + C ,-2,5)
+
+M = 24 + C
+
+#- Hydraulic lengths:
+
+H1 = M + Po 
+H2 = M - Po
+H3 = M - Ro
+H4 = M + Ro 
+
+#- Throttle and torque control: 
+
+if(~Ri & Ri) {Q = !Q}
+
+L = clamp( Q*1000 + L ,0,400000)*Q
+
+H = Hub:entity()
+
+H:applyAngForce(ang(0,L + abs(C*40000)*Q,0))
+
+#- Screen outputs:
+
+Pitch = round( E:angles():pitch() )
+Roll = round( E:angles():roll() )
+
+V = round( E:velL():length()*0.06858 )
+
+Percent = round( C/0.05 )

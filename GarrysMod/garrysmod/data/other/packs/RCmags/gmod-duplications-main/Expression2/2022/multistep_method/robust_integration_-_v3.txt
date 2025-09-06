@@ -1,0 +1,42 @@
+@name Robust integration - v3
+@inputs E:entity
+@outputs Accel:vector
+
+# Constants
+@persist GAIN MASS DT
+@trigger 
+
+# Acceleration
+if( first() ) {
+    # Constants
+    DT = tickInterval()
+    MASS = E:mass() 
+    
+    # Functions
+    GAIN = 2
+        # acceleration function    
+    function vector accel(Vel:vector) {
+        return -GAIN * Vel
+    }
+}
+
+#=== Iterated code
+runOnTick(1)
+
+# 1. Input state
+Y0 = E:vel() 
+
+# 2. Update scheme - Runga-Kuta4 [unstable]
+K1 = accel(Y0)
+K2 = accel(Y0 + 0.5*DT*K1)
+K3 = accel(Y0 + 0.5*DT*K2)
+K4 = accel(Y0 + DT*K3)
+    # Final estimate
+Yn = Y0 + DT*( K1 + 2*K2 + 2*K3 + K4)/6
+
+# 3. Acceleration at next time step - Finite difference
+Accel = (Yn - Y0)/DT
+
+# Induce acceleration
+E:applyForce( MASS * Accel )
+

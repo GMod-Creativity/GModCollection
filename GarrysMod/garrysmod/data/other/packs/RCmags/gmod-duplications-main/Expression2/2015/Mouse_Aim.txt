@@ -1,0 +1,78 @@
+@name Mouse Aim
+
+@inputs CamAng:angle Active A D
+
+@outputs Position:vector
+
+@outputs PitchOut RollOut YawOut
+ 
+@persist Base:entity Position:vector
+@persist MaxAngle MaxDef ActiveAngle GainPitch GainRoll
+@persist DampPitch DampRoll DampYaw RatePitch RateRoll RateYaw Rate OffsetR On
+
+if( first() ) {
+    
+Base = entity()
+    
+Position = vec( 0 , 0 , 32 )#Seat Camera Offset
+
+MaxAngle = 75 #Maximum bank angle
+    
+MaxDef = 15 #Maximum control deflection
+
+ActiveAngle = 25 #Field of view angle at which control activate
+
+GainPitch = 0.1 #Strength of Self uprighting in roll
+
+GainRoll = -0.1 #Strength of Self uprighting in pitch
+
+DampPitch = 0.01 #Resistance to rotation in pitch
+
+DampRoll = 0.01 #Resistance to rotation in roll
+
+DampYaw = 0.3 #Resistance to rotation in yaw
+
+RatePitch = 3 #Control sensitivity in pitch
+
+RateRoll = 3 #Control sensitivity in roll
+
+RateYaw = 1 #Control sensitivity in yaw
+
+Rate = 0.1 #Reaction time of A-D roll control. 0 < Rate < 1
+
+}
+
+if( Active ) {
+
+interval(50)
+
+CamBase = Base:toLocal( CamAng )
+
+PitchIn = CamBase:pitch()
+
+YawIn = CamBase:yaw()
+
+if( (PitchIn^2 + YawIn^2)^(1/2) < ActiveAngle & Active ) { On = 1 }
+
+if( On ) {
+
+BaseAng = Base:angles()
+BaseVel = Base:angVel()
+
+OffsetR = (A - D)*Rate +  OffsetR
+OffsetR = OffsetR*(1 - Rate)
+
+PitchOut = clamp( ( clamp( PitchIn*RatePitch , -MaxAngle , MaxAngle ) - BaseAng:pitch() )*GainPitch - BaseVel:pitch()*DampPitch , -MaxDef , MaxDef )
+
+RollOut = clamp( ( clamp( YawIn*RateRoll*( 1 - abs(OffsetR) ) + OffsetR*MaxAngle/(1 - Rate) , -MaxAngle , MaxAngle ) + BaseAng:roll() )*GainRoll - BaseVel:roll()*DampRoll , -MaxDef , MaxDef )
+
+YawOut = clamp( ( YawIn*RateYaw - BaseVel:yaw() )*DampYaw , -MaxDef , MaxDef )
+
+    } 
+
+} else { PitchOut = RollOut = YawOut = On = 0 }
+
+#- Instructions
+
+# 1) This E2 requires the following wire : Camera controller and Pod controller 
+

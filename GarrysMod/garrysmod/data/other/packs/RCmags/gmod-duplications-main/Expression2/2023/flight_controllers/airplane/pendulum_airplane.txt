@@ -1,0 +1,107 @@
+@name Pendulum airplane
+@inputs Pi Ri Yi
+
+@outputs Accel_L:vector
+
+# Hydraulic
+@outputs X1 Y1 X2 Y2
+@outputs Constant Damping
+
+@persist Constant Damping 
+@persist Length0 Radius
+
+# Thrusters
+@outputs Force1 Force2
+
+@persist Vel_last:vector Angle:vector Accel_s:vector Angvel_last:vector
+@persist Entity:entity
+
+@persist ANGLE_MAX 
+@persist [KP KI KD]:vector
+
+if( first() ) {
+    Length0 = 1000
+    Radius = 50
+    Constant = 2500
+    Damping = 70
+    
+    Entity = entity()
+    Vel_last = Entity:vel()
+    Angle = vec(0,0,0)
+    Accel_s = vec(0,0,1)
+    Angvel_last = vec(0,0,0)
+            
+    ANGLE_MAX = 35
+    
+    # level flight
+    KP = vec(0.5, 0.0, 0.0)
+    KI = vec(1.2, 0.4, 0.0)
+    KD = vec(0.0, 0.0, 0.0)
+}
+
+# 0. Timetep
+DT = 10
+interval(DT)
+DT *= 1e-3
+
+#----------
+
+# 0A. State
+Angvel = Entity:angVelVector()
+AngAcc = (Angvel - Angvel_last)/DT
+Angvel_last = Angvel
+
+Vel = Entity:vel()
+
+    # acceleration
+Accel = (Vel - Vel_last)/DT
+Vel_last = Vel 
+
+    # Normalized local acceleration [accelerometer]
+Accel_L = Accel/900 + vec(0,0,1)    # add gravity
+Accel_L = Entity:toLocalAxis(Accel_L)
+
+#---------
+
+# 1A. PID controller
+Angvel_t = vec(Pi,-Ri,Yi) * 60
+Angvel_body = vec( Angvel:y(), Angvel:x(), Angvel:z() )
+
+Angle += (Angvel_body - Angvel_t)* DT
+ 
+Angle = vec( clamp( Angle:x(), -ANGLE_MAX, ANGLE_MAX) , 
+             clamp( Angle:y(), -ANGLE_MAX, ANGLE_MAX) ,
+             clamp( Angle:z(), -ANGLE_MAX, ANGLE_MAX) )
+
+PID = KP*(Angvel_body) + KI*Angle + KD*AngAcc
+
+#----
+Accel_s += (Accel_L - Accel_s)*0.065 
+
+Pitch = PID:x() / Accel_L:z()
+Roll = -PID:z()
+Yaw = PID:y()
+
+#----------
+
+# Hydraulic
+Angle1 = Pitch - Yaw 
+Angle2 = Pitch + Yaw 
+
+Angle1 = clamp(Angle1, -ANGLE_MAX, ANGLE_MAX)
+Angle2 = clamp(Angle2, -ANGLE_MAX, ANGLE_MAX)
+
+Angle1 -= 90
+Angle2 -= 90
+
+X1 = Length0 + sin(Angle1)*Radius
+Y1 = Length0 - cos(Angle1)*Radius
+
+X2 = Length0 + sin(Angle2)*Radius
+Y2 = Length0 - cos(Angle2)*Radius
+
+#---------
+# Thrusters
+Force = 0
+Force1 = Force - Roll
+Force2 = Force + Roll

@@ -1,0 +1,267 @@
+@name Simple E2 Lift - v9 - lift direction
+@inputs E:entity
+@outputs [Xms Xn]:vector 
+
+# Debugging
+@outputs [Area_vec Norms]:array
+@outputs Index Size:vector Lmax
+@persist Area_vec:array Size:vector
+
+# State
+    # step limiting
+@persist [Gain]:vector 
+@persist DT_MS DT Index
+@persist LMAX 
+@persist CONST
+
+    # Geometry
+@persist Lx Ly Lz Lmax Area
+
+# First call
+if( first() ) {
+    #--- Constants ---
+    DT = tickInterval()
+    DT_MS = DT*1e3
+        
+    # Decay ratio 
+    Gain = vec(0,0,0)
+    LMAX = 1.0              # Oscillates for L > 1
+        
+    #--- Functions ----
+    
+    # Set Prop velocity
+    function void setVelocity( Vel:vector ) {
+        Impulse = E:mass() * ( Vel - E:vel() )
+        E:applyForce( Impulse )
+    }
+    
+    # Step Restriction    
+    function vector stepLimit( Dv:vector, Vel:vector, I ) {
+        Vdot = Vel:dot(Dv)
+        if( Vdot != 0 ) {
+            # Measure decay ratio
+            Lmeas = -Dv:length2() / Vdot
+            # Set gain
+            if( Lmeas > LMAX ) {
+                Gain[I] = LMAX / Lmeas
+            } else {
+                Gain[I] = 1
+            }
+        }
+        # Modify step 
+        Dv = Dv * Gain[I]
+        return Dv       
+    }
+    
+    #--------
+
+    #- Force functions: 
+   
+    # Surface area
+    Size = E:boxSize()  
+    Lx = Size:x() 
+    Ly = Size:y()
+    Lz = Size:z() 
+    
+        # Area per axis 
+    Area_vec = array( Lz*Ly, Lx*Lz, Lx*Ly ) 
+                    # x, y, z
+    Index = Area_vec:maxIndex()
+        
+    Area = Area_vec[Index, number] * pi()/4
+    
+    # define axis function
+    switch(Index) {
+        case 1,
+            function array normalVectors() {
+                return array( E:up()      ,
+                              E:right()   ,
+                             -E:forward() )
+            }
+            Size = vec(Lz, Ly, Lx) 
+        break   
+        
+        case 2,
+            function array normalVectors() {
+                return array( E:forward() ,
+                             -E:up()      , 
+                              E:right()   )
+            }
+            Size = vec(Lx, Lz, Ly)
+        break
+        
+        case 3, 
+            function array normalVectors() {
+                return array( E:forward() ,
+                              E:right()   , 
+                              E:up()      )
+            }
+            # Size = vec(Lx, Ly, Lz)
+        break
+    }
+        
+    #--------   
+          
+    # Aerodynamic ratios      
+    Lmax = max(Lx,Ly)
+    
+    function array aspectRatio(V:vector, Axes:array) {
+        # unit vectors
+        Ux = Axes[1,vector] #E:forward()
+        Uy = Axes[2,vector] #E:right()
+        Uz = Axes[3,vector] #E:up()
+            
+        # projected velocity
+        Vxy = V - Uz:dot(V) * Uz
+        Vmag = Vxy:length()
+        
+        # prevent zero division
+        if( Vmag > 0 ) {
+            Vnorm = Vxy/Vmag
+            
+            # 1. tangent slope
+            P1 = abs( Ux:dot(Vnorm) )
+            P2 = abs( Uy:dot(Vnorm) )
+            
+            if( P1 > P2 ) {
+                M = P2/P1
+                A = Ly
+                B = Lx
+            } else {
+                M = P1/P2
+                A = Lx
+                B = Ly
+            }
+            
+            # 2. intercept values
+            M2 = M^2
+            Y = M2/(M2 + (A/B)^2)
+            
+            Xo = B*sqrt(Y)
+            Yo = A*sqrt(1 - Y)
+            
+            # 3. projected span
+            Span = (Yo + M*Xo)/sqrt(1 + M2)  
+                # Aspect Ratio
+            AR = Span^2 / Area
+                # Effective Chord
+            Chord = Area/Span
+        
+        # Default case
+        } else {
+            Span = Lmax
+            Chord = Area/Span
+            AR = Span/Chord
+        }
+        
+        # Thickness ratio
+        TR = Lz / Chord
+        TR *= pi() / 4 	# Assume body is ellipsoid 
+
+        return array(AR, TR, Chord, Span)
+    }
+    
+    #-------- 
+    
+    function array aeroCoeffs(Alpha, AR, TR) {        
+        # Lift
+        Slope = AR/(2 + AR)        
+        Slope *= pi()
+        Cl = Slope * sinr(2*Alpha)
+        
+        # Drag
+            # induced
+        Cd_max = 1 - AR/(AR^2 + 1)
+        Cd_max *= pi()
+        Cdi = Cd_max * sinr(Alpha)^2
+            # no lift
+        Cdo = 0.005
+        Cd = Cdo + Cdi
+        
+        # Moment
+        Cm = 0
+        return array(Cl, Cd, Cm)
+    }
+
+    #-------- 
+
+    # Multiplier
+    Scale = 1e-5     # Scaling factor to match default drag: 4e-6
+    CONST = 0.5 * airDensity() * Area * Scale
+    
+    function array aeroForces(V:vector) {    
+        # Force normal vectors
+        Axes = normalVectors()
+        Uz = Axes[3,vector] #E:up()
+        
+        Lnorm = ( Uz:cross(V):cross(V) ):normalized()
+        Dnorm = -V:normalized()
+        
+        # Angle of attack
+        Vz = Uz:dot(V)     # velocity component about z-axis
+        Vxy = V - Vz*Uz    # velocity about xy plane
+        Alpha = atanr( Vz, Vxy:length() )
+        
+        # Lift and drag coefficients
+        Out = aspectRatio(V, Axes)
+        AR = Out[1, number]
+        TR = Out[2, number]
+        
+        Coeffs = aeroCoeffs(Alpha, AR, TR)
+        Cl = Coeffs[1, number]
+        Cd = Coeffs[2, number]
+        
+        # Dynamic pressure
+        Rho = CONST * V:length2() 
+        Rho_xy = CONST * Vxy:length2()
+    
+        # Aerodynamic forces
+        Lift = Rho * Cl * Lnorm
+        Drag = Rho * Cd * Dnorm
+        Drag_xy = Rho_xy * Cdo * Dnorm
+        
+        # Forces  
+        return array(Lift, Drag, Drag_xy)
+    }    
+} # end, First call
+
+# Iterate
+interval(DT_MS)
+
+# 1. Measure velocity
+Xms = E:vel()
+
+# 2a. Estimate acceleration
+    # Aerodynamic forces
+Out = aeroForces(Xms)    
+F1 = Out[1,vector]
+F2 = Out[2,vector]
+F3 = Out[3,vector]
+
+    # accelerations
+Mass = E:mass()  
+A1 = (F1 + F2) / Mass
+A2 = F3 / Mass
+
+# 2b. Estimate velocity changes: Explicit euler
+Dx1 = DT*A1          
+Dx2 = DT*A2
+
+# 3. Clamp velocity changes
+    # velocity components
+Uz = E:up()
+Xz = Uz * Xms:dot(Uz)
+Xxy = Xms - Xz
+    # Local projections preserve lift/drag ratio
+Dx1 = stepLimit(Dx1, Xz, 1)
+Dx2 = stepLimit(Dx2, Xxy, 2)
+
+# 4. Update state
+Dx = Dx1 + Dx2
+Xn = Xms + Dx
+
+# 5. Set Prop state   [Must come after velocity measurement, or blocks measurement]
+setVelocity( Xn )
+
+# normal output
+Norms = normalVectors()

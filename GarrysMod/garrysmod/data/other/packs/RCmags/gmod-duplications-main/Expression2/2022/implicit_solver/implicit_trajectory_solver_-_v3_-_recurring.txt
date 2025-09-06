@@ -1,0 +1,88 @@
+@name Implicit trajectory solver
+@inputs E:entity
+@outputs Xms Xn
+@persist DT_MS DT GAIN
+@persist Xn Xms Fn
+@trigger 
+
+# First call
+if( first() ) {
+    # Constants
+    DT_MS = 10
+    DT = DT_MS * 1e-3
+    
+    # Model Scalar
+    GAIN = 0.01
+        
+    # Iteration values
+    Xms = E:vel():z() + 0    
+    Xn = Xms - DT
+    Fn = 0
+
+    #--- Implicit euler ----
+
+        # Ode function - feedback
+    function number ode(X) {
+        return -sign(X)*(X^2) * GAIN / DT # Test equation
+    }
+    
+        # Root function   [Should be altered to ensure fast convergece - great effect]    
+    function number func(X) {
+        # consider measured state
+        if( abs(Xms) < 1 ) {
+            return ( -X + Xms + DT*ode(X) )      # Basic form
+        } else {
+            return ( -X + Xms + DT*ode(X) )/abs(Xms)  # Modifed form that is more linear
+        }
+    }
+    
+    # Secant method to find root of equation
+    function number secant_root(X1, X2, Nstep) {
+        # Function values
+        F2 = Fn
+        F1 = func(X1)
+        #F2 = func(X2)
+        
+        for( I = 0, Nstep - 1 ) {
+            # Prevent zero vision
+            if( F1 == 0 || F1 == F2 ) {break}      
+            # Update estimate
+            X1 = X1 - (X1 - X2) * F1/(F1 - F2) 
+            # Store past iteration
+            X2 = X1 
+                # update function values
+            F2 = F1
+            F1 = func(X1)
+        }
+        Fn = F1
+        return X1   
+    }
+    
+    #--- Set Prop velocity ---
+    function void setVelocity( Vel:vector ) {
+        Imp = E:mass() * ( Vel - E:vel() )
+        E:applyForce( Imp )
+    }
+    
+    # 2. Set Prop state
+    setVelocity( vec(0, 0, Xn) )
+} # end, First call
+
+## Test evaluation
+interval(DT_MS)
+
+# 1. Measure velocity
+Xms = E:vel():z()
+
+# 2. Find estimate
+Xest = Xms + func(Xms)
+
+    # Implicit solution             [requires root solving]
+Xn = secant_root(Xms, Xest, 40)   # Ideal root function requires few iterations
+
+    # Update state
+Xn = Xn + Fn
+
+# 3. Set Prop state   [Must come after velocity measurement, or blocks measurement]
+setVelocity( vec(0, 0, Xn) )
+

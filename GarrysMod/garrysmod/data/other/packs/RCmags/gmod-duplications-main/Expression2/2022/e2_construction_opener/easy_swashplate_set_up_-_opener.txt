@@ -1,0 +1,339 @@
+# E2 Name
+@name Easy SwashPlate Set Up
+
+# Defines entities
+@inputs Base:entity SwashPlate:entity
+
+# Pilot Inputs
+@inputs [W A S D] [Space Shift] [M1 M2]
+
+# SwashPlate Hydraulic Setting
+@persist [Local_Upward_Vector   Vec1 Vec2 Vec3]:vector [Horizon_Offset     Vertical_Offset     MaxTilt     MaxStroke     MaxCount]:number
+@persist Width1 Material1:string
+@persist [Constant1 Damping1    Rate1    HLL_A1  HLL_A2    Advance_Angle]:number    Cyclic:vector2           # Cyclic hydraulic
+@persist [Constant2 Damping2    Rate2    HS_A              First_Length             Col     Count]:number    # Collective hydraulic
+
+# SwashPlate Rope-Slider Setting
+@persist Length Width2 Material2:string
+
+# Change Entity1 -> Entity2
+@persist Reverse:number
+
+# Change E2 model
+@model models/jaanus/wiretool/wiretool_pixel_med.mdl
+
+@outputs Col
+
+
+
+#########################################
+### --- This E2 is made by opener --- ###
+#########################################
+
+
+
+if(dupefinished())
+{
+    ##########################################################################
+    ############################## User Setting ##############################
+    ##########################################################################
+    
+    # SwashPlate Hydraulic Setting
+    Horizon_Offset = 2000.0    # SwashPlate's local forward offset
+    Vertical_Offset = -50.0    # SwashPlate's local downward offset
+    
+    Width1 = 1.0
+    Material1 = "cable/red"
+    #Material1 = "cable/blue"
+    #Material = "cable/cable2"
+    #Material = "cable/green"
+    #Material = "cable/rope"
+    
+    # Cyclic
+    MaxTilt = 15.0
+    Constant1 = 25000.0
+    Damping1 = 300.0
+    Rate1 = 8.5
+    Advance_Angle = 90.0
+    
+    # Collective
+    MaxCount = 5
+    MaxStroke = 5.0
+    Constant2 = 25000.0   # Maximum Constant = 50000 x MaxCount
+    Damping2 = 5000.0     # Maximum Damping  = 50000 x MaxCount
+    Rate2 = 5.0
+    First_Length = MaxStroke * 6.0
+    
+    # Don't Modify
+    #Local_Upward_Vector = vec(0, 0, 1)                                           # SwashPlate's Local Upward Vector
+    Local_Upward_Vector = round(positive(SwashPlate:toLocalAxis(vec(0, 0, 1))))   # SwashPlate's Local Upward Vector
+    
+    Vec1 = vec(Horizon_Offset, 0, Vertical_Offset + MaxStroke)   # SwashPlate's Local Forward Offset
+    Vec2 = vec(0, Horizon_Offset, Vertical_Offset + MaxStroke)   # SwashPlate's Local Right Offset
+    Vec3 = vec(0, 0, Vertical_Offset)                            # SwashPlate's Local Vectical Offset
+    
+    
+    
+    
+    
+    
+    # SwashPlate Rope-Slider Setting
+    Length = 2000.0
+    Width2 = 1.0
+    Material2 = "cable/blue"
+    #Material = "cable/cable2"
+    #Material = "cable/red"
+    #Material = "cable/green"
+    #Material = "cable/rope"
+    
+    
+    
+    
+    
+    
+    # Mutiple Inertia of the SwashPlate
+    SwashPlate:propInertia(SwashPlate:inertia() * 5.0)
+    Base:propInertia(Base:inertia() * 5.0)
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    ##############################################################################################################
+    ##############################################################################################################
+    ##############################################################################################################
+    ##############################################################################################################
+    ##############################################################################################################
+    
+    
+    
+    # Don't Modify Never in below lines
+    
+    
+    
+    ###################################
+    # Defines Constraints Functions.  #
+    ###################################
+    
+    
+    
+    #ifdef enableConstraintUndo(number)
+    enableConstraintUndo(0)
+    
+    #else
+    constraintUndoEnabled(0)
+    
+    #endif
+    
+    
+    
+    function rope2(Ent1:entity, LocalV1:vector, Ent2:entity, LocalV2:vector, AddLength:number, Width:number, Material:string, Rigid:number)
+    {
+        local Entity1 = (!Reverse ? Ent1 : Ent2)
+        local Entity2 = (!Reverse ? Ent2 : Ent1)
+        local LocalVector1 = (!Reverse ? LocalV1 : LocalV2)
+        local LocalVector2 = (!Reverse ? LocalV2 : LocalV1)
+        
+        local Index = Entity1:hasConstraints("rope") + Entity1:hasConstraints("elastic") + 1
+        
+        #ifdef rope(number, entity, vector, entity, vector)
+        rope(Index, 
+             Entity1, LocalVector1, 
+             Entity2, LocalVector2,
+             AddLength, Width, Material, Rigid)
+        
+        #else
+        Entity1:ropeTo(Index, 
+                       Entity2, 
+                       0, 0,
+                       LocalVector1, LocalVector2,
+                       0, 0, 0,
+                       Width, Material, Rigid)
+        #endif
+    }
+    
+    function hydraulic2(Ent1:entity, LocalV1:vector, Ent2:entity, LocalV2:vector, Constant:number, Damping:number, RelativeDamping:number, Material:string, Width:number, Stretch:number)
+    {
+        local Entity1 = (!Reverse ? Ent1 : Ent2)
+        local Entity2 = (!Reverse ? Ent2 : Ent1)
+        local LocalVector1 = (!Reverse ? LocalV1 : LocalV2)
+        local LocalVector2 = (!Reverse ? LocalV2 : LocalV1)
+        
+        local Index = Entity1:hasConstraints("rope") + Entity1:hasConstraints("elastic") + 1
+        
+        #ifdef hydraulic(number,entity,vector,entity,vector,number,number,number,string,number,number)
+        hydraulic(Index, 
+                  Entity1, LocalVector1,
+                  Entity2, LocalVector2,
+                  Constant, Damping, RelativeDamping,
+                  Material, Width, Stretch)
+        
+        #else
+        Entity1:elasticTo(Index, 
+                       Entity2, 
+                       0, 0,
+                       LocalVector1, LocalVector2,
+                       Constant, Damping, RelativeDamping,
+                       Material, Width, Stretch)
+        #endif
+    }
+    
+    function entity:ropeSlider(Base_Ent:entity, LocalAxis:vector, Length:number)
+    {
+        # This = Slider
+        if(This:isValid() & Base_Ent:isValid())
+        {
+            for(N = 1, 2)
+            {
+                local NV = (LocalAxis[3] ? vec(1, 0, 0) : (LocalAxis[2] ? vec(1, 0, 0) : vec(0, 0, 1)))
+                
+                local V = This:toWorld(This:massCenterL() + (NV * Length):rotateAroundAxis(LocalAxis, 90 * (N - 1)))
+                
+                rope2(This, This:massCenterL(), Base_Ent, Base_Ent:toLocal(V), 0, Width2, Material2, 1)
+            }
+        }
+    }
+    
+    function table hyd_cdr(Constant:number, Damping:number, RelativeDamping:number)
+    {
+        local MaxValue = max(Constant, Damping, RelativeDamping)
+        
+        local Q = MaxValue / 50000
+        local Count_50000 = int(Q)
+        
+        local C = clamp(Constant / Count_50000, 0, 50000)
+        local D = clamp(Damping / Count_50000, 0, 50000)
+        local RD = clamp(RelativeDamping / Count_50000, 0, 50000)
+        
+        R1 = 0 R2 = 0 R3 = 0
+        if(Count_50000)
+        {
+            if(MaxValue == Constant) {R1 = Constant % 50000}
+            if(MaxValue == Damping)  {R2 = Damping % 50000}
+            if(MaxValue == RelativeDamping){R3 = RelativeDamping % 50000}
+        }
+        else
+        {
+            R1 = Constant % 50000
+            R2 = Damping % 50000
+            R3 = RelativeDamping % 50000
+        }
+        
+        return table(C, D, RD, Count_50000, R1, R2, R3)
+    }
+    
+    
+    
+    timer("Contsraints_Set_Up", 50)
+}
+elseif(clk("Contsraints_Set_Up"))
+{
+    
+    
+    
+    # Two-Rope-Sldier Set Up
+    
+    SwashPlate:ropeSlider(Base, Local_Upward_Vector, Length)
+    
+    
+    
+    
+    
+    
+    # SwashPlate Cyclic Set Up
+    
+    Reverse = 0
+    
+    local Entity = (!Reverse ? SwashPlate : Base)
+    
+    Hyd_I = Entity:hasConstraints("rope") + Entity:hasConstraints("elastic")
+    
+    HLL_A1 = Hyd_I + 1
+    HLL_A2 = HLL_A1 + 1
+    
+    hydraulic2(SwashPlate, Vec3, Base, Base:toLocal(SwashPlate:toWorld(Vec1)), Constant1 / 2, Damping1 / 2, 0, Material1, Width1, 0)
+    hydraulic2(SwashPlate, Vec3, Base, Base:toLocal(SwashPlate:toWorld(Vec2)), Constant1 / 2, Damping1 / 2, 0, Material1, Width1, 0)
+    
+    
+    
+    
+    
+    
+    # SwashPlate Collective Set Up
+    
+    Reverse = 0
+    
+    local Entity = (!Reverse ? SwashPlate : Base)
+    
+    Hyd_I = Entity:hasConstraints("rope") + Entity:hasConstraints("elastic")
+    
+    HS_A = Hyd_I + 1
+    
+    local Table = hyd_cdr(Constant2, Damping2, 0)
+    
+    local WorldVector = SwashPlate:toWorld(SwashPlate:massCenterL() + (Local_Upward_Vector * First_Length * sign(Vertical_Offset)))
+    
+    for(N = 1, Table[4, number])
+    {
+        hydraulic2(SwashPlate, SwashPlate:massCenterL(), Base, Base:toLocal(WorldVector), Table[1, number], Table[2, number], 0, Material1, Width1, 0)
+    }
+    
+    if(Table[5, number] | Table[6, number])
+    {
+        hydraulic2(SwashPlate, SwashPlate:massCenterL(), Base, Base:toLocal(WorldVector), Table[5, number], Table[6, number], 0, Material1, Width1, 0)
+    }
+    
+    Count = Table[4, number] + (Table[5, number] | Table[6, number])
+    
+    for(N = 1, MaxCount - Count)
+    {
+        hydraulic2(SwashPlate, SwashPlate:massCenterL(), Base, Base:toLocal(WorldVector), 0, 0, 0, Material1, Width1, 0)
+    }
+    
+    
+    
+    interval(50)
+}
+
+
+
+# Pilot Inputs (Cyclic)
+Cyclic_Angle = (W * 90) + (A * (S ? -180 : 180)) + (S * -90) + (D * 0)
+if(W | A | S | D){Cyclic_Angle = Cyclic_Angle / (W + A + S + D)}else{Cyclic_Angle = 0}
+Cyclic_Vector = vec2(W | A | S | D, 0):rotate(Cyclic_Angle)
+
+# Pilot Inputs (Collective)
+if(Space | Shift){Col += clamp((Space * !Shift) - Col, -Rate2 * tickInterval(), Rate2 * tickInterval())}
+
+if(clk())
+{
+    interval(35)
+    
+    
+    
+    Cyclic += clamp(Cyclic_Vector - Cyclic, -Rate1 * tickInterval(), Rate1 * tickInterval())
+    
+    Degree = atan(Cyclic:y(), Cyclic:x())
+    
+    SwashAngle = ang(Cyclic:length() * MaxTilt, Degree - 90 + Advance_Angle - (90 * sign(Advance_Angle)), 0)
+    SwashVector = vec(0, 0, Col * MaxStroke) + vec(0, 0, Vertical_Offset):rotate(SwashAngle)
+    
+    Length1 = Vec1:distance(SwashVector)
+    Length2 = Vec2:distance(SwashVector)
+    
+    # Cyclic Control
+    SwashPlate:setLength(HLL_A1, Length1)
+    SwashPlate:setLength(HLL_A2, Length2)
+    
+    # Collective Control
+    for(N = 1, Count){SwashPlate:setLength(HS_A + (N - 1), 0.4 + First_Length + (Col * MaxStroke))}
+    
+    
+    
+}

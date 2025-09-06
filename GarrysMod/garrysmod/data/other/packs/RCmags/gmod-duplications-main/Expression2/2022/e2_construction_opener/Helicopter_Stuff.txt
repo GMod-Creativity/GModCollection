@@ -1,0 +1,467 @@
+@name Helicopter Stuff
+
+# Constraints Core's Output
+@inputs Finished_CC
+@inputs [Driver Chair Gate]:entity [Hub1 Hub2]:entity
+@inputs EGP:wirelink
+@inputs [FPC TPC RotorCam]:wirelink Alt PrevWeapon NextWeapon FLIR
+@inputs [PortLight StarboardLight TailLight BeaconLight]:wirelink
+
+# This output have to be a input of Helicopter Main Control E2
+@outputs Third_Cam_OnOff
+
+# EGP
+@persist I LastInx Thr Col Cy Rud Bra Grid Thickness Font:string
+@persist [Res LeftBottom LowerMiddle Center_Of_Cyclic]:vector2
+@persist XB1 XB2 N Max_Stroke_Of_Cyclic [XB1P XB2P]:vector2 Cyclic_Point_Size
+
+# First Cam / Third Cam
+@persist LVC:vector CamDist FL CamBaseIndex Rate_Zoom
+@persist [Hub1_OnOff Hub2_OnOff] [Hub1_Offset1 Hub2_Offset1]:vector [Hub1_Offset2 Hub2_Offset2]:angle
+
+# 3D Action Cam
+@persist [F5 F6 F7 F8]
+
+# Light control
+@persist BL:entity Tog1 Tog2 BeaconLight_Rotating_Speed HM
+@persist HI
+
+# Helicopter Main Control E2's Global Table
+@persist Gtab:gtable
+
+@trigger all
+
+@model models/jaanus/wiretool/wiretool_pixel_sml.mdl
+
+if(first() | dupefinished())
+{
+    # EGP Font
+    Font = "Arial"
+    
+    # Light
+    BeaconLight_Rotating_Speed = 350.0
+    
+    # Pilot's 3D Cam
+    Rate_Zoom = 1300.0
+    
+    # Rotor Cam
+    Hub1_Offset1 = vec(0, 0, 23)     # Hub1 rotor mast Local vector offset
+    Hub1_Offset2 = ang(0, 0, 10)     # Hub1 rotor mast Local angle offset
+    
+    Hub2_Offset1 = vec(0, 0, 10.2)   # Hub2 rotor mast Local vector offset
+    Hub2_Offset2 = ang(0, 0, 10)     # Hub2 rotor mast Local angle offset
+    
+    
+    
+    switch(Chair:model())
+    {
+        case "models/nova/chair_office02.mdl",
+        LVC = vec(0, 0, 26.0)
+        break
+            
+        case "models/nova/airboat_seat.mdl",
+        LVC = vec(0, 0, 27.0)
+        break
+            
+        case "models/nova/jeep_seat.mdl",
+        LVC = vec(0, 0, 26.0)
+        break
+            
+        case "models/nova/jalopy_seat.mdl",
+        LVC = vec(0, 0, 27.0)
+        break
+            
+        case "models/vehicles/pilot_seat.mdl",
+        LVC = vec(0, 0, 29.024)
+        break
+        
+        default,
+        LVC = vec()
+        break
+    }
+    
+    setName("Helicopter Stuff E2
+    
+Display control surface (EGP)
+Cam control (Pilot 3D Cam, Rotor Cam)
+Light control
+FLIR
+Rotor Cam")
+    
+    entity():setMaterial("sprops/sprops_grid_12x12") entity():setColor(vec(0, 255, 0))
+    
+    #ifdef noCollideAll(entity, number)
+    noCollideAll(EGP:entity(), 1)
+    
+    #endif
+    
+    TPC_On = 0
+    I = 0
+    HI = 0
+    
+    HI++
+    CamBaseIndex = HI
+    holoCreate(HI, Gate:massCenter(), vec(), ang(0, 0, 0), vec4(), "cube")
+    holoParent(HI, Gate)
+    
+    function light_Circuit()
+    {
+        # Position Light
+        if(changed(Driver:keyPressed("3")) & Driver:keyPressed("3"))
+        {
+            Tog1 = !Tog1
+            
+            PortLight["RGB", vector] = (Tog1 ? vec(255, 0, 0) : vec())
+            StarboardLight["RGB", vector] = (Tog1 ? vec(0, 255, 0) : vec())
+            TailLight["RGB", vector] = (Tog1 ? vec(255, 255, 255) : vec())
+        }
+        
+        # Beacon Light
+        if(changed(Driver:keyPressed("4")) & Driver:keyPressed("4"))
+        {
+            Tog2 = !Tog2
+            
+            BeaconLight["RGB", vector] = vec(255, 0, 0)
+            BeaconLight["On", number] = Tog2
+        }
+    }
+    
+    PortLight["RGB", vector] = vec()
+    StarboardLight["RGB", vector] = vec()
+    TailLight["RGB", vector] = vec()
+    BeaconLight["RGB", vector] = vec()
+}
+
+if(~Driver)
+{
+    if(!Driver & I)
+    {
+        for(N = 1, LastInx){EGP:egpRemove(N)}
+        
+        FPC["Activated", number] = 0
+        TPC["Activated", number] = 0
+        RotorCam["Activated", number] = 0
+        
+        Third_Cam_OnOff = 0
+    }
+    elseif(Driver)
+    {
+        Res = egpScrSize(Driver)
+        
+        Color = vec(255, 55, 55)
+        
+        LeftBottom = vec2(0, Res:y())
+        LowerMiddle = vec2(Res:x() / 2, Res:y())
+        
+        Max_Stroke_Of_Cyclic = 150  # Radius
+        
+        Cyclic_Point_Size = 11.0    # Radius
+        
+        ###[Black Back ground of the Collective & Rudder]###
+        Thickness = 13
+        
+        Center_Of_Cyclic = vec2(Max_Stroke_Of_Cyclic + Thickness, Res:y() - Max_Stroke_Of_Cyclic - Thickness)
+        
+        function cyclic()
+        {
+            EGP:egpPos(Cy, Center_Of_Cyclic + ((Max_Stroke_Of_Cyclic - Cyclic_Point_Size) * vec2(Gtab[6, number], -Gtab[7, number])))
+        }
+        
+        # Y
+        I = 1
+        EGP:egpBox(I, vec2(Thickness / 2, Res:y() / 2), vec2(Thickness, Res:y()))
+        EGP:egpColor(I, vec())
+        
+        # X1
+        I++
+        XB1 = I
+        EGP:egpBox(I, vec2((Res:x() / 2) - (Res:x() / 4), Res:y() - (Thickness / 2)), vec2(Res:x() / 2, Thickness))
+        EGP:egpColor(I, vec())
+        
+        XB1P = vec2((Res:x() / 2) - (Res:x() / 4), Res:y() - (Thickness / 2))
+        XB2P = vec2((Res:x() / 2) + (Res:x() / 4), Res:y() - (Thickness / 2))
+        
+        ###[Throttle]###
+        I++
+        Thr = I
+        EGP:egpText(I, "", vec2(Thickness, 0))
+        EGP:egpColor(I, Color)
+        EGP:egpSize(I, 25)
+        EGP:egpFont(I, Font)
+        
+        ###[Collective]###
+        I++
+        Col = I
+        EGP:egpBox(I, vec2(), vec2(Thickness, Res:y()))
+        EGP:egpColor(I, Color)
+        
+        ###[Cyclic]###
+        I++
+        Cy = I
+        EGP:egpBox(I, vec2(), vec2())
+        
+        # Cyclic BackGround
+        I++
+        EGP:egpCircle(I, Center_Of_Cyclic, vec2(Max_Stroke_Of_Cyclic))
+        EGP:egpColor(I, Color)
+        EGP:egpAlpha(I, 150)
+        
+        # Cyclic Y Red Line
+        I++
+        EGP:egpLine(I, Center_Of_Cyclic + vec2(0, -Max_Stroke_Of_Cyclic), Center_Of_Cyclic + vec2(0, Max_Stroke_Of_Cyclic))
+        EGP:egpColor(I, vec(255, 0, 0))
+        EGP:egpSize(I, 3)
+        
+        # Cyclic X Red Line
+        I++
+        EGP:egpLine(I, Center_Of_Cyclic + vec2(-Max_Stroke_Of_Cyclic, 0), Center_Of_Cyclic + vec2(Max_Stroke_Of_Cyclic, 0))
+        EGP:egpColor(I, vec(255, 0, 0))
+        EGP:egpSize(I, 3)
+        
+        # Cyclic Point1
+        I++
+        EGP:egpCircleOutline(I, vec2(), vec2(Cyclic_Point_Size))
+        EGP:egpColor(I, vec(255, 0, 0))
+        EGP:egpParent(I, Cy)
+        
+        # Cyclic Point2
+        I++
+        EGP:egpCircleOutline(I, vec2(), vec2(Cyclic_Point_Size / 1.1))
+        EGP:egpColor(I, vec(255, 0, 0))
+        EGP:egpParent(I, Cy)
+        
+        ###[Rudder]###
+        I++
+        Rud = I
+        EGP:egpBox(I, vec2(), vec2(Res:x() / 2, Thickness))
+        EGP:egpColor(I, Color)
+        
+        # X2
+        I++
+        XB2 = I
+        EGP:egpBox(I, vec2((Res:x() / 2) + (Res:x() / 4), Res:y() - (Thickness / 2)), vec2(Res:x() / 2, Thickness))
+        EGP:egpColor(I, vec())
+        
+        ###[Wheel brake]###
+        I++
+        Bra = I
+        EGP:egpText(I, "B", vec2(Thickness, 25))
+        EGP:egpColor(I, Color)
+        EGP:egpSize(I, 25)
+        EGP:egpFont(I, Font)
+        
+        LastInx = I
+        print(_HUD_PRINTCONSOLE, "Total EGP objects of the Helicopter Stuff: " + LastInx)
+        
+        Gtab = gTable("A" + Chair:id():toString(), 0)
+        
+        EGP:egpSetText(Thr, "Throttle: " + (round(Gtab[4, number] * 100, 1)):toString())
+        
+        EGP:egpPos(Col, LeftBottom + vec2(Thickness / 2, (Res:y() / 2) - Res:y() * Gtab[5, number]))
+        
+        cyclic()
+        
+        EGP:egpAlpha(Bra, Gtab[9, number] * 255)
+        
+        if(Gtab[8, number] > 0)
+        {
+            N = -Res:x() / 4
+            
+            EGP:egpPos(XB1, XB2P)
+            EGP:egpPos(XB2, XB1P)
+        }
+        else
+        {
+            N = Res:x() / 4
+            
+            EGP:egpPos(XB1, XB1P)
+            EGP:egpPos(XB2, XB2P)
+        }
+        
+        EGP:egpPos(Rud, LowerMiddle + vec2(N + (Gtab[8, number] * (Res:x() / 2)), -Thickness / 2))
+        
+        FPC["Activated", number] = 1
+        
+        FPC["Position", vector] = Driver:pos() + Chair:toWorldAxis(LVC)
+        FPC["Angle", angle] = Chair:angles():rotateAroundAxis(Chair:up(), 90)
+        FPC["Parent", entity] = Chair
+        
+        interval(50)
+    }
+}
+elseif(clk())
+{
+    interval(35)
+    
+    Gtab = gTable("A" + Chair:id():toString(), 0)
+    
+    # Throttle
+    if(changed(Gtab[4, number])){EGP:egpSetText(Thr, "Throttle: " + (round(Gtab[4, number] * 100, 1)):toString())}
+    
+    # Collective
+    if(changed(Gtab[5, number])){EGP:egpPos(Col, LeftBottom + vec2(Thickness / 2, (Res:y() / 2) - Res:y() * Gtab[5, number]))}
+    
+    # Cyclic
+    cyclic()
+    
+    # Rudder
+    if(changed(Gtab[8, number] > 0) & (Gtab[8, number] > 0))
+    {
+        N = -Res:x() / 4
+        
+        EGP:egpPos(XB1, XB2P)
+        EGP:egpPos(XB2, XB1P)
+    }
+    if(changed(Gtab[8, number] < 0) & (Gtab[8, number] < 0))
+    {
+        N = Res:x() / 4
+        
+        EGP:egpPos(XB1, XB1P)
+        EGP:egpPos(XB2, XB2P)
+    }
+    if(changed(Gtab[8, number]))
+    {
+        EGP:egpPos(Rud, LowerMiddle + vec2(N + (Gtab[8, number] * (Res:x() / 2)), -Thickness / 2))
+    }
+    
+    # Wheel brake (Parking brake)
+    if(changed(Gtab[9, number])){EGP:egpAlpha(Bra, Gtab[9, number] * 255)}
+    
+    
+    
+    
+    light_Circuit()
+    
+    # Tail beacon light (Anti-collision light)
+    if(Tog2){holoAng(HM, Gate:toWorld(ang(0, curtime() * BeaconLight_Rotating_Speed, 0)))}
+    
+    
+    
+    
+    
+    # 3D Action Cam
+    if(changed(Driver:keyPressed("F5")) & Driver:keyPressed("F5"))
+    {
+        F5 = !F5
+        
+        FPC["Activated", number] = 0
+        TPC_On = 1
+        TPC["Activated", number] = TPC_On
+    }
+    
+    if(changed(Driver:keyPressed("F6")) & Driver:keyPressed("F6")){F6 = !F6}
+    if(changed(Driver:keyPressed("F7")) & Driver:keyPressed("F7")){F7 = !F7}
+    if(changed(Driver:keyPressed("F8")) & Driver:keyPressed("F8")){F8 = !F8}
+}
+
+
+
+
+
+if(~Finished_CC & Finished_CC & BeaconLight)
+{
+    # Beacon Lights
+    BL = BeaconLight:entity()
+    
+    # Hide Beacon Light
+    BL:setAlpha(1)
+    
+    # Create a Hologram Motor on a Beacon Light
+    HI++
+    HM = HI
+    holoCreate(HI, BL:massCenter(), vec(), BL:angles(), vec4(), "cube")
+    holoParent(HI, Gate)
+    
+    # Alignment a Beacon Light
+    BL:setPos(holoEntity(HI):toWorld(vec(0, 0, 0)))
+    
+    # Parent a Beacon Light to Hologram Motor(HI)
+    BL:parentTo(holoEntity(HI))
+}
+
+
+
+
+
+###--- 3D Cam ---###
+if(~Alt & Alt)
+{
+    CamDist = Gtab[10, number]
+    
+    TPC["Parent", entity] = holoEntity(CamBaseIndex)
+    TPC["Position", vector] = holoEntity(CamBaseIndex):pos()
+    TPC["Distance", number] = CamDist
+    
+    Third_Cam_OnOff = !Third_Cam_OnOff
+    
+    if(Third_Cam_OnOff){FPC["Activated", number] = 0 timer("Change Cam", 25)}
+    else{TPC["Activated", number] = 0 timer("Change Cam", 25)}
+    
+    Hub1_OnOff = 0
+    Hub2_OnOff = 0
+    
+    RotorCam["Activated", number] = 0
+}
+elseif(clk("Change Cam"))
+{
+    if(Third_Cam_OnOff){TPC["Activated", number] = 1}
+    else{FPC["Activated", number] = 1}
+}
+
+if(PrevWeapon | NextWeapon)
+{
+    CamDist += clamp((PrevWeapon ? 0 : 9999) - CamDist, -tickInterval() * Rate_Zoom, tickInterval() * Rate_Zoom)
+    
+    #FPC["Distance", number] = CamDist
+    TPC["Distance", number] = CamDist
+}
+
+###--- Rotor Cam ---###
+KO = Driver:keyPressed("O") # Hub1
+KP = Driver:keyPressed("P") # Hub2
+
+if((changed(KO) | changed(KP)) & (KO | KP))
+{
+    Third_Cam_OnOff = 0
+    
+    TPC["Activated", number] = 0
+    FPC["Activated", number] = 0
+    
+    if(KO & !KP)
+    {
+        Hub1_OnOff = !Hub1_OnOff
+        Hub2_OnOff = 0
+    }
+    elseif(!KO)
+    {
+        Hub1_OnOff = 0
+        Hub2_OnOff = !Hub2_OnOff
+    }
+    
+    timer("Rotor_Cam", 25)
+}
+elseif(clk("Rotor_Cam"))
+{
+    local Hub = (Hub1_OnOff ? Hub1 : Hub2)
+    local Of1 = (Hub1_OnOff ? Hub1_Offset1 : Hub2_Offset1)
+    local Of2 = (Hub1_OnOff ? Hub1_Offset2 : Hub2_Offset2)
+    
+    RotorCam["Activated", number] = (Hub1_OnOff | Hub2_OnOff)
+    RotorCam["Parent", entity] = Hub
+    RotorCam["Position", vector] = Hub:toWorld(Of1)
+    RotorCam["Angle", angle] = Hub:toWorld(Of2)
+    
+    if(!Hub1_OnOff & !Hub2_OnOff)
+    {
+        FPC["Activated", number] = 1
+    }
+}
+
+###--- FLIR ---###
+if(~FLIR & FLIR)
+{
+    FL = !FL
+    
+    FPC["FLIR", number] = FL
+    TPC["FLIR", number] = FL
+}

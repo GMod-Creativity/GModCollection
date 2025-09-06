@@ -1,0 +1,49 @@
+@name Swashplate and rotor control
+@inputs Hub:wirelink W S A D On Space Shift Mouse1 Mouse2
+@outputs Constant HydroForward HydroBackwards HydroLeft HydroRight TailThruster
+@persist Collective Start Throttle
+
+E = entity()
+
+H = Hub:entity()
+
+#This is the force constant of the hydraulics. Increase until swashplate spazzes. Decrease slightly when it does.
+Constant = 50000
+
+interval(10)
+
+#Pitch control. Adjust the 1 to set swashplate tilt.
+Pitch = (W - S)*1
+
+#Pitch control. Adjust the 1 to set swashplate tilt.
+Roll = (A - D)*1
+
+#Collective control. Adjust the +5 to set maximum negative collective. Adjust the -5 to set Maximum minimum collective.
+Collective = clamp((Space - Shift)/30 + Collective, -1,5)
+
+#This is the base lengh of the hydralics. The 40 is their length when the swashplate has the blades at zero pitch.
+#Change the 40 to whatver length is needed to achieve this.
+
+Length = 20 + Collective
+
+HydroForward = Length - Pitch
+HydroBackwards = Length + Pitch
+HydroLeft = Length - Roll
+HydroRight = Length + Roll
+
+#This is the tail thruster. Adjust the 1 to set control sensitivity. 
+#Adjust the 5 to set yaw damping. This will stop unwanted accelerations.
+
+TailThruster = (Mouse1 - Mouse2)*1 - E:angVel():yaw()*5
+
+if(~On & On) {Start = !Start}
+
+Throttle = clamp((Start/10 + Throttle)*Start,0,10)
+
+#This is the torque acting on the rotor.
+
+#Adjust the 100000 until the rotor spins at your desired RPM at zero blade pitch.
+#The 100 must be adjusted so that RPM doesn't decrease with increased collective.
+
+H:applyAngForce( ang(0, Throttle*50000 + abs(Collective)*100 , 0) )
+

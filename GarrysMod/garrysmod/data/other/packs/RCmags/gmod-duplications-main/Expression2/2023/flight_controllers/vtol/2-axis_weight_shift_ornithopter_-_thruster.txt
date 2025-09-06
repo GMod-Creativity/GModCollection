@@ -1,0 +1,172 @@
+@name 2-axis Weight shift ornithopter - thruster
+@inputs Pi Ri Yi
+
+# debug
+@outputs Accel_L:vector Accel_s:vector Angle_force Dist_x Dist_y
+
+# Hydraulic lengths
+@outputs Force1 Force2
+
+@outputs X1 Y1 Z1
+@outputs X2 Y2 Z2
+
+# Hydraulic settings
+@outputs ConstantX ConstantY ConstantZ
+@outputs DampingX DampingY DampingZ
+
+# Constants
+@persist ConstantX ConstantY ConstantZ
+@persist DampingX DampingY DampingZ
+@persist Length0 RadiusXY RadiusZ
+
+@persist Entity:entity
+
+@persist Angle:vector Vel_last:vector Accel_s:vector
+@persist ANGLE_MAX 
+@persist [KPx KPy]:vector [KIx KIy]:vector
+
+# initialize
+if( first() ) {
+    # initialize
+    Angle = vec(0,0,0)
+    Accel_s = vec(0,0,0)
+    Vel_last = entity():vel()
+    
+    # constants
+    # A. Hydraulics
+        # x-axis
+    ConstantX = 50000
+    DampingX = 1600
+        # y-axis
+    ConstantY = 50000
+    DampingY = 1600
+        # z-axis
+    ConstantZ = 2000 
+    DampingZ = 50
+
+    # B. Lengths
+    Length0 = 2000
+    RadiusXY = 71.2
+    RadiusZ = 50    
+    
+    # C. Other
+    Entity = entity()
+        
+    ANGLE_MAX = 60
+    
+        # hover
+    KPx = vec(0.4, 2.4, 0.3)
+    KIx = vec(1.2, 6.0, 0.2)
+    
+    # level flight
+    KPy = vec(0.6, 0.02, 2.4)
+    KIy = vec(1.0, 0.1, 6.0)
+    
+        # rotate
+    KPy = vec( KPy:x(), KPy:z(), KPy:y() )
+    KIy = vec( KIy:x(), KIy:z(), KIy:y() )
+}
+
+# 0. Timetep
+DT = 10
+interval(DT)
+DT *= 1e-3
+
+# 0A. State
+Angles = Entity:angles()
+Angvel = Entity:angVelVector()
+Vel = Entity:vel()
+Vel_L = Entity:velL()
+    # acceleration
+Accel = (Vel - Vel_last)/DT
+Vel_last = Vel 
+
+    # Normalized local acceleration [accelerometer]
+Accel_L = Accel/900 + vec(0,0,1)    # add gravity
+Accel_L = Entity:toLocalAxis(Accel_L)
+
+#--------
+Accel_s += (Accel_L - Accel_s)*0.025 # Low pass filtered acceleration
+
+Angle_force = atan( Accel_s:x(), Accel_s:z() )  
+#Angle_force = Angles:pitch()
+
+Angle_force = abs(Angle_force)
+
+Cos_force = cos(Angle_force)
+Sin_force = sin(Angle_force)
+#--------
+
+Input_z =  vec( Pi, -Yi, -Ri)*30
+Input_x =  vec( Pi, -Ri, Yi)*30
+
+Angvel_t = Input_z*Sin_force + Input_x*Cos_force
+
+#-------
+
+# 1A. PID controller
+Angvel_t = vec( Angvel:y(), Angvel:x(), Angvel:z() ) - Angvel_t
+
+Angvel -= Angvel_t
+Angle += Angvel_t * DT
+ 
+Angle = vec( clamp( Angle:x(), -ANGLE_MAX, ANGLE_MAX) , 
+             clamp( Angle:y(), -ANGLE_MAX, ANGLE_MAX) ,
+             clamp( Angle:z(), -ANGLE_MAX, ANGLE_MAX) )
+
+PIDx = KPx*Angvel_t + KIx*Angle
+PIDx *= Cos_force^2
+
+PIDy = KPy*Angvel_t + KIy*Angle
+PIDy *= Sin_force^2
+
+PID = PIDx + PIDy
+
+# 1B. Control deflections
+Dist_xy = PID:x() / Accel_L:length()   
+
+Dist_x = Dist_xy * Cos_force
+Dist_y = -Dist_xy * Sin_force
+
+# 2B. Target deflections
+    # x-axis
+AngleX1 = Dist_x
+AngleX2 = Dist_x
+    # y-axis
+AngleY1 = Dist_y
+AngleY2 = AngleY1
+    # z-axis
+Yaw = PID:z()
+AngleZ1 = Yaw
+AngleZ2 =-Yaw
+
+# 3. kinematics:
+    # A. Displacements
+    # x-axis
+DX1 = sin(AngleX1) * RadiusXY  
+DX2 = sin(AngleX2) * RadiusXY
+    # y-axis
+DY1 = sin(AngleY1) * RadiusXY
+DY2 = sin(AngleY2) * RadiusXY
+    # z-axis
+DZ1 = sin(AngleZ1) * RadiusZ
+DZ2 = sin(AngleZ2) * RadiusZ
+
+    # B. Lengths:
+    # x-axis
+X1 = Length0 + DX1
+X2 = Length0 + DX2
+    # y-axis
+Y1 = Length0 + DY1
+Y2 = Length0 + DY2
+    # z-axis
+Z1 = Length0 + DZ1
+Z2 = Length0 + DZ2 
+
+# 4. Thrusters
+Force = 0#300
+Force -= Vel_L:z()*0.2
+
+Roll = PID:y()
+Force1 = Force - Roll
+Force2 = Force + Roll

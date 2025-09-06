@@ -1,0 +1,203 @@
+@name QuadPlane controller with poscontroller MK2
+
+# inputs 
+@inputs Base:wirelink
+@inputs [Prop1, Prop2, Prop3, Prop4]:entity 
+@inputs Pod:wirelink Player:entity R Alt
+
+# outputs
+@outputs Throt ACF Spd Ang_err:vector Active
+
+# constants
+@persist RPM_MIN RPM_MAX GAIN_P_THROT
+@persist GAIN_P GAIN_P_YAW 
+@persist GAIN_I GAIN_I_YAW IMAX IMAX_YAW
+@persist GAIN_D GAIN_D_YAW 
+
+# state variables
+@persist Pitch_err Roll_err Yaw_err
+@persist Pitch_int Roll_int Yaw_int
+@persist Pitch_dir Roll_dir Yaw_dir 
+@persist Pos:vector Quat:quaternion
+@persist Pitch Roll Yaw Throt Forcescale On  Maxthrust Thruster
+@persist RotateRight RotateUp RotateForward
+
+"
+This system works be simulating a setpoint, when you add contol inputs you're really just updating a virtual angle and position. 
+The flight controller then attemps to align the physical aircraft with the virtual position.
+
+- JAMES WRIGHT
+"
+
+if (first()|duped()) {
+    #SET POINT hologram
+    holoCreate(1)
+    holoColor(1,vec(75,75,75))
+    holoScale(1,vec(2,2,2))
+    holoAlpha(1,150)
+
+    ###### Constant values ######
+
+    # Proportional
+    GAIN_P       = 3.5      # Pitch and roll   
+    GAIN_P_YAW   = 100000   # Yaw
+
+    # Integral
+    GAIN_I       = 0.1      # Pitch and roll
+    GAIN_I_YAW   = 10       # Yaw
+    # Max integral values
+    IMAX         = 25       # Pitch and roll
+    IMAX_YAW     = 10000    # Yaw
+
+    # Derivative
+    GAIN_D       = 120      # Pitch and roll   
+    GAIN_D_YAW   = 700000
+
+    # 2. Motor governors
+    RPM_MIN      = 180                 # Min motor RPM zero throttle
+    RPM_MAX      = 430 - RPM_MIN       # Maximum RPM at full throttle
+    GAIN_P_THROT = 8000                # Proportional gain for throttle
+
+    #Max thrust
+    Maxthrust    = 5000
+}
+
+################## PART 1 - Virtual position simulator
+    
+# time step increments
+timer("timer1", 10)    # delay in microseconds
+timer("timer2", 100)
+
+# update stabilization quickly
+if( clk("timer1") ) {
+    # turn on 
+    if(~R & R) {Active = !Active}
+
+    # initialize state
+    if(~R) {  
+        if (Active) {
+            Throt = 0
+            Pitch_int = 0
+            Roll_int = 0
+            Yaw_int = 0
+            Quat = quat(Base:entity())
+            # Pos = Base:entity():pos() + vec(0,0,20)
+        }
+    } 
+
+    if (Active) {
+        #Get controls
+        W     = Pod["W",number]
+        A     = Pod["A",number]
+        S     = Pod["S",number]
+        D     = Pod["D",number]
+        M1    = Pod["Mouse1",number]
+        M2    = Pod["Mouse2",number]
+        Shift = Pod["Shift",number]
+        Space = Pod["Space",number]
+        Prev = Player:keyPressed("t")
+        Next = Player:keyPressed("g")
+        R = Pod["R",number]
+            
+        #Rotation control - make sure inputs are alligned to correct axis
+        
+        RotateRight   = W-S
+        RotateUp      = D-A
+        RotateForward = M1-M2 
+
+        #Position control
+        "  #Commented  out for now 
+        Speed   = 20                     # speed of movement
+        Forward = (Num8 - Num2)*Speed
+        Up      = (Space - Shift)*Speed
+        Right   = (Num6 - Num4)*Speed 
+        "   
+
+        ####################  PART 2 - PID Controller
+
+        # Calculate angular difference between target and actual body position
+
+        Ang_err = Base:entity():toLocal(rotationVector(Quat/quat(Base:entity()))+Base:entity():pos()) 
+
+        #split into components and assign to correct axis and direction (in degrees)
+
+        Pitch_err = -Ang_err:y() # pitch error
+        Roll_err  = -Ang_err:z() # Roll error
+        Yaw_err   = Ang_err:x()  # Yaw error
+
+        Throt = clamp((Space - Shift)/100 + Throt,0,1) #Generate throttle value between 0-1
+
+            # Integral terms
+        Pitch_int = clamp(Pitch_int + (Pitch_err*GAIN_I)  , -IMAX, IMAX)
+        Roll_int  = clamp(Roll_int  + (Roll_err*GAIN_I)   , -IMAX, IMAX)
+        Yaw_int   = clamp(Yaw_int   + (Yaw_err*GAIN_I_YAW), -IMAX_YAW, IMAX_YAW)
+                
+            # Derivative terms
+        Pitch_dir = $Pitch_err * GAIN_D
+        Roll_dir  = $Roll_err  * GAIN_D
+        Yaw_dir   = $Yaw_err   * GAIN_D_YAW
+
+            # Combine PID terms
+        Pitch = (Pitch_err*GAIN_P)   + Pitch_dir + Pitch_int 
+        Roll  = (Roll_err*GAIN_P)    + Roll_dir  + Roll_int
+        Yaw   = (Yaw_err*GAIN_P_YAW) + Yaw_dir   + Yaw_int
+
+        #Thruster
+
+        Thruster = clamp((Prev - Next)/50 + Thruster,0,1) 
+
+        Base:entity():applyForce((Base:entity():up()*Thruster*Maxthrust))
+
+        ############################ PART 3 - MOTOR Controller
+
+            # measure rotor RPM
+        RPM1 = Prop1:angVel():yaw() / 6
+        RPM2 = Prop2:angVel():yaw() / 6
+        RPM3 = Prop3:angVel():yaw() / 6
+        RPM4 = Prop4:angVel():yaw() / 6
+
+            # Target RPM per motor
+        Motor1_targ = RPM_MIN  +  (-Pitch - Roll)  + (Throt*RPM_MAX)        #FL
+        Motor2_targ = RPM_MIN  +  (-Pitch + Roll)  + (Throt*RPM_MAX)        #FR
+        Motor3_targ = RPM_MIN  +  ( Pitch - Roll)  + (Throt*RPM_MAX)        #RL
+        Motor4_targ = RPM_MIN  +  ( Pitch + Roll)  + (Throt*RPM_MAX)        #RR
+
+            # Proportional governor controllers
+        Gov1 = (Motor1_targ - RPM1 ) *  GAIN_P_THROT  
+        Gov2 = (Motor2_targ + RPM2 ) * -GAIN_P_THROT         # reversed
+        Gov3 = (Motor3_targ + RPM3 ) * -GAIN_P_THROT         # reversed
+        Gov4 = (Motor4_targ - RPM4 ) *  GAIN_P_THROT  
+
+        Base:entity():applyAngForce(ang(0,0,Yaw))
+
+            # Enable throttle to accelerate rotor
+        Prop1:applyAngForce(ang(0,Gov1,0))
+        Prop2:applyAngForce(ang(0,Gov2,0))
+        Prop3:applyAngForce(ang(0,Gov3,0))
+        Prop4:applyAngForce(ang(0,Gov4,0))
+
+        Spd = Base:entity():velL():length()*0.069
+        ACF = Throt*100
+    }
+}
+
+# update holograms slowly
+if( clk("timer2") & Active ) {
+    #Rotation quaternion
+    P2 = qRotation(Quat:right(),RotateRight)
+    Y2 = qRotation(Quat:up(),RotateUp)
+    R2 = qRotation(Quat:forward(),RotateForward)
+    Quat = (Y2*P2*R2) * Quat
+       
+    #Position quaternions based on angle of body and array update - commented out for now
+    # Pos + (Quat:forward()*Forward) + (Quat:up()*Up) + (Quat:right()*Right) 
+    
+    #Holograms update position
+    
+    #holoPos(1,Pos[1,vector])
+    holoPos(1,Base:entity():pos()+ vec(0,0,20))
+    holoAng(1,Quat:toAngle())
+
+    #Align to ang(0,X,0) Self level
+    # if (R) {Quat = slerp(Quat,quat(ang(0,Quat:toAngle():yaw(),0)),0.06)}
+}

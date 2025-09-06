@@ -1,0 +1,68 @@
+@name Hover ornithopter - Rotary hydros - Outline
+@inputs Pi Ri Yi Zi
+@outputs Constant Damping H1 H2 H3 H4
+@outputs Constant2 Damping2 
+@persist F Ang_t:angle Amp_offset
+@trigger 
+@strict
+
+interval(10)
+# hydraulic parameters
+Constant = 15000
+Damping = 300
+Constant2 = 1000
+Damping2 = 10
+
+# waveform
+F += 19*0
+F = F > 360 ? F - 360 : F
+Wave = sin(F)
+
+# control input
+Ang_t += (ang(Pi,Yi,-Ri)*25 - Ang_t)*0.05
+
+# control outputs
+    # state
+E = entity()
+Angvel = E:angVel()
+Angles = E:angles() - Ang_t
+Vel = E:velL()
+
+    # flapping
+Amp_offset += (Zi*5 - Amp_offset)*0.1
+Amp = 45 + Amp_offset
+
+Zscale = Vel:z() * 8e-4 
+Zscale = clamp(Zscale, -20, 20)
+
+Amp *= 1 - Zscale
+Amp = clamp(Amp, 0, 50)
+
+    # control axes 
+Pitch = Angvel:pitch()*0.18 + Angles:pitch()*0.8 + Vel:x()*2e-2
+Roll = Angvel:roll()*0.18 + Angles:roll()*0.4 - Vel:y()*1e-2
+Yaw = Ang_t:yaw()*5 - Angvel:yaw()*1
+        # limit
+Pitch = clamp(Pitch, -20, 20)
+Roll = clamp(Roll, -20 ,20)
+Yaw = clamp(Yaw, -80, 80)
+
+    # derived
+Wave_Amp1 = Wave * (Amp + Roll)
+Wave_Amp2 = Wave * (Amp - Roll)
+
+Ang1 = Wave_Amp1 + Pitch
+Ang2 = Wave_Amp2 + Pitch
+
+# x - flap axis
+R = 71.2
+
+H1 = 1000 + sin(Ang1)*R
+H2 = 1000 + sin(Ang2)*R
+H3 = 1000 - cos(Ang1)*R
+H4 = 1000 - cos(Ang2)*R
+
+# y - yaw
+H5 = 1001 + Yaw
+
+

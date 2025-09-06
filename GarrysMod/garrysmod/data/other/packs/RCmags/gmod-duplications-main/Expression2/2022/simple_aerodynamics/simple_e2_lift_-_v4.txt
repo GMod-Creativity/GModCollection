@@ -1,0 +1,74 @@
+@name Simple E2 Lift - v4
+@inputs E:entity
+@outputs Area Alpha Cl Cd Const
+@outputs Gain 
+@outputs Force:vector VEL_MAX Vm
+@persist MASS SCALE DT Area Const 
+@trigger 
+
+# === Description ===
+# Simple script to simulate aerodynamic forces on a prop.
+if( first() ) {
+
+MASS = E:mass()         # Prop mass 
+SCALE = 1e-2 # 5e-6      # Scaling factor to match default drag
+DT = tickInterval()
+
+# Surface area
+Size = E:boxSize()
+Area = Size:dot( shiftL(Size) )
+
+# Multiplier
+Const = 0.5 * airDensity() * Area * SCALE
+
+}
+
+# Iterate
+runOnTick(1)
+
+# Prop velocity 
+Vel = E:vel()
+
+# Base normal vectors
+Vnorm = Vel:normalized()
+Wnorm = E:up()
+
+# Force normal vectors
+Lnorm = ( Wnorm:cross(Vel):cross(Vel) ):normalized()
+Dnorm = -Vnorm
+
+# Angle of attack
+Vz = Wnorm:dot(Vel)     # velocity component about z-axis
+Vxy = Vel - Vz*Wnorm    # velocity about xy plane
+Alpha = atanr( Vz, Vxy:length() )
+
+# Lift and drag coefficients
+Cl = pi() * sinr(2*Alpha)  
+Cd = pi() * sinr(Alpha)^2
+
+# Limit for linear acceleration spazz
+VEL_MAX = MASS/(DT*Const) * 1/pi() * 2
+   
+    # Note: altering the maximum velocity 
+    #       modifies the maximum force.
+    #       This is because force changes 
+    #       with velocity squared.
+Vm = Vel:length()
+
+    # Dynamic pressure
+if( Vm > VEL_MAX ) {
+    Dyn_press = VEL_MAX^2 * Const
+} else {
+    Dyn_press = Vm^2 * Const 
+}
+
+# Aerodynamic forces
+Lift = Dyn_press * Cl * Lnorm
+Drag = Dyn_press * Cd * Dnorm
+    # Net force
+Force = Lift + Drag
+
+# Scale by tickrate 
+E:applyForce( Force * DT )
+
+

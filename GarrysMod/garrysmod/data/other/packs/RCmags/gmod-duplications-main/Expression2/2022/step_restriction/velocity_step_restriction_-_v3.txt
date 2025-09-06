@@ -1,0 +1,64 @@
+@name Velocity Step Restriction - vector magnitude
+@inputs E:entity
+@outputs [Xms Xn]:vector 
+@outputs Ratio
+@persist DT_MS DT MASS LMAX
+@persist Xn:vector 
+@persist Ratio 
+@trigger 
+
+# First call
+if( first() ) {
+    #--- Constants ---
+    DT_MS = 10
+    DT = DT_MS * 1e-3
+        
+    # Decay ratio 
+    Ratio = 0
+    LMAX = 1.0  # Oscillates for L > 1
+        
+    #--- Functions ----
+
+        # Ode function - feedback
+    function vector ode(X:vector) {        
+        Vz = X:dot( E:up() ) * E:up()
+        Vxy = X - Vz
+        return -(Vz*100 + Vxy*0.1 )/ DT          # Linear lift
+    }
+    
+    #--- Set Prop velocity ---
+    function void setVelocity( Vel:vector ) {
+        Impulse = E:mass() * ( Vel - E:vel() )
+        E:applyForce( Impulse )
+    }
+} # end, First call
+
+# Iterate
+interval(DT_MS)
+
+# 1. Measure velocity
+Xms = E:vel()
+
+# 2. Estimate velocity change
+Dx = DT*ode(Xms)        # Explicit method, X(n) = Xms
+
+# 3. Clamp velocity change
+    # Measure decay rate of estimate
+Vdot = Xms:dot(Dx)
+
+if( Vdot != 0 ) {
+    Ratio = -Dx:length2() / Vdot
+} 
+    # Restrict decay of target state
+if( Ratio > LMAX ) {  
+    Dx *= LMAX/Ratio 
+} 
+
+# 4. Update state
+Xn = Xms + Dx
+
+# 5. Set Prop state   [Must come after velocity measurement, or blocks measurement]
+setVelocity( Xn )
+
+# Note: Scheme oscillates for forces acting on more than one axis.
+#       Must decompose forces to identify unstable components

@@ -1,0 +1,154 @@
+@name 5 Parabola lift coefficient. 6 planar lift
+@inputs W:wirelink 
+@outputs Cm P Cd
+@persist V:vector A:angle B:vector 
+
+runOnTick(1)
+
+#Initial variables:
+
+E = W:entity()
+
+V = E:velL()
+
+A = V:toAngle()
+P = asin(sin(A:pitch()))
+Y = A:yaw()
+
+Cp = cos(P)
+Cy = cos(Y)
+Sy = sin(Y)
+Sp = sin(P)
+
+B = E:boxSize()
+Bx = B:x()
+By = B:y()
+
+K = V:length2()*2*Bx*By/4600000
+
+C = abs(Cy)*Bx + abs(Sy)*By
+Ar = (abs(Cy)*By + abs(Sy)*Bx)/C
+
+if(By > Bx) {
+    
+   ArMax = By/Bx
+    
+} else {
+
+   ArMax = Bx/By
+
+}
+
+#How does Cd1Max change as a function of thickness ratio? 
+
+#Cd1Max = Cd1Max' + 0.28*(Cl1Max')^2/N
+
+#Cd1Max' must be defined purely based on wing section (and as such thickness ratio)
+
+#The equation for Cd1Max implies that As Cl1max' decreases, Cd1max tends to Cd1max',
+#so at high thickness ratios, Cd1max is maily defined by Cd1max', meaning that it almost becomes
+#a direct function of thickness ratio and no other variable. 
+
+#Aspect ratio depedant variables:
+    
+if(Ar < 1) {
+   
+   N = 1 - Ar^2
+   ACl = 8.16*N + 36.84 #<- 36.84 = 15 + 21.84/(1^0.9) = 15 + 21.84  = ACl' + 18.2*Cl1'
+#  ACl = [45 - ACl(1)]*N + ACl(1) ; ACl(1) =  ACl' + 18.2*Cl1'  
+# ACl' and Cl1' are purely dependant on wing section, as such thickness ratio. 
+# Thickness ratio dependant variables ACl' and CL1' are defined based on section geometry. 
+# Aspect ratio effects are imposed on the specificed section, thus the section parameters must be defined before the effects of aspect ratio are implemented. 
+   Cd1Max = 0.1654*N + 0.4532
+
+} else {
+    
+   N = Ar^0.9 
+   ACl = 15 + 21.84/N #ACl = ACl' + 18.2*Cl1'/N
+   Cd1Max = 0.05 + 0.4032/N
+   # Cl1' ~ [0.7, 1.5]
+   # ACl' ~ [10, 22.5]
+}
+
+#What of the moment coefficient? How is it affected by thickness ratio? 
+#Does the whole curve tend to Cd2Max/4 as thickness ratio tends to 1? Assuming the referance
+#point is at c/4
+#For intermediate thickness ratios (0.3 to 0.6) does the moment aproximate 0 at the c/4 point, for low AoA?
+
+#To complete the static conditions model, having thickness ratio and aspect ratio affect 
+#the lift, drag and moment coefficient curves, ACl', Cl1', Cd1Max', Cdo must be defined as 
+#functions of thickness ratio. 
+
+#Lift coefficient:
+
+if(P > 0) {
+
+   S = 1
+
+} else {
+
+   S = -1
+
+}
+
+N = abs(P)
+
+if(N <= ACl) {
+   
+   Cl1Max = 0.7973 + 0.3927/exp((4/Ar)^2)
+   Cl = (1 - (N/ACl - 1)^2)*Cl1Max*S
+
+} else {
+   
+   Cl1Max = 0.7973 + 0.3927/exp((4/Ar)^2)
+   Cl2Max = 0.7735 + 0.4165/exp((9/Ar)^2.3)
+   X = 90/ACl
+   I = (2*Cl2Max - Cl1Max*X)*180/(4*Cl2Max - Cl1Max*X^2)
+
+   if(N > ACl & N > I) {
+ 
+   Cl = (1 - (N/45 - 1)^2)*Cl2Max*S
+
+   } else {
+
+   Cl = Cl
+
+   }
+
+}
+
+#Drag coefficient:
+
+if(N < ACl) {
+    
+   H = (N/ACl)^2
+   Cd = (Cd1Max - 0.01)*(N/ACl)^2 + 0.01
+   Cm = Cd1Max*0.4*(N/ACl)^2
+
+} else {
+   
+   Cd2Max = 1.196 + 1.104/exp((6.5/ArMax)^1.1)
+   H = sin((N - ACl)*90/(90 - ACl))
+   Cd = Cd1Max + (Cd2Max - Cd1Max)*H
+   Cd1Max = Cd1Max*0.4
+   Cm = Cd1Max + H*(Cd2Max/4 - Cd1Max)
+
+}
+
+#Pitching moment: 
+
+Lz = Cl*Cp
+Dz = Cd*Sp
+
+M = C*((Lz + Dz)/4 - Cm*S)*K                                   
+
+#Force aplication:
+
+Lx = Cl*Sp
+Dx = Cd*Cp
+
+E:applyForce( (E:forward()*Cy*(Lx - Dx) - E:right()*Sy*(Lx - Dx) + E:up()*(Lz + Dz))*K)
+
+#Torque Aplication: Roll, Pitch, Yaw
+
+E:applyTorque(vec(M*Sy,-M*Cy,0))

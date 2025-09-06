@@ -1,0 +1,109 @@
+--@name Automatic turret
+--@author Redox
+-- https://github.com/wrefgtzweve/starfall-e2-scripts
+--@server
+
+wire.adjustInputs(
+    {"Gunbase","Azimuth"},
+    {"entity","entity"}
+)
+
+wire.adjustOutputs(
+    {"Fire"},
+    {"number"}
+)
+
+local gunbase = wire.ports.Gunbase
+local azimuth = wire.ports.Azimuth
+
+local visiblePlayers = {}
+local target
+
+local function closestPlayer()
+    local from = gunbase:getPos()
+    local closest
+    local limit = 1e24
+    for _, v in pairs( visiblePlayers ) do
+        local distance = from:getDistanceSqr( v:getPos() )
+        if distance < limit then
+            closest = v
+            limit = distance
+        end
+    end
+    return closest
+end
+
+local function isBroken()
+    gunbase = wire.ports.Gunbase
+    azimuth = wire.ports.Azimuth
+    
+    if not isValid( gunbase ) or not isValid( azimuth ) then
+        return true
+    end
+    return false
+end
+
+local function traceT( target )
+    local tr = trace.trace( gunbase:getPos(), target:obbCenterW(), function( ent )
+        if ent == target then return true end
+        return false
+    end)
+    return tr
+end
+
+local function aim()
+    if isBroken() then return end
+    local aimAngle
+
+    if not target or not target:isAlive() then
+        target = closestPlayer()
+        return
+    end
+    local tr = traceT( target )
+
+    if tr.HitWorld then
+        wire.ports.Fire = 0
+        aimAngle = Angle( 0, 90, 0 )
+        target = closestPlayer()
+        return
+    else
+        wire.ports.Fire = 1
+        aimAngle = ( ( target:obbCenterW() )-  gunbase:getPos() ):getAngle()
+    end
+
+    local aziPhy = azimuth:getPhysicsObject()
+    if aziPhy:isAsleep() then
+        aziPhy:wake()
+        aziPhy:enableMotion( true )
+    end
+    aimAngle = math.lerpAngle( 0.05, gunbase:getAngles(), aimAngle )
+    gunbase:setAngles( aimAngle )
+end
+
+local function aquirePlayers()
+    if isBroken() then return end
+    visiblePlayers = find.allPlayers(function( ply )
+        if pvp.playerIsInBuild( ply ) then return false end
+        if ply:getDistance( gunbase ) > 4000 then return false end
+        if not ply:isAlive() then return false end
+        
+        local testEnt
+        local vehicle = false
+        if ply:inVehicle() then
+            testEnt = ply:getVehicle()
+            vehicle = true
+        else
+            testEnt = ply
+            return false
+        end
+        
+        local tr = traceT( testEnt )
+        if tr.HitWorld then return false end
+        return true
+    end)
+    table.removeByValue( visiblePlayers, owner() )
+    --table.insert( visiblePlayers, owner() )
+end
+
+hook.add( "Think", "turretAim", aim )
+timer.create( "checkPlayersTimer", 0.5, 0, aquirePlayers )

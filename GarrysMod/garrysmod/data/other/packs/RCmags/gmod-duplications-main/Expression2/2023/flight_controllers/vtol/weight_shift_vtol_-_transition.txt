@@ -1,0 +1,153 @@
+@name Weight shift Vtol
+
+# Control inputs
+@inputs Pi Ri Yi
+
+# Hydraulic
+@outputs X1 Y1 X2 Y2
+@outputs Constant Damping
+
+@persist Constant Damping 
+@persist Length0 Radius
+
+# Thrusters
+@outputs Force1 Force2
+
+# Static constants/variables
+    # state
+@persist DT_MILLIS DT
+@persist [Vel_last Angle]:vector 
+@persist Entity:entity
+    # PID
+@persist Angle_trans
+@persist ANGLE_MAX PITCH_MAX PITCH_MIN
+@persist [KPx KIx]:vector
+@persist [KPy KIy]:vector
+
+# 0A. Initialization:
+if( first() ) {
+    # 0. Timer
+    DT_MILLIS = 10          # Milliseconds
+    DT = DT_MILLIS * 1e-3
+    
+    # 1. Hydraulics
+    Length0 = 1000
+    Radius = 50
+    Constant = 6000
+    Damping = 40
+    
+    # 2. State
+    Entity = entity()
+    Vel_last = Entity:vel()
+    Angle = vec(0,0,0)
+    
+    # 3. PID controller       
+        # limits
+    ANGLE_MAX = 25
+    PITCH_MAX = 30
+    PITCH_MIN = 120
+        
+        # hover
+    KPx = vec(0.5, 1.5, 0.3)    # pitch, yaw, roll
+    KIx = vec(1.5, 4.0, 0.5)
+        # level flight
+    KPy = vec(0.1, 0.05, 0.5)
+    KIy = vec(2.0, 0.6, 0.0)
+
+        # variables
+    Angle_trans = 0 
+}
+
+# 0B. Timetep
+interval(DT_MILLIS)
+
+#---------
+
+# 1. State
+Angvel = Entity:angVelVector()
+Vel = Entity:vel()
+Vel_L = Entity:velL()
+
+    # acceleration
+Accel = (Vel - Vel_last)/DT
+Vel_last = Vel 
+
+    # Normalized local acceleration [accelerometer]
+Accel_L = Accel/900 + vec(0,0,1)    # add gravity
+Accel_L = Entity:toLocalAxis(Accel_L)
+
+#---------
+
+# 2A. Transition angle [vtol setting]
+Cos_trans = cos(Angle_trans)
+Sin_trans = sin(Angle_trans)
+
+Angvel_t = vec(Pi,-Ri,Yi) * 30 
+
+# 2B. PID controller
+Angvel_t = vec( Angvel:y(), Angvel:x(), Angvel:z() ) - Angvel_t
+
+Angle += Angvel_t * DT
+ 
+Angle = vec( clamp( Angle:x(), -PITCH_MIN, PITCH_MAX) , # Angle saturates at maximum deflection
+             clamp( Angle:y(), -ANGLE_MAX, ANGLE_MAX) ,
+             clamp( Angle:z(), -ANGLE_MAX, ANGLE_MAX) )
+
+# Axial terms
+    # hover
+PIDx = KPx*Angvel_t + KIx*Angle
+PIDx *= Cos_trans^2
+        # Weight gain
+PIDx = vec( PIDx:x() / Accel_L:z(),
+            PIDx:y(), 
+            PIDx:z() )        
+
+    # horizontal 
+PIDy = KPy*Angvel_t + KIy*Angle
+PIDy *= Sin_trans^2
+PIDy = vec( PIDy:x(), 
+           -PIDy:z(), 
+            PIDy:y() )
+
+    # combine
+PID = PIDx + PIDy
+
+#---------
+
+# 3. Control inputs 
+Pitch = PID:x()
+Roll = PID:y()
+Yaw = PID:z()
+
+    # transition angle from average pitch angle
+Angle_trans += ( abs(Pitch) - Angle_trans)*0.025 
+
+#---------
+
+# 4. Hydraulic control
+
+    # target angles
+Angle1 = Pitch - Yaw 
+Angle2 = Pitch + Yaw 
+
+    # Restrict deflection
+Angle1 = clamp(Angle1, -PITCH_MIN, PITCH_MAX)
+Angle2 = clamp(Angle2, -PITCH_MIN, PITCH_MAX)
+
+    # lengths
+X1 = Length0 + sin(Angle1)*Radius
+Y1 = Length0 - cos(Angle1)*Radius
+
+X2 = Length0 + sin(Angle2)*Radius
+Y2 = Length0 - cos(Angle2)*Radius
+
+#---------
+
+# 5. Thrusters
+    # Hover thrust
+Force = 0#290
+Force -= ( Cos_trans*Vel_L:z() + Sin_trans*Vel_L:x() )*0.2
+
+    # Control mix
+Force1 = Force - Roll
+Force2 = Force + Roll

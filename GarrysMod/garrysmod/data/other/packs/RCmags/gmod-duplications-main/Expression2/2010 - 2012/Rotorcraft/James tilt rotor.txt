@@ -1,0 +1,83 @@
+@name Tilt rotor
+@inputs On Increase Decrease PitchI RollI YawI CollectiveI
+@outputs LAT LAB RAT RAB TE BE LR RR Spd Hudout Lcollective Bpitch Broll Rcollective Lefttop Leftbottom Righttop Rightbottom C2 D2 C3 D3 P Sp Sr Sy
+@persist Sin H H2 V M N Q Tilt Tiltcontrol Thrustcontrol Rev Convert Convert2 Pitch Roll Yaw  Power Powerboost Master Roll2 Pitch2 Yaw2 Flaps Flaps2
+@trigger 
+
+interval(10)
+
+E = entity() # e2 chip
+
+if(~On & On) {Q = !Q} # toggle engines
+
+Lefttop = 173 + Tilt + Tiltcontrol #  This one controls the length of the tilt rotor hydrolics
+Leftbottom = 173 - Tilt - Tiltcontrol
+
+Righttop = 173 + Tilt - Tiltcontrol
+Rightbottom = 173 - Tilt + Tiltcontrol
+
+Tilt = clamp((Decrease - Increase)/2.5 + Tilt,-65,Rev) # controls the convertion tilt input
+
+Rev = 67 + (Decrease*10) # adds reverse thrust
+
+Lcollective = (Master - Thrustcontrol)*Q #controls the collective of on the pods
+
+Rcollective = (Master + Thrustcontrol)*Q
+
+
+C2 = 30000 #constant and dampening for the tilt engines
+D2 = 600
+
+C3 = 50000 #constant and dampening for the rudder and elevator
+D3 = 600
+
+Pitch = clamp(M*H + H*Sp,-50,50) #Pitch control and ang stab
+Roll = clamp(N*H/2 + H*Sr/3,-50,50) #Roll control and ang stab
+Yaw = -clamp(H*Sy/2 + V*H,-70,70) #Yaw control and ang stab
+
+M = (Sp/28 + M + PitchI/1.5)*Q
+N = (Sr/28 + N + RollI/1.5)*Q
+V = (Sy/40 + V + YawI/2)*Q
+H = Q*sin(Sin)
+H2 = Q*cos(Sin)
+Sin = 45 + Tilt/1.4444
+
+
+Sr = E:angVel():pitch() #angular speeds
+Sp = E:angVel():roll()
+Sy = E:angVel():yaw() 
+Spd = E:velL():length()*0.069 # speed kph
+
+Hudout = Convert2*100 # hud convertion output
+
+Convert = ((Tilt/Rev)+1)*0.5 #creates convert value of 1 - 0 depending on the angle 1 being vertical
+Convert2 = 1-Convert # inverts the angle 0 - 1
+
+Tiltcontrol = (Yaw*Convert) - (-Roll*Convert2)
+Thrustcontrol = (((Yaw/4)*Convert2) - (Roll*Convert)) #Roll and Yaw mixing for convertion
+
+Master = (CollectiveI*25)*((Convert2*2.2)+1)-2
+
+#decreases power in hover, makes the collective not as strong and sets limits for thrust output
+
+Bpitch = -Pitch # cyclic
+Broll = -Thrustcontrol
+
+Roll2 = clamp(Sr*H2/4 + N*H2,-20,20)
+Pitch2 = clamp(Sp*H2/4 + M*H2,-20,20)
+Yaw2 = clamp(Sy*H2/4 + V*H2,-20,20)
+
+
+Flaps = (clamp(Convert,0.5,1)-0.5)*10
+#Flaps2 = Flaps/1.7
+
+LAT = 33.92 + (Roll2) + Flaps # controls the control surfaces
+LAB = 33.92 - (Roll2) - Flaps
+RAT = 33.92 - (Roll2) + Flaps
+RAB = 33.92 + (Roll2) - Flaps
+TE = 33.92 - (Pitch2)# - Flaps2
+BE = 33.92 + (Pitch2)# + Flaps2
+LR = 33.92 - (Yaw2)
+RR = 33.92 + (Yaw2)
+
+P = Q

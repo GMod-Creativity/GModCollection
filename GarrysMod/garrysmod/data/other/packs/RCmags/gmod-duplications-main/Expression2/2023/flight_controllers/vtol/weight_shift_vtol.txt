@@ -1,0 +1,117 @@
+@name Weight shift Vtol
+@inputs Pi Ri Yi
+
+@outputs Accel_L:vector
+
+# Hydraulic
+@outputs X1 Y1 X2 Y2
+@outputs Constant Damping
+
+@persist Constant Damping 
+@persist Length0 Radius
+
+# Thrusters
+@outputs Force1 Force2
+
+@persist Vel_last:vector Angle:vector 
+@persist Entity:entity
+
+@persist ANGLE_MAX KP:vector KI:vector
+@persist Angle1 Angle2
+
+# Note: aircraft has constant thrust lever arm. 
+# This provides indepedent control of x and z displacement of weight/lift
+
+interval(10)
+
+if( first() ) {
+    Length0 = 1000
+    Radius = 50
+    Constant = 2000
+    Damping = 60
+    
+    Entity = entity()
+    Vel_last = Entity:vel()
+    Angle = vec(0,0,0)
+            
+    ANGLE_MAX = 30
+    KP = vec(0.3, 0.2, 0.1)
+    KI = vec(0.8, 1.0, 0.5)
+
+    Angle1 = 0
+    Angle2 = 0
+}
+
+# 0. Timetep
+DT = 10
+interval(DT)
+DT *= 1e-3
+
+#----------
+
+# 0A. State
+Angvel = Entity:angVelVector()
+Vel = Entity:vel()
+    # acceleration
+Accel = (Vel - Vel_last)/DT
+Vel_last = Vel 
+
+    # Normalized local acceleration [accelerometer]
+Accel_L = Accel/900 + vec(0,0,1)    # add gravity
+Accel_L = Entity:toLocalAxis(Accel_L)
+
+#---------
+
+# 1B. Control deflections
+#Angle_force = atan( Accel_L:x(), Accel_L:z() )
+#Cos_force = cos(Angle_force)
+#Sin_force = sin(Angle_force)
+
+#--------
+Angle_av = (Angle1 + Angle2)*0.5
+
+Input_x = vec( Angvel:y(), Angvel:x(), Angvel:z() ) - vec( Pi, Yi , Ri)*30
+Input_z = vec( Angvel:y(),-Angvel:z(), Angvel:x() ) - vec( Pi, -Ri, Yi)*30
+
+Angvel_t = Input_x*cos(Angle_av) - Input_z*sin(Angle_av)
+
+#-------
+
+# 1A. PID controller
+#Angvel_t = vec( Angvel:y(), Angvel:x(), Angvel:z() ) - Angvel_t
+
+Angle += Angvel_t * DT
+ 
+Angle = vec( clamp( Angle:x(), -ANGLE_MAX, ANGLE_MAX) , 
+             clamp( Angle:y(), -ANGLE_MAX, ANGLE_MAX) ,
+             clamp( Angle:z(), -ANGLE_MAX, ANGLE_MAX) )
+
+PID = KP*Angvel_t + KI*Angle
+
+#----
+Pitch = PID:x() / Accel_L:z() 
+Pitch = clamp(Pitch, -ANGLE_MAX, ANGLE_MAX)
+
+Yaw = PID:z()
+Yaw = clamp(Yaw, -ANGLE_MAX, ANGLE_MAX)
+
+Roll = PID:y()
+
+#----------
+
+# Hydraulic
+Angle_bias = 0
+Angle1 = Pitch - Yaw - Angle_bias
+Angle2 = Pitch + Yaw - Angle_bias
+
+X1 = Length0 + sin(Angle1)*Radius
+Y1 = Length0 - cos(Angle1)*Radius
+
+X2 = Length0 + sin(Angle2)*Radius
+Y2 = Length0 - cos(Angle2)*Radius
+
+#---------
+# Thrusters
+Force = 0#250
+Force1 = Force - Roll
+Force2 = Force + Roll

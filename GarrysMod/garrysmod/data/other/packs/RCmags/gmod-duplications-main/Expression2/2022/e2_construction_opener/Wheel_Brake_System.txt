@@ -1,0 +1,233 @@
+@name Wheel brake system
+
+@inputs Clk_Rope [Chair Driver Gate]:entity Entity_Library:table DualClutch:wirelink [BF_Port BF_Stbd]:entity
+
+@outputs BL Brake Dif [PL SL] [LL RL] [Clk1 Clk2]
+
+@persist [BrakeKey ParkingBrakeKey Sound1 Sound2 S1 S2]:string LP [Duration1 Fade1 Pitch1 Volume1] [Duration2 Fade2 Pitch2 Volume2]
+@persist [BrakeForce Rate] [BL Lock Full] [PL SL] Reverse [BF W2 W3]:entity REVERSE Width Material:string
+@persist GateTilting [Wheel_Local_Offset    Gate_Local_Offset]:vector
+
+@trigger all
+
+@model models/jaanus/wiretool/wiretool_pixel_sml.mdl
+
+if(first() | dupefinished() | (~Entity_Library & Entity_Library))
+{
+    # Brake
+    BrakeForce = 3.5
+    Rate = 18.0
+    BrakeKey = "ctrl"
+    ParkingBrakeKey = "M"
+    LP = 0.2   # 0.0 ~ 1.0, When ground taxing
+    
+    # When Hold
+    Duration1 = 0.4 Fade1 = 0.0 Pitch1 = 100 Volume1 = 1
+    Sound1 = "acf_extra/vehiclefx/misc/air_brake1.wav"
+    
+    # When Release
+    Duration2 = 0.7 Fade2 = 0.2 Pitch2 = 100 Volume2 = 0.35
+    Sound2 = "acf_extra/vehiclefx/misc/air_04.wav"
+    
+    # Rope-Lock (Parking Brake)
+    REVERSE = 0
+    Width = 4
+    Material = "cable/physbeam"
+    Wheel_Local_Offset = vec(0, 0, 80)
+    Gate_Local_Offset = vec(2500, 0, 0)
+    
+    W2 = Entity_Library[4, entity]
+    W3 = Entity_Library[5, entity]
+    
+    GateTilting = Gate:angles():pitch()
+    
+    BF = DualClutch:entity()
+    
+    #ifdef enableConstraintUndo(number)
+    enableConstraintUndo(0)
+    
+    #else
+    constraintUndoEnabled(0)
+    
+    #endif
+    
+    function rope2(Ent1:entity, LocalV1:vector, Ent2:entity, LocalV2:vector, AddLength:number, Width:number, Material:string, Rigid:number)
+    {
+        local Entity1 = (!Reverse ? Ent1 : Ent2)
+        local Entity2 = (!Reverse ? Ent2 : Ent1)
+        local LocalVector1 = (!Reverse ? LocalV1 : LocalV2)
+        local LocalVector2 = (!Reverse ? LocalV2 : LocalV1)
+        
+        local Index = Entity1:hasConstraints("rope") + Entity1:hasConstraints("elastic") + 1
+        
+        #ifdef rope(number, entity, vector, entity, vector)
+        rope(Index, 
+             Entity1, LocalVector1, 
+             Entity2, LocalVector2,
+             AddLength, Width, Material, Rigid)
+        
+        #else
+        Entity1:ropeTo(Index, 
+                       Entity2, 
+                       0, 0,
+                       LocalVector1, LocalVector2,
+                       0, 0, 0,
+                       Width, Material, Rigid)
+        #endif
+    }
+    
+    function break_C(Entity1:entity, Constraints:string)
+    {
+        #ifdef entity:constraintBreak(string)
+        Entity1:constraintBreak(Constraints)
+        
+        #else
+        Entity1:removeConstraints(Constraints)
+        
+        #endif
+    }
+    
+    if(!BF_Port & !BF_Stbd)
+    {
+        function portLock()
+        {
+            if(PL)
+            {
+                local Ang = ang(-Gate:toLocal(W2:angles()):pitch() - GateTilting, 0, 0)
+                local Vec = Gate:toWorldAxis(Gate_Local_Offset:rotate(-GateTilting, 0, 0))
+                Reverse = REVERSE    rope2(W2, W2:massCenterL() + Wheel_Local_Offset:rotate(Ang), BF, BF:massCenterL() + BF:toLocalAxis(Vec), 0, Width, Material, 1)
+                
+                DualClutch[S1, number] = 0
+            }
+            else{break_C(BF, "rope")}
+        }
+        
+        function stbdLock()
+        {
+            if(SL)
+            {
+                local Ang = ang(-Gate:toLocal(W3:angles()):pitch() - GateTilting, 0, 0)
+                local Vec = Gate:toWorldAxis(Gate_Local_Offset:rotate(-GateTilting, 0, 0))
+                Reverse = REVERSE    rope2(W3, W3:massCenterL() + Wheel_Local_Offset:rotate(Ang), BF, BF:massCenterL() + BF:toLocalAxis(Vec), 0, Width, Material, 1)
+                
+                DualClutch[S2, number] = 0
+            }
+            else{break_C(BF, "rope")}
+        }
+    }
+    else
+    {
+        function portLock()
+        {
+            if(PL)
+            {
+                local Ang = ang(-Gate:toLocal(W2:angles()):pitch(), 0, 0)
+                Reverse = REVERSE    rope2(W2, W2:massCenterL() + Wheel_Local_Offset:rotate(Ang), BF_Port, BF_Port:massCenterL() + Gate_Local_Offset, 0, Width, Material, 1)
+            }
+            else{break_C(BF, "rope")}
+        }
+        
+        function stbdLock()
+        {
+            if(SL)
+            {
+                local Ang = ang(-Gate:toLocal(W3:angles()):pitch(), 0, 0)
+                Reverse = REVERSE    rope2(W3, W3:massCenterL() + Wheel_Local_Offset:rotate(Ang), BF_Stbd, BF_Stbd:massCenterL() + Gate_Local_Offset, 0, Width, Material, 1)
+            }
+            else{break_C(BF, "rope")}
+        }
+    }
+    
+    entity():setMaterial("sprops/sprops_grid_12x12")
+    entity():setColor(vec(0, 0, 255))
+    
+    Brake = 1    BL = 1
+    DualClutch["Left Clutch", number] = 1    DualClutch["Right Clutch", number] = 1
+    
+    Gtab = gTable("S" + Chair:id():toString(), 0)
+    Gtab[9, number] = 1
+    
+    Gtab2 = gTable("Brake_Frame", 0)
+    Gtab2[1, entity] = BF
+    
+    Dot = vec(1, 0, 0):dot(BF:toWorldAxis(vec(0, 1, 0)))
+    
+    switch(round(Dot))
+    {
+        case -1,
+        S1 = "Right Brake"
+        S2 = "Left Brake"
+        break
+        
+        default,
+        S1 = "Left Brake"
+        S2 = "Right Brake"
+        break
+    }
+    
+    interval(100)
+}
+
+if(~Clk_Rope & Clk_Rope)
+{
+    PL = 1
+    SL = 1
+    
+    portLock()
+    stbdLock()
+}
+
+interval(50)
+
+B = Driver:keyPressed(BrakeKey)         # Brake key
+P = Driver:keyPressed(ParkingBrakeKey)  # Parking Brake key (B + P)
+
+if(changed(B) & !(Lock & BL & Brake))
+{
+    if(B)
+    {
+        Driver:soundPlay("Hold", Duration1, Sound1, Fade1) soundPitch("Hold", Pitch1) soundVolume("Hold", Volume1)
+    }
+    elseif(!P)
+    {
+        BF:soundPlay("Release", Duration2, Sound2, Fade2) soundPitch("Release", Pitch2) soundVolume("Release", Volume2)
+    }
+}
+
+if(changed(P) & P & Full){  if(Brake * BL){Brake = 0} BL = !BL  }
+if(changed(Full) & P & Full){BL = !BL}
+
+if(!BL){Brake += clamp(B - Brake, -tickInterval() * Rate, tickInterval() * Rate)}
+
+Full = (Brake == 1)
+
+Dif = Gtab[8, number]
+RL = clamp(Dif, 0, 1)
+LL = clamp(Dif, -1, 0)
+
+# On/Off signal
+Clk1 = (changed((RL >= +LP)) & Full) | Full
+Clk2 = (changed((LL <= -LP)) & Full) | Full
+
+DualClutch[S1, number] = Brake * BrakeForce * (!Dif ? 1 : 1 - clamp(RL * (1 / LP), 0, +1)) * !Lock
+DualClutch[S2, number] = Brake * BrakeForce * (!Dif ? 1 : 1 + clamp(LL * (1 / LP), -1, 0)) * !Lock
+
+if(changed(Clk1) & Clk_Rope)
+{
+    PL = !PL
+    portLock()
+    stbdLock()
+}
+
+if(changed(Clk2) & Clk_Rope)
+{
+    SL = !SL
+    portLock()
+    stbdLock()
+}
+
+Lock = (PL | SL)
+
+Gtab = gTable("A" + Chair:id():toString(), 0)
+
+Gtab[9, number] = Lock

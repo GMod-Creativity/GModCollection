@@ -1,0 +1,2002 @@
+@name Constraints Library
+if(first() | duped() | dupefinished()){#include "Constraints/Constraints_Functions" timer("Start_Library", 150)}
+elseif(clk("Start_Library"))
+{
+    # Define The Array & Entity
+    SET = Set["Entities", array]
+    PaA = Parenting["Entities", array]
+    PaAA = array()    for(N = 1, PaA:count()){PaAA:pushNumber(PaA[N, entity]:getAlpha())}
+    
+    Bla_Grp = Blades_and_Grips["Entities", array]
+    TipW = TipWeights["Entities", array]
+    
+    EADE = Enabled_AirDrag_Entities["Entities", array]
+    
+    Base = SET[1, entity]
+    Gate = PaA[1, entity]
+    
+    # Entitiy Library
+    Swash = Entity_Library[1, entity]
+    Extra = Entity_Library[2, entity]
+    
+    W1 = Entity_Library[3, entity]
+    W2 = Entity_Library[4, entity]
+    W3 = Entity_Library[5, entity]
+    W4 = Entity_Library[6, entity]
+    
+    Extra_Wheel1 = Entity_Library[7, entity]
+    Extra_Wheel2 = Entity_Library[8, entity]
+    
+    Strut1 = Entity_Library[9, entity]
+    Strut2 = Entity_Library[10, entity]
+    Strut3 = Entity_Library[11, entity]
+    Strut4 = Entity_Library[12, entity]
+    
+    Hub1 = Entity_Library[13, entity]
+    Hub2 = Entity_Library[14, entity]
+    
+    ElevatorPlate = Entity_Library[15, entity]
+    RudderPlate = Entity_Library[16, entity]
+    ExtraElevatorPlate = Entity_Library[17, entity]
+    ExtraRudderPlate = Entity_Library[18, entity]
+    
+    # SetAng Masters (Landing Gear, Steering Gear)
+    NoseGearMaster = Entity_Library[19, entity]
+    Port_MainGearMaster = Entity_Library[20, entity]
+    Stbd_MainGearMaster = Entity_Library[21, entity]
+    ExtraGearMaster = Entity_Library[22, entity]
+    
+    
+    
+    function array:pushEntity_Filter(Entity:entity)
+    {
+        if(Entity:isValid()){This:pushEntity(Entity)}
+    }
+    
+    function array:pushArray_Filter(EntityArray:array)
+    {
+        for(N = 1, EntityArray:count())
+        {
+            local Ent = EntityArray[N, entity]
+            
+            if(!Ent:isValid()){continue}
+            
+            This:pushEntity(Ent)
+        }
+    }
+    
+    # Disabled Air Drag Entities  (DADE)
+    # Enabled Air Drag Entities   (EADE)
+    DADE = array()
+    COUNT = (!EADE:count() ? 1 : EADE:count())
+    
+    for(N = 1, SET:count())
+    {
+        local Ent = SET[N, entity]
+        
+        for(M = 1, COUNT)
+        {
+            if(Ent == EADE[M, entity])
+            {
+                break
+            }
+            
+            if(M == COUNT)
+            {
+                DADE:pushEntity(Ent)
+                
+                INC = 0
+            }
+        }
+    }
+    
+    
+    
+    
+    
+    
+    # Rotor Blades and Grips
+    Grp1 = array()
+    Grp2 = array()
+    
+    Bla1 = array()
+    Bla2 = array()
+    
+    BC = array()
+    
+    TW1 = array() TW2 = array()
+    BW1 = array() BW2 = array()
+    TT1 = array() TT2 = array()
+    
+    First_Blade = Bla_Grp[1, entity]
+    
+    # Find the First Grip index in the Bla_Grp Array
+    for(N = 1, Bla_Grp:count())
+    {
+        if(Bla_Grp[N, entity]:getColor() != First_Blade:getColor())
+        {
+            First_Grip_Index = N
+            
+            break
+        }
+    }
+    
+    All_Blade_Count = First_Grip_Index - 1
+    Last_Blade = Bla_Grp[All_Blade_Count, entity]
+    
+    # Create All Blade array
+    for(N = 1, All_Blade_Count)
+    {
+        Bla:pushEntity(Bla_Grp[N, entity])
+    }
+    
+    # Create All Grip array
+    for(N = First_Grip_Index, Bla_Grp:count())
+    {
+        Grp:pushEntity(Bla_Grp[N, entity])
+    }
+    
+    # Create Grip1 array and Grip2 array
+    for(N = 1, All_Blade_Count)
+    {
+        local Blade = Bla[N, entity]
+        local Grip = Grp[N, entity]
+        
+        if(First_Blade:model() != Last_Blade:model())  # Single rotor
+        {
+            if(Blade:model() == First_Blade:model()){Grp1:pushEntity(Grip)}
+            elseif(Grip:isValid()){Grp2:pushEntity(Grip)}
+        }
+        elseif(N <= (Bla_Grp:count() / 2))             # Twin rotor (Tandem, Coaxial, Side by side, etc)
+        {
+            Grp1:pushEntity(Grip)
+        }
+        else
+        {
+            Grp2:pushEntity(Grip)
+        }
+    }
+    
+    Main_Blade_Count = Grp1:count()
+    Extra_Blade_Count = All_Blade_Count - Main_Blade_Count
+    
+    # Create Blade1 array and Blade2 array
+    for(N = 1, Main_Blade_Count)
+    {
+        Bla1:pushEntity(Bla[N, entity])
+    }
+    for(N = 1, Extra_Blade_Count)
+    {
+        Bla2:pushEntity(Bla[Main_Blade_Count + N, entity])
+    }
+    
+    ChordLine1 = Bla1[1, entity]:massCenter() - Hub1:toWorld(Hub1:massCenterL() + vec(0, 0, ZOffset1))
+    ChordLine1 = Bla1[1, entity]:toLocalAxis(ChordLine1)
+    ChordLine1 = positive(ChordLine1):normalized()
+    ChordLine1 = round(ChordLine1)
+    ChordLine1 = vec(1, 1, 0) - ChordLine1
+    
+    ChordLine2 = Bla2[1, entity]:massCenter() - Hub2:toWorld(Hub2:massCenterL() + vec(0, 0, ZOffset2))
+    ChordLine2 = Bla2[1, entity]:toLocalAxis(ChordLine2)
+    ChordLine2 = positive(ChordLine2):normalized()
+    ChordLine2 = round(ChordLine2)
+    ChordLine2 = vec(1, 1, 0) - ChordLine2
+    
+    
+    
+    # Mixing levers
+    MLA = array() MLB = array()
+    
+    MLC_A = ->Mixing_LeverA_1 + ->Mixing_LeverA_2 + ->Mixing_LeverA_3 + ->Mixing_LeverA_4 + ->Mixing_LeverA_5
+    MLC_B = ->Mixing_LeverB_1 + ->Mixing_LeverB_2 + ->Mixing_LeverB_3 + ->Mixing_LeverB_4 + ->Mixing_LeverB_5
+    
+    for(N = 1, MLC_A)
+    {
+        local Ent = ioInputEntity("Mixing_LeverA_" + N)
+        if(Ent:isValid()){MLA:pushEntity(Ent)}
+    }
+    
+    for(N = 1, MLC_B)
+    {
+        local Ent = ioInputEntity("Mixing_LeverB_" + N)
+        if(Ent:isValid()){MLB:pushEntity(Ent)}
+    }
+    
+    
+    
+    # Axis & Ball Socket Base, Rope-slider Base
+    AxisBall_Base = array()
+    Rope_Base = array()
+    
+    for(N = 1, SET:count())
+    {
+        local Ent = SET[N, entity]
+        
+        if((Ent:getColor() != Filter_Color2) & (Ent:getColor() != Filter_Color3)){AxisBall_Base:pushEntity(Ent)}
+        
+        if((Ent:getColor() != Filter_Color1) & (Ent:getColor() != Filter_Color3)){Rope_Base:pushEntity(Ent)}
+    }
+    
+    
+    
+    # Smart Welt (vec(255, 0, 0): Base Prop's RGB Color)
+    BaseI = 0
+    for(N = 1, SET:count()){if(SET[N, entity]:getColor() == vec(255, 0, 0)){BaseI++}}
+    
+    
+    
+    # Reset to zero
+    INC = 0
+    BCI = 0
+    SP = 0
+    
+    TWC1 = 0
+    TWC2 = 0
+    
+    INC = 0
+    
+    
+    
+    ##########################################################################
+    ############ Functions, it is used on the Constraints Core E2 ############
+    
+    function array:grouping(Count:number, To1:array, To2:array)
+    {
+        for(N = 1, This:count())
+        {
+            local E = This[N, entity]
+            
+            if((N % Count) | (Count == 1))
+            {
+                To1:pushEntity(E)     # To1: Balancing Weight Array
+            }
+            elseif(Count > 1)
+            {
+                To2:pushEntity(E)     # To2: Trim Tab Array
+            }
+        }
+    }
+    
+    function define_additional_Array()
+    {
+        TWC1 += (BW1_Offset1 != vec()) + (TT1_Offset1 != vec())
+        TWC2 += (BW2_Offset1 != vec()) + (TT2_Offset1 != vec())
+        
+        for(N = 1, TWC1 * Main_Blade_Count)
+        {
+            TW1:pushEntity(TipW[N, entity])
+        }
+        for(N = 1, TWC2 * Extra_Blade_Count)
+        {
+            TW2:pushEntity(TipW[(TWC1 * Main_Blade_Count) + N, entity])
+        }
+        
+        #TW1:grouping(TWC1, BW1, TT1)
+        #TW2:grouping(TWC2, BW2, TT2)
+        
+        
+        
+        if(!SET:count()){printColor(vec(255, 0, 0), "ERROR: Set Adv.entity maker doesn't have anything. Empty Set Adv.entity maker!!!")}
+        
+        if(First_Blade != Last_Blade){SET2 = SET:add(array(Extra))} # Single rotor
+        else{SET2 = SET}
+        
+        # Perceives a XMSN among entities
+        for(N = 1, SET2:count())
+        {
+            local Ent = SET2[N, entity]
+            
+            Gtab2 = gTable("Brake_Frame", 0)
+            local BF = Gtab2[1, entity]
+            
+            if((Ent:type() == "acf_gearbox") & (Ent != BF)){if(!XMSN1:isValid()){XMSN1 = Ent}elseif(!XMSN2:isValid()){XMSN2 = Ent}}
+        }
+        
+        
+        
+        SET_Addition = array()
+        SET_Addition = SET_Addition:add(Bla_Grp):add(TipW):add(MLA):add(MLB)
+        SET_Addition:pushArray_Filter(array(Hub1, Hub2, Swash, Extra))
+        SET_Addition:pushArray_Filter(array(Strut1, W1, Strut2, W2, Strut3, W3, Strut4, W4, Extra_Wheel1, Extra_Wheel2))
+        SET_Addition:pushArray_Filter(array(E1, E2, E3, E4))
+        SET_Addition:pushArray_Filter(array(ElevatorPlate, RudderPlate, ExtraElevatorPlate, ExtraRudderPlate))
+        
+        
+        
+        for(N = 1, SET_Addition:count())
+        {
+            local Ent = SET_Addition[N, entity]
+            
+            for(M = 1, COUNT)
+            {
+                if(Ent == EADE[M, entity])
+                {
+                    break
+                }
+                
+                if(M == COUNT)
+                {
+                    DADE:pushEntity(Ent)
+                }
+            }
+        }
+        
+        Final_SET = SET:add(SET_Addition)
+    }
+    
+    function trigger()
+    {
+        HI = 0
+        
+        Plys = array()
+        
+        for(N = 1, players():count())
+        {
+            if(players()[N, entity] == owner()){continue}
+            Plys:pushEntity(players()[N, entity])
+        }
+        
+                                                                                                                                                                                                                                                  anti_Theft()
+        
+        # Hologram on the Box #
+        HI++
+        BHI = HI
+        holoCreate(HI, Box:pos(), vec(1.05), Box:angles())
+        holoVisible(HI, Plys, 0)
+        holoModel(HI, Box:model())
+        holoColor(HI, (Pad_7 ? vec(0, 255, 0) : vec(255, 165, 0)))
+        holoMaterial(HI, Box:getMaterial())
+        holoParent(HI, Box)
+        
+        
+        
+        if(Pad_7 & ->Set & DupeFinished)
+        {
+            # Create many HoloGrams, Grip and Tip Weights on the Rotor Blades
+            for(N = 1, All_Blade_Count)
+            {
+                local Ent = Bla[N, entity]
+                HI++
+                holoCreate(HI, Ent:pos(), vec(1), Ent:angles())
+                holoModel(HI, Ent:model())
+                holoColor(HI, Ent:getColor4())
+                holoMaterial(HI, Ent:getMaterial())
+                Ent:setAlpha(0)
+            }
+            for(N = 1, Grp:count())
+            {
+                local Ent = Grp[N, entity]
+                HI++
+                holoCreate(HI, Ent:pos(), vec(1), Ent:angles())
+                holoModel(HI, Ent:model())
+                holoColor(HI, Ent:getColor4())
+                holoMaterial(HI, Ent:getMaterial())
+                Ent:setAlpha(0)
+            }
+            for(N = 1, TipW:count())
+            {
+                local Ent = TipW[N, entity]
+                HI++
+                holoCreate(HI, Ent:pos(), vec(1), Ent:angles())
+                holoModel(HI, Ent:model())
+                holoColor(HI, Ent:getColor4())
+                holoMaterial(HI, Ent:getMaterial())
+                Ent:setAlpha(0)
+            }
+            
+            
+            
+            HI++
+            holoCreate(HI, Hub1:pos(), vec(1), Hub1:angles())
+            holoModel(HI, Hub1:model())
+            holoColor(HI, Hub1:getColor4())
+            holoMaterial(HI, Hub1:getMaterial())
+            Hub1:setAlpha(0)
+            
+            
+            
+            HI++
+            holoCreate(HI, Hub2:pos(), vec(1), Hub2:angles())
+            holoModel(HI, Hub2:model())
+            holoColor(HI, Hub2:getColor4())
+            holoMaterial(HI, Hub2:getMaterial())
+            Hub2:setAlpha(0)
+            
+            
+            
+            HI++
+            holoCreate(HI, W2:pos(), vec(1), W2:angles())
+            holoModel(HI, W2:model())
+            holoColor(HI, W2:getColor4())
+            holoMaterial(HI, W2:getMaterial())
+            W2:setAlpha(0)
+            
+            
+            
+            HI++
+            holoCreate(HI, W3:pos(), vec(1), W3:angles())
+            holoModel(HI, W3:model())
+            holoColor(HI, W3:getColor4())
+            holoMaterial(HI, W3:getMaterial())
+            W3:setAlpha(0)
+            
+            
+            
+            HI++
+            holoCreate(HI, Swash:pos(), vec(1), Swash:angles())
+            holoModel(HI, Swash:model())
+            holoColor(HI, Swash:getColor4())
+            holoMaterial(HI, Swash:getMaterial())
+            Swash:setAlpha(0)
+            
+            
+            
+            HI++
+            holoCreate(HI, Extra:pos(), vec(1), Extra:angles())
+            holoModel(HI, Extra:model())
+            holoColor(HI, Extra:getColor4())
+            holoMaterial(HI, Extra:getMaterial())
+            Extra:setAlpha(0)
+            
+            
+            
+            Center_V1 = vec()
+            Center_V2 = vec()
+            
+            for(N = 1, Bla1:count())
+            {
+                Center_V1 += Bla1[N, entity]:massCenter()
+            }
+            
+            for(N = 1, Bla2:count())
+            {
+                Center_V2 += Bla2[N, entity]:massCenter()
+            }
+            
+            Center_V1 = Center_V1 / Bla1:count()
+            Center_V2 = Center_V2 / Bla2:count()
+            
+            Swash_Local_Axis = round(Swash:toLocalAxis(Center_V1 - Swash:massCenter()):normalized())
+            Extra_Local_Axis = round(Extra:toLocalAxis(Center_V2 - Extra:massCenter()):normalized())
+            
+            Hub1_Local_Axis = round(Hub1:toLocalAxis(Swash:toWorldAxis(Swash_Local_Axis)))
+            Hub2_Local_Axis = round(Hub2:toLocalAxis(Extra:toWorldAxis(Extra_Local_Axis)))
+            
+            Extra_Gtab = gTable("Local_Vector_Gtab", 0)
+            Extra_Gtab[1, vector] = Swash_Local_Axis
+            Extra_Gtab[2, vector] = Extra_Local_Axis
+            
+            
+            
+            
+            
+            for(N = 1, Final_SET:count())
+            {
+                local Ent = Final_SET[N, entity]
+                
+                Ent:propMakePersistent(0)
+            }
+            
+            for(N = 1, PaA:count())
+            {
+                local Ent = PaA[N, entity]
+                
+                Ent:propMakePersistent(0)
+            }
+            
+            
+            
+            timer("CS", 50)
+        }
+        elseif(!Pad_7 | First)
+        {
+            ############################################################################
+            ################## CG & Hinge Postion Indicator HoloGrams ##################
+            for(N = 1, 4)
+            {
+                HI++
+                holoCreate(HI, vec(), vec(), ang(), vec4(), "cube")
+            }
+            
+            timer("Print", 50)
+            
+            if(->Blades_and_Grips & First)
+            {
+                timer("Alignment", 150)
+            }
+            
+            timer("HoloSet", 200)
+            
+            timer("Center of gravity", 150)
+            
+            timer("print_index_Entity", 50)
+            
+            HI++
+            Center = HI
+            holoCreate(HI)
+            holoModel(HI, "icosphere2")
+            holoScaleUnits(HI, vec(10.0))
+            
+            for(N = 1, 3)
+            {
+                HI++
+                local V1 = vec(0.2)
+                local V2 = vec()
+                V1[N] = 255
+                V2[N] = 255
+                
+                holoCreate(HI, holoEntity(Center):pos())
+                holoScaleUnits(HI, V1)
+                holoColor(HI, V2)
+                holoDisableShading(HI, 1)
+                holoParent(HI, Center)
+            }
+        }
+    }
+    
+    
+    
+    
+    
+    
+    
+    ############################################################
+    #################### Rotor Blade & Grip ####################
+    
+    function vector projVec(From:vector, To:vector)
+    {
+        local Projection_Vector = To * (From:dot(To) / (To:length()^2))
+        
+        return Projection_Vector
+    }
+    
+    function array:blade_Hinge()
+    {
+        if(!INC)
+        {
+            This:allocate()
+            
+            BCI = 0
+            
+            for(N = 1, This:count())
+            {
+                local Blade = This[N, entity]
+                
+                for(M = 1, BCC)
+                {
+                    BC:pushEntity(TipWeight[BCI + M, entity])
+                }
+                
+                local V3 = Chord_Table[N, vector] + SpanWise
+                
+                local BWV = Blade:toWorld(V3)
+                
+                ball2(Blade, RotorMast:toLocal(BWV), RotorMast)
+                
+                BC = array()
+                BCI += BCC
+            }
+        }
+    }
+    
+    function array:lead_lag_Rope()
+    {
+        if(!INC)
+        {
+            This:allocate()
+            
+            BCI = 0
+            for(N = 1, This:count() * Stage)
+            {
+                local NN = (N % This:count())
+                local NN = (!NN ? This:count() : NN)
+                
+                local Blade = This[NN, entity]
+                
+                local Double = (Rigid_Offset ? 2 : 1)
+                
+                for(M = 1, BCC)
+                {
+                    BC:pushEntity(TipWeight[BCI + M, entity])
+                }
+                
+                local V1 = Chord_Table[NN, vector] + SpanWise_Table[NN, vector]
+                
+                for(M = 1, (Stage == 1 ? Double : 1))
+                {
+                    local V2 = RotorMast:toLocal(Blade:toWorld(SpanWise:side(Side))):rotateAroundAxis(AXIS, Delta3)
+                    
+                    local Sign1 = (M == 1 ? 1 : -1)            # If Stage == 1
+                    local Sign2 = (N <= This:count() ? 1 : -1) # If Stage == 2
+                    
+                    if(Mode == 2)
+                    {
+                        if(Stage == 1)
+                        {
+                            if(N == 1){Reverse = !Reverse}
+                            Reverse = !Reverse
+                        }
+                        else
+                        {
+                            if(N <= This:count()){PR = Reverse} # PR: Persist Reverse
+                            else{Revese = !PR}
+                        }
+                    }
+                    
+                    rope2(Blade, V1, RotorMast, V2 + (AXIS * Rigid_Offset * (Stage == 1 ? Sign1 : Sign2)), 0, Width1, Mat1, 1)
+                }
+                
+                BC = array()
+                BCI += BCC
+            }
+        }
+    }
+    
+    function entity:pitchLink(Advance_angle:number, Horizontal_offset:vector, Grip:array, Grip_Local_offset:vector, Grip_Angle_offset:number)
+    {
+        if(!INC)
+        {
+            ### This = Swashplate
+            local Local_Upward = (This == Swash ? Swash_Local_Axis : Extra_Local_Axis)
+            local Double = (!Mode ? 1 : 2)
+            
+            for(N = 1, Grip:count() * Stage)
+            {
+                local NN = N % Grip:count()
+                local NN = (!NN ? Grip:count() : NN)
+                
+                local GripN = Grip[NN, entity]
+                
+                local First = Horizontal_offset:rotateAroundAxis(Local_Upward, Advance_angle)
+                local Horizon_V1 = First:rotateAroundAxis(Local_Upward, -(360 / Grip:count()) * (NN - 1))
+                local Horizon_V2 = This:massCenterL() + Horizon_V1
+                
+                local D1 = Grip[1, entity]:massCenter() - This:massCenter()
+                local D2 = This:toLocalAxis(D1)
+                
+                local VA = projVec(First, Horizontal_offset:normalized())
+                local VB = First - VA
+                
+                local D3 = (First - D2) * VB:normalized()
+                local Z1 = tan(Grip_Angle_offset) * D3:length() * Local_Upward
+                
+                local Z2 = This:toLocalAxis(GripN:massCenter() - This:toWorld(Horizon_V2)) * positive(Local_Upward)
+                
+                local SPWV = This:toWorld(Horizon_V2 + Z1 + Z2)
+                
+                # SwashPlate, Local horizontal vector on the SwashPlate
+                # Rotor blade Grip, Local vector on the grip
+                # Add length, Width, Material, Whether rigid
+                for(M = 1, (Stage == 1 ? Double : 1))
+                {
+                    local Horizon_V3 = (M == 1 ? Horizon_V2 : Horizon_V2 + Z2 + Z2)            # If Stage = 1
+                    local Horizon_V4 = (N > Grip:count() ? Horizon_V2 : Horizon_V2 + Z2 + Z2)  # If Stage = 2
+                    
+                    if(Mode == 2)
+                    {
+                        if(Stage == 1)
+                        {
+                            if(N == 1){Reverse = !Reverse}
+                            Reverse = !Reverse
+                        }
+                        else
+                        {
+                            if(N <= Grip:count()){PR = Reverse} # PR: Persist Reverse
+                            else{Revese = !PR}
+                        }
+                    }
+                    
+                    # pitchLink_2()
+                    if(INC >= 2)
+                    {
+                        local H = sqrt(Z1:length()^2 + D3:length()^2)
+                        local Sub = H - D3:length()
+                        local NV = CLG
+                        local NV = round(NV)
+                        
+                        GLOV = -NV * Sub
+                    }
+                    
+                    local RIGID = (Double == 1 ? 1 : 0)
+                    
+                    rope2(
+                    This, (Stage == 1 ? Horizon_V3 : Horizon_V4), 
+                    GripN, GripN:toLocal(SPWV) + Grip_Local_offset + GLOV, 
+                    0, Width2, Mat2, RIGID
+                    )
+                }
+            }
+            
+            if(This == Extra)
+            {
+                Extra_Gtab = gTable("Local_Vector_Gtab", 0)
+                Extra_Gtab[3, vector] = Horizontal_offset
+            }
+        }
+    }
+    
+    function number vector:find_Axis()
+    {
+        if(This:x()){return This:x()}
+        elseif(This:y()){return This:y()}
+        elseif(This:z()){return This:z()}
+    }
+    
+    function number entity:pitchLink_2(RCF_Index:number, Advance_angle:number, Horizontal_offset:vector, Grip:array, Grip_Local_offset:vector, Grip_Angle_offset:number)
+    {
+        if(!Sup & !INC & !RCF_Index)
+        {
+            timer("RCF", 25)
+            
+            Final_INC = 6
+            
+            INC++
+            
+            local Local_Upward = (This == Swash ? Swash_Local_Axis : Extra_Local_Axis)
+            
+            local First = Horizontal_offset:rotateAroundAxis(Local_Upward, Advance_angle)
+            
+            local Blade = (Grip[1, entity] == Grp[1, entity] ? Bla1[1, entity] : Bla2[1, entity])
+            
+            local GCL = Grip[1, entity]:toLocalAxis(Blade:toWorldAxis(ChordLine1))
+            local GCL = round(GCL)
+            
+            local SGR = Grip[1, entity]:toLocalAxis((This:toWorld(First) - Grip[1, entity]:massCenter())) * positive(GCL)
+            
+            RSG1 = sign(SGR:find_Axis())
+            RSG2 = sign(SGR:find_Axis())
+            RSG = (Grip[1, entity] == Grp[1, entity] ? RSG1 : RSG2)
+            
+            
+            
+            local VA = projVec(First, Horizontal_offset:normalized())
+            local VB = First - VA
+            
+            CLG1 = Grp1[1, entity]:toLocalAxis(This:toWorldAxis(VB:normalized()))
+            CLG2 = Grp2[1, entity]:toLocalAxis(This:toWorldAxis(VB:normalized()))
+            CLG = (Grip[1, entity] == Grp[1, entity] ? CLG1 : CLG2)
+            
+            
+            
+            RotorMast = (Grip[1, entity] == Grp[1, entity] ? Hub1 : Hub2)
+            
+            GRA1 = Grp1[1, entity]:toLocalAxis(RotorMast:toWorldAxis(vec(1, 0, 0)))
+            GRA2 = Grp2[1, entity]:toLocalAxis(RotorMast:toWorldAxis(vec(1, 0, 0)))
+            GRA = (Grip[1, entity] == Grp[1, entity] ? GRA1 : GRA2)
+            
+            RA = 1.2
+            
+            for(N = 1, Grip:count())
+            {
+                local GRIP = Grip[N, entity]
+                
+                GRIP:rot(GRIP:toWorldAxis(GRA), -RA * RSG)
+            }
+            
+            print("GRA :" + round(GRA))
+            print("RSG :" + round(RSG))
+        }
+        
+        if(clk("RCF") & Sup & !RCF_Index)
+        {
+            if(INC == 2)
+            {
+                This:pitchLink(Advance_angle, Horizontal_offset, Grip, Grip_Local_offset, -RA)
+            }
+            elseif(INC == 3)
+            {
+                for(N = 1, Grip:count())
+                {
+                    local GRIP = Grip[N, entity]
+                    
+                    GRIP:rot(GRIP:toWorldAxis(GRA), RA * 2 * RSG)
+                }
+            }
+            elseif(INC == 4)
+            {
+                local Local_Upward = (This == Swash ? Swash_Local_Axis : Extra_Local_Axis)
+                
+                local Z2 = This:toLocalAxis(Grip[1, entity]:massCenter() - This:massCenter()) * Local_Upward
+                
+                This:pitchLink(Advance_angle, Horizontal_offset + Z2 + Z2, Grip, Grip_Local_offset, RA)
+            } 
+            elseif(INC == 5)
+            {
+                for(N = 1, Grip:count())
+                {
+                    local GRIP = Grip[N, entity]
+                    
+                    GRIP:rot(GRIP:toWorldAxis(GRA), -RA * RSG)
+                }
+            }
+            elseif(INC == Final_INC)
+            {
+                INC = 0
+                Final_INC = 0
+            }
+        }
+        
+        Sup = RCF_Index
+        
+        return RCF_Index + (!INC & !Sup)
+    }
+    
+    function array:extraLink(Horizontal_offset:vector, Grip:array, Grip_offset:vector, Grip_Angle_offset:number)
+    {
+        if(!INC)
+        {
+            local Double = (!Mode ? 1 : 2)
+            
+            for(N = 1, This:count() * Stage)
+            {
+                local NN = N % Grip:count()
+                local NN = (!NN ? Grip:count() : NN)
+                
+                local ExtraEntity = This[NN, entity]
+                local GripN = Grip[NN, entity]
+                
+                local V1 = ExtraEntity:massCenterL() + Horizontal_offset
+                
+                local S = (GripN:massCenter() - ExtraEntity:toWorld(V1)):setZ(0):length()
+                local Z = tan(Grip_Angle_offset) * S
+                
+                local V2 = Hub1:toLocalAxis(GripN:massCenter() - ExtraEntity:toWorld(V1) - Z) * vec(0, 0, 1)
+                local V2 = Hub1:toWorldAxis(V2)
+                local V3 = ExtraEntity:toWorld(V1) + V2
+                
+                # Entity, local horizontal vector
+                # Rotor blade Grip, local vector
+                # Add length, Width, Material, Whether rigid
+                for(M = 1, (Stage == 1 ? Double : 1))
+                {
+                    local V5 = (M == 1 ? V3 : V3 + V2 + V2)           # If Stage = 1
+                    local V6 = (N > Grip:count() ? V3 : V3 + V2 + V2) # If Stage = 2
+                    
+                    if(Mode == 2)
+                    {
+                        if(Stage == 1){Reverse = !Reverse}
+                        else
+                        {
+                            if(N <= Grip:count()){PR = Reverse} # PR: Persist Reverse
+                            else{Revese = !PR}
+                        }
+                    }
+                    
+                    rope2(
+                    ExtraEntity, V1, 
+                    GripN, GripN:toLocal((Stage == 1 ? V5 : V6)) + Grip_offset, 
+                    0, Width2, Mat2, 1
+                    )
+                }
+            }
+        }
+    }
+    
+    
+    
+    
+    
+    
+    
+    #######################################################
+    ##################### Axis Centre #####################
+    
+    function entity:axis_Multi(Local_Axis:vector, Friction:number)
+    {
+        if(!INC)
+        {
+            for(N = 1, AxisBall_Base:count())
+            {
+                local Entity = AxisBall_Base[N, entity]
+                
+                if(!Mode){axis2(This, This:massCenterL(), Entity, Entity:massCenterL(), Friction, Local_Axis)}
+                else{axis2(This, This:massCenterL(), Entity, Entity:toLocal(This:massCenter()), Friction, Local_Axis)}
+            }
+        }
+    }
+    
+    function number entity:axis_multi_Link(RCF_Index:number, Local_Axis:vector, Friction:number)
+    {
+        if(!Sup & !INC & !RCF_Index)
+        {
+            timer("RCF", 25)
+            
+            Final_INC = AxisBall_Base:count()
+            
+            INC++
+            
+            local Entity = AxisBall_Base[INC, entity]
+            
+            if(!Mode){axis2(This, This:massCenterL(), Entity, Entity:massCenterL(), Friction, Local_Axis)}
+            else{axis2(This, This:massCenterL(), Entity, Entity:toLocal(This:massCenter()), Friction, Local_Axis)}
+        }
+        
+        if(clk("RCF") & Sup & !RCF_Index)
+        {
+            local Entity = AxisBall_Base[INC, entity]
+                
+            if(!Mode){axis2(This, This:massCenterL(), Entity, Entity:massCenterL(), Friction, Local_Axis)}
+            else{axis2(This, This:massCenterL(), Entity, Entity:toLocal(This:massCenter()), Friction, Local_Axis)}
+            
+            if(INC == Final_INC)
+            {
+                INC = 0
+                Final_INC = 0
+            }
+        }
+        
+        Sup = RCF_Index
+        
+        return RCF_Index + (!INC & !Sup)
+    }
+    
+    function array:axis_Array(Base_Ent:entity, Local_Axis:vector, Friction:number)
+    {
+        if(!INC)
+        {
+            for(N = 1, This:count())
+            {
+                local Ent = This[N, entity]
+                
+                if(!Mode){axis2(Ent, Ent:massCenterL(), Base_Ent, Base_Ent:massCenterL(), Friction, Local_Axis)}
+                else{axis2(Ent, Ent:massCenterL(), Base_Ent, Base_Ent:toLocal(Ent:massCenter()), Friction, Local_Axis)}
+            }
+        }
+    }
+    
+    function axis_Link(Entity1:entity, Entity2:entity, Friction:number, LocalOffset:vector, Local_Axis:vector)
+    {
+        if(!INC)
+        {
+            axis2(Entity1, Entity1:massCenterL() + LocalOffset, Entity2, Entity2:massCenterL() + LocalOffset, Friction, LocalOffset + Local_Axis)
+        }
+    }
+    
+    function array:semi_rigid_Link()
+    {
+        if(!INC)
+        {
+            This:allocate()
+            
+            local Blade1 = This[1, entity]
+            local Blade2 = This[2, entity]
+            
+            local V1 = Chord_Table[1, vector]
+            
+            axis2(Blade1, V1, Blade2, V1, 0, V1 + SpanWise:normalized())
+        }
+    }
+    
+    function entity:insert_Axis(LocalAxis:vector)
+    {
+        if(!INC)
+        {
+            EntityTable1:pushEntity(This)
+            AxisTable:pushVector(LocalAxis)
+            ReverseTable1:pushNumber(Reverse)
+        }
+    }
+    
+    function axis_Multi2()
+    {
+        if(!Sup & !INC & !Finished_AxisMulti)
+        {
+            timer("RCF", 25)
+            
+            Final_INC = (Mode ? AxisBall_Base:count() : EntityTable1:count())
+            
+            INC++
+            
+            if(Mode == 1)
+            {
+                for(N = 1, EntityTable1:count())
+                {
+                    local Ent = EntityTable1[N, entity]
+                    
+                    Reverse = ReverseTable1[N, number]
+                    
+                    axis2(Ent, Ent:massCenterL(), AxisBall_Base[INC, entity], AxisBall_Base[INC, entity]:massCenterL(), 0, AxisTable[N, vector])
+                }
+            }
+            else
+            {
+                local Ent = EntityTable1[INC, entity]
+                
+                Reverse = ReverseTable1[INC, number]
+                
+                for(N = 1, AxisBall_Base:count())
+                {
+                    axis2(Ent, Ent:massCenterL(), AxisBall_Base[N, entity], AxisBall_Base[N, entity]:massCenterL(), 0, AxisTable[INC, vector])
+                }
+            }
+        }
+        
+        if(clk("RCF") & Sup & !Finished_AxisMulti)
+        {
+            if(Mode == 1)
+            {
+                for(N = 1, EntityTable1:count())
+                {
+                    local Ent = EntityTable1[N, entity]
+                    
+                    Reverse = ReverseTable1[N, number]
+                    
+                    axis2(Ent, Ent:massCenterL(), AxisBall_Base[INC, entity], AxisBall_Base[INC, entity]:massCenterL(), 0, AxisTable[N, vector])
+                }
+            }
+            else
+            {
+                local Ent = EntityTable1[INC, entity]
+                
+                Reverse = ReverseTable1[INC, number]
+                
+                for(N = 1, AxisBall_Base:count())
+                {
+                    axis2(Ent, Ent:massCenterL(), AxisBall_Base[N, entity], AxisBall_Base[N, entity]:massCenterL(), 0, AxisTable[INC, vector])
+                }
+            }
+            
+            if(INC == Final_INC)
+            {
+                INC = 0
+                Final_INC = 0
+                
+                EntityTable1 = table()
+                AxisTable = table()
+                ReverseTable1 = table()
+            }
+        }
+        
+        Sup = Finished_AxisMulti
+        
+        if(Final_INC == 1)
+        {
+            stoptimer("RCF")
+            
+            INC = 0
+            Final_INC = 0
+            
+            EntityTable1 = table()
+            AxisTable = table()
+            ReverseTable1 = table()
+        }
+        
+        Finished_AxisMulti = Finished_AxisMulti + (!INC & !Sup)
+    }
+    
+    function entity:axisSlider(WorldAxis:vector, WorldAxisTilt:angle, Length:number)
+    {
+        if(!INC)
+        {
+            for(N = 1, AxisBall_Base:count())
+            {
+                local Ent = AxisBall_Base[N, entity]
+                
+                local E_World_Axis = WorldAxis:rotate(WorldAxisTilt)
+                local E_World_Horizon = E_World_Axis:cross(vec(1, 0, 0)) * Length
+                local E_Local_Horizon = Extra:toLocalAxis(E_World_Horizon)
+                
+                local Local_V = Extra:massCenterL() + E_Local_Horizon
+                
+                axis2(Extra, Local_V, Ent, Ent:toLocal(Extra:toWorld(Local_V)), 0, This:toLocalAxis(E_World_Axis))
+            }
+        }
+    }
+    
+    
+    
+    
+    
+    #######################################################
+    ##################### Ball Socket #####################
+    
+    function entity:ball_Centre(Entity:entity)
+    {
+        if(!INC)
+        {
+            ball2(This, Entity:toLocal(This:massCenter()), Entity)
+        }
+    }
+    
+    function entity:ball_Multi(LocalVector:vector)
+    {
+        if(!INC)
+        {
+            for(N = 1, AxisBall_Base:count())
+            {
+                local Ent = AxisBall_Base[N, entity]
+                
+                ball2(This, Ent:toLocal(This:toWorld(LocalVector)), Ent)
+            }
+        }
+    }
+    
+    function array:ball_Array(Entity:entity)
+    {
+        if(!INC)
+        {
+            for(N = 1, This:count())
+            {
+                local Ent = This[N, entity]
+                
+                ball2(Ent, Entity:toLocal(Ent:massCenter()), Entity)
+            }
+        }
+    }
+    
+    function entity:insert_Ball(LocalVector:vector)
+    {
+        if(!INC)
+        {
+            EntityTable2:pushEntity(This)
+            LocalVectorTable:pushVector(LocalVector)
+            ReverseTable2:pushNumber(Reverse)
+        }
+    }
+    
+    function ball_Multi2()
+    {
+        if(!Sup & !INC & !Finished_BallMulti)
+        {
+            timer("RCF", 25)
+            
+            Final_INC = (Mode ? AxisBall_Base:count() : EntityTable2:count())
+            
+            INC++
+            
+            if(Mode == 1)
+            {
+                for(N = 1, EntityTable2:count())
+                {
+                    local Ent = EntityTable2[N, entity]
+                    
+                    Reverse = ReverseTable2[N, number]
+                    
+                    ball2(Ent, AxisBall_Base[INC, entity]:toLocal(Ent:toWorld(LocalVectorTable[N, vector])), AxisBall_Base[INC, entity])
+                }
+            }
+            else
+            {
+                local Ent = EntityTable2[INC, entity]
+                
+                Reverse = ReverseTable2[INC, number]
+                
+                for(N = 1, AxisBall_Base:count())
+                {
+                    ball2(Ent, AxisBall_Base[N, entity]:toLocal(Ent:toWorld(LocalVectorTable[INC, vector])), AxisBall_Base[N, entity])
+                }
+            }
+        }
+        
+        if(clk("RCF") & Sup & !Finished_BallMulti)
+        {
+            if(Mode == 1)
+            {
+                for(N = 1, EntityTable2:count())
+                {
+                    local Ent = EntityTable2[N, entity]
+                    
+                    Reverse = ReverseTable2[N, number]
+                    
+                    ball2(Ent, AxisBall_Base[INC, entity]:toLocal(Ent:toWorld(LocalVectorTable[N, vector])), AxisBall_Base[INC, entity])
+                }
+            }
+            else
+            {
+                local Ent = EntityTable2[INC, entity]
+                
+                Reverse = ReverseTable2[INC, number]
+                
+                for(N = 1, AxisBall_Base:count())
+                {
+                    ball2(Ent, AxisBall_Base[N, entity]:toLocal(Ent:toWorld(LocalVectorTable[INC, vector])), AxisBall_Base[N, entity])
+                }
+            }
+            
+            if(INC == Final_INC)
+            {
+                INC = 0
+                Final_INC = 0
+                
+                EntityTable2 = table()
+                LocalVectorTable = table()
+                ReverseTable2 = table()
+            }
+        }
+        
+        Sup = Finished_BallMulti
+        
+        if(Final_INC == 1)
+        {
+            stoptimer("RCF")
+            
+            INC = 0
+            Final_INC = 0
+            
+            EntityTable2 = table()
+            LocalVectorTable = table()
+            ReverseTable2 = table()
+        }
+        
+        Finished_BallMulti = Finished_BallMulti + (!INC & !Sup)
+    }
+    
+    function number entity:ball_Multi3(RCF_Index:number)
+    {
+        if(!Sup & !INC & !RCF_Index)
+        {
+            timer("RCF", 25)
+            
+            Final_INC = 2
+            
+            INC++
+            
+            for(N = 1, AxisBall_Base:count())
+            {
+                ball2(This, AxisBall_Base[N, entity]:toLocal(This:massCenter()), AxisBall_Base[N, entity])
+            }
+        }
+        
+        if(clk("RCF") & Sup & !RCF_Index)
+        {
+            if(INC == Final_INC)
+            {
+                INC = 0
+                Final_INC = 0
+            }
+        }
+        
+        Sup = RCF_Index
+        
+        return  RCF_Index + (!INC & !Sup)
+    }
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    ##############################################################
+    ####################### Adv BallSocket #######################
+    
+    function entity:x_Lock(Entity:entity)
+    {
+        if(!INC)
+        {
+            local V1 = vec(180):setX(0.1)
+            
+            adv_ball(This, vec(), Entity, -V1, V1, vec(), 1)
+        }
+    }
+    
+    function entity:x_Free(Entity:entity)
+    {
+        if(!INC)
+        {
+            local V1 = vec(0.1):setX(180)
+            local V2 = vec(-0.1):setX(180)
+            
+            adv_ball(This, vec(), Entity, -V1, V1, vec(), 1)
+            adv_ball(Entity, vec(), This, -V2, V2, vec(), 1)
+        }
+    }
+    
+    function entity:x_free_Multi(Array:array)
+    {
+        if(!INC)
+        {
+            local V1 = vec(0.1):setX(180)
+            local V2 = vec(-0.1):setX(180)
+            
+            for(N = 1, Array:count())
+            {
+                local Entity1 = This
+                local Entity2 = Array[N, entity]
+                
+                adv_ball(Entity1, vec(), Entity2, -V1, V1, vec(), 1)
+                adv_ball(Entity2, vec(), Entity1, -V2, V2, vec(), 1)
+            }
+        }
+    }
+    
+    function entity:z_Lock(Entity:entity)
+    {
+        if(!INC)
+        {
+            local V1 = vec(180):setZ(0.1)
+            
+            adv_ball(This, vec(), Entity, -V1, V1, vec(), 1)
+        }
+    }
+    
+    function entity:z_Lock_2(Entity:entity)
+    {
+        if(!INC)
+        {
+            local V1 = vec(-180):setZ(0.1)
+            
+            adv_ball(This, vec(), Entity, V1, -V1, vec(), 1)
+        }
+    }
+    
+    function entity:z_Free(Entity:entity)
+    {
+        if(!INC)
+        {
+            local V1 = vec(0.1):setZ(180)
+            local V2 = vec(-0.1):setZ(180)
+            
+            adv_ball(This, vec(), Entity, -V1, V1, vec(), 1)
+            adv_ball(Entity, vec(), This, -V2, V2, vec(), 1)
+        }
+    }
+    
+    function entity:z_free_Multi(Array:array)
+    {
+        if(!INC)
+        {
+            local V1 = vec(0.1):setZ(180)
+            local V2 = vec(-0.1):setZ(180)
+            
+            local Entity1 = This
+            
+            for(N = 1, Array:count())
+            {
+                local Entity2 = Array[N, entity]
+                
+                adv_ball(Entity1, vec(), Entity2, -V1, V1, vec(), 1)
+                adv_ball(Entity2, vec(), Entity1, -V2, V2, vec(), 1)
+            }
+        }
+    }
+    
+    function array:z_free_Array(Array:array)
+    {
+        if(!INC)
+        {
+            local V1 = vec(0.1):setZ(180)
+            local V2 = vec(-0.1):setZ(180)
+            
+            for(N = 1, This:count())
+            {
+                local Entity1 = This[N, entity]
+                local Entity2 = Array[N, entity]
+                
+                adv_ball(Entity1, vec(), Entity2, -V1, V1, vec(), 1)
+                adv_ball(Entity2, vec(), Entity1, -V2, V2, vec(), 1)
+            }
+        }
+    }
+    
+    function entity:xyz_Lock(Entity:entity)
+    {
+        if(!INC)
+        {
+            local V1 = vec(0.1)
+            
+            adv_ball(This, vec(), Entity, -V1, V1, vec(), 1)
+        }
+    }
+    
+    function array:xyz_lock_Array(Array:array)
+    {
+        if(!INC)
+        {
+            local V1 = vec(0.1)
+            
+            for(N = 1, This:count())
+            {
+                local Entity1 = This[N, entity]
+                local Entity2 = Array[N, entity]
+                
+                adv_ball(Entity1, vec(), Entity2, -V1, V1, vec(), 1)
+            }
+        }
+    }
+    
+    function array:xyz_lock_Array_2(Array:array)
+    {
+        if(!INC)
+        {
+            local V1 = vec(0.1)
+            
+            for(N = 1, This:count())
+            {
+                local Entity1 = This[N, entity]
+                local Entity2 = Array[N, entity]
+                
+                adv_ball(Entity1, vec(), Entity2, V1, -V1, vec(), 1)
+            }
+        }
+    }
+    
+    function array:xyz_lock_Array_3(Array:array)
+    {
+        if(!INC)
+        {
+            for(N = 1, This:count())
+            {
+                local Entity1 = This[N, entity]
+                local Entity2 = Array[N, entity]
+                
+                adv_ball(Entity1, vec(), Entity2, -vec(), vec(), vec(), 1)
+            }
+        }
+    }
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    ################################################################
+    ############################# Rope #############################
+    
+    function entity:ropeSlider(Base_Ent:entity, LocalAxis:vector, Length:number)
+    {
+        if(!INC)
+        {
+            if(This:isValid() & Base_Ent:isValid())    # This = Slider
+            {
+                for(N = 1, 2)
+                {
+                    local NV = (LocalAxis[3] ? vec(1, 0, 0) : (LocalAxis[2] ? vec(1, 0, 0) : vec(0, 0, 1)))
+                    
+                    local V = This:toWorld(This:massCenterL() + (NV * Length):rotateAroundAxis(LocalAxis, 90 * (N - 1)))
+                    
+                    rope2(This, This:massCenterL(), Base_Ent, Base_Ent:toLocal(V), 0, Width3, Mat3, 1)
+                }
+            }
+        }
+    }
+    
+    function array entity:define_Slider()
+    {
+        local Axis_of_Slider = (This == Swash ? Swash_Local_Axis : Extra_Local_Axis)
+        
+        local Length_of_Slider = (This == Swash ? Length1 : Length2)
+        
+        return array(Axis_of_Slider, Length_of_Slider)
+    }
+    
+    function entity:ropeSlider_RCF(Base_Ent:entity)
+    {
+        local LocalAxis = This:define_Slider()[1, vector]
+        local Length = This:define_Slider()[2, number]
+        
+        for(N = 1, 2)
+        {
+            local NV = (LocalAxis[3] ? vec(1, 0, 0) : (LocalAxis[2] ? vec(1, 0, 0) : vec(0, 0, 1)))
+            
+            local V = This:toWorld(This:massCenterL() + (NV * Length):rotateAroundAxis(LocalAxis, 90 * (N - 1)))
+            
+            rope2(This, This:massCenterL(), Base_Ent, Base_Ent:toLocal(V), 0, Width3, Mat3, 1)
+        }
+    }
+    
+    function entity:insert_RopeSlider()
+    {
+        if(!INC)
+        {
+            EntityTable3:pushEntity(This)
+            ReverseTable3:pushNumber(Reverse)
+        }
+    }
+    
+    function ropeSlider_A()
+    {
+        if(!Sup & !INC & !Finished_RopeSlider_A)
+        {
+            timer("RCF", 25)
+            
+            Final_INC = (Mode ? Rope_Base:count() : Rope_Base:count() * EntityTable3:count())
+            
+            INC++
+            
+            local Entity_I = ceil(INC / Rope_Base:count())
+            local Base_I1 = INC % Rope_Base:count()
+            local Base_I2 = (!Base_I1 ? Rope_Base:count() : Base_I1)
+            
+            if(Mode == 1)
+            {
+                for(N = 1, EntityTable3:count())
+                {
+                    local Se = EntityTable3[N, entity]
+                    
+                    Reverse = ReverseTable3[N, number]
+                    
+                    Se:ropeSlider_RCF(Rope_Base[Base_I2, entity])
+                }
+            }
+            else
+            {
+                local Se = EntityTable3[Entity_I, entity]
+                
+                Reverse = ReverseTable3[Entity_I, number]
+                
+                Se:ropeSlider_RCF(Rope_Base[Base_I2, entity])
+            }
+        }
+        
+        if(clk("RCF") & Sup & !Finished_RopeSlider_A)
+        {
+            local Entity_I = ceil(INC / Rope_Base:count())
+            local Base_I1 = INC % Rope_Base:count()
+            local Base_I2 = (!Base_I1 ? Rope_Base:count() : Base_I1)
+            
+            if(Mode == 1)
+            {
+                for(N = 1, EntityTable3:count())
+                {
+                    local Se = EntityTable3[N, entity]
+                    
+                    Reverse = ReverseTable3[N, number]
+                    
+                    Se:ropeSlider_RCF(Rope_Base[Base_I2, entity])
+                }
+            }
+            else
+            {
+                local Se = EntityTable3[Entity_I, entity]
+                
+                Reverse = ReverseTable3[Entity_I, number]
+                
+                Se:ropeSlider_RCF(Rope_Base[Base_I2, entity])
+            }
+            
+            if(INC == Final_INC)
+            {
+                INC = 0
+                Final_INC = 0
+                
+                EntityTable3 = table()
+                ReverseTable3 = table()
+            }
+        }
+        
+        Sup = Finished_RopeSlider_A
+        
+        if(Final_INC == 1)
+        {
+            stoptimer("RCF")
+            
+            INC = 0
+            Final_INC = 0
+            
+            EntityTable3 = table()
+            ReverseTable3 = table()
+        }
+        
+        Finished_RopeSlider_A = Finished_RopeSlider_A + (!INC & !Sup)
+    }
+    
+    function number entity:ropeSlider_B(RCF_Index:number, Base_Array:array)
+    {
+        if(!Sup & !INC & !RCF_Index)
+        {
+            timer("RCF", 25)
+            
+            Final_INC = Base_Array:count()
+            
+            INC++
+            
+            This:ropeSlider_RCF(Base_Array[INC, entity])
+        }
+        
+        if(clk("RCF") & Sup & !RCF_Index)
+        {
+            This:ropeSlider_RCF(Base_Array[INC, entity])
+            
+            if(INC == Final_INC)
+            {
+                INC = 0
+                Final_INC = 0
+            }
+        }
+        
+        Sup = RCF_Index
+        
+        if(Final_INC == 1)
+        {
+            stoptimer("RCF")
+            
+            INC = 0
+            Final_INC = 0
+        }
+        
+        return RCF_Index + (!INC & !Sup)
+    }
+    
+    function vector entity:find_Axis(WorldAxis:vector)
+    {
+        local Dot1 = WorldAxis:dot(This:toWorldAxis(vec(1, 0, 0)))
+        
+        local Dot2 = WorldAxis:dot(This:toWorldAxis(vec(0, 1, 0)))
+        
+        local Dot3 = WorldAxis:dot(This:toWorldAxis(vec(0, 0, 1)))
+        
+        local MaxDot = max(abs(Dot1), abs(Dot2), abs(Dot3))
+        
+        switch(MaxDot)
+        {
+            case abs(Dot1),
+            return vec(1, 0, 0) * sign(Dot1)
+            break
+            
+            case abs(Dot2),
+            return vec(0, 1, 0) * sign(Dot2)
+            break
+            
+            case abs(Dot3),
+            return vec(0, 0, 1) * sign(Dot3)
+            break
+        }
+    }
+    
+    function entity:rope_strut_Arm(ForwardOffset:number, RightOffset:number, AngleOffset:number, Rotation_Stroke_Limit_Angle:number, Strut:entity)
+    {
+        if(!INC)
+        {
+            ### This = Wheel ###
+            
+            local Wheel_Axis = This:find_Axis(vec(1, 0, 0))
+            local Wheel_Forward = This:find_Axis(vec(0, 1, 0))
+            
+            # This code is used on the Swing Axle (Mi-6, Mi-8 Etc Etc..)
+            if(!Mode)
+            {
+                local V1 = (Wheel_Forward * ForwardOffset) + (Wheel_Axis * RightOffset)
+                local V2 = This:toWorld(This:massCenterL() + V1)
+                
+                rope2(This, This:massCenterL(), Strut, Strut:toLocal(V2), 0, Width4, Mat4, 1)
+            }
+            
+            # This code is used on the Rope Arm (Ka-25, Ka-32 Etc Etc..)
+            elseif(Mode == 1)
+            {
+                for(N = 1, 2)
+                {
+                    local Sign1 = (N == 1 ? 0 : 1)
+                    
+                    local V1 = (Wheel_Forward * ForwardOffset * Sign1) + (Wheel_Axis:rotateAroundAxis(Wheel_Forward, AngleOffset) * RightOffset)
+                    local V2 = This:toWorld(This:massCenterL() + V1)
+                    
+                    rope2(This, This:massCenterL(), Strut, Strut:toLocal(V2), 0, Width4, Mat4, 1)
+                }
+                
+                local V3 = (Wheel_Axis * RightOffset):rotateAroundAxis(Wheel_Forward, AngleOffset)
+                local V4 = V3:rotateAroundAxis(Wheel_Forward, Rotation_Stroke_Limit_Angle)
+                local AddLength = (V4 - V3):length() - 1
+                
+                rope2(This, This:massCenterL(), Strut, Strut:toLocal(This:massCenter()), AddLength, Width4, Mat4, 0)
+            }
+            
+            # This code is used on the Rope Arm (AH-64, Mi-12, Mi-26 Etc Etc..)
+            elseif(Mode == 2)
+            {
+                for(N = 1, 2)
+                {
+                    local Sign1 = (N == 1 ? 0 : 1)
+                    
+                    local V1 = (Wheel_Forward:rotateAroundAxis(Wheel_Axis, AngleOffset) * ForwardOffset) + (Wheel_Axis * RightOffset * Sign1)
+                    local V2 = This:toWorld(This:massCenterL() + V1)
+                    
+                    rope2(This, This:massCenterL(), Strut, Strut:toLocal(V2), 0, Width4, Mat4, 1)
+                }
+                
+                local V3 = (Wheel_Forward * ForwardOffset):rotateAroundAxis(Wheel_Axis, AngleOffset)
+                local V4 = V3:rotateAroundAxis(Wheel_Axis, Rotation_Stroke_Limit_Angle)
+                local AddLength = (V4 - V3):length() - 1
+                
+                rope2(This, This:massCenterL(), Strut, Strut:toLocal(This:massCenter()), AddLength, Width4, Mat4, 0)
+            }
+        }
+    }
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    ###################################################
+    ##################### Elastic #####################
+    
+    # Rope Arm Strut suspension
+    function vector entity:trace_Wheel(Wheel_Local_Upward:vector, Wheel_Stroke_Local_Axis:vector, Rotation_Stroke_Angle:number, Length:number)
+    {
+        local LUV = This:toWorldAxis(Wheel_Local_Upward)
+        local LSV = This:toWorldAxis(Wheel_Stroke_Local_Axis)
+        
+        local V = LUV:rotateAroundAxis(LSV, Rotation_Stroke_Angle)
+        local V = This:massCenter() + (V * Length)
+        
+        return V
+    }
+    
+    function entity:oleoStrut(BaseProp:entity, WorldVector:vector, Constant:number, Damping:number, RelativeDamping:number)
+    {
+        if(!INC)
+        {
+            local MaxValue = max(Constant, Damping, RelativeDamping)
+            
+            local Q1 = MaxValue / 50000
+            local Count_50000 = int(Q1)
+            
+            local C = clamp(Constant / Count_50000, 0, 50000)
+            local D = clamp(Damping / Count_50000, 0, 50000)
+            local RD = clamp(RelativeDamping / Count_50000, 0, 50000)
+            
+            R1 = 0 R2 = 0 R3 = 0
+            if(Count_50000)
+            {
+                if(MaxValue == Constant)       {R1 = Constant % 50000}
+                if(MaxValue == Damping)        {R2 = Damping % 50000}
+                if(MaxValue == RelativeDamping){R3 = RelativeDamping % 50000}
+                
+                for(N = 1, Count_50000)
+                {
+                    elastic2(This, This:massCenterL(), BaseProp, BaseProp:toLocal(WorldVector), C, D, RD, Mat4, Width4, 0)
+                }
+            }
+            else
+            {
+                R1 = Constant % 50000
+                R2 = Damping % 50000
+                R3 = RelativeDamping % 50000
+                
+                elastic2(This, This:massCenterL(), BaseProp, BaseProp:toLocal(WorldVector), R1, R2, R3, Mat4, Width4, 0)
+            }
+        }
+    }
+    
+    
+    
+    
+    
+    
+    
+    
+    ###################################################################################
+    ###################### AUTO - Alignment Rotor blades & Grips ######################
+    ###################################################################################
+    
+    if(First)
+    {
+        function array:alignment(LocalVector:vector, LocalAngle:angle)
+        {
+            if(This:count())
+            {
+                BCI = 0
+                
+                if((This[1, entity] == BW1[1, entity]) | (This[1, entity] == TT1[1, entity]))
+                {
+                    BlaArr = Bla1
+                    BCC = TWC1
+                }
+                elseif((This[1, entity] == BW2[1, entity]) | (This[1, entity] == TT2[1, entity]))
+                {
+                    BlaArr = Bla2
+                    BCC = TWC2
+                }
+                
+                for(N = 1, BlaArr:count())
+                {
+                    local Blade = BlaArr[N, entity]
+                    
+                    This[N, entity]:setAng(Blade:toWorld(LocalAngle))
+                    This[N, entity]:setMassCenter(Blade:toWorld(Blade:massCenterL() + LocalVector))
+                }
+            }
+        }
+        
+        function blade_grip_Alignment(BladeArr:array, Axis:vector, MaxStage:number, Whether_Sweep_The_Blade:number)
+        {
+            BCI = 0
+            
+            BladeArr:allocate()
+            
+            local PerAng = -360 / BladeArr:count()
+            
+            local GRIP = (Bla1[1, entity] == BladeArr[1, entity] ? Grp1 : Grp2)
+            local Count = (Bla1[1, entity] == BladeArr[1, entity] ? Main_Blade_Count : Extra_Blade_Count)
+            
+            local OffsetA1 = (Bla1[1, entity] == BladeArr[1, entity] ? BW1_Offset1 : BW2_Offset1) # Vector on the tip weights1,2
+            local OffsetA2 = (Bla1[1, entity] == BladeArr[1, entity] ? BW1_Offset2 : BW2_Offset2) # Angle on the tip weights1,2
+            
+            local OffsetB1 = (Bla1[1, entity] == BladeArr[1, entity] ? TT1_Offset1 : TT2_Offset1) # Vector on the tip weights1,2
+            local OffsetB2 = (Bla1[1, entity] == BladeArr[1, entity] ? TT1_Offset2 : TT2_Offset2) # Angle on the tip weights1,2
+            
+            local XA = (Bla1[1, entity] == BladeArr[1, entity] ? XOffsetA1 : XOffsetA2) # Vector on the Grip1, Grip2
+            local XB = (Bla1[1, entity] == BladeArr[1, entity] ? XOffsetB1 : XOffsetB2) # Vector on the Blade1, Blade2
+            
+            local Z = (Bla1[1, entity] == BladeArr[1, entity] ? ZOffset1 : ZOffset2)
+            
+            local OA = (Bla1[1, entity] == BladeArr[1, entity] ? AA1 : AA2) # Angle on the Grip1,2
+            local OB = (Bla1[1, entity] == BladeArr[1, entity] ? AB1 : AB2) # Angle on the Blade1,2
+            
+            BW = (Bla1[1, entity] == BladeArr[1, entity] ? BW1 : BW2) # Array of the Tip weight
+            TT = (Bla1[1, entity] == BladeArr[1, entity] ? TT1 : TT2)
+            
+            if(INC < (MaxStage - 3))
+            {
+                for(N = 1, Count)
+                {
+                    local GripN = GRIP[N, entity]
+                    local Blade = BladeArr[N, entity]
+                    
+                    # Blade Grip
+                    local V1 = vec(XA, 0, Z):rotateAroundAxis(Axis, (N - 1) * PerAng)
+                    GripN:setAng(RotorMast:toWorld(OA:rotateAroundAxis(Axis, (N - 1) * PerAng)))
+                    GripN:setMassCenter(RotorMast:toWorld(RotorMast:massCenterL() + V1))
+                    
+                    # Rotor Blade
+                    local V1 = vec(XB, 0, Z):rotateAroundAxis(Axis, (N - 1) * PerAng)
+                    Blade:setAng(RotorMast:toWorld(OB:rotateAroundAxis(Axis, (N - 1) * PerAng)))
+                    Blade:setMassCenter(RotorMast:toWorld(RotorMast:massCenterL() + V1))
+                }
+            }
+            elseif(INC < (MaxStage - 2))
+            {
+                for(N = 1, Count)
+                {
+                    local GripN = GRIP[N, entity]
+                    local Blade = BladeArr[N, entity]
+                    
+                    local V2 = Blade:toWorldAxis(Chord_Table[N, vector] - (Blade:massCenterL() * ChordLine))
+                    
+                    if(Whether_Sweep_The_Blade)
+                    {
+                        Blade:setPos(Blade:pos() - V2)
+                        
+                        # Rotor blade components (Tip Weights)
+                        for(N = 1, BW:count())
+                        {
+                            BW[N, entity]:setPos(BW[N, entity]:pos() - V2)
+                        }
+                        for(N = 1, TT:count())
+                        {
+                            TT[N, entity]:setPos(TT[N, entity]:pos() - V2)
+                        }
+                    }
+                    else
+                    {
+                        GripN:setPos(GripN:pos() + V2)
+                    }
+                }
+            }
+            elseif(INC < (MaxStage - 1))
+            {
+                # Rotor blade components
+                BW:alignment(OffsetA1, OffsetA2)
+                TT:alignment(OffsetB1, OffsetB2)
+            }
+            elseif(INC == MaxStage)
+            {
+                #TipWeight:welt_Blade()
+            }
+        }
+        
+        
+        
+        
+        
+        function alignment()
+        {
+            if(clk("Alignment"))
+            {
+                if(INC >= 0){timer("Alignment", 35)}
+                
+                INC++
+                
+                Stage = 6
+                
+                if(INC <= Stage){blade_grip_Alignment(Bla1, vec(0, 0, 1), Stage, Whether_Sweep_Blade1)}
+                elseif(INC <= (Stage + Stage)){blade_grip_Alignment(Bla2, vec(0, 0, 1), Stage + Stage, Whether_Sweep_Blade2)}
+                elseif(INC > 0)
+                {
+                    printColor(vec(255, 255, 0), "Finished Alignment (Grips & Rotor Blades & Tip Weights)")
+                    
+                    INC = 0
+                    
+                    stoptimer("Alignment")
+                }
+            }
+        }
+    }
+    
+    
+    
+    
+    
+    
+    
+    
+    function array:gce()
+    {
+        This:allocate()
+        
+        BCI = 0
+        for(N = 1, This:count())
+        {
+            local Blade = This[N, entity]
+            
+            for(M = 1, BCC)
+            {
+                BC:pushEntity(TipWeight[BCI + M, entity])
+            }
+            
+            local Local_CG = Blade:localCG(BC)
+            
+            local LCG = Local_CG * ChordLine
+            local V1 = (LCG[1] ? LCG[1] : (LCG[2] ? LCG[2] : LCG[3]))
+            #local CL = (semiPrecision(V1, "Down") + Feathering_Offset) * ChordLine
+            local CL = (semiPrecision(V1, "Up") + Feathering_Offset) * ChordLine
+            Chord_Table:pushVector(CL)
+            
+            local LCG = Local_CG * positive(SpanWise:normalized())
+            local V1 = (LCG[1] ? LCG[1] : (LCG[2] ? LCG[2] : LCG[3]))
+            local SL = semiPrecision(V1, "Up") * positive(SpanWise:normalized())
+            SpanWise_Table:pushVector(SL)
+            
+            BC = array()
+            BCI += BCC
+        }
+    }
+    
+    Chord_Table1 = table()
+    Chord_Table2 = table()
+    
+    SpanWise_Table1 = table()
+    SpanWise_Table2 = table()
+    
+    
+    
+    
+    
+    
+    function cg()
+    {
+        timer("Center of gravity", 250)
+        
+        Moment = vec()
+        Mass = 0
+        
+        foreach(K, E:entity = Final_SET)
+        {
+            Moment += (E:massCenter() * E:mass())
+            Mass += E:mass()
+        }
+        
+        CG = Moment / Mass
+        
+        if(Mass)
+        {
+            holoPos(Center, CG)
+            holoColor(Center, hsv2rgb(curtime() * 20.0, 1, 1))
+        }
+        else{holoPos(Center, vec())}
+        
+        CG_Gtab = gTable("CG Gtab", 0)
+        CG_Gtab[1, vector] = Base:toLocal(CG)
+        
+        setName("CoCore
+
+Total Physical Mass " + round(Mass, 2))
+    }
+    
+    
+    
+    
+    
+    
+    timer("Start_Core", 50)
+}

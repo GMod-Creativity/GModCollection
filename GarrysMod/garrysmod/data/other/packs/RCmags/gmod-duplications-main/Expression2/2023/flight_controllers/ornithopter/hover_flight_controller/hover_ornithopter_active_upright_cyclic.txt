@@ -1,0 +1,173 @@
+@name Hover ornithopter - Flight Controller - Cyclic - Active twist
+
+# DESCRIPTION
+# -----------
+# Flight controller for a hovering ornithopter.
+# The aircraft uses variable amplitude and dihedral
+# to control pitch and roll. Assymetric wing twist
+# is used to control the yaw axis.
+#------------
+
+# control inputs
+@inputs P_input R_input Y_input Z_input On
+
+#-------
+
+# Flapping  
+@outputs Constant Damping 
+@outputs H1 H2 H3 H4
+
+# Feathering
+@outputs Constant2 Damping2
+@outputs H5 H6 H7 H8
+
+#-------
+
+# State
+@persist Ent:entity Freq Angle_rate:angle Amp_bias
+
+# Constants
+    # hydros
+@persist Constant Damping Constant2 Damping2 RADIUS LENGTH LENGTH_PITCH
+    # motion
+@persist AMP_BASE FREQ PITCH_MAX AMP_MAX PITCH_RADIUS PITCH_ANGLE 
+    # Pid
+@persist [K_DERIV K_PROP]:angle K_DAMP:vector 
+    # inputs
+@persist INPUT_DECAY GAIN_Z GAIN_PYR:angle Angle_yaw
+
+#=======================
+# 0. Constants
+#=======================
+if( first() ) {
+    # I. constants
+    # Hydraulic parameters
+    Constant  = 25000
+    Damping   = 700
+    Constant2 = 300  
+    Damping2  = 4
+    
+    # Lengths
+    RADIUS = 95
+    LENGTH = 2000
+    LENGTH_PITCH = 282.85
+    
+    # Flight parameters
+    AMP_BASE = 80       # Amplitude - deg
+    FREQ     = 16      # Oscillation in Hz * 1e-1
+    
+    # Control inputs
+    INPUT_DECAY = 0.05   # Alpha rate 
+    GAIN_Z      = 10    # Amplitude change | deg
+        # Bank angle: 
+    GAIN_PYR = ang(40, 60, 30)      # pitch, yaw, roll | deg, deg/s, deg
+            
+    # PID controller
+        # Rotation
+    K_DERIV = ang(0.25, 0.15, 0.05)    # pitch, yaw, roll
+    K_PROP  = ang(1.2, 0.10, 0.3)     
+        # Lateral
+    K_DAMP  = vec( -0.02, 0.02, 0.0 ) # x, y, z
+    
+    # Motion limits
+    PITCH_MAX = 30      # deg
+    AMP_MAX   = 90      # deg
+    PITCH_RADIUS = 200 # length
+    PITCH_ANGLE  = 8.5   # deg
+    
+    # II. state variables
+    Ent = entity()
+    Freq       = 0
+    Angle_rate = ang(0,0,0)
+    Amp_bias   = 0
+    Angle_yaw  = 0
+}
+
+
+#=======================
+# 1. State
+#=======================
+interval(10)
+
+Vel = Ent:velL()
+Angvel = Ent:angVel()
+Angles = Ent:angles() 
+
+#=======================
+# 2. Wave
+#=======================
+Freq *= On
+Freq += FREQ*On   
+Freq = Freq > 360 ? Freq - 360 : Freq
+
+Wave_sin = sin(Freq)
+Wave_cos = cos(Freq)
+
+#=======================
+# 2. Control inputs
+#=======================
+Rate   = ang(P_input,Y_input,-R_input) * GAIN_PYR
+Rate_z = Z_input * GAIN_Z
+
+    # low pass filters
+Angle_rate += ( Rate - Angle_rate )*INPUT_DECAY   
+Amp_bias   += ( Rate_z - Amp_bias )*INPUT_DECAY 
+Angle_yaw  += ( Angvel:yaw() - Rate:yaw() )*10e-3
+Angle_yaw  = clamp(Angle_yaw, -45, 45)
+
+#=======================
+# 3. PID Controllers 
+#=======================  
+    # lateral damping
+Damp = Vel * K_DAMP
+Damp = vec( clamp( Damp:x(), -90, 90) , # Limit bank to 90 deg
+            clamp( Damp:y(), -90, 90) , 
+            Damp:z()                  )
+
+    # Target angle   
+Angle_t = ang( Angles:pitch() - Angle_rate:pitch() - Damp:x(), 
+               Angle_yaw                                     , 
+               Angles:roll() - Angle_rate:roll() - Damp:y()  )
+
+    # controller
+PID = Angvel*K_DERIV + Angle_t*K_PROP
+
+Yaw   = PID:yaw() - Rate:yaw()*K_DERIV:yaw() 
+Roll  = PID:roll()
+Pitch = PID:pitch()
+    
+    # Limit deflections    
+Pitch = clamp(Pitch, -PITCH_MAX  , PITCH_MAX)       # deflection degrees
+Yaw   = clamp(Yaw  , -PITCH_ANGLE, PITCH_ANGLE)     # hydralic extension
+
+    # Amplitude per wing
+Amp = AMP_BASE - Damp:z()
+Amp = clamp(Amp, 0, AMP_MAX)
+Ang = Amp * Wave_sin                        # Restrict to 90 angle
+
+#=======================
+# 4. Hydraulic lengths
+#=======================
+    # I. xy - flap axis
+        # lengths
+H1 = LENGTH + sin(Ang)*RADIUS
+H2 = LENGTH + sin(Ang)*RADIUS
+H3 = LENGTH - cos(Ang)*RADIUS
+H4 = LENGTH - cos(Ang)*RADIUS
+
+    # II. z - wing feathering axis
+Pitch_aoa = Wave_sin*Pitch + Amp_bias - Damp:z()
+Aoa1 = clamp(Pitch_aoa - Roll + PITCH_ANGLE, -45, 45)
+Aoa2 = clamp(Pitch_aoa + Roll + PITCH_ANGLE, -45, 45)
+ 
+Wave_pitch1 = Wave_cos*toRad(Aoa1)*PITCH_RADIUS
+Wave_pitch2 = Wave_cos*toRad(Aoa2)*PITCH_RADIUS
+
+# left
+H5 = LENGTH_PITCH - Yaw + Wave_pitch1
+H7 = LENGTH_PITCH + Yaw - Wave_pitch1
+
+# right
+H6 = LENGTH_PITCH + Yaw + Wave_pitch2
+H8 = LENGTH_PITCH - Yaw - Wave_pitch2
+

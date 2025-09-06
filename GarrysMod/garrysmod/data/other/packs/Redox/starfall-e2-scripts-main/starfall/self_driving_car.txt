@@ -1,0 +1,69 @@
+--@name Self Driving Car
+--@author Redox
+-- https://github.com/wrefgtzweve/starfall-e2-scripts
+--@server
+
+local Target
+local shouldBreak
+local Car = {}
+
+local function linkCar(ent)
+    Car.wirelink = ent:getWirelink()
+    Car.wirelink["Lock"] = 1
+    Car.wirelink["Engine Start"] = 1
+    Car.Target = owner()
+    Car.ent = ent
+end
+
+hook.add("think","runloop",function()
+    local Target = Car.Target
+    local Wirelink = Car.wirelink
+    local Car = Car.ent
+
+    if isValid(Target) == false then Wirelink["Throttle"] = 0 return end
+    
+    local pos = worldToLocal(Target:getPos(),Angle(0,0,0),Car:getPos(),Car:getAngles())
+    local Rad = (180/3.14)*-math.atan2(pos.y, pos.x)
+    local Distance = Target:getPos():getDistanceSqr( Car:getPos() )
+    
+    if Distance < 300^2 then
+        Wirelink["Brake/Reverse"] = 0
+        Wirelink["Throttle"] = 0
+        Wirelink["Steer"] = 0
+        Wirelink["Handbrake"] = 1
+        return
+    else
+        Wirelink["Handbrake"] = 0
+    end
+    
+    if Rad > -90 and Rad < 90 then
+        -- forward
+        Wirelink["Steer"] = ( 1 / 30 ) * Rad
+        Wirelink["Throttle"] = ( 1 --[[Distance / 100]] ) - 0.1
+        Wirelink["Brake/Reverse"] = 0
+    else
+        -- backwards
+        Wirelink["Steer"] = -( 1 / 30 ) * Rad
+        Wirelink["Brake/Reverse"] = ( 1 --[[Distance / 100]] ) - 0.1
+        Wirelink["Throttle"] = 0
+    end
+end)
+
+linkCar( chip():isWeldedTo() )
+
+hook.add("Playersay","said",function(player,text)
+    if player ~= owner() then return end
+    
+    local expl = string.explode( " ", text )
+    if expl[1] == "/t" then
+        local players = find.playersByName( expl[2], false, false )
+
+        if players[1] == nil then
+            print( "Could not find that player." )
+            return false
+        end
+        
+        Car.Target = players[1]
+        return false
+    end
+end)

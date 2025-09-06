@@ -1,0 +1,72 @@
+@name Sweep Stabilized flying wing
+@inputs W S A D Space Shift
+
+# wing hydros
+@outputs LengthL LengthR 
+@outputs Constant Damping
+# thruster
+@outputs Force
+
+# state
+@persist AoA AoA_deriv 
+@persist Pitch Roll 
+@persist Gain_vel Throttle
+
+DT = 10
+interval(DT)
+DT *= 1e-3
+
+# --- Vehicle state
+E = entity()
+
+# velocity
+Vel = E:velL()
+Vel_mag = Vel:length()
+
+# angle of attack
+AoA_zero = toRad(0)   # Zero lift Angle of attack
+AoA_new = atanr( -Vel:z(), Vel:x() ) - AoA_zero
+
+AoA_deriv = (AoA_new - AoA)/DT
+AoA = AoA_new
+
+# --- PID controller
+Pitch += ( (S - W) - Pitch )*0.1
+
+AoA_control = Pitch * toRad(6)   # Angle of attack change
+AoA_targ = toRad(4) * Gain_vel   # Trim angle of attack
+AoA_targ += AoA_control            
+AoA_targ = clamp(AoA_targ, toRad(0.5), toRad(15) )
+
+Kp = 15  # Proportional
+Kd = 0.8  # Derivative
+Torque = (AoA - AoA_targ)*Kp + AoA_deriv*Kd
+
+# --- Control output
+Vel_trans = 1400 # Transistion velocity
+Xmax = 20        # Max deflection
+
+# velocity gain 
+Gain_vel = Vel_mag < Vel_trans ? 1 : (Vel_trans/Vel_mag)^2
+
+# angle of attack gain
+Gain = AoA == 0 ? 0 : 1/AoA
+
+# deflection
+X = Torque * Gain * Gain_vel
+X = clamp(X, -Xmax, Xmax)
+
+# --- Actuator output
+# Wings
+Constant = 10000
+Damping = 800
+
+Roll += ( (A - D)*20  - Roll )*0.05   # Smooth roll input
+LengthL = 100 + X + Roll
+LengthR = 100 + X - Roll
+
+# Propulsion
+Throttle += (Space - Shift)*20
+Throttle = clamp(Throttle, 0, Vel_trans + 1000) # Target velocity
+
+Force = clamp( (Throttle - Vel_mag)*4, 0, 1000) # Proportional on velocity

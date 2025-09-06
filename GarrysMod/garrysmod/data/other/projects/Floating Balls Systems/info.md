@@ -1,6 +1,6 @@
-- Author: Paper Clip
-- Youtube: https://www.youtube.com/@glmcdona21
+- Author: Paper Clip (glmcd) (glmcdona21) (glmcdona)
 - Steam Profile: https://steamcommunity.com/profiles/76561197990877852
+- Youtube: https://www.youtube.com/@glmcdona21
 <!-- -->
 - Title: Floating Ball Protection System & Attack of the Balls
 - Date (dd-mm-yyyy): 03-05-2009

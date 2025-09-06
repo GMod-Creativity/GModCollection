@@ -1,0 +1,48 @@
+--@name Rocket launcher
+--@author Redox
+-- https://github.com/wrefgtzweve/starfall-e2-scripts
+--@server
+--@model models/props_phx/amraam.mdl
+-- Change model ^^
+local cooldown = 0.1 -- In seconds
+local force = 100000 -- More force, faster bomb
+local bombMass = 1000
+local gravity = true
+
+-- No need to change these
+local model
+local nextFire = 0
+local started = false
+
+timer.simple(1,function()
+    model = chip():getModel()
+end)
+
+chip():setCollisionGroup(20)
+wire.adjustInputs({"FIRE"},{"number"})
+
+hook.add( "input", "chipInput", function( name, value )
+    if timer.curtime() < nextFire then return end
+    nextFire = timer.curtime() + cooldown
+    
+    if started == false then started = true return end
+    if value == 0 then return end
+    if not prop.canSpawn() then return end
+    pcall(function()
+        local Prop = prop.create( chip():getPos(), chip():getAngles(), chip():getModel() )
+        Prop:setMass( bombMass )
+        Prop:enableGravity( gravity )
+        Prop:setUnbreakable( true )
+        local obProp = Prop:getPhysicsObject()
+        
+        obProp:setDamping(0,0)
+        obProp:setVelocity(Prop:localToWorld(Vector(force,0,0))-Prop:getPos())
+        Prop:addCollisionListener(function()
+            pcall(function()
+                if not Prop:isValid() then return end
+                Prop:setUnbreakable( false )
+                Prop:applyDamage(1000,owner())
+            end)
+        end)
+    end)
+end)

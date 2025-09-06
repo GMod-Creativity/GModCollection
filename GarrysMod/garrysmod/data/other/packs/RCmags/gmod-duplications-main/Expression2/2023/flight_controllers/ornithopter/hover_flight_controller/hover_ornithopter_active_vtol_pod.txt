@@ -1,0 +1,334 @@
+@name VTOL ornithopter - Flight Controller - Vehicle Pod
+
+# -----------
+# DESCRIPTION
+# -----------
+# Flight controller for a VTOL ornithopter.
+# The aircraft uses variable amplitude and dihedral
+# to control pitch and roll. Assymetric wing twist
+# is used to control the yaw axis.
+
+# --------------------
+# HYDRAULIC ATTACHMENT
+# --------------------
+#
+#  TOP VIEW: E2 gear icon is visible         
+#  ---------  
+#              LeftX   RightY
+#                |      |
+#    LeftPitchX  |      | RightPitchX
+#          |     |      |     |
+#          |     |  /\  |     |
+# LeftY ---------* [E2] *--------- RightY
+#          |                  |  
+#          |                  |
+#    LeftPitchY          RightPitchY
+#
+#
+#  RIGHT VIEW: 
+#  ----------
+#              
+#            RightZ                 
+#              |
+# RightPitchY  | RightPitchX
+#         |    |    |   
+#         |    |    |
+#         |    |    |
+#         |    |    |
+#         |    */----------- RightY
+#         |   [E2]> |
+          
+#------------
+
+@inputs W S A D Space Shift Mouse1 Mouse2 R 
+#@inputs P_input R_input Y_input Z_input On
+
+#-------
+    # Oscillation  
+@outputs Acc_angle # Measure acceleration angle [tuning]
+@outputs ConstantXY DampingXY 
+@outputs LeftX LeftY 
+@outputs RightX RightY
+
+    # Flapping
+@outputs ConstantZ DampingZ
+@outputs LeftZ RightZ
+
+    # Feathering
+@outputs ConstantPitch DampingPitch
+@outputs LeftPitchX LeftPitchY 
+@outputs RightPitchX RightPitchY
+
+#-------
+
+# == State ==
+@persist Ent:entity Freq Amp_bias On
+@persist [Angles Angle_rate]:angle 
+@persist [Acc_filter Acc_rate Vel_last]:vector 
+
+# == Constants ==
+@persist DT_MS DT GRAVITY
+
+    # hydros
+@persist ConstantXY DampingXY 
+@persist ConstantZ DampingZ 
+@persist ConstantPitch DampingPitch
+@persist RADIUS LENGTH 
+@persist RADIUS_PITCH 
+
+    # motion
+@persist AMP_BASE FREQ 
+@persist PITCH_MAX YAW_MAX AMP_MAX
+@persist AOA_HOVER AOA_LEVEL AOA_BIAS
+    # Pid
+@persist [K_DERIV K_PROP K_DERIV_L K_PROP_L]:angle K_DAMP:vector 
+@persist KP KC GAIN_SIDESLIP
+
+    # inputs
+@persist INPUT_DECAY GAIN_Z GAIN_PYR:angle 
+
+#-------
+
+if( first() ) {
+    #--------------------
+    #      Constants
+    #--------------------
+    # Other
+    GRAVITY = 900           # glu/s^2 | Gravity for Props
+    DT_MS = 10              # timestep | millisec
+    DT    = DT_MS * 1e-3
+    
+    # I. Hydraulics
+    # -------------
+    
+    # 1. elasticity 
+        # flapping 
+    ConstantXY  = 25000       # Spring constant 
+    DampingXY   = 700         # Suppress motion
+        # dihedral 
+    ConstantZ = 8000
+    DampingZ  = 700
+        # wing pitch
+    ConstantPitch = 3000
+    DampingPitch  = 10
+     
+    # 2. Lengths
+        # flapping
+    RADIUS = 95             # attachment radius
+    LENGTH = 2000           # base length
+        # wing pitch
+    RADIUS_PITCH = 30           
+    
+    # II. Flight parameters
+    # ----------------------
+    
+    # 1. Flapping motion 
+    AMP_BASE  = 46          # Amplitude - deg
+    FREQ      = 15          # Oscillation in Hz * 1e-1
+    AOA_HOVER = 75          # pitch angle in hover
+    AOA_LEVEL = 35          # pitch angle in level flight 
+    AOA_BIAS  = 12          # incidence angle during level flight 
+
+    # 2. Control inputs
+    INPUT_DECAY = 0.05             # Alpha rate 
+    GAIN_Z      = 15                # Amplitude change | deg
+    GAIN_PYR = ang(50, 50, 30)      # pitch, yaw, roll | deg, deg/s, deg
+            
+    # 3. PID controller
+        # hover
+    K_DERIV = ang(0.9, 0.3, 0.4)       # pitch, yaw, roll
+    K_PROP  = ang(3.0, 1.1, 1.2)     
+    
+        # level flight
+    K_DERIV_L = ang(0.4, 0.1, 0.1)    # pitch, yaw, roll
+    K_PROP_L  = ang(1.0, 0.2, 0.3)    
+    
+        # Lateral damping
+    K_DAMP  = vec( 0.0, 0.01, 0.05 )    # x, y, z
+    
+        # Acceleration Low Pass Filter
+    KP = 0.005          # Decay rate | 0 < KP < 1
+    KC = sqrt(KP)
+	
+		      # self leveling
+    GAIN_SIDESLIP = 1
+	
+        # Motion limits
+    PITCH_MAX = 35      # deg
+    YAW_MAX   = 10      # deg
+    AMP_MAX   = 90      # deg
+    
+    #--------------------
+    #  State variables 
+    #--------------------
+    Ent = entity()
+    On         = 0
+    Freq       = 0
+    Amp_bias   = 0
+    Angle_rate = ang(0,0,0)
+    Angles     = ang(0,0,0)
+    Vel_last   = vec(0,0,0)
+    Acc_filter = vec(0,0,1)
+    Acc_rate   = vec(0,0,0)
+}
+
+#=======================
+# 1. State
+#=======================
+interval(DT_MS)
+
+# I. Measurement
+# velocity
+Vel = Ent:velL()
+Vel_global = Ent:vel()
+
+# angular velocity
+Angvel = Ent:angVel() - Angle_rate 
+Angles += Angvel*DT
+
+# II. Acceleration 
+    # global
+Acc_global = (Vel_global - Vel_last)/DT
+Acc_global /= GRAVITY     # normalize
+Acc_global += vec(0,0,1)  # add gravity vector
+
+Vel_last = Vel_global
+
+    # covert to local [accelerometer]
+Acc_local = Ent:toLocalAxis(Acc_global)
+        # 2nd order low pass filter        
+Acc_rate   += (Acc_local - Acc_filter)*KP - KC*Acc_rate
+Acc_filter += Acc_rate
+
+    # acceleration angle
+Acc_angle = atan( -Acc_filter:x(), Acc_filter:z() ) 
+
+    # transition modulation 
+Cos_mod = cos( Acc_angle )
+Sin_mod = sin( Acc_angle )
+
+Cos_mod_sq = Cos_mod^2
+Sin_mod_sq = Sin_mod^2
+
+#=======================
+# 2. Wave
+#=======================
+
+Freq += FREQ*On   
+Freq = Freq > 360 ? Freq - 360 : Freq 
+Freq *= On
+
+Wave = sin(Freq)
+
+#=======================
+# 2. Control inputs
+#=======================
+    # Pod controller
+if( ~R & R ) {
+    On = !On
+}
+
+P_input = W - S
+R_input = A - D
+Y_input = Mouse1 - Mouse2
+Z_input = Space - Shift
+
+    # Roll/yaw couple    
+if( GAIN_SIDESLIP ) {
+    SideSlip = Vel:y() * Vel:z() / ( 1 + Vel:z()^2 )
+    Y_input += SideSlip * Sin_mod_sq * sign(Sin_mod) * GAIN_SIDESLIP
+} 
+    # combine inputs 
+Rate = ang( P_input                           ,
+            Y_input*Cos_mod - R_input*Sin_mod ,
+           -R_input*Cos_mod - Y_input*Sin_mod )
+
+Rate  *= GAIN_PYR
+Rate_z = Z_input * GAIN_Z
+
+    # low pass filters
+Angle_rate += ( Rate - Angle_rate )*INPUT_DECAY   
+Amp_bias   += ( Rate_z - Amp_bias )*INPUT_DECAY 
+
+#=======================
+# 3. PID Controllers 
+#=======================  
+    # lateral damping
+Damp = Vel * K_DAMP
+Damp = vec( clamp( Damp:x(), -90, 90) , # Limit bank to 90 deg
+            clamp( Damp:y(), -90, 90) , 
+            Damp:z()                  )
+
+    # Target angle   
+Angle_t = ang( Angles:pitch() + Damp:x(), 
+               Angles:yaw()             , 
+               Angles:roll()  - Damp:y())
+
+    # controller
+        # hover             # level
+K_prop  = K_PROP*Cos_mod_sq  + K_PROP_L*Sin_mod_sq   
+K_deriv = K_DERIV*Cos_mod_sq + K_DERIV_L*Sin_mod_sq
+
+PID = Angvel*K_deriv + Angle_t*K_prop
+
+    # axes
+Yaw   = PID:yaw() 
+Roll  = PID:roll() 
+Pitch = PID:pitch()   
+ 
+    # Limit deflections    
+Pitch = clamp(Pitch, -PITCH_MAX, PITCH_MAX)   # deflection degrees
+Yaw   = clamp(Yaw  , -YAW_MAX  , YAW_MAX)     # hydralic extension
+
+Pitch_xy = Pitch * Cos_mod 
+Pitch_z  = Pitch * Sin_mod            # modulate with gravity
+
+    # Amplitude per wing
+Amp = AMP_BASE + Amp_bias - Damp:z()*Cos_mod_sq
+Amp *= On
+
+Amp1 = clamp(Amp - Roll, 0, AMP_MAX) # Restrict to 90 angle
+Amp2 = clamp(Amp + Roll, 0, AMP_MAX)
+
+#=======================
+# 4. Hydraulic lengths
+#=======================
+# I. xy - flap axis
+    # Target flap angle
+Ang1 = Wave*Amp1 - Pitch_xy
+Ang2 = Wave*Amp2 - Pitch_xy
+
+LeftX = LENGTH + sin(Ang1)*RADIUS
+LeftY = LENGTH - cos(Ang1)*RADIUS
+
+RightX = LENGTH + sin(Ang2)*RADIUS
+RightY = LENGTH - cos(Ang2)*RADIUS
+
+# II. z - wing feathering axis 
+    # Smooth transition
+Mod1 = Amp1 / sqrt(Amp1^2 + 100) 
+Mod2 = Amp2 / sqrt(Amp2^2 + 100)
+
+    # feathering angle
+Aoa = Cos_mod_sq*AOA_HOVER + Sin_mod_sq*AOA_LEVEL
+Aoa_base = Sin_mod * AOA_BIAS
+
+    # control outputs
+Wave_pitch1 = cos(Freq) * Aoa * Mod2
+Wave_pitch2 = cos(Freq) * Aoa * Mod1
+
+Ang1 = 45 - Wave_pitch1 + Yaw - Aoa_base  # Set hydros at 45 degrees
+Ang2 = 45 - Wave_pitch2 - Yaw - Aoa_base 
+
+LeftPitchX = LENGTH + sin(Ang1)*RADIUS_PITCH 
+LeftPitchY = LENGTH + cos(Ang1)*RADIUS_PITCH 
+
+RightPitchX = LENGTH + sin(Ang2)*RADIUS_PITCH 
+RightPitchY = LENGTH + cos(Ang2)*RADIUS_PITCH
+
+# III. Flapping
+Pitch_z = toRad(Pitch_z)*RADIUS
+
+LeftZ  = LENGTH - Pitch_z
+RightZ = LENGTH - Pitch_z
+

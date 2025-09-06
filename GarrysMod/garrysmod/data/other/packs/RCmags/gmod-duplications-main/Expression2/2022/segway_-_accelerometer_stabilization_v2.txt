@@ -1,0 +1,82 @@
+@name Segway - Accelerometer stabilization - estimate velocity - v2
+@inputs W S A D
+@inputs [Wheel1 Wheel2 Body]:entity
+@outputs Angle
+@persist Vel:vector Angle Wheel_angvel Wheel_angle Angle_rate
+
+# 0. timer
+DT = 10
+interval(DT)
+DT *= 1e-3
+
+# 1. state 
+E = entity()
+
+    # acceleration
+Vel_new = E:vel()
+Acc = (Vel_new - Vel)/DT
+Vel = Vel_new
+
+    # include gravity
+GRAVITY_MAG = 900
+GRAVITY = vec(0, 0, 1)
+Acc = Acc/GRAVITY_MAG + GRAVITY
+        # local acceleration [accelerometer]
+Acc_local = E:toLocal( E:pos() + Acc )
+
+    # components
+Angvel = -E:angVelVector() * 90/60   # need to correct scale
+Angvel_y = Angvel:y()
+Acc_x = Acc_local:x()
+Acc_z = Acc_local:z()
+
+# 2. sensor fusion [modified mahony filter]
+KP = 0.001          # sensor fusion gain
+KC = sqrt(2*KP) 
+
+Angle_acc = atan(Acc_x, Acc_z) 
+Angle_rate += (Angle_acc - Angle)*KP - Angle_rate*KC
+Angle += Angle_rate*DT
+Angle += Angvel_y*DT
+
+# 3. PID loop
+
+# Loop #1: horizontal displacement 
+GAIN_VEL = 0.02        # lateral damping
+GAIN_POS = 0.004       # position spring
+
+X_input = (W - S)*500 
+Error_angvel = Wheel_angvel - X_input
+Angle_t = Angle + GAIN_VEL*Error_angvel + GAIN_POS*Wheel_angle
+
+# Loop #2: vertical angle    
+GAIN_P = 200
+GAIN_D = 40
+
+Output = GAIN_P*Angle_t + GAIN_D*Angvel_y
+
+# 4. angular velocity [for given acceleration] 
+ANGVEL_MAX = 2500           # deg/s
+
+    # target angular velocity
+Wheel_angvel += Output*DT
+Wheel_angvel = clamp(Wheel_angvel, -ANGVEL_MAX, ANGVEL_MAX)
+
+    # angular position [estimate]
+Wheel_angle += Error_angvel*DT    # Can use measured angular velocity
+
+# 5. motor torque [1rst order response]
+GAIN_MOTOR = 5e1
+
+Y_input = (A - D)*80
+Target_1 = ( Wheel_angvel + Y_input - Wheel1:angVel():pitch() )*GAIN_MOTOR
+Target_2 = ( Wheel_angvel - Y_input - Wheel2:angVel():pitch() )*GAIN_MOTOR
+
+Target_1 *= 0.5
+Target_2 *= 0.5
+Target = Target_1 + Target_2
+
+    # Torques
+Wheel1:applyAngForce( ang(Target_1,0,0) ) 
+Wheel2:applyAngForce( ang(Target_2,0,0) )   
+Body:applyAngForce( ang(0,-Target,0) )

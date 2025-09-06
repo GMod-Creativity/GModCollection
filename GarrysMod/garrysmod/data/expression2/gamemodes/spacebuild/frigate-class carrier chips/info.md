@@ -1,6 +1,6 @@
 - Author: Paper Clip (glmcd) (glmcdona21) (glmcdona)
-- Youtube: https://www.youtube.com/@glmcdona21
 - Steam Profile: https://steamcommunity.com/profiles/76561197990877852
+- Youtube: https://www.youtube.com/@glmcdona21
 <!-- -->
 - Title: Fearsome spacebuild frigate-class carrier
 - Date (dd-mm-yyyy): 06-04-2010

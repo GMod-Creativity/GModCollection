@@ -1,0 +1,68 @@
+@name Simple E2 Lift - v2
+@inputs E:entity
+@outputs Lnorm:vector Dnorm:vector
+@outputs Alpha Cl Cd
+@outputs Lift:vector Drag:vector
+@outputs Area Size:vector
+@outputs Accel Gain
+@outputs Force:vector 
+@outputs Filter:vector
+@persist Filter:vector
+@trigger 
+
+# === Description ===
+# Simple script to simulate aerodynamic forces on a prop.
+
+runOnTick(1)
+
+# Prop velocity 
+Vel = E:vel()
+
+# Base normal vectors
+Vnorm = Vel:normalized()
+Wnorm = E:up()
+
+# Force normal vectors
+Lnorm = ( Wnorm:cross(Vel):cross(Vel) ):normalized()
+Dnorm = -Vnorm
+
+# Angle of attack
+Vz = Wnorm:dot(Vel)     # velocity component about z-axis
+Vxy = Vel - Vz*Wnorm    # velocity about xy plane
+Alpha = atanr( Vz, Vxy:length() )
+
+# Surface area
+Size = E:boxSize()
+Area = Size:dot( shiftL(Size) )
+
+# Lift and drag coefficients
+Cl = pi() * sinr(2*Alpha)  
+Cd = pi() * sinr(Alpha)^2
+
+# Dynamic pressure
+SCALE = 7e-8    # Scaling factor to match default drag 
+Dyn_press = 0.5 * airDensity() * Vel:length2() * Area * SCALE
+
+# Aerodynamic forces
+Lift = Dyn_press * Cl * Lnorm
+Drag = Dyn_press * Cd * Dnorm
+    # Net force
+Force = Lift + Drag
+
+# Restrict force rate [prevent prop spazz]
+Mass = E:mass()
+Accel = Dyn_press / E:mass()
+
+ACC_LIMIT = 800 # Limit for linear acceleration spazz
+
+if( Accel < ACC_LIMIT ) {
+    Gain = 1
+    Filter = Force
+} else {
+    Gain = ACC_LIMIT/Accel
+    Filter = (Force - Filter)*Gain
+}
+
+E:applyForce(Filter)
+
+

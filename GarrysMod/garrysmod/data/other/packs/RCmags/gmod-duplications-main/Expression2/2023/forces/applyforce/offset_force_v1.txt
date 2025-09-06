@@ -1,0 +1,39 @@
+@name Offset Impuse - Apply force and torque to body
+@inputs E:entity
+@outputs 
+@persist DT
+@trigger 
+
+if( first() ) {
+    DT = tickInterval()
+    
+    function void setImpulseOffset(E:entity, Force:vector, Radius:vector) {
+        # Convert force to local frame [reduces error]
+        ForceL = E:toLocalAxis(Force)
+        
+        # Find torque about mass center
+        Torque = Radius:cross(ForceL)
+        
+        # Convert to local angle
+        Torque_ang = ang(Torque:y(), 
+                         Torque:z(), 
+                         Torque:x() )
+        
+        # Apply impulses to body
+        E:applyForce(Force)
+        E:applyAngForce(Torque_ang)
+    }
+}
+
+# Update state
+runOnTick(1)
+
+# Force and local offset
+Force = E:up() * gravity()*E:mass()*DT
+Radius = E:up()*0 + E:forward()*0 + E:right()*0
+
+# Move and torque body
+setImpulseOffset(E, Force, Radius)
+
+# Vector to angle mapping:
+    # (x, y, z) -> (roll, pitch, yaw)

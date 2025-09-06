@@ -1,0 +1,53 @@
+@name RH-7 updated code
+@inputs T:entity Ri Space Shift W S A D Mouse1 Mouse2
+@outputs H1 H2 H3 Constant Damping Yaw 
+@persist M N Q K V
+
+E = entity()
+
+Constant = 50000
+Damping = 600
+
+interval(10)
+
+#On switch:
+if(~Ri & Ri) {Q = !Q}
+
+#Angular velocity:
+Sr = E:angVel():roll()
+Sp = -E:angVel():pitch()
+
+#Angular acceleration:
+DSr = $Sr
+DSp = $Sp
+
+#Roll angle:
+M = ((A - D)/4 + Sr/120 + M)*Q
+#Pitch angle:
+N = ((W - S)/4 + Sp/120 + N)*Q
+
+#Roll cyclic:
+R = clamp(M + Sr/12 + $Sr/12,-15,15)*Q
+#Pitch cyclic:
+P = clamp(N + Sp/12 + $Sp/12,-15,15)*Q
+
+#Throttle:
+K = clamp(Q*5400 + K,0,1900000)*Q
+#Rotor torque:
+T:applyAngForce(ang(0,(K + abs(V)*190000*Q),0))
+
+#Collective:
+V = clamp((Shift - Space)/10 + V,-13,5)*Q
+#Base hydraulic length:
+L = 105 + K/520000 + V
+
+#Rotor bearing:
+B = T:bearing(E:pos()) + 45
+
+#Individual hydraulic lengths:
+H1 = L + sin(B)*P + cos(B)*R 
+H2 = L + sin(B + 120)*P + cos(B + 120)*R
+H3 = L + sin(B - 120)*P + cos(B - 120)*R
+
+#Tail thruster:
+Yaw = clamp(-E:angVel():yaw()*2,-200,200) - (Mouse2 - Mouse1)*90

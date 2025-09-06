@@ -1,6 +1,6 @@
 - Author: Paper Clip (glmcd) (glmcdona21) (glmcdona)
-- Youtube: https://www.youtube.com/@glmcdona21
 - Steam Profile: https://steamcommunity.com/profiles/76561197990877852
+- Youtube: https://www.youtube.com/@glmcdona21
 <!-- -->
 - Title: Automatic, fastest possible, applyForce and applyAngForce code generating e2
 - Date (dd-mm-yyyy): 03-02-2010

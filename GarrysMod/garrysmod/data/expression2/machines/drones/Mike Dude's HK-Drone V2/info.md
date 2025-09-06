@@ -15,7 +15,7 @@
 - Youtube: [https://www.youtube.com/@catcher.](https://www.youtube.com/@catcher.)
 - Moddb: https://www.moddb.com/members/catchertehsaver
 
-### File information
+### Publication Info
 
 - Title: Mike Dude's HK-Drone Version 2 RELEASE
 - Date (dd-mm-yyyy): 13-03-2010

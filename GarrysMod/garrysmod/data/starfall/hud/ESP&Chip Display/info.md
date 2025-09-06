@@ -1,9 +1,15 @@
 # Starfall - GMOD starfall ESP/Chip Display (w Code)
 
+## Details
+
+### Author
+
 - Author: galaxy (ZeroTut0rials) (GDOGS)
-- Youtube: https://www.youtube.com/@ZeroTut0rials
 - Steam Profile: https://steamcommunity.com/profiles/76561198128391261
-<!-- -->
+- Youtube: https://www.youtube.com/@ZeroTut0rials
+
+### Publication Info
+
 - Title: GMOD starfall ESP/Chip Display (w Code)
 - Date (dd-mm-yyyy): 31-07-2022
 - Source: https://www.youtube.com/watch?v=yml5khlsd5g

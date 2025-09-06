@@ -7,7 +7,7 @@
 - Author: Hitman271 (radixdev)
 - Youtube: https://www.youtube.com/@Hitman271
 
-### File information
+### Publication Info
 
 - Title: Pamento - Gpu For Drawing
 - Date (dd-mm-yyyy): 21-12-2008

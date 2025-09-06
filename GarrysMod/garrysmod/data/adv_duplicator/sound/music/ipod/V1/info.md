@@ -6,7 +6,7 @@
 
 - Author: Drunkie
 
-### File information
+### Publication Info
 
 - Title: !iPod by drunkie
 - Date (dd-mm-yyyy): 21-03-2009

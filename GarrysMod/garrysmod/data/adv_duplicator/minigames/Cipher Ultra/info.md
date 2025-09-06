@@ -8,7 +8,7 @@
 - Youtube: https://www.youtube.com/user/CipherUltra
 - Steam Profile: https://steamcommunity.com/profiles/76561197978513282
 
-### File information
+### Publication Info
 
 - Title: [E2] Holo Racing Minigames
 - Date (mm-yyyy): 12-2010

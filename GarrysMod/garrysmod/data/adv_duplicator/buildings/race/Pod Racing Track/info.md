@@ -8,7 +8,7 @@
 - Youtube: https://www.youtube.com/@yamclam
 - Steam Profile: https://steamcommunity.com/profiles/76561197983180777
 
-### File information
+### Publication Info
 
 - Title: Pod Racing Track by Grumpy Hitler
 - Date (dd-mm-yyyy): 30-04-2009

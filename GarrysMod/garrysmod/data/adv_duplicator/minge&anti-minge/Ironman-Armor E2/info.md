@@ -10,7 +10,7 @@
 - Youtube: https://www.youtube.com/user/coolerthanu9
 - Youtube: https://www.youtube.com/channel/UCc_t13NWt4gX0jrIeW16_fg
 
-### File information
+### Publication Info
 
 - Title: Ironman/Armor E2
 - Date (dd-mm-yyyy): 03-06-2013

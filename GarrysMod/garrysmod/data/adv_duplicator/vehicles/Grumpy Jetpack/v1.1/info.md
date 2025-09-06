@@ -1,19 +1,28 @@
+# Advanced Duplicator - Grumpy's Jetpack - my first release
+
+## Details
+
+### Author
+
 - Author: Grumpy Hit***
 - Youtube: https://www.youtube.com/@yamclam
 - Steam Profile: https://steamcommunity.com/profiles/76561197983180777
-<!-- -->
+
+### Publication Info
+
 - Title: Grumpy's Jetpack - my first release
 - Date (dd-mm-yyyy): 06-02-2010
 - Source: https://gmods.org/view/208
 - Source: https://web.archive.org/web/20150504221328/http://www.wiremod.com:80/forum/finished-contraptions/17927-grumpys-jetpack-my-first-release.html
 - Source Accessed (dd-mm-yyyy): 12-08-2025
 
-## Grumpy's Jetpack - my first release
+## Description
 
 NOTE WHEN YOU HAVE DOWNLOADED THIS, YOU MUST RENAME THE DUPE FILE: "Grumpy jetpackv1.1" to "Grumpyjetpack" OTHERWISE IT WILL NOT WORK
 
 SORRY THAT WAS A NOVICE MISTAKE
 
+---
 
 Ok, I was just screwing around on gmod and ended up making a simple jetpack model. Then I wrote some simple code for it which eventually got quite complicated.
 
@@ -40,6 +49,7 @@ Not very good pics - mainly function over form but still looks good imo simple a
 works perfectly on spacebuild (for those who like that sort of thing) in zero and full gravity - Awesome speedy transport or mini fighter
 
 this is V1.1 - to add - A boost power bar for limited boosting
+
 - Fix when you land it occasionally flies up in the air
 - Some extra sound effects and basic tweaks
 - Optimising and Cleaning up my code, made a mess of it but cbf fixing now. (normally i'm a very tidy coder but I did most of the code at ~4am )
@@ -48,12 +58,11 @@ Please download and enjoy, I'm releasing this only because I wish to share this 
 
 C&C Please
 
-
-
 Plese Do Not Remove My Name From This Contraption, I Normally Do Not Release So If You Want More From Me, Give Credit Where Credit Is Due And Keep It "Grumpy's" Jetpack.
 
 Do Not Redistribute
 
+---
 
 NOTE WHEN YOU HAVE DOWNLOADED THIS, YOU MUST RENAME THE DUPE FILE: "Grumpy jetpackv1.1" to "Grumpyjetpack" OTHERWISE IT WILL NOT WORK
 

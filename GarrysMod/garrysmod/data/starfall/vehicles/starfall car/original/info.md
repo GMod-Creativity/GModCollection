@@ -1,8 +1,15 @@
 # Starfall - [GMOD STARFALL] Car
 
+## Details
+
+### Author
+
 - Author: galaxy (ZeroTut0rials) (GDOGS)
+- Steam Profile: https://steamcommunity.com/profiles/76561198128391261
 - Youtube: https://www.youtube.com/@ZeroTut0rials
-<!-- -->
+
+### Publication Info
+
 - Title: [GMOD STARFALL] Car
 - Date (dd-mm-yyyy): 30-03-2022
 - Source: https://www.youtube.com/watch?v=mBz48cvKBwo

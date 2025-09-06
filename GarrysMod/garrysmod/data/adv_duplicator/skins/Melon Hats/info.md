@@ -6,7 +6,7 @@
 
 - Author: Joshy
 
-### File information
+### Publication Info
 
 - Title: Melon Hats E2
 - Date (dd-mm-yyyy): 20-10-2012

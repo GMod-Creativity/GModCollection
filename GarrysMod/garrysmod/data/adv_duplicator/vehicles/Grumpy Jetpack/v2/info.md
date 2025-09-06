@@ -1,7 +1,15 @@
+# Advanced Duplicator - Grumpy Jetpack V2 !
+
+## Details
+
+### Author
+
 - Author: Grumpy Hit***
 - Youtube: https://www.youtube.com/@yamclam
 - Steam Profile: https://steamcommunity.com/profiles/76561197983180777
-<!-- -->
+
+### Publication Info
+
 - Title: Grumpy Jetpack V2 !
 - Date (dd-mm-yyyy): 03-09-2010
 - Source: https://web.archive.org/web/20150523235552/http://www.wiremod.com:80/forum/finished-contraptions/22368-grumpy-jetpack-v2.html
@@ -11,7 +19,7 @@
 - Source: https://web.archive.org/web/20120525064026/http://www.garrysmod.org/downloads/?a=view&id=109333
 - Source Accessed (dd-mm-yyyy): 12-08-2025
 
-## Grumpy Jetpack V2 !
+## Description
 
 Ok,
 
@@ -26,3 +34,9 @@ I'll just upload the 1 picture, there are 2 more on the download page but using 
 Comments appreciated, plus somebody make me a video lol.
 
 Thanks d00ds
+
+### Video
+
+This is a video made by Xro (lastxp) of my jetpack (v2) in gmod  
+So a special thanks to him :D  
+https://www.youtube.com/watch?v=4Crya-Z0sHE

@@ -9,7 +9,7 @@
 - Youtube: https://www.youtube.com/@IsakViste/videos
 - Pastebin: https://pastebin.com/u/IsakViste
 
-### File information
+### Publication Info
 
 - Title: Music Player v2.0
 - Date (dd-mm-yyyy): 07-03-2015

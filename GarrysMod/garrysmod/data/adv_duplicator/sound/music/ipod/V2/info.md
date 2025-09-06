@@ -6,7 +6,7 @@
 
 - Author: Drunkie
 
-### File information
+### Publication Info
 
 - Title: iPod v2 [Release]
 - Date (dd-mm-yyyy): 12-08-2010

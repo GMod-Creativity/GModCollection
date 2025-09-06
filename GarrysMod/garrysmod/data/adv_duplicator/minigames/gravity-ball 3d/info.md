@@ -1,3 +1,5 @@
+# Advanced Duplicator - !gravity-ball 3d by drunkie
+
 - Author: Drunkie
 <!-- -->
 - Title: !gravity-ball 3d by drunkie
@@ -6,4 +8,6 @@
 - Source: https://www.youtube.com/watch?v=QwxKjbaQOz0
 - Source Accessed (dd-mm-yyyy): 13-08-2025
 
-## !gravity-ball 3d by drunkie
+## Description
+
+\<No Description\>

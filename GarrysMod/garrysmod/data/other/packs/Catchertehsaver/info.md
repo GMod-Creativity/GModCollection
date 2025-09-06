@@ -1,5 +1,6 @@
-- Author: Catchertehsaver
-- ModDB: https://www.moddb.com/members/catchertehsaver
+- Publisher: Catcher (Lua) (WNxCatcher) (Catchertehsaver)
+- Youtube: [https://www.youtube.com/@catcher.](https://www.youtube.com/@catcher.)
+- Moddb: https://www.moddb.com/members/catchertehsaver
 
 **adv_duplicator**
 - Date (dd-mm-yyyy): 27-05-2010

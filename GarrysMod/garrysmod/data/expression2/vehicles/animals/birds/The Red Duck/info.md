@@ -1,4 +1,4 @@
-- Author: <Unknown Author>
+- Author: \<Unknown Author\>
 <!-- -->
 - Publisher: podie45
 - Steam Profile: https://steamcommunity.com/profiles/76561198136318087

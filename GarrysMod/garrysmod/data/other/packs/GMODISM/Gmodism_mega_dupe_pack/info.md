@@ -13,9 +13,8 @@
 
 ---
 
-- GMOD COLLECTION COMMENT:
-
-**Two modified files**
+- GMOD COLLECTION COMMENT:  
+**Two modified files**  
 In this package there were two files containing the old expression 2 chip crynet worm virus.
 I decompiled these dupes, removed these E2 chips and compiled the dupes again.
 The files that contained these chips are GG_firefly_v1.txt and junkers ju2 jet.txt inside the ACF Aircraft folder.
@@ -26,11 +25,11 @@ I also tested every dupe and everything works.
 
 ## Gmodism's MEGA Adv.Dupe 2 Pack
 
-**This is [Gmodism](https://web.archive.org/web/20230701000459/https://www.youtube.com/user/gmodism) Making a huge Duplication release,** lot's of old and new builds from me that you can take a look at and enjoy, will they need different addons to work but if you get my collection you are fine as usual, this is a little pre release. will make a video about this release later so if you find it before that you are extremely lucky.
-Come by and say hello if you don't already know me from youtube :)
+**This is [Gmodism](https://web.archive.org/web/20230701000459/https://www.youtube.com/user/gmodism) Making a huge Duplication release,** lot's of old and new builds from me that you can take a look at and enjoy, will they need different addons to work but if you get my collection you are fine as usual, this is a little pre release. will make a video about this release later so if you find it before that you are extremely lucky.  
+Come by and say hello if you don't already know me from youtube :)  
 https://www.youtube.com/user/gmodism
 
 More instruction will be presented when the video for the release is out.
 
-Where to put Adv.Dupe2 files: https://youtu.be/FyRE3aYBMiU
+Where to put Adv.Dupe2 files: https://youtu.be/FyRE3aYBMiU  
 Get The Addons I Use: https://youtu.be/ppAB66Un_Ow

@@ -1,14 +1,33 @@
+# Expression 2 - ACF Bulletometer 2
+
+## Details
+
+### Author
+
 - Author: Bubbus (Splambob)
 - Github: https://github.com/bubbus
 - Steam Profile: https://steamcommunity.com/profiles/76561197970677684
 - Youtube: https://www.youtube.com/@Splambob
-<!-- -->
+
+### Publisher
+
+- Publisher: GMODISM
+- Website: https://gmodism.com
+- Reddit: https://www.reddit.com/r/GMODISM/
+- Steam Profile: http://steamcommunity.com/profiles/76561198056037449
+- Youtube: https://www.youtube.com/Gmodism
+- Pastebin: https://pastebin.com/u/Gmodism
+
+### Publication Info
+
 - Title: ACF Bulletometer 2
 - Date (dd-mm-yyyy): 31-05-2013
 - Source: https://web.archive.org/web/20150304052657/http://www.wiremod.com/forum/finished-contraptions/31833-acf-bulletometer-2-a.html
+- Source: https://pastebin.com/X9TKZiLT
+- Source: https://www.youtube.com/watch?v=p-cm2zwp9gI
 - Source Accessed (dd-mm-yyyy): 24-08-2025
 
-## ACF Bulletometer 2
+## Description
 
 Since the ACF E2 extension was released, I've tweaked this chip to take advantage. As before, I've decided to release this to level the playing field.
 
@@ -28,4 +47,6 @@ ACF guns start empty until you reload them. Also, this chip only re-calculates t
 
 Here are some results from my testing of the chip:
 
-- see images
+(
+    see images
+)

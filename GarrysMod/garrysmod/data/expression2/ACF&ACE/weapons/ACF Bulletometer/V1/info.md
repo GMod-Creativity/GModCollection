@@ -1,14 +1,22 @@
+# Expression 2 - ACF Bulletometer
+
+## Details
+
+### Author
+
 - Author: Bubbus (Splambob)
 - Github: https://github.com/bubbus
 - Steam Profile: https://steamcommunity.com/profiles/76561197970677684
 - Youtube: https://www.youtube.com/@Splambob
-<!-- -->
+
+### Publication Info
+
 - Title: ACF Bulletometer
 - Date (dd-mm-yyyy): 24-11-2012
 - Source: https://web.archive.org/web/20150304052156/http://www.wiremod.com:80/forum/finished-contraptions/30959-acf-bulletometer.html
 - Source Accessed (dd-mm-yyyy): 06-08-2025
 
-## ACF Bulletometer
+## Description
 
 I noticed the trend of projectile trajectory calcuators here, so I decided to join the party and solve a problem that was bugging me in the process. This is a chip that calculates where your ACF guns will hit. It's not completely accurate for slow-moving shells like mortars and grenades, but if you tweak the Correction value it can become accurate enough for any purpose
 
@@ -27,21 +35,3 @@ Here are some results from my testing of the chip;
 )
 
 The correction value was tuned on the 45 degree grouping. The prediction is never completely accurate for other angles but is usually within the circle of deviation.
-
----
-
-- Publisher: GMODISM
-- Website: https://gmodism.com
-- Reddit: https://www.reddit.com/r/GMODISM/
-- Steam Profile: http://steamcommunity.com/profiles/76561198056037449
-- Youtube: https://www.youtube.com/Gmodism
-- Pastebin: https://pastebin.com/u/Gmodism
-<!-- -->
-- Title: Garry's Mod ACF Bulletometer
-- Date (dd-mm-yyyy): 18-09-2016
-- Source: https://gmodism.com/resources/
-- Source: https://pastebin.com/u/Gmodism
-- Source: https://pastebin.com/X9TKZiLT
-- Source Accessed (dd-mm-yyyy): 21-08-2025
-
-## Garry's Mod ACF Bulletometer

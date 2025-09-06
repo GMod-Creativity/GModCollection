@@ -1,12 +1,20 @@
+# Expression 2 - acf projectile prediction
+
+## Details
+
+### Author
+
 - Author: Δp (pizza)
 - Steam Profile: https://steamcommunity.com/profiles/76561198433374055
-<!-- -->
+
+### Publication Info
+
 - Title: acf projectile prediction
 - Date (dd-mm-yyyy): 12-09-2022
 - Source: Wiremod Discord
 - Source Accessed (dd-mm-yyyy): 09-08-2025
 
-## acf projectile prediction
+## Description
 
 tried to explain it as much as i could
 

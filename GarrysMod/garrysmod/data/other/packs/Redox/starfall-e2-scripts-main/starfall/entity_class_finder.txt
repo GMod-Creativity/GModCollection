@@ -1,0 +1,54 @@
+--@name entity class finder
+--@author Redox
+-- https://github.com/wrefgtzweve/starfall-e2-scripts
+--@shared
+
+if player() == owner() then
+    enableHud( owner(), true )
+end
+
+if SERVER then
+    local function Find()
+        local data = {}
+        local ents = find.byClass( "*npc*" )
+        for _, ent in ipairs( ents ) do
+            table.insert( data, { 
+                pos = ent:getPos(),
+                owner = isValid( ent:getOwner() ) and ent:getOwner():getName() or "World",
+                name = ent:getClass()
+            } )
+        end
+
+        net.start( "ents" )
+        net.writeTable( data )
+        net.send()
+    end
+
+    timer.create( "findTimer", 3, 0, function()
+        Find()
+    end)
+end
+
+if CLIENT then
+
+local ents = {}
+local scrW, scrH = render.getResolution()
+
+net.receive( "ents", function()
+    ents = net.readTable()
+end )
+
+hook.add("drawhud","draw",function()
+    for _, ent in ipairs( ents ) do
+    
+        local pos = ent.pos
+        local owner = ent.owner
+        local name = ent.name
+        local cords = pos:toScreen()
+        
+        render.setColor( Color( 255, 0, 0 ) )
+        render.drawText( cords.x, cords.y + 20 , name .. " | " .. owner, 1 )
+    end
+end)
+
+end

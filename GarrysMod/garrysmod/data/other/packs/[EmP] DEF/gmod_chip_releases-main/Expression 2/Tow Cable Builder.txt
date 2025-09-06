@@ -1,0 +1,231 @@
+@name Tow Cable Builder
+@inputs Sample:entity
+@outputs 
+@persist Size SpawnDelay [Path Cable Col Mat ValidLengths]:array Count [Prefix Suffix]:string
+@trigger none
+
+if(first() | dupefinished()) {
+    
+#[    
+    Right click to add a prop you are looking at to the path.
+    
+    Type "clear" to deselect all selected props in a path.
+    
+    Type "build" to begin spawning the tow cable.
+    
+    Type "destroy path" to destroy the props in the currently selected path.
+    
+    Type "destroy cable" to destroy ALL tow cables built by this E2.
+]#
+    
+    Size = 1
+    
+    SpawnDelay = 300
+    
+    
+    # # # # # # # # # # # # # # # # # # # # # # # #
+    
+    
+    #Valid sprops cylinder lengths
+    ValidLengths = array(
+        3, 6, 12, 18, 24, 30, 36, 42, 48, 54, 60, 66, 72, 78, 84, 90, 96,
+        108, 120, 132, 144, 192, 240, 288, 336, 384, 432, 480
+    )
+    
+    #Finding prefixes and suffixes
+    Prefix = "models/sprops/cylinders/size_" + Size + "/cylinder_"
+    Suffix = ""
+    
+    #Size groups
+    switch(Size) {
+        
+        case 1, Suffix = "1_5x" break
+        case 2, Suffix = "3x" break
+        case 3, Suffix = "6x" break
+        case 4, Suffix = "9x" break
+        case 5, Suffix = "12x" break
+    }
+    
+    runOnChat(1)
+    runOnKeys(owner(), 1)
+}
+
+
+#Adding props to path
+if(owner():keyAttack2()) {
+    
+    local Ent = owner():aimEntity()
+    
+    #Don't let the user add the same prop to the path
+    local Add = 1
+    for(I=1, Path:count(), 1) {
+        
+        if(Ent == Path[I,entity]) {
+            Add = 0
+            print("That prop is already on the path!")
+            break
+        }
+    }
+    
+    #Add the prop to the path
+    if(Add) {
+        
+        if(Ent:owner() == owner()) {
+            Path:pushEntity(Ent)
+            Col:pushVector(Ent:getColor())
+            Mat:pushString(Ent:getMaterial())
+            Ent:setColor(vec(255, 50, 50))
+            Ent:setMaterial("models/debug/debugwhite")
+        }
+        
+        else {print("You don't own that prop!")}
+    }
+}
+
+
+#Commands
+if(chatClk(owner())) {
+    
+    local Msg = lastSaid():lower()
+    local StrArr = Msg:sub(1, Msg:length()):explode(" ")
+    local Command = StrArr:string(1)
+    
+    #Setting size
+    if(Command == "size") {
+        
+        hideChat(1)
+        local SizeStr = StrArr:string(2):toNumber()
+        
+        if(SizeStr > 5) {print("Size must be less than 5!")}
+        
+        else {
+            
+            Size = SizeStr
+            
+            Prefix = "models/sprops/cylinders/size_" + Size + "/cylinder_"
+            Suffix = ""
+            
+            switch(Size) {
+                
+                case 1, Suffix = "1_5x" break
+                case 2, Suffix = "3x" break
+                case 3, Suffix = "6x" break
+                case 4, Suffix = "9x" break
+                case 5, Suffix = "12x" break
+            }
+            
+            print("Size set to " + Size + "!")
+        }
+    }
+    
+    #Clear props from path
+    if(Command == "clear") {
+        hideChat(1)
+        for(I=1, Path:count(), 1) {
+            Path[I,entity]:setColor(Col[I,vector])
+            Path[I,entity]:setMaterial(Mat[I,string])
+        }
+        Path = array()
+        Col = array()
+        Mat = array()
+        print("Cleared props from path!")
+    }
+    
+    #Deletion
+    if(Command == "destroy") {
+        
+        hideChat(1)
+        local Target = StrArr:string(2)
+        
+        if(Target == "path") {
+            Path:propDelete()
+            Path = array()
+            Col = array()
+            Mat = array()
+            print("Destroyed props in path!")
+        }
+        
+        elseif(Target == "cable") {
+            Cable:propDelete()
+            Cable = array()
+            print("Destroyed cable!")
+        }
+    }
+    
+    #Build path
+    if(Command == "build") {
+        hideChat(1)
+        Count = 1
+        timer("SpawnRope", SpawnDelay)
+        print("Spawning ropes...")
+    }
+}
+
+
+#Spawning ropes
+if(clk("SpawnRope")) {
+    
+    local Ent1 = Path[Count,entity]
+    local Ent2 = Path[Count+1,entity]
+    local Suf = ""
+    
+    local Dist = Ent1:pos():distance(Ent2:pos())
+    local Scale = 1
+    
+    #Finding which prop size to use based on closest length
+    
+    #Longer than max
+    if(Dist > 480) {
+        Suf = Suffix + 480 + ".mdl"
+        Scale = round(Dist / 480, 2)
+    }
+    
+    #Less than max
+    else {
+        for(I=1, ValidLengths:count(), 1) {
+            
+            if(Dist < ValidLengths[I,number]) {
+                
+                local LeftOver1 = Dist - ValidLengths[I-1,number]
+                local LeftOver2 = ValidLengths[I,number] - Dist
+                
+                #Use whichever value is closest to the length  we want
+                if(LeftOver1 <= LeftOver2) {
+                    Suf = Suffix + ValidLengths[I-1,number] + ".mdl"
+                    Scale = round(Dist / ValidLengths[I-1,number], 2)
+                }
+                
+                else {
+                    Suf = Suffix + ValidLengths[I,number] + ".mdl"
+                    Scale = round(Dist / ValidLengths[I,number], 2)
+                }
+                
+                break
+            }
+        }
+    }
+    
+    #Full model
+    local Model = Prefix + Suf
+    
+    #Position
+    local AvgPos = mix(Ent1:pos(), Ent2:pos(), 0.5)
+    
+    #Spawn prop and settings
+    local Link = propSpawn(Model, AvgPos, ang(0, 0, 0), 1)
+    Link:setColor(Sample:getColor())
+    Link:setMaterial(Sample:getMaterial())
+    Cable:pushEntity(Link)
+    
+    #Correct angle hack 'cus I'm dumb
+    local Dir = (Ent2:pos() - Ent1:pos()):toAngle()
+    local Ang = Dir:rotateAroundAxis(Dir:right(), 90)
+    Link:setAng(Ang)
+    
+    print(Scale)
+    
+    if(Count < (Path:count()-1)) {timer("SpawnRope", SpawnDelay)}
+    else {print("Tow cable built!")}
+    
+    Count++
+}

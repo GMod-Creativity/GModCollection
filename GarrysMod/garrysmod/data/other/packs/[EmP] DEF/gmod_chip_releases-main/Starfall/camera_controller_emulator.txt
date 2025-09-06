@@ -1,0 +1,605 @@
+--@name Camera Controller Emulator
+--@author DEF
+--@shared
+
+local SH = {}
+local NULL = game.getWorld(); local Empty = function() end
+
+local function UserSettings()
+    
+    SH.ElevationLimit = 80      // World pitch limit of camera
+    
+    SH.BaseFOV = 90             // Default FOV to base sensitivity on
+    
+    // I advise you don't touch these
+    
+    SH.Sensitivity = 0.0225     // Mouse movement multiplier
+    
+    SH.BradcastRate = 0.2       // Networking interval
+    
+    SH.TraceRange = 10^5        // Trace max range
+end
+
+local Manager = {}
+
+if SERVER then
+    
+    local Operator = {}
+    local IOU = {}
+    
+    -- >> Manager [SV]; io & misc functions for vehicle
+    do
+        local Inputs = {}; local InputTypes = {}; local InputLookup = {}
+        local Outputs = {}; local OutputTypes = {}; local OutputLookup = {}
+        
+        function Manager:Initialize()
+            Operator:Initialize()
+            IOU:Initialize()
+        end
+        
+        function Manager:MakeIO()
+            Operator:MakeIO()
+            IOU:MakeIO()
+            
+            wire.adjustInputs(Inputs, InputTypes)
+            wire.adjustOutputs(Outputs, OutputTypes)
+        end
+        
+        function Manager:AddInput(Name, Type)
+            if InputLookup[Name] then return false end
+            
+            InputLookup[Name] = true
+            table.insert(Inputs, Name)
+            table.insert(InputTypes, Type)
+            return true
+        end
+        
+        function Manager:AddOutput(Name, Type)
+            if OutputLookup[Name] then return false end
+            
+            OutputLookup[Name] = true
+            table.insert(Outputs, Name)
+            table.insert(OutputTypes, Type)
+            return true
+        end
+    end
+    
+    -- >> Operator; driver functions
+    do
+        local Driver = NULL; local ChairEnt = NULL
+        local OnEnterChair = Empty
+        
+        function Operator:Initialize()
+            ChairEnt = wire.ports.Chair
+            hook.add("PlayerEnteredVehicle", "op-in", function(Ply, Chair) OnEnterChair(Ply, Chair, true) end)
+            hook.add("PlayerLeaveVehicle", "op-out", function(Ply, Chair) OnEnterChair(Ply, Chair, false) end)
+        end
+        
+        function Operator:MakeIO()
+            Manager:AddInput("Chair", "Entity")
+        end
+        
+        -- On enter & exit chair
+        function OnEnterChair(Player, Chair, Board)
+            if not ChairEnt:isValid() or ChairEnt != Chair then return end
+            
+            if Board then
+                Driver = Player
+                IOU:SendAllInputs()
+            else
+                Driver = NULL
+            end
+            
+            net.start("chair-event")
+                net.writeBool(Board)
+            net.send(Player)
+        end
+        
+        -- # Getters
+        
+        function Operator:GetDriver() return Driver end
+    end
+    
+    -- >> IOU; input events & sent to client
+    do
+        local OnInput = Empty
+        local SetOutputs = Empty
+        local SendParent = Empty; local SendOffset = Empty
+        local SendDistance = Empty; local SendFOV = Empty
+        local SendRelativeMovement = Empty; local SendActivated = Empty
+        local SendRotationLimit = Empty; local SendCursorLimit = Empty
+        local SendFilterEntities = Empty
+        
+        function IOU:Initialize()
+            net.receive("outputs", SetOutputs)
+            hook.add("Input", "iou-input", OnInput)
+        end
+        
+        function IOU:MakeIO()
+            Manager:AddInput("Parent", "Entity")
+            Manager:AddInput("Offset", "Vector")
+            Manager:AddInput("Distance", "Number")
+            Manager:AddInput("FOV", "Number")
+            Manager:AddInput("RelativeMovement", "Number")
+            Manager:AddInput("Activated", "Number")
+            Manager:AddInput("RotationLimit", "Angle")
+            Manager:AddInput("CursorLimit", "Angle")
+            Manager:AddInput("FilterEntities", "Array")
+            
+            Manager:AddOutput("HitPos", "Vector")
+            Manager:AddOutput("CamPos", "Vector")
+            Manager:AddOutput("CamOrigin", "Vector")
+            Manager:AddOutput("CamDir", "Vector")
+            Manager:AddOutput("CamAng", "Angle")
+            Manager:AddOutput("CursorDir", "Vector")
+            Manager:AddOutput("CursorAng", "Angle")
+        end
+        
+        -- Send every input over
+        function IOU:SendAllInputs()
+            SendParent()
+            SendOffset()
+            SendDistance()
+            SendFOV()
+            SendRelativeMovement()
+            SendActivated()
+            SendRotationLimit()
+            SendCursorLimit()
+            SendFilterEntities()
+        end
+        
+        -- Send message to driver when input changes
+        function OnInput(Name)
+            if not Operator:GetDriver():isValid() then return end
+            
+            if Name == "Parent" then
+                SendParent()
+                
+            elseif Name == "Offset" then
+                SendOffset()
+                
+            elseif Name == "Distance" then
+                SendDistance()
+                
+            elseif Name == "FOV" then
+                SendFOV()
+                
+            elseif Name == "RelativeMovement" then
+                SendRelativeMovement()
+                
+            elseif Name == "Activated" then
+                SendActivated()
+            
+            elseif Name == "RotationLimit" then
+                SendRotationLimit()
+            
+            elseif Name == "CursorLimit" then
+                SendCursorLimit()
+                
+            elseif Name == "FilterEntities" then
+                SendFilterEntities()
+            end
+        end
+        
+        -- Set outputs from camera data
+        function SetOutputs()
+            for k, v in pairs(net.readTable()) do
+                wire.ports[k] = v
+            end
+        end
+        
+        -- # Networking junk
+        
+        function SendParent()
+            net.start("input-parent")
+                if wire.ports.Parent:isValid() then
+                    net.writeEntity(wire.ports.Parent)
+                else
+                    net.writeEntity(NULL)
+                end
+            net.send(Operator:GetDriver())
+        end
+        
+        function SendOffset()
+            net.start("input-offset")
+                net.writeVector(wire.ports.Offset)
+            net.send(Operator:GetDriver())
+        end
+        
+        function SendDistance()
+            net.start("input-distance")
+                net.writeFloat(wire.ports.Distance)
+            net.send(Operator:GetDriver())
+        end
+        
+        function SendFOV()
+            net.start("input-fov")
+                net.writeFloat(wire.ports.FOV)
+            net.send(Operator:GetDriver())
+        end
+        
+        function SendRelativeMovement()
+            net.start("input-relativemovement")
+                net.writeBool(wire.ports.RelativeMovement == 1)
+            net.send(Operator:GetDriver())
+        end
+        
+        function SendActivated()
+            net.start("input-activated")
+                net.writeBool(wire.ports.Activated == 1)
+            net.send(Operator:GetDriver())
+        end
+        
+        function SendRotationLimit()
+            net.start("input-rotationlimit")
+                net.writeBool(not wire.ports.RotationLimit:isZero())
+                net.writeAngle(wire.ports.RotationLimit)
+            net.send(Operator:GetDriver())
+        end
+        
+        function SendCursorLimit()
+            net.start("input-cursorlimit")
+                net.writeAngle(wire.ports.CursorLimit)
+            net.send(Operator:GetDriver())
+        end
+        
+        function SendFilterEntities()
+            net.start("input-filterentities")
+                net.writeTable(wire.ports.FilterEntities)
+            net.send(Operator:GetDriver())
+        end
+    end
+    
+    -- Startup
+    Manager:MakeIO()
+    Manager:Initialize()
+end
+
+if CLIENT then
+    
+    local Receiver = {}
+    local GyroCam = {}; local RelativeCam = {}
+    local CVU = {}; local Probe = {}
+    
+    local EVENT = {
+        RECEIVER_PARENT = "receiver-parent",
+        RECEIVER_RELATIVEMOVEMENT = "receiver-relativemovement",
+        RECEIVER_LIMITS = "receiver-limits",
+        RECEIVER_ACTIVATED = "receiver-activated",
+    }
+    
+    -- >> Manager [CL];
+    do
+        local Ready = false
+        local CamBehavior = {}
+        local UserReady = Empty
+        local OnEnterChair = Empty; local OnMouseMoved = Empty
+        local OnReceiverRelativeMovement = Empty; local OnEntityRemoved = Empty
+        local SetActive = Empty;
+        
+        function Manager:Initialize()
+            UserSettings()
+            
+            CamBehavior = GyroCam
+            Receiver:Initialize()
+            
+            net.receive("chair-event", OnEnterChair)
+            hook.add(EVENT.RECEIVER_PARENT, "mn-retry", function() SetActive() end)
+            hook.add(EVENT.RECEIVER_RELATIVEMOVEMENT, "mn-mode-toggle", OnReceiverRelativeMovement)
+            hook.add(EVENT.RECEIVER_ACTIVATED, "mn-toggle", function() SetActive() end)
+        end
+        
+        function UserReady()
+            
+        end
+        
+        -- Turn functionality on & off
+        function SetActive(Active)
+            if Active == nil then Active = Receiver:GetActivated() end
+            if not Receiver:GetParent():isValid() then Active = false end
+            
+            enableHud(player(), Active)
+            
+            if Active then
+                hook.add("EntityRemoved", "mn-validate", OnEntityRemoved)
+                hook.add("MouseMoved", "mn-rotate", OnMouseMoved)
+            else
+                hook.remove("EntityRemoved", "mn-validate")
+                hook.remove("MouseMoved", "mn-rotate")
+            end
+            
+            CVU:SetActive(Active)
+            Probe:SetActive(Active)
+        end
+        
+        -- Enter or exitting chair
+        function OnEnterChair()
+            local Active = net.readBool()
+            
+            if not Ready and Active then
+                UserReady()
+            end
+            
+            if Active == false then SetActive(false) end
+        end
+        
+        -- Do rotation behavior
+        function OnMouseMoved(X, Y)
+            local sensitivity = SH.Sensitivity * math.clamp(Receiver:GetFOV() / SH.BaseFOV, 0, 1)
+            CamBehavior:OnMouseMove(-X * sensitivity, -Y * sensitivity)
+        end
+        
+        -- Change movement type
+        function OnReceiverRelativeMovement()
+            if Receiver:GetRelativeMovement() then
+                CamBehavior = RelativeCam
+            else
+                CamBehavior = GyroCam
+            end
+        end
+        
+        -- Don't run without parent
+        function OnEntityRemoved(Ent)
+            if Ent != Receiver:GetParent() then return end
+            
+            SetActive(false)
+        end
+        
+        -- # Getters
+        
+        function Manager:GetCamBehavior() return CamBehavior end
+    end
+    
+    -- >> Receiver; receive net messages & store settings
+    do
+        local Parent = NULL; local Offset = Vector()
+        local Distance = 0; local FOV = 90
+        local RelativeMovement = false; local Activated = false
+        local IsRotationLimited = false; local RotationLimit = Angle()
+        local CursorLimit = Angle(); local FilterEntities = {}
+        
+        local ReceiveParent = Empty; local ReceiveOffset = Empty
+        local ReceiveDistance = Empty; local ReceiveFOV = Empty
+        local ReceiveRelativeMovement = Empty; local ReceiveActivated = Empty
+        local ReceiveRotationLimit = Empty; local ReceiveCursorLimit = Empty
+        local ReceiveFilterEntities = Empty
+        
+        function Receiver:Initialize()
+            net.receive("input-parent", ReceiveParent)
+            net.receive("input-offset", ReceiveOffset)
+            net.receive("input-distance", ReceiveDistance)
+            net.receive("input-fov", ReceiveFOV)
+            net.receive("input-relativemovement", ReceiveRelativeMovement)
+            net.receive("input-activated", ReceiveActivated)
+            net.receive("input-rotationlimit", ReceiveRotationLimit)
+            net.receive("input-cursorlimit", ReceiveCursorLimit)
+            net.receive("input-filterentities", ReceiveFilterEntities)
+        end
+        
+        -- # Networking junk
+        
+        function ReceiveParent()
+            Parent = net.readEntity()
+            hook.run(EVENT.RECEIVER_PARENT)
+        end
+        
+        function ReceiveOffset() Offset = net.readVector() end
+        
+        function ReceiveDistance() Distance = net.readFloat() end
+        
+        function ReceiveFOV() FOV = net.readFloat() end
+        
+        function ReceiveRelativeMovement()
+            RelativeMovement = net.readBool()
+            hook.run(EVENT.RECEIVER_RELATIVEMOVEMENT)
+        end
+        
+        function ReceiveActivated()
+            Activated = net.readBool()
+            hook.run(EVENT.RECEIVER_ACTIVATED)
+        end
+        
+        function ReceiveRotationLimit()
+            IsRotationLimited = net.readBool()
+            RotationLimit = net.readAngle()
+            hook.run(EVENT.RECEIVER_LIMITS)
+        end
+        
+        function ReceiveCursorLimit()
+            CursorLimit = net.readAngle()
+            hook.run(EVENT.RECEIVER_LIMITS)
+        end
+        
+        function ReceiveFilterEntities() FilterEntities = net.readTable() end
+        
+        -- # Getters
+        
+        function Receiver:GetParent() return Parent end
+        
+        function Receiver:GetOffset() return Offset end
+        
+        function Receiver:GetDistance() return Distance end
+        
+        function Receiver:GetFOV() return FOV end
+        
+        function Receiver:GetRelativeMovement() return RelativeMovement end
+        
+        function Receiver:GetActivated() return Activated end
+        
+        function Receiver:GetIsRotationLimited() return IsRotationLimited end
+        
+        function Receiver:GetRotationLimit() return RotationLimit end
+        
+        function Receiver:GetCursorLimit() return CursorLimit end
+        
+        function Receiver:GetFilterEntities() return FilterEntities end
+    end
+    
+    -- >> Camera behavior
+    
+    -- Gyroscopic
+    do
+        local Up = Vector(0, 0, 1)
+        local ViewAngle = Angle(); local CursorAngle = Angle()
+        local RetrieveAngle = Empty
+        
+        hook.add(EVENT.RECEIVER_RELATIVEMOVEMENT, "gyro-set", function() RetrieveAngle() end)
+        hook.add(EVENT.RECEIVER_LIMITS, "gyro-reset", function() GyroCam:OnOverride() end)
+        
+        function GyroCam:OnMouseMove(X, Y)
+            CursorAngle = CursorAngle:rotateAroundAxis(Up, X)
+            CursorAngle = CursorAngle:rotateAroundAxis(CursorAngle:getRight(), Y)
+        end
+        
+        function GyroCam:OnOverride()
+            CursorAngle = CursorAngle:setR(0)
+            CursorAngle:setP(math.approach(0, CursorAngle.p, SH.ElevationLimit))
+            
+            if Receiver:GetIsRotationLimited() then
+                local relative = Receiver:GetParent():worldToLocalAngles(CursorAngle)
+                relative:setP(math.approach(0, relative.p, Receiver:GetRotationLimit().p))
+                relative:setY(math.approach(0, relative.y, Receiver:GetRotationLimit().y))
+                ViewAngle = Receiver:GetParent():localToWorldAngles(relative)
+                
+                relative = Receiver:GetParent():worldToLocalAngles(CursorAngle)
+                relative:setP(math.approach(0, relative.p, Receiver:GetRotationLimit().p + Receiver:GetCursorLimit().p))
+                relative:setY(math.approach(0, relative.y, Receiver:GetRotationLimit().y + Receiver:GetCursorLimit().y))
+                CursorAngle = Receiver:GetParent():localToWorldAngles(relative)
+            end
+            
+            return ViewAngle
+        end
+        
+        function RetrieveAngle()
+            if Receiver:GetRelativeMovement() then return end
+            if not Receiver:GetParent():isValid() then return end
+            
+            RelativeCam:OnMouseMove(0, 0)
+            CursorAngle = RelativeCam:GetCursorAngle()
+            GyroCam:OnOverride()
+        end
+        
+        function GyroCam:GetCursorAngle() return CursorAngle end
+    end
+    
+    -- Relative
+    do
+        local Up = Vector(0, 0, 1)
+        local ViewAngle = Angle(); local RelativeAngle = Angle()
+        local CursorAngle = Angle()
+        local RetrieveAngle = Empty
+        
+        hook.add(EVENT.RECEIVER_RELATIVEMOVEMENT, "relative-set", function() RetrieveAngle() end)
+        hook.add(EVENT.RECEIVER_LIMITS, "relative-reset", function() RelativeCam:OnMouseMove(0, 0) end)
+        
+        function RelativeCam:OnMouseMove(X, Y)
+            CursorAngle = CursorAngle:rotateAroundAxis(Up, X)
+            CursorAngle = CursorAngle:rotateAroundAxis(CursorAngle:getRight(), Y)
+            
+            if Receiver:GetIsRotationLimited() then
+                RelativeAngle = CursorAngle:clone()
+                RelativeAngle:setP(math.approach(0, RelativeAngle.p, Receiver:GetRotationLimit().p))
+                RelativeAngle:setY(math.approach(0, RelativeAngle.y, Receiver:GetRotationLimit().y))
+                
+                CursorAngle:setP(math.approach(0, CursorAngle.p, Receiver:GetRotationLimit().p + Receiver:GetCursorLimit().p))
+                CursorAngle:setY(math.approach(0, CursorAngle.y, Receiver:GetRotationLimit().y + Receiver:GetCursorLimit().y))
+            end
+        end
+        
+        function RelativeCam:OnOverride()
+            ViewAngle = Receiver:GetParent():localToWorldAngles(RelativeAngle)
+            return ViewAngle
+        end
+        
+        function RetrieveAngle()
+            if not Receiver:GetRelativeMovement() then return end
+            if not Receiver:GetParent():isValid() then return end
+            
+            GyroCam:OnMouseMove(0, 0)
+            CursorAngle = Receiver:GetParent():worldToLocalAngles(GyroCam:GetCursorAngle()):setR(0)
+            RelativeCam:OnMouseMove(0, 0)
+        end
+        
+        function RelativeCam:GetCursorAngle() return Receiver:GetParent():localToWorldAngles(CursorAngle) end
+    end
+    
+    -- >> CVU; calcView stuff
+    do
+        local Position = Vector(); local Direction = Vector()
+        local Angles = Angle()
+        local OnCalcView = Empty
+        
+        function CVU:SetActive(Active)
+            if Active then
+                hook.add("CalcView", "cvu-override", OnCalcView)
+            else
+                hook.remove("CalcView", "cvu-override")
+            end
+        end
+        
+        -- Override view
+        function OnCalcView()
+            Angles = Manager:GetCamBehavior():OnOverride()
+            Direction = Angles:getForward()
+            Position = Receiver:GetParent():localToWorld(Receiver:GetOffset()) - Direction * Receiver:GetDistance()
+            
+            return {
+                origin = Position,
+                angles = Angles,
+                fov = Receiver:GetFOV(),
+            }
+        end
+        
+        -- # Getters
+        
+        function CVU:GetPosition() return Position end
+        
+        function CVU:GetDirection() return Direction end
+        
+        function CVU:GetAngles() return Angles end
+    end
+    
+    -- >> Probe; send camera data to server
+    do
+        local SendData = Empty
+        
+        function Probe:SetActive(Active)
+            if Active then
+                timer.create("run-probe", SH.BradcastRate, 0, SendData)
+            else
+                timer.remove("run-probe")
+            end
+        end
+        
+        -- Send camera data to server
+        function SendData()
+            local data = {}
+            
+            data.CamPos = CVU:GetPosition()
+            data.CamOrigin = Receiver:GetParent():localToWorld(Receiver:GetOffset())
+            data.CamDir = CVU:GetDirection()
+            data.CamAng = CVU:GetAngles()
+            
+            data.CursorAng = Manager:GetCamBehavior():GetCursorAngle()
+            data.CursorDir = data.CursorAng:getForward()
+            
+            local traceResult = trace.line(
+                CVU:GetPosition(),
+                CVU:GetPosition() + data.CursorDir * SH.TraceRange,
+                Receiver:GetFilterEntities(),
+                nil,
+                nil,
+                false
+            )
+            
+            data.HitPos = traceResult.HitPos
+            
+            net.start("outputs")
+                net.writeTable(data)
+            net.send()
+        end
+    end
+    
+    -- Startup
+    Manager:Initialize()
+end

@@ -1,0 +1,76 @@
+@name Paper Evasion
+@inputs DodgeRadius DodgeForceGain
+@outputs TargetVelocity:vector Test Angle Dif IntersectRadius Tick Loop Dodge
+@persist Count
+interval(1)
+if( DodgeRadius  == 0 ) { DodgeRadius = 2000 }
+if( DodgeForceGain  == 0 ) { DodgeForceGain = 50000000000 }
+Tick++
+if( Loop > Count | Loop == 0 )
+{
+    #findIncludeClass("heavylaserbolt")
+    #findIncludeClass("greenlaserbolt")
+    findIncludeClass("bolt")
+    findIncludeClass("lasor")
+    findIncludeClass("weapon_zat")
+    Count = findInSphere(entity():pos(),50000)
+    Loop = 1
+    Dodge = 0
+    findSortByDistance(entity():pos())
+}
+
+Target = findResult(Loop)
+if( Target:type() == "" ) { Loop++ exit() }
+TargetPos = Target:pos()
+if( Target:type() == "asgardbolt" )
+{
+    Speed = 3500
+    TargetVelocity = Target:up()*Speed #Target:angles():toVector()
+}elseif( Target:type() == "lasor" ){
+    Speed = 17500
+    TargetVelocity = Target:up()*Speed #Target:angles():toVector()
+}elseif( Target:type() == "weapon_zat" ){
+    Speed = 17500
+    # Load the owner eye aim location of the zat weapon
+    Found = 0
+    if( entity(1):weapon() == Target ) { Found = 1 Target = entity(1) Aim = entity(1):eye() }
+    if( entity(2):weapon() == Target ) { Found = 1 Target = entity(2) Aim = entity(2):eye() }
+    if( entity(3):weapon() == Target ) { Found = 1 Target = entity(3) Aim = entity(3):eye() }
+    if( entity(4):weapon() == Target ) { Found = 1 Target = entity(4) Aim = entity(4):eye() }
+    if( entity(5):weapon() == Target ) { Found = 1 Target = entity(5) Aim = entity(5):eye() }
+    if( entity(6):weapon() == Target ) { Found = 1 Target = entity(6) Aim = entity(6):eye() }
+    if( entity(7):weapon() == Target ) { Found = 1 Target = entity(7) Aim = entity(7):eye() }
+    if( entity(8):weapon() == Target ) { Found = 1 Target = entity(8) Aim = entity(8):eye() }
+    if( entity(9):weapon() == Target ) { Found = 1 Target = entity(9) Aim = entity(9):eye() }
+    if( entity(10):weapon() == Target ) { Found = 1 Aim = entity(10):eye() }
+    if( Found == 0 ) { Loop++ exit() }
+    
+    TargetVelocity = Aim*Speed
+    #TargetPos = Target:owner():shootPos()
+}else{
+    Speed = 10500
+    TargetVelocity = Target:up()*Speed #Target:angles():toVector()
+}
+
+
+DifVel = TargetVelocity
+DifPos = entity():pos()-TargetPos
+Angle = acosr(DifVel:normalized():dot(DifPos:normalized()))*180/pi()
+
+if( abs(Angle) < 90 )
+{
+    # See if this weapon blast has an intersection path with our radius
+    IntersectRadius = sinr(acosr(DifVel:normalized():dot(DifPos:normalized())))*DifPos:length()
+    if( IntersectRadius < DodgeRadius )
+    {
+        #print("Evasion: Dodging! Weapon: " + Target:type() + "; Owner: " + Target:owner():name() )
+        #ForceDirection = -(DifVel:normalized()-DifPos:normalized())
+        ForceDirection = -(DifVel:normalized():cross(entity():right()))
+        
+        # Dodge the weapon
+        entity():applyForce(ForceDirection:normalized()*500000*1000*DodgeForceGain)
+        Dodge = 1
+    }
+}
+
+Loop = Loop + 1

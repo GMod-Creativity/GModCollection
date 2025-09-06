@@ -1,0 +1,80 @@
+@name Projected Span - Aspect ratio - function
+@inputs E:entity
+@outputs Vel:vector Span Chord AR 
+@persist Lx Ly Lmax Area
+@trigger 
+
+if( first() ) {
+    # Constants:
+        # Lengths
+    Size = E:boxSize()  
+    Lx = Size:x() 
+    Ly = Size:y() 
+    Lmax = max(Lx,Ly)
+        # Surface area 
+    Area = Lx * Ly * pi() / 4
+    
+    # Aerodynamic ratios 
+    function vector aspectRatio(V:vector) {
+        # unit vectors
+        Ux = E:forward()
+        Uy = E:right()
+        Uz = E:up()
+            
+        # projected velocity
+        Vxy = V - Uz:dot(V) * Uz
+        Vmag = Vxy:length()
+        
+        # prevent zero division
+        if( Vmag > 0 ) {
+            Vnorm = Vxy/Vmag
+            
+            # 1. tangent slope
+            P1 = abs( Ux:dot(Vnorm) )
+            P2 = abs( Uy:dot(Vnorm) )
+            
+            if( P1 > P2 ) {
+                M = P2/P1
+                A = Ly
+                B = Lx
+            } else {
+                M = P1/P2
+                A = Lx
+                B = Ly
+            }
+            
+            # 2. intercept values
+            M2 = M^2
+            Y = M2/(M2 + (A/B)^2)
+            
+            Xo = B*sqrt(Y)
+            Yo = A*sqrt(1 - Y)
+            
+            # 3. projected span
+            Span = (Yo + M*Xo)/sqrt(1 + M2)  
+                # Aspect Ratio
+            AR = Span^2 / Area
+                # Effective Chord
+            Chord = Area/Span
+        
+        # Default case
+        } else {
+            Span = Lmax
+            Chord = Area/Span
+            AR = Span/Chord
+        }
+        return vec(AR, Chord, Span)
+    }
+}
+
+# iterate script
+interval(20)
+
+# measure velocity
+Vel = E:vel()
+
+# get aerodynamic ratios
+Out = aspectRatio(Vel)
+AR = Out[1]
+Chord = Out[2]
+Span = Out[3]

@@ -1,0 +1,468 @@
+--@name tools/Constraint Migrator
+--@author DEF
+--@shared
+--@owneronly
+
+--[[
+
+        This Starfall chip is meant to migrate the constraints from one entity to another! It doesn't get rid of them, though.
+        
+        To use it:
+        
+            Right-click the entity you want to get the constraints from, then right-click the entity you want to move the
+        constraints to.
+        
+            Be aware that the chip spawns enabled; toggle it by pressing < ToggleChip >!
+            
+]]
+
+-- # # # Settings
+
+local HideConstraints = false        -- Sets ropes to 0 width, etc.
+
+local ToggleChip = KEY.G          -- Press this to migrate constraints!
+
+
+-- # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+
+-- Commands
+local arg_PrintEntities = "entities"
+local arg_SiftConstraints = "constraints"
+
+-- Messages
+local sv_Constraints = "sv_Constraints"
+local sv_Interrogate = "sv_Interrogate"
+
+if CLIENT and player() == owner() then
+    
+    local OldEntity = nil
+    local NewEntity = nil
+    
+    local ChipActive = true
+    
+    -- Check for key commands
+    local function OnKey(Key)
+        
+        -- Turn the chip on or off
+        if Key == ToggleChip then
+            
+            ChipActive = not ChipActive
+            
+            if not ChipActive then
+                print("Migrator disabled!")
+            else
+                print("Migrator enabled!")
+            end
+            
+            OldEntity = nil
+            NewEntity = nil
+        
+        -- See if this entity is valid
+        elseif Key == 108 and ChipActive then
+            
+            local Tgt = owner():getEyeTrace().Entity
+            
+            if Tgt:isValid() and Tgt:getOwner() == owner() then
+                
+                local ID = tostring(Tgt:entIndex())
+                
+                -- Print variations
+                if OldEntity == nil or not OldEntity:isValid() then
+                    
+                    OldEntity = Tgt
+                    print("Selected " .. ID .. " as the old entity!")
+                
+                -- Only send message when got both entities
+                elseif Tgt != OldEntity then
+                    
+                    NewEntity = Tgt
+                    print("Moving constraints from " .. tostring(OldEntity:entIndex()) .. " to " .. ID .. "!")
+                    
+                    net.start(sv_Constraints)
+                    net.writeTable( {OldBase = OldEntity, NewBase = NewEntity} )
+                    net.send()
+                    
+                    OldEntity = nil
+                    NewEntity = nil
+                    
+                else
+                    print("That's the same entity!")
+                end
+                
+            else
+                print("You don't own that!")
+            end
+            
+        end
+    end
+    
+    hook.add("inputPressed", "OnKeyPress", OnKey)
+end
+
+if SERVER then
+    
+    local CleanConstraints = {}
+    local Constraint = {}
+    
+    local SFC = wire.self():entity()
+    local SFCPos = Vector(0, 0, 0)
+    
+    local NewBase = nil
+    local OldBase = nil
+    
+    local ConstraintCount = 0
+    
+    constraint.setConstraintClean(false)
+    
+    -- Get the entity OldBase is constrained to
+    local function GetOtherEnt()
+        
+        local Other = Constraint.Ent1
+        if Other == OldBase then Other = Constraint.Ent2 end
+        
+        return Other
+    end
+    
+    -- Check if OldBase is the first entity in Constraint
+    local function IsFirst()
+        
+        return Constraint.Ent1 == OldBase
+    end
+    
+    -- Get vector to strafall's position from other entity's position
+    local function ToSFC(IsFirst)
+        
+        if IsFirst then
+            return SFCPos - Constraint.Ent2:getPos()
+        else
+            return SFCPos - Constraint.Ent1:getPos()
+        end
+    end
+    
+    -- Get entity order for constraints that are sensitive to it
+    local function GetEntityOrder(IsFirst)
+        
+        if IsFirst then
+            return NewBase, Constraint.Other
+        else
+            return Constraint.Other, NewBase
+        end
+    end
+    
+    -- Move a LocalPos from Entity to starfall
+    local function PackPosition(Entity, LocalPos, Offset)
+        return SFC:worldToLocal( Entity:localToWorld(LocalPos) + Offset )
+    end
+    
+    -- Move a LocalPos from starfall to Entity
+    local function UnPackPosition(Entity, LocalPos, Offset)
+        return Entity:worldToLocal( SFC:localToWorld(LocalPos) + Offset )
+    end
+    
+    -- Simplify weld data
+    local function CleanupWeld()
+        
+        local Simplified = {
+            Type = "Weld",
+            forcelimit = Constraint.forcelimit,
+            nocollide = Constraint.nocollide,
+            Other = GetOtherEnt()
+        }
+        
+        table.insert(CleanConstraints, Simplified)
+    end
+
+    -- Simplify axis data
+    local function CleanupAxis()
+        
+        local EntityFirst = IsFirst()
+        local Offset = ToSFC(EntityFirst)
+        
+        local LocalAxis = Constraint.Ent1:localToWorldVector( Constraint.LocalAxis - Constraint.LPos1 )
+        
+        local Simplified = {
+            Type = "Axis",
+            EntityFirst = EntityFirst,
+            LPos1 = PackPosition(Constraint.Ent1, Constraint.LPos1, Offset),
+            LPos2 = PackPosition(Constraint.Ent2, Constraint.LPos2, Offset),
+            forcelimit = Constraint.forcelimit,
+            torquelimit = Constraint.torquelimit,
+            friction = Constraint.friction,
+            nocollide = Constraint.nocollide,
+            LocalAxis = LocalAxis,
+            Other = GetOtherEnt()
+        }
+        
+        table.insert(CleanConstraints, Simplified)
+    end
+
+    -- Simplify rope
+    local function CleanupRope()
+        
+        local EntityFirst = IsFirst()
+        local Offset = ToSFC(EntityFirst)
+        
+        local Width = 0
+        if not HideConstraints then Width = Constraint.width end
+        
+        local Simplified = {
+            Type = "Rope",
+            EntityFirst = EntityFirst,
+            LPos1 = PackPosition(Constraint.Ent1, Constraint.LPos1, Offset),
+            LPos2 = PackPosition(Constraint.Ent2, Constraint.LPos2, Offset),
+            length = Constraint.length,
+            addlength = Constraint.addlength,
+            forcelimit = Constraint.forcelimit,
+            width = Width,
+            material = Constraint.material,
+            rigid = Constraint.rigid,
+            Other = GetOtherEnt()
+        }
+        
+        table.insert(CleanConstraints, Simplified)
+    end
+    
+    -- Simplify elastic
+    local function CleanupElastic()
+        
+        local EntityFirst = IsFirst()
+        local Offset = ToSFC(EntityFirst)
+        
+        local Width = 0
+        if not HideConstraints then Width = Constraint.width end
+        
+        local Simplified = {
+            Type = "Elastic",
+            EntityFirst = EntityFirst,
+            LPos1 = PackPosition(Constraint.Ent1, Constraint.LPos1, Offset),
+            LPos2 = PackPosition(Constraint.Ent2, Constraint.LPos2, Offset),
+            constant = Constraint.constant,
+            damping = Constraint.damping,
+            rdamping = Constraint.rdamping,
+            width = Width,
+            stretchonly = Constraint.stretchonly,
+            Other = GetOtherEnt()
+        }
+        
+        table.insert(CleanConstraints, Simplified)
+    end
+    
+    -- Simplify ballsocket
+    local function CleanupBallsocket()
+        
+        local EntityFirst = IsFirst()
+        local Offset = ToSFC(EntityFirst)
+        
+        local Simplified = {
+            Type = "Ballsocket",
+            EntityFirst = EntityFirst,
+            LPos = PackPosition(Constraint.Ent2, Constraint.LPos, Offset),
+            forcelimit = Constraint.forcelimit,
+            torquelimit = Constraint.torquelimit,
+            nocollide = Constraint.nocollide,
+            Other = GetOtherEnt()
+        }
+        
+        table.insert(CleanConstraints, Simplified)
+    end
+    
+    -- Simplify advanced ballscocket
+    local function CleanupAdvBallsocket()
+        
+        local EntityFirst = IsFirst()
+        local Offset = ToSFC(EntityFirst)
+        
+        local Simplified = {
+            Type = "AdvBallsocket",
+            EntityFirst = EntityFirst,
+            LPos1 = PackPosition(Constraint.Ent1, Constraint.LPos1, Offset),
+            LPos2 = PackPosition(Constraint.Ent2, Constraint.LPos2, Offset),
+            forcelimit = Constraint.forcelimit,
+            torquelimit = Constraint.torquelimit,
+            minimum = Vector(Constraint.xmin, Constraint.ymin, Constraint.zmin),
+            maximum = Vector(Constraint.xmax, Constraint.ymax, Constraint.zmax),
+            friction = Vector(Constraint.xfric, Constraint.yfric, Constraint.zfric),
+            onlyrotation = Constraint.onlyrotation,
+            nocollide = Constraint.nocollide,
+            Other = GetOtherEnt()
+        }
+        
+        table.insert(CleanConstraints, Simplified)
+    end
+
+    -- Identify if this constraint is supported; run cleanup if so
+    local function IdentifyConstraint()
+        
+        if Constraint.Type == "Weld" then
+            
+            CleanupWeld()
+            
+        elseif Constraint.Type == "Axis" then
+            
+            CleanupAxis()
+            
+        elseif Constraint.Type == "Rope" then
+            
+            CleanupRope()
+            
+        elseif Constraint.Type == "Elastic" then
+            
+            CleanupElastic()
+            
+        elseif Constraint.Type == "Ballsocket" then
+            
+            CleanupBallsocket()
+            
+        elseif Constraint.Type == "AdvBallsocket" then
+            
+            CleanupAdvBallsocket()
+            
+        end
+    end
+
+    -- Create weld
+    local function CreateWeld()
+        
+        constraint.weld(NewBase, Constraint.Other, nil, nil, Constraint.forcelimit, Constraint.nocollide)
+    end
+    
+    -- Create axis
+    local function CreateAxis()
+        
+        local Offset = Constraint.Other:getPos() - SFCPos
+        
+        local E1, E2 = GetEntityOrder(Constraint.EntityFirst)
+        
+        local V1 = UnPackPosition(E1, Constraint.LPos1, Offset)
+        local V2 = UnPackPosition(E2, Constraint.LPos2, Offset)
+        
+        local HingeAxis = E1:worldToLocalVector( Constraint.LocalAxis ) + V1
+        
+        constraint.axis(E1, E2, nil, nil, V1, V2, Constraint.forcelimit, Constraint.torquelimit,
+        Constraint.friction, Constraint.nocollide, HingeAxis)
+    end
+    
+    -- Create rope
+    local function CreateRope()
+        
+        local Offset = Constraint.Other:getPos() - SFCPos
+        
+        local E1, E2 = GetEntityOrder(Constraint.EntityFirst)
+        
+        local V1 = UnPackPosition(E1, Constraint.LPos1, Offset)
+        local V2 = UnPackPosition(E2, Constraint.LPos2, Offset)
+        
+        constraint.rope(0, E1, E2, nil, nil, V1, V2,
+        Constraint.length, Constraint.addlength, Constraint.forcelimit, Constraint.width, Constraint.material,
+        Constraint.rigid, nil)
+    end
+    
+    -- Create elastic
+    local function CreateElastic()
+        
+        local Offset = Constraint.Other:getPos() - SFCPos
+        
+        local E1, E2 = GetEntityOrder(Constraint.EntityFirst)
+        
+        local V1 = UnPackPosition(E1, Constraint.LPos1, Offset)
+        local V2 = UnPackPosition(E2, Constraint.LPos2, Offset)
+        
+        constraint.elastic(0, E1, E2, nil, nil, V1, V2,
+        Constraint.constant, Constraint.damping, Constraint.rdamping, Constraint.width, Constraint.stretchonly)
+    end
+    
+    -- Create ballsocket
+    local function CreateBallsocket()
+        
+        local Offset = Constraint.Other:getPos() - SFCPos
+        
+        local E1, E2 = GetEntityOrder(Constraint.EntityFirst)
+        
+        local V2 = UnPackPosition(E2, Constraint.LPos, Offset)
+        
+        constraint.ballsocket(E1, E2, nil, nil,
+        V2, Constraint.forcelimit, Constraint.torquelimit, Constraint.nocollide)
+    end
+    
+    -- Create advanced ballsocket
+    local function CreateAdvBallsocket()
+        
+        local Offset = Constraint.Other:getPos() - SFCPos
+        
+        local E1, E2 = GetEntityOrder(Constraint.EntityFirst)
+        
+        local V1 = UnPackPosition(E1, Constraint.LPos1, Offset)
+        local V2 = UnPackPosition(E2, Constraint.LPos2, Offset)
+        
+        constraint.ballsocketadv(E1, E2, nil, nil, V1, V2,
+        Constraint.forcelimit, Constraint.torquelimit, Constraint.minimum, Constraint.maximum, Constraint.friction,
+        Constraint.onlyrotation, Constraint.nocollide)
+    end
+
+    -- Create appropriate constraint
+    local function CreateConstraints()
+        
+        if Constraint.Type == "Weld" then
+            
+            CreateWeld()
+            ConstraintCount = ConstraintCount + 1
+            
+        elseif Constraint.Type == "Axis" then
+            
+            CreateAxis()
+            ConstraintCount = ConstraintCount + 1
+            
+        elseif Constraint.Type == "Rope" then
+            
+            CreateRope()
+            ConstraintCount = ConstraintCount + 1
+            
+        elseif Constraint.Type == "Elastic" then
+            
+            CreateElastic()
+            ConstraintCount = ConstraintCount + 1
+            
+        elseif Constraint.Type == "Ballsocket" then
+            
+            CreateBallsocket()
+            ConstraintCount = ConstraintCount + 1
+            
+        elseif Constraint.Type == "AdvBallsocket" then
+            
+            CreateAdvBallsocket()
+            ConstraintCount = ConstraintCount + 1
+            
+        end
+    end
+
+    -- Get relevant information to recreate constraints
+    local function SiftConstraints()
+        
+        local Entities = net.readTable()
+        OldBase = Entities.OldBase
+        NewBase = Entities.NewBase
+        
+        local DirtyConstraints = constraint.getTable(OldBase)
+        CleanConstraints = {}
+        
+        SFCPos = SFC:getPos()
+        ConstraintCount = 0
+        
+        -- Find all constraints of a certain type
+        for Ind, Element in pairs(DirtyConstraints) do
+            Constraint = Element
+            IdentifyConstraint()
+        end
+
+        -- Create the constraints for the NewBase
+        for Ind, Element in pairs(CleanConstraints) do
+            Constraint = Element
+            CreateConstraints()
+        end
+
+        print("Migrated " .. tostring(ConstraintCount) .. " constraints!")
+    end
+    
+    net.receive(sv_Constraints, SiftConstraints)
+end

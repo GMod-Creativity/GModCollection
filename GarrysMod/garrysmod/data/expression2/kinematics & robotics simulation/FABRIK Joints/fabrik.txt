@@ -1,0 +1,89 @@
+@name FABRIK Joints
+@inputs 
+@outputs Radius
+@persist [Len SegLen] JointMdl:string [MidPoints Joints]:array EndEffector:entity TotalLength StartPos:vector
+@persist BoneSpans:array EndPos:vector
+@trigger 
+
+
+if (first()) {
+    propSpawnUndo(0)
+    Len = 10
+    SegLen = 60
+    Radius = Len * SegLen
+    JointMdl = "hq_sphere"
+    SectionMdl = "models/mechanics/robotics/a4.mdl"
+    SectionScale = vec(SegLen, 4.5, 4.5)
+    MidPoints = array()
+    StartPos = entity():pos()
+    TotalLength = (SegLen * Len) - SegLen
+    EndEffector = propSpawn("models/hunter/blocks/cube025x025x025.mdl", entity():pos() + vec(0, 0, 40), 1)
+    BoneSpans = array()
+    #Spawn Joints
+    for (I = 1, Len) {
+        holoCreate(I, entity():pos() + vec((I-1) * SegLen, 0, 0))
+        holoModel(I, JointMdl)
+        holoDisableShading(I, 1)
+        holoColor(I, vec(150) - vec(50)*(I%2))
+        BoneSpans:pushNumber(Len + 1 + I)
+        Joints:pushEntity(holoEntity(I))
+    }
+    
+    for (I = 1, BoneSpans:count()) {
+        holoCreate(BoneSpans[I, number], entity():pos())
+        holoModel(BoneSpans[I, number], SectionMdl)
+        holoScaleUnits(BoneSpans[I, number], SectionScale)   
+    }
+         
+    runOnTick(1) 
+}
+
+EndPos = EndEffector:pos()
+
+if (changed(EndPos)) {
+    if (EndEffector:pos():distance(StartPos) > TotalLength + SegLen/2) {
+        for (I = 1, Joints:count()) {
+            #(Dir * ((I-1)*SegLength + SegLength/2)
+            local Dir = (EndEffector:pos() - StartPos):normalized()
+            holoPos(I, StartPos + Dir * ( (I-1) * SegLen))
+            holoAng(I, Dir:toAngle())
+            if (I < Joints:count()) {
+                holoPos(BoneSpans[I, number], Joints[I, entity]:pos() + (Joints[I, entity]:pos() - Joints[I+1, entity]:pos())/2)
+            } else {
+                holoPos(BoneSpans[I, number], Joints[I-1, entity]:pos() + (Joints[I, entity]:pos() - Joints[I-1, entity]:pos())/2)
+            }
+            holoAng(BoneSpans[I, number], Dir:toAngle())
+        }
+    } else {
+        
+        Positions = array()
+        FinalPositions = array()
+        MidPoints = array()
+        StartPos = entity():pos()
+        Positions[Len, vector] = EndEffector:pos()
+       
+        for (I = (Len - 1), 0, -1) {
+            Positions[I, vector] = Positions[I+1, vector] + (Joints[I, entity]:pos() - Positions[I+1, vector]):normalized() * (SegLen) 
+        }
+        
+        Positions[1, vector] = StartPos
+        holoPos(1, Positions[1, vector])
+        for (I = 1, (Len - 1) * perf()) {
+            local Dir = (Positions[I, vector] - Positions[I+1, vector]):normalized()
+            Positions[I+1, vector] = Positions[I, vector] - Dir * (SegLen)
+            holoAng(I+1, Dir:toAngle())
+            holoPos(I+1, Positions[I+1, vector])
+            local BoneDir = (Joints[I+1, entity]:pos() - Joints[I, entity]:pos())
+            holoPos(BoneSpans[I+1, number], Joints[I, entity]:pos() + BoneDir/2)
+            holoAng(BoneSpans[I+1, number], BoneDir:toAngle())
+        }
+        FinalBoneDir = (Joints[2, entity]:pos() - Joints[1, entity]:pos())
+        holoPos(BoneSpans[1, number], StartPos + FinalBoneDir/2)
+        holoAng(BoneSpans[1, number], FinalBoneDir:toAngle()) 
+        holoPos(Len, Positions[Len, vector])
+    }
+}
+
+
+    
+#

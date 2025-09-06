@@ -1,0 +1,162 @@
+main();
+
+#define MESH_WIDTH 50
+#define MESH_HEIGHT 50
+#define QUAD_WIDTH 1
+#define QUAD_HEIGHT 1
+
+#include <drivers\drv_gl.txt>
+
+void main()
+{   
+    dentrypoint 0,drawThread; 
+    dentrypoint 4,asyncThread;
+    
+    *regHWClear = 0;
+    *regAsyncFreq = 1000000;
+    *regAsyncClk = 1;
+    
+    dexit;
+}
+
+void drawThread()
+{   
+    dexit;
+}
+
+void asyncThread()
+{
+    // Begin async rendering
+    glBegin();
+
+        // Wipe screen
+        glClear( 0, 0, 0 );
+
+        // Draw HUD
+        glColor( 255, 255, 255 );
+        quadcount = MESH_WIDTH * MESH_HEIGHT
+        vtxcount = quadcount * 6;
+        glWriteFormat( 12, 12, hud );
+        //glFontAlign( GL_ALIGN_RIGHT );
+        //glWriteString( 500, 12, '(C) 2012 by Drunkie' );
+        
+        // Set coordinate / vertex pipe
+        glCoordPipe( GL_CPIPE_N1_1 ); 
+        glVertexPipe( GL_VPIPE_XYZTRANSFORM );
+        
+        // Set light source
+        glLightColor( 255, 255, 255, 1 );
+        glLightPos( *lightPos.x, *lightPos.y, *lightPos.z );
+    
+        // Set perspective and lookat matrix
+        float unit = 45;
+        glLookAt( unit, -unit, unit, 0, 0, 0, 0, 1, 0 );
+        glPerspective( 20, 1.6, 1, 100 );
+              
+        // Enable GPU features
+        glEnable( GL_VERTEX_BUFFER );
+        glEnable( GL_VERTEX_ZSORT );
+        glEnable( GL_VERTEX_LIGHTING );
+        glEnable( GL_VERTEX_CULLING );
+        //glEnable( GL_VERTEX_DCULLING );
+        //glEnable( GL_VERTEX_TEXTURING );
+
+        // Load vertex array (for index buffer mode)
+        glVertexArray( vertexBuffer );
+        
+        // Copy quad memory
+        esi = quad;
+        edi = vertexBuffer;
+        mcopy 12;
+        
+        // Initialize mesh
+        glColor4( 100, 149, 237, 255 );
+        glRotate( 0, 0, 0, 0 );
+        glTranslate( (MESH_WIDTH / -2) * QUAD_WIDTH, -8, (MESH_HEIGHT / -2) * QUAD_HEIGHT );
+        glScale( QUAD_WIDTH, 1, QUAD_HEIGHT );
+        //glFillMode( GL_FILL_WIREFRAME );
+        //glLineWidth( 0.4 );
+
+        // Build 3D terrain
+        for (x = 0; x < MESH_WIDTH; x++)
+        {
+            for (y = 0; y < MESH_HEIGHT; y++)
+            {
+                *vOffset.z += QUAD_HEIGHT;
+
+                // Top-left
+                vertexBuffer[0] = *vOffset.x;
+                vertexBuffer[2] = *vOffset.z;
+                vertexBuffer[1] = generateHeight( vertexBuffer[0], vertexBuffer[2] );
+
+                // Top-right
+                vertexBuffer[3] = *vOffset.x - (QUAD_WIDTH * 2);
+                vertexBuffer[5] = *vOffset.z;
+                vertexBuffer[4] = generateHeight( vertexBuffer[3], vertexBuffer[5] );
+
+                // Bottom-right
+                vertexBuffer[6] = *vOffset.x - (QUAD_WIDTH * 2);
+                vertexBuffer[8] = *vOffset.z + QUAD_HEIGHT;
+                vertexBuffer[7] = generateHeight( vertexBuffer[6], vertexBuffer[8] );
+
+                // Bottom-left
+                vertexBuffer[9] = *vOffset.x;
+                vertexBuffer[11] = *vOffset.z + QUAD_HEIGHT;
+                vertexBuffer[10] = generateHeight( vertexBuffer[9], vertexBuffer[11] );
+                
+                //glLightPos( x - (MESH_WIDTH / 2), -5, y - (MESH_HEIGHT / 4));
+                glPoly3D( indexBuffer, 2);
+                glFlush();
+                
+                glSwap();
+            }
+
+            *vOffset.z = 0;
+            *vOffset.x += QUAD_WIDTH;
+        }
+
+    glEnd();  
+}
+
+float generateHeight( float x, float y )
+{
+    preserve eax, ebx;
+    mov eax,MESH_WIDTH; div eax,2;
+    mov ebx,MESH_HEIGHT; div ebx,2;
+    sub eax,x;
+    sub ebx,y;
+    fpwr eax,2;
+    fpwr ebx,2;
+    add eax,ebx;
+    div eax,5;
+    fpwr eax,0.55;
+    fsin eax,eax;
+    mul eax,1.8;
+    //min eax,2;
+}
+
+
+float x, y;
+float time;
+vec3f lightPos,0,-50,10;
+vec3f vOffset;
+
+indexBuffer:
+db 0,1,2;
+db 0,2,3;
+
+vertexBuffer:
+alloc 12;
+
+quad:
+vec3f tl,1,1,-1;
+vec3f tr,-1,1,-1;
+vec3f br,-1,1,0;
+vec3f bl,1,1,0;
+
+hud:
+db 'Procedural Terrain Generator',10,10;
+db 'Quads: %f',10;
+db 'Verts: %f',0;
+float quadcount;
+float vtxcount;

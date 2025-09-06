@@ -1,0 +1,162 @@
+--@name deflibs/canvas/GUI_TextButton
+--@author Yours Truly
+
+// TextButton [Extends from GUI_Button]; a clickable button that does contain text
+
+local CollisionDebug = false
+local StockLeft = 0; local StockTop = 0
+local StockWidth = 40; local StockHeight = 40
+local StockPadding = 4
+local StockText = "Sample Text"; local StockTextSize = 0.24
+
+local function Empty() end
+local Construct = Empty
+local StockDraw = Empty; local StockTextDraw = Empty
+
+local TextButton = {}
+
+-- Create & get new hitbox
+function TextButton.Create(Canvas, IsToggle)
+    return Construct(Canvas, IsToggle)
+end
+
+function TextButton:DrawCollision(Active)
+    CollisionDebug = Active
+end
+
+-- Instance creation function
+function Construct(Canvas, IsToggle)
+    local btn = GUI.Button.Create(Canvas, IsToggle)
+    btn:SetOrigin(StockLeft, StockTop)
+    btn:SetSize(StockWidth, StockHeight)
+    
+    local pad = StockPadding
+    local text = StockText; local textSize = StockTextSize
+    
+    local IDraw = StockDraw; local ITextDraw = StockTextDraw
+    
+    -- Class functions
+    
+    function btn:SetPadding(Padding)
+        pad = Padding
+    end
+    
+    function btn:SetText(Text)
+        text = Text
+    end
+    
+    function btn:SetTextSize(TextSize)
+        textSize = TextSize
+    end
+    
+    function btn:SetDraw(Func)
+        IDraw = Func
+    end
+    
+    function btn:SetTextDraw(Func)
+        ITextDraw = Func
+    end
+    
+    function btn:Draw()
+        render.pushMatrix(self:GetVMatrix(), false)
+            IDraw(self)
+            ITextDraw(self)
+        render.popMatrix()
+        if CollisionDebug then self:DrawAABB() end
+    end
+    
+    -- # Getters
+    
+    function btn:GetPadding() return pad end
+    
+    function btn:GetText() return text end
+    
+    function btn:GetTextSize() return textSize end
+    
+    return btn
+end
+
+-- # Default drawing functions
+
+function StockDraw(BTN)
+    local col = Color(100, 100, 100)
+    
+    if BTN:GetPressed() then
+        if BTN:GetHovered() then
+            col = Color(80, 80, 80)
+        else
+            col = Color(60, 60, 60)
+        end
+    elseif BTN:GetHovered() then
+        col = Color(120, 120, 120)
+    end
+    
+    local width, height = BTN:GetSize()
+    local radius = math.min(width, height) * 0.4
+    local mat = Matrix()
+    mat:setScale(Vector(0.25, 0.25))
+    
+    render.pushMatrix(mat, false)
+        render.setColor(Color(0, 0, 0))
+        render.drawRoundedBox(radius, 0, 0, width * 4, height * 4)
+        render.setColor(col)
+        render.drawRoundedBox(radius, 16, 16, (width - 8) * 4, (height - 8) * 4)
+    render.popMatrix()
+end
+
+function StockTextDraw(BTN)
+    render.setFont(GUI:GetFont())
+    local col = Color(0, 0, 0)
+    if BTN:GetHovered() then
+        col = Color(180, 180, 180)
+    end
+    
+    local width, height = BTN:GetSize()
+    local pad = BTN:GetPadding()
+    local text = BTN:GetText()
+    local scale, _, textHeight = GUI.ScaleText(text, width - pad, height - pad, BTN:GetTextSize())
+    local yPos = math.remap(textHeight * scale, 0, height - pad, height * 0.5, pad * 0.5)
+    
+    local mat = Matrix()
+    mat:setTranslation(Vector(width * 0.5, yPos))
+    mat:setScale(Vector(scale, scale))
+    
+    render.pushMatrix(mat, false)
+        render.setColor(col)
+        render.drawText(0, 0, text, TEXT_ALIGN.CENTER)
+    render.popMatrix()
+end
+
+-- # Stock overrides
+
+function TextButton:SetOrigin(X, Y)
+    StockLeft = X
+    StockTop = Y
+end
+
+function TextButton:SetSize(W, H)
+    StockWidth = W
+    StockHeight = H
+end
+
+function TextButton:SetPadding(Padding)
+    StockPadding = Padding
+end
+
+function TextButton:SetText(Text)
+    StockText = Text
+end
+
+function TextButton:SetTextSize(TextSize)
+    StockTextSize = TextSize
+end
+
+function TextButton:SetDraw(Func)
+    StockDraw = Func
+end
+
+function TextButton:SetTextDraw(Func)
+    StockTextDraw = Func
+end
+
+return TextButton

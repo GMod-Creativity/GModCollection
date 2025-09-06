@@ -1,0 +1,367 @@
+@name MDC ACF TCU
+@inputs StartLink TCULink CoreInfo:table Gearbox:entity InReverse
+@outputs Gear TransferGear
+@persist [M TCUInfo ECU]:table [GearSpd GearRatio]:array
+@trigger none
+
+#[
+    
+    Instructions:
+    
+    This is a transmission control unit!
+    
+    This chip requires an MDC Telemetry Unit to function.
+    
+        Wire...
+        
+        < StartLink > to [StartLink] on the MDC Telemetry Unit.
+        
+        < TCULink > to [TCULink] on the MDC Telemetry Unit.
+        
+        < CoreInfo > to [CoreInfo] on the MDC Telemetry Unit.
+        
+        < Gearbox > to your main acf gearbox.
+
+]#
+
+if(first() | dupefinished()) {
+    
+    M = table()
+    
+    # # # # # # # # # # # # # # # # # # # # #
+    
+    #~ Required to run ~#
+    
+    ContributeData = 1      # You should leave this as 1, unless you have multiple of these for some reason.
+    
+    WheelSize = 38          # Your roadwheel diameter.
+   
+    FinalRatio = 0.20       # Total final drive ratio.
+    
+    TransferCase = 1        # Set to 0 unless you are using a transfer case for duplicated, reversed gears.
+    
+    #~ Shiftpoint things ~#
+    
+    MaxShiftRPM = 0         # RPM where the tank will shift up at 100% throttle.
+                            # If an ECU is present, this is offset from top of powerband, otherwise raw RPM number.
+   
+    MinShiftRPM = 0         # RPM where the tank will shift up at 0% throttle, offset from bottom of powerband.
+    
+    M["ShiftWidth",number] = 500    # RPM band where the transmission will try not to downshift, relative to MaxShiftRPM.
+    
+    #~ Specific ~#
+    
+    M["GearCount",number] = 0       # Custom gear count, otherwise leave this 0.
+    
+    Debug = 0               # Set to 1 to print gear shift speeds in chat.
+    
+    M["ShiftLockout",number] = 14   # Execution cycles before shifting again.
+    
+    # Smooth shifting [Requires TCU]
+    
+    M["LineOff",number] = 1/2       # How much the driveline disengages after shifting each execution cycle.
+    
+    M["LineOn",number] = 1/3        # How much the driveline re-engages after disengaging each execution cycle.
+    
+    #~ Keybinds ~#
+    
+    M["LockGearKey",string] = "v"   # Stop transmission from shifting.
+    
+    # # # # # # # # # # # # # # # # # # # # #
+    
+    # > Initialization
+    
+    TCUInfo = table(
+        "Locked" = 0,
+        "InReverse" = 0,
+        "Rev" = 2,
+        "Gear" = 1,
+        "TransferGear" = 1,
+        "Line" = 1,
+        "Ratio" = 0
+    )
+    
+    Gear = 0
+    GearSpd = array()
+    GearRatio = array()
+    
+    M["ShiftUpRPM",number] = MaxShiftRPM
+    M["ShiftDownRPM",number] = MinShiftRPM
+    M["TopGear",number] = 1
+    M["ShiftDelay",number] = 0
+    M["LineDecay",number] = 0
+    M["NewGear",number] = 0
+    M["SearchStart",number] = 0
+    M["SearchEnd",number] = 0
+    M["SearchDir",number] = 0
+    M["DownShiftMul",number] = 0
+    
+    ECU = table(
+        "Connected" = 0,
+        "Reverse" = 0,
+        "ShiftMul" = 1
+    )
+    
+    TCUInfo["RatioEngineMul",number] = 1 / 60 * WheelSize * _PI * CoreInfo["SpeedMul",number]
+    
+    # Gear constraints with & without a transfer case
+    
+    if(!M["GearCount",number]) { M["GearCount",number] = Gearbox:acfNumGears() }
+    
+    if(!TransferCase) {
+        for(I = 1, M["GearCount",number], 1) {
+            if(Gearbox:acfGearRatio(I) < 0 | I == M["GearCount",number]) {
+                M["TopGear",number] = I - 1
+                TCUInfo["Rev",number] = I
+                break
+            }
+        }
+    }
+    else {
+        M["TopGear",number] = M["GearCount",number]
+        TCUInfo["Rev",number] = 1
+    }
+    
+    # Try to get extra information from Telemetry Unit; Gear shifting speeds
+    if(StartLink == 1) {
+        
+        if(CoreInfo:exists("ECUInfo")) {
+            ECU["Connected",number] = 1
+            M["ShiftUpRPM",number] = CoreInfo["ECUInfo",table]["BandMax",number] + MaxShiftRPM
+            M["ShiftDownRPM",number] = CoreInfo["ECUInfo",table]["BandMin",number] + MinShiftRPM
+        }
+        
+        M["DownShiftMul",number] = (M["ShiftUpRPM",number] - M["ShiftWidth",number]) / M["ShiftUpRPM",number]
+        local RatioToSpeed = M["ShiftUpRPM",number] * TCUInfo["RatioEngineMul",number]
+        
+        # Using wheel size and ratios to make a shifting speed array.
+        for(I = 1, M["GearCount",number], 1) {
+            GearRatio[I,number] = abs(Gearbox:acfGearRatio(I)) * FinalRatio
+            GearSpd[I,number] = RatioToSpeed * GearRatio[I,number]
+        }
+    
+        # Prints shift speeds
+        if(Debug) {
+           
+            local ForwardSpeeds = array()
+            local ReverseSpeeds = array()
+           
+            for(I = 1, M["TopGear",number], 1) {
+                ForwardSpeeds[I,number] = round(GearSpd[I,number], 1)
+            }
+            for(I = TCUInfo["Rev",number], M["GearCount",number], 1) {
+                ReverseSpeeds[I - M["TopGear",number],number] = round(GearSpd[I,number], 1)
+            }
+           
+            print("Forward and reverse shift speeds listed below")
+            print(ForwardSpeeds)
+            print(TransferCase ? ForwardSpeeds : ReverseSpeeds)
+        }
+    }
+    
+    # > Functions
+    
+    # Sets gear to pre-selected gear
+    function shiftGear(Index:number) {
+        TCUInfo["Gear",number] = Index
+        Gear = Index
+        TCUInfo["Ratio",number] = GearRatio[Index,number]
+    }
+    
+    # Forces gear to given number
+    function forceShift(Index:number) {
+        
+        M["NewGear",number] = Index
+        TCUInfo["Gear",number] = Index
+        Gear = Index
+        TCUInfo["Ratio",number] = GearRatio[Index,number]
+        
+        M["ShiftDelay",number] = 0
+        M["LineDecay",number] = 1
+        TCUInfo["Line",number] = 1
+    }
+    
+    # Loops through to find correct gear
+    function findGear() {
+        
+        local UpShiftSpeed = 0
+        local DownShiftSpeed = 0
+        local Speed = CoreInfo["Speed",number] * (ECU["Reverse",number] ? -1 : 1)
+        
+        for(I = M["SearchStart",number], M["SearchEnd",number], M["SearchDir",number]) {
+            
+            UpShiftSpeed = GearSpd[I,number] * ECU["ShiftMul",number]
+            DownShiftSpeed = min(GearSpd[I-1,number] * ECU["ShiftMul",number], UpShiftSpeed * M["DownShiftMul",number])
+            
+            M["NewGear",number] = I
+            
+            # # Found correct gear
+            if(Speed < UpShiftSpeed & M["SearchDir",number] > 0) { break }
+            elseif(Speed > DownShiftSpeed & M["SearchDir",number] < 0) { break }
+        }
+    }
+    
+    # Send own information
+    TCUInfo["Ready",number] = 1
+    if(ContributeData) { CoreInfo["TCUInfo",table] = TCUInfo }
+}
+
+# > Keybinds
+event keyPressed(Player:entity, Key:string, Down:number, KeyBind:string) {
+    
+    if(Player == CoreInfo["Driver",entity]) {
+        
+        switch(Key) {
+            
+            # Locking or unlocking current gear
+            case M["LockGearKey",string],
+            if(Down) { TCUInfo["Locked",number] = !TCUInfo["Locked",number] }
+            break
+        }
+    }
+}
+
+# > Execution triggers
+event input(InputName:string) {
+    
+    switch(InputName) {
+        
+        # Delayed start
+        case "StartLink",
+        reset()
+        break
+        
+        # Update
+        case "TCULink",
+        
+        if(CoreInfo["Active",number]) {
+            
+            # > Extra information
+            
+            if(ECU["Connected",number]) {
+                ECU["Reverse",number] = CoreInfo["ECUInfo",table]["Reverse",number]
+                ECU["ShiftMul",number] = CoreInfo["ECUInfo",table]["ShiftMul",number]
+            }
+            else {
+                ECU["Reverse",number] = InReverse
+            }
+            
+            # > Switching gears
+            if(M["ShiftDelay",number]) {
+                
+                M["ShiftDelay",number] = M["ShiftDelay",number] - 1
+                
+                # Failsafe
+                if(!M["ShiftDelay",number]) {
+                    shiftGear(M["NewGear",number])
+                    TCUInfo["Line",number] = 1
+                }
+                
+                # Disconnecting
+                elseif(M["LineDecay",number]) {
+                    
+                    TCUInfo["Line",number] = TCUInfo["Line",number] - M["LineOff",number]
+                    
+                    # # Fully disconnected; shift gears
+                    if(TCUInfo["Line",number] <= 0) {
+                        shiftGear(M["NewGear",number])
+                        M["LineDecay",number] = 0
+                        TCUInfo["Line",number] = 0
+                    }
+                }
+                
+                # Reconnecting
+                else {
+                    TCUInfo["Line",number] = min(TCUInfo["Line",number] + M["LineOn",number], 1)
+                }
+            }
+            
+            # > Selecting gears
+            if(!TCUInfo["Locked",number]) {
+                
+                # Forwards
+                if(!ECU["Reverse",number]) {
+                    
+                    TransferGear=TCUInfo["TransferGear",number] = 1
+                    
+                    # # Gear reset
+                    if(!Gear | Gear > M["TopGear",number]) { forceShift(1) }
+                    
+                    # # Speed selector
+                    if(!M["ShiftDelay",number]) {
+                        
+                        local UpShiftSpeed = GearSpd[Gear,number] * ECU["ShiftMul",number]
+                        local DownShiftSpeed = min(GearSpd[Gear-1,number] * ECU["ShiftMul",number], UpShiftSpeed * M["DownShiftMul",number])
+                        
+                        # # # Upshift
+                        if(CoreInfo["Speed",number] > UpShiftSpeed & Gear < M["TopGear",number]) {
+                            M["SearchStart",number] = Gear + 1
+                            M["SearchEnd",number] = M["TopGear",number]
+                            M["SearchDir",number] = 1
+                            findGear()
+                        }
+                        
+                        # # # Downshift
+                        elseif(CoreInfo["Speed",number] < DownShiftSpeed & Gear > 1) {
+                            M["SearchStart",number] = Gear - 1
+                            M["SearchEnd",number] = 1
+                            M["SearchDir",number] = -1
+                            findGear()
+                        }
+                    }
+                }
+                
+                # Reverse
+                else {
+                    
+                    TransferGear=TCUInfo["TransferGear",number] = 2
+                    
+                    if(Gear < TCUInfo["Rev",number]) { forceShift(TCUInfo["Rev",number]) }
+                    
+                    if(!M["ShiftDelay",number]) {
+                        
+                        local UpShiftSpeed = GearSpd[Gear,number] * ECU["ShiftMul",number]
+                        local DownShiftSpeed = min(GearSpd[Gear-1,number] * ECU["ShiftMul",number], UpShiftSpeed * M["DownShiftMul",number])
+                        
+                        if(-CoreInfo["Speed",number] > UpShiftSpeed & Gear < M["GearCount",number]) {
+                            M["SearchStart",number] = Gear + 1
+                            M["SearchEnd",number] = M["GearCount",number]
+                            M["SearchDir",number] = 1
+                            findGear()
+                        }
+                        
+                        elseif(-CoreInfo["Speed",number] < DownShiftSpeed & Gear > TCUInfo["Rev",number]) {
+                            M["SearchStart",number] = Gear - 1
+                            M["SearchEnd",number] = TCUInfo["Rev",number]
+                            M["SearchDir",number] = -1
+                            findGear()
+                        }
+                    }
+                }
+                
+                TCUInfo["InReverse",number] = ECU["Reverse",number]
+            }
+            
+            # > Begin shifting gears
+            if(TCUInfo["Gear",number] != M["NewGear",number] & !M["ShiftDelay",number]) {
+                
+                # Smooth shifting
+                if(M["ShiftLockout",number]) {
+                    M["ShiftDelay",number] = M["ShiftLockout",number]
+                    M["LineDecay",number] = 1
+                }
+                
+                # Instant shifting
+                else { forceShift(M["NewGear",number]) }
+            }
+        }
+        
+        else {
+            Gear=TCUInfo["Gear",number] = 0
+            TransferGear=TCUInfo["TransferGear",number] = 0
+            TCUInfo["Line",number]=TCUInfo["Ratio",number]=TCUInfo["InReverse",number] = 0
+        }
+        
+        break
+    }
+}

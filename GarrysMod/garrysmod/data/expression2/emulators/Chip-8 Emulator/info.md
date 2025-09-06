@@ -1,13 +1,17 @@
 - Author: Technicolour (Techni)
 - Steam Profile: https://steamcommunity.com/profiles/76561197983168201
 - Youtube: https://www.youtube.com/@Technicolour777
-
+<!-- -->
 - Title: Chip-8 Emulator 99% Speed and Compatability (Code & Dupe in thread)
 - Date (dd-mm-yyyy): 14-11-2010
 - Source: https://web.archive.org/web/20101117015858/http://www.wiremod.com/forum/finished-contraptions/23515-chip-8-emulator-99-speed-compatability-code-dupe-thread.html
 - Source Accessed (dd-mm-yyyy): 09-08-2025
-  
+
+---
+
 - GMODCOLLECTION_COMMENT: change mtable to table
+
+---
 
 ## Chip-8 Emulator 99% Speed and Compatability (Code & Dupe in thread)
 

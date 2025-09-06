@@ -1,0 +1,132 @@
+@name ApplyTorque Transmission r61
+@inputs [Crank GearProp]:entity
+@inputs Gear Clutch Brake CVTRatio
+@outputs CrankRPM GearRPM Slip CurRatio CrankTorque GearTorque Inertia:vector Ratio:array
+@persist [CrankVec GearVec StockInertia GearInertia]:vector GearDirection
+@persist InertiaMul CrankAxis GearAxis GearInertiaMax ClutchPower FinalDrive Ticks
+@trigger none
+
+if(duped() | dupefinished()) {reset()}
+
+if(first() | dupefinished()) {
+    
+    #General
+    CrankAxis = 3       #Crank rototaion axis, check with stacker and remember right hand rule.
+    
+    GearAxis = 3        #Gear rotation axis.
+    
+    GearDirection = -1           #In case the gear rotates the wrong way.
+    
+    ClutchPower = 3             #Literally, (0-1) ^ ClutchPower. Higher numbers engage gear more gradually.
+    
+    #Gear strength
+    GearInertia = vec(5)       #Inertia at 1:1.
+    
+    GearInertiaMax = 10         #Maximum gear inertia multiplier.
+    
+    StockInertia = vec(5)      #Inertia out of gear or de-clutched. The brakeforce scales with this!
+    
+    Sensitivity = 1.0          #Error multiplier. (RPM Difference * GearInertia * Sensitivity)
+    
+    #Gear ratios
+    Ratio[1,number] = 0.2
+    Ratio[2,number] = 0.4
+    Ratio[3,number] = 0.6
+    Ratio[4,number] = 0.8
+    Ratio[5,number] = 1.0
+    Ratio[6,number] = -0.1
+    
+#[    Ratio[0,number] = 0
+    Ratio[1,number] = 1.0
+    Ratio[2,number] = -1.0]#
+    
+    FinalDrive = 1.5            #Multiplier for all ratios.
+    
+    # # # # # # # # # # # # # # #
+    
+    #Numerical axis to vector converter
+    function vector axis(Num) {
+        
+        local Mag = abs(Num)
+        
+        if(Mag == 1) {return vec(1, 0, 0)}
+        elseif(Mag == 2) {return vec(0, 1, 0)}
+        else {return vec(0, 0, 1)}
+    }
+    
+    CrankVec = axis(CrankAxis)
+    GearVec = axis(GearAxis)
+    
+    #GearInertia multiplier
+    local AVtoRAD = (pi()/180)
+    local Con = 23.25 * (1000/15)
+    InertiaMul = Con * AVtoRAD * Sensitivity
+    
+    #My ticks do tock
+    runOnTick(1)
+    Ticks = 1
+    
+    #Brute force... er, torque
+    GearProp:propInertia( GearInertia )
+    GearProp:propDrag( 0 )
+}
+
+#Executing every other tick
+if(Ticks==2) {
+    
+    Ticks = 0
+    
+    if(Crank:isValid() & !Crank:isPlayerHolding()) {
+        
+        #Crank angular speeds, torque reset, and crank inertia
+        local CrankAV = Crank:angVelVector()[CrankAxis]
+        CrankRPM = CrankAV / 6
+        
+        if(GearProp:isValid()) {
+            
+            #Angular velocity, RPM, and brakeforce
+            local GearAV = GearProp:angVelVector()[GearAxis]
+            GearRPM = GearAV/6
+            local BrakeForce = -GearAV * max(Brake, 0) * InertiaMul * StockInertia[1]
+            
+            #Gear ratio
+            CurRatio = Ratio[Gear,number] * (->CVTRatio ? CVTRatio : 1) * FinalDrive
+            
+            #In gear
+            if(Ratio:exists(Gear)) {
+                
+                #Ratio details and clutch
+                local SubRatio = CurRatio * GearDirection
+                local RatioMag = abs(SubRatio)
+                local ClutchMul = clamp(1 - Clutch, 0, 1) ^ ClutchPower
+                
+                #New gear inertia based on ratio
+                local WheelInertia = GearInertia / clamp(RatioMag, 1 / GearInertiaMax, GearInertiaMax)
+                Inertia = StockInertia + (WheelInertia - StockInertia) * ClutchMul
+                GearProp:propInertia( Inertia )
+                
+                #Angular velocity difference, considering gear ratio, and inertia multiplier
+                local AVDiff = CrankAV * SubRatio - GearAV
+                local SolTorque = AVDiff * InertiaMul * WheelInertia[1] * ClutchMul
+                Slip = AVDiff / 6
+                
+                #Torques
+                GearTorque = SolTorque + BrakeForce
+                CrankTorque = -SolTorque * RatioMag * sign(SubRatio)
+            }
+            
+            #Not in gear
+            else {
+                Inertia = StockInertia
+                GearProp:propInertia( StockInertia )
+                GearTorque = BrakeForce
+            }
+            
+            #Application
+            GearProp:applyTorque(GearTorque * GearVec)
+            Crank:applyTorque(CrankTorque * CrankVec)
+        }
+    }
+}
+
+Ticks++

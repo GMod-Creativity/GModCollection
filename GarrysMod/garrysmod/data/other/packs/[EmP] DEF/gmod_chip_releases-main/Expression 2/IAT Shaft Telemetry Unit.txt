@@ -1,0 +1,110 @@
+@name IAT Shaft Telemetry Unit
+@inputs [Crank Base]:entity
+@outputs ChipLink CrankInfo:table CrankRPM
+@persist M:table
+
+@outputs OpsCPUus:vector2
+
+if(duped() | dupefinished()) {reset()}
+
+if(first() | dupefinished()) {
+    
+    M = table()
+    
+    
+    # # # # # # # # # # # # # # #
+    
+    
+    #[
+    
+        Instructions:
+        
+        This chip gives information to Wheel Assemblies:
+        
+            Wire...
+            
+            < Crank > to your crankshaft.
+            
+            < Base > to your baseplate IF you want reaction torque on the body of your vehicle.
+    
+    ]#
+    
+    
+    M["CrankAxis",number] = 3   # Crank rototaion axis, check with stacker and remember right hand rule.
+    
+    M["Cycles",number] = 2      # Delay between execution cycles.
+    
+    BaseReactionTorqueMul = 1       # Should be left at 1, unless you want to fuck around... or fix my fuck-up somewhere!
+    
+    
+    # # # # # # # # # # # # # # #
+    
+    
+    # Numerical axis to vector converter
+    function vector axis(Num:number) {
+        
+        local Mag = abs(Num)
+        
+        if(Mag == 1) {return vec(1, 0, 0)}
+        elseif(Mag == 2) {return vec(0, 1, 0)}
+        else {return vec(0, 0, 1)}
+    }
+    
+    CrankInfo = table()
+    
+    # Initialization
+    M["CrankVec",vector] = axis(M["CrankAxis",number])
+    
+    M["CrankBurdenOld",vector] = vec(0)
+    M["BaseBurdenOld",vector] = vec(0)
+    
+    M["CrankBurden",vector] = vec(0)
+    M["BaseBurden",vector] = vec(0)
+    
+    CrankInfo["CrankTorque",number] = 0
+    CrankInfo["BaseTorque",vector] = vec(0)
+    CrankInfo["CrankAV",number] = 0
+    
+    # Initialization
+    M["Cycle",number] = 0
+    CrankInfo["ForceStepMul",number] = min(1 / M["Cycles",number], 1)
+    M["BaseReactionMul",number] = CrankInfo["ForceStepMul",number] * BaseReactionTorqueMul
+    ChipLink = 0
+}
+
+# Apply torques
+event tick() {
+    
+    Crank:applyTorque(M["CrankBurden",vector])
+    Base:applyTorque(M["BaseBurden",vector])
+    
+    M["Cycle",number] = M["Cycle",number] + 1
+    
+    # Do logic
+    if(M["Cycle",number] >= M["Cycles",number]) {
+        
+        M["Cycle",number] = 0
+        
+        if(!Crank:isPlayerHolding()) {
+            
+            # Getting crank speed
+            CrankInfo["CrankAV",number] = Crank:angVelVector()[M["CrankAxis",number]]
+            CrankRPM = CrankInfo["CrankAV",number] / 6
+            
+            # Setting torques
+            M["CrankBurdenOld",vector] = M["CrankBurden",vector]
+            M["BaseBurdenOld",vector] = M["BaseBurden",vector]
+            
+            M["CrankBurden",vector] = CrankInfo["CrankTorque",number] * M["CrankVec",vector] * CrankInfo["ForceStepMul",number]
+            M["BaseBurden",vector] = Base:toLocalAxis( CrankInfo["BaseTorque",vector] ) * M["BaseReactionMul",number]
+            
+            # Reset
+            CrankInfo["CrankTorque",number] = 0
+            CrankInfo["BaseTorque",vector] = vec(0)
+        }
+        
+        ChipLink = !ChipLink
+        
+        OpsCPUus = vec2(ops(), cpuUsage() * 1000000)
+    }
+}

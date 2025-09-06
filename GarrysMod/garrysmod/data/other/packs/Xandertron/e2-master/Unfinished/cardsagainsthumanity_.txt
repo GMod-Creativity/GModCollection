@@ -1,0 +1,169 @@
+@name Cards against Humanity
+@inputs 
+@outputs 
+@persist RW RF [B W]:array Code:string M:string H:entity Cards:table BY CZ P:table CZI PLC
+@trigger 
+
+if(first()){
+    runOnHTTP(1)
+    runOnChat(1)
+    httpRequest("https://cardsagainsthumanity.com/bcards.txt")
+    RW = 0
+    RF = 0
+    BY = 0
+    CZ = 0
+    B = array()
+    W = array()
+    M = ""
+    P = table()
+}
+if(httpClk()){
+    if(!RW){
+        local D = httpData()
+        local S = D:sub(7,D:length())
+        B = S:explode("<>")
+        #CZI = randint(B:count())
+        print("Test load. Loaded "+B:count()+" black card(s)")
+        timer("request",300)
+        RW = 1
+    }
+    else{
+        local D = httpData()
+        local S = D:sub(7,D:length())
+        W = S:explode("<>")
+        print("Test load. Loaded "+W:count()+" white card(s)")
+        RF = 1
+        print("FINALIZED LOAD
+Welcome to Cards against Humanity (gmod chat editon)
+-join xxxxxx to join a server
+-create to create a server")
+    }
+}
+if(clkName()=="request"){
+    if(httpCanRequest()){
+        print("requesting white cards")
+        httpRequest("https://cardsagainsthumanity.com/wcards.txt")
+    }
+    else{
+        timer("request",300)
+    }
+}
+if(chatClk(owner())&RF){
+    S = lastSaid():explode(" ")
+    C = S[1,string]
+    C2 = S[2,string]
+    print("command "+C+" mode "+M)
+    if(S[1,string][1]=="-"){hideChat(1)}
+    if(C == "-join" & M == ""){
+        print("JOIN ATTEMPT ON: \""+S[2,string]+"\"")
+        PR = dsProbe(S[2,string])
+        if(PR:count()){
+            Code = S[2,string]
+            runOnSignal(Code,1,1)
+            dsJoinGroup(Code)
+            dsSetScope(2)
+            dsSend("connect",Code,"HELLO "+owner():steamID())
+            M = "j"
+        }
+        else{
+            print("invalid code/server")
+        }
+        
+    }
+    if(C == "-create" & M == ""){
+        for(I=1,6){
+            Code+=toChar(randint(65,90))
+        }
+        Code="t"
+        runOnSignal(Code,1,1)
+        dsJoinGroup(Code)
+        dsSetScope(2)
+        print("Created a server with the code: \""+Code+"\"")
+        M = "h"
+    }
+    if(C == "-start" & M == "h"){
+        if(P:count()){
+            dsSend("",Code,"START")
+            local CI = randint(B:count())
+            dsSend("CZARPICK",Code,array(CI,B[CI,string]))
+            CZ = 1
+        }
+        else{
+            print("not enough players (need two)")
+        }
+    }
+    if(C == "-play" & CZ == 0){
+        N = C2:toNumber()
+        if(N!=0){
+            PLC = N
+            print("Playing \""+Cards[2,array][N,string]+"\" with:\n\""+B[CZI,string]+"\"\nEnter -confirm to confirm your selection")
+            #dsSend("playing",Code,Cards[1,array][N,string])
+        }
+        else{
+            print(N + " is not a valid card index!")
+        }
+    }
+    if(C == "-confirm" & CZ == 0){
+        print("\""+W[Cards[1,array][PLC,number],string]+ "\" was played")
+        dsSend("playing",Code,Cards[1,array][PLC,number])
+    }
+}
+if(RF|(RF&BY)){
+    if(dsClk()|BY){
+        if(M=="h"){
+            if(dsClkName()=="connect"){
+                local D = dsGetString():explode(" ")
+                print(dsGetString())
+                local E = dsGetSender()
+                if(D[2,string]!=E:owner():steamID()){
+                    print("FORGERY DETECTED\n"+D[2,string]+" VS REAL "+E:owner():steamID())
+                }
+                else{
+                    print("GOT CONNECTION REQUEST FROM: "+D[2,string]+"\ncurrent players are:")
+                    printTable(P)
+                    dsSendDirect("owner",E,table(owner(),P:clone()))
+                    P[D[2,string],entity]=E:owner()
+                }
+            }
+        }
+        else{
+            print(dsClkName())
+            if(dsGetString()=="START"|BY){
+                if(H){
+                    print("The host is now starting. The Card Czar will be "+H:name())
+                }
+                else{print("reeeee invalid card czar/server host")}
+                Cards[1,array] = array()
+                Cards[2,array] = array()
+                for(I=1,6){
+                    CI = randint(1,W:count())
+                    Cards[1,array][I,number] = CI
+                    Cards[2,array][I,string] = W[CI,string]
+                }
+                #Cards[2,array] = CA
+                printTable(Cards[2,array])
+                if(BY){print(B[CZI,string])}
+            }
+            if(dsClkName()=="owner"){H = dsGetTable()[1,entity] P = dsGetTable()[1,table]}
+            if(dsClkName()=="CZARPICK"){
+                local D = dsGetArray()
+                if(B[D[1,number],string]==D[2,string]){
+                    CZI = D[1,number]
+                    print(D[2,string] + "
+Use -list to list your cards and -play <index> to play a white card")
+                }    
+                else{
+                    print("possible card forgery. got "+D[2,string]+" instead of "+B[D[1,number],string])
+                }
+            }
+        }
+    }
+}
+if(last()){
+    dsSend("disconnect",Code,array(owner():steamID(),entity()))
+}
+
+
+
+
+

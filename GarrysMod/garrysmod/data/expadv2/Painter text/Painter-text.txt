@@ -1,0 +1,202 @@
+server{
+    
+    //-----
+    //    Variables
+    //-----
+    
+    entity E = entity().isWeldedTo()
+    wirelink W = (wirelink)E
+    
+    string S = ""       // The Painter will go by this string.
+    int X,Y = 0,0       // Location of the current binary num
+    string Cur = ""     // Current string letter working on
+    table L = table()   // Contains the letters.. ( At bottom of this EA2. )
+    string Debug        // Holds all possible string uses
+        
+    vector Pos = E.pos()
+    
+    //-----    
+    //    Initial Setup
+    //-----    
+    if(E.class() == "gmod_wire_painter"){
+        
+        entity().parent( entity().isWeldedTo() )
+        
+        hologram H = hologram("cone")
+        H.setPos(Pos)
+        H.setAng( E.toWorld( ang(0,0,-90) ) )
+        H.setColor( color(255,100,100) )
+        H.parent( entity() )
+        
+    }else{
+        print("Please Weld this to a gmod_wire_painter")
+        entity().remove()
+    }
+    
+    
+    //-----
+    // printing code here 
+    //-----
+    event tick(){
+        if(#Cur == 0 || Cur == ""){
+            
+            if(S != ""){
+                Cur = S.sub(1,1).upper()
+                S = S.sub(2,#S)
+            }else{
+                Pos = E.pos()
+            }
+            
+        }else{
+        
+            // is it a % ? if so new line
+            if(Cur ==  "%"){
+                E.setPos( Pos )
+                E.setPos( E.toWorld( vec(-50,0,0) ) )
+                Pos = E.pos()
+                Cur = ""
+                return
+            }
+            
+
+            array Let = L[Cur,array]
+            
+            //Increase the array position
+            X++
+            
+            // if end of first row on array, proceed to second row
+            if(X > 5){
+                X = 1
+                Y++
+
+                E.setPos( E.toWorld( vec(-7,-35,0) ) )
+            }
+                                        
+            
+            // If end of word, move to next word position
+            if(Y > 5){
+                
+                // Work out distance of gap between words
+                int Z = 0
+                for(int I = 1;25;5){
+                    if(Let[I,int]) Z = max(Z,1)
+                    if(Let[I+1,int]) Z = max(Z,2)
+                    if(Let[I+2,int]) Z = max(Z,3)
+                    if(Let[I+3,int]) Z = max(Z,4)
+                    if(Let[I+4,int]) Z = max(Z,5)
+                }
+                
+                
+                
+                // Wouldnt want the previous statement to think space is just 35 Y in distance ( useless space )
+                if(Cur == " "){
+                    E.setPos(E.toWorld( vec(42, 70 , 0) ) )
+                }else{
+                    E.setPos(E.toWorld( vec(42, 35 + (Z*8.75) , 0) ) )
+                }
+                
+                // Reset Cur to recheck the buffer( Variable S ) and reset X,Y for future use.
+                Cur = ""
+                X,Y = 0,0
+                
+            }
+            
+            // Is the current binary set to print?
+            if(Let[X+(Y*5),int]){
+                W["Paint",int] = 1
+                W["Paint",int] = 0
+            }
+            
+            //Move right each time
+            E.setPos( E.toWorld( vec(0,7,0) ) )        
+        }
+    }
+    
+    
+    //-----
+    //    Event to print what I ask it to.
+    //-----
+    event playerChat(player P,string Str, bool B){
+        if(P != owner()) return
+        if(Str.sub(1,7).lower() == "-print "){
+            S = S + Str.sub(8,#Str) + "%"    
+            return ""
+        }
+        
+        if(Str.sub(1,5) == "-here"){
+            E.setPos( owner().aimPos() + vec(0,0,20) )
+            Pos = E.pos()
+            E.setAng( ang(0,0,180) )
+            
+            return ""    
+        }
+        if(Str.sub(1,6) == "-debug"){
+            
+            S = S + Debug + "%"
+        
+            return ""
+        }
+    }
+    //-----
+    //    Letters declared here.  (PIXELATED AT A 5x5 GRID)
+    //-----
+    function void add(string S,array A){
+        L[S,array] = A
+        Debug = Debug + S    
+    }
+    add("A", numberArray( 1,1,1,1,0 , 1,0,0,1,0 , 1,1,1,1,0 , 1,0,0,1,0 , 1,0,0,1,0 ) )
+    add("B", numberArray( 1,1,1,0,0 , 1,0,0,1,0 , 1,1,1,0,0 , 1,0,0,1,0 , 1,1,1,0,0 ) )
+    add("C", numberArray( 0,1,1,1,0 , 1,0,0,0,0 , 1,0,0,0,0 , 1,0,0,0,0 , 0,1,1,1,0 ) )
+    add("D", numberArray( 1,1,1,0,0 , 1,0,0,1,0 , 1,0,0,1,0 , 1,0,0,1,0 , 1,1,1,0,0 ) )
+    add("E", numberArray( 1,1,1,1,0 , 1,0,0,0,0 , 1,1,1,1,0 , 1,0,0,0,0 , 1,1,1,1,0 ) )
+    add("F", numberArray( 1,1,1,1,0 , 1,0,0,0,0 , 1,1,1,0,0 , 1,0,0,0,0 , 1,0,0,0,0 ) )
+    add("G", numberArray( 1,1,1,1,0 , 1,0,0,0,0 , 1,0,1,1,0 , 1,0,0,1,0 , 1,1,1,1,0 ) )
+    add("H", numberArray( 1,0,0,1,0 , 1,0,0,1,0 , 1,1,1,1,0 , 1,0,0,1,0 , 1,0,0,1,0 ) )
+    add("I", numberArray( 1,1,1,0,0 , 0,1,0,0,0 , 0,1,0,0,0 , 0,1,0,0,0 , 1,1,1,0,0 ) )
+    add("J", numberArray( 1,1,1,1,0 , 0,0,1,0,0 , 0,0,1,0,0 , 0,0,1,0,0 , 1,1,1,0,0 ) )
+    add("K", numberArray( 1,0,0,1,0 , 1,0,1,0,0 , 1,1,0,0,0 , 1,0,1,0,0 , 1,0,0,1,0 ) )
+    add("L", numberArray( 1,0,0,0,0 , 1,0,0,0,0 , 1,0,0,0,0 , 1,0,0,0,0 , 1,1,1,1,0 ) )
+    add("M", numberArray( 1,0,0,0,1 , 1,1,0,1,1 , 1,0,1,0,1 , 1,0,0,0,1 , 1,0,0,0,1 ) )
+    add("N", numberArray( 1,0,0,0,1 , 1,1,0,0,1 , 1,0,1,0,1 , 1,0,0,1,1 , 1,0,0,0,1 ) )
+    add("O", numberArray( 0,1,1,0,0 , 1,0,0,1,0 , 1,0,0,1,0 , 1,0,0,1,0 , 0,1,1,0,0 ) )
+    add("P", numberArray( 1,1,1,0,0 , 1,0,0,1,0 , 1,1,1,0,0 , 1,0,0,0,0 , 1,0,0,0,0 ) )
+    add("Q", numberArray( 0,1,1,0,0 , 1,0,0,1,0 , 1,0,0,1,0 , 1,0,1,1,0 , 0,1,1,1,0 ) )
+    add("R", numberArray( 1,1,1,0,0 , 1,0,0,1,0 , 1,1,1,0,0 , 1,0,1,0,0 , 1,0,0,1,0 ) )
+    add("S", numberArray( 0,1,1,1,0 , 1,0,0,0,0 , 0,1,1,0,0 , 0,0,0,1,0 , 1,1,1,0,0 ) )
+    add("T", numberArray( 1,1,1,1,1 , 0,0,1,0,0 , 0,0,1,0,0 , 0,0,1,0,0 , 0,0,1,0,0 ) )
+    add("U", numberArray( 1,0,0,1,0 , 1,0,0,1,0 , 1,0,0,1,0 , 1,0,0,1,0 , 0,1,1,0,0 ) )
+    add("V", numberArray( 1,0,0,0,1 , 1,0,0,0,1 , 0,1,0,1,0 , 0,1,0,1,0 , 0,0,1,0,0 ) )
+    add("W", numberArray( 1,0,0,0,1 , 1,0,0,0,1 , 1,0,1,0,1 , 1,1,0,1,1 , 1,0,0,0,1 ) )
+    add("X", numberArray( 1,0,0,0,1 , 0,1,0,1,0 , 0,0,1,0,0 , 0,1,0,1,0 , 1,0,0,0,1 ) )
+    add("Y", numberArray( 1,0,0,0,1 , 0,1,0,1,0 , 0,0,1,0,0 , 0,0,1,0,0 , 0,0,1,0,0 ) )
+    add("Z", numberArray( 1,1,1,1,1 , 0,0,0,1,0 , 0,0,1,0,0 , 0,1,0,0,0 , 1,1,1,1,1 ) )
+    add("0", numberArray( 0,1,1,1,0 , 1,0,0,0,1 , 1,0,1,0,1 , 1,0,0,0,1 , 0,1,1,1,0 ) )
+    add("1", numberArray( 0,1,1,0,0 , 0,0,1,0,0 , 0,0,1,0,0 , 0,0,1,0,0 , 0,1,1,1,0 ) )
+    add("2", numberArray( 0,1,1,0,0 , 1,0,0,1,0 , 0,0,1,0,0 , 0,1,0,0,0 , 1,1,1,1,0 ) )
+    add("3", numberArray( 1,1,1,1,0 , 0,0,0,1,0 , 1,1,1,1,0 , 0,0,0,1,0 , 1,1,1,1,0 ) )
+    add("4", numberArray( 1,0,0,1,0 , 1,0,0,1,0 , 1,1,1,1,0 , 0,0,0,1,0 , 0,0,0,1,0 ) )
+    add("5", numberArray( 1,1,1,1,0 , 1,0,0,0,0 , 1,1,1,0,0 , 0,0,0,1,0 , 1,1,1,0,0 ) )
+    add("6", numberArray( 1,1,1,1,0 , 1,0,0,0,0 , 1,1,1,1,0 , 1,0,0,1,0 , 1,1,1,1,0 ) )
+    add("7", numberArray( 1,1,1,1,0 , 0,0,0,1,0 , 0,0,1,0,0 , 0,1,0,0,0 , 1,0,0,0,0 ) )
+    add("8", numberArray( 0,1,1,0,0 , 1,0,0,1,0 , 0,1,1,0,0 , 1,0,0,1,0 , 0,1,1,0,0 ) )
+    add("9", numberArray( 1,1,1,1,0 , 1,0,0,1,0 , 1,1,1,1,0 , 0,0,0,1,0 , 1,1,1,1,0 ) )
+    add(" ", numberArray( 0,0,0,0,0 , 0,0,0,0,0 , 0,0,0,0,0 , 0,0,0,0,0 , 0,0,0,0,0 ) )
+    add("!", numberArray( 0,1,1,0,0 , 0,1,1,0,0 , 0,1,1,0,0 , 0,0,0,0,0 , 0,1,1,0,0 ) )
+    add("\"", numberArray(0,0,0,0,0 , 0,1,0,1,0 , 0,1,0,1,0 , 0,0,0,0,0 , 0,0,0,0,0 ) )
+    add("$", numberArray( 1,1,1,1,1 , 1,0,1,0,0 , 1,1,1,1,1 , 0,0,1,0,1 , 1,1,1,1,1 ) )
+    add("^", numberArray( 0,0,1,0,0 , 0,1,0,1,0 , 1,0,0,0,1 , 0,0,0,0,0 , 0,0,0,0,0 ) )
+    add("&", numberArray( 0,0,1,0,0 , 0,1,0,1,0 , 0,1,1,1,0 , 0,1,0,1,0 , 0,0,1,0,1 ) )
+    add("*", numberArray( 1,0,0,0,1 , 0,0,1,0,0 , 0,1,1,1,0 , 0,0,1,0,0 , 1,0,0,0,1 ) )
+    add("(", numberArray( 0,0,1,0,0 , 0,1,0,0,0 , 1,0,0,0,0 , 0,1,0,0,0 , 0,0,1,0,0 ) )
+    add(")", numberArray( 0,0,1,0,0 , 0,0,0,1,0 , 0,0,0,0,1 , 0,0,0,1,0 , 0,0,1,0,0 ) )
+    add("-", numberArray( 0,0,0,0,0 , 0,0,0,0,0 , 0,1,1,1,0 , 0,0,0,0,0 , 0,0,0,0,0 ) )
+    add("+", numberArray( 0,0,0,0,0 , 0,0,1,0,0 , 0,1,1,1,0 , 0,0,1,0,0 , 0,0,0,0,0 ) )
+    add("=", numberArray( 0,0,0,0,0 , 0,1,1,1,0 , 0,0,0,0,0 , 0,1,1,1,0 , 0,0,0,0,0 ) )
+    add("#", numberArray( 0,1,0,1,0 , 1,1,1,1,1 , 0,1,0,1,0 , 1,1,1,1,1 , 0,1,0,1,0 ) )
+    add("_", numberArray( 0,0,0,0,0 , 0,0,0,0,0 , 0,0,0,0,0 , 0,0,0,0,0 , 1,1,1,1,1 ) )
+    add("?", numberArray( 0,1,1,1,0 , 1,0,0,0,1 , 0,0,1,1,0 , 0,0,0,0,0 , 0,0,1,0,0 ) )
+    add(".", numberArray( 0,0,0,0,0 , 0,0,0,0,0 , 0,0,0,0,0 , 0,0,1,1,0 , 0,0,1,1,0 ) )
+    add(":", numberArray( 0,1,1,0,0 , 0,1,1,0,0 , 0,0,0,0,0 , 0,1,1,0,0 , 0,1,1,0,0 ) )
+    add(",", numberArray( 0,0,0,0,0 , 0,0,0,0,0 , 0,0,0,0,0 , 0,1,0,0,0 , 1,0,0,0,0 ) )
+    print("Loaded.")
+}

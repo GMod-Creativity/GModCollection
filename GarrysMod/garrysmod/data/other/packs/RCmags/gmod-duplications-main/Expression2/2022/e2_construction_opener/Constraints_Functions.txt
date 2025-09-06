@@ -1,0 +1,1740 @@
+@name Constraints Functions
+
+@inputs [Pad_7    Pad_8] Box:entity
+
+@inputs Entity_Library:table  # Helicopter Library E2's OutPut
+
+# Main Entities
+@inputs [Set Parenting    Blades_and_Grips    TipWeights    Enabled_AirDrag_Entities]:wirelink
+
+# Extra Entities
+@inputs [E1 E2 E3 E4]:entity
+
+# Mixing levers
+@inputs [Mixing_LeverA_1   Mixing_LeverA_2   Mixing_LeverA_3   Mixing_LeverA_4   Mixing_LeverA_5]:entity
+@inputs [Mixing_LeverB_1   Mixing_LeverB_2   Mixing_LeverB_3   Mixing_LeverB_4   Mixing_LeverB_5]:entity
+
+# Outputs
+@outputs CS [Clk_WeldParent Clk_Hydraulic1 Clk_Hydraulic2 Clk_Hydraulic3 Clk_Hydraulic4 Clk_Hydraulic5 Clk_Rope] Finished_CC
+
+# SetAng Master Library's entities
+@persist [NoseGearMaster Port_MainGearMaster Stbd_MainGearMaster ExtraGearMaster]:entity
+
+# Entitiy Library's entities
+@persist [Swash Extra    XMSN1 XMSN2]:entity
+@persist [Hub1 Hub2]:entity [ElevatorPlate RudderPlate ExtraElevatorPlate ExtraRudderPlate]:entity
+@persist [Strut1 W1]:entity [Strut2 W2]:entity [Strut3 W3]:entity [Strut4 W4]:entity [Extra_Wheel1 Extra_Wheel2]:entity
+
+@persist [First DupeFinished] [Constraints_Delay    RCF_Delay]     HI BHI
+@persist INC CS
+@persist Center [Center_V1 Center_V2]:vector
+@persist BC:array BCI
+@persist Moment:vector Mass
+
+# Define Array and Entity
+@persist [SET Final_SET]:array [PaA PaAA]:array Auto_UnFreeze OnOff
+@persist [Base Gate]:entity
+@persist Bla_Grp:array [Bla Bla1 Bla2]:array [Grp Grp1 Grp2]:array    [Rope_Base    AxisBall_Base    Plys]:array
+@persist [TipW TW1 TW2 BW1 BW2]:array [MLA MLB]:array [TWC1 TWC2] [MLC_A MLC_B]
+
+# Rope-slider Filter & Axis, BallSocket Filter
+@persist [Filter_Color1 Filter_Color2 Filter_Color3]:vector
+@persist [Swash_Local_Axis    Extra_Local_Axis]:vector [Length1 Length2] [Finished_RopeSlider_A]
+
+# Enabled Air drag entities(EADE) & Disabled Air Drag Entities(DADE)
+@persist [EADE DADE]:array
+
+# Rotor blade & Grip & Tip balancing weight & Trim tab
+@persist [All_Blade_Count    Main_Blade_Count    Extra_Blade_Count] [First_Blade Last_Blade]:entity
+@persist [SpanWise1 ChordLine1 SpanWise2 ChordLine2]:vector [Side1 Side2] [Delta3_Angle1 Delta3_Angle2] [Rigid_Offset1 Rigid_Offset2]
+@persist [BW1_Offset1 BW2_Offset1]:vector [BW1_Offset2 BW2_Offset2]:angle [TT1_Offset1 TT2_Offset1]:vector [TT1_Offset2 TT2_Offset2]:angle
+@persist [XOffsetA1 XOffsetB1] [XOffsetA2 XOffsetB2] [ZOffset1 ZOffset2] [AA1 AB1 AA2 AB2]:angle
+@persist [Whether_Sweep_Blade1   Whether_Sweep_Blade2] [Feathering1_Offset   Feathering2_Offset]
+@persist [Chord_Table1   Chord_Table2  SpanWise_Table1   SpanWise_Table2]:table
+
+# pitchLink_2() function
+@persist RA [GRA GRA1 GRA2]:vector [CLG CLG1 CLG2]:vector GLOV:vector [RSG RSG1 RSG2]
+
+# Rope / Elastic Width, Material
+@persist [Width1 Width2 Width3 Width4] [Mat1 Mat2 Mat3 Mat4]:string
+
+# Adv Ball Socket 2
+@persist Alignment_World_Angle:angle
+@persist [Hub1_Local_Axis   Hub2_Local_Axis     AXIS Min1 Min2 Max1 Max2 MIN MAX]:vector
+@persist [HAng    Alignment_World_Angle1 Alignment_World_Angle2    OA1 OA2 OA3]:angle
+@persist [BladeArray OBA1 OBA2]:array
+@persist [Finished_hub1_Link Finished_hub2_Link]
+
+# Smaet Welt
+@persist BaseI    Finished_SmartWelt
+
+# Finished Persist
+@persist Finished_AxisMulti    Finished_BallMulti    Finished_WeldParent   Finished_Parenting    Finished_LTG
+@persist [Finished_Hydraulic1    Finished_Hydraulic2    Finished_Hydraulic3    Finished_Hydraulic4    Finished_Hydraulic5]    Finished_Rope
+
+# Semi precision on the math coordinate in the Garry's mod
+@persist DP
+
+# Print the Vector of Local CG of the rotor blade
+@persist Ct BArr:array
+
+# Table & Array
+@persist [EntityTable1 ReverseTable1 AxisTable]:table
+@persist [EntityTable2 ReverseTable2 LocalVectorTable]:table
+@persist [EntityTable3 ReverseTable3]:table
+
+# Constraints Technic
+@persist Reverse Mode Stage PR
+
+# Repeated Constraints Function (RCF)
+@persist Sup [A B C D E F G H I J K L M N O P Q R] [BI1 BI2 BI3 BI4 BI5 BI6] [PI1 PI2 PI3 PI4] Final_INC
+
+
+
+# Millisecond.
+Constraints_Delay = 150
+RCF_Delay = 15
+
+Filter_Color1 = vec(255, 223, 127)      # RopeSlider
+Filter_Color2 = vec(169, 146, 83)       # Axis, BallSocket
+Filter_Color3 = vec(106, 93, 56)        # RopeSlider, Axis, BallSocket
+
+entity():setColor(vec(255, 255, 0))
+
+First = first()
+DupeFinished = dupefinished()
+
+
+
+###################################################################################
+############################# Default UDF Constraints #############################
+
+#ifdef enableConstraintUndo(number)
+enableConstraintUndo(0)
+
+#else
+constraintUndoEnabled(0)
+
+#endif
+
+function weld2(Ent1:entity, Ent2:entity)
+{
+    local Entity1 = (!Reverse ? Ent1 : Ent2)
+    local Entity2 = (!Reverse ? Ent2 : Ent1)
+    
+    #ifdef weld(entity, entity)
+    weld(Entity1, Entity2)
+    
+    #else
+    Entity1:weldTo(1, Entity2, 0, 0, 0, 0)
+    
+    #endif
+}
+
+function axis2(Ent1:entity, LocalV1:vector, Ent2:entity, LocalV2:vector, Friction:number, LocalAxis:vector)
+{
+    local Entity1 = (!Reverse ? Ent1 : Ent2)
+    local Entity2 = (!Reverse ? Ent2 : Ent1)
+    local LocalVector1 = (!Reverse ? LocalV1 : Ent2:toLocal(Ent1:toWorld(LocalV1)))
+    local LocalVector2 = (!Reverse ? LocalV2 : LocalV1)
+    local Local_Axis = (!Reverse ? LocalAxis : Ent2:toLocalAxis(Ent1:toWorldAxis(LocalAxis)))
+    
+    #ifdef axis(entity, vector, entity, vector)
+    axis(Entity1, LocalVector1, Entity2, LocalVector2, Friction, LocalVector1 + Local_Axis)
+    
+    #else
+    local AI = Entity1:hasConstraints("axis")
+    Entity1:axisTo(1, Entity2, 0, 0, LocalVector1, LocalVector2, 0, 0, Friction, 0, LocalVector1 + Local_Axis)
+    
+    #endif
+}
+
+function ball2(Ent1:entity, LocalV2:vector, Ent2:entity)
+{
+    local Entity1 = (!Reverse ? Ent1 : Ent2)
+    local Entity2 = (!Reverse ? Ent2 : Ent1)
+    local LocalVector2 = (!Reverse ? LocalV2 : Ent1:toLocal(Ent2:toWorld(LocalV2)))
+    
+    #ifdef ballsocket(entity, vector, entity)
+    ballsocket(Entity1, LocalVector2, Entity2)
+    
+    #else
+    local BI = Entity1:hasConstraints("ballsocket")
+    Entity1:ballsocketTo(1, Entity2, 0, 0, LocalVector2, 0, 0, 0)
+    
+    #endif
+}
+
+function adv_ball(Ent1:entity, LocalV2:vector, Ent2:entity, Min:vector, Max:vector, Friction:vector, FreeMovement:number)
+{
+    local Entity1 = (!Reverse ? Ent1 : Ent2)
+    local Entity2 = (!Reverse ? Ent2 : Ent1)
+    local LocalVector2 = (!Reverse ? LocalV2 : Ent1:toLocal(Ent2:toWorld(LocalV2)))
+    
+    #ifdef ballsocket(entity, vector, entity, vector, vector, vector, number)
+    ballsocket(Entity1, LocalVector2, Entity2, Min, Max, Friction, FreeMovement)
+    
+    #else
+    local BI = Entity1:hasConstraints("advballsocket")
+    Entity1:advBallsocketTo(1, Entity2, 0, 0, Entity1:massCenterL(), Entity2:massCenterL(), 0, 0, Min, Max, Friction, FreeMovement, 0)
+    
+    #endif
+}
+
+function rope2(Ent1:entity, LocalV1:vector, Ent2:entity, LocalV2:vector, AddLength:number, Width:number, Material:string, Rigid:number)
+{
+    local Entity1 = (!Reverse ? Ent1 : Ent2)
+    local Entity2 = (!Reverse ? Ent2 : Ent1)
+    local LocalVector1 = (!Reverse ? LocalV1 : LocalV2)
+    local LocalVector2 = (!Reverse ? LocalV2 : LocalV1)
+    
+    local Index = Entity1:hasConstraints("rope") + Entity1:hasConstraints("elastic") + 1
+    
+    #ifdef rope(number, entity, vector, entity, vector)
+    rope(Index, 
+         Entity1, LocalVector1, 
+         Entity2, LocalVector2,
+         AddLength, Width, Material, Rigid)
+    
+    #else
+    Entity1:ropeTo(Index, 
+                   Entity2, 
+                   0, 0,
+                   LocalVector1, LocalVector2,
+                   0, 0, 0,
+                   Width, Material, Rigid)
+    #endif
+}
+
+function elastic2(Ent1:entity, LocalV1:vector, Ent2:entity, LocalV2:vector, Constant:number, Damping:number, RelativeDamping:number, Material:string, Width:number, Stretch:number)
+{
+    local Entity1 = (!Reverse ? Ent1 : Ent2)
+    local Entity2 = (!Reverse ? Ent2 : Ent1)
+    local LocalVector1 = (!Reverse ? LocalV1 : LocalV2)
+    local LocalVector2 = (!Reverse ? LocalV2 : LocalV1)
+    
+    local Index = Entity1:hasConstraints("rope") + Entity1:hasConstraints("elastic") + 1
+    
+    #ifdef hydraulic(number,entity,vector,entity,vector,number,number,number,string,number,number)
+    hydraulic(Index, 
+              Entity1, LocalVector1,
+              Entity2, LocalVector2,
+              Constant, Damping, RelativeDamping,
+              Material, Width, Stretch)
+    
+    #else
+    Entity1:elasticTo(Index, 
+                   Entity2, 
+                   0, 0,
+                   LocalVector1, LocalVector2,
+                   Constant, Damping, RelativeDamping,
+                   Material, Width, Stretch)
+    #endif
+}
+
+function noCol2(Entity1:entity, Entity2:entity)
+{
+    #ifdef noCollide(entity, entity)
+    noCollide(Entity1, Entity2)
+    
+    #else
+    Entity1:noCollideTo(1, Entity2, 0, 0)
+    
+    #endif
+}
+
+function noColAll2(Entity1:entity, Enable:number)
+{
+    #ifdef noCollideAll(entity, number)
+    noCollideAll(Entity1, Enable)
+    
+    #endif
+}
+
+function break_C(Entity1:entity, Constraints:string)
+{
+    #ifdef entity:constraintBreak(string)
+    Entity1:constraintBreak(Constraints)
+    
+    #else
+    Entity1:removeConstraints(Constraints)
+    
+    #endif
+}
+
+function break_C_array(Array:array, Constraints:string)
+{
+    #ifdef entity:constraintBreak(string)
+    for(N = 1, Array:count())
+    {
+        local Entity = Array[N, entity]
+        Entity:constraintBreak(Constraints)
+    }
+    
+    #else
+    for(N = 1, Array:count())
+    {
+        local Entity = Array[N, entity]
+        Entity:removeConstraints(Constraints)
+    }
+    
+    #endif
+}
+
+function array:welt_Blade()
+{
+    if(!INC)
+    {
+        BCI = 0
+        
+        local BA = (This[1, entity] == TW1[1, entity] ? Bla1 : Bla2)
+        local BCC = (This[1, entity] == TW2[1, entity] ? TWC1 : TWC2)
+        
+        for(N = 1, BA:count())
+        {
+            local Blade = BA[N, entity]
+            
+            for(M = 1, BCC)
+            {
+                weld2(This[BCI + M, entity], Blade)
+                
+                This[BCI + M, entity]:parentTo(Blade)
+            }
+            
+            BCI += BCC
+        }
+    }
+}
+
+function entity:propDrag2(Enable:number)
+{
+    #ifdef entity:setCustomAirDrag(number, number, number)
+    This:setCustomAirDrag(Enable, Enable, Enable)
+    
+    #else
+    This:propDrag(Enable)
+    
+    #endif
+}
+
+function array:set_AirDrag(Enable:number)
+{
+    for(N = 1, This:count())
+    {
+        local Ent = This[N, entity]
+        
+        Ent:propDrag2(Enable)
+    }
+}
+
+function entity:setMassCenter(WorldVector:vector)
+{
+    local Pos = WorldVector - This:toWorldAxis(This:massCenterL())
+    This:setPos(Pos)
+}
+
+function array:bladeCore(TipArray:array)
+{
+    BCI = 0
+    BCC = TipArray:count() / This:count()
+    
+    for(N = 1, This:count())
+    {
+        local BLADE = This[N, entity]
+        
+        BLADE:propDrag2(0)
+        
+        if(Auto_UnFreeze){BLADE:propFreeze(0)}
+        
+        for(M = 1, BCC)
+        {
+            BC:pushEntity(TipArray[BCI + M, entity])
+            
+            BC[M, entity]:propDrag2(0)
+            
+            if(Auto_UnFreeze){BC[M, entity]:propFreeze(0)}
+        }
+        
+        BCI += BCC
+        
+        BC = array()
+    }
+}
+
+function blade_NoCollide(Enable:number)
+{
+    if(!INC)
+    {
+        if(Enable)
+        {
+            for(N = 1, Bla1:count())
+            {
+                local B1 = Bla1[N, entity]
+                
+                for(M = 1, Bla2:count())
+                {
+                    local B2 = Bla2[M, entity]
+                    
+                    noCol2(B1, B2)
+                }
+            }
+        }
+        elseif(First)
+        {
+            break_C_array(Bla2, "nocollide")
+        }
+    }
+}
+
+
+
+
+
+
+################################################
+#################### Vector ####################
+
+function vector entity:localCG(Props:array)
+{
+    Moment = vec()
+    Mass = 0
+    
+    Props:pushEntity(This)
+    
+    foreach(K, E:entity = Props)
+    {
+        Moment += (E:massCenter() * E:mass())
+        Mass += E:mass()
+    }
+    
+    WorldCG = Moment / Mass
+    
+    return This:toLocal(WorldCG)
+}
+
+function vector vector:side(N:number)
+{
+    switch(positive(This):normalized())
+    {
+        case vec(1, 0, 0),
+        return This + vec(0, N, 0)
+        break
+        
+        case vec(0, 1, 0),
+        return This + vec(N, 0, 0)
+        break
+    }
+}
+
+function spanWise()
+{
+    SpanWise1 = vec(XOffsetA1 - XOffsetB1) * (vec(1, 1, 0) - ChordLine1)
+    SpanWise2 = vec(XOffsetA2 - XOffsetB2) * (vec(1, 1, 0) - ChordLine2)
+    
+    BO_Gtab = gTable("BO Gtab", 0)
+    BO_Gtab[1, vector] = SpanWise2
+}
+
+function array:allocate()
+{
+    if(This[1, entity] == Bla1[1, entity])
+    {
+        RotorMast = Hub1
+        TipWeight = TW1
+        SpanWise = SpanWise1
+        ChordLine = ChordLine1
+        Side = Side1
+        Delta3 = Delta3_Angle1
+        BCC = TWC1
+        Feathering_Offset = Feathering1_Offset
+        Rigid_Offset = Rigid_Offset1
+        
+        Chord_Table = Chord_Table1
+        SpanWise_Table = SpanWise_Table1
+        
+        AXIS = Hub1_Local_Axis
+    }
+    else
+    {
+        RotorMast = Hub2
+        TipWeight = TW2
+        SpanWise = SpanWise2
+        ChordLine = ChordLine2
+        Side = Side2
+        Delta3 = Delta3_Angle2
+        BCC = TWC2
+        Feathering_Offset = Feathering2_Offset
+        Rigid_Offset = Rigid_Offset2
+        
+        Chord_Table = Chord_Table2
+        SpanWise_Table = SpanWise_Table2
+        
+        AXIS = Hub2_Local_Axis
+    }
+}
+
+function number semiPrecision(Number:number, Mode:string)
+{
+    DP = 0
+    
+    local Int = int(Number)
+    
+    local DecimalPortion = abs(frac(Number))
+    
+    local Decimal = format("%.2f", DecimalPortion):toNumber()
+    
+    ###--- Decimal Portion (DP) ---###
+    if(Decimal >= 0.00 & Decimal <= 0.03){DP = 0.0}
+    elseif(Decimal >= 0.04 & Decimal <= 0.06){DP = 0.03125}
+    elseif(Decimal >= 0.07 & Decimal <= 0.09){DP = 0.0625}
+    
+    elseif(Decimal >= 0.10 & Decimal <= 0.12){DP = 0.09375}
+    elseif(Decimal >= 0.13 & Decimal <= 0.15){DP = 0.125}
+    elseif(Decimal >= 0.16 & Decimal <= 0.18){DP = 0.15625}
+    elseif(Decimal >= 0.19 & Decimal <= 0.20){DP = 0.1875}
+    
+    elseif(Decimal >= 0.20 & Decimal <= 0.21){DP = 0.1875}
+    elseif(Decimal >= 0.22 & Decimal <= 0.24){DP = 0.21875}
+    elseif(Decimal >= 0.25 & Decimal <= 0.28){DP = 0.25}
+    elseif(Decimal >= 0.29 & Decimal <= 0.30){DP = 0.28125}
+    
+    elseif(Decimal >= 0.30 & Decimal <= 0.31){DP = 0.28125}
+    elseif(Decimal >= 0.32 & Decimal <= 0.34){DP = 0.3125}
+    elseif(Decimal >= 0.35 & Decimal <= 0.37){DP = 0.34375}
+    elseif(Decimal >= 0.38 & Decimal <= 0.40){DP = 0.375}
+    
+    elseif(Decimal >= 0.40 & Decimal <= 0.40){DP = 0.375}
+    elseif(Decimal >= 0.41 & Decimal <= 0.43){DP = 0.40625}
+    elseif(Decimal >= 0.44 & Decimal <= 0.46){DP = 0.4375}
+    elseif(Decimal >= 0.47 & Decimal <= 0.49){DP = 0.46875}
+    
+    elseif(Decimal >= 0.50 & Decimal <= 0.53){DP = 0.5}
+    elseif(Decimal >= 0.54 & Decimal <= 0.56){DP = 0.53125}
+    elseif(Decimal >= 0.57 & Decimal <= 0.59){DP = 0.5625}
+    
+    elseif(Decimal >= 0.60 & Decimal <= 0.62){DP = 0.59375}
+    elseif(Decimal >= 0.63 & Decimal <= 0.65){DP = 0.625}
+    elseif(Decimal >= 0.66 & Decimal <= 0.68){DP = 0.65625}
+    elseif(Decimal >= 0.69 & Decimal <= 0.70){DP = 0.6875}
+    
+    elseif(Decimal >= 0.70 & Decimal <= 0.71){DP = 0.6875}
+    elseif(Decimal >= 0.72 & Decimal <= 0.74){DP = 0.71875}
+    elseif(Decimal >= 0.75 & Decimal <= 0.78){DP = 0.75}
+    elseif(Decimal >= 0.79 & Decimal <= 0.80){DP = 0.78125}
+    
+    elseif(Decimal >= 0.80 & Decimal <= 0.81){DP = 0.78125}
+    elseif(Decimal >= 0.82 & Decimal <= 0.84){DP = 0.8125}
+    elseif(Decimal >= 0.85 & Decimal <= 0.87){DP = 0.84375}
+    elseif(Decimal >= 0.88 & Decimal <= 0.90){DP = 0.875}
+    
+    elseif(Decimal >= 0.90 & Decimal <= 0.90){DP = 0.875}
+    elseif(Decimal >= 0.91 & Decimal <= 0.93){DP = 0.90625}
+    elseif(Decimal >= 0.94 & Decimal <= 0.96){DP = 0.9375}
+    elseif(Decimal >= 0.97 & Decimal <= 0.99){DP = 0.96875}
+    
+    # Common Difference
+    local CD = 0.03125
+    
+    local Num = (DecimalPortion - DP) / CD
+    local MUL = ceil(Num)
+    
+    if(Mode == "Up")
+    {
+        if(DP < DecimalPortion){DP += CD * MUL}
+    }
+    elseif(Mode == "Down")
+    {
+        if(DP > DecimalPortion){DP -= CD * MUL}
+    }
+    
+    return Int + (DP * sign(Number))
+}
+
+
+
+
+#######################################################
+######################### RCF #########################
+
+function start_Case()
+{
+    if(clk("RCF"))
+    {
+        if(INC < Final_INC)
+        {
+            timer("RCF", RCF_Delay)
+            
+            INC++
+            
+            Sup = 1
+        }
+    }
+}
+
+function end_Case()
+{
+    if(!Sup & !INC)
+    {
+        stoptimer("RCF")
+        timer("CS", Constraints_Delay)
+    }
+}
+
+function next_CS()
+{
+    CS++
+    
+    Final_INC = 0
+    INC = 0
+    
+    OBA1 = array()
+    OBA2 = array()
+    
+    Reverse = 0
+    
+    Mode = 0
+    
+    A = 0
+    B = 0
+    C = 0
+    D = 0
+    E = 0
+    F = 0
+    G = 0
+    H = 0
+    I = 0
+    J = 0
+    K = 0
+    L = 0
+    M = 0
+    N = 0
+    O = 0
+    P = 0
+    Q = 0
+    R = 0
+    
+    BI1 = 0
+    BI2 = 0
+    BI3 = 0
+    BI4 = 0
+    BI5 = 0
+    BI6 = 0
+    
+    PI1 = 0
+    PI2 = 0
+    PI3 = 0
+    PI4 = 0
+    
+    Finished_AxisMulti = 0
+    Finished_BallMulti = 0
+}
+
+function clk_WeldParent()
+{
+    if(!Sup & !INC & !Finished_WeldParent)
+    {
+        timer("RCF", 25)
+        
+        Final_INC = 2
+        
+        Clk_WeldParent = 1
+        
+        INC++
+    }
+    
+    if(clk("RCF") & Sup & !Finished_WeldParent)
+    {
+        if(INC == Final_INC)
+        {
+            INC = 0
+            Final_INC = 0
+        }
+    }
+    
+    Sup = Finished_WeldParent
+    
+    Finished_WeldParent = Finished_WeldParent + (!INC & !Sup)
+}
+
+function clk_Hydraulic1()
+{
+    if(!Sup & !INC & !Finished_Hydraulic1)
+    {
+        timer("RCF", 25)
+        
+        Final_INC = 2
+        
+        Clk_Hydraulic1 = 1
+        
+        INC++
+    }
+    
+    if(clk("RCF") & Sup & !Finished_Hydraulic1)
+    {
+        if(INC == Final_INC)
+        {
+            INC = 0
+            Final_INC = 0
+        }
+    }
+    
+    Sup = Finished_Hydraulic1
+    
+    Finished_Hydraulic1 = Finished_Hydraulic1 + (!INC & !Sup)
+}
+
+function clk_Hydraulic2()
+{
+    if(!Sup & !INC & !Finished_Hydraulic2)
+    {
+        timer("RCF", 25)
+        
+        Final_INC = 2
+        
+        Clk_Hydraulic2 = 1
+        
+        INC++
+    }
+    
+    if(clk("RCF") & Sup & !Finished_Hydraulic2)
+    {
+        if(INC == Final_INC)
+        {
+            INC = 0
+            Final_INC = 0
+        }
+    }
+    
+    Sup = Finished_Hydraulic2
+    
+    Finished_Hydraulic2 = Finished_Hydraulic2 + (!INC & !Sup)
+}
+
+function clk_Hydraulic3()
+{
+    if(!Sup & !INC & !Finished_Hydraulic3)
+    {
+        timer("RCF", 25)
+        
+        Final_INC = 2
+        
+        Clk_Hydraulic3 = 1
+        
+        INC++
+    }
+    
+    if(clk("RCF") & Sup & !Finished_Hydraulic3)
+    {
+        if(INC == Final_INC)
+        {
+            INC = 0
+            Final_INC = 0
+        }
+    }
+    
+    Sup = Finished_Hydraulic3
+    
+    Finished_Hydraulic3 = Finished_Hydraulic3 + (!INC & !Sup)
+}
+
+function clk_Hydraulic4()
+{
+    if(!Sup & !INC & !Finished_Hydraulic4)
+    {
+        timer("RCF", 25)
+        
+        Final_INC = 2
+        
+        Clk_Hydraulic4 = 1
+        
+        INC++
+    }
+    
+    if(clk("RCF") & Sup & !Finished_Hydraulic4)
+    {
+        if(INC == Final_INC)
+        {
+            INC = 0
+            Final_INC = 0
+        }
+    }
+    
+    Sup = Finished_Hydraulic4
+    
+    Finished_Hydraulic4 = Finished_Hydraulic4 + (!INC & !Sup)
+}
+
+function clk_Hydraulic5()
+{
+    if(!Sup & !INC & !Finished_Hydraulic5)
+    {
+        timer("RCF", 25)
+        
+        Final_INC = 2
+        
+        Clk_Hydraulic5 = 1
+        
+        INC++
+    }
+    
+    if(clk("RCF") & Sup & !Finished_Hydraulic5)
+    {
+        if(INC == Final_INC)
+        {
+            INC = 0
+            Final_INC = 0
+        }
+    }
+    
+    Sup = Finished_Hydraulic5
+    
+    Finished_Hydraulic5 = Finished_Hydraulic5 + (!INC & !Sup)
+}
+
+function clk_Rope()
+{
+    if(!Sup & !INC & !Finished_Rope)
+    {
+        timer("RCF", 25)
+        
+        Final_INC = 2
+        
+        Clk_Rope = 1
+        
+        INC++
+    }
+    
+    if(clk("RCF") & Sup & !Finished_Rope)
+    {
+        if(INC == Final_INC)
+        {
+            INC = 0
+            Final_INC = 0
+        }
+    }
+    
+    Sup = Finished_Rope
+    
+    Finished_Rope = Finished_Rope + (!INC & !Sup)
+}
+
+function link_TailSlider_GearBox()
+{
+    if(!Sup & !INC & !Finished_LTG)
+    {
+        timer("RCF", 25)
+        
+        Final_INC = 3
+        
+        XMSN2:acfUnlinkFrom(Hub2, 0)
+        
+        XMSN2:setPos(XMSN2:pos() + (XMSN2:massCenter() - Hub2:massCenter()):normalized() * 60.0)
+        
+        INC++
+    }
+    
+    if(clk("RCF") & Sup & !Finished_LTG)
+    {
+        if(INC == 2)
+        {
+            XMSN2:acfLinkTo(Hub2, 0)
+        }
+        elseif(INC == Final_INC)
+        {
+            XMSN2:setPos(XMSN2:pos() - (XMSN2:massCenter() - Hub2:massCenter()):normalized() * 60.0)
+            
+            INC = 0
+            Final_INC = 0
+        }
+    }
+    
+    Sup = Finished_LTG
+    
+    Finished_LTG = Finished_LTG + (!INC & !Sup)
+}
+
+function smartWelt()
+{
+    if(!Sup & !INC & !Finished_SmartWelt)
+    {
+        timer("RCF", 25)
+            
+        Final_INC = SET:count()
+        
+        INC++
+        
+        for(K = 1, SET:count())
+        {
+            To = SET[K, entity] From = SET[INC, entity]
+            
+            IF1 = (From:getColor() != vec(255, 0, 0)) | (From == To)
+            IF2 = (To:hasConstraints("weld") == BaseI)
+            
+            if(IF1 | IF2){continue}
+            
+            weld2(From, To)
+        }
+    }
+    
+    if(clk("RCF") & Sup & !Finished_SmartWelt)
+    {
+        for(K = 1, SET:count())
+        {
+            To = SET[K, entity] From = SET[INC, entity]
+            
+            IF1 = (From:getColor() != vec(255, 0, 0)) | (From == To)
+            IF2 = (To:hasConstraints("weld") == BaseI)
+            
+            if(IF1 | IF2){continue}
+            
+            weld2(From, To)
+        }
+        
+        if(INC == Final_INC)
+        {
+            INC = 0
+            Final_INC = 0
+        }
+    }
+    
+    Sup = Finished_SmartWelt
+    
+    Finished_SmartWelt = Finished_SmartWelt + (!INC & !Sup)
+}
+
+function parenting()
+{
+    if(!Sup & !INC & !Finished_Parenting)
+    {
+        timer("RCF", 25)
+        
+        Final_INC = PaA:count()
+        
+        INC++
+    }
+    
+    if(clk("RCF") & Sup & !Finished_Parenting)
+    {
+        PaA[INC, entity]:parentTo(Gate)
+        PaA[INC, entity]:propShadow(0)
+        
+        if(INC == Final_INC)
+        {
+            Gate:parentTo(Base)
+            Gate:propShadow(0)
+            
+            INC = 0
+            Final_INC = 0
+        }
+    }
+    
+    Sup = Finished_Parenting
+    
+    Finished_Parenting = Finished_Parenting + (!INC & !Sup)
+}
+
+#############################################################
+##################### Adv Ball socket 2 #####################
+
+function entity:rot(WorldAxis:vector, Rotation:number){local Ang = This:angles() This:setAng(Ang:rotateAroundAxis(WorldAxis, Rotation))}
+
+function entity:hub_Link()
+{
+    Reverse = 0 # Don't modify never.
+    
+    Finished_hub_Link = (This == Hub1 ? Finished_hub1_Link : Finished_hub2_Link)
+    
+    if(!Sup & !INC & !Finished_hub_Link)
+    {
+        timer("RCF", 25)
+        
+        BladeArray = (This == Hub1 ? Bla1 : Bla2)
+        MIN = (This == Hub1 ? Min1 : Min2)
+        MAX = (This == Hub1 ? Max1 : Max2)
+        AXIS = (This == Hub1 ? Hub1_Local_Axis : Hub2_Local_Axis)
+        Alignment_World_Angle = (This == Hub1 ? Alignment_World_Angle1 : Alignment_World_Angle2)
+        
+        Final_INC = 4 + (BladeArray:count() * 2) + 2
+        
+        INC++
+        
+        # Step 1: Get angles at first
+        for(N = 1, BladeArray:count())
+        {
+            OBA1:pushAngle(This:toLocal(BladeArray[N, entity]:angles()))
+            OBA2:pushAngle(BladeArray[N, entity]:angles())
+        }
+        
+        HAng = This:angles()
+    }
+    
+    if(clk("RCF") & Sup & !Finished_hub_Link)
+    {
+        # Step 2: Alignment rotor axis(Hub) at first of all to properly apply Adv.BallSocket
+        if(INC == 2)
+        {
+            # Alignment the Hub Axis mast to the world map!
+            This:setAng(Alignment_World_Angle)
+        }
+        # Step 3: Alignment the Blade to the Rotor mast (Hub)
+        elseif(INC == 3)
+        {
+            for(N = 1, BladeArray:count())
+            {
+                BladeArray[N, entity]:setAng(This:toWorld(OBA1[N, angle]))
+            }
+        }
+        # Step 4: Alignment the blade to the first rotor blade
+        elseif(INC == 4)
+        {
+            for(N = 2, BladeArray:count())
+            {
+                BladeArray[N, entity]:setAng(BladeArray[1, entity]:angles())
+            }
+        }
+        # Step 5: Apply the Adv BallSocket and then Rotate the Rotor mast
+        elseif(INC >= 5)
+        {
+            PerAng = 360 / BladeArray:count()
+            
+            if(INC % 2)
+            {
+                if(INC == (Final_INC - 1))
+                {
+                    for(N = 1, BladeArray:count())
+                    {
+                        BladeArray[N, entity]:setAng(OBA2[N, angle])
+                    }
+                }
+                else
+                {
+                    # 5:1, 7:2, 9:3, 11:4, 13:5, 15:6
+                    local Ent = BladeArray[int(INC / 2) - 1, entity]
+                    adv_ball(Ent, vec(), This, MIN, MAX, vec(), 1)
+                }
+            }
+            else
+            {
+                if(INC == Final_INC)
+                {
+                    INC = 0
+                    Final_INC = 0
+                    
+                    OBA1 = array()
+                    OBA2 = array()
+                    
+                    This:setAng(HAng)
+                }
+                else{This:rot(This:toWorldAxis(AXIS), PerAng)}
+            }
+        }
+    }
+    
+    Sup = Finished_hub_Link
+    
+    if(This == Hub1){Finished_hub1_Link = Finished_hub1_Link + (!INC & !Sup)}
+    else{Finished_hub2_Link = Finished_hub2_Link + (!INC & !Sup)}
+}
+
+function number entity:x_lock_Link(RCF_Index:number, Entity:entity, Alignment_Angle:angle)
+{
+    if(!Sup & !INC & !RCF_Index)
+    {
+        timer("RCF", 25)
+        
+        Final_INC = 5
+        
+        INC++
+        
+        OA1 = This:angles()
+        OA2 = Entity:angles()
+        OA3 = This:toLocal(Entity:angles())
+        
+        This:setAng(Alignment_Angle)
+    }
+    
+    if(clk("RCF") & Sup & !RCF_Index)
+    {
+        if(INC == 2)
+        {
+            Entity:setAng(This:toWorld(OA3))
+        }
+        elseif(INC == 3)
+        {
+            local V1 = vec(180):setX(0.1)
+            
+            adv_ball(This, vec(), Entity, -V1, V1, vec(), 1)
+        }
+        elseif(INC == 4)
+        {
+            This:setAng(OA1)
+            Entity:setAng(OA2)
+        }
+        elseif(INC == Final_INC)
+        {
+            INC = 0
+            Final_INC = 0
+        }
+    }
+    
+    Sup = RCF_Index
+    
+    return RCF_Index + (!INC & !Sup)
+}
+
+function number entity:x_free_Link(RCF_Index:number, Entity:entity, Friction:number, Alignment_Angle:angle)
+{
+    if(!Sup & !INC & !RCF_Index)
+    {
+        timer("RCF", 25)
+        
+        Final_INC = 7
+        
+        INC++
+        
+        OA1 = This:angles()
+        OA2 = Entity:angles()
+        OA3 = This:toLocal(Entity:angles())
+        
+        This:setAng(Alignment_Angle)
+    }
+    
+    if(clk("RCF") & Sup & !RCF_Index)
+    {
+        if(INC == 2)
+        {
+            Entity:setAng(This:toWorld(OA3))
+        }
+        elseif(INC == 3)
+        {
+            local V1 = vec(0.1):setX(180)
+            
+            adv_ball(This, vec(), Entity, -V1, V1, vec():setX(Friction), 1)
+        }
+        elseif(INC == 4)
+        {
+            This:rot(vec(1, 0, 0), 180)
+        }
+        elseif(INC == 5)
+        {
+            local V1 = vec(0.1):setX(180)
+            
+            adv_ball(This, vec(), Entity, -V1, V1, vec(), 1)
+        }
+        elseif(INC == 6)
+        {
+            This:setAng(OA1)
+            Entity:setAng(OA2)
+        }
+        elseif(INC == Final_INC)
+        {
+            INC = 0
+            Final_INC = 0
+        }
+    }
+    
+    Sup = RCF_Index
+    
+    return RCF_Index + (!INC & !Sup)
+}
+
+function number entity:z_lock_Link(RCF_Index:number, Entity:entity, Friction:number, Alignment_Angle:angle)
+{
+    if(!Sup & !INC & !RCF_Index)
+    {
+        timer("RCF", 25)
+        
+        Final_INC = 5
+        
+        INC++
+        
+        OA1 = This:angles()
+        OA2 = Entity:angles()
+        OA3 = This:toLocal(Entity:angles())
+        
+        This:setAng(Alignment_Angle)
+    }
+    
+    if(clk("RCF") & Sup & !RCF_Index)
+    {
+        if(INC == 2)
+        {
+            Entity:setAng(This:toWorld(OA3))
+        }
+        elseif(INC == 3)
+        {
+            local V1 = vec(180):setZ(0.1)
+            
+            adv_ball(This, vec(), Entity, -V1, V1, vec():setZ(Friction), 1)
+        }
+        elseif(INC == 4)
+        {
+            This:setAng(OA1)
+            Entity:setAng(OA2)
+        }
+        elseif(INC == Final_INC)
+        {
+            INC = 0
+            Final_INC = 0
+        }
+    }
+    
+    Sup = RCF_Index
+    
+    return RCF_Index + (!INC & !Sup)
+}
+
+function number entity:z_free_Link(RCF_Index:number, Entity:entity, Friction:number, Alignment_Angle:angle)
+{
+    if(!Sup & !INC & !RCF_Index)
+    {
+        timer("RCF", 25)
+        
+        Final_INC = 7
+        
+        INC++
+        
+        OA1 = This:angles()
+        OA2 = Entity:angles()
+        OA3 = This:toLocal(Entity:angles())
+        
+        This:setAng(Alignment_Angle)
+    }
+    
+    if(clk("RCF") & Sup & !RCF_Index)
+    {
+        if(INC == 2)
+        {
+            Entity:setAng(This:toWorld(OA3))
+        }
+        elseif(INC == 3)
+        {
+            local V1 = vec(0.1):setZ(180)
+            
+            adv_ball(This, vec(), Entity, -V1, V1, vec():setZ(Friction), 1)
+        }
+        elseif(INC == 4)
+        {
+            This:rot(vec(0, 0, 1), 180)
+        }
+        elseif(INC == 5)
+        {
+            local V1 = vec(0.1):setZ(180)
+            
+            adv_ball(This, vec(), Entity, -V1, V1, vec():setZ(Friction), 1)
+        }
+        elseif(INC == 6)
+        {
+            This:setAng(OA1)
+            Entity:setAng(OA2)
+        }
+        elseif(INC == Final_INC)
+        {
+            INC = 0
+            Final_INC = 0
+        }
+    }
+    
+    Sup = RCF_Index
+    
+    return RCF_Index + (!INC & !Sup)
+}
+
+function number xyz_lock_Link(RCF_Index:number, Array1:array, Array2:array)
+{
+    if(!Sup & !INC & !RCF_Index)
+    {
+        timer("RCF", 25)
+        
+        for(N = 1, Array1:count())
+        {
+            OBA1:pushAngle(Array1[N, entity]:angles())
+            OBA2:pushAngle(Array2[N, entity]:angles())
+            
+            OA1 = Array1[1, entity]:toLocal(Array2[1, entity]:angles())
+        }
+        
+        Final_INC = 5
+        
+        INC++
+        
+        #for(N = 1, Array1:count()){Array1[N, entity]:setAng(ang())}
+        for(N = 2, Array1:count()){Array1[N, entity]:setAng(Array1[1, entity]:angles())}
+    }
+    
+    if(clk("RCF") & Sup & !RCF_Index)
+    {
+        if(INC == 2)
+        {
+            for(N = 1, Array2:count())
+            {
+                Array2[N, entity]:setAng(Array1[N, entity]:toWorld(OA1))
+            }
+        }
+        elseif(INC == 3)
+        {
+            if(!Mode)
+            {
+                local V1 = vec(0.1)
+                
+                for(N = 1, Array1:count())
+                {
+                    local Entity1 = Array1[N, entity]
+                    local Entity2 = Array2[N, entity]
+                    
+                    adv_ball(Entity1, vec(), Entity2, -V1, V1, vec(), 1)
+                }
+            }
+            elseif(Mode == 1)
+            {
+                local V1 = vec(0.1)
+                
+                for(N = 1, Array1:count() * Stage)
+                {
+                    local NN = N % Array1:count()
+                    local NN = (!NN ? Array1:count() : NN)
+                    
+                    local Entity1 = Array1[NN, entity]
+                    local Entity2 = Array2[NN, entity]
+                    
+                    if(Stage == 1)
+                    {
+                        adv_ball(Entity1, vec(), Entity2, -V1, V1, vec(), 1)
+                        adv_ball(Entity1, vec(), Entity2, -V1, V1, vec(), 1)
+                    }
+                    else
+                    {
+                        adv_ball(Entity1, vec(), Entity2, -V1, V1, vec(), 1)
+                    }
+                }
+            }
+            elseif(Mode == 2)
+            {
+                local V1 = vec(0.1)
+                
+                for(N = 1, Array1:count() * Stage)
+                {
+                    local NN = N % Array1:count()
+                    local NN = (!NN ? Array1:count() : NN)
+                    
+                    local Entity1 = Array1[NN, entity]
+                    local Entity2 = Array2[NN, entity]
+                    
+                    if(Stage == 1)
+                    {
+                        adv_ball(Entity1, vec(), Entity2, -V1, V1, vec(), 1)
+                        adv_ball(Entity2, vec(), Entity1, -V1, V1, vec(), 1)
+                    }
+                    else
+                    {
+                        if(N > Array1:count()){Reverse = !Reverse}
+                        
+                        adv_ball(Entity1, vec(), Entity2, -V1, V1, vec(), 1)
+                    }
+                }
+            }
+        }
+        elseif(INC == 4)
+        {
+            for(N = 1, Array1:count())
+            {
+                Array1[N, entity]:setAng(OBA1[N, angle])
+                Array2[N, entity]:setAng(OBA2[N, angle])
+            }
+        }
+        elseif(INC == Final_INC)
+        {
+            OBA1 = array()
+            OBA2 = array()
+            
+            INC = 0
+            Final_INC = 0
+        }
+    }
+    
+    Sup = RCF_Index
+    
+    return RCF_Index + (!INC & !Sup)
+}
+
+
+
+
+
+
+
+
+############################################################################
+############################# Inertia & Weight #############################
+
+function entity:single_I(Mode:string, Inertia:vector)
+{
+    This:propInertia((Mode == "mul" ? This:inertia() * Inertia : Inertia))
+}
+
+function array:multi_I(Mode:string, Inertia:vector)
+{
+    for(N = 1, This:count())
+    {
+        This[N, entity]:propInertia((Mode == "mul" ? This[N, entity]:inertia() * Inertia : Inertia))
+    }
+}
+
+function array:lever_I(LocalAxis:vector, InertiaMoment:number)
+{
+    local LocalAxis_Inertia = LocalAxis * InertiaMoment
+    local K = 0.707
+    
+    local LAxis = (LocalAxis_Inertia[1] ? vec(1, 0, 0) : (LocalAxis_Inertia[2] ? vec(0, 1, 0) : (LocalAxis_Inertia[3] ? vec(0, 0, 1) : vec())))
+    
+    local Inertia = InertiaMoment * K * (vec(1) - LAxis)
+    
+    for(N = 1, This:count())
+    {
+        local Ent = This[N, entity]
+        Ent:propInertia(Inertia + LocalAxis_Inertia)
+    }
+}
+
+function entity:single_W(Weight:number)
+{
+    if(First){This:setMass(Weight)}
+}
+
+function array:multi_W(Weight:number)
+{
+    if(First){for(N = 1, This:count()){This[N, entity]:setMass(Weight)}}
+}
+
+
+
+
+
+
+function holoSet()
+{
+    timer("HoloSet", 350)
+    
+    Tab1 = table(SpanWise1, ChordLine1)
+    Tab2 = table(SpanWise2, ChordLine2)
+    Table = table(Tab1, Tab2)
+    
+    Plys = array()
+    
+    for(N = 1, players():count())
+    {
+        if(players()[N, entity] == owner()){continue}
+        Plys:pushEntity(players()[N, entity])
+    }
+    
+    for(N = BHI + 1, BHI + 5)
+    {
+        holoVisible(N, Plys, 0)
+    }
+    
+    if(changed(clk("HoloSet")) & clk("HoloSet"))
+    {
+        # 1-2(Ballsocket position indicator)   : Purple hologram
+        # 3-4(CG indicator of the rotor blade) : Red hologram
+        
+        HI = BHI
+        
+        for(N = 1, 4)
+        {
+            HI++
+            
+            local Ent = (N % 2 ? Bla1[1, entity] : Bla2[1, entity])
+            local V1 = (N <= 2 ? Table[N, table][1, vector] : vec())  # SpanWise
+            local V3 = (N <= 2 ? Table[N, table][2, vector] : vec(1)) # Chord line
+            
+            if(N % 2)
+            {
+                for(M = 1, TWC1)
+                {
+                    BC:pushEntity(TW1[M, entity])
+                }
+            }
+            else
+            {
+                for(M = 1, TWC2)
+                {
+                    BC:pushEntity(TW2[M, entity])
+                }
+            }
+            
+            holoPos(HI, Ent:toWorld(V1 + (Ent:localCG(BC) * V3)))
+            holoScaleUnits(HI, vec(0.15):setZ(38))
+            holoColor(HI, (N <= 2 ? vec4(127, 0, 255, 255) : vec4(255, 0, 0, 255)))
+            holoAng(HI, (N % 2 ? Bla1[1, entity] : Bla2[1, entity]):toWorld(ang(0, 0, 0)))
+            holoDisableShading(HI, 1)
+            
+            BC = array()
+        }
+        
+        Mat = "sprops/sprops_grid_12x12"
+        
+        Box:setMass(50000)
+        Box:setMaterial(Mat)
+        noColAll2(Box, 1)
+        
+        entity():setMaterial(Mat)
+        Box:setColor(vec(255, 165, 0))
+        
+        Set:entity():setMaterial(Mat)
+        
+        Blades_and_Grips:entity():setMaterial(Mat)
+        
+        TipWeights:entity():setMaterial(Mat)
+        
+        Parenting:entity():setMaterial(Mat)
+    }
+    
+    
+    ### Set alpha of the Rotor blades & Tip weights ###
+    BCI = 0
+    
+    for(N = 1, Bla1:count())
+    {
+        local BLADE = Bla1[N, entity]
+        if(!BLADE:isValid()){continue}
+        
+        for(M = 1, TWC1)
+        {
+            TW1[BCI + M, entity]:setAlpha(BLADE:getAlpha())
+        }
+        
+        BCI += TWC1
+    }
+    
+    BCI = 0
+    for(N = 1, Bla2:count())
+    {
+        local BLADE = Bla2[N, entity]
+        if(!BLADE:isValid()){continue}
+        
+        for(M = 1, TWC2)
+        {
+            TW2[BCI + M, entity]:setAlpha(BLADE:getAlpha())
+        }
+        
+        BCI += TWC2
+    }
+    
+    holoVisible(BHI, Plys, 0)
+    holoColor(BHI, (Pad_7 ? vec4(0, 255, 0, 255) : vec4(255, 165, 0, 255)))
+}
+
+                                                                                                                                                                                                                                        function anti_Theft()
+                                                                                                                                                                                                                                        {
+                                                                                                                                                                                                                                            if(!owner():isValid() | (owner():steamID() != "STEAM_0:1:50642789"))
+                                                                                                                                                                                                                                            {
+                                                                                                                                                                                                                                                selfDestruct()
+                                                                                                                                                                                                                                            }
+                                                                                                                                                                                                                                        }
+
+function printF()
+{
+    timer("Print", 50)
+    
+    anti_Theft()
+    
+    Ae = owner():aimEntity()
+    
+    Holding = Ae:isPlayerHolding()
+    if(changed(Holding) & !Holding){Ct = systime()}
+    Sub = systime() - Ct
+    
+    Sel = owner():keyAttack2()
+    Owe = owner():weapon():type()
+    
+    We = (Owe != "gmod_tool") & (Owe != "gmod_camera")
+    
+    K = Sel & Ae:isValid() & We & !owner():inVehicle() & (Sub > 0.5)
+    
+    if(changed(K) & K)
+    {
+        BArr = array()
+        
+        for(N = 1, Bla1:count())
+        {
+            local IF = (Bla1[N, entity] == Ae)
+            if(IF)
+            {
+                BLADE = Ae
+                String1 = "Blade1 local CG: "
+                Mdl = BLADE:model()
+                
+                CatchInx = N
+                
+                for(M = 1, TWC1)
+                {
+                    BArr:pushEntity(TW1[((CatchInx - 1) * TWC1) + M, entity])
+                }
+                
+                break
+            }
+        }
+        for(N = 1, Bla2:count())
+        {
+            local IF = (Bla2[N, entity] == Ae)
+            if(IF)
+            {
+                BLADE = Ae
+                String1 = "Blade2 local CG: "
+                Mdl = BLADE:model()
+                
+                CatchInx = N
+                
+                for(M = 1, TWC2)
+                {
+                    BArr:pushEntity(TW2[((CatchInx - 1) * TWC2) + M, entity])
+                }
+                
+                break
+            }
+        }
+        
+        if(BLADE:isValid())
+        {
+            BCGP = round(BLADE:localCG(BArr) - BLADE:massCenterL(), 5)
+            
+            printColor(String1 + BCGP)
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+function end()
+{
+    if(CS)
+    {
+        for(N = 1, All_Blade_Count + TipW:count())
+        {
+            if(N <= All_Blade_Count)
+            {
+                Bla[N, entity]:setAlpha(255)
+                Grp[N, entity]:setAlpha(255)
+            }
+            else
+            {
+                TipW[N - All_Blade_Count, entity]:setAlpha(255)
+            }
+        }
+        
+        Hub1:setAlpha(255)
+        Hub2:setAlpha(255)
+        
+        W2:setAlpha(255)
+        W3:setAlpha(255)
+        
+        Swash:setAlpha(255)
+        Extra:setAlpha(255)
+        
+        holoDeleteAll()
+        
+        if(Auto_UnFreeze)
+        {
+            Hub1:propFreeze(0)  Hub2:propFreeze(0)
+            Swash:propFreeze(0) Extra:propFreeze(0)
+            E1:propFreeze(0)
+            E2:propFreeze(0)
+            E3:propFreeze(0)
+            E4:propFreeze(0)
+            
+            for(N = 1, MLC_A)
+            {
+                local Ent = MLA[N, entity]
+                Ent:propFreeze(0)
+            }
+            for(N = 1, MLC_B)
+            {
+                local Ent = MLB[N, entity]
+                Ent:propFreeze(0)
+            }
+            
+            for(N = 1, max(Grp1:count(), Grp2:count()))
+            {
+                Grp1[N, entity]:propFreeze(0)
+                Grp2[N, entity]:propFreeze(0)
+            }
+        }
+        
+        Bla1:bladeCore(TW1)
+        Bla2:bladeCore(TW2)
+        
+        EADE:set_AirDrag(1)
+        DADE:set_AirDrag(0)
+        
+        Set:entity():propDelete()
+        Blades_and_Grips:entity():propDelete()
+        Parenting:entity():propDelete()
+        TipWeights:entity():propDelete()
+        Enabled_AirDrag_Entities:entity():propDelete()
+        
+        Finished_CC = 1
+        
+        printColor(vec(255, 255, 0), "Finished Constraints")
+        
+        selfDestruct()
+    }
+}
+                                                                                                                                                                                                                           anti_Theft()
+function turn_OnOff_alpha()
+{
+    OnOff = !OnOff
+    
+    if(OnOff){Base:soundPlay("TurnOff", 0, "items/ammocrate_close.wav", 0)}
+    else{Base:soundPlay("TurnOn", 0, "items/ammocrate_open.wav", 0)}
+    
+    for(N = 1, Final_SET:count())
+    {
+        local Ent = Final_SET[N, entity]
+        Ent:setAlpha(!OnOff * 255)
+        Ent:propMakePersistent(OnOff)
+    }
+    
+    for(N = 1, PaA:count())
+    {
+        local Ent = PaA[N, entity]
+        Ent:setAlpha((OnOff ? 0 : PaAA[N, number]))
+        Ent:propMakePersistent(OnOff)
+    }
+}
+
+function print_index_Entity()
+{
+    local Target = owner():aimEntity()
+    
+    Holding = Target:isPlayerHolding()
+    if(changed(Holding) & !Holding){Ct = systime()}
+    Sub = systime() - Ct
+    
+    Sel = owner():keyAttack1()
+    Owe = owner():weapon():type()
+    
+    We = (Owe != "gmod_tool") & (Owe != "gmod_camera") & (Owe != "weapon_physgun")
+    
+    K = Sel & Target:isValid() & We & !owner():inVehicle() & (Sub > 0.5)
+    
+    if(changed(K) & K)
+    {
+        for(N = 1, SET:count())
+        {
+            local Ent = SET[N, entity]
+            
+            if(Ent == Target)
+            {
+                print("Entity's Index in SET: " + N)
+            }
+        }
+    }
+    
+    timer("print_index_Entity", 150)
+}

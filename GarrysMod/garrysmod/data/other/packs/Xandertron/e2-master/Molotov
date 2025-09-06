@@ -1,0 +1,117 @@
+@name molotov
+@inputs 
+@outputs 
+@persist Equipped M:entity Thrown LP:vector LV:vector Particles Vel:array FC FIC FCF DeadParts:number
+@trigger 
+@model models/props_junk/garbage_glassbottle003a.mdl
+
+interval(100)
+if(first()){
+    FC = 25
+    holoCreate(1)   
+    holoModel(1,"models/props_junk/garbage_glassbottle003a.mdl")
+    Equipped = 0
+    propSpawnUndo(0)
+    propSpawnEffect(0)
+    function vector vector:shitcheck(D){
+        RAD = array(
+            rangerOffset(D,This,vec(1,0,0)),
+            rangerOffset(D,This,vec(-1,0,0)),
+            rangerOffset(D,This,vec(0,1,0)),
+            rangerOffset(D,This,vec(0,-1,0)),
+            rangerOffset(D,This,vec(0,0,1)),
+            rangerOffset(D,This,vec(0,0,-1))
+        )
+        RADD = array()
+        for(I=1,6){
+            RADD[I,number]  = RAD[I,ranger]:distance()
+        }
+        return RAD[RADD:minIndex(),ranger]:hitNormal()
+    }
+    function void holoLine(Index:number,Start:vector,End:vector,Color:vector,Alpha,Thickness:number)
+    {
+        local A = (Start-End):normalized()
+        holoCreate(Index,(Start+End)/2,vec(Start:distance(End),Thickness,Thickness)/379.75,A:toAngle(),vec4(Color)+vec4(0,0,0,Alpha),"models/hunter/blocks/cube8x8x8.mdl")
+    }
+}
+if(owner():weapon():type()=="weapon_crowbar"){
+    if(Equipped == 0){
+        holoPos(1,owner():attachmentPos("anim_attachment_RH"))
+        holoParentAttachment(1,owner(),"anim_attachment_RH")
+        Equipped = 1
+    }
+    else{
+        holoAlpha(1,255)
+        owner():weapon():setAlpha(0)
+    }
+    if(changed(owner():keyAttack1())&owner():keyAttack1()&Thrown==0&Particles==0){
+        M = propSpawn("models/props_junk/garbage_glassbottle003a.mdl",owner():shootPos()+owner():eye()*60,0)
+        M:setMass(25)
+        M:applyForce(owner():eye()*100000/4+owner():vel())
+        M:ignite()
+        Thrown = 1
+    }
+}
+elseif(Equipped){
+    holoAlpha(1,0)
+}
+if(Thrown&!M){
+
+    Dir = LP:shitcheck(30)
+    if(Dir == vec(0)){
+        Dir = LV:normalized()
+    }
+    for(I=1,FC){
+        NDir = mix(Dir, vec(random(-1,1),random(-1,1),random(-1,1)), 0.5):normalized()
+        Vel[I,vector] = NDir
+
+        holoScale(I+2,vec(0.5))
+        holoPos(I+2,LP+Dir*10)
+        holoEntity(I+2):ignite()
+        
+    }
+    timer("cooldown",7500)
+    Particles = 1
+    Thrown = 0
+}
+elseif(Thrown){
+    LP = M:pos()
+    LV = M:vel()
+}
+if(Particles){
+    if(DeadParts!=FC){
+        for(I=1,FC){
+            P = holoEntity(I+2):pos()
+            HVel = Vel[I,vector]
+            if(HVel != vec(0)){
+                if(P:shitcheck(10)==vec(0)){
+                    NP = P+(HVel*20)-vec(0,0,gravity()/(45/3))
+                    if(pointHasContent(NP,"solid")==0){
+                        holoPos(I+2,NP)
+                    }
+                    else{
+                        DeadParts++
+                    }
+                }
+            }
+        }
+    }
+}
+if(clk("cooldown")){
+    for(I=1,FC){
+        holoEntity(I+2):extinguish()
+    }
+    Particles = 0
+    DeadParts = 0
+}
+if(FIC<=FC&(!FCF)){
+    if(holoCanCreate()){
+        holoCreate(FIC+2)
+        holoAlpha(FIC+2,0)
+        FIC++
+    }
+}
+elseif(FCF == 0&FIC>=FC){
+    FCF = 1
+    print("Ready!")
+}

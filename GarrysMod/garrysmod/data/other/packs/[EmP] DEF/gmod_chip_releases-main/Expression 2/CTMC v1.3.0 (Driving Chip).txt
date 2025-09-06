@@ -1,0 +1,668 @@
+@name CTMC v1.3.0 (Driving Chip)
+
+#Community Tracked Mobility Controller - Full, a driving E2 by DEF, with features that have been taken from other mobility
+#E2s, including but not limited to Mobility Control XK-K, the LanBox's E2, Red's GM15D, and Dobbers' EZTankMovement.
+
+# Video tutorial can be found here - https://youtu.be/XNRvzV1zKQY #
+
+@inputs Pod:wirelink [Base Engine MainGearbox]:entity
+@outputs CVTRatio LeftGear RightGear LeftTransGear RightTransGear MainClutch LeftClutch RightClutch LeftBrake RightBrake SteerRate
+@outputs Throttle LeftWL RightWL CrossWL Speed EngineActive FuelActive GearLock AGearNum AGearStr:string
+
+#Transmission and steering
+@persist FRP TransType FinalRatio ShiftingFinalDrive PivRatio PivotType ActiveSpd CVTInitRatio CVTRate GearCount TopGear Rev
+@persist PwrBndMin ShiftRPM SpdMul SafeSpd BrkIndex Switches:vector AVClutchMul AVTarget ThrottleOffMul MaxBrkSteps SteerDir VarSpd
+@persist GearSpd:array InletPwr Override [LatchSpd BrkForce BrkDecay]:vector4
+@persist CounterCutoff CounterError CounterBrkMul:vector2 CounterClutchMul
+
+#Engine, stabilisation, and misc
+@persist MaxThrottle IdleThrottle ThrottleStep MinSpdMul GovOn GovActiveRPM GovTargetRPM GovMul LockNote ForceOn TriggerDist
+@persist [PodEnt Driver BaseHolo]:entity RangerPos:vector RightSpeed Inertia:angle StartVol StopVol ShiftVol
+@persist [ClutchKey LockKey IgnitionKey ThrottleUpKey ThrottleDownKey]:string
+
+#Debug
+@outputs OpsCPUus:vector2
+@trigger none
+
+if(duped() | dupefinished()) {reset()}
+
+if(first() | dupefinished()) {
+    
+    FRP=LeftWL=RightWL=CrossWL=1
+    BrkIndex=4
+    
+    
+        # ~ You may begin editing here! ~ #
+    
+    
+    # # # Misc
+    
+    BaseAng = ang(0, 0, 0)      #Offset angle of the baseplate (align with holo).
+    
+    ShowHolo=1          #Show base alignment holo. 1 for yes, 0 for no.
+    
+    SpdMul=1/17.6       #Speed measurement multiplier. Default from speedometer is in inches/second.
+    
+    SafeSpd=10          #Speed the tank should be below in order to switch from forward to reverse.
+                        #Also determines if vehicle will throttle when just pressing A or D (for pivoting and low speed turns).
+    
+    MaxThrottle=100     #Initial throttle setting.
+    
+    IdleThrottle=10     #Throttle when not touching any movement keys.
+    
+    InletPwr=1          #Percentage of the power from your engine to let in. If you're not sure, set this to 1.
+    
+    ClutchOverride=0    #This delays the clutch from dis-engaging; accepts 0-1.
+    
+                   
+        #~ Transmission things ~#
+
+    
+    GearCount=0         #Custom gear count, otherwise leave this 0.
+    
+    WheelSize=25.5      #Your wheels' diameter.
+    
+    FinalRatio=0.30     #Total final drive ratio. If using a reversing final-drive setup, this would be
+                        #the main gearbox's final drive times the transfer-case(s) final drive (1.00 * 0.15 = 0.15).
+    
+    MaxShiftRPM=0       #RPM where the tank will shift up at 100% throttle. Relative to the top of the engine's powerband.
+    
+    MinShiftRPM=500     #RPM where the tank will shift up at 0% throttle. Relative to the bottom of the engine's power band.
+    
+    GBDebug=0           #Do you want the E2 to show your shifting speeds/ratios in chat? 1 for yes, 0 for no.
+
+    # # # CVT
+    
+    ActiveSpd=10        #Speed where the CVT ratio will begin adjust.
+    
+    PivRatio=0.1        #CVT ratio just for neutral-steering.
+    
+    
+        # ~ Steering things ~ #
+    
+    
+    SwitchBrake=1       #Rather than cross-wiring the brakes, this is here; accepts 0 or 1.
+    
+    SwitchClutch=1      #Same but for clutches.
+    
+    SwitchSteerRate=1   #Same but for double differential steer rate.
+    
+    #Each position is 1)weld latch speed; 2)brakeforce; and 3)brakeforce decay.
+    
+    #vec(5, 10, 1) = latch speed of 5, initial brakeforce of 10, brakeforce halves everytime speed doubles.
+    #vec(10, 15, 0) = latch speed of 10, initial brakeforce of 15, brakeforce does not change with speed.
+    #vec(-1, 5, 2) = latches are not used, initial brakeforce of 5, brakeforce quarters evrytime speed doubles.
+    
+    Steering_Default = vec(-1, 10, 1)         #Skid steering.
+    
+    Steering_Handbrake = vec(-1, 15, 1)       #Skid steering holding Space.
+    
+    Braking_Spacebar = vec(-1, 10, 1)         #Braking holding only Space.
+    
+    Braking_Autobrake = vec(-1, 0, 1)      #When no keys are pressed.
+    
+    # # # Special steering things
+    
+    ThrottleOffMul=1    #Compensates for less effective brakeforce at low throttle.
+                        #This is the multiplier when at 0 throttle.
+    
+    MaxBrkSteps=1       #Applies brakeforce in this many parts over this many executions.
+                        #1 means the brakeforce will apply all at once (legacy).
+    
+    AVTarget=-1         #Adjusts the brakes and clutches to get the tank to rotate this fast (in degrees-per-second).
+                        #Only works with Steering_Default. Set to -1 for legacy behavior (constant clutching and braking).
+    
+    AVClutchMul=0.05    #Percentage of available torque used if vehicle oversteers. Only used if AVTarget is used.
+    
+    # # # Counter-steering
+    
+    CounterCutoff=-1    #If the angular velocity is below this, the vehicle won't counter-steer.
+                        #Set to -1 to disable counter-steering.
+    
+    CounterClutchMul=0.2            #Percentage of available torque to reduce the over-steering track by.
+                                    #Multiplied by rotation of the tank (in degrees-per-second) over 10.
+    
+    CounterBrkMul = vec2(1, 1)      #Like the Steering and Braking settings, but only used for counter-steering, but latches aren't used.
+                                    #Takes effect once all torque is cut off from over-steering track.
+                                    #Same rotation rate multiplier.
+    
+    
+        # ~ Governor ~ #
+
+
+    GovOn=1         #Governor on or off; 1 for on, 0 for off.
+
+    GovTarget=0     #The RPM that the governor will try to maintain, relative to the upper end of the powerband.
+    
+    GovActivate=-1300   #The RPM where the governor gets activated. Offset like before.
+    
+    GovMul=10       #Throttle subtracted per hundred RPM above the GovTarget.
+    
+    
+        # ~ Righting Force (ripped from Mobility XK-K(-K)) ~ #
+
+
+    ForceOn=0           #Stabilizing force; 1 for on, 0 for off
+    
+    RangerPos = vec(115, 0, 0)     #The origin point of the ranger, which finds the distance to the ground
+    
+    RangerDebug=0       #Shows the ranger's position as a green holo; 1 for on, 0 for off
+    
+    TriggerDist=20      #The distance between the ground and the ranger that is needed to trigger the stabilizing force.
+    
+    RightSpeed=1.5      #How fast the vehicle rights itself.
+    
+    Correction = vec(0, 0, 0)       #Adjust this if the force is too weak/strong. Pre-multiplied by 1,000.
+                                    #You don't have to account for the yaw.
+    
+    
+        # ~ Sound Effects ~ #
+    
+    
+    #This is the sound that plays when you enter your tank.
+    StartSnd="acf_extra/vehiclefx/engines/gnomefather/t71up.wav"
+    
+    StartVol=1          #Volume; accepts values of 0-1.
+    StartPitch=100      #Pitch; accepts values of 0-255, 100 being default.
+    
+    #This is the sound that plays when you exit your tank.
+    StopSnd="acf_extra/vehiclefx/engines/gnomefather/t71down.wav"
+    
+    StopVol=1
+    StopPitch=100
+    
+    #When you change gears, this sound plays
+    ShiftSnd="acf_extra/tankfx/clunk.wav"
+    
+    ShiftVol=0.5
+    ShiftPitch=150
+    
+    
+        # ~ Key-bindings and Misc ~ #
+    
+    
+    # http://wiki.garrysmod.com/page/Enums/KEY #
+    
+    ClutchKey="Pad_0"   #Pressing this, the vehicle will clutch in and the auto-brake will cut off.
+    
+    LockKey="V"         #In automatic mode, Toggles gear-locking on and off.
+    
+    LockNote=1          #Sets whether or not the E2 hints if it's holding a gear.
+    
+    IgnitionKey="H"     #Turns the engine on and off, if it's wired to the chip.
+    
+    # # # Changeable throttle
+    
+    ThrottleStep=10     #Amount of throttle added or subtracted when you press the following two buttons:
+    
+    ThrottleUpKey="Pad_Minus"
+    
+    ThrottleDownKey="Pad_Plus"
+
+
+        # ~ You are done editing here! ~ #
+    
+    
+    #Standard normalize function
+    function number norm(Val, Min, Max) {return (Val - Min)/(Max - Min)}
+    
+    #Standard linear interpolation function
+    function number lerp(Norm, Min, Max) {return (Max - Min)*Norm + Min}
+    
+    
+    #Miscellaneous variables pre-adjusted or pre-defined
+    InletPwr = 1 - InletPwr
+    
+    PivotType = ((->LeftTransGear & ->RightTransGear) ? 1 : (->LeftGear & ->RightGear) ? 2 : ->SteerRate ? 3 : 0)
+    Switches = vec((SwitchBrake ? -1 : 1), (SwitchClutch ? -1 : 1), (SwitchSteerRate ? -1 : 1))
+    LatchSpd = vec4(Steering_Default[1], Steering_Handbrake[1], Braking_Spacebar[1], Braking_Autobrake[1])
+    BrkForce = vec4(Steering_Default[2], Steering_Handbrake[2], Braking_Spacebar[2], Braking_Autobrake[2])
+    BrkDecay = vec4(Steering_Default[3], Steering_Handbrake[3], Braking_Spacebar[3], Braking_Autobrake[3])
+    
+    MaxBrkSteps = 1/MaxBrkSteps
+    AVClutchMul = AVClutchMul / 10, CounterBrkMul = CounterBrkMul /10, CounterClutchMul = CounterClutchMul / 10
+    CounterBrkMul = vec2(CounterBrkMul[1] / 10, CounterBrkMul[2])
+    
+    local IdleRPM = Engine:acfIdleRPM()
+    PwrBndMin = Engine:acfPowerbandMin(), local PwrBndMax = Engine:acfPowerbandMax()
+    ShiftRPM = PwrBndMax + MaxShiftRPM
+    
+    TransType = (MainGearbox:acfType()=="CVT" ? 1 : 0)
+    ShiftingFinalDrive = (->LeftTransGear | ->RightTransGear)
+    
+    Override = IdleRPM + (PwrBndMin-IdleRPM)*ClutchOverride
+    GovTargetRPM = PwrBndMax + GovTarget
+    GovActiveRPM = PwrBndMax + GovActivate
+    
+    holoCreate(1, Base:toWorld(vec()), vec(1), Base:toWorld(BaseAng), vec4(vec(255), 255*ShowHolo), "models/sprops/misc/origin.mdl"), holoParent(1, Base)
+    BaseHolo = holoEntity(1)
+    if(RangerDebug) {holoCreate(2, BaseHolo:toWorld(RangerPos), vec(1), BaseHolo:toWorld(ang()), vec4(0, 255, 0, 255), "sphere"), holoParent(2, Base)}
+    
+    Inertia = ang(shiftL(Base:inertia()) + Correction*1000) * 23.25 * 1000/15 * (pi()/180)
+    rangerPersist(1), rangerFilter(entity():getConnectedEntities())
+    
+    soundPlay(1, 0, StartSnd), soundVolume(1, 0), soundPitch(1, StartPitch)
+    soundPlay(2, 0, StopSnd), soundVolume(2, 0), soundPitch(2, StopPitch)
+    soundPlay(3, 0, ShiftSnd), soundVolume(3, 0), soundPitch(3, ShiftPitch)
+    
+    MinSpdMul = ((PwrBndMin + MinShiftRPM) / ShiftRPM)
+    VarSpd = lerp(norm(MaxThrottle, 0, 100), MinSpdMul, 1)
+    
+    
+    local CommonVal = (ShiftRPM*FinalRatio/60) * WheelSize * pi()
+    
+    #Things for manual transmissions
+    if(!TransType) {
+        
+        #Gear count
+        if(!GearCount) {GearCount = MainGearbox:acfNumGears()}
+        
+        #Positive gears and first reverse gear
+        if(!ShiftingFinalDrive) {
+            
+            for(I=1, GearCount, 1) {if(MainGearbox:acfGearRatio(I) < 0 | I==GearCount) {TopGear = I-1, Rev = I, break}}
+        }
+        else {TopGear = GearCount, Rev = 1}
+        
+        #Using wheel size and ratios to make a shifting speed array.
+        for(I=1, GearCount, 1) {GearSpd[I,number] = abs(CommonVal * MainGearbox:acfGearRatio(I) * SpdMul)}
+    
+        #Prints shift speeds
+        if(GBDebug) {
+            
+            local ForwardSpeeds = array(), local ReverseSpeeds = array()
+            
+            for(I=1, TopGear, 1) {ForwardSpeeds[I,number] = round(GearSpd[I,number], 1)}
+            for(I=Rev, GearCount, 1) {ReverseSpeeds[I-TopGear,number] = round(GearSpd[I,number], 1)}
+            
+            print("Forward and reverse shift speeds listed below")
+            print(ForwardSpeeds), print(ShiftingFinalDrive ? ForwardSpeeds : ReverseSpeeds)
+            print("This tank can" + (PivotType ? " " : "'t ") + "pivot")
+        }
+    }
+    
+    #Ratio rate for CVTs
+    else {
+        
+        TopGear = 1, Rev = 2
+        
+        #Finding ratios needed at the activation speed and at 100 units to find the CVTRate.
+        CVTInitRatio = (ActiveSpd/SpdMul)/CommonVal, local RatioFor100 = (100/SpdMul)/CommonVal
+        CVTRate = (RatioFor100 - CVTInitRatio)/(100 - ActiveSpd)
+        
+        #CVT info
+        if(GBDebug) {
+            
+            print("Initial CVT ratio is " + round(CVTInitRatio, 2))
+            print("Maximum speed at " + ShiftRPM + "RPM is " + round(100/RatioFor100, 1))
+            print("Reverse gear ratio is " + MainGearbox:acfGearRatio(2))
+            print("This tank can" + (PivotType ? " " : "'t ") + "pivot")
+        }
+    }
+    
+    
+    #A function just for neutral steering
+    function void pivot(A, D) {
+        
+        if(!(A&D)) {
+            
+            switch(PivotType) {
+                
+                #Two transfer cases
+                case 1,
+                LeftGear=RightGear = 1, LeftTransGear = (A ? 2 : 1), RightTransGear = (D ? 2 : 1)
+                break
+                
+                #Two main gearboxes
+                case 2,
+                LeftTransGear=RightTransGear = 1, LeftGear = (A ? Rev : 1), RightGear = (D ? Rev : 1)
+                break
+                
+                #Double differential
+                case 3,
+                LeftGear=RightGear=LeftTransGear=RightTransGear = 1, SteerRate = (D - A) * Switches[3]
+                break
+            }
+        }
+        
+        else {LeftGear=RightGear = 0}
+    }
+    
+    
+    #Gets the vehicle's "actual" gear
+    function array getGear() {
+        
+        local GearNum = 0, local GearStr = ""
+        
+        #Gear number for reversing final-drive and non-reversing final-drive setups.
+        if(ShiftingFinalDrive) {
+            
+            GearStr = (!LeftGear ? "N" : LeftGear + (LeftTransGear==1 ? "F" : "R"))
+            GearNum = LeftGear * (LeftTransGear==1 ? 1 : -1)
+        }
+        
+        else {
+            
+            GearStr = (!LeftGear ? "N" : LeftGear!=RightGear ? "1F" : (LeftGear > TopGear ? (LeftGear - TopGear) + "R" : LeftGear + "F"))
+            GearNum = (LeftGear > TopGear ? -(LeftGear - TopGear) : LeftGear!=RightGear ? 1 : LeftGear)
+        }
+        
+        return array(GearNum, GearStr)
+    }
+}
+
+
+
+interval(150)
+
+
+
+#Active check and driver
+Active = Pod["Active",normal]
+if(changed(Active)) {PodEnt = Pod["Entity",entity], Driver = PodEnt:driver()}
+
+#Engine sfx
+if(!->EngineActive) {EngineActive = Active}
+elseif(changed(Driver:keyPressed(IgnitionKey)) & Driver:keyPressed(IgnitionKey)) {EngineActive = !EngineActive}
+
+if(changed(EngineActive) & !first()) {
+    
+    local Snd = (EngineActive ? 1 : 2)
+    soundVolume(Snd, 0), soundVolume(Snd, (EngineActive ? StartVol : StopVol))
+}
+
+#Base linear and angular speed
+BaseVel = BaseHolo:toLocalAxis(Base:vel())
+BaseAngVel = shiftL(ang(BaseHolo:toLocalAxis(Base:toWorldAxis(Base:angVelVector()))))
+
+Speed = BaseVel[1] * SpdMul
+local ABSpeed = abs(Speed)
+
+if(Active) {
+
+    #Keybinds
+    local ClutchIn = Driver:keyPressed(ClutchKey)
+    local HoldGear = Driver:keyPressed(LockKey)
+    local ThrtUp = Driver:keyPressed(ThrottleUpKey)
+    local ThrtDown = Driver:keyPressed(ThrottleDownKey)
+
+    #Wirelinks and engine speed.
+    local W = Pod["W",normal]
+    local S = Pod["S",normal]
+    local A = Pod["A",normal]
+    local D = Pod["D",normal]
+    local Space = Pod["Space",normal]
+    EngineRPM = Engine:acfRPM()
+
+
+    #Variable throttle and shiftpoint multiplier
+    if(ThrtUp | ThrtDown) {
+        
+        MaxThrottle = clamp((ThrtUp ? MaxThrottle+ThrottleStep : MaxThrottle-ThrottleStep), IdleThrottle + abs(IdleThrottle%-ThrottleStep), 100)
+        
+        if(changed(MaxThrottle)) {
+            
+            PodEnt:hintDriver(MaxThrottle + "% Throttle", 3.5)
+            VarSpd = lerp(norm(MaxThrottle, 0, 100), MinSpdMul, 1)
+        }
+    }
+    
+    
+    #Throttle, fuel cutoff, and governor
+    local ThrottleTrigger = max(W & FRP==1, S & FRP==2, (ABSpeed <= SafeSpd ? (A|D) : 0))
+    local Governor = (GovOn & EngineRPM >= GovActiveRPM ? clamp((EngineRPM - GovTargetRPM)/100 * GovMul, 0, MaxThrottle - IdleThrottle) : 0)
+    
+    Throttle = clamp(ThrottleTrigger*MaxThrottle - Governor, IdleThrottle, 100)
+    FuelActive = ThrottleTrigger
+
+
+    #Gear-holding
+    if(changed(HoldGear) & HoldGear & !(FRP==3 | TransType) & LeftGear) {
+    
+        GearLock = !GearLock
+        PodEnt:hintDriver((GearLock ? "Holding Gear " : "Released Gear ") + getGear()[2,string], 3)
+    }
+
+
+    
+    #Transmission things
+    if(!GearLock) {
+        
+        #A sort of PRNDL switch
+        #Forwards
+        if(W | (A|D) & !S & ABSpeed <= SafeSpd & (!PivotType | Space) | (!(A|D) | Space) & FRP==3) {
+        
+            if(Speed < 0 & ABSpeed > SafeSpd) {FRP = 0} else {FRP = 1}
+        }
+        
+        #Reverse
+        elseif(S) {if(Speed > 0 & ABSpeed > SafeSpd) {FRP = 0} else {FRP = 2}}
+        
+        #Pivoting
+        elseif((A|D) & ABSpeed <= SafeSpd & !Space & PivotType) {FRP = 3}
+        
+        
+        #Manual gearboxes
+        if(!TransType) {
+            
+            switch(FRP) {
+                
+                #Forwards
+                case 1,
+                
+                LeftTransGear=RightTransGear = 1
+                
+                #Gear reset if it's something it shouldn't be.
+                if(!LeftGear | LeftGear > TopGear | LeftGear!=RightGear) {LeftGear=RightGear = 1}
+                
+                #Shift speed selector
+                else {
+                    
+                    if(ABSpeed > GearSpd[LeftGear,number]*VarSpd & LeftGear < TopGear) {LeftGear++, RightGear++}
+                    elseif(ABSpeed < GearSpd[LeftGear-1,number]*VarSpd & LeftGear > 1) {LeftGear--, RightGear--}
+                }
+                break
+                
+                #Reverse
+                case 2,
+                
+                LeftTransGear=RightTransGear = 2
+                
+                if(LeftGear < Rev | LeftGear!=RightGear) {LeftGear=RightGear = Rev}
+                
+                else {
+                    
+                    if(ABSpeed > GearSpd[LeftGear,number]*VarSpd & LeftGear < GearCount) {LeftGear++, RightGear++}
+                    elseif(ABSpeed < GearSpd[LeftGear-1,number]*VarSpd & LeftGear > Rev) {LeftGear--, RightGear--}
+                }
+                break
+                
+                case 0,
+                LeftGear=RightGear = 0
+                break
+            }
+        }
+        
+        
+        #CVTs
+        else {
+        
+           switch(FRP) {
+            
+                case 1,
+                
+                #Changes the ratio based on speed.
+                CVTRatio = clamp(CVTInitRatio + max(ABSpeed - ActiveSpd, 0) * CVTRate, 0, 1) * VarSpd
+                LeftGear=RightGear = LeftTransGear=RightTransGear = 1
+                break
+                
+                case 2,
+                
+                if(ShiftingFinalDrive) {
+                    CVTRatio = clamp(CVTInitRatio + max(ABSpeed - ActiveSpd, 0) * CVTRate, 0, 1) * VarSpd
+                    LeftGear=RightGear = 1, LeftTransGear=RightTransGear = 2
+                }
+                
+                else {LeftGear=RightGear = 2}
+                break
+                
+                case 0,
+                LeftGear=RightGear = 0
+                break
+            }
+        }
+    }
+    
+    
+    
+    #Gear shift sfx and actual gear logging
+    if(changed(LeftGear) | changed(LeftTransGear) | changed(RightTransGear)) {
+        
+        soundVolume(3, 0), soundVolume(3, ShiftVol)
+        local Arr = getGear(), AGearNum = Arr[1,number], AGearStr = Arr[2,string]
+    }
+    
+    
+    
+    #Steering and braking
+    #Steering index
+    if((!Space & (W & FRP==1 | S & FRP==2) | (A|D) | ClutchIn) & EngineRPM-Override >= 0) {BrkIndex = (Space ? 2 : 1)}
+    else {BrkIndex = (Space | !FRP ? 3 : 4)}
+    
+    
+    #Clutches
+    local BaseClutch = InletPwr
+    local ClutchLeft = 0, local ClutchRight = 0
+    
+    #Transitions the clutch based on engine rpm
+    if(W & FRP==1 | S & FRP==2 | (A|D) & FRP) {
+        
+        local Percent = (EngineRPM < PwrBndMin ? lerp(norm(EngineRPM, Override, PwrBndMin), 1, InletPwr) : InletPwr)
+        BaseClutch = max(Percent, Space & BrkIndex!=2, ClutchIn)
+    }
+    
+    
+    #Neutral-steering/pivoting
+    if(FRP==3) {
+        
+        CVTRatio = PivRatio, LeftWL=RightWL=LeftBrake=RightBrake = 0
+        if(PivotType==3) {ClutchLeft=ClutchRight = 1}
+        pivot(A, D)
+    }
+    
+    
+    #Weld-Latches
+    elseif(ABSpeed <= LatchSpd[BrkIndex]) {
+        
+        LeftBrake=RightBrake=SteerDir=SteerRate = 0
+        
+        if(BrkIndex<=2) {
+            
+            LeftWL = (FRP!=3 ? A : 0)
+            RightWL = (FRP!=3 ? D : 0)
+            
+            local TotalClutch = D-A
+            ClutchLeft = max(Switches[2] * -TotalClutch, 0), ClutchRight = max(Switches[2] * TotalClutch, 0)
+        }
+        
+        else {ClutchLeft=ClutchRight=LeftWL=RightWL = 1}
+    }
+    
+    
+    #ACF-Brakes/Clutch-only
+    else {
+        
+        LeftWL=RightWL=CounterError=SteerRate = 0
+        
+        #Brakeforce relative to speed
+        local RefSpd = 100 * SpdMul
+        local MainForce = BrkForce[BrkIndex] * (RefSpd / (RefSpd + BrkDecay[BrkIndex] * max(ABSpeed-RefSpd, 0)))
+        local CounterForce = CounterBrkMul[1] * (RefSpd / (RefSpd + CounterBrkMul[2] * max(ABSpeed-RefSpd, 0)))
+        
+        #Yaw angular velocity and clutch multiplier
+        local DGS = BaseAngVel[2] * sign(Speed)
+        local ClutchMul = (!TransType ? abs(MainGearbox:acfGearRatio(LeftGear) / MainGearbox:acfGearRatio(1)) : CVTRatio / CVTInitRatio)
+        
+        #Steer direction
+        SteerDir = (A & !D ? max(-1, SteerDir-MaxBrkSteps) : D & !A ? min(1, SteerDir+MaxBrkSteps) : 0)
+        local TotalBrake = MainForce * SteerDir, local TotalClutch = sign(SteerDir)
+        
+        #Modifiers
+        local TrackIsPowered = (ThrottleTrigger & !ClutchIn)
+        local BrkMul = lerp((TrackIsPowered ? Throttle/100 : 0), ThrottleOffMul, 1)
+        
+        #Counter-steering
+        if(!(A|D) & CounterCutoff >= 0) {
+            
+            local ClutchZone = 1 / (CounterClutchMul * ClutchMul) * TrackIsPowered
+            CounterError = max(abs(DGS) - CounterCutoff, 0) * sign(DGS)
+            
+            TotalBrake = max(abs(CounterError) - ClutchZone, 0) * CounterForce * sign(DGS)
+            TotalClutch = clamp(CounterError * CounterClutchMul * ClutchMul, -1, 1)
+        }
+        
+        #Applying brakes
+        if(BrkIndex<=2) {
+            
+            #Fixed rate steering
+            if(AVTarget >= 0 & BrkIndex==1 & (A|D)) {
+                
+                local ClutchZone = 2 / (AVClutchMul * ClutchMul) * TrackIsPowered
+                local DGSMod = DGS - (abs(DGS) > AVTarget ? min(ClutchZone + AVClutchMul, abs(DGS) - AVTarget) * sign(DGS) : 0)
+                
+                TotalBrake = TotalBrake + clamp(DGSMod / AVTarget, -2, 2) * abs(TotalBrake)
+                TotalClutch = clamp(sign(SteerDir) + (AVTarget * sign(SteerDir) + DGS) * AVClutchMul * ClutchMul, -1, 1)
+            }
+            
+            LeftBrake = max(Switches[1] * -TotalBrake * BrkMul, 0), RightBrake = max(Switches[1] * TotalBrake * BrkMul, 0)
+            ClutchLeft = max(Switches[2] * -TotalClutch, 0), ClutchRight = max(Switches[2] * TotalClutch, 0)
+        }
+        
+        else {
+            
+            ClutchLeft=ClutchRight = 1, SteerDir = 0
+            
+            LeftBrake = max(MainForce - Switches[1] * TotalBrake * BrkMul, 0)
+            RightBrake = max(MainForce + Switches[1] * TotalBrake * BrkMul, 0)
+        }
+    }
+    
+    
+    #Applying clutch
+    if(->MainClutch) {MainClutch = BaseClutch, LeftClutch = ClutchLeft, RightClutch = ClutchRight}
+    else {LeftClutch = BaseClutch + ClutchLeft * (1-BaseClutch), RightClutch = BaseClutch + ClutchRight * (1-BaseClutch)}
+    
+    
+    #Drivewheel-drivewheel latch
+    CrossWL = (A | D | CounterError ? 0 : 1)
+}
+
+
+
+else {
+    
+    #Persisting gear when holding a gear.
+    if(!GearLock) {LeftGear=RightGear=LeftTransGear=RightTransGear = 0}
+    
+    LeftWL=RightWL=LeftClutch=RightClutch = 1
+    Throttle = IdleThrottle
+}
+
+
+
+#ApplyAngForce stabilisation; ripped straight from Mobility-XK-K(-K)
+if(ForceOn) {
+    
+    #A ranger that's used to trigger the applyAngForce
+    local Ranger = rangerOffset(TriggerDist + 20, BaseHolo:toWorld(RangerPos), -BaseHolo:up())
+    
+    if(Ranger:distance() >= TriggerDist) {
+        
+        local ForceAng = (BaseHolo:toLocal( ang(0, BaseHolo:angles()[2], 0) ) * RightSpeed - BaseAngVel:setYaw(0)) * Inertia
+        ForceAng = shiftL(ang(Base:toLocalAxis(BaseHolo:toWorldAxis(shiftR(vec(ForceAng))))))
+        
+        Base:applyAngForce(ForceAng)
+    }
+}
+
+OpsCPUus = vec2(ops(), cpuUsage()*1000000)

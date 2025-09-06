@@ -1,7 +1,7 @@
 - Author: Technicolour (Techni)
 - Steam Profile: https://steamcommunity.com/profiles/76561197983168201
 - Youtube: https://www.youtube.com/@Technicolour777
-
+<!-- -->
 - Title: Intel 8080 Emulator (Feat. Arcade Space Invaders)
 - Date (dd-mm-yyyy): 02-06-2011
 - Source: https://web.archive.org/web/20150411081952/http://www.wiremod.com:80/forum/finished-contraptions/26093-intel-8080-emulator-feat-arcade-space-invaders.html
@@ -27,5 +27,9 @@ The 8080 Core is VERY similar to the Z80, to the point that the Z80 is backwards
 Enough wall of text, pretty 1bit pictures and videos time.
 
 https://www.youtube.com/watch?v=UwcfBp-5UeI
+
+https://imgur.com/hXp0f
+https://imgur.com/CHEZe
+https://imgur.com/jnKch
 
 And the E2 code, no ROM included for obvious reasons, so it's really just for looking.

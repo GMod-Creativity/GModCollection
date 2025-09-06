@@ -1,0 +1,137 @@
+@name ACF Trajectory Calculator r1_toAngle fix
+@inputs [Ammo]:array
+@outputs RangeTable:table
+@persist MaxRange TableRangeStep AngleCutoff RunLoop Iterations TryStep
+@persist MuzzleVel DragCoef TotalTime TimeStep CurRange CurIndex
+@persist [Status Slot]:string [ShellPos ShellVel OldVel OldPos Gravity]:vector2
+@trigger none
+
+if(duped() | dupefinished()) { reset() }
+
+if(first() | dupefinished()) {
+    
+    MaxRange = 400          # In meters
+    
+    TableRangeStep = 100    # Distance between rangetable indexes
+    
+    AngleCutoff = 5        # If the velocity vector's angle goes pass this, stop
+    
+    # # # # # # # # # # # # # # # # # # # # # # # # 
+    
+    # Initialization
+    Iterations = 0
+    
+    CurIndex = 1
+    MaxRange *= 39.37
+    TimeStep = tickInterval()
+    Gravity = vec2(0, propGravity()[3])
+    
+    RangeTable = table()
+    
+    Status = "Initialize"
+    
+    # Only run if everything is wired
+    if(Ammo:count()) {
+        RunLoop = 1
+        timer("Delay", 15)
+    }
+    
+    else { RunLoop = 0 }
+
+    # Does the same thing vec2:toAngle() does... or was it toAngle(vec2)? I can't tell anymore.
+    function number v2Angle(Vec2:vector2) {
+        return atan2(Vec2[2], Vec2[1]) * 180 / _PI
+    }
+}
+
+if(clk("Delay")) {
+    
+    Iterations++
+    
+    while(RunLoop & perf(50)) {
+        
+        switch(Status) {
+            
+            case "Initialize",
+            
+            # Shell properties
+            local Crate = Ammo[CurIndex,entity]
+            Slot = "Ammo-" + Crate:toString()
+            
+            MuzzleVel = Crate:acfMuzzleVel()
+            DragCoef = Crate:acfDragCoef()
+            TotalTime = 0
+            
+            # Initialize shell simulation
+            ShellPos = vec2(0, 0)
+            ShellVel = vec2(1, 0) * MuzzleVel * 39.37
+            
+            RangeTable[Slot,array] = array()
+            CurRange = TableRangeStep * 39.37
+            
+            TryStep = 1
+            
+            Status = "Shell-Flight"
+            
+            break
+            
+            case "Shell-Flight",
+            
+            # Step along to get raw data
+            if(TryStep) {
+                
+                OldVel = ShellVel
+                OldPos = ShellPos
+                
+                local Drag = OldVel:normalized() * (OldVel:length2() * DragCoef) / acfDragDiv()
+                local Correction = 0.5 * (Gravity - Drag) * TimeStep
+                
+                ShellVel = OldVel + (Gravity - Drag) * TimeStep
+                ShellPos = OldPos + (OldVel + Correction) * TimeStep
+                
+                TotalTime += TimeStep
+            }
+            
+            # Make a table index
+            TryStep = 1
+            if(ShellPos[1] >= CurRange) {
+                
+                TryStep = 0
+                
+                local Mix = (CurRange - OldPos[1]) / (ShellPos[1] - OldPos[1])
+                
+                local Data = vec(
+                    lerp(OldPos[1], ShellPos[1], Mix) / 39.37,
+                    lerp(OldPos[2], ShellPos[2], Mix) / 39.37,
+                    lerp(TotalTime - TimeStep, TotalTime, Mix)
+                )
+                
+                RangeTable[Slot,array]:pushVector( Data )
+                
+                CurRange += TableRangeStep * 39.37
+            }
+            
+            # Done
+            if(ShellPos[1] >= MaxRange & CurRange > MaxRange | v2Angle(ShellPos) < -AngleCutoff & TryStep) {
+                
+                # More ammo crates
+                if(CurIndex < Ammo:count()) {
+                    Status = "Initialize"
+                    CurIndex++
+                }
+                
+                # Done
+                else {
+                    RunLoop = 0
+                    #print(Iterations)
+                    #printTable(RangeTable)
+                }
+            }
+            
+            break
+        }
+    }
+    
+    # Keep going
+    if(RunLoop) { timer("Delay", 15) }
+}

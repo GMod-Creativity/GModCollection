@@ -1,6 +1,13 @@
 - Author: Vince Defash (VinceD70)
-- Date: Aug 8th, 2014
+- Steam Profile: https://steamcommunity.com/profiles/76561197990020012
+- Youtube: https://www.youtube.com/@MrVinceDefash
+- Pastebin: https://pastebin.com/u/VinceD70
+<!-- -->
 - Title: Smart Remover E2
+- Date (dd-mm-yyyy): 08-08-2014
+- Source: https://web.archive.org/web/20150304054923/http://www.wiremod.com:80/forum/finished-contraptions/33419-smart-remover.html
+- Source: http://pastebin.com/EyccFZXW
+- Source Accessed (dd-mm-yyyy): 22-08-2025
 
 ## Smart Remover
 

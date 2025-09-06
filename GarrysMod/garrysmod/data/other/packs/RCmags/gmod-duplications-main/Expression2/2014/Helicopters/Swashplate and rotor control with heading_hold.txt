@@ -1,0 +1,70 @@
+@name Swashplate and rotor control with heading hold
+@inputs Hub:wirelink W S A D Space Shift Mouse1 Mouse2 On
+@outputs Constant HydroForward HydroBackwards HydroLeft HydroRight TailThruster 
+@persist Collective Start Throttle AnglePitch AngleRoll
+
+E = entity()
+
+H = Hub:entity()
+
+#This is the force constant of the hydraulics. Increase until swashplate spazzes. Decrease slightly when it does.
+Constant = 50000
+
+interval(10)
+
+if(~On & On) {Start = !Start}
+
+#-----------Heading hold------------
+
+SpeedPitch = E:angVel():pitch()
+
+SpeedRoll = E:angVel():roll()
+
+#Adjust the 10 on either angle to set control sensitivity:
+#Decrease the 300 to increase the returning force on the helicopter. Increase the returning force as much as possible.
+
+AnglePitch = (SpeedPitch/400 + AnglePitch + (W - S)/14)*Start
+
+AngleRoll = (SpeedRoll/400 + AngleRoll - (A - D)/14)*Start
+
+#Cyclic Controls:
+
+#Adjust the 3 to set maximum swashplate tilt:
+#Decrease the 20 to increase resistance to rotation.
+
+#Pitch control. 
+Pitch = clamp(AnglePitch + SpeedPitch/15, -4, 4)*Start
+
+#Pitch control.
+Roll = clamp(AngleRoll + SpeedRoll/15, -4, 4)*Start
+
+#-----------------------------------
+
+Throttle = clamp((Start/40 + Throttle)*Start,0,10)
+
+#Collective control. Adjust the +5 to set maximum negative collective. Adjust the -5 to set Maximum minimum collective.
+Collective = clamp((Space - Shift)/30 + Collective, -1,5)*Start 
+
+#This is the base lengh of the hydralics. The 40 is their length when the swashplate has the blades at zero pitch.
+#Change the 40 to whatver length is needed to achieve this.
+
+Length = 30 + Collective - Throttle/7
+
+HydroForward = Length - Pitch
+HydroBackwards = Length + Pitch
+HydroLeft = Length + Roll
+HydroRight = Length - Roll
+
+#This is the tail thruster. Adjust the 1 to set control sensitivity. 
+#Adjust the 5 to set yaw damping. This will stop unwanted accelerations.
+
+TailThruster = -(Mouse1 - Mouse2)*310 + E:angVel():yaw()*3
+
+
+#This is the torque acting on the rotor.
+
+#Adjust the 100000 until the rotor spins at your desired RPM at zero blade pitch.
+#The 100 must be adjusted so that RPM doesn't decrease with increased collective.
+
+H:applyAngForce( ang(0, Throttle*70000 + abs(Collective)*70000 , 0) )
+

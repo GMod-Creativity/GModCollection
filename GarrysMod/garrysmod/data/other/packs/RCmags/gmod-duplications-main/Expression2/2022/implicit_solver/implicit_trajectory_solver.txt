@@ -1,0 +1,75 @@
+@name Implicit trajectory solver
+@inputs E:entity
+@outputs Xms Xn
+@persist DT_MS DT
+@persist Xn Xn1 Xn2 Xms
+@trigger 
+
+# First call
+if( first() ) {
+    # Constants
+    DT_MS = 10
+    DT = DT_MS * 1e-3
+        
+    # Iteration values
+    X_INIT = E:vel():z() + 100
+    
+    Xms = X_INIT
+    
+    Xn = X_INIT
+    Xn1 = X_INIT - DT
+    Xn2 = X_INIT - DT
+
+    #--- Implicit euler ----
+
+        # Ode function - feedback
+    function number ode(X) {
+        #return -X * 1 / DT # Test equation
+        return -sign(X)*(X^2) * 0.1 / DT
+    }
+    
+        # Root function    
+    function number func(X) {
+        #return -X + Xn1 + DT*ode(X)     # Root function considers measured state
+        return -X + Xms + DT*ode(X)
+    }
+    
+    # Secant method to find root of equation
+    function number secant_root(X1, X2, Nstep) {
+        X = X1
+        for( I = 0, Nstep - 1 ) {
+            if( func(X1) == 0 || func(X1) == func(X2) ) {break}
+            X = X - (X1 - X2) * func(X1)/( func(X1) - func(X2) ) 
+            X2 = X1
+            X1 = X 
+        }
+        return X   
+    }
+    
+    #--- Set Prop velocity ---
+    function void setVelocity( Vel:vector ) {
+        Impulse = E:mass() * ( Vel - E:vel() )
+        E:applyForce( Impulse )
+    }
+    
+    # 2. Set Prop state
+    setVelocity( vec(0, 0, Xn) )
+} # end, First call
+
+## Test evaluation
+interval(DT_MS)
+
+# 1. Measure velocity
+Xms = E:vel():z()
+
+# 2. Find estimate
+Xroot = secant_root(Xms, Xn1, 100)
+Xn = Xroot + func(Xroot)
+
+# 3. Set Prop state   [Must come after velocity measurement, or blocks measurement]
+setVelocity( vec(0, 0, Xn) )
+
+# 4. Store values 
+Xn2 = Xn1 # Unused value
+Xn1 = Xn
+

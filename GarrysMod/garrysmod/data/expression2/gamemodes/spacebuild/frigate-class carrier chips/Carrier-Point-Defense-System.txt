@@ -1,0 +1,146 @@
+@name Paper Point-Defense
+@inputs Fire
+@inputs Ship:entity Gun1:wirelink Gun2:wirelink ResourceNode:entity
+@inputs Spin1 Spin2
+@outputs FireOut1 FireOut2
+@trigger none
+@persist Prop:entity Prop2:entity
+@persist Target:entity Target2:entity Count Theta LT
+@persist LastPos:vector LastPos2:vector
+DT = curtime()-LT
+LT = curtime()
+if( first() | duped() ){
+    timer("init",500)
+}elseif( clk("init") )
+{
+    Prop = Gun1:entity()
+    Prop2 = Gun2:entity()
+    Prop:setMass(50000)
+    Prop2:setMass(50000)
+    ResourceNode:link(Prop)
+    ResourceNode:link(Prop2)
+    interval(10)
+    #holoCreate(1,vec(3,0.3,0.3),vec(100,0.3,0.3))
+}else{
+    interval(10)
+    
+    # Search for targets
+    if( findCanQuery()  )
+    {
+        # Search for rockets to shoot down
+        findIncludeModel("models/slyfo/warhead.mdl")
+        findIncludeModel("models/weapons/w_missile_launch.mdl")
+        #findIncludeModel("models/props_phx/ww2bomb.mdl")
+
+        #findIncludeClass("photonictorpedo")
+        Count=findInCone(Prop:pos(),Ship:up(),50000,70)
+        #Count=Number=findInCone(Prop:pos(),Ship:forward(),50000,90)
+        
+        if( Count > 1 )
+        {
+            # We found multiple targets
+            findSortByDistance(Prop:pos())
+            Target = findResult(1)
+            Target2 = findResult(2)
+            LastPos = Target:massCenter()
+            LastPos2 = Target2:massCenter()
+        }elseif( Count > 0 )
+        {
+            # One target
+            Target = findResult(1)
+            Target2 = findResult(1)
+            LastPos = Target:massCenter()
+            LastPos2 = Target2:massCenter()
+        }else{
+            # No target
+            Target = noentity()
+            Target2 = noentity()
+        }
+    }
+    
+    if( !Target & Target2 )
+    {
+        Target = Target2
+    }elseif( !Target2 & Target )
+    {
+        Target2 = Target
+    }
+    
+    #####################################
+    #### Control the firing of the lasers
+    #####################################
+    Count++
+    
+    if( Target | Target2 | Fire )
+    {
+        FireOut1 = 1
+        FireOut2 = 1
+    }else{
+        if(Spin1 < 98){
+            FireOut1 = 1
+            if( mod(Count,150) == 0 )
+            {FireOut1 = 0}
+        }else{
+            FireOut1 = 0
+        }
+        
+        if(Spin2 < 98){
+            FireOut2 = 1
+            if( mod(Count,150) == 0 )
+            {FireOut2 = 0}
+        }else{
+            FireOut2 = 0
+        }
+    }
+
+    
+    
+    
+    #################################################
+    #### Control the position and angle of the Lasers
+    #################################################
+    if( mod( Count, 100) == 0 )
+    { Prop:freeze(),Prop2:freeze() }
+    elseif( mod( Count+1, 100) == 0 )
+    { Prop:unFreeze(),Prop2:unFreeze() }
+    # Perform the accurate angle calculation
+    if( Target | Target2 )
+    {
+        PropPos = (Prop:massCenter()+Prop:up()*5)
+        DesiredDirection = (Target:massCenter()+Target:massCenter()-LastPos)-PropPos
+        PropPos2 = (Prop2:massCenter()+Prop2:up()*5)
+        DesiredDirection2 = (Target2:massCenter()+Target2:massCenter()-LastPos2)-PropPos2
+        #holoPos(1,PropPos+200*Prop:forward())
+        #holoAng(1,Prop:forward():toAngle())
+        DesiredDirectionRight = DesiredDirection:cross(vec(0,0,1))
+        DesiredDirectionRight2 = DesiredDirection2:cross(vec(0,0,1))
+    }else{
+        DesiredDirection = Ship:up()
+        DesiredDirectionRight = DesiredDirection:cross(vec(0,0,1))
+        DesiredDirection2 = Ship:up()
+        DesiredDirectionRight2 = DesiredDirection:cross(vec(0,0,1))
+    }
+    LastPos = Target:massCenter()
+    LocalDifference1 = vec(Prop:forward():dot(DesiredDirection),Prop:right():dot(DesiredDirection),Prop:up():dot(DesiredDirection))
+    LocalDifference2 = vec(Prop:forward():dot(DesiredDirectionRight),Prop:right():dot(DesiredDirectionRight),Prop:up():dot(DesiredDirectionRight))
+    DifAngle = angnorm(ang( LocalDifference1:toAngle():pitch(), LocalDifference1:toAngle():yaw(), LocalDifference2:toAngle():pitch() ))
+    
+    LastPos2 = Target2:massCenter()
+    LocalDifference1 = vec(Prop2:forward():dot(DesiredDirection2),Prop2:right():dot(DesiredDirection2),Prop2:up():dot(DesiredDirection2))
+    LocalDifference2 = vec(Prop2:forward():dot(DesiredDirectionRight2),Prop2:right():dot(DesiredDirectionRight2),Prop2:up():dot(DesiredDirectionRight2))
+    DifAngle2 = angnorm(ang( LocalDifference1:toAngle():pitch(), LocalDifference1:toAngle():yaw(), LocalDifference2:toAngle():pitch() ))
+    
+    # Apply force
+    Prop:applyAngForce(-ang(-37806536.04115*DifAngle:pitch() + 576919.48765173*Prop:angVel():pitch(),37428885.815998*DifAngle:yaw() + 571145.63519272*Prop:angVel():yaw(),-2815056.7751415*DifAngle:roll() + 48973.354826892*Prop:angVel():roll()))
+    Prop2:applyAngForce(-ang(-37806536.04115*DifAngle2:pitch() + 576919.48765173*Prop2:angVel():pitch(),37428885.815998*DifAngle2:yaw() + 571145.63519272*Prop2:angVel():yaw(),-2815056.7751415*DifAngle2:roll() + 48973.354826892*Prop2:angVel():roll()))
+     
+    ###CONTROL POSITION
+    Theta = Theta + 1
+    DesPos = Ship:massCenter() + 530*Ship:up() + Ship:vel()*DT + (Ship:right()*cos(Theta)+Ship:forward()*sin(Theta))*75
+    DifPos = Prop:massCenter()-DesPos
+    Prop:applyForce( -1694956.8484223*DifPos-50253.442741233*Prop:vel() )
+    
+    DesPos = Ship:massCenter() + 530*Ship:up() + Ship:vel()*DT + (Ship:right()*cos(Theta+180)+Ship:forward()*sin(Theta+180))*75
+    DifPos = Prop2:massCenter()-DesPos
+    Prop2:applyForce( -1694956.8484223*DifPos-50253.442741233*Prop2:vel() )
+}

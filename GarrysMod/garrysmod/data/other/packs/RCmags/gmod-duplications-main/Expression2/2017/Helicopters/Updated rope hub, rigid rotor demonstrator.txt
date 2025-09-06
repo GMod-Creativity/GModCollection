@@ -1,0 +1,102 @@
+@name Updated rope hub, rigid rotor demonstrator.
+@inputs Hub:wirelink W S A D On Space Shift Mouse1 Mouse2 
+@outputs G Constant Damping HydroForward HydroBackwards HydroLeft HydroRight TailThruster
+@outputs VerticalSpeed Velocity CollectivePercentage RotorRPM Start
+@persist Collective Throttle P R Start
+
+interval(10)
+
+#Entities
+
+E = entity()
+
+H = Hub:entity()
+
+#Throttle control
+
+if(~On & On) {Start = !Start}
+
+Throttle = clamp((Start/300 + Throttle)*Start,0,1)
+
+#Rotor Torque
+
+AngVel = H:angVel():yaw()
+
+H:applyAngForce( 1500*Start*ang(0, Throttle*2000 - AngVel , 0) )
+
+#Hydraulic constants
+
+Constant = 15000
+Damping = 600
+
+#Angular velocities
+
+Sp = E:angVel():roll()/200
+Sr = -E:angVel():pitch()/200
+
+#Rotor gain reduction:
+
+G = (AngVel/1000)^8/sqrt((AngVel/1000)^16 + 1)
+
+#Maximum cyclic deflection:
+
+M = 17
+
+#Pitch and roll accumulators ( target angle )
+P = clamp( Sp + (W - S)/7 + P , -M , M)*G
+R = clamp( Sr + (D - A)/7 + R , -M , M)*G
+
+#Nutation gain:
+
+N = 15
+
+#Pitch and roll inputs
+Pi = clamp( Sp + P + $Sp , -M , M )
+Ri = clamp( Sr + R + $Sr , -M , M )
+ 
+#Phase angle
+F = 51 #25
+
+#Pitch control. 
+Pitch = clamp( Pi*cos(F) - sin(F)*Ri - Sr*N , -M , M )*G
+
+#Pitch control. 
+Roll =  clamp( Ri*cos(F) + sin(F)*Pi + Sp*N , -M , M )*G
+
+#Collective control. 
+Collective = clamp((Space - Shift)/10 + Collective, -2,9)
+
+#Individual hydraulic length
+
+Length = 23.72 + Collective
+
+HydroForward = Length - Pitch
+HydroBackwards = Length + Pitch
+HydroLeft = Length + Roll
+HydroRight = Length - Roll
+
+#Tail thruster
+
+TailThruster = (Mouse1 - Mouse2)*320 - E:angVel():yaw()*5
+
+#Screen outputs
+
+V = E:velL()
+
+Velocity = toUnit( "km/h" , V:length() )
+
+VerticalSpeed = toUnit( "m/s" , V:z() )
+
+RotorRPM = abs(AngVel)/6
+
+CollectivePercentage = Collective*100/9
+
+#Rotor stabilization consists of two components:
+
+# - A nutation component: This torque acts at 90 degrees from any angular rotation. It causes instability and 
+# input wobble. It seems to depend linearly only on angular velocity. By adding cyclic in direct 
+# opposition with no offset to this torque, all nutation wobble can be cancelled.
+
+# - A precessive component: This torque depends on angular velocity and will act at an angle less than 90 degrees. 
+# It is this torque that is used to apply control inputs. All directional cyclic outputs are offset by this torque.
+# The swashplate must tilt in this torque's direction to apply control inputs. 

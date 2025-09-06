@@ -2,8 +2,9 @@
 - Steam Profile: http://steamcommunity.com/profiles/76561198045949858
 - Discord: https://discord.gg/zjQyK
 - Twitter: b6eeb2c50a42412
-- Date (dd-mm-yyyy): 06-12-2021
+<!-- -->
 - Title: Pac3 Editor - Samurai
+- Date (dd-mm-yyyy): 06-12-2021
 - Source: https://gamebanana.com/mods/37583
 - Source Accessed (dd-mm-yyyy): 19-06-2025
 

@@ -1,4 +1,5 @@
 - Author: Napalm
+- Steam Profile: https://steamcommunity.com/profiles/76561198006325183
 <!-- -->
 - Title: [E2] Flyable Hologram Helicopter
 - Date (dd-mm-yyyy): 12-07-2012
@@ -10,6 +11,7 @@
 This the hologram helicopter I've been working on. It's 100% applyForce/applyAngForce and is designed to be easy and fun to fly rather than being realistic.
 
 Features:
+
 - Minimalist Design
 - Autolanding
 - Cannot crash into the ground or ceiling

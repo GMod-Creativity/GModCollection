@@ -5,6 +5,7 @@
 - Title: Mandera's Maze Generator
 - Date (dd-mm-yyyy): 02-03-2012
 - Source: https://web.archive.org/web/20130315133411/http://www.wiremod.com/forum/finished-contraptions/28880-manderas-maze-generator.html
+- Source: https://www.youtube.com/watch?v=4bi4jD0Ec9A
 - Source Accessed (dd-mm-yyyy): 10-08-2025
 
 ## Mandera's Maze Generator

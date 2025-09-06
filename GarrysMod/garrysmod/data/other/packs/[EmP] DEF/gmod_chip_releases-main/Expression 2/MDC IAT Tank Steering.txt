@@ -1,0 +1,311 @@
+@name MDC IAT Tank Steering
+@inputs StartLink STBLink CoreInfo:table InGear InClutch
+@outputs Gear SteerRate
+@outputs Clutch Brake WeldLatch
+@persist [M STBInfo TCU ECU STBSet SteerSet BrakeSet]:table
+@trigger none
+
+#[
+    
+    Instructions:
+    
+    This is a steering & braking unit!
+    
+    This chip requires an MDC Telemetry Unit to function.
+    
+        Wire...
+        
+        < StartLink > to [StartLink] on the MDC Telemetry Unit.
+        
+        < STBLink > to [STBLink] on the MDC Telemetry Unit.
+        
+        < CoreInfo > to [CoreInfo] on the MDC Telemetry Unit.
+
+]#
+
+if(first() | dupefinished()) {
+    
+    M = table()
+    STBSet = table()
+    local LatchSpeed = 0, local Brakeforce = 0, local DecayRate = 0
+    local Differential = 0, local AngVelMul = 0, local MaxDiffRatio = 0
+    
+    # # # # # # # # # # # # # # # # # # # # #
+    
+    #~ Required to run ~#
+    
+    ContributeData = 1          # You should leave this as 1, unless you have multiple of these for some reason.
+    
+    M["PivotSpeed",number] = 10         # Speed tank should be below in order to pivot.
+    
+    M["PivotRatio",number] = 0.07       # Ratio used to pivot.
+    
+    #~ General ~#
+    
+    M["SteerRatioMul",number] = 1       # Final steering multiplier, useful if you need to invert.
+    
+    #~ Steering settings ~#
+    
+    #[
+    
+        LatchSpeed = -1
+        Brakeforce = 100
+        DecayRate = 1
+        STBSet["Active",table] = table(LatchSpeed, Brakeforce, DecayRate)
+        
+        This is what a settings block looks like for braking:
+        
+            < LatchSpeed >
+                
+                Speed where weld latches are used.
+            
+            < Brakeforce >
+                
+                Maximum brakeforce.
+            
+            < DecayRate >
+                
+                How quickly brakeforce decays with speed. This is basically a divisor working on speed.
+        
+        Differential = 40
+        MaxDiffRatio = 0.8
+        DecayRate = 1
+        AngVelMul = 0.15
+        STBSet["Standard",table] = table(Differential, MaxDiffRatio, DecayRate, AngVelMul)
+        
+        This is what the settings block looks like for steering:
+        
+            < Differential >
+            
+                Differential ratio used to steer the tank.
+            
+            < MaxDiffRatio >
+            
+                Maximum differential ratio allowed for steering.
+            
+            < AngVelMul >
+            
+                RPM differential used to resist angular velocity per degree per second.
+        
+    ]#
+    
+    Differential = 0.8
+    MaxDiffRatio = 0.8
+    DecayRate = 1
+    AngVelMul = 0.025
+    STBSet["Standard",table] = table(Differential, MaxDiffRatio, DecayRate, AngVelMul)
+    
+    LatchSpeed = -1
+    Brakeforce = 0.8
+    DecayRate = 0.5
+    STBSet["Active",table] = table(LatchSpeed, Brakeforce, DecayRate)
+    
+    LatchSpeed = -1
+    Brakeforce = 0.1
+    DecayRate = 0.5
+    STBSet["Passive",table] = table(LatchSpeed, Brakeforce, DecayRate)
+    
+    #~ Specific ~#
+        
+    M["SteerMul",number] = 1.5            # Multiplier of base turning setting to steer harder.
+    
+    M["TurnBuild",number] = 1/4         # Percentage steering gained per execution cycle.
+    
+    M["TurnDecay",number] = 1/2         # Percentage steering lost per execution cycle.
+    
+    M["AutoDeclutch",number] = 0        # 1 will clutch in when braking and auto-braking, 0 will not.
+    
+    #~ Keybinds ~#
+    
+    M["RightKey",string] = "d"          # Turn right.
+    
+    M["LeftKey",string] = "a"           # Turn left.
+    
+    M["MultiKey",string] = "lshift"     # Turn harder.
+    
+    M["BrakeKey",string] = "space"      # Brake.
+    
+    # # # # # # # # # # # # # # # # # # # # #
+    
+    # > Initialization
+    
+    STBInfo = table(
+        "IsBraking" = 0,
+        "IsPivoting" = 0
+    )
+    
+    SteerRate = 0
+    SteerSet = STBSet["Standard",table]
+    BrakeSet = STBSet["Active",table]
+    
+    M["SteerRight",number] = 0
+    M["SteerLeft",number] = 0
+    M["SteerSharp",number] = 0
+    M["Brake",number] = 0
+    M["SteerDir",number] = 0
+    M["RefSpd",number] = 100 * CoreInfo["SpeedMul",number]
+    
+    TCU = table(
+        "Connected" = 0,
+        "Gear" = 1
+    )
+    
+    ECU = table(
+        "Connected" = 0,
+        "Clutch" = 0,
+        "IsMoving" = 1,
+        "AutoStop" = 0,
+        "IsCoasting" = 0,
+        "ShaftReversed" = 0
+    )
+    
+    # Try to get extra information from Telemetry Unit
+    if(StartLink == 1) {
+        
+        if(CoreInfo:exists("TCUInfo")) {
+            TCU["Connected",number] = 1
+        }
+        
+        if(CoreInfo:exists("ECUInfo")) {
+            ECU["Connected",number] = 1
+        }
+    }
+    
+    # Send own information
+    STBInfo["Ready",number] = 1
+    if(ContributeData) { CoreInfo["STBInfo",table] = STBInfo }
+}
+
+# > Keybinds
+event keyPressed(Player:entity, Key:string, Down:number, KeyBind:string) {
+    
+    if(Player == CoreInfo["Driver",entity]) {
+        
+        switch(Key) {
+            
+            # Steer
+            
+            case M["RightKey",string],
+            M["SteerRight",number] = Down
+            break
+            
+            case M["LeftKey",string],
+            M["SteerLeft",number] = Down
+            break
+            
+            # Steer harder
+            case M["MultiKey",string],
+            M["SteerSharp",number] = Down
+            break
+            
+            # Brake
+            case M["BrakeKey",string],
+            M["Brake",number] = Down
+            break
+        }
+    }
+}
+
+# > Execution triggers
+event input(InputName:string) {
+    
+    switch(InputName) {
+        
+        # Delayed start
+        case "StartLink",
+        reset()
+        break
+        
+        # Update
+        case "STBLink",
+        
+        if(CoreInfo["Active",number]) {
+            
+            # > Extra information
+            
+            if(TCU["Connected",number]) {
+                TCU["Gear",number] = CoreInfo["TCUInfo",table]["Gear",number]
+            }
+            else {
+                TCU["Gear",number] = InGear
+            }
+            
+            if(ECU["Connected",number]) {
+                ECU["Clutch",number] = CoreInfo["ECUInfo",table]["Clutch",number]
+                ECU["IsMoving",number] = CoreInfo["ECUInfo",table]["IsMoving",number]
+                ECU["AutoStop",number] = CoreInfo["ECUInfo",table]["AutoStop",number]
+                ECU["IsCoasting",number] = CoreInfo["ECUInfo",table]["IsCoasting",number]
+                ECU["ShaftReversed",number] = CoreInfo["ECUInfo",table]["ShaftReversed",number]
+            }
+            else {
+                ECU["Clutch",number] = InClutch
+            }
+            
+            # > Common stuff
+            
+            local Pivot = (M["Brake",number] & CoreInfo["SpeedMag",number] < M["PivotSpeed",number])
+            local Steer = (M["SteerRight",number] - M["SteerLeft",number]) * (M["SteerSharp",number] ? M["SteerMul",number] : 1)
+            
+            local Rate = M["TurnDecay",number]
+            if(Steer & (sign(M["SteerDir",number]) == sign(Steer) | !M["SteerDir",number])) { Rate = M["TurnBuild",number] }
+            M["SteerDir",number] = clamp(Steer, M["SteerDir",number] - Rate, M["SteerDir",number] + Rate)
+            
+            WeldLatch=Brake = 0
+            Clutch = (Pivot & !Steer ? 1 : ECU["Clutch",number])
+            
+            # > Pivoting
+            if(Pivot & Steer & !ECU["ShaftReversed",number]) {
+                STBInfo["IsPivoting",number] = 1
+                Gear = -1
+                SteerRate = M["SteerDir",number] * M["PivotRatio",number] * M["SteerRatioMul",number]
+            }
+            
+            # > Steering & braking
+            else {
+                
+                # More common stuff
+                Gear = TCU["Gear",number]
+                STBInfo["IsPivoting",number] = 0
+                
+                BrakeSet = STBSet[M["Brake",number] | ECU["AutoStop",number] ? "Active" : "Passive",table]
+                STBInfo["IsBraking",number] = (M["Brake",number] | (!ECU["IsMoving",number] & !ECU["IsCoasting",number]))
+                local BrakeLatched = (STBInfo["IsBraking",number] & CoreInfo["SpeedMag",number] <= BrakeSet[1,number])
+                
+                local DecayMul = max(CoreInfo["SpeedMag",number] - M["RefSpd",number], 0)
+                
+                # Braking
+                if(STBInfo["IsBraking",number]) {
+                    
+                    if(M["AutoDeclutch",number]) { Clutch = 1 }
+                    
+                    # # Weld-latches or brakes
+                    if(BrakeLatched) { WeldLatch = 1 }
+                    else { Brake = BrakeSet[2,number] * M["RefSpd",number] / (M["RefSpd",number] + BrakeSet[3,number] * DecayMul) }
+                }
+                
+                # Steering
+                if(!BrakeLatched) {
+                    
+                    local SpeedMod = M["RefSpd",number] / (M["RefSpd",number] + SteerSet[3,number] * DecayMul)
+                    local VelDir = sign(CoreInfo["Speed",number])
+                    
+                    local RawDifferential = M["SteerDir",number] * SteerSet[1,number]
+                    local AntiAV = CoreInfo["AngVelocity",vector][3] * VelDir * SteerSet[4,number]
+                    
+                    local TotalDifferential = (RawDifferential + AntiAV) * SpeedMod * M["SteerRatioMul",number]
+                    
+                    SteerRate = clamp(TotalDifferential, -SteerSet[2,number], SteerSet[2,number])
+                }
+            }
+        }
+        
+        else {
+            M["SteerRight",number]=M["SteerLeft",number]=M["SteerSharp",number]=M["Brake",number] = 0
+            STBInfo["IsBraking",number] = 0
+            WeldLatch=Clutch = 1
+            Brake = STBSet["Active",table][2,number]
+        }
+        
+        break
+    }
+}

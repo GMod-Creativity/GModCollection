@@ -24,6 +24,7 @@ GUI table is used for use events, to clear screen, load a form, as Update table 
 
 In order to make a form you need to initialize an array with strings describing each "object" of the GUI. Here's the objects :
 Every object have at least custom color option (alpha included).
+
 - Label : static text, optional font size and alignement and dynamic text of 64-char max.
 Custom members : Label (text showed on screen), Fontsize (optional), Fontalign (optional)
 - BigLabel : same as Label but with 4096 chars, useful for paragraphs.
@@ -42,6 +43,7 @@ Custom members : From, To, Default (will be initialized to that value)
 Every GUI object have at least R, G, B, A, Parent, Row and Column members.
 
 Special objects :
+
 - Grid : information holding start position, size, spacing and number of columns and rows. Used to locate any of the GUI objects, since you can't place them directly.
 Grids were made to easily make well-aligned objects. If you still want to create an object at specific position you just have to create a grid with one row, one column and no spacing.
 Members : StartX, StartY, EndX, EndY, SpacingX (optional), SpacingY (optional), Rows, Columns
@@ -51,7 +53,6 @@ Members : R, G, B, A
 Members : FontID, Fontsize
 - ScaleRotation.ScaleRotation (optional) : used to specify once the X and Y scale and the rotation of screen
 Members : Horizontal, Vertical, Rotation
-
 
 The syntax is : "ObjectType/ObjectName/Members"
 Members' syntax is : "Name:Value, Name2:Value2, Number:255, Label:Sample label"
@@ -82,32 +83,40 @@ You can access to an object's data by using GUI["ObjectType.ObjectName.XXX", num
 Every GUI object can be updated with Update[] gTable :
 
 Color (once per tick, works for every object)
+
 - Code:
-```
-Update["Color", vector4] = vec(255, 255, 255, 255)
-Update["ColorObject", string] = "Button.Play"
-```
+
+    ```
+    Update["Color", vector4] = vec(255, 255, 255, 255)
+    Update["ColorObject", string] = "Button.Play"
+    ```
 
 Text (several per tick, works for Button, Label and BigLabel)
+
 - Code:
-```
-Update["Texts", array] = array("Stop", "Currently playing...")
-Update["TextObjects", array] = array("Button.Play", "Label.Title")
-```
+
+    ```
+    Update["Texts", array] = array("Stop", "Currently playing...")
+    Update["TextObjects", array] = array("Button.Play", "Label.Title")
+    ```
 
 List (once per tick, works for List)
+
 - Code:
-```
-Update["List", array] = array("Cuban Music", "Belgian Music", "Epic Sax Guy")
-Update["ListObject", string] = "List.Songs"
-```
+
+    ```
+    Update["List", array] = array("Cuban Music", "Belgian Music", "Epic Sax Guy")
+    Update["ListObject", string] = "List.Songs"
+    ```
 
 Slider (several per tick, works for Slider)
+
 - Code:
-```
-Update["Sliders", array] = array(1, 100)
-Update["SliderObjects", array] = array("Slider.Volume", "Slider.Pitch")
-```
+
+    ```
+    Update["Sliders", array] = array(1, 100)
+    Update["SliderObjects", array] = array("Slider.Volume", "Slider.Pitch")
+    ```
 
 The reason I didn't make a global "Object" variable is because you would not be able to update a list, sliders, texts and a color in one tick only.
 Update[] arrays are automatically cleaned up when updating.

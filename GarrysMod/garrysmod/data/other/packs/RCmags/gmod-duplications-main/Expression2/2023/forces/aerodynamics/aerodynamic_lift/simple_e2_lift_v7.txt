@@ -1,0 +1,143 @@
+@name Simple E2 Lift - v7 - moment
+@inputs E:entity
+@outputs [Xms Xn Cp]:vector 
+
+@persist [Gain]:vector 
+@persist DT_MS DT 
+@persist LMAX 
+@persist CONST
+
+# First call
+if( first() ) {
+    #--- Constants ---
+    DT = tickInterval()
+        
+    # Decay ratio 
+    Gain = vec(0,0,0)
+    LMAX = 1.0              # Oscillates for L > 1
+        
+    #--- Functions ----
+    
+    # Set Prop velocity
+    function void setImpulseOffset(Force:vector, Radius:vector) {
+        # Convert force to local frame [reduces error]
+        ForceL = E:toLocalAxis(Force)
+        
+        # Find torque about mass center
+        Torque = Radius:cross(ForceL)
+        
+        # Convert to local angle
+        Torque_ang = ang(Torque:y(), 
+                         Torque:z(), 
+                         Torque:x() )
+        
+        # Apply impulses to body
+        E:applyForce(Force)
+        E:applyAngForce(Torque_ang)
+    }
+    
+    # Step Restriction    
+    function vector stepLimit( Dv:vector, Vel:vector, I ) {
+        Vdot = Vel:dot(Dv)
+        if( Vdot != 0 ) {
+            # Measure decay ratio
+            Lmeas = -Dv:length2() / Vdot
+            # Set gain
+            if( Lmeas > LMAX ) {
+                Gain[I] = LMAX / Lmeas
+            } else {
+                Gain[I] = 1
+            }
+        }
+        # Modify step 
+        Dv = Dv * Gain[I]
+        return Dv       
+    }
+    
+    #--------
+
+    #- Force functions: 
+    Scale = 4e-6    # Scaling factor to match default drag: 4e-6
+    
+    # Surface area
+    Size = E:boxSize()
+    Area = Size:dot( shiftL(Size) )
+
+    # Multiplier
+    CONST = 0.5 * airDensity() * Area * Scale
+    
+    function table aeroForces(V:vector) {    
+        # Force normal vectors
+        Wnorm = E:up()
+        Lnorm = ( Wnorm:cross(V):cross(V) ):normalized()
+        Dnorm = -V:normalized()
+        Mnorm = Lnorm:cross(Dnorm)
+        
+        # Angle of attack
+        Vz = Wnorm:dot(V)     # velocity component about z-axis
+        Vxy = V - Vz*Wnorm    # velocity about xy plane
+        Alpha = atanr( Vz, Vxy:length() )
+        
+        # Lift and drag coefficients
+        Cl = pi() * sinr(2*Alpha)  
+        Cd = pi() * sinr(Alpha)^2 
+        Cdo = 0.0 * cosr(Alpha)^2
+        
+        # Dynamic pressure
+        Rho = CONST * V:length2() 
+    
+        # Aerodynamic forces
+        Lift = Rho * Cl * Lnorm
+        Drag = Rho * Cd * Dnorm
+        Drag_xy = Rho * Cdo * Dnorm
+        
+        # Center of pressure position
+        CpPos = 12 * V:normalized() * abs(cosr(Alpha))
+        
+        # Forces  
+        return table(Lift, Drag, Drag_xy, CpPos)
+    }
+} # end, First call
+
+# Iterate
+runOnTick(1)
+
+# 1. Measure velocity
+Xms = E:vel()
+
+# 2a. Estimate acceleration
+    # Aerodynamic forces
+Out = aeroForces(Xms)    
+F1 = Out[1,vector]
+F2 = Out[2,vector]
+F3 = Out[3,vector]
+
+    # accelerations
+Mass = E:mass()  
+A1 = (F1 + F2) / Mass
+A2 = F3 / Mass
+
+# 2b. Estimate velocity changes: Explicit euler
+Dx1 = DT*A1          
+Dx2 = DT*A2
+
+# 3. Clamp velocity changes
+    # velocity components
+Uz = E:up()
+Xz = Uz * Xms:dot(Uz)
+Xxy = Xms - Xz
+    # Local projections preserve lift/drag ratio
+Dx1 = stepLimit(Dx1, Xz, 1)
+Dx2 = stepLimit(Dx2, Xxy, 2)
+
+# 4. Update state
+Dx = Dx1 + Dx2
+# Impulse
+Ix = Dx*Mass
+
+# Local center of pressure
+Cp = Out[4,vector]
+Cp = E:toLocalAxis(Cp)
+
+# 5. Set Prop state   [Must come after velocity measurement, or blocks measurement]
+setImpulseOffset(Ix, Cp)

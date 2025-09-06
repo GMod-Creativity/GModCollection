@@ -1,0 +1,410 @@
+@name FRS Armor Analyzer
+@inputs [Screen]:wirelink
+@persist PixelX PixelY Pixel 
+@persist ScanTable:table Screen_Size:vector2 State:string Mode
+#Screen-clearing persists
+@persist RowToClear
+#Armor analysis persists
+@persist Ricochet_Analysis Area_Size:vector2 ScanPos:vector ScanDir:vector ScanAng:angle Thickness_Threshold ArmoredProps:array ArmorLow ArmorHigh Prop_To_Color Armor_Color:array Armor_Material:array
+#Rendering persists
+@persist Curtime Data:array Data2:array Data3:array
+@trigger none
+#THIS IS PROVIDED COURTESY OF RED FROM FAST RED SNAIL
+#This tool scans your target, and provides armor thickness and ricochet information
+#This is roughly based off of a tool demonstrated by Fervidusletum,
+#although this is entirely coded from scratch with new features and a different interface,
+#as well as new features that I had previously in private tools.
+
+#On the main scanner screen:
+#Green indicates strength, red indicates weakness.
+#If it's bright green but no vitals behind it, it'll go all the way through.
+#Light indicates no ricochet, dark indicates high ricochet probability
+#Blue or purpple means it'll pen and hit vitals
+
+#On the coloring:
+#Green is strong, red is weak.
+#Dark = lower ductiltiy, Bright = higher ductility
+
+#Chat commands:
+#Prefix: aa
+#Commands:
+    #clear                      clears screen
+    #build [size][thickness]    builds table off settings
+    #draw                       renders table, done automatically
+    #color                      colors target to represent thickness
+    #uncolor                    uncolors the target to its old colors
+    
+#Variable you can change
+Res = 96 #Note: do not exceed 96 if you want a reasonable render time, and 1024 is the ABSOLUTE HARD LIMIT it will handle
+        
+runOnChat(1)
+if(!chatClk())
+{
+#Starting up
+if(first())
+    {
+        runOnTick(1)
+        print("This armor analyzer was provided by FRS!")
+
+        #IGNORE ALL OF THIS        
+        Mode = 1 #Armor analysis is always one
+        #Setting our state as ready
+        State = "ready"
+        #Converts string to an array separated by words
+        function array stringToArray(String:string)
+            {
+                return String:explode(" ")
+            }
+        
+        #Functions for table building with ballistics analysis
+        Ricochet_Analysis = 0 #We'll use this later
+
+        #function used in the scan function to determine to break a recursive scan cycle
+        function number breakScanCycle(Entity:entity)
+            {
+                local Type = Entity:type():lower()
+                local Vulnerable = array("acf_ammo","prop_vehicle_prisoner_pod","acf_gearbox","acf_engine","acf_fueltank")
+                #Break scan cycle if type = vulnerable
+                local Break = 0
+                foreach(K,V:string = Vulnerable) {if(Type == V) {Break = 1}}
+                if(!Entity) {Break = 1}
+                return Break
+            }
+        #Function used in the scan function to get angular armor effectiveness
+        function number processArmorReading(Ranger:ranger,HitEntity:entity  ,Forward:vector)
+            {
+                #Direct impact point
+                local HitPoint = Ranger:position()
+                #Processing hit angle
+                local NormalizedHit = Ranger:hitNormal()
+                local HitAngle = acos(NormalizedHit:dot(-Forward))
+                #RicochetDirection = Forward - (2*(NormalizedHit:dot(Forward)*NormalizedHit))
+                #Determining effective thickness
+                local HitThickness = (HitEntity:acfPropArmor()/cos(HitAngle))
+                return HitThickness
+            }
+        #Function that scans a surface repeatedly through until it finds an acf vulnerable component, determing armor protection
+        function vector2 scanSurface(Range:number,Position:vector,Direction  :vector)
+            {
+                local MM_Armor = 0
+                local Traced_So_Far = array()
+                local Break = 0
+                local Distance = 0
+                local Iterations = 0
+                local Trace_Position = Position
+                local Vital = 0
+                while(!Break)
+                    {
+                        #Scanning target
+                        rangerFilter(Traced_So_Far)
+                        local Trace = rangerOffset(Range,Trace_Position,Direction)
+                        #if we don't hit or hit the world
+                        if(Trace:hitWorld() | !Trace:hit() | Trace:distance() > Range)
+                            {Break = 1
+                            break}
+                        else
+                            {
+                                local HitEntity = Trace:entity()
+                                Traced_So_Far:pushEntity(HitEntity)
+                                Break = breakScanCycle(HitEntity)
+                                if(Break) {Vital = 1}
+                                MM_Armor = MM_Armor + processArmorReading(Trace,HitEntity,Direction:toAn  gle():forward())
+                                Iterations++
+                                if(Iterations >= 10) {Break++}
+                                Trace_Position = Trace:pos()
+                            }
+                    }
+                return vec2(round(MM_Armor),Vital)
+            }
+        #Function that simply determines armor angle
+        function number determineArmorAngle(Range:number,Position:vector,D  irection:vector)
+            {
+                #Tracing for impact
+                local Ranger = rangerOffset(Range,Position,Direction)
+                #Angling
+                Forward = Direction:toAngle():forward()
+                #Direct impact point
+                local HitPoint = Ranger:position()
+                #Processing hit angle
+                local NormalizedHit = Ranger:hitNormal()
+                local HitAngle = acos(NormalizedHit:dot(-Forward))
+                return HitAngle
+            }
+        #Function that determines if a shell will ricochet based off an input angle
+        function number ricochet(Number:number)
+            {
+                #Ricochet is "set" at around 78 degrees.  Reliable ricochets are 80+.  77-80, non-ricochets are rare but possible.
+                return Number >= 78
+            }
+            
+        #Screen size fixing
+        Screen_Size = vec2(Res,Res)
+        
+        #Functions for rendering
+        #Modified TerraDestroy's example
+        function wirelink:initScreen(Screen_Size:vector2)
+            {
+                This[1048574]=0 #Reset Screen and whatever was on it will be cleared.
+                This[1048569]=3 #Set color mode to 3
+                This[1048575]=1 #Apply changes
+                This[1048573]=Screen_Size:x() #Set new resolution on X (Width)
+                This[1048572]=Screen_Size:y() #Set new resolution on Y (Height)
+            }
+        #Drawing a color pixel, also off TerraDestroy's example
+        function wirelink:drawPixel(X,Y,Color:vector,Res)
+            {
+                This[X+Y*Res]=rgb2digi(Color,3)
+            }
+        #Drawing a monochrome pixel
+        function wirelink:drawMonochromePixel(X,Y,N:number,Res)
+            {
+                This[X+Y*Res] = rgb2digi(vec(N,N,N),3)
+            }
+        
+        #This is color-based armor analysis
+        
+        #Function that gets an array from aimpoint then sorts for props that are valid
+        function array getArmorProps(E:entity)
+            {
+                local ConstrainedArray = E:getConstraints()
+                local ReturnArray = array()
+                foreach(K,V:entity = ConstrainedArray) {if(V:mass() > 1) {ReturnArray:pushEntity(V)}}            
+                return ReturnArray
+            }
+        
+        #Function that analyzes armor around you with holos
+        function array analyzeArmor(A:array)
+            {
+                local ArmorLow = 999
+                local ArmorHigh = 0
+                local VArmor = 0
+                local N = 200
+                local Ratio = 0
+                foreach(K,V:entity = A)
+                    {
+                        VArmor = V:acfPropArmor()
+                        ArmorLow = clamp(VArmor,VArmor,ArmorLow)
+                        ArmorHigh = clamp(VArmor,ArmorHigh,VArmor)
+                    }
+                hint("Armor:"+round(ArmorLow)+"/"+round(ArmorHigh)+"mm",7)
+                return array(ArmorLow,ArmorHigh)                
+            }
+    }
+
+#Clearing the old screen
+elseif(State == "clear")
+    {
+        Screen:initScreen(Screen_Size)
+        hint("Cleared!",2)
+        State = "ready"
+    }
+    
+#Building our table
+elseif(State == "scan")
+    {
+        runOnTick(1)
+        #Debug, left here as a test--if you use this with existing functions, it will give you armor thickness off eye, recursively.
+        #print(_HUD_PRINTCENTER,"MM: "+scanSurface(500,owner():shootPos() + (owner():eye() * 20),owner():eye()))
+        #Debug, left here as a test--if you use this with existing functions, it will give you armor angle
+        #print(_HUD_PRINTCENTER,"ANGLE: "+determineArmorAngle(500,owner():shootPos() + (owner():eye() * 20),owner():eye()))
+        #Debug, left here as a test--if you use this with existing functions, it will give you if a shell will ricochet.
+        #print(_HUD_PRINTCENTER,"RICOCHET: "+ricochet(determineArmorAngle(500,owner():shootPos  () + (owner():eye() * 20),owner():eye())))
+        
+        #Syntax: render build [size of render area] [thickness]
+        if(changed(State))
+            {
+                #Empty table which will be used to hold our scan results
+                Data = array()
+                #Scanning position and direction
+                if(Mode == 1)
+                    {
+                        Temp_Size = stringToArray(owner():lastSaid():lower()):string(3  ):toNumber()
+                        Thickness_Threshold = stringToArray(owner():lastSaid():lower()):string(4  ):toNumber()
+                        Area_Size = vec2(Temp_Size,Temp_Size)
+                        ScanPos = owner():shootPos() + (owner():eye() * 20)
+                        ScanDir = owner():eye()
+                        ScanAng = owner():eyeAngles()
+                        #Scanline
+                        holoCreate(1,entity():pos() + (ScanDir * 185))
+                        holoAng(1,ScanAng)
+                        holoScaleUnits(1,vec(500,1,1))
+                        holoColor(1,vec4(255,255,0,128))
+                        holoShadow(1,0)
+                        #Scanpoint holo
+                        holoCreate(2,entity():pos())
+                        holoModel(2,"hq_sphere")
+                        holoScale(2,vec(0.2,0.2,0.2))
+                        holoShadow(2,0)
+                        holoColor(2,vec4(0,0,255,255))
+                        #Adding bar to scanpoint
+                        holoParent(1,2)
+                        
+                        print(_HUD_PRINTCENTER,"Armor Scanning Parameters: \nSize: "+Temp_Size+"x"+Temp_Size+"x500\nRes: "+Res+"x"+Res+"\nThreshold: "+Thickness_Threshold+"mm")
+                        print(_HUD_PRINTCONSOLE,"Armor Scanning Parameters: \nSize: "+Temp_Size+"x"+Temp_Size+"x500\nRes: "+Res+"x"+Res+"\nThreshold: "+Thickness_Threshold+"mm")
+                    }
+           }
+        #Using an array, it will cap out in its actual held data size at a resolution of 1024x1024.
+        else
+            {
+                if(Mode == 1)
+                    {
+                        while(perf(95))
+                            {
+                                ScanPoint = ScanPos + (((ScanAng:up() * (PixelY - (Screen_Size:y()/2))) - (ScanAng:right() * (PixelX - (Screen_Size:x()/2)))) * ((Area_Size:x()/Screen_Size:x())/2)) + (ScanDir*20)
+                                holoPos(2,ScanPoint)
+                                Temp_Data = scanSurface(1000,ScanPoint,ScanDir)
+                                Point_Data = clamp((Temp_Data:x()/Thickness_Threshold),0,1)
+                                Point_Data2 = ricochet(determineArmorAngle(1000,ScanPoint,ScanDi  r))
+                                Point_Data3 = Temp_Data:y()
+                                #Appending the scan data to the array
+                                Data:pushNumber(Point_Data)
+                                Data2:pushNumber(Point_Data2)
+                                Data3:pushNumber(Point_Data3)
+                                PixelX++
+                                if(PixelX > Screen_Size:x())
+                                    {PixelX = 0
+                                    PixelY++}
+                                if(PixelY > Screen_Size:y())
+                                    {hint("Scan completed, drawing!",3)
+                                    State = "draw"
+                                    holoDelete(1)
+                                    holoDelete(2)
+                                    break}
+                            }
+                    }
+            }
+    }       
+
+#Rendering
+elseif(State == "draw")
+    {
+        interval(1)
+        
+        if(changed(State))
+            {Screen:initScreen(Screen_Size)
+            PixelX = 0
+            PixelY = 0
+            Pixel = -1
+            hint("Drawing to screen at "+Screen_Size:x()+"x"+Screen_Size:y()+"\n"+(Screen_Size:x() * Screen_Size:y())+"pixels!",7)}
+        #the array is stored as just a line of #s.  However our display is a set resolution, and a box.
+        #Therefore i'll render one row on the display, then go down, and keep rendering the array.
+        #This way we're spitting the array out into proper boxes.  A weird way to do it but it works.
+        #print(PixelX,Screen_Size:x())
+        #PixelTick = 1
+        while(perf())#PixelTick <= 4)
+            {
+                PixelX++
+                if(PixelX > Screen_Size:x())
+                    {PixelX = 0
+                    PixelY++}
+                Pixel++
+                N = Data:number(Pixel)
+                N2 = Data2:number(Pixel)
+                N3 = Data3:number(Pixel)
+                if(N > 0) {V = vec(255 - (N*255),N*255,N3*64) * (1-(N2/2))} else {V = vec(0,0,0)}
+                #V = vec(255 - (N2*255),N2*255,(N==1)*64) * N
+                Screen:drawPixel(PixelX,PixelY,V,Screen_Size:x())
+                #PixelTick++
+            }
+                
+        Ratio = (Pixel/Data:count())
+        entity():setColor(vec(Ratio,Ratio,Ratio)*255)
+        #print(N)
+        if(PixelY > Screen_Size:y())
+            {hint("Rendering Complete!",3)
+            State = "ready"}
+    }
+    
+#Color armor analysis
+elseif(State == "color")
+    {
+        interval(250)
+        if(changed(State))
+            {hint("Compiling armor model...",3)
+            ArmoredProps = (owner():aimEntity()):getConstraints()
+            TriggerHolo = 0}
+        else
+            {
+                TriggerHolo = ops() <= 300
+                if(TriggerHolo)
+                    {
+                        if(changed(TriggerHolo))
+                            {Prop_To_Color = 1
+                            ArmorRange = analyzeArmor(ArmoredProps)
+                            ArmorLow = ArmorRange:number(1)
+                            ArmorHigh = ArmorRange:number(2)
+                            Armor_Color = array()
+                            hint("Armor model built, coloring...",3)}
+                        else
+                            {
+                                Prop_To_Color++
+                                E = ArmoredProps:entity(Prop_To_Color)
+                                if(Prop_To_Color <= ArmoredProps:count())
+                                    {
+                                        Armor = E:acfPropArmor()
+                                        Color_To_Set = (vec4((1-(Armor/ArmorHigh))*255,(Armor/ArmorHigh)*255,0,255) * (0.75+(E:acfPropDuctility()*0.5*(0.00625)))):setW(  255)
+                                        #saving our old color since we'll recolor the prop
+                                        Armor_Color:setVector4(Prop_To_Color,E:getColor4()  )
+                                        Armor_Material:setString(Prop_To_Color,E:getMateri  al())
+                                        E:setColor(Color_To_Set)
+                                        E:setMaterial("phoenix_storms/fender_white")
+                                    }
+                                else
+                                    {
+                                        hint("Rendered colors!",3)
+                                        State = "ready"
+                                    }
+                            }
+                    }
+            }
+    }
+
+#Undoing colors -- this doesn't always go 110%, but it'll dupe fine anyway.
+elseif(State == "uncolor")
+    {
+        interval(250)
+        if(changed(State))
+            {
+                Prop_To_Color = 1
+            }
+        else
+            {
+                E = ArmoredProps:entity(Prop_To_Color)
+                E:setColor(Armor_Color:vector4(Prop_To_Color))
+                E:setMaterial(Armor_Material:string(Prop_To_Color)  )
+                Prop_To_Color++
+                if(Prop_To_Color > ArmoredProps:count())
+                    {hint("Colors restored!",3)
+                    State = "ready"}
+            }
+    }
+
+#Idling
+elseif(State == "ready")
+    {
+        #if(changed(State)) {hint("Screen Rendering Ready!",3)}
+    }
+
+#Resetting
+elseif(State == "reset")
+    {
+        reset()
+    }
+
+}#end non-chat triggered loops
+
+else
+{
+if(chatClk(owner()))
+    {
+        Said = stringToArray(lastSaid():lower())
+        if(Said:string(1) == "aa")
+            {
+                hideChat(1)
+                if(Said:string(2) == "mode")
+                    {Mode = Said:string(3):toNumber()}
+                else
+                    {State = Said:string(2)}
+            }
+    }
+}

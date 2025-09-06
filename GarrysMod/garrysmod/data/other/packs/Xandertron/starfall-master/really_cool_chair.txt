@@ -1,0 +1,257 @@
+--@name really cool chair
+--@author Xandertron
+--@shared
+
+--
+--    Made by Xandertron - STEAM_0:1:42942061 - github.com/Xandertron
+--    flying chair :) (with spammed isValid checks for weird servers, default config here is for public usage, like to escape spawn)
+--
+
+--config:
+local baseSpeed = 1.25
+local shieldEnabled = true
+local shieldMaxHealth = 300
+local noclipEnabled = false
+local destroyDelay = 15 --in seconds how long to keep the chair alive until respawning it after a player leaves it
+local turretEnabled = false
+local ownerOnly = false
+--
+
+if SERVER then
+    
+    local chip = chip()
+
+    local seat
+    local seatPhysObj
+    local function recreateSeat()
+        seat = prop.createSent(chip:getPos() + chip:getUp() * 50, Angle(), "Chair_Wood", true)
+        seat:setMaterial("debug/debugtranslucentsinglecolor")
+        seat:setCollisionGroup(COLLISION_GROUP.PASSABLE_DOOR)
+        seatPhysObj = seat:getPhysicsObject()
+    end
+    try(recreateSeat)
+    
+    local shield
+    local shieldPhys
+    function recreateShield()
+        if shieldEnabled then
+            shield = prop.create(chip:getPos() + chip:getUp() * 20, Angle(), "models/hunter/misc/shell2x2.mdl", true)
+            shield:setMaterial("debug/debugdrawflat")
+            shield:setColor(Color(255,255,255,15))
+            shield:setNocollideAll(true)
+            shieldPhysObj = shield:getPhysicsObject()
+            if seat and seat:isValid() then
+                shield:setParent(seat)
+                shield:setPos(Vector(0,0,15))
+            end
+        end
+    end
+    try(recreateShield)
+    
+    local turret
+    local turretPhys
+    local turretWirelink
+    function recreateTurret()
+       /*
+        > gmod_wire_turret
+        number damage = 10
+        number delay = 0.05
+        number force = 1
+        string Model = "models/weapons/w_smg1.mdl"
+        number numbullets = 1
+        string sound = "0"
+        number spread = 0
+        string tracer = "Tracer"
+        number tracernum = 1
+        */
+        if turretEnabled then
+            turret = prop.createSent(chip:getPos(), Angle(), "gmod_wire_turret", true, {
+                damage = 100,
+                numbullets = 2,
+                force = 200,
+                delay = 0.05,
+                spread = 0.05,
+                sound = "NPC_FloorTurret.Shoot "    
+            })
+            turret:setMaterial("debug/debugtranslucentsinglecolor")
+            turret:setNocollideAll(true)
+            turretPhys = seat:getPhysicsObject()
+            wire.triggerInput(turret,"Fire",0)
+            
+            if seat and seat:isValid() then
+                turret:setParent(seat)
+                turret:setPos(Vector(0,0,-45))
+            end
+        end
+    end
+    try(recreateTurret())
+    
+    local shieldHealth = shieldMaxHealth
+    function respawn()
+        if seat:isValid() then
+            seat:remove()
+        end
+        if shieldEnabled and shield:isValid() then
+            shield:remove()
+        end
+        if turretEnabled and turret:isValid() then
+            turret:remove()
+        end
+        shieldHealth = shieldMaxHealth
+        try(recreateSeat)
+        try(recreateShield)
+        try(recreateTurret)
+    end
+    
+    local speed = startSpeed
+    local vel = Vector()
+    
+    hook.add("EntityTakeDamage","shieldDamage",function(target, attacker, inflictor, amount)
+        if target == shield then
+            shieldHealth = shieldHealth - amount
+            if shieldHealth <= 0 then
+                respawn()
+            else
+                local v = (shieldHealth / shieldMaxHealth) * 255
+                if shield and shield:isValid() then
+                    shield:setColor(Color(255,v,v,15))
+                end
+            end
+        end
+    end)
+    
+    hook.add("playerEnteredVehicle","setDriver",function(ply, vehicle)
+        if vehicle == seat then
+            enableHud(ply, true)
+            
+            if ownerOnly and ply ~= owner() then
+                printHud(ply, "Sorry, this one is reserved for the owner :)")
+                vehicle:ejectDriver()
+                return
+            end
+            
+            print(ply:getName() .. " entered the seat")
+            timer.remove("delete")
+            seat:setAngles(Angle(0,0,0))
+            seat:setMaterial("hlmv/debugmrmwireframe")
+            seat:setFrozen(true)
+            printHud(ply, "WASD to move, jump to go up, walk to go down")
+            
+            net.start("entUpdate")
+            net.writeEntity(seat)
+            net.writeEntity(shield)
+            net.send(find.allPlayers())
+        end
+    end)
+    
+    hook.add("playerLeaveVehicle","setDriver",function(ply, vehicle)
+        if vehicle == seat then
+            if ownerOnly and ply ~= owner() then return end
+            if turretEnabled and turret and turret:isValid() then wire.triggerInput(turret,"Fire",0) end
+            
+            print(ply:getName() .. " left the seat")
+            
+            if seat:isValid() and seat:isValidPhys() then
+                seat:setFrozen(false)
+                seatPhysObj:wake()
+                seat:setMaterial("debug/debugtranslucentsinglecolor")
+            end
+            
+            if destroyDelay >= 1 then
+                timer.create("delete", destroyDelay, 1, function() respawn() end)
+            end
+        end
+    end)
+    
+    local lastEyeAngle = Angle()
+    
+    hook.add("tick", "main", function()
+        if not seat:isValid() then
+            try(recreateSeat)
+        elseif shieldEnabled and not shield:isValid() then
+            try(recreateShield)
+        elseif turretEanbled and not turret:isValid() then
+            try(recreateTurret)
+        else
+            if seat:isValid() and seat:isValidPhys() then
+                seat:setColor(Color((timer.curtime()*30)%360,1,1):hsvToRGB())
+            end
+            if seat:getDriver():isValid() then
+                local driver = seat:getDriver()
+                
+                local w = driver:keyDown(IN_KEY.FORWARD)
+                local a = driver:keyDown(IN_KEY.MOVELEFT)
+                local s = driver:keyDown(IN_KEY.BACK)
+                local d = driver:keyDown(IN_KEY.MOVERIGHT)
+                
+                local jump = driver:keyDown(IN_KEY.JUMP)
+                local walk = driver:keyDown(IN_KEY.WALK)
+                local run = driver:keyDown(IN_KEY.SPEED)
+                
+                local attack = driver:keyDown(IN_KEY.ATTACK)
+                
+                local eye = driver:getEyeAngles()
+                
+                if w or a or s or d or jump or crouch then
+                    local w = w and 1 or 0
+                    local a = a and 1 or 0
+                    local s = s and 1 or 0
+                    local d = d and 1 or 0
+                    
+                    local jump = jump and 1 or 0
+                    local walk = crouch and 1 or 0
+                    local run = run and 2 or 1
+                    
+                    speed = baseSpeed * run
+                    
+                    vel = vel + (
+                            (eye:getForward() * speed * (w - s)) + 
+                            (eye:getRight() * speed * (d - a)) + 
+                            (eye:getUp() * speed * (jump - walk))
+                        ) * speed
+                end
+                
+                if turretEnabled and turret:isValid() then
+                    local eyeVel = driver:getEyeAngles()-lastEyeAngle
+                    lastEyeAngle = driver:getEyeAngles()
+                    local result = trace.line(driver:getEyePos(),driver:getEyePos()+(driver:getEyeAngles()+eyeVel*2):getForward()*5000,{seat, shield})
+                    turret:setAngles((result.HitPos-turret:getPos()):getAngle())
+                    wire.triggerInput(turret,"Fire",attack and 1 or 0)
+                end
+                
+                vel = vel * 0.95
+                
+                local pos = seatPhysObj:getPos()+vel
+                
+                if not noclipEnabled and not pos:isInWorld() then vel = Vector(0, 0, 0) return end
+                    
+                if seatPhysObj then
+                    seatPhysObj:wake()
+                    seatPhysObj:setPos(pos)
+                end
+            end
+        end
+    end)
+elseif CLIENT and turretEnabled then
+    local chip = chip()
+    local holo = hologram.create(chip:getPos(),Angle(),"models/holograms/icosphere2.mdl")
+    holo:setMaterial("hlmv/debugmrmwireframe")
+    
+    local seat
+    local shield 
+    net.receive("entUpdate", function()
+        seat = net.readEntity()
+        shield = net.readEntity()
+    end)
+    
+    hook.add("tick","main",function()
+        if seat and seat:isValid() then
+            driver = seat:getDriver()
+            if driver and driver:isValid() then
+                if driver ~= player() then holo:setColor(Color(255,255,255,0)) return else holo:setColor(Color(255,255,255,255)) end
+                local result = trace.line(driver:getEyePos(),driver:getEyePos()+driver:getEyeAngles():getForward()*5000,{seat, shield})
+                holo:setPos(result.HitPos)
+            end
+        end
+    end)
+end

@@ -1,0 +1,101 @@
+@name MDC Telemetry Unit
+@inputs Active [Base Driver]:entity
+@outputs CoreInfo:table StartLink TCULink ECULink STBLink
+@persist M:table
+@trigger none
+
+#[
+    
+    Instructions:
+    
+    This chip gives information & runs MDC components.
+    
+        Wire...
+        
+        < Base > to your baseplate.
+        
+        < Driver > to [Driver] on your pod controller.
+        
+        < Active > to [Active] on your pod controller.
+
+]#
+
+if(first() | dupefinished()) {
+    
+    M = table()
+    
+    # # # # # # # # # # # # # # # # # # # # #
+    
+    #~ Required to run ~#
+    
+    M["BaseAng",angle] = ang(0, 0, 0)   # Base alignment angle. Alignment should be: green X forward, red Y left, blue Z up!
+    
+    ShowHolo = 0            # Show alignment hologram.
+    
+    #~ General ~#
+    
+    SpeedMul = 1 / 17.6     # Multiplier to convert speed from inches per second.
+    
+    M["UpdateTime",number] = 120        # Delay between execution cycles, in milliseconds.
+    
+    # # # # # # # # # # # # # # # # # # # # #
+    
+    # > Initialization
+    
+    CoreInfo = table()
+    CoreInfo["SpeedMul",number] = SpeedMul
+    
+    StartLink = 0
+    TCULink = 0
+    ECULink = 0
+    STBLink = 0
+    
+    M["Cycle",number] = 0
+    M["UpdateTime",number] = ceil(M["UpdateTime",number] / 15) * 15
+    
+    # Debug holo
+    if(ShowHolo) {
+        holoCreate(1, Base:toWorld(vec()), vec(1), Base:toWorld(M["BaseAng",angle]), vec(255), "models/sprops/misc/origin.mdl")
+        holoParent(1, Base)
+    }
+    
+    # Shared startup
+    timer("Startup", 420)
+}
+
+# Delayed start
+if(clk("Startup")) {
+    
+    local TCUReady = ->TCULink ? CoreInfo["TCUInfo",table]["Ready",number] : 1
+    local ECUReady = ->ECULink ? CoreInfo["ECUInfo",table]["Ready",number] : 1
+    local STBReady = ->STBLink ? CoreInfo["STBInfo",table]["Ready",number] : 1
+    
+    if(TCUReady & ECUReady & STBReady) { StartLink = 1 }
+    else {
+        StartLink = -(!StartLink)
+        timer("Startup", 420)
+    }
+}
+
+interval(M["UpdateTime",number])
+
+# Get new driver
+event input(InputName:string) {
+    if(InputName == "Driver") {
+        CoreInfo["Driver",entity] = Driver
+    }
+}
+
+# Base linear and angular speed
+CoreInfo["Velocity",vector] = Base:velL():rotate(-M["BaseAng",angle])
+CoreInfo["AngVelocity",vector] = Base:angVelVector():rotate(-M["BaseAng",angle])
+
+CoreInfo["Speed",number] = CoreInfo["Velocity",vector][1] * CoreInfo["SpeedMul",number]
+CoreInfo["SpeedMag",number] = abs(CoreInfo["Speed",number])
+
+# Update modules
+CoreInfo["Active",number] = Active
+
+TCULink = !TCULink
+ECULink = !ECULink
+STBLink = !STBLink

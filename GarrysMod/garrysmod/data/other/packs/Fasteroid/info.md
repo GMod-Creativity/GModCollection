@@ -3,7 +3,6 @@
 - Github: https://github.com/Fasteroid
 - Github page: https://fasteroid.github.io/about
 - Youtube: https://www.youtube.com/c/Fasteroid
-- https://fasteroid.github.io/about
 
 **expression2-public-master**
 - Description: Various E2 things for Garry's Mod.

@@ -1,0 +1,90 @@
+@name Verus's Boat Chip
+@inputs Pod:wirelink
+@outputs YawVel
+@persist A2 D2 Yaw WaterL Water Roll Pitch Speed YawAffect HeighOffset Forwards Backwards Acceleration
+@trigger 
+@model models/hunter/blocks/cube2x4x05.mdl
+
+interval(20)
+E = entity()
+
+if(first()){
+
+Speed = 60
+Acceleration = 0.5
+HeighOffset = 4
+YawAffect = 2
+
+
+    holoCreate(1,E:toWorld(E:boxSize()*vec(0,0.5,0)))
+    holoParent(1,E)
+    holoModel(1,"cone")
+}   holoAlpha(1,E:getAlpha())
+
+W = Pod["W",number]
+A = Pod["A",number]
+S = Pod["S",number]
+D = Pod["D",number]
+Alt = Pod["Alt",number]
+Light = Pod["Light",number]
+Light = Pod["Light",number]
+Active = Pod["Active",number]
+Seat = Pod["Entity",entity]
+
+        FSpeed = E:velL():y()
+        
+if(changed(E:isUnderWater()) & E:isUnderWater())
+    {WaterL = E:pos():z()}
+        WaterLevel = WaterL + (E:angles():roll() * E:boxSize():y())/130 * E:velL():normalized():y()
+
+Water = (E:pos():z()>WaterLevel-270 & E:pos():z()<WaterLevel+10)
+
+if(!Active)
+    {Yaw = E:angles():yaw()}
+elseif(Active)
+    {Yaw = mod(Yaw + (A2 - D2),360)}
+
+
+    Forwards = clamp(Forwards + (W-!W*2)*Acceleration,0,Speed)
+    Backwards = clamp(Backwards + (S-!S*2)*Acceleration/8,0,Speed)
+Movement = Forwards - Backwards
+            A2 = clamp(A2 + (A - !A)/(1 + FSpeed/30),0,1)
+            D2 = clamp(D2 + (D - !D)/(1 + FSpeed/30),0,1)
+        Pitch = FSpeed/50
+        Roll = (A2-D2)*FSpeed/20
+    TarQ2 = quat(ang(-Roll,Yaw,Pitch))
+    CurQ2 = quat(E:angles())
+
+
+    Q2 = TarQ2/CurQ2
+
+        V2 = E:toLocal(rotationVector(Q2)+E:pos())
+    E:applyTorque((100*V2 - 40*E:angVelVector())
+        *E:inertia()*Water)
+
+E:applyForce((E:pos():setZ(WaterLevel)-(E:pos()-vec(0,0,HeighOffset))-E:vel()*vec(0.05,0.05,0.1))*E:mass()*Water)
+    Vec = vec(0,1,0):rotate(E:toWorld(ang(E:angles():yaw(),0,0)))
+E:applyForce(Vec*E:mass()*Movement*Water)
+
+
+
+
+if(first()){E:soundPlay(1,0,"/vehicles/airboat/pontoon_fast_water_loop2.wav")
+            E:soundPlay(2,0,"/vehicles/airboat/pontoon_stopped_water_loop1.wav")}
+if(changed(Water) & Water)
+    {E:soundPlay(3,1,"/vehicles/airboat/pontoon_splash1.wav")}
+if(changed(Active) & Active)
+    {E:soundPlay(4,1,"/vehicles/airboat/fan_motor_start1.wav")
+    E:soundPlay(5,0,"/vehicles/airboat/fan_motor_idle_loop1.wav")}
+elseif(changed(Active) & !Active)
+    {E:soundPlay(4,1,"/vehicles/airboat/fan_motor_shut_off1.wav")}
+
+
+
+    soundPitch(1,E:vel():length()/5*Water)
+    soundPitch(2,(-E:vel():length()+100)*Water)
+    soundPitch(5,(E:vel():length()/8+70)*Active)
+
+if(dupefinished())
+    {reset()}
+

@@ -1,0 +1,322 @@
+@name forza4_ologrammi_by_Kolore!_step
+@inputs Crea:number Dx:number Sx:number ResetGioco:number 
+@outputs Turno:number Vinto:number ColoreGiocatoreVinto:vector
+@persist PosRiga:number PosColonna:number IndexHolo:number Turno:number 
+@persist CampoRighe:table CampoPedine:table Vinto:number Step:string
+@trigger 
+@strict
+
+DimensioneCella = 25
+ColonnaMin = 0
+ColonnaMax = 7 
+RigaMax = 5
+IndexHoloCursore = 0
+IndexHoloPedinaIniziale = 10
+PosizioneIniziale = vec(0,0,0)
+PosizioneInizialeGioco = PosizioneIniziale + vec(0, DimensioneCella , DimensioneCella )
+
+function creaCursore(IndexHoloCursore:number) {
+    holoCreate(IndexHoloCursore)
+    
+    holoScale(IndexHoloCursore, vec(1.5, 1.5, 0.5))
+    holoAng(IndexHoloCursore, ang(0, 0, 180))
+    
+    holoParent(IndexHoloCursore, entity())
+    
+    holoModel(IndexHoloCursore, "cone")
+}
+
+function creaStruttraCampoGioco() {
+    
+    Lunghezza = ((ColonnaMax+1) * DimensioneCella) * 0.06 + (0.06 * (ColonnaMax+1))* 12
+    Altezza =((RigaMax+1) * DimensioneCella / 2 * 0.5 * 0.5 * 0.8)
+        
+    Length = Lunghezza
+    Height = Altezza
+    MaxCol = ColonnaMax+1
+    MaxRow = RigaMax+1
+    CellWidth = DimensioneCella
+    InitialPos = PosizioneIniziale
+    
+    #
+    #_______________
+    holoCreate(1)
+    holoScale(1, vec(0.5, Length, 0.5))
+    holoAng(1, entity():angles())
+    holoPos(1, entity():toWorld(InitialPos + vec(0, (MaxCol * CellWidth) * 0.5 , 0) ))
+    holoParent(1, entity())
+    holoMaterial(1, "phoenix_storms/bluemetal")
+    
+    
+    #---------------
+    #
+    holoCreate(2)
+    holoScale(2, vec(0.5, Length, 0.5))
+    holoAng(2, entity():angles())
+    holoPos(2, entity():toWorld(InitialPos + vec(0, (MaxCol * CellWidth) * 0.5 , (MaxRow  * CellWidth)) ))
+    holoParent(2, entity())
+    holoMaterial(2, "phoenix_storms/bluemetal")
+    
+   
+    #      |
+    #      |
+    #      |
+    holoCreate(3)
+    holoScale(3, vec(1, 1, Height))
+    holoAng(3, entity():angles())
+    holoPos(3, entity():toWorld(InitialPos + vec(0, (MaxCol * CellWidth), (MaxRow * CellWidth) * 0.5 )))
+    holoParent(3, entity())
+    holoMaterial(3, "phoenix_storms/bluemetal")
+    
+    # |
+    # |
+    # |
+    holoCreate(4)
+    holoScale(4, vec(1, 1, Height))
+    holoAng(4, entity():angles())
+    holoPos(4, entity():toWorld(InitialPos + vec(0, 0, (MaxRow * CellWidth) * 0.5 )))
+    holoParent(4, entity())
+    holoMaterial(4, "phoenix_storms/bluemetal")
+    
+}
+
+function resetGioco(IndexHoloPedinaAttuale:number) {
+    IndexHolo = IndexHoloPedinaIniziale 
+    
+    Vinto = 0
+    Turno = 0
+    Dx = 0
+    Sx = 0
+    
+    PosRiga = 0
+    PosColonna = 0
+    
+    ColoreGiocatoreVinto = vec(0, 0, 0)
+    
+    CampoRighe = table()    #memorizza l'ultima riga usata per ogni colonna
+    CampoPedine = table()   #memorizza le pedine legato al giocatore (posizionamento : Riga * 10 + Col)
+    
+    for(P=ColonnaMin, ColonnaMax) {
+        CampoRighe[P, number] = 0
+    }
+    
+    #print("Cancella ologramma: Ultimo Holo: "+ IndexHoloPedinaAttuale)
+    if(IndexHoloPedinaAttuale > IndexHoloPedinaIniziale) {
+        for(P=IndexHoloPedinaIniziale, IndexHoloPedinaAttuale - 1) {
+            #print("Cancella ologramma " + P + "...")
+            holoDelete(P)
+        }
+    }
+}
+
+function vector calcolaPosizionePedina(PosizioneIniziale:vector, PosRiga:number, PosColonna:number, DimensioneCella:number) {
+    return entity():toWorld(PosizioneIniziale + vec(0, PosColonna * DimensioneCella, PosRiga * DimensioneCella))
+}
+
+function creaPedina(PosRiga:number, PosColonna:number, Colore:vector, IndexPedina:number) {
+    holoCreate(IndexPedina)
+    
+    #Crea la pedina
+    holoScale(IndexPedina, vec(DimensioneCella * 0.06, DimensioneCella * 0.06, 0.5)) #Dim: 1.5
+    holoPos(IndexPedina, calcolaPosizionePedina(PosizioneInizialeGioco, PosRiga, PosColonna, DimensioneCella))
+    holoAng(IndexPedina, entity():angles() + ang(0, 90, 90))
+    holoColor(IndexPedina, Colore)
+    
+    holoParent(IndexPedina, entity())
+    
+    holoModel(IndexPedina, "cylinder")    
+}
+
+function vector ottieniColoreGiocatore(Giocatore:number) {
+    Colore = vec(255,0,0)
+    if(Giocatore == 1) {
+        Colore = vec(0,0,255)
+    }
+    
+    return Colore
+}
+
+function number ottieniIndexDaCoordinate(Riga:number, Col:number) {
+    #non memorizza le pedine in una matrice ma in una table
+    #quindi posso "simulare una matrice" restituendo un indice che identifica ogni coordinata (R, C)
+    return (Riga * 10 + Col)
+}
+
+function number controllaSeVintoSuColonna(Col:number, Giocatore:number) {
+    Conta = 0
+    
+    for(R=0, RigaMax) {
+        Posizione = ottieniIndexDaCoordinate(R, Col)
+        #print("- elemento " + Posizione + " contiene " + CampoPedine[Posizione, number])
+        if(Conta == 4) { break }
+        
+        if(CampoPedine[Posizione, number] == Giocatore){
+            Conta++
+        } else {
+            Conta = 0
+        }
+    }
+    
+    return Conta == 4
+}
+
+
+function number controllaSeVintoSuRiga(Riga:number, Giocatore:number) {
+    Conta = 0
+    
+    for(P=ColonnaMin, ColonnaMax) {
+        Posizione = ottieniIndexDaCoordinate(Riga, P)
+        #print("- elemento " + Posizione + " contiene " + CampoPedine[Posizione, number])
+        if(Conta == 4) { break }
+        
+        if(CampoPedine[Posizione, number] == Giocatore){
+            Conta++
+        } else {
+            Conta = 0
+        }
+    }
+    
+    return Conta == 4
+}
+
+function number controllaSeVintoSuDiagonale(Riga:number, Col:number, Giocatore:number) {
+    Conta = 0
+    
+    ColInizio = Col
+    RigaInizio = Riga
+    Posizione = 0
+    
+    
+    #trova elemento sinistro alto
+    while(ColInizio > 0 && RigaInizio < RigaMax) {
+        ColInizio--
+        RigaInizio++
+    }
+    
+    #print("coordinate alto sx: (" + Riga + ", " + Col+ ") --> (" + RigaInizio + ", " + ColInizio + ")")
+    
+    while(ColInizio < ColonnaMax && RigaInizio >= 0) {
+        
+        if(Conta == 4) { break }
+        
+        Posizione = ottieniIndexDaCoordinate(RigaInizio, ColInizio)
+        if(CampoPedine[Posizione, number] == Giocatore) {
+            #print("Pos: " + Posizione + ": " + Giocatore)
+            Conta++
+        } else {
+            Conta = 0
+        }
+        
+        ColInizio++
+        RigaInizio--
+    }
+    
+    return Conta == 4 
+}
+
+function number controllaSeVintoSuDiagonaleSecondaria(Riga:number, Col:number, Giocatore:number) {
+    Conta = 0
+    ColInizio = Col
+    RigaInizio = Riga
+    Posizione = 0
+    
+    #trova elemento sinistro alto
+    while(ColInizio < ColonnaMax && RigaInizio < RigaMax) {
+        ColInizio++
+        RigaInizio++
+    }
+    
+    #print("coordinate alto sx: (" + Riga + ", " + Col+ ") --> (" + RigaInizio + ", " + ColInizio + ")")
+    
+    while(ColInizio >= 0 && RigaInizio >= 0) {
+        if(Conta == 4) { break }
+        
+        Posizione = ottieniIndexDaCoordinate(RigaInizio, ColInizio)
+        if(CampoPedine[Posizione, number] == Giocatore) {
+            #print("Pos: " + Posizione + ": " + Giocatore)
+            Conta++
+        } else {
+            Conta = 0
+        }
+        
+        ColInizio--
+        RigaInizio--
+    }
+    
+    return Conta == 4 
+}
+
+function step() {
+    
+    if(Sx) {
+        if( PosColonna > ColonnaMin) {
+            PosColonna -= 1
+        }
+    }
+    
+    if(Dx) {
+        if( PosColonna < ColonnaMax - 1) {
+            PosColonna += 1
+        }
+    }
+
+    
+    Giocatore = (Turno % 2) + 1
+    Colore = ottieniColoreGiocatore(Giocatore)
+    
+    holoColor(IndexHoloCursore, Colore)
+    PosRiga = CampoRighe[PosColonna, number]
+    holoPos(IndexHoloCursore, calcolaPosizionePedina(PosizioneInizialeGioco, PosRiga + 1, PosColonna, DimensioneCella))
+    
+    
+    if(Crea && !Vinto) {
+        if(PosRiga < RigaMax) {
+            creaPedina(PosRiga, PosColonna, Colore, IndexHolo)
+            
+            #aumenta la riga nella matrice
+            CampoRighe[PosColonna, number] = PosRiga + 1
+            #print("Nuovo valore (Giocatore: "+ Giocatore +"): CampoRighe[" + PosColonna + ", number] vale " + CampoRighe[PosColonna, number])
+            
+            Posizione = ottieniIndexDaCoordinate(PosRiga, PosColonna)
+            CampoPedine[Posizione, number] = Giocatore
+            
+            Vinto = controllaSeVintoSuRiga(PosRiga, Giocatore) 
+                        || controllaSeVintoSuColonna(PosColonna, Giocatore) 
+                        || controllaSeVintoSuDiagonale(PosRiga, PosColonna, Giocatore) 
+                        || controllaSeVintoSuDiagonaleSecondaria(PosRiga, PosColonna, Giocatore)
+            #print("Vinto? " + Vinto)
+            if(Vinto) {
+                ColoreGiocatoreVinto = Colore
+            }
+            
+            IndexHolo++
+            Turno++    
+        }
+    }
+}
+
+if(first() || duped()) {
+    Step = "Chiuso"
+}
+
+
+if(ResetGioco) {
+    #reset
+    if(Step == "Chiuso"){
+        #nel caso in cui si duplica un gioco gi iniziato: non esiste nessuna pedina
+        IndexHolo = IndexHoloPedinaIniziale
+        creaStruttraCampoGioco()
+        creaCursore(IndexHoloCursore)
+    }
+    if(Step == "Avviato") {
+        resetGioco(IndexHolo)
+    }
+
+    
+    
+    Step = "Avviato"
+}
+
+if(Step == "Avviato") {
+    step()
+}

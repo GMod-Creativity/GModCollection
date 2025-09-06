@@ -1,0 +1,46 @@
+@name applyOffsetTorque no drag
+@inputs E:entity [Offset Torque]:vector
+@persist T 
+# This e2 works like the applyTorque function, with added applyForce code to do the job of an axis constraint.
+# Note: applying offset torque makes no mathematical sense as torque is independent of position.
+# Props spin about their axis due to their inertia, this e2 demonstrates how to remove the effects of inertia.
+# Due to the very complex nature of rotational + linear drag, this e2 only works when drag is negligable, 
+# ie air_density 0, or using a low frontal area prop, or a high mass prop.
+# It also doesn't account for angular or translational speed limiting, so will act funny at very high speeds.
+runOnTick(1)
+if (first()) {
+    T = 66.567 # ticks/second
+    # create a holo to show where the offset is
+    holoCreate(1, E:toWorld(Offset - E:massCenterL()))
+    holoModel(1, "sphere")
+    holoColor(1, vec(255, 0, 0))
+}
+
+if (tickClk()) {
+    # update holoPos
+    holoPos(1, E:toWorld(Offset - E:massCenterL()))
+    
+    # calculate current angular velocity
+    AngVel = toRad(E:angVelVector())
+    
+    ### Calculate axis constraint force
+    
+    ## calculate resultant force
+    # calculate acceleration of offset point due to torque and inertia
+    A = Torque / (E:inertia() * 1550.1)
+    # calculate resultant force at offset
+    Force = Offset:cross(A) * E:mass()
+    
+    ## calculate centripetal force
+    # calculate vector rejection of Offset from angVel
+    OffsetProjected = Offset - Offset:dot(AngVel:normalized()) * AngVel:normalized()
+    # calculate centripetal force at offset
+    Force += OffsetProjected * E:mass() * AngVel:length2()	
+    
+    # apply torque
+    E:applyTorque(Torque / T)
+	
+    # apply constraint force
+    E:applyForce(E:toWorldAxis(Force) / T)
+
+}

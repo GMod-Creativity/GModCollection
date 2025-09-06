@@ -1,4 +1,4 @@
-- Author: Raveo
+- Author: Raveo (Chey)
 <!-- -->
 - Title: For the soccer world cup I present [E2] Raveos Soccer!
 - Date (dd-mm-yyyy): 23-06-2014

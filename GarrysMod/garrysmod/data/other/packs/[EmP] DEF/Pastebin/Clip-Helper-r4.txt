@@ -1,0 +1,215 @@
+@name Clip Helper r4
+@inputs 
+@outputs 
+@persist HoloCount Listening Offset:vector [AngOffset AddAngleAxis]:angle
+@persist [Model Material Multikey RemoveLastSelection RemoveLastProp]:string Planes:array
+@trigger none
+
+if(first() | dupefinished()) {
+    
+        #~ General ~#
+    
+    Offset = vec(12, 0.75, 0)        #Clipping prop position offset
+    
+    AngOffset = ang(0, 0, 90)       #Clipping prop angular offset
+    
+    AddAngleAxis = ang(0, 0, 1)
+    
+    #What prop to use as the clipping plane
+    Model = "models/sprops/rectangles_thin/size_3/rect_24x24x1_5.mdl"
+    
+    #What material the clipping plane gets
+    Material = "sprops/textures/sprops_rubber"
+    
+        #~ Keybinds ~#
+    
+    RemoveLastSelection = "E"   #Undo last selection
+    
+    RemoveLastProp = "LAlt"        #Remove last clipping plate
+    
+    Multikey = "LShift"         #Hold this to delete all props or clear all selections
+    
+    
+    # # # # # # # # # # # # # # # 
+    
+    
+    runOnKeys(owner(), 1)
+    runOnChat(1)
+}
+
+if(Listening) {
+    
+    #Put a holo where the owner aimed
+    if(owner():keyAttack2()) {
+        
+        if(HoloCount < 2) {
+            local HoloPos = owner():aimPos()
+            local HoloAng = owner():aimNormal():toAngle()
+            
+            HoloCount++
+            holoCreate(HoloCount, HoloPos, vec(1), HoloAng, vec(255), "models/sprops/misc/origin.mdl")
+            
+            #Find intersection of these planes and spawn a prop there
+            if(HoloCount == 2) {
+                
+                local Holo1 = holoEntity(1)
+                local Holo2 = holoEntity(2)
+                
+                #I'm going to cheat and use Precision Alignment's code, hope that's cool
+                local IntersectDir = Holo1:forward():cross(Holo2:forward())
+                
+                # # # No intersection
+                if(IntersectDir:length() == 0) {
+                    print("Those two have the same normal!")
+                    
+                    holoDeleteAll()
+                    HoloCount = 0
+                    
+                    owner():soundPlay(1, 0, "ambient/energy/spark6.wav")
+                }
+                
+                else {
+                    
+                    # # # Line start and end
+                    local Line1Start = Holo1:pos()
+                    local Line1End = Line1Start + Holo1:forward():cross(IntersectDir)
+                    
+                    local Line2Start = Holo2:pos()
+                    local Line2End = Line2Start + Holo2:forward():cross(IntersectDir)
+                    
+                    # # # No idea what's going on here, solving a system of equations maybe?
+                    # # # solve_point_2line_intersection
+                    local Line1 = Line1End - Line1Start
+                    local Line2 = Line2End - Line2Start
+                    
+                    local LineC = Line2Start - Line1Start
+                    
+                    local A1 = Line1:dot(Line1)
+                    local B1 = -Line1:dot(Line2)
+                    local C1 = Line1:dot(LineC)
+                    local A2 = -B1
+                    local B2 = -Line2:dot(Line2)
+                    local C2 = Line2:dot(LineC)
+                    
+                    # # # solve_simultaneous_2
+                    local D = A1 * B2 - B1 * A2
+                    
+                    local X = (B2 * C1 - B1 * C2) / D
+                    local Y = (A1 * C2 - A2 * C1) / D
+                    
+                    # # # Back to solve_point_2line_intersection
+                    local Length1 = X
+                    local Length2 = Y
+                    
+                    if(!Length1 | !Length2) {
+                        
+                        print("Something went wrong!")
+                        
+                        holoDeleteAll()
+                        HoloCount = 0
+                    }
+                    
+                    #Got a point, now we can spawn a clipping prop!
+                    else {
+                        
+                        # # # Final calculations from Prescision Alignment
+                        local Point1 = Line1Start + Line1 * Length1
+                        local Point2 = Line2Start + Line2 * Length2
+                        
+                        local Point3 = (Point1 + Point2) * 0.5
+                        
+                        # # # Spawning the prop
+                        local ClipPlate = propSpawn(Model, Point3, ang(), 1)
+                        ClipPlate:setAng( quat( mix(Holo1:forward(), Holo2:forward(), 0.5), IntersectDir ):toAngle() )
+                        ClipPlate:setMaterial(Material)
+                        
+                        Planes:pushEntity(ClipPlate)
+                        
+                        timer("Delay", 105)
+                    }
+                }
+            }
+            
+            #Play a sound indicating one selection was made
+            else {
+                owner():soundPlay(1, 0, "ambient/energy/spark4.wav")
+            }
+        }
+    }
+    
+    #Repositioning the clipping plane
+    if(clk("Delay")) {
+        
+        local ClipPlate = Planes[Planes:count(),entity]
+        
+        ClipPlate:setAng(ClipPlate:toWorld(AngOffset))
+        ClipPlate:setPos(ClipPlate:toWorld(Offset))
+        
+        holoDeleteAll()
+        HoloCount = 0
+        
+        owner():soundPlay(1, 0, "ambient/energy/spark5.wav")
+    }
+    
+    #Remove holos
+    if(owner():keyPressed(RemoveLastSelection)) {
+        
+        # # # Clear all holos
+        if(owner():keyPressed(Multikey)) {
+            
+            if(HoloCount != 0) {owner():soundPlay(1, 0, "ambient/energy/newspark01.wav")}
+            
+            holoDeleteAll()
+            HoloCount = 0
+        }
+        
+        # # # Clear last holo
+        else {
+            local HoloPos = owner():aimPos()
+            local HoloAng = owner():aimNormal():toAngle()
+            
+            if(HoloCount != 0) {owner():soundPlay(1, 0, "ambient/energy/newspark06.wav")}
+            
+            holoDelete(HoloCount)
+            HoloCount = max(HoloCount - 1, 0)
+        }
+    }
+    
+    #Remove clipping plates
+    if(owner():keyPressed(RemoveLastProp)) {
+        
+        # # # Delete all props
+        if(owner():keyPressed(Multikey)) {
+            
+            if(Planes:count()) {owner():soundPlay(1, 0, "ambient/energy/zap5.wav")}
+            
+            propDeleteAll()
+            Planes:clear()
+        }
+        
+        # # # Delete last prop
+        else {
+            
+            if(Planes:count()) {owner():soundPlay(1, 0, "ambient/energy/zap9.wav")}
+            
+            local Plane = Planes:popEntity()
+            if(Plane:isValid()) {Plane:propDelete()}
+        }
+    }
+}
+
+#Toggling the E2 on and off
+if(chatClk(owner())) {
+    
+    if(owner():lastSaid():lower() == "listen") {
+        hideChat(1)
+        Listening = 1
+        print("Listening...")
+    }
+    
+    if(owner():lastSaid():lower() == "stop") {
+        hideChat(1)
+        Listening = 0
+        print("Silenced.")
+    }
+}

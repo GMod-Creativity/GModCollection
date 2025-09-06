@@ -2,7 +2,7 @@
 - Steam Profile: https://steamcommunity.com/profiles/76561197977307695
 - Github: https://github.com/EnyxRB
 - youtube: https://www.youtube.com/@Enyx
-
+<!-- -->
 - Title: CryNet Bot Destroyer [+other types] (Run to improve server performance)
 - Date (dd-mm-yyyy): 19-08-2015
 - Source: https://web.archive.org/web/20150918154734/http://www.wiremod.com:80/forum/finished-contraptions/34753-crynet-bot-destroyer-other-types-run-improve-server-performance.html
@@ -10,7 +10,7 @@
 
 ## CryNet Bot Destroyer [+other types] (Run to improve server performance)
 
-RUN THIS ON YOUR SERVER, IT WILL IMPROVE PERFORMANCE IF BOTS ARE FOUND.
+**RUN THIS ON YOUR SERVER, IT WILL IMPROVE PERFORMANCE IF BOTS ARE FOUND.**
 
 Hello there,
 so over the last few months on my server, some regular builders, including myself, have hit random E2 limits when trying to spawn dupes. At first, I had no clue as to of what could be causing this. After using my E2 finder on one of these dupes recently, I found that there were a copious amount of E2s inside the props in my dupe, that were not of my creation by any means. I then used remote uploader to find one of these E2s, as they are untraceable to the touch. I found out it what is known as a CryBot. I did some research on the crybot, and various other people where complaining about the impacts it was having on some servers.
@@ -28,3 +28,10 @@ Features:
 -If you don't have prop protection of certain bot owners, after running the E2, it will print to chat who needs to run a bot destroyer in order to get rid of their own evil bots.
 
 Also, heres a simple looping version, for inexperienced people who don't know how to edit the code. Helpful for owners that want to keep it running on the server while players spawn their dupes throughout the day. Making sure every bot spawned is rinsed.
+
+**jpwanabe question:**
+jpwanabe:
+    Care to explain what this crynet e2 actually does and how it can get from dupe to dupe?
+
+xk4melot:
+    The original creator would have probably given everyone his prop protection and spawned a bunch of them near people, from there it spreads pretty rapidly from server to server. This was huge problem back in 2013 but I haven't seen much of it since.

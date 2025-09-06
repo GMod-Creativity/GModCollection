@@ -1,0 +1,66 @@
+@name 
+@inputs 
+@outputs Grab
+@persist Mode:string Props:array Prop:entity Dest:vector X Pos:vector
+@persist E:entity Vec:vector Ang:angle Off
+@model models/hunter/blocks/cube05x05x05.mdl
+@trigger 
+if (first()) {
+E = entity()
+E:setMass(50000)
+Dest = (E:pos() + vec(100,0,0)):setZ(30)
+X = 1
+entity():isWeldedTo():setMass(1000)
+Off = 70
+}
+
+Vec = E:pos()
+
+runOnTick(1)
+
+if (first()) {
+findByModel("models/props_junk/wood_crate001a.mdl")
+Props = findToArray()
+print(""+Props:count())
+Mode = "find"
+}
+
+
+if (changed(Mode)) {print("Mode: "+Mode)}
+
+
+if (Mode == "find") {
+#print("Mode: Find")
+Pos = Props[X,entity]:pos() + vec(0,0,50)
+Ang = Props[X,entity]:angles():setPitch(0):setRoll(0)
+if ( inrange(Vec+vec(0,0,50) , Pos-vec(1,1,1+Off) , Pos+vec(1,1,1+Off)  ) ) {Grab = 1,Mode = "trans1"} else {
+#print(toString(Vec - Pos))
+}
+}
+
+if (Mode == "trans1") {
+#print("Mode: trans1")
+Pos = Pos:setZ(70+X*30)
+Ang = Props[X,entity]:angles():setPitch(0):setRoll(0)
+if (inrange(Vec:z() ,Off+ X*30-10,Off+ X*30+10)) {
+Mode = "send"
+}
+}
+
+
+
+if (Mode == "send") {
+Ang = ang(0,0,0)
+Pos = Dest - vec(0,0,20) + vec(0,0,Off+X*32)
+if (inrange(Vec , Pos-vec(1,1,-1+Off) , Pos+vec(1,1,1+Off)) & E:angles() > ang(-5,-5,-5) & E:angles() < ang(5,5,5)) {Grab = 0,X++,Mode = "change"}
+}
+
+
+if (Mode == "change") {
+Pos = Dest + vec(0,0,200 + 30*X)
+if (inrange(Vec,Pos - vec(5,5,5), Pos + vec(5,5,5))) {Mode = "find"}
+}
+
+
+E:applyForce(( (Pos - Vec)*1 - E:vel())*(E:mass()+200))
+E:applyAngForce(( (Ang -E:angles())*20 - E:angVel())*(E:mass()+200))

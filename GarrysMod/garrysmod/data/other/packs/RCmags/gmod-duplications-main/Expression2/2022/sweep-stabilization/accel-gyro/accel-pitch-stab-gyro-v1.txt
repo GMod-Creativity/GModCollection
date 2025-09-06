@@ -1,0 +1,118 @@
+@name Accelerometer pitch stabilization - Truncated acceleration
+@inputs W S A D Shift Space Pitch
+
+# wing load
+@outputs Acc_z Acc_mod
+
+# wing hydros
+@outputs LengthL LengthR Constant Damping 
+# thruster
+@outputs Force
+
+# state
+@persist Vel:vector
+@persist Angle_t Acc_change 
+@persist Roll Throttle 
+
+# ==== DESCRIPTION ====
+# This script controls a flying wing via weight shift.
+# It uses acceleration measurements to modulate the control inputs.
+
+# Note: 
+# this version changes the target angle of the PI Controller using the 
+# difference between a target acceleration and the measured acceleration.
+
+# This enables the aircraft to closely match the target acceleration but 
+# induces a wobble that is hard to dampen. Lower PI gains are required.   
+# However, the acceleration feedback may enhance stability at cruise. 
+# =====================
+
+DT = 10
+interval(DT)
+DT *= 1e-3
+
+#---- Constants
+E = entity()
+Gravity_mag = 900
+Gravity = vec(0, 0, Gravity_mag)
+
+#---- Vehicle state
+    # global acceleration
+Vel_new = E:vel()
+Acc = (Vel_new - Vel)/DT 
+Vel = Vel_new
+
+    # include gravity
+Acc += Gravity
+Acc_local = E:toLocal( Acc + E:pos() )
+
+    # vector magnitudes
+Vel_mag = Vel_new:length()
+
+Acc_z = Acc_local:z() / Gravity_mag     # normalize term
+
+Angvel = -toRad(  E:angVel():pitch() )  # pitch angular velocity
+
+#---- Acceleration feedback
+
+# target acceleration
+ACC_MIN = 0.2 
+ACC_MAX = 2
+ 
+    # input
+Acc_change += ( (S-W)*ACC_MAX - Acc_change)*0.25
+    # restrict load
+Acc_t = clamp(Acc_change + 1, ACC_MIN, ACC_MAX) - 1          
+
+    # deadband on acceleration correction
+Acc_mod = Acc_z > ACC_MAX ? Acc_z - ACC_MAX :
+          Acc_z < ACC_MIN ? Acc_z - ACC_MIN : 0
+
+# angle - integral term
+    # velocity gain [can be constant and response is similar]
+VEL_STALL = 700
+Vel_scale = Vel_mag < VEL_STALL ? VEL_STALL : Vel_mag
+
+    # target angle [due to centrifugal acceleration]
+Angvel_input = (Acc_t - Acc_mod) * Gravity_mag/Vel_scale  
+
+#---- PID correction
+KP = 40   # proportional
+KD = 30   # derivative
+
+# integrate error
+Angvel_t = Angvel - Angvel_input 
+Angle_t += Angvel_t*DT
+
+    # Restrict deflection [allow integrator to leak for large deflections]
+ANGLE_MAX = toRad(15)
+Angle_t = clamp(Angle_t, -ANGLE_MAX, ANGLE_MAX)
+
+# control deflection
+Output = KP*Angle_t + KD*Angvel_t # change to Angvel for slow but damped response
+    # scale by gain
+Gain_force = Acc_z == 0 ? 0 : 1/Acc_z
+Output = Output * Gain_force 
+    # restrict output
+XMAX = 20    
+Output = clamp(Output, -XMAX, XMAX)
+
+#---- Stall correction (pitch down to gain speed)
+if( Vel_mag < VEL_STALL ) {
+    Output = XMAX       # self stable deflection
+    Ang_p = 0           # reset integrator
+} 
+
+#---- Hydraulic output
+Constant = 10000
+Damping = 800
+
+Roll += ( (A - D)*20  - Roll )*0.05   # Smooth roll input
+LengthL = 100 + Output + Roll 
+LengthR = 100 + Output - Roll
+
+#---- Propulsion
+Throttle += (Space - Shift)*20
+Throttle = clamp(Throttle, 0, VEL_STALL + 1400) # Target velocity
+
+Force = clamp( (Throttle - Vel_mag)*4, 0, 1000) # Proportional on velocity

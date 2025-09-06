@@ -1,8 +1,14 @@
-Author: Enyx
-Date: 08-30-2015
-Title: Basic Ship Movement E2 [Propulsion & Self Buoyancy]
+- Author: EnyxRB (Enyx)
+- Steam Profile: https://steamcommunity.com/profiles/76561197977307695
+- Github: https://github.com/EnyxRB
+- youtube: https://www.youtube.com/@Enyx
+<!-- -->
+- Title: Basic Ship Movement E2 [Propulsion & Self Buoyancy]
+- Date (dd-mm-yyyy): 30-08-2015
+- Source: https://web.archive.org/web/20150924071337/http://www.wiremod.com:80/forum/finished-contraptions/34792-basic-ship-movement-e2-propulsion-self-buoyancy.html
+- Source Accessed (dd-mm-yyyy): 30-08-2025
 
-*Basic Ship Movement E2 [Propulsion & Self Buoyancy]*
+## Basic Ship Movement E2 [Propulsion & Self Buoyancy]
 
 Hey there,
 So a couple of weeks back, I released an acf cruiser dupe, which included my crappy old basic ship movement e2. Some people took to using it for their own ships. The main problem with the old chip, was that it caused shaking at higher speeds, because of the physics produced by the buoyancy tool in gmod / set buoyancy already found on the prop. Anyways, I decided to upgrade the e2 with its own buoyancy, therefore making higher speeds possible, with no shaking at all. I also had to create water resistance, as this was something also created with the buoyancy tool.

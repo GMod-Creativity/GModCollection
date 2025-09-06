@@ -1,0 +1,297 @@
+@name Tribbles_V6
+@inputs 
+@outputs TC [Materials TG MaterialsHp GatherMatType]:array
+@persist [WoodGibs RockGibs MetalGibs Tribbles GMaterials]:array
+@persist [Tribble Material GatheringMaterial SpawnedMaterial]:entity
+@persist [Model Type MaterialToSpawn GatherMat]:string V:vector
+@persist G S Work [Wood Rock Metal] MaterialHp NextSpawn 
+@model models/props_forest/sawhorse.mdl
+runOnTick(1)
+Mill=entity()
+propSpawnEffect(0)
+TC=Tribbles:count()
+MaterialHp=MaterialsHp[1,number]
+GatheringMaterial=Materials[1,entity]
+setName("Tribbles_V6 || Wood: "+Wood+" || Rock: "+Rock+" || Metal: "+Metal)
+Work=1
+S++
+
+
+#the first
+if(first())
+{
+    WoodGibs=array(
+    "models/Gibs/wood_gib01a.mdl",
+    "models/Gibs/wood_gib01b.mdl",
+    "models/Gibs/wood_gib01c.mdl",
+    "models/Gibs/wood_gib01d.mdl",
+    "models/props_junk/wood_crate001a_Chunk07.mdl",
+    "models/props_junk/wood_crate001a_Chunk04.mdl",
+    "models/props_junk/wood_pallet001a_chunka4.mdl",
+    "models/props_wasteland/wood_fence02a_board08a.mdl")
+    
+    RockGibs=array(
+    "models/props_foliage/rock_forest01c.mdl",
+    "models/props_foliage/rock_forest01d.mdl",
+    "models/props_mining/rock_caves01.mdl",
+    "models/props_mining/rock_caves01b.mdl",
+    "models/props_junk/Rock001a.mdl")
+    
+    MetalGibs=array(
+    "models/props_junk/garbage_metalcan001a.mdl",
+    "models/props_c17/metalPot002a.mdl",
+    "models/props_c17/TrapPropeller_Lever.mdl",
+    "models/props_c17/tools_wrench01a.mdl",
+    "models/props_canal/mattpipe.mdl")
+    
+    GMaterials=array(
+    "models/props_foliage/tree_dead01.mdl|tree",
+    "models/props_foliage/tree_pine04.mdl|tree",
+    "models/props_foliage/tree_pine05.mdl|tree",
+    "models/props_foliage/fallentree01.mdl|tree",
+    "models/props_foliage/forestrock_cluster01.mdl|rock",
+    "models/props_canal/rock_riverbed02c.mdl|rock",
+    "models/props_foliage/rock_coast02h.mdl|rock",
+    "models/Gibs/helicopter_brokenpiece_03.mdl|metal",
+    "models/Gibs/helicopter_brokenpiece_04_cockpit.mdl|metal",
+    "models/Gibs/helicopter_brokenpiece_05_tailfan.mdl|metal")
+    
+    
+    entity():setColor(255,150,150)
+
+    
+    hint("Mill is found and ready.",5)
+    timer("MaterialSpawn",1000)
+}
+
+if(G>=GMaterials:count()){G=1}else{G++}
+
+
+
+
+if(clk("MaterialSpawn")|changed(owner():keyAttack2())&owner():keyAttack2()&owner():keyUse()&Materials:count()<=15)
+{
+    timer("MaterialSpawn",randint(NextSpawn*1000))
+    
+    Object = GMaterials[G,string]:explode("|")
+    Model = Object[1,string]
+    Type = Object[2,string]
+    MaterialToSpawn=Model
+
+    SpawnedMaterial=propSpawn(MaterialToSpawn,entity():pos()+vec(random(-1000,1000),random(-1000,1000),0),ang(),1)
+    Materials:pushEntity(SpawnedMaterial)
+    MaterialsHp[Materials:count(),number]=randint(10,20)
+    GatherMatType[Materials:count(),string]=Type
+}
+
+
+if(changed(Tribbles:count())&Tribbles:count()<=3){NextSpawn=40}
+if(changed(Tribbles:count())&Tribbles:count()<=6&Tribbles:count()>3){NextSpawn=38}
+if(changed(Tribbles:count())&Tribbles:count()<=10&Tribbles:count()>15){NextSpawn=30}
+if(changed(Tribbles:count())&Tribbles:count()<=15&Tribbles:count()>10){NextSpawn=20}
+if(changed(Tribbles:count())&Tribbles:count()<=20&Tribbles:count()>15){NextSpawn=18}
+if(changed(Tribbles:count())&Tribbles:count()>=21){NextSpawn=15}
+
+
+
+#various things to do when work is started
+if(changed(Work)&Work)
+{
+    timer("findTribbles",2000)
+    timer("TribblesCount",3000)
+}
+
+
+
+if(clk("TribblesCount")&Tribbles:count()>=1)
+{
+    hint("Tribbles are getting to work.",5)
+    hint("There are "+Tribbles:count()+" Tribbles working.",5)
+}
+elseif(clk("TribblesCount")&Tribbles:count()<=0)
+{
+    hint("There are no tribbles present.",5)
+    hint("Work will not be done",5)
+}
+
+
+
+if(clk("findTribbles"))
+{
+    
+    #search for more
+    findByModel("models/hunter/misc/sphere025x025.mdl")
+    Tribbles=findToArray()
+
+    #repeat
+    timer("findTribbles",2000)
+}
+
+#clean up tribbles, it cant take much more then this before a crash.
+if(Tribbles:count()>21)
+{
+    Tribble:propDelete()
+}
+
+
+
+#if they should work
+if(Work&Tribbles:count()>=1)
+{
+    
+    
+    for(I=1,Tribbles:count())
+    {
+        Tribble=Tribbles[I,entity]
+        
+        Tribble:setMaterial("phoenix_storms/egg")
+        Tribble:setColor(150,150,150)
+        
+        #Removes the tribbles if the entity disapears
+        if(!Tribble)
+        {
+            Tribbles:removeEntity(I)
+        }
+        
+        #since TG:removeString(I) isnt working in this case, im just clearing the array, and it refills is-self imidiately.
+        if(TG:count()>Tribbles:count())
+        {
+            TG:clear()
+        }
+        
+
+        
+        #the part for tribbles that need to goto the Materials
+        if(TG[I,string] == "mill")
+        {
+            #this needs to be here if there is no Materials to go to, which shouldnt happen often.
+            if(GatheringMaterial)
+            {
+                V=(GatheringMaterial:pos()-Tribble:pos())*1.2
+            }
+            else
+            {
+                V=(Mill:pos()-Tribble:pos())*1.2
+            }
+            
+            
+            Tribble:setMass(200)
+            
+            #delete the wood prop above them.
+            if(holoEntity(I)|holoEntity(I+1))
+            {
+                holoDelete(I)
+            }
+            
+            #set the group to "stock" if they are near the target Material,
+            # also remove a piece of wood from that Material
+            if (Tribble:pos():distance(GatheringMaterial:pos()) < 100&TG[I,string] != "stock") 
+            {
+                TG[I,string] = "gathering"
+                MaterialsHp[1,number]=MaterialsHp[1,number]-1
+                timer("axe"+I,5000)
+            }
+            
+        }
+        #the part of the loop for those that are cutting said wood.
+        elseif(TG[I,string] == "gathering")
+        {
+            if(GatheringMaterial)
+            {
+                V=(GatheringMaterial:pos()-Tribble:pos())*3
+            }
+            
+            holoCreate(I)
+            
+            if(GatherMatType[1,string]=="tree"){holoModel(I,"models/props_forest/axe.mdl")}
+            elseif(GatherMatType[1,string]=="rock"){holoModel(I,"models/props_mining/pickaxe01.mdl")}
+            elseif(GatherMatType[1,string]=="metal"){holoModel(I,"models/props_forest/circularsaw01.mdl")}
+            
+            holoPos(I,Tribble:pos()+vec(0,0,50))
+            holoAng(I,ang(S,S,S))
+            
+            if(clk("axe"+I))
+            {
+                TG[I,string] = "stock"
+                
+                #create the resource above them.
+                if(GatherMatType[1,string]=="tree")
+                {
+                    holoModel(I,WoodGibs:string(randint(1,WoodGibs:count())))
+                }
+                elseif(GatherMatType[1,string]=="rock")
+                {
+                    holoModel(I,RockGibs:string(randint(1,RockGibs:count())))
+                }
+                elseif(GatherMatType[1,string]=="metal")
+                {
+                    holoModel(I,MetalGibs:string(randint(1,MetalGibs:count())))
+                }
+            }
+        }
+        #the part of the loop for those that need to goto the mill.
+        elseif(TG[I,string] == "stock")
+        {
+            V=(Mill:pos()-Tribble:pos())*1.7
+            
+            #they are fatter on the way back ^_^
+            Tribble:setMass(300)
+            
+            
+            #etc, etc.
+            holoPos(I,Tribble:pos()+vec(0,0,50))
+            holoAng(I,ang(S,S,S))
+            
+            #add them back to the mill if they go near it and 
+            #add a piece of resource to the mill's stock pile
+            if (Tribble:pos():distance(Mill:pos()) < 78 & TG[I, string]!="mill") 
+            {
+                
+                if(GatherMatType[1,string]=="tree"){Wood++}
+                elseif(GatherMatType[1,string]=="rock"){Rock++}
+                elseif(GatherMatType[1,string]=="metal"){Metal++}
+                
+                TG[I,string] = "mill"
+            }
+            
+        }
+        #if they are not in a group, be put into the mill group.
+        elseif(TG[I,string] == "")
+        {
+            TG[I,string] = "mill"
+            Tribble:setColor(255,0,0)
+        }
+        
+    
+        
+        #move the tribbes
+        Tribble:applyForce(V)
+        
+    }
+    
+    
+    
+}
+
+    #Materials array
+    for(T=1,Materials:count())
+    {
+        Material=Materials[T,entity]
+        MaterialHp=MaterialsHp[T,normal]
+        GatherMat=GatherMatType[T,string]
+                
+        #remove the Material and its hp from the arrays if they get removed for whatever reason.
+        if(!Material)
+        {
+            Materials:removeEntity(T)
+            MaterialsHp:removeString(T)
+            GatherMatType:removeString(T)
+        }
+
+        
+        #kill them Materials >:D
+        if(MaterialHp<=0)
+        {
+            Material:propDelete()
+        }
+    }

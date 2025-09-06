@@ -1,0 +1,572 @@
+--@name deflibs/canvas/GUI_Input
+--@author Yours Truly
+
+// Input; editable text
+
+local CollisionDebug = false
+local StockLeft = 0; local StockTop = 0
+local StockWidth = 90; local StockHeight = 30
+local StockText = "Sample Text"; local StockTextSize = 0.24
+local StockPadding = 5
+local StockMin = -50000; local StockMax = 50000
+local StockDecimals = 1
+
+local INClipboard = ""
+
+local PadChars = {
+    KP_END = "1",
+    KP_DOWNARROW = "2",
+    KP_PGDN = "3",
+    KP_LEFTARROW = "4",
+    KP_5 = "5",
+    KP_RIGHTARROW = "6",
+    KP_HOME = "7",
+    KP_UPARROW = "8",
+    KP_PGUP = "9",
+    KP_INS = "0",
+    KP_MINUS = "-",
+    KP_DEL = "."
+}
+
+local function Empty() end
+local Construct = Empty
+local StockDraw = Empty; local StockTextDraw = Empty; local StockCaretDraw = Empty
+local GetNumpadChar = Empty
+
+local Input = {}
+
+-- Create & get new hitbox
+function Input.Create(Canvas, Numeric)
+    return Construct(Canvas, Numeric)
+end
+
+-- Hitbox debug
+function Input:DrawCollision(Active)
+    CollisionDebug = Active
+end
+
+-- Instance creation function
+function Construct(Canvas, Numeric)
+    local inp = {}
+    local box = GUI.Hitbox.Create(inp)
+    local can = Canvas
+    
+    local mat = Matrix()
+    local textMat = Matrix()
+    local caretMat = Matrix()
+    mat:setTranslation(Vector(StockLeft, StockTop))
+    textMat:setTranslation(Vector(StockPadding, 0))
+    caretMat:setTranslation(Vector(0, 0))
+    
+    local w = StockWidth; local h = StockHeight
+    local text = StockText
+    local textSize = StockTextSize
+    local pad = StockPadding
+    local isNumeric = Numeric or false
+    local valueMin = StockMin; local valueMax = StockMax
+    local decimals = StockDecimals
+    local pressed = false; local hovered = false
+    
+    local keyEnum = KEY.NONE
+    local char = 0
+    local editing = false
+    local oldText = ""
+    local scrollRate = 1
+    
+    local Func = Empty
+    local IDraw = StockDraw; local ITextDraw = StockTextDraw; local ICaretDraw = StockCaretDraw
+    
+    local UpdateHitbox = Empty; local ScrollToCaret = Empty
+    local PositionCaret = Empty; local DrawAccessories = Empty
+    local ScrollValue = Empty; local DoClipboard = Empty
+    local HoverHooks = Empty; local TypingHooks = Empty
+    local SetEdit = Empty
+    local Validate = Empty; local Terminate = Empty
+    
+    local OnAny = Empty
+    local TypeKey = Empty; local Backspace = Empty
+    local CharLeft = Empty; local CharRight = Empty
+    local Enter = Empty; local Escape = Empty
+    
+    local HoverAny = Empty
+    local Copy = Empty; local Paste = Empty
+    
+    -- Backend
+    do
+        -- # Utility
+        
+        function UpdateHitbox()
+            local vec = mat:getTranslation()
+            box:SetOrigin(vec.x, vec.y)
+            box:SetSize(w, h)
+        end
+        
+        function ScrollToCaret()
+            if not editing then
+                textMat:setTranslation(Vector(pad, 0))
+                return
+            end
+            
+            local caretX = caretMat:getTranslation().x
+            
+            if caretX > w - pad * 2 then
+                textMat:setTranslation(Vector(-(caretX - (w - pad * 2)), 0))
+            else
+                textMat:setTranslation(Vector(pad, 0))
+            end
+        end
+        
+        function PositionCaret()
+            local caretX, _ = render.getTextSize(string.left(text, char))
+            caretX = caretX * textSize
+            caretMat:setTranslation(Vector(caretX, 0))
+        end
+        
+        function DrawAccessories()
+            render.pushMatrix(textMat, false)
+                ITextDraw(inp)
+                
+                if editing then
+                    render.pushMatrix(caretMat, false)
+                        ICaretDraw(inp)
+                    render.popMatrix()
+                end
+            render.popMatrix()
+        end
+        
+        function ScrollValue(Dir)
+            text = tostring(tonumber(text) + Dir * scrollRate)
+            Validate()
+            Func(text)
+            can:QueueDraw()
+        end
+        
+        function DoClipboard(Content)
+            if Content then
+                INClipboard = Content
+                setClipboardText(Content)
+            else
+                return INClipboard
+            end
+        end
+        
+        function HoverHooks(Active)
+            if Active then
+                if isNumeric then hook.add(GUI.EVENT.MOUSE_SCROLL, "input-scroll", ScrollValue) end
+                hook.add("InputPressed", "input-accept-hover", HoverAny)
+            else
+                hook.remove(GUI.EVENT.MOUSE_SCROLL, "input-scroll")
+                hook.remove("InputPressed", "input-accept-hover")
+            end
+        end
+        
+        function TypingHooks(Active)
+            if Active then
+                hook.add("InputPressed", "input-accept", OnAny)
+            else
+                hook.remove("InputPressed", "input-accept")
+            end
+        end
+        
+        function SetEdit(Active)
+            editing = Active
+            GUI:AutoLockControls(Active)
+            TypingHooks(Active)
+            //inp:Hover(not Active)
+            
+            if Active then
+                HoverHooks(false)
+                char = #text
+                PositionCaret()
+                ScrollToCaret()
+            else
+                textMat:setTranslation(Vector(pad, 0))
+            end
+            can:QueueDraw()
+        end
+        
+        function Validate()
+            numeric = tonumber(text)
+            
+            if numeric == nil then
+                text = oldText
+                return
+            end
+            
+            numeric = math.clamp(numeric, valueMin, valueMax)
+            text = tostring(math.round(numeric, decimals))
+        end
+        
+        function Terminate(CallFunc)
+            SetEdit(false)
+            if isNumeric then Validate() end
+            if CallFunc then Func(text) end
+            inp:Hover(false)
+        end
+        
+        -- # Typing
+        
+        function OnAny(Key)
+            keyEnum = Key
+            
+            if TypeKey() then
+            elseif Backspace() then
+            elseif CharLeft() then
+            elseif CharRight() then
+            elseif Enter() then
+            elseif Escape() then
+            end
+            
+            PositionCaret()
+            ScrollToCaret()
+            can:QueueDraw()
+        end
+        
+        function TypeKey()
+            local arg = input.getKeyName(keyEnum)
+            
+            local padChar = GetNumbpadChar(arg)
+            if padChar then arg = padChar end
+            
+            if string.len(arg) == 1 or keyEnum == KEY.SPACE then
+                
+                if keyEnum == KEY.SPACE then
+                    arg = " "
+                elseif input.isKeyDown(KEY.LSHIFT) then
+                    arg = string.upper(arg)
+                end
+                
+                if char < #text then
+                    local toEnd = #text - char
+                    local toBegin = #text - toEnd
+                    
+                    local left = ""
+                    if toBegin > 0 then left = string.left(text, toBegin) end
+                    
+                    text = left .. arg .. string.right(text, toEnd)
+                else
+                    text = string.setChar(text, char + 1, arg)
+                end
+                
+                char = char + 1
+                
+                return true
+            end
+            
+            return false
+        end
+        
+        function Backspace()
+            if keyEnum == KEY.BACKSPACE then
+                text = string.setChar(text, math.max(char, 1), "")
+                char = math.max(char - 1, 0)
+                return true
+            end
+            return false
+        end
+        
+        function CharLeft()
+            if keyEnum == KEY.LEFT then
+                char = math.max(char - 1, 0)
+                return true
+            end
+            return false
+        end
+        
+        function CharRight()
+            if keyEnum == KEY.RIGHT then
+                char = math.min(char + 1, #text)
+                return true
+            end
+            return false
+        end
+        
+        function Enter()
+            if keyEnum == KEY.ENTER or keyEnum == KEY.PAD_ENTER then
+                Terminate(true)
+                return true
+            end
+            return false
+        end
+        
+        function Escape()
+            if keyEnum == MOUSE.RIGHT then
+                text = oldText
+                Terminate(false)
+                return true
+            end
+            return false
+        end
+        
+        -- # Hover
+        
+        function HoverAny(Key)
+            keyEnum = Key
+            
+            if Copy() then
+            elseif Paste() then
+            end
+        end
+        
+        function Copy()
+            if keyEnum == KEY.C and input.isKeyDown(KEY.LCONTROL) then
+                DoClipboard(text)
+                return true
+            end
+            return false
+        end
+        
+        function Paste()
+            if keyEnum == KEY.V and input.isKeyDown(KEY.LCONTROL) then
+                oldText = text
+                text = DoClipboard()
+                Terminate(true)
+                return true
+            end
+            return false
+        end
+    end
+    
+    -- Class functions
+    
+    function inp:SetOrigin(X, Y)
+        mat:setTranslation(Vector(X, Y))
+        UpdateHitbox()
+    end
+    
+    function inp:SetSize(W, H)
+        w = W
+        h = H
+        UpdateHitbox()
+    end
+    
+    function inp:SetPadding(Padding)
+        pad = Padding
+    end
+    
+    function inp:SetTextSize(Size)
+        textSize = Size
+        can:QueueDraw()
+    end
+    
+    function inp:SetFunc(NewFunc)
+        Func = NewFunc
+    end
+    
+    function inp:SetValue(Value)
+        oldText = text
+        text = Value
+        Terminate(false)
+        can:QueueDraw()
+    end
+    
+    function inp:Trigger(Value)
+        self:SetValue(Value)
+        Func(text)
+    end
+    
+    function inp:SetScrollRate(NewRate)
+        scrollRate = NewRate
+    end
+    
+    function inp:SetRange(Min, Max)
+        valueMin = Min
+        valueMax = Max
+    end
+    
+    function inp:SetDecimals(Decimals)
+        decimals = Decimals
+    end
+    
+    function inp:SetDraw(Func)
+        IDraw = Func
+    end
+    
+    function inp:SetTextDraw(Func)
+        ITextDraw = Func
+    end
+    
+    function inp:SetCaretDraw(Func)
+        ICaretDraw = Func
+    end
+    
+    function inp:Press(Pressed)
+        pressed = Pressed
+        
+        if Pressed then
+            oldText = text
+            SetEdit(true)
+        end
+        
+        can:QueueDraw()
+    end
+    
+    function inp:Hover(Hovered)
+        hovered = Hovered
+        
+        if hovered then
+            if not editing then HoverHooks(true) end
+        else
+            HoverHooks(false)
+        end
+        
+        can:QueueDraw()
+    end
+    
+    function inp:Draw()
+        render.pushMatrix(mat, false)
+            IDraw(self)
+            
+            render.setStencilEnable(true)
+            GUI.Stencil:Reset()
+            GUI.Stencil:SetMask(function() render.drawRect(pad, 0, w - pad * 2, h) end)
+            GUI.Stencil:DrawMasked(DrawAccessories)
+            render.setStencilEnable(false)
+        render.popMatrix()
+        
+        if CollisionDebug then self:DrawAABB() end
+    end
+    
+    function inp:DrawAABB()
+        local bx, by, bw, bh = box:GetXYWH()
+        render.setColor(Color(255, 255, 255))
+        render.drawRectOutline(bx, by, bw, bh, 2)
+    end
+    
+    -- # Getters
+    
+    function inp:GetHitbox() return box end
+    
+    function inp:GetOrigin()
+        local vec = mat:getTranslation()
+        return vec.x, vec.y
+    end
+    
+    function inp:GetSize() return w, h end
+    
+    function inp:GetPadding() return pad end
+    
+    function inp:GetText() return text end
+    
+    function inp:GetTextSize() return textSize end
+    
+    function inp:GetValue() return tonumber(text) end
+    
+    function inp:GetEditing() return editing end
+    
+    function inp:GetPressed() return pressed end
+    
+    function inp:GetHovered() return hovered end
+    
+    UpdateHitbox()
+    return inp
+end
+
+-- Toggle editor keybinds
+function GetNumbpadChar(KeyName)
+    if PadChars[KeyName] then return PadChars[KeyName] end
+end
+
+-- Default drawing function
+function StockDraw(INP)
+    local col = Color(100, 100, 100)
+    
+    if INP:GetPressed() then
+        if INP:GetHovered() then
+            col = Color(80, 80, 80)
+        else
+            col = Color(60, 60, 60)
+        end
+    elseif INP:GetHovered() then
+        col = Color(120, 120, 120)
+    end
+    
+    local width, height = INP:GetSize()
+    local radius = math.min(width, height) * 0.4
+    local mat = Matrix()
+    mat:setScale(Vector(0.25, 0.25))
+    
+    render.pushMatrix(mat, false)
+        render.setColor(Color(0, 0, 0))
+        render.drawRoundedBox(radius, 0, 0, width * 4, height * 4)
+        render.setColor(col)
+        render.drawRect(16, 16, (width - 8) * 4, (height - 8) * 4)
+    render.popMatrix()
+end
+
+function StockTextDraw(INP)
+    render.setFont(GUI:GetFont())
+    local col = Color(0, 0, 0)
+    if INP:GetEditing() or INP:GetHovered() then
+        col = Color(180, 180, 180)
+    end
+    
+    local _, height = INP:GetSize()
+    local _, textHeight = render.getTextSize(INP:GetText())
+    textHeight = textHeight * INP:GetTextSize()
+    local mat = Matrix()
+    mat:setTranslation(Vector(0, math.remap(textHeight, 0, height, height * 0.5, 0)))
+    mat:setScale(Vector(INP:GetTextSize(), INP:GetTextSize()))
+    
+    render.pushMatrix(mat, false)
+        render.setColor(col)
+        render.drawText(0, 0, INP:GetText(), TEXT_ALIGN.LEFT)
+    render.popMatrix()
+end
+
+function StockCaretDraw(INP)
+    local _, height = INP:GetSize()
+    
+    render.setColor(Color(180, 180, 180))
+    render.drawRect(0, INP:GetPadding(), 4, height - INP:GetPadding() * 2)
+end
+
+-- # Stock overrides
+
+local StockText = "Sample Text"; local StockTextSize = 0.24
+local StockPadding = 5
+
+function Input:SetOrigin(X, Y)
+    StockLeft = X
+    StockTop = Y
+end
+
+function Input:SetSize(W, H)
+    StockWidth = W
+    StockHeight = H
+end
+
+function Input:SetPadding(Padding)
+    StockPadding = Padding
+end
+
+function Input:SetText(Text)
+    StockText = Text
+end
+
+function Input:SetTextSize(TextSize)
+    StockTextSize = TextSize
+end
+
+function Input:SetRange(Min, Max)
+    StockMin = Min
+    StockMax = Max
+end
+
+function Input:SetDecimals(Decimals)
+    StockDecimals = Decimals
+end
+
+function Input:SetDraw(Func)
+    StockDraw = Func
+end
+
+function Input:SetTextDraw(Func)
+    StockTextDraw = Func
+end
+
+function Input:SetCaretDraw(Func)
+    StockCaretDraw = Func
+end
+
+return Input

@@ -1,0 +1,81 @@
+@name RH-18B Heading Hold control
+@inputs Hub:wirelink W S A D On Space Shift Mouse1 Mouse2 Active
+@outputs Constant Damping HydroForward HydroBackwards HydroLeft HydroRight TailThruster
+@outputs VerticalSpeed Velocity CollectivePercentage RotorRPM Start
+@persist Collective Throttle Roll P R Start
+
+interval(10)
+
+#Entities
+
+E = entity()
+
+H = Hub:entity()
+
+#Hydraulic constants
+
+Constant = 15000
+Damping = 350
+
+#Angular velocities
+
+Sp = E:angVel():roll()/100
+Sr = E:angVel():pitch()/100
+
+#Pitch and roll accumulators ( target angle )
+P = (Sp + (W - S)/4 + P)*Active
+R = (Sr + (A - D)/4 + R)*Active
+
+#Pitch and roll inputs
+Pi = clamp( 5*Sp + P + $Sp*6 , -12 , 12 ) 
+Ri = clamp( 5*Sr + R + $Sr*6 , -12 , 12 )
+ 
+#Phase angle
+F = 40
+
+#Pitch control. 
+Pitch =  Pi*cos(F) - Roll*sin(F) 
+
+#Pitch control. 
+Roll =  Ri*cos(F) + Pitch*sin(F) 
+
+#Collective control. 
+Collective = clamp((Space - Shift)/10 + Collective, -11,11)
+
+#Individual hydraulic length
+
+Length = 24 + Collective
+
+HydroForward = Length - Pitch
+HydroBackwards = Length + Pitch
+HydroLeft = Length - Roll
+HydroRight = Length + Roll
+
+#Tail thruster
+
+TailThruster = (Mouse1 - Mouse2)*320 - E:angVel():yaw()*5
+
+#Throttle control
+
+if(~On & On) {Start = !Start}
+
+Throttle = clamp((Start/300 + Throttle)*Start,0,1)
+
+#Rotor Torque
+
+AngVel = H:angVel():yaw()
+
+H:applyAngForce( 1500*Start*ang(0, -Throttle*1800 - AngVel , 0) )
+
+#Screen outputs
+
+V = E:velL()
+
+Velocity = toUnit( "km/h" , V:length() )
+
+VerticalSpeed = toUnit( "m/s" , V:z() )
+
+RotorRPM = abs(AngVel)/6
+
+CollectivePercentage = Collective*100/11
+

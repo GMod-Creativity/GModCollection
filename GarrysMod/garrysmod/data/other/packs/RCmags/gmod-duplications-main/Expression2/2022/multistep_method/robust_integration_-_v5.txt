@@ -1,0 +1,49 @@
+@name Robust integration - v4
+@inputs E:entity
+@outputs Accel:vector
+
+# Constants
+@persist GAIN MASS DT
+
+# Past values
+@persist [Y1 Y2 Y3 Y4]:vector
+
+@trigger 
+
+# Acceleration
+if( first() ) {
+    # Constants
+    DT = tickInterval()
+    MASS = E:mass() 
+    
+    # Functions
+    GAIN = 4.8
+        # acceleration function    
+    function vector accel(Vel:vector) {
+        return -GAIN * Vel
+    }
+}
+
+#=== Iterated code
+runOnTick(1)
+
+# 1. Input state
+Y0 = E:vel() 
+
+# 2. Update scheme 
+    # Combination of past states
+K = Y0*(6/10) + Y1*(3/10) + Y2*(1/10) + Y3*(0/10) + Y4*(0/10)
+    #   Gmax = 5: 6/10, 3/10, 1/10
+
+# Store past velocities
+Y4 = Y3
+Y3 = Y2
+Y2 = Y1
+Y1 = Y0
+
+# 3. Acceleration at next time step 
+Accel = accel(K)
+
+# Induce acceleration
+E:applyForce( MASS * Accel )
+

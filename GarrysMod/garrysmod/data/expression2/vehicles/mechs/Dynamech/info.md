@@ -1,6 +1,11 @@
-- Author: Techni
-- Date: 10-09-2010
+- Author: Technicolour (Techni)
+- Steam Profile: https://steamcommunity.com/profiles/76561197983168201
+- Youtube: https://www.youtube.com/@Technicolour777
+<!-- -->
 - Title: Dynamech
+- Date (dd-mm-yyyy): 09-10-2010
+- Source: https://web.archive.org/web/20160612220227/http://www.wiremod.com:80/forum/finished-contraptions/23039-dynamech.html
+- Source Accessed (dd-mm-yyyy): 04-09-2025
 
 ## Dynamech
 

@@ -1,0 +1,99 @@
+@name Npc Avatar
+@outputs Eyes:vector Angle:angle On Fire
+@persist Avatar:entity User:entity Pod:entity On Eyes:vector Gated
+
+if (first()) {
+    holoCreate(1, vec())
+    holoColor(1, vec(0, 0, 0))
+    holoModel(1, "hq_icosphere")
+    holoScale(1, vec(0.1, 0.1, 0.1))
+    User = ioOutputEntities("Fire")[1, entity]
+    Pod = entity():isWeldedTo()
+}
+#Gate finder function for event horizon navigation
+function entity vector:findGate() {
+    findInSphere(This, 200)
+    for (I = 0, findToArray():count()) {
+        if (findToArray()[I, entity]:type():find("stargate")) {
+            return findToArray()[I, entity]
+        }
+    }
+}
+# Generic values
+On = Avatar:isAlive() & Pod:driver() == owner()
+Eyes = Avatar:pos()+(vec(0, 0, 68))
+Angle = owner():eyeAngles()
+AimAngle = owner():eyeAngles():setPitch(0)
+AimPos = toWorld(vec(100000000, 0, 68), ang(), Eyes, AimAngle)
+
+# Set the avatar and update user, blink included
+if (owner():keyUse() & owner():aimEntity():isNPC()) {
+    Avatar:setColor(vec(250, 250, 250))
+    Avatar = owner():aimEntity()
+    Avatar:setColor(vec(0, 250, 0))
+    timer("De-mark", 1000)
+    
+    User = ioOutputEntities("Fire")[1, entity]
+    User:setAlpha(0)
+}
+if (clk("De-mark")) {
+    Avatar:setColor(vec(250, 250, 250))
+}
+
+# Main section
+if (On) {
+    interval(300)
+    runOnTick(1)
+    # Detect viewpos and set user angles accordingly
+    rangerFilter(User)
+    rangerFilter(Avatar) 
+    UsePos = rangerOffset(200, Eyes, Angle:forward()):position()
+    User:setPos(Avatar:toWorld(vec(10, 0, 68)))
+    UserAng = (UsePos - User:pos()):toAngle() + ang(90, 0, 0)
+    User:setAng(UserAng)
+    
+    # If it looks like we just teleported, find the nearest gate and get the hell away from it.
+    if (($Eyes):length()>200) {
+        Gated = 1
+        timer("NotGated", 1500)
+        Avatar:npcGoRun(Eyes:findGate():toWorld(vec(100, 0, 0)))
+    }
+    # If it doesn't, go wherever we want
+    if (clk() & !Gated) {
+        local Target = vec()
+        if (owner():keyForward()) {
+            Target = Avatar:toWorld(vec(150, 0, 68))
+        }
+        elseif (owner():keyAttack2()) {
+            Target = UsePos
+        }
+        elseif (owner():keyReload()) {
+            # Smoothly walk into nearest gate
+            Target = Eyes:findGate():pos()
+        }
+        else {
+            Avatar:npcStop()
+        }
+        Avatar:npcGoRun(Target)
+    }
+    # Set avatar view direction, tell the user to fire or not
+    Avatar:npcFace(AimPos-Eyes)
+    Fire = owner():keyAttack1()
+    # If no user is found, alert the player
+    if (User:type() != "gmod_wire_user" & $On) {
+        print("Warning: User unavailable")
+    }
+}
+else {
+    runOnTick(0)
+    interval(100)
+    if ($On) {User:setPos(Pod:pos())}
+}
+# Return control to player after fleeing gate
+if (clk("NotGated")) {
+    Gated = 0
+}
+# Set the aimpos indicator
+holoPos(1, UsePos)
+holoAlpha(1, On * 250)
+# Repeat

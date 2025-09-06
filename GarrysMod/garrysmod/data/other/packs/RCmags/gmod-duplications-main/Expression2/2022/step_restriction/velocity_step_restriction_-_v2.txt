@@ -1,0 +1,56 @@
+@name Velocity Step Restriction - local velocity
+@inputs E:entity
+@outputs Xms Xn Ratio
+@persist DT_MS DT MASS
+@persist Xn Ratio LMAX
+@trigger 
+
+# First call
+if( first() ) {
+    #--- Constants ---
+    DT_MS = 10
+    DT = DT_MS * 1e-3
+        
+    # Decay ratio 
+    Ratio = 0
+    LMAX = 1.5
+        
+    #--- Functions ----
+
+        # Ode function - feedback
+    function number ode(X) {        
+        return -sign(X)* X^2 * 0.01 / DT
+    }
+    
+    #--- Set Prop velocity ---
+    function void setVelocity( Vel:vector ) {
+        Impulse = E:mass() * ( Vel - E:vel() )
+        E:applyForce( Impulse )
+    }
+} # end, First call
+
+# Iterate
+interval(DT_MS)
+
+# 1. Measure velocity
+Xms = E:velL():z()
+
+# 2. Estimate next state
+Xn = Xms + DT*ode(Xms)
+
+# 3. Clamp velocity change (stable)
+    # |X - Xn| > |dt*dxdt| > 0  --> Velocity must decay
+# Measure decay rate of estimate
+if( Xms != 0 ) {
+    Ratio = 1 - Xn/Xms
+} 
+
+# Restrict decay of target state
+if( Ratio > LMAX ) {  
+    Xn = Xms * (1 - LMAX)    
+}
+
+# 4. Set Prop state   [Must come after velocity measurement, or blocks measurement]
+Vel = E:vel() + (Xn - Xms)*E:up()
+
+setVelocity( Vel )

@@ -1,0 +1,77 @@
+#Notes: - Green rotor is Rotor A
+#       - Forward is with the control E2 infront of the nacelle
+
+@name Nacelle rotor control
+    
+#Torque inputs
+@inputs [RotorA RotorB]:wirelink
+    
+#Bearing intputs
+@inputs [MarkerA MarkerB]:entity
+
+#Control inputs
+@inputs Pitch Roll Collective Power
+
+#Hydraulic settings
+@outputs Constant Damping
+
+#Top rotor A 
+@outputs A1 A2 A3
+
+#Bottom rotor B
+@outputs B1 B2 B3
+
+@persist On Throttle
+
+interval(10)
+
+#Hydraulic settings:
+
+Constant = 6000
+Damping = 200
+
+#Common hydraulic length:
+
+L = 35 + Collective
+
+#E2 entity position 
+
+P = entity():pos()
+
+#Rotor A bearing:
+
+BA = MarkerA:bearing( P ) 
+
+#-Rotor A hydraulic lengths
+
+A1 = clamp( L + sin(BA)*Pitch - cos(BA)*Roll , 5 ,42 )
+A2 = clamp( L + sin(BA + 120)*Pitch - cos(BA + 120)*Roll , 5 , 42 )
+A3 = clamp( L + sin(BA + 240)*Pitch - cos(BA + 240)*Roll , 5, 42 )
+
+#Rotor B bearing:
+
+BB = MarkerB:bearing( P )
+
+#-Rotor B hydraulic lengths
+
+B1 = clamp( L + sin(BB)*Pitch + cos(BB)*Roll , 5 , 42 )
+B2 = clamp( L + sin(BB + 120)*Pitch + cos(BB + 120)*Roll , 5, 42 )
+B3 = clamp( L + sin(BB + 240)*Pitch + cos(BB + 240)*Roll , 5, 42 )
+
+#Torque applied to both rotors:
+
+#-Power toggle
+
+if(~Power & Power) { On = !On }
+
+#-Throttle control          
+
+Throttle = clamp(On*10 + Throttle ,0, 1800)*On 
+
+RA = RotorA:entity()
+
+RA:applyAngForce( On*2500*ang(Throttle - RA:angVel():pitch() ,0 ,0) )
+
+RB = RotorB:entity()
+
+RB:applyAngForce( On*2500*ang(Throttle - RB:angVel():pitch() ,0 ,0) )

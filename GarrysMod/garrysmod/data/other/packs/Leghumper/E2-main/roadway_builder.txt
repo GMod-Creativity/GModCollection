@@ -1,0 +1,119 @@
+@name Roadway Builder
+@inputs 
+@outputs 
+@persist [Holo Ent LastPlaced ModelIndex Models Angle Offset CurvedLast] 
+@trigger 
+
+if (first()) {
+    # Initialize models
+    Models = array(
+        "models/props_phx/huge/road_short.mdl",
+        "models/props_phx/huge/road_medium.mdl",
+        "models/props_phx/huge/road_long.mdl",
+        "models/props_phx/huge/road_curve.mdl"
+    )
+    ModelIndex = 1
+    Angle = 0
+    Offset = vec(0, 0, 0)
+    CurvedLast = 0
+    
+    # Create hologram
+    Holo = hologramCreate(Models[ModelIndex], vec(0, 0, 0), ang(0, 0, 0))
+    Holo:setColor(vec(0, 255, 0))
+    Holo:alpha(150)
+    
+    # Bind inputs
+    bind("reload", "rotate")
+    bind("attack1", "place")
+    bind("attack2", "change_model")
+}
+
+function void rotate() {
+    if (!Holo) return
+    Angle = (Angle + 90) % 360
+    updateHoloPos()
+}
+
+function void change_model() {
+    ModelIndex = ModelIndex % 4 + 1
+    Holo:setModel(Models[ModelIndex])
+    updateHoloPos()
+}
+
+function void place() {
+    if (!Holo) return
+    
+    # Get hologram position and angle
+    local Pos = Holo:pos()
+    local Ang = Holo:angles()
+    
+    # Spawn the actual model
+    LastPlaced = propSpawn(Models[ModelIndex], Pos, Ang)
+    
+    # Update curved state
+    if (ModelIndex == 4) { # Curve model
+        CurvedLast = Angle
+    } else {
+        CurvedLast = 0
+    }
+    
+    # Update hologram position for next piece
+    updateHoloPos()
+}
+
+function void updateHoloPos() {
+    if (!Holo) return
+    
+    # If we haven't placed anything yet, follow cursor
+    if (!LastPlaced) {
+        Holo:setPos(owner:aimPos() + vec(0, 0, 5))
+        Holo:setAng(ang(0, owner:aimAng():yaw() + Angle, 0))
+        return
+    }
+    
+    # Calculate offset based on model type and angle
+    local BaseOffset = vec(0, 0, 0)
+    local ModelName = Models[ModelIndex]
+    
+    # Straight pieces
+    if (ModelIndex <= 3) {
+        if (Angle == 0 || Angle == 180) {
+            # Forward/backward
+            BaseOffset:setX(select(ModelIndex, 128, 256, 512))
+        } else {
+            # Left/right
+            BaseOffset:setY(select(ModelIndex, 128, 256, 512))
+        }
+        
+        # Apply angle rotation
+        if (Angle == 90) BaseOffset = vec(BaseOffset:y(), -BaseOffset:x(), 0)
+        if (Angle == 180) BaseOffset = vec(-BaseOffset:x(), -BaseOffset:y(), 0)
+        if (Angle == 270) BaseOffset = vec(-BaseOffset:y(), BaseOffset:x(), 0)
+    } 
+    # Curve piece
+    else if (ModelIndex == 4) {
+        local CurveOffset = vec(128, 128, 0)
+        
+        # Adjust for last piece being a curve
+        if (CurvedLast != 0) {
+            if (CurvedLast == 0) CurveOffset = vec(128, 128, 0)
+            if (CurvedLast == 90) CurveOffset = vec(-128, 128, 0)
+            if (CurvedLast == 180) CurveOffset = vec(-128, -128, 0)
+            if (CurvedLast == 270) CurveOffset = vec(128, -128, 0)
+        }
+        
+        BaseOffset = CurveOffset
+    }
+    
+    # Apply offset to last placed entity
+    local NewPos = LastPlaced:pos() + BaseOffset
+    local NewAng = ang(0, LastPlaced:angles():yaw() + Angle, 0)
+    
+    Holo:setPos(NewPos)
+    Holo:setAng(NewAng)
+}
+
+# Keep hologram updated
+if (clk("rotate")) rotate()
+if (clk("place")) place()
+if (clk("change_model")) change_model()

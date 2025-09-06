@@ -1,6 +1,9 @@
 - Author: CPcoder
-- Date: 08-08-2014
+<!-- -->
 - Title: [E2] Teleporter EGP Console
+- Date (dd-mm-yyyy): 08-08-2014
+- Source: https://web.archive.org/web/20150508102015/http://www.wiremod.com:80/forum/finished-contraptions/33417-e2-teleporter-egp-console.html
+- Source Accessed (dd-mm-yyyy): 29-08-2025
 
 ## [E2] Teleporter EGP Console
 
@@ -12,9 +15,12 @@ I've been working with wiremod for the past two weeks or so. I started learning 
 
 The Teleport TouchScreen Monitor:
 
+If you're wondering here is the link to the video:
+https://web.archive.org/web/20180114213006/https://www.youtube.com/watch?v=LHe7eEIiKvU
+
 I got this idea from watching a youtube video of a spacebuild creation where the guy had tons of console such as these for weapons and Life Support and such. I Did not directly copy any of his code instead created my own TouchScreen Teleporter using the same Techniques.
 
-Wiring
+**Wiring**
 Inputs: EGP -> EGP Screen,User -> EGP Screen
 Outputs: Jump <- Teleporter(Jump),JumpPos <- Teleporter(TargetPos)
 

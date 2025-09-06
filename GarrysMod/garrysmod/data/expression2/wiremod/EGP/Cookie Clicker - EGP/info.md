@@ -1,7 +1,14 @@
 - Author: akrasuski1
-- Date: 08-24-2014
+- Steam Profile: https://steamcommunity.com/profiles/76561197992553403
+<!-- -->
 - Title: Cookie Clicker - EGP
+- Date (dd-mm-yyyy): 24-08-2014
+- Source: https://web.archive.org/web/20150509081748/http://www.wiremod.com/forum/finished-contraptions/33484-cookie-clicker-egp.html
+- Source Accessed (dd-mm-yyyy): 30-08-2025
 
 ## Title: Cookie Clicker - EGP
 
 Hello, this is my version of Cookie Clicker game (originally by Orteil).
+
+- Cookie_Clicker.txt
+- cookie_functions.txt

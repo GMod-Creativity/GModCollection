@@ -1,0 +1,282 @@
+--@name deflibs/canvas/GUI_Dropdown
+--@author Yours Truly
+
+// Dropdown; a dropdown menu
+
+local CollisionDebug = false
+local StockLeft = 0; local StockTop = 0
+local StockWidth = 120; local StockHeight = 40
+local StockPadding = 4
+local StockText = "Sample Text"; local StockTextSize = 0.24
+
+local function Empty() end
+local Construct = Empty
+local StockDraw = Empty; local StockTextDraw = Empty
+
+local Dropdown = {}
+
+-- Create & get new hitbox
+function Dropdown.Create(Canvas)
+    return Construct(Canvas)
+end
+
+-- Hitbox debug
+function Dropdown:DrawCollision(Active)
+    CollisionDebug = Active
+end
+
+-- Instance creation function
+function Construct(Canvas)
+    local dd = {}
+    local box = GUI.Hitbox.Create(dd)
+    local can = Canvas
+    
+    local mat = Matrix()
+    mat:setTranslation(Vector(StockLeft, StockTop))
+    local textMat = Matrix()
+    textMat:setTranslation(Vector(0, 0))
+    
+    local w = StockWidth; local h = StockHeight
+    local pad = StockPadding
+    local text = StockText; local textSize = StockTextSize
+    local options = {}
+    local pressed = false; local hovered = false
+    local foldout = false
+    
+    local sel = 0
+    
+    local Func = Empty
+    local IDraw = StockDraw; local ITextDraw = StockTextDraw
+    
+    local function UpdateHitbox()
+        if foldout then
+            local vec = mat:getTranslation()
+            box:SetOrigin(vec.x, vec.y)
+            box:SetSize(w, h * (1 + #options))
+        else
+            local vec = mat:getTranslation()
+            box:SetOrigin(vec.x, vec.y)
+            box:SetSize(w, h)
+        end
+    end
+    
+    local function DrawAllOptions()
+        for k, tab in ipairs(options) do
+            textMat:setTranslation(Vector(0, k * h))
+            render.pushMatrix(textMat, false)
+                ITextDraw(dd, tab[1], sel == k)
+            render.popMatrix()
+        end
+        textMat:setTranslation(Vector(0, 0))
+    end
+    
+    local function GetOption()
+        local _, cy = can:GetCursorPos()
+        local oldSel = sel
+        sel = math.floor((cy - mat:getTranslation().y) / h)
+        if oldSel != sel then can:QueueDraw() end
+    end
+    
+    local function Fold(Active)
+        foldout = Active
+        UpdateHitbox()
+        
+        if Active then
+            hook.add(GUI.EVENT.UPDATE, "dropdown-update", GetOption)
+        else
+            hook.remove(GUI.EVENT.UPDATE, "dropdown-update")
+        end
+    end
+    
+    -- Class functions
+    
+    function dd:SetOrigin(X, Y)
+        mat:setTranslation(Vector(X, Y))
+        UpdateHitbox()
+    end
+    
+    function dd:SetSize(W, H)
+        w = W
+        h = H
+        UpdateHitbox()
+    end
+    
+    function dd:SetOptions(Options)
+        options = Options
+    end
+    
+    function dd:SetPadding(Padding)
+        pad = Padding
+    end
+    
+    function dd:SetText(Text)
+        text = Text
+    end
+    
+    function dd:SetTextSize(TextSize)
+        textSize = TextSize
+    end
+    
+    function dd:SetDraw(Func)
+        IDraw = Func
+    end
+    
+    function dd:SetTextDraw(Func)
+        ITextDraw = Func
+    end
+    
+    function dd:Press(Pressed)
+        if Pressed then
+            if not foldout then 
+                Fold(true)
+            elseif sel > 0 then
+                options[sel][2]()
+                Fold(false)
+            end
+        end
+        can:QueueDraw()
+    end
+    
+    function dd:Hover(Hovered)
+        hovered = Hovered
+        if not hovered then Fold(false) end
+        can:QueueDraw()
+    end
+    
+    function dd:Draw()
+        render.pushMatrix(mat, false)
+            IDraw(self)
+            render.pushMatrix(textMat, false)
+                ITextDraw(self, text)
+            render.popMatrix()
+            
+            if foldout then DrawAllOptions() end
+        render.popMatrix()
+        if CollisionDebug then self:DrawAABB() end
+    end
+    
+    function dd:DrawAABB()
+        local bx, by, bw, bh = box:GetXYWH()
+        render.setColor(Color(255, 255, 255))
+        render.drawRectOutline(bx, by, bw, bh, 2)
+    end
+    
+    -- # Getters
+    
+    function dd:GetHitbox() return box end
+    
+    function dd:GetOrigin()
+        local vec = mat:getTranslation()
+        return vec.x, vec.y
+    end
+
+    function dd:GetSize() return w, h end
+    
+    function dd:GetHeight()
+        if foldout then
+            return h * (1 + #options)
+        else
+            return h
+        end
+    end
+    
+    function dd:GetPadding() return pad end
+    
+    function dd:GetText() return text end
+    
+    function dd:GetTextSize() return textSize end
+    
+    function dd:GetPressed() return pressed end
+    
+    function dd:GetHovered() return hovered end
+    
+    UpdateHitbox()
+    return dd
+end
+
+-- # Default drawing functions
+
+function StockDraw(DD)
+    local col = Color(100, 100, 100)
+    
+    if DD:GetPressed() then
+        if DD:GetHovered() then
+            col = Color(80, 80, 80)
+        else
+            col = Color(60, 60, 60)
+        end
+    elseif DD:GetHovered() then
+        col = Color(120, 120, 120)
+    end
+    
+    local width, minHeight = DD:GetSize()
+    local height = DD:GetHeight()
+    local radius = math.min(width, minHeight) * 0.4
+    local mat = Matrix()
+    mat:setScale(Vector(0.25, 0.25))
+    
+    render.pushMatrix(mat, false)
+        render.setColor(Color(0, 0, 0))
+        render.drawRoundedBox(radius, 0, 0, width * 4, height * 4)
+        render.setColor(col)
+        render.drawRoundedBox(radius, 16, 16, (width - 8) * 4, (height - 8) * 4)
+    render.popMatrix()
+end
+
+function StockTextDraw(DD, Text, Hovered)
+    local col = Color(0, 0, 0)
+    if Hovered then
+        col = Color(180, 180, 180)
+    elseif Text == DD:GetText() and DD:GetHovered() then
+        col = Color(180, 180, 180)
+    end
+    render.setFont(GUI:GetFont())
+    
+    local width, height = DD:GetSize()
+    local pad = DD:GetPadding()
+    local scale, _, textHeight = GUI.ScaleText(Text, width - pad, height - pad, DD:GetTextSize())
+    local yPos = math.remap(textHeight * scale, 0, height - pad, height * 0.5, pad * 0.5)
+    
+    local mat = Matrix()
+    mat:setTranslation(Vector(width * 0.5, yPos))
+    mat:setScale(Vector(scale, scale))
+    
+    render.pushMatrix(mat, false)
+        render.setColor(col)
+        render.drawText(0, 0, Text, TEXT_ALIGN.CENTER)
+    render.popMatrix()
+end
+
+-- # Stock overrides
+
+function Dropdown:SetOrigin(X, Y)
+    StockLeft = X
+    StockTop = Y
+end
+
+function Dropdown:SetSize(W, H)
+    StockWidth = W
+    StockHeight = H
+end
+
+function Dropdown:SetPadding(Padding)
+    StockPadding = Padding
+end
+
+function Dropdown:SetText(Text)
+    StockText = Text
+end
+
+function Dropdown:SetTextSize(TextSize)
+    StockTextSize = TextSize
+end
+
+function Dropdown:SetDraw(Func)
+    StockDraw = Func
+end
+
+function Dropdown:SetTextDraw(Func)
+    StockTextDraw = Func
+end
+
+return Dropdown

@@ -1,6 +1,6 @@
 - Author: THE MINGEBAGS ARE COMIN
 - Steam Profile: https://steamcommunity.com/profiles/76561198061916037
-
+<!-- -->
 - Title: [E2] Anti workshop dupesteal
 - Date (dd-mm-yyyy): 02-01-2015
 - Source: https://web.archive.org/web/20150315025918/http://www.wiremod.com:80/forum/finished-contraptions/33872-e2-anti-workshop-dupesteal.html
@@ -9,11 +9,13 @@
 ## [E2] Anti workshop dupesteal
 
 If you've ever browsed the workshop dupes, you know it's a mess. The dupes are either stolen or useless one-entity dupes such as weapons from an addon you probably don't even have. This E2 aims to eliminate the stolen wiremod dupes by preventing skids from taking the credit for your work. Important note:
-This only works with servers that have wiremod
 
-It's only useful for protecting wire dupes.
+**This only works with servers that have wiremod**
+
+**It's only useful for protecting wire dupes.**
 
 Usage:
+
 1. Create your wiremod dupe
 2. Paste the E2 on it
 3. Upload it to the workshop

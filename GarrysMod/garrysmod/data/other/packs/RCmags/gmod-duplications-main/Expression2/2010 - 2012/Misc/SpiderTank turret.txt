@@ -1,0 +1,320 @@
+@name Tank Chip Simple V3
+@inputs Pod:entity Gun:entity Active GunLock 
+@outputs XHVec:vector Debug GunLatch 
+@persist Dran:ranger XH:ranger User:entity A HoloOpacity
+@persist Exclude 
+@persist [Trig Sam Sac Fac Trig3 ET ET2]:vector
+@persist TrigTX TrigTY TrigTZ TrigY TrigX TrigZ TrigT XHVec:vector Vel:vector
+@persist TurningRate ElevationRate ShootPos:vector Change TreadPitch
+@inputs [FL FR Base]:entity W S A D Brake
+@outputs MPH
+@persist RPMFL RPMFR EnginePowerReduced Stall EngineDestroyed Pactive
+@persist [Pos Turningf Turningb Force]:vector
+@inputs AmmoSwitch 
+@outputs AmmoType 
+@persist Aon Aimpower Torque TraverseRate ElevateRate Running EnginePitch TrackPitch
+
+@trigger all
+
+interval(20)
+
+
+##### READ ALL THE FUCKING COMMENTS
+##### READ ALL THE FUCKING COMMENTS
+##### READ ALL THE FUCKING COMMENTS
+##### READ ALL THE FUCKING COMMENTS
+##### READ ALL THE FUCKING COMMENTS
+
+
+#Version 3 Chip by Sestze, Kickasskyle, & Karbine (credits to Basque and Donovan for E2 soundPlay help)
+
+
+#This chip is an ongoing WIP so some parts of it are not totally optimized and are butchered from other things
+
+#(this chip used to have an engine damage system but does no longer, has some code from it still)
+
+##### Remember when linking your wheels, link your two rear drive wheels or front wheels (1 per side)
+#And link all the wheels on that track to the drive wheel with advanced ballsocket. FR means front right, etc
+
+# V3 Changes: Added turret lock (on by default)
+# Added internal sound emitter
+# Omitted weight calculator (not needed due to ACF tools)
+# Fixed up some things
+# Added shitload of documentation
+
+
+
+# FUCKING IMPORTANT READ THIS:
+#For the aim to be true, you need to "Static" your pod (seat)
+#simply ballsocket center (check the "simple ballsocket, ignore settings box) your seat to the turret base
+#and then with settings of -.1 for min and .1 for max for XYZ for advanced ballsocket (MAKE SURE FREE MOVEMENT IS CHECKED)
+#click the pod and then the ground.
+
+#MAKE SURE THIS CHIP FACES FORWARD (use the chip with the arrow on it)
+#IF YOUR CONTROLS ARE REVERSED just rewire your WASD to the pod controller (use S for W, W for S, etc)
+
+#Note about the gunlock- attach a weld latch from your gun to tank base, and wire it to GunLatch
+#It is on by default so just tap whatever key you have bound to GunLock OR YOUR AIM WILL NOT WORK
+
+#If your tank slides too much, consider applying a no-lift fin of 20-50 efficiency to the side of your base prop
+
+#If you want a true crosshair(the hologram does this too), hook up an Adv. Hud Indicator with World and Vector checkboxes checked and the dropdown set to "-1 to 1"
+#Wire to XHvec
+
+
+
+
+
+#Movement constants. 
+    Dfor = 1.3 #Forward friction. Raise this and Torque to get good climbing ability without going mach 6
+    Dtur = 0.057 #turning friction. Raise this if it turns too fast.
+    Torque = 250000*2 #Change the multiplier to increase wheel torque. Affects steering speed too.
+    Offsetfor = 200 # Ignore
+    StaticPitch = 50 #Idle pitch
+    DrivingPitch = 100
+    TurningPitch = 120
+    TreadPitch = 4
+    Volume = 30 #Ignore
+    Ang = ang(0,0,1) #Wheel direction angle. If your wheels don't spin, change the position of the 1
+    # to 1,0,0 or 0,1,0 etc
+    
+   #Aiming constants 
+    Aimpower = 250 #Amount of force on the gun, increase if gun is floppy, decrease if spazzes
+    TraverseRate = 0.04 # Turret turn rate, increase to go faster
+    ElevateRate = 0.03  #gun elevation rate
+    
+    HoloOpacity = 100 #(0-255)
+    
+    #you can change the sounds here (i recommend my tank sounds pack)
+    if(first()|dupefinished()){
+
+    Base:soundPlay(1,0,"tank/tankeng1.wav")
+    Base:soundPlay(2,0,"tank/tracks/shilka_tracks.wav")
+}
+    
+    soundPitch(1,EnginePitch)
+    soundPitch(2,TrackPitch)
+    
+ #You don't need to edit anything below this line-------------------------------- 
+    
+    
+if(!Pactive) {GunLatch = 1}
+else {GunLatch = 0}
+
+if(GunLock & ~GunLock) {Pactive = !Pactive}
+    
+  if(!Active) {GunLatch = 1}  
+
+if(AmmoSwitch){Pod:hintDriver("Ammo changed next load", 5)}
+
+    
+
+
+  
+    
+if(first()|dupefinished())
+{
+    Exclude = 1000 #Ignore
+    XHExclude = 300 #Ignore
+    TurningRate = TraverseRate 
+    ElevationRate = ElevateRate  
+    rangerPersist(1)
+    rangerFilter(entity():getConstraints())
+    
+    ######HOLO CREATION
+    holoCreate(1,entity():pos(),vec(0.05,0.05,0.05))
+    holoModel(1,"icosphere")
+    holoColor(1,vec(0,255,0),HoloOpacity) #Holo sight color/alpha adjustment
+    holoParent(1,Pod)
+    
+}
+if(Pactive){
+if(Pod:driver())
+{
+    Change = 1
+    User= Pod:driver()
+    Dran = rangerOffset(30000, User:shootPos() + User:eye() * Exclude, User:eye())
+    ET = entity():forward()
+    ET2 = $ET
+    ET2X = ET2:x()
+    ET2Y = ET2:y()
+    ET2Z = ET2:z()
+
+    if($Change){
+        ShootPos = Pod:toLocal(User:shootPos())
+    }
+    
+    if(Gun)
+    {
+        #Xhair
+    XH = rangerOffset(30000, Gun:pos() + Gun:forward() *XHExclude, Gun:forward())
+    XHVec = XH:position()# - User:shootPos()
+    XHVec2 = XH:position() - Pod:toWorld(ShootPos)
+        #Hologram stuff
+    HoloPos = Pod:toWorld(ShootPos) + XHVec2:normalized() * 40 #Do not adjust
+        holoPos(1,HoloPos)    
+        holoAng(1,Gun:angles())
+        
+        Trig2 = (Dran:position() - Gun:pos())
+        Trig3 = Trig2:normalized()
+            #Clamp the speed at which the Normalized vector changes, making a delayed turning
+            #Split into 3 Numbers
+            TrigX = Trig3:x()
+            TrigY = Trig3:y()
+            TrigZ = Trig3:z()
+            #Add where it wants to aim, to a "delayed" value, that it will slowly obtain.
+            TrigTX = clamp(TrigX, TrigTX-TurningRate, TrigTX+TurningRate)+ET2X
+            TrigTY = clamp(TrigY, TrigTY-TurningRate, TrigTY+TurningRate)+ET2Y
+            TrigTZ = clamp(TrigZ, TrigTZ-ElevationRate, TrigTZ+ElevationRate)+ET2Z
+            
+            TrigT = TrigTX+TrigTY+TrigTZ
+            
+        Trig = vec(TrigTX,TrigTY,TrigTZ)
+        
+        Sam = (Trig) - Gun:forward()
+        Sac = (Gun:forward():cross(Sam)):cross(Gun:forward())
+        Fac = (Sac + $Sac * 5)*Gun:mass()
+        
+        Gun:applyOffsetForce(Fac*50,Gun:pos()+Gun:forward()*Aimpower) #Edit the last number here to change force
+    }
+
+}else{
+    holoPos(1,entity():pos())
+    Change = 0
+}
+}
+
+
+
+    
+
+#Friction Changer, To make it jerk to a stop.
+    if((!W&!S)){
+        Dfor = 4
+        }
+
+#Handbrake
+    if(Brake){
+        Dfor = 15 #Braking friction
+    }
+
+#Damage Inputs
+
+    #Default
+    if(!EnginePowerReduced&!EngineDestroyed&!Stall){
+        Power = Torque #Adjust multiplier to adjust torque. This affects steering, adjust Dtur if it turns too fast
+        Running = 1
+    }
+
+    #Reduced Engine Power
+    if(EnginePowerReduced&!EngineDestroyed&!Stall){
+        Power = 260000*2.7 #Don't change this
+        Running = 1
+    }
+
+    #Engine Destroyed/Stall
+    if(EngineDestroyed|Stall){
+        Running = 0
+        Power = 0
+    }
+
+
+
+
+
+#Rpm Limitation
+    Limit = 450 #RPM limit
+    if((Limit > RPMFL)&(-Limit < RPMFL)) {TorqueFL = Power}else{TorqueFL = 0}
+
+
+    if((Limit > RPMFR)&(-Limit < RPMFR)) {TorqueFR = Power}else{TorqueFR = 0}
+
+    
+
+
+#Actual Movement Calculations.
+    Total = (W-S)
+    Right = (A-D)
+    Left = -Right
+    #Right/left side
+    RHS = (Total*2+Right*4)/2
+    LHS = (Total*2+Left*4)/2
+    
+#Applying the Forces
+if(W|S|A|D){
+    FL:applyTorque(vec(Ang)*-TorqueFL*LHS)
+
+    FR:applyTorque(vec(Ang)*TorqueFR*RHS)
+
+}
+
+#Base Dampening Friction
+#Main drag forces.
+    Pos = Base:pos()
+    Vel = $Pos
+    Vel:setZ(0)
+
+#Reset Variables
+    Force = vec()
+    Turningf = vec()
+    Turningb = vec()
+
+#Drag Forces
+if(clk())
+{
+    Force = Force - Vel * Base:mass() * Dfor
+    Turningf = Turningf - entity():angVel():yaw() * entity():right() * Dtur * Base:mass()
+    Turningb = Turningb + entity():angVel():yaw() * entity():right() * Dtur * Base:mass()
+
+}
+#Applying the forces
+if(clk())
+{
+    Force = Force:setZ(0)
+    Base:applyForce(Force)
+    Base:applyOffsetForce(entity():forward() * Offsetfor, Turningf)
+    Base:applyOffsetForce(entity():forward() * -Offsetfor, Turningb)
+}
+
+##Sounds for engines (inbuilt smoother)
+if(clk()){
+    if(A|D){
+        Pitch = TurningPitch
+    }elseif(W|S){
+        Pitch = DrivingPitch
+    }else{
+        Pitch = StaticPitch    
+    }
+    #Smoother
+    EnginePitch = clamp(Pitch,EnginePitch-2,EnginePitch+2)
+}
+
+#Sounds for Tracks (Inbuilt speedo and Smoother)
+if(clk()){
+    MPH=toUnit("mph", entity():vel():length())
+
+
+        TPitch = MPH*TreadPitch
+        
+
+
+
+    
+    #Smoother
+    TrackPitch = clamp(TPitch,TrackPitch-2,TrackPitch+2)
+    
+
+}
+
+
+#RPM Calculation
+RPMFL = FL:angVel():pitch()/6
+
+
+RPMFR = FR:angVel():pitch()/6
+# if it isn't working, change the
+# :roll to :yaw or :pitch till it works
+
+if(AmmoSwitch & ~AmmoSwitch) {Aon = !Aon}
+if(Aon) {AmmoType = 2}
+if(!Aon) {AmmoType = 1}

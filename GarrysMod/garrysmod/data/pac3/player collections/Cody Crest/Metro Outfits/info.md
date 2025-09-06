@@ -1,8 +1,9 @@
 - Author: Cody Crest
 - Steam Profile: http://steamcommunity.com/profiles/76561198077799720
 - Youtube: https://www.youtube.com/@CodyCrestpac3
-- Date (dd-mm-yyyy): 6-08-2017
+<!-- -->
 - Title: [Gmod] Pac3 Metro Outfits Showcase {DOWNLOADS}
+- Date (dd-mm-yyyy): 6-08-2017
 - Source: https://www.youtube.com/watch?v=HeRdgCJW2uc
 - Source: https://puu.sh/x3gSY/ae8d70a872.txt
 - Source: https://puu.sh/x3gSV/879d185b41.txt

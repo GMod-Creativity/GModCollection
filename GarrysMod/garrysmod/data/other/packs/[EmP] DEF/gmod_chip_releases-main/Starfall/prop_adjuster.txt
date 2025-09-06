@@ -1,0 +1,620 @@
+--@name tools/Prop Adjuster
+--@author DEF
+--@include deflibs/canvas/main.txt
+--@shared
+
+local SH = {}
+
+local function UserSettings()
+    
+    -- # Misc
+    
+    SH.RefreshRate = 12         // GUI updates per second
+    
+    SH.TextSize = 0.36          // Info text size
+    
+    -- # Key bindings
+    
+    SH.TogglePanel = KEY.R      // Press this to open or close the tool panel
+    
+    SH.Select = MOUSE.RIGHT     // Press this to select a prop
+    
+    SH.Deselect = KEY.LSHIFT    // Hold this and press SH.Select to deselect a prop
+    
+end
+
+local NULL = game.getWorld()
+local function Empty() end
+
+if SERVER then
+    
+    local Initialize = Empty
+    local NWSendProperties = Empty; local NWSetProperties = Empty
+    
+    -- >> Set up
+    do
+        function Initialize()
+            net.receive("sv_GetProperties", NWSendProperties)
+            net.receive("sv_SetProperties", NWSetProperties)
+        end
+    end
+    
+    -- >> Networking
+    do
+        function NWSendProperties()
+            local properties = {}
+            local ent = net.readEntity()
+            
+            properties.Mass = ent:getMass()
+            properties.Inertia = ent:getInertia()
+            
+            net.start("cl_ReceiveProperties")
+                net.writeTable(properties)
+            net.send(owner())
+        end
+        
+        function NWSetProperties()
+            local tab = net.readTable()
+            local props = tab[1]
+            local properties = tab[2]
+            
+            for _, ent in ipairs(props) do
+                if properties.Mass then ent:setMass(properties.Mass) end
+                if properties.Inertia then ent:setInertia(properties.Inertia) end
+            end
+            
+            net.start("cl_ReceiveProperties")
+                net.writeTable(properties)
+            net.send(owner())
+        end
+    end
+    
+    Initialize()
+end
+
+if CLIENT and player() == owner() then
+    
+    require("deflibs/canvas/main.txt")
+    
+    local CustomFont = render.createFont("Coolvetica",100,500,true,false,true,false,1,false,0)
+    local CursorEnabled = false
+    
+    local GUIHead = {}; local ManipHead = {}
+    local StyleUnit = {}; local SelectUnit = {}
+    
+    local EVENT = {
+        LIST_RESIZE = "list-resize",
+    }
+    
+    local Initialize = Empty
+    local NWReceiveProperties = Empty
+    
+    -- >> Set up
+    do
+        function Initialize()
+            enableHud(player(), true)
+            StyleUnit:Initialize()
+            SelectUnit:Initialize()
+            GUIHead:Initialize()
+            ManipHead:Initialize()
+            
+            GUI:DrawCollision(false)
+            GUIHead:SetActive(false)
+            net.receive("cl_ReceiveProperties", NWReceiveProperties)
+        end
+    end
+    
+    -- >> Networking
+    do
+        function NWReceiveProperties()
+            local properties = net.readTable()
+            ManipHead:SetProperties(properties.Mass, properties.Inertia)
+        end
+    end
+    
+    -- >> ManipHead; manager for selected props
+    do
+        local TraceRange = 10^5
+        local Current = {}; local Adjusted = {}
+        Current.Mass = 24; Current.Inertia = Vector(12, 12, 12)
+        Adjusted.Mass = 24; Adjusted.Inertia = Vector(12, 12, 12)
+        
+        local DoKeys = Empty
+        local DoEyeTrace = Empty
+        
+        function ManipHead:Initialize()
+            SelectUnit:SetSelectCol(Color(0, 255, 0))
+            SelectUnit:SetMasterCol(Color(255, 255, 0))
+            self:SetProperties()
+            
+            hook.add("inputPressed", "mh-select", DoKeys)
+            hook.add(EVENT.LIST_RESIZE, "mh-get-properties", function() self:GetProperties() end)
+        end
+        
+        function ManipHead:GetProperties()
+            local master = SelectUnit:GetMaster()
+            if not master or not master:isValid() then
+                GUIHead:SetProperties(0, Current.Mass, Current.Inertia)
+                return
+            end
+            
+            //NWRequestProperties(master)
+            net.start("sv_GetProperties")
+                net.writeEntity(master)
+            net.send()
+        end
+        
+        function ManipHead:OverrideProperties(OverrideMass, OverrideInertia)
+            local overrides = {}
+            if OverrideMass then overrides.Mass = Adjusted.Mass end
+            if OverrideInertia then overrides.Inertia = Adjusted.Inertia end
+            
+            net.start("sv_SetProperties")
+                net.writeTable({ SelectUnit:GetAll(), overrides })
+            net.send()
+        end
+        
+        function DoKeys(KeyEnum)
+            if KeyEnum == SH.Select then
+                if input.isKeyDown(SH.Deselect) then
+                    local result = DoEyeTrace()
+                    if result.Entity == NULL then return end
+                    
+                    SelectUnit:Remove(result.Entity)
+                else
+                    local result = DoEyeTrace()
+                    if result.Entity == NULL or result.Entity:getOwner() != player() then return end
+                    
+                    SelectUnit:Add(result.Entity)
+                end
+            end
+        end
+        
+        function DoEyeTrace()
+            return owner():getEyeTrace()
+        end
+        
+        function DoEyeTraceOld()
+            return trace.line(
+                eyePos(),
+                eyeVector() * TraceRange,
+                player(),
+                nil,
+                nil,
+                nil
+            )
+        end
+        
+        -- # Setters
+        
+        function ManipHead:SetProperties(Mass, Inertia)
+            if Mass then Current.Mass = Mass end
+            if Inertia then Current.Inertia = Inertia end
+            GUIHead:SetProperties(SelectUnit:GetCount(), Current.Mass, Current.Inertia)
+        end
+        
+        function ManipHead:SetTargetMass(Mass)
+            Adjusted.Mass = Mass
+        end
+        
+        function ManipHead:SetTargetInertia(Axis, Inertia)
+            Adjusted.Inertia[Axis] = Inertia
+        end
+        
+        -- # Getters
+        
+        function ManipHead:GetCurrentMass()
+            return Current.Mass
+        end
+        
+        function ManipHead:GetCurrentInertia()
+            return Current.Inertia
+        end
+    end
+    
+    -- >> GUIHead; manager for Canvas elements
+    do
+        local GUIActive = false
+        
+        local MainCanvas = {}
+        local DeselectBTN = {}; local ApplyBTN = {}
+        local MassTB = {}; local InertiaTB = {}
+        local MassCopyBTN = {}; local InertiaCopyBTN = {}
+        local MassCMB = {}
+        local InertiaXCMB = {}; local InertiaYCMB = {}; local InertiaZCMB = {}
+        
+        local PropertiesStr = ""; local InertiaStr = ""
+        local MassY = 0; local InertiaY = 0
+        
+        local OverrideMass = false
+        local OverrideInertia = false
+        
+        local DrawBackground = Empty; local DrawInfo = Empty
+        local DrawMassInfo = Empty; local DrawInertiaInfo = Empty
+        local SetInertiaStr = Empty; local GetTextSize = Empty
+        local UpdateCursor = Empty; local DoKeys = Empty
+        
+        function GUIHead:Initialize()
+            GUI:DrawCollision(false)
+            
+            MainCanvas = GUI.CreateCanvas("Canvas_1")
+            MainCanvas:SetPadding(8)
+            MainCanvas:SetTextureSpace(1000, 1000)
+            MainCanvas:SetOrigin(900, 0)
+            MainCanvas:SetScale(1.0, 1.0)
+            MainCanvas:SetBackground(DrawBackground)
+            
+            self:SetProperties(0, 0, Vector(0, 0, 0))
+            local _, textHeight = GetTextSize(PropertiesStr, CustomFont, SH.TextSize)
+            
+            MassY = textHeight + 30 + 20
+            local _, massHeight = GetTextSize("Mass", CustomFont, SH.TextSize)
+            
+            SetInertiaStr()
+            InertiaY = textHeight + massHeight + 30 + 30 + 40
+            local inertiaWidth, inertiaHeight = GetTextSize(InertiaStr, CustomFont, SH.TextSize)
+            
+            MassCMB = MainCanvas:CreateSliderCombo(true)
+            MassCMB:SetOrigin(inertiaWidth + 20, MassY + massHeight)
+            MassCMB:GetSlider():SetDecimals(0)
+            MassCMB:GetInput():SetDecimals(3)
+            MassCMB:SetRange(1, 50000)
+            MassCMB:SetFunc(function(Value) ManipHead:SetTargetMass(Value) end)
+            MassCMB:Trigger(50)
+            
+            local tbX, _ = MassCMB:GetSlider():GetOrigin()
+            local copyX, _ = MassCMB:GetInput():GetOrigin()
+            
+            MassTB = MainCanvas:CreateTickBox()
+            MassTB:SetOrigin(tbX, MassY)
+            MassTB:SetFunc(function(Down) OverrideMass = Down end)
+            MassTB:Trigger(true)
+            
+            MassCopyBTN = MainCanvas:CreateTextButton()
+            MassCopyBTN:SetOrigin(copyX, MassY)
+            MassCopyBTN:SetSize(90, 30)
+            MassCopyBTN:SetText(("copy"):upper())
+            MassCopyBTN:SetFunc(function(Down) if Down then MassCMB:Trigger(ManipHead:GetCurrentMass()) end end)
+            
+            InertiaXCMB = MainCanvas:CreateSliderCombo(true)
+            InertiaXCMB:SetOrigin(inertiaWidth + 20, InertiaY + inertiaHeight * 0.25)
+            InertiaXCMB:GetSlider():SetDecimals(0)
+            InertiaXCMB:GetInput():SetDecimals(3)
+            InertiaXCMB:SetRange(0.1, 500000)
+            InertiaXCMB:SetFunc(function(Value) ManipHead:SetTargetInertia("x", Value) end)
+            InertiaXCMB:Trigger(24)
+            
+            InertiaYCMB = MainCanvas:CreateSliderCombo(true)
+            InertiaYCMB:SetOrigin(inertiaWidth + 20, InertiaY + inertiaHeight * 0.5)
+            InertiaYCMB:GetSlider():SetDecimals(0)
+            InertiaYCMB:GetInput():SetDecimals(3)
+            InertiaYCMB:SetRange(0.1, 500000)
+            InertiaYCMB:SetFunc(function(Value) ManipHead:SetTargetInertia("y", Value) end)
+            InertiaYCMB:Trigger(24)
+            
+            InertiaZCMB = MainCanvas:CreateSliderCombo(true)
+            InertiaZCMB:SetOrigin(inertiaWidth + 20, InertiaY + inertiaHeight * 0.75)
+            InertiaZCMB:GetSlider():SetDecimals(0)
+            InertiaZCMB:GetInput():SetDecimals(3)
+            InertiaZCMB:SetRange(0.1, 500000)
+            InertiaZCMB:SetFunc(function(Value) ManipHead:SetTargetInertia("z", Value) end)
+            InertiaZCMB:Trigger(24)
+            
+            InertiaTB = MainCanvas:CreateTickBox()
+            InertiaTB:SetOrigin(tbX, InertiaY)
+            InertiaTB:SetFunc(function(Down) OverrideInertia = Down end)
+            InertiaTB:Trigger(true)
+            
+            InertiaCopyBTN = MainCanvas:CreateTextButton()
+            InertiaCopyBTN:SetOrigin(copyX, InertiaY)
+            InertiaCopyBTN:SetSize(90, 30)
+            InertiaCopyBTN:SetText(("copy"):upper())
+            InertiaCopyBTN:SetFunc(
+                function(Down)
+                    if Down then
+                        local vec = ManipHead:GetCurrentInertia()
+                        InertiaXCMB:Trigger(vec.x)
+                        InertiaYCMB:Trigger(vec.y)
+                        InertiaZCMB:Trigger(vec.z)
+                    end
+                end
+            )
+            
+            ApplyBTN = MainCanvas:CreateTextButton()
+            ApplyBTN:SetOrigin(10, InertiaY + inertiaHeight + 30 + 10)
+            ApplyBTN:SetText(("apply"):upper())
+            //ApplyBTN:SetDraw(StyleUnit.Button)
+            ApplyBTN:SetFunc(function(Down) if Down then ManipHead:OverrideProperties(OverrideMass, OverrideInertia) end end)
+            
+            DeselectBTN = MainCanvas:CreateTextButton()
+            DeselectBTN:SetOrigin(120 + 20, InertiaY + inertiaHeight + 30 + 10)
+            DeselectBTN:SetText(("deselect\nall"):upper())
+            DeselectBTN:SetFunc(function(Down) if Down then SelectUnit:RemoveAll() end end)
+            
+            local _, btnY = ApplyBTN:GetOrigin()
+            local _, btnH = ApplyBTN:GetSize()
+            
+            local btnX, _ = InertiaZCMB:GetInput():GetOrigin()
+            local btwW, _ = InertiaZCMB:GetInput():GetSize()
+            
+            local resX, resY = render.getGameResolution()
+            
+            local canvasWidth = btnX + btwW + 10
+            local canvasHeight = btnY + btnH + 10
+            
+            local canvasX = math.remap(canvasWidth, 0, resX, resX * 0.5, 0)
+            local canvasY = math.remap(canvasHeight, 0, resY, resY * 0.5, 0)
+            
+            MainCanvas:SetOrigin(canvasX, canvasY)
+            MainCanvas:SetTextureSpace(canvasWidth, canvasHeight)
+            
+            hook.add("inputPressed", "try-click", function(KeyEnum) DoKeys(KeyEnum, true) end)
+            hook.add("InputReleased", "try-click", function(KeyEnum) DoKeys(KeyEnum, false) end)
+        end
+        
+        function GUIHead:SetActive(Active)
+            GUIActive = Active
+            if Active then
+                timer.create("gui-cursor", 1 / SH.RefreshRate, 0, UpdateCursor)
+                hook.add("drawhud", "gui", function() GUI:Draw() end)
+            else
+                timer.stop("gui-cursor")
+                hook.remove("drawhud", "gui")
+            end
+        end
+        
+        function DrawBackground()
+            StyleUnit.Background()
+            DrawInfo()
+            DrawMassInfo()
+            DrawInertiaInfo()
+        end
+        
+        function DrawInfo()
+            local textMatrix = Matrix()
+            textMatrix:setTranslation(Vector(10, 10))
+            textMatrix:setScale(Vector(SH.TextSize, SH.TextSize))
+            
+            render.pushMatrix(textMatrix, false)
+                render.setColor(Color(255, 255, 255))
+                render.setFont(CustomFont)
+                render.drawText(0, 0, PropertiesStr, TEXT_ALIGN.LEFT)
+            render.popMatrix()
+        end
+        
+        function DrawMassInfo()
+            local textMatrix = Matrix()
+            textMatrix:setTranslation(Vector(10, MassY))
+            textMatrix:setScale(Vector(SH.TextSize, SH.TextSize))
+            
+            render.pushMatrix(textMatrix, false)
+                render.setColor(Color(255, 255, 255))
+                render.setFont(CustomFont)
+                render.drawText(0, 0, "Mass", TEXT_ALIGN.LEFT)
+            render.popMatrix()
+        end
+        
+        function DrawInertiaInfo()
+            local textMatrix = Matrix()
+            textMatrix:setTranslation(Vector(10, InertiaY))
+            textMatrix:setScale(Vector(SH.TextSize, SH.TextSize))
+            
+            render.pushMatrix(textMatrix, false)
+                render.setColor(Color(255, 255, 255))
+                render.setFont(CustomFont)
+                render.drawText(0, 0, InertiaStr, TEXT_ALIGN.LEFT)
+            render.popMatrix()
+        end
+        
+        function SetInertiaStr()
+            local tab = "    "
+            
+            InertiaStr = "Inertia"
+            InertiaStr = InertiaStr .. "\n" .. tab .. "X:"
+            InertiaStr = InertiaStr .. "\n" .. tab .. "Y:"
+            InertiaStr = InertiaStr .. "\n" .. tab .. "Z:"
+        end
+        
+        function GetTextSize(Str, Font, Size)
+            render.setFont(Font)
+            local tw, th = render.getTextSize(Str)
+            tw = tw * Size
+            th = th * Size
+            return tw, th
+        end
+        
+        function UpdateCursor()
+            GUI:SetCursorPosition(input.getCursorPos())
+            GUI:Update()
+        end
+        
+        function DoKeys(KeyEnum, Down)
+            if KeyEnum == MOUSE.LEFT and GUIActive then
+                GUI:CursorLeftClick(Down)
+            elseif KeyEnum == SH.TogglePanel and Down then
+                CursorEnabled = not CursorEnabled
+                input.enableCursor(CursorEnabled)
+                GUIHead:SetActive(CursorEnabled)
+            end
+        end
+        
+        -- # Setters
+        
+        function GUIHead:SetProperties(SelectCount, CMass, CInertia)
+            local tab = "    "
+            local mass = math.round(CMass, 3)
+            local inertia = CInertia:clone()
+            inertia:round(3)
+            
+            PropertiesStr = SelectCount .. " props selected"
+            PropertiesStr = PropertiesStr .. "\n\nMaster prop properties:"
+            PropertiesStr = PropertiesStr .. "\n" .. tab .. "Mass: " .. mass
+            PropertiesStr = PropertiesStr .. "\n" .. tab .. "Inertia: " .. inertia.x .. ", " .. inertia.y .. ", " .. inertia.z
+            
+            MainCanvas:QueueDraw()
+        end
+    end
+    
+    -- >> SelectUnit; keep track of selected props
+    do
+        local Entities = {}; local BaseCol = {}
+        local MasterEnt = NULL
+        local SelectCol = Color(255, 0, 255); local MasterCol = Color(255, 0, 0)
+        
+        local OnRemoved = Empty
+        local SetColor = Empty; local AutoSetMaster = Empty
+        
+        function SelectUnit:Initialize()
+            hook.add("EntityRemoved", "su-removed", OnRemoved)
+        end
+        
+        function SelectUnit:Add(Ent)
+            if Entities[Ent] then
+                if MasterEnt != Ent then
+                    MasterEnt = Ent
+                    SetColor()
+                    hook.run(EVENT.LIST_RESIZE)
+                end
+                return
+            end
+            
+            Entities[Ent] = true
+            BaseCol[Ent] = Ent:getColor()
+            
+            MasterEnt = Ent
+            SetColor()
+            hook.run(EVENT.LIST_RESIZE)
+            //print("Added " .. tostring(Ent))
+        end
+        
+        function SelectUnit:Remove(Ent)
+            if not Entities[Ent] then return end
+            
+            Ent:setColor(BaseCol[Ent])
+            Entities[Ent] = nil
+            BaseCol[Ent] = nil
+            
+            if Ent == MasterEnt then
+                AutoSetMaster()
+            end
+            SetColor()
+            hook.run(EVENT.LIST_RESIZE)
+            //print("Removed " .. tostring(Ent))
+        end
+        
+        function SelectUnit:RemoveAll()
+            for ent, _ in pairs(Entities) do
+                self:Remove(ent)
+            end
+        end
+        
+        function SelectUnit:SetSelectCol(Col)
+            SelectCol = Col
+        end
+        
+        function SelectUnit:SetMasterCol(Col)
+            MasterCol = Col
+        end
+        
+        function OnRemoved(Ent)
+            if not Entities[Ent] then return end
+            SelectUnit:Remove(Ent)
+        end
+        
+        function SetColor()
+            for ent, _ in pairs(Entities) do
+                ent:setColor(SelectCol)
+                
+                if ent == MasterEnt then
+                    ent:setColor(MasterCol)
+                end
+            end
+        end
+        
+        function AutoSetMaster()
+            MasterEnt = NULL
+            
+            for ent, _ in pairs(Entities) do
+                if not MasterEnt:isValid() then
+                    MasterEnt = ent
+                    return
+                end
+            end
+        end
+        
+        -- # Getters
+        
+        function SelectUnit:GetAll()
+            local ents = {}
+            for ent, _ in pairs(Entities) do
+                table.insert(ents, ent)
+            end
+            return ents
+        end
+        
+        function SelectUnit:GetCount()
+            return table.count(Entities)
+        end
+        
+        function SelectUnit:GetMaster()
+            return MasterEnt
+        end
+    end
+    
+    -- >> StyleUnit; visual overrides for Canvas elements
+    do
+        function StyleUnit:Initialize()
+            GUI.Button:SetSize(120, 120)
+            GUI.TextButton:SetSize(120, 60)
+            //GUI.TextButton:SetDraw(self.Button)
+            GUI.TickBox:SetSize(30, 30)
+            GUI.Slider:SetSize(300, 30)
+            GUI.Input:SetRange(0, 50000)
+            GUI.Dropdown:SetSize(150, 35)
+            GUI.Dropdown:SetPadding(10)
+            GUI.SliderCombo:SetInputOffset(310, 0)
+        end
+        
+        function StyleUnit.Background()
+            render.setColor(Color(0, 0, 0, 150))
+            render.drawRect(0, 0, 1000, 1000)
+        end
+        
+        function StyleUnit.Button(BTN)
+            local colA = Color(150, 75, 75)
+            local colB = Color(75, 75, 150)
+            
+            if BTN:GetPressed() then
+                if BTN:GetHovered() then
+                    colA = Color(120, 60, 60)
+                    colB = Color(60, 60, 120)
+                else
+                    colA = Color(100, 50, 50)
+                    colB = Color(50, 50, 100)
+                end
+            elseif BTN:GetHovered() then
+                colA = Color(200, 100, 100)
+                colB = Color(100, 100, 200)
+            end
+            
+            local width, height = BTN:GetSize()
+            local trueWidth = width * 4
+            local trueHeight = height * 4
+            local radius = math.min(width, height) * 0.4
+            local mat = Matrix()
+            mat:setScale(Vector(0.25, 0.25))
+            
+            render.pushMatrix(mat, false)
+                render.setColor(Color(0, 0, 0))
+                render.drawRoundedBox(radius, -16, -16, (width + 8) * 4, (height + 8) * 4)
+                render.setColor(colA)
+                render.drawTriangle(0, 0, trueWidth, trueHeight, 0, trueHeight)
+                render.setColor(colB)
+                render.drawTriangle(0, 0, trueWidth, 0, trueWidth, trueHeight)
+            render.popMatrix()
+        end
+    end
+    
+    UserSettings()
+    Initialize()
+end

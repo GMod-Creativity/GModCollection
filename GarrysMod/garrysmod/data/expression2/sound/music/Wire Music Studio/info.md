@@ -5,6 +5,7 @@
 - Title: Wire Music Studio
 - Date (dd-mm-yyyy): 24-01-2011
 - Source: https://web.archive.org/web/20110126173413/http://www.wiremod.com/forum/finished-contraptions/24530-wire-music-studio.html
+- Source: Thanks to an dev from Meta Construct for sharing the file :>
 - Source Accessed (dd-mm-yyyy): 06-06-2025
 
 ## Wire Music Studio

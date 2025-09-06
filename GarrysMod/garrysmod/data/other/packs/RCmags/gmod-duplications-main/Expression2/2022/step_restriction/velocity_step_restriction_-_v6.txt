@@ -1,0 +1,105 @@
+@name Velocity Step Restriction - Forces
+@inputs E:entity
+@outputs [Xms Xn A1 A2]:vector 
+
+@persist Gain:vector 
+@persist DT_MS DT 
+@persist LMAX
+
+# First call
+if( first() ) {
+    #--- Constants ---
+    DT_MS = 1e3 * tickInterval()
+    DT = DT_MS * 1e-3
+        
+    # Decay ratio 
+    Gain = vec(0,0,0)
+    LMAX = 1.0              # Oscillates for L > 1
+        
+    #--- Functions ----
+    
+    # Set Prop velocity
+    function void setVelocity( Vel:vector ) {
+        Impulse = E:mass() * ( Vel - E:vel() )
+        E:applyForce( Impulse )
+    }
+    
+    # Step Restriction    
+    function vector stepLimit( Dv:vector, Vel:vector, I ) {
+        Vdot = Vel:dot(Dv)
+        if( Vdot != 0 ) {
+            # Measure decay ratio
+            Lmeas = -Dv:length2() / Vdot
+            # Set gain
+            if( Lmeas > LMAX ) {
+                Gain[I] = LMAX / Lmeas
+            } else {
+                Gain[I] = 1
+            }
+        }
+        # Modify step 
+        Dv = Dv * Gain[I]
+        return Dv       
+    }
+    
+    function vector stepLimitAxis( Dx:vector, X:vector, A:vector, I ) {
+        # Decompose force
+        Dxn = Dx:dot(A) * A     # Always decays motion - parallel to axis
+        Dxp = Dx - Dxn          # Has no decay ratio
+        
+        # Restrict axial component
+        Dxn = stepLimit(Dxn, Xms, I)
+        # Scale other components by gain        
+        Dxp = Dxp * Gain[I] 
+        return Dxn + Dxp
+    }
+
+    #- Force functions
+    function vector ode1(X:vector) {                             
+        # velocity components
+        Vz = X:dot( E:up() ) * E:up()
+        Vxy = X - Vz
+        # Lift
+        Lnorm = ( Vz:cross(X):cross(X) ):normalized()
+        Lm = Vz:length() * Vxy:length() * 1 
+        return Lnorm * Lm         # Linear lift
+    }
+    
+    function vector ode2(X:vector) {                             
+        Vz = X:dot( E:up() ) * E:up()
+        Vxy = X - Vz
+        return -Vxy * 10          # Linear planar drag
+    }
+
+} # end, First call
+
+# Iterate
+#interval(DT_MS)
+runOnTick(1)
+
+# 1. Measure velocity
+Xms = E:vel()
+
+# 2a. Estimate acceleration
+Mass = E:mass()
+A1 = ode1(Xms) / Mass
+A2 = ode2(Xms) / Mass
+
+# 2b. Estimate velocity changes: Explicit euler
+Dx1 = DT*A1        
+Dx2 = DT*A2
+
+# 3. Clamp velocity changes
+Dx1 = stepLimitAxis(Dx1, Xms, E:up(), 1)
+Dx2 = stepLimit(Dx2, Xms, 2)
+
+# 4. Update state
+Dx = Dx1 + Dx2
+Xn = Xms + Dx
+
+# 5. Set Prop state   [Must come after velocity measurement, or blocks measurement]
+setVelocity( Xn )
+
+# Note:
+# - Forces must be scaled by tickrate to obtain constant average force.
+#   Said average forces divided by mass yield the acceleration.

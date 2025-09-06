@@ -1,4 +1,4 @@
-- Author: someguynamedpie
+- Author: someguynamedpie (Somepotato)
 - Steam Profile: https://steamcommunity.com/profiles/76561197992915189
 <!-- -->
 - Title: Multiangular Supercolliding Super piano

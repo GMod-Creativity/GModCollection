@@ -1,0 +1,70 @@
+--@name Model scraper
+--@author Redox
+-- https://github.com/wrefgtzweve/starfall-e2-scripts
+--@shared
+
+if CLIENT then
+
+if owner() ~= player() then return end
+
+local models = {}
+local foldersToCheck = { "models" }
+
+local function checkFolder( path )
+    local files, folders = file.findInGame( path .. "/*" )
+
+    for _, fil in ipairs( files ) do
+        if quotaAverage() > quotaMax()*0.90 then return end
+        if string.sub( fil, -4 ) == ".mdl" then
+            table.insert( models, path .. "/" .. fil )
+        end
+    end
+
+    for _, folder in ipairs( folders ) do
+        table.insert( foldersToCheck, path .. "/" .. folder )
+    end
+    table.removeByValue( foldersToCheck, path )
+end
+
+local function spawnModels()
+    if #models == 0 then
+        concmd( "say uhoh" )
+        timer.remove( "spawnTimer" )
+        return
+    end
+    --concmd( "gm_spawn " .. models[1] )
+    if quotaAverage() > quotaMax() * 0.5 then return end
+    local holo = holograms.create( chip():getPos(), Angle(), models[1] )
+    holo:remove()
+    print( models[1], #models )
+    table.remove( models , 1 )
+end
+
+local function runCheck()
+    local folder = foldersToCheck[1]
+    
+    if not folder or #models > 5000 then
+        timer.remove( "checkTimer" )
+        print( "Done, found: " .. #models .. " models." )
+        print( "Starting model spawner" )
+        table.random( models )
+        timer.create( "spawnTimer", 0, 0, spawnModels )
+        return
+    end
+    
+    checkFolder( folder )
+end
+
+timer.create( "checkTimer", 0, 0, runCheck )
+
+end
+
+if SERVER then
+    local owner = owner()
+    hook.add( "OnEntityCreated", "checkProp", function( ent )
+        if not isValid( ent ) then return end
+        if ent:getOwner() ~= owner then return end
+        
+        ent:remove()
+    end)
+end

@@ -1,0 +1,92 @@
+--@name deflibs/canvas/Cursor
+--@author Yours Truly
+
+// Cursor; picks & interacts with GUI hitboxes
+
+local X = 0; local Y = 0
+local HasObject = false; local Object = nil; local OldObject = nil
+local HasFocus = false; local ScrollActive = true
+local Boxes = {}
+
+local function Empty() end
+local SetHovered = Empty
+local SetLogging = Empty; local Scroll = Empty
+
+local Cursor = {}
+
+-- Set cursor position
+function Cursor:SetPosition(NewX, NewY)
+    X = NewX
+    Y = NewY
+end
+
+-- Interact with element if there is one
+function Cursor:LeftClick(Down)
+    if HasObject then
+        Object:Press(Down)
+        HasFocus = Down
+    end
+end
+
+-- Set list of main canvas hitboxes
+function Cursor:SetCanvasGroup(Hitboxes)
+    Boxes = Hitboxes
+end
+
+-- See what the cursor is over
+function Cursor:DoCollision()
+    if HasFocus then return end
+    
+    local hasCanvas, canvas = GUI.Hitbox.GetItem(X, Y, Boxes)
+    
+    OldObject = Object
+    if hasCanvas then
+        HasObject, Object = canvas:DoCollision()
+    else
+        HasObject = false
+        Object = nil
+    end
+    
+    SetHovered()
+end
+
+-- Set hovered state for elements
+function SetHovered()
+    if OldObject != Object then
+        if OldObject then OldObject:Hover(false) end
+        if HasObject then Object:Hover(true) end
+    end
+end
+
+-- Turns input listening on or off
+function SetLogging(Active)
+    if Active then
+        hook.add("mouseWheeled", "mouse-scroll", Scroll)
+        hook.add("tick", "scroll-reset", function() ScrollActive = true end)
+    else
+        hook.remove("mouseWheeled", "mouse-scroll")
+        hook.remove("tick", "scroll-reset")
+    end
+end
+
+-- Ran in mouseWheeled; scrolling
+function Scroll(Dir)
+    if not ScrollActive then return end
+    
+    ScrollActive = false
+    hook.run(GUI.EVENT.MOUSE_SCROLL, Dir)
+end
+
+-- # Getters
+
+function Cursor:GetObject()
+    return HasObject, Object
+end
+
+function Cursor:GetPosition()
+    return X, Y
+end
+
+SetLogging(true)
+
+return Cursor

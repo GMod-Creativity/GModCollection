@@ -1,0 +1,149 @@
+@name 2-axis Weight shift ornithopter
+@inputs 
+
+# debug
+@outputs Accel_L:vector Angle_force
+
+# Hydraulic lengths
+@outputs X1 Y1 Z1
+@outputs X2 Y2 Z2
+
+# Hydraulic settings
+@outputs ConstantX ConstantY ConstantZ
+@outputs DampingX DampingY DampingZ
+
+# Constants
+@persist ConstantX ConstantY ConstantZ
+@persist DampingX DampingY DampingZ
+@persist Length0 RadiusXY RadiusZ
+
+@persist Entity:entity
+
+@persist Freq Angle:vector Vel_last:vector
+@persist ANGLE_MAX KP:vector KI:vector
+
+# initialize
+if( first() ) {
+    # initialize
+    Freq = 0
+    Angle = vec(0,0,0)
+    Vel_last = entity():vel()
+    
+    # constants
+    # A. Hydraulics
+        # x-axis
+    ConstantX = 50000
+    DampingX = 700
+        # y-axis
+    ConstantY = 50000
+    DampingY = 700
+        # z-axis
+    ConstantZ = 4000 
+    DampingZ = 120
+
+    # B. Lengths
+    Length0 = 2000
+    RadiusXY = 71.2
+    RadiusZ = 50    
+    
+    # C. Other
+    Entity = entity()
+        
+    ANGLE_MAX = 60
+    KP = vec(0.3, 0.1, 0.0)
+    KI = vec(0.5, 0.3, 0.0)
+}
+
+# 0. Timetep
+DT = 10
+interval(DT)
+DT *= 1e-3
+
+# 0A. State
+Angvel = Entity:angVelVector()
+Vel = Entity:vel()
+    # acceleration
+Accel = (Vel - Vel_last)/DT
+Vel_last = Vel 
+
+    # Normalized local acceleration [accelerometer]
+Accel_L = Accel/900 + vec(0,0,1)    # add gravity
+Accel_L = Entity:toLocalAxis(Accel_L)
+
+# 1A. PID controller
+Angvel_t = vec( Angvel:y(), Angvel:x(), Angvel:z() )
+Angvel_t -= vec(0,0,0)
+
+Angvel -= Angvel_t
+Angle += Angvel_t * DT
+ 
+Angle = vec( clamp( Angle:x(), -ANGLE_MAX, ANGLE_MAX) , 
+             clamp( Angle:y(), -ANGLE_MAX, ANGLE_MAX) ,
+             clamp( Angle:z(), -ANGLE_MAX, ANGLE_MAX) )
+
+PID = KP*Angvel_t + KI*Angle
+
+PID = vec( clamp( PID:x(), -ANGLE_MAX, ANGLE_MAX) , 
+           clamp( PID:y(), -ANGLE_MAX, ANGLE_MAX) ,
+           clamp( PID:z(), -ANGLE_MAX, ANGLE_MAX) )
+
+# 1B. Control deflections
+Accel_xy = vec( Accel_L:x(), 0, Accel_L:z() )
+
+Angle_force = atan( Accel_L:x(), Accel_L:z() )
+
+Dist_xy = PID:x() / Accel_xy:length()   
+
+Dist_x = Dist_xy * cos(Angle_force)
+Dist_y = Dist_xy * sin(Angle_force)
+
+# 2A. Oscillation
+Freq += 0#16
+Freq = Freq > 360 ? Freq - 360 : Freq
+    # trig functions
+Sin = sin(Freq)
+Cos = cos(Freq) 
+
+# 2B. Target deflections
+    # oscillation amplitudes
+AmpX = 39
+AmpZ = 20 # pitch 
+AmpY = PID:z()
+
+    # differential x
+AmpX1 = AmpX - PID:y()
+AmpX2 = AmpX + PID:y()
+
+    # x-axis
+AngleX1 = Sin*AmpX1 + Dist_x
+AngleX2 = Sin*AmpX2 + Dist_x
+    # y-axis
+AngleY = Dist_y
+AngleY1 =  Sin*AmpY + AngleY
+AngleY2 = -Sin*AmpY + AngleY
+    # z-axis
+AngleZ1 = Cos*AmpZ + AmpY 
+AngleZ2 = Cos*AmpZ - AmpY
+
+# 3. kinematics:
+    # A. Displacements
+    # x-axis
+DX1 = sin(AngleX1) * RadiusXY  
+DX2 = sin(AngleX2) * RadiusXY
+    # y-axis
+DY1 = sin(AngleY1) * RadiusXY
+DY2 = sin(AngleY2) * RadiusXY
+    # z-axis
+DZ1 = sin(AngleZ1) * RadiusZ
+DZ2 = sin(AngleZ2) * RadiusZ
+
+    # B. Lengths:
+    # x-axis
+X1 = Length0 + DX1
+X2 = Length0 + DX2
+    # y-axis
+Y1 = Length0 + DY1
+Y2 = Length0 + DY2
+    # z-axis
+Z1 = Length0 + DZ1
+Z2 = Length0 + DZ2 

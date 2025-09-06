@@ -1,0 +1,186 @@
+@name Uocky's Flyer 3rd Generation MK IX (1x2 PHX Plate)
+ 
+@inputs Health Tanker Pod:wirelink
+ 
+@outputs Mode Procent Pitch Roll 
+ 
+@persist RotatedAngle:angle SwitchDown Yaw TargetYaw FrontDist BackDist ResetYaw SpeedX SpeedY Dist Power Fuel Consume ResetFuel DullBoy ResetPitch ResetRoll TargetPitch TargetRoll PitchAccum RollAccum
+ 
+interval(10)
+ 
+This = entity()
+ 
+###############Editable Stuff###############
+ 
+TargetZ = 35                    #Hovering Hight
+ 
+MaxFuel = 1000000                #Just What It Says (uses about 100 fuel/s in flight mode and 50 for hover mode)
+
+Down = Pod:number("W")          #Pitch Down
+Up = Pod:number("S")            #Pitch Up
+Left = Pod:number("A")          #Turn / Roll Left
+Right = Pod:number("D")         #Turn / Roll Right
+Forward = Pod:number("Shift")   #Forward Motion
+Panic = Pod:number("Space")     #Reset Pitch "Panic Button"
+Switch = Pod:number("Light")    #Flight / Hover -Mode Switch
+###############Boring Diffinition Stuff###############
+RotatedAngle = (quat(This:angles())*qRotation(vec(0,0,-90))):toAngle() #This line was brought to you by Fizyk 
+Active = Pod:number("Active")
+Pitch = RotatedAngle:pitch()
+Yaw = RotatedAngle:yaw()
+Roll = RotatedAngle:roll()
+PitchDelta = $RotatedAngle:pitch()
+RollDelta = $RotatedAngle:roll()
+DiffPitch = (RotatedAngle:pitch() - TargetPitch)
+DiffRoll = (RotatedAngle:roll() - TargetRoll)
+YawDelta = angnorm($Yaw * 10)
+if (ResetYaw == 1) {TargetYaw = Yaw}
+###############Fuel System###############
+if (ResetFuel == 1) {Fuel = 0}
+elseif (ResetFuel == 0) {Fuel = Fuel + Consume}
+if (Tanker == 1)
+{
+ResetFuel = 0
+if (Fuel < MaxFuel) {Consume = 500}
+   elseif (Fuel >= MaxFuel) {Consume = 0}
+}
+elseif (Tanker == 0)
+{
+if (Fuel > 0) {Consume = (((100/Health) * (Power * -1)) - (100 - Health))}
+   elseif (Fuel <= 0) {Consume = 0}
+if (Health <= 0) {ResetFuel = 1}
+   elseif (Health > 0) {ResetFuel = 0}
+}
+Procent = round((Fuel / MaxFuel) * 100)
+###############Mode Selection###############
+if (Switch == 1) {SwitchDown = 1}
+if (Switch == 0 & SwitchDown == 1 & Mode == 0)
+{
+SwitchDown = 0
+Mode = 1
+}
+elseif (Switch == 0 & SwitchDown == 1 & Mode == 1)
+{
+SwitchDown = 0
+Mode = 0
+}
+###############Hover Mode###############
+if (Mode == 0)
+{
+ResetYaw = 1
+ResetPitch = 1
+ResetRoll = 1
+PitchAccum = 0
+RollAccum = 0
+Dist = ((FrontDist + BackDist) / 2)
+DeltaDist = ($FrontDist + $BackDist)
+DiffDist = (TargetZ - Dist)
+SpeedA = This:velL()
+SpeedX = SpeedA:x() * -1
+SpeedY = SpeedA:y()
+rangerHitWater(1)
+FrontRanger = rangerOffset(100000,This:pos() + This:forward() * -45 + This:up() * -4,This:up() * -1)
+rangerHitWater(1)
+BackRanger = rangerOffset(100000,This:pos() + This:forward() * 45 + This:up() * -4,This:up() * -1)
+FrontDist = FrontRanger:distance()
+BackDist = BackRanger:distance()
+applyForce(vec(0,0,(DiffDist - DeltaDist * 5) * 1000))
+This:applyAngForce(ang(0,0,(Pitch + (PitchDelta * 5)) * -10000))
+This:applyAngForce(ang((Roll + (RollDelta * 5)) * 10000,0,0))
+This:applyForce(This:forward() * (($SpeedX * 5) + SpeedX) * 4)
+if (Forward == 0 | Fuel == 0)
+   {
+       This:applyForce(This:right() * (($SpeedY * 5) + SpeedY) * 4)
+       Power = 0
+   }
+elseif (Forward == 1 & Fuel > 0)
+   {
+       This:applyForce(This:right() * -2000)
+       Power = 1
+   }
+if (Left + Right != 1 | Fuel == 0) {This:applyAngForce(ang(0,YawDelta * -10000,0))}
+   elseif (Left == 1 & Right == 0 & Fuel > 0) {This:applyAngForce(ang(0,8000,0))}
+       elseif (Left == 0 & Right == 1 & Fuel > 0) {This:applyAngForce(ang(0,-8000,0))}
+}
+###############Flight Mode###############
+elseif (Mode == 1)
+{
+if (ResetPitch == 1) {TargetPitch = Pitch}
+   elseif (ResetPitch == 0) {TargetPitch = TargetPitch + PitchAccum}
+if (ResetRoll == 1) {TargetRoll = 0}
+   elseif (ResetRoll == 0) {TargetRoll = TargetRoll + RollAccum}
+if (Active == 1 & Forward == 1 & Fuel > 0)
+   {
+       ResetYaw = 0
+       Power = 2
+       Work = 1
+       ResetPitch = 0
+       Play = 0 
+       applyForce(vec(0,0,1500))
+       This:applyForce(This:right() * -5000)
+       This:applyForce(This:forward() * 0)
+       This:applyAngForce(ang(0,0,(DiffPitch + (PitchDelta * 5)) * -10000))
+       This:applyAngForce(ang((DiffRoll + (RollDelta * 5)) * 10000,0,0))
+       if (Panic == 1) {TargetPitch = 0}
+       if (Work == 1 & Play == 0) {Jack = DullBoy}
+       if (Left == 0 & Right == 0 & TargetRoll > -0.1 & TargetRoll < 0.1 & TargetRoll != 0) {ResetRoll = 1}
+           else {ResetRoll = 0}
+###############Pitch Control###############
+       if (TargetPitch >= 60 | TargetPitch <= -60) {PitchAccum = 0}
+       if (Down == 0 & Up == 0) {PitchAccum = 0}
+       if (TargetPitch < 60 & Up == 1)
+           {
+               if (Down == 0) {PitchAccum = 0.75}
+                   elseif (Down == 1) {PitchAccum = 0}
+           }
+       if (TargetPitch > -60 & Down == 1)
+           {
+               if (Up == 0) {PitchAccum = -0.75}
+                   elseif (Up == 1) {PitchAccum = 0}
+           }
+###############Roll Control###############
+       if (TargetRoll >= 50 | TargetRoll <= -50 | TargetRoll == 0) {RollAccum = 0}
+       if (Left == 0 & Right == 0 & TargetRoll > 0) {RollAccum = -0.5}
+       if (Left == 0 & Right == 0 & TargetRoll < 0) {RollAccum = 0.5}
+       if (TargetRoll > -50 & Right == 1)
+           {
+               if (Left == 0) {RollAccum = -0.75}
+                   elseif (Left == 1 & TargetRoll < 0) {RollAccum = 0.5}
+           }
+       if (TargetRoll < 50 & Left == 1) 
+           {
+               if (Right == 0) {RollAccum = 0.75}
+                   elseif (Right == 1 & TargetRoll > 0) {RollAccum = -0.5}
+           }
+###############Yaw Control###############
+       YawD = (Yaw - TargetYaw)
+       if (YawD < 180 & YawD > -180) {YawDiff = YawD}
+           elseif (YawD >= 180) {YawDiff = (-360 + YawD)}
+               elseif (YawD <= -180) {YawDiff = (360 + YawD)}
+       applyAngForce(ang(0,(YawDelta + YawDiff) * -5000,0))
+       if (Right == 1 & TargetYaw <= -180) {TargetYaw = ((TargetYaw * -1) + (Left - Right))}
+           elseif (Left == 1 & TargetYaw >= 180) {TargetYaw = ((TargetYaw * -1) + (Left - Right))}
+               else {TargetYaw = TargetYaw + (Left - Right)}
+   }
+###############Power Off###############
+   elseif (Active == 0 | Forward == 0 | Fuel == 0)
+       {
+           ResetYaw = 1
+           ResetPitch = 1
+           ResetRoll = 1
+           PitchAccum = 0
+           RollAccum = 0
+           Power = 0
+           This:applyForce(This:forward() * 0)
+           This:applyForce(This:right() * 0)
+           This:applyAngForce(ang(0,0,0))
+           applyForce(vec(0,0,0))
+       }
+}
+#<(^^<) <(^^)> (>^^)>
+#This is a dancing penguin
+#Dancing penguin is happy
+#Do NOT delete dancing penguin
+#Deleting dancing penguin causes untold Doom
+#Think i'm bluffing?
+ 

@@ -1,0 +1,881 @@
+--@name mfcs/HUD Buttons
+--@author DEF
+--@shared
+
+local SH = {}
+local function Empty() end
+local AddPanel = Empty; local AddButton = Empty; local Group = Empty; local AddReceiver = Empty
+
+-- # # # # # # # # # # # # # # # --
+
+--[[
+    Instructions:
+    
+        Wire the < Chair > input from this chip to your chair.
+        
+        Make sure to wire up any listener chips using the inputs you make!
+]]
+
+local function UserSettings()
+    
+    -- # Misc
+    
+    SH.ToggleUI = KEY.R         // Press this to open the menu
+    
+    SH.UIScale = 0.75           // Menu size multiplier
+    
+    -- # Listener entities
+    
+    --[[
+        You can add a listener chip like this:
+        
+            AddReceiver("VehicleFunctions")
+        
+        The string is the name of the input.
+    ]]
+    
+    AddReceiver("VehicleFunctions")
+    
+    -- # Panel & Button settings
+    
+    --[[
+        You can program the menu like this:
+        
+            AddPanel("ENG")
+                AddButton("DIESEL", true)
+                AddButton("TURBINE", true)
+                
+            AddPanel("TRN")
+                AddButton("HI-POWER", true)
+                AddButton("HI-RANGE", true)
+        
+        AddPanel("ENG")
+        This makes a new panel; this one is named < ENG >
+        
+        AddButton("DIESEL", true)
+        This programs a new button; this one is named < DIESEL > and it is a toggle-button because
+        the second part is < true > (< false > will make a normal press-button).
+        The last panel made was < ENG >, so this button will appear there.
+        
+        Group()
+        This will stuff the last button into a group. Pressing a grouped button will un-press any
+        other buttons that are also grouped. Only one group per panel.
+        
+        To figure out the ID of any button (for remote hooks):
+            "Panel-Button"
+            I.E. the < DIESEL > button's ID is "ENG-DIESEL"
+    ]]
+    
+    AddPanel("AUX")
+        AddButton("SYSTEM", true)
+        AddButton("LIGHTS", true)
+    
+    AddPanel("ENG")
+        AddButton("DIESEL", true)
+        AddButton("TURBINE", true)
+        
+    AddPanel("TRN")
+        AddButton("HI-POWER", true)
+        AddButton("HI-RANGE", true)
+    
+    -- # Design
+    
+    SH.ScreenCapacity = 4       // How many programmable buttons to fit onto the menu
+    
+    SH.PanelOffsetX = 0      // X offset for menu
+    SH.DrawOverHUD = true       // true will draw over other HUD elements (chat, health bar...)
+    
+    SH.PanelButtonWidth = 100   // Panel selector button width
+    SH.Font = "Arial"           // Font for all text
+    
+    // Colors; because of how I am rendering this, don't use alpha
+    
+    SH.CreviceCol = Color(0, 0, 0)
+    SH.PanelCol = Color(45, 43, 40)
+    SH.PanelBorderCol = Color(87, 83, 76)
+    
+    SH.ButtonCol = Color(102, 93, 77)
+    SH.ButtonDownCol = Color(85, 80, 65)
+    SH.ButtonLitCol = Color(0, 60, 0)
+    SH.ButtonUnlitCol = Color(0, 0, 0)
+    
+    SH.DisplayCol = Color(0, 0, 0)
+    SH.DisplayTextCol = Color(10, 90, 10)
+    SH.DisplayTextLitCol = Color(20, 180, 20)
+end
+
+-- # # # # # # # # # # # # # # # --
+
+local cl_ChairEnter = "Chair-Enter"; local cl_ChairExit = "Chair-Exit"
+local sv_UpdateButton = "Update-Button"; local sv_MenuOpened = "Menu-Opened"
+local NULL = game.getWorld()
+
+local GenerateRemove = Empty; local Broadcast = Empty; local InitializeListeners = Empty
+
+-- >> Shared functions
+do
+    -- Get a function to handle removed listeners
+    function GenerateRemove(Entities, Lookup)
+        table.empty(Lookup)
+        for k, ent in ipairs(Entities) do
+            Lookup[ent] = k
+        end
+        
+        return function(Entity)
+            if Lookup[Entity] then
+                table.remove(Entities, Lookup[Entity])
+                Lookup[Entity] = nil
+            end
+        end
+    end
+    
+    -- Run remote hook to every chip in Entities
+    function Broadcast(Entities, ...)
+        local id, bool = ...
+        for _, receiver in ipairs(Entities) do
+            if receiver:hasInstance() then
+                hook.runRemote(receiver, id, bool)
+            end
+        end
+    end
+    
+    -- Run remote hooks for the first time
+    function InitializeListeners(PanelGroup, Listeners)
+        for _, panel in ipairs(PanelGroup) do
+            for _, btn in ipairs(panel.Buttons) do
+                Broadcast(Listeners, panel.PanelName .. "-" .. btn.ButtonName, false)
+            end
+        end
+    end
+end
+
+if SERVER then
+    local Data = { PanelGroup = {}, Receivers = {} }
+    local ReceiverIO = {}
+    local ChairEnt = NULL
+    
+    -- Panel design helpers
+    do
+        local lastPanel = {}
+        local lastButton = {}
+        
+        function AddPanel(Name)
+            lastPanel = { PanelName = Name, Buttons = {} }
+            table.insert(Data.PanelGroup, lastPanel)
+        end
+        
+        function AddButton(Name, IsToggle)
+            lastButton = { ButtonName = Name, IsToggle = IsToggle or false, Pressed = false, Grouped = false }
+            table.insert(lastPanel.Buttons, lastButton )
+        end
+        
+        function Group()
+            lastButton.Grouped = true
+        end
+        
+        function AddReceiver(Name)
+            table.insert(ReceiverIO, { Name, nil })
+        end
+    end
+    
+    UserSettings()
+    
+    local SetupIO = Empty
+    local EnterChair = Empty; local UpdateButton = Empty; local MenuOpened = Empty
+    
+    -- >> Startup functions
+    do
+        local PostIO = Empty; local OnDupeFinished = Empty
+        
+        -- Make new IO
+        function SetupIO()
+            local inputs = { "Chair" }; local inputTypes = { "Entity" }
+            local outputs = {}; local outputTypes = {}
+            
+            for _, receiver in ipairs(ReceiverIO) do
+                table.insert(inputs, receiver[1])
+                table.insert(inputTypes, "Entity")
+            end
+            
+            wire.adjustInputs(inputs, inputTypes)
+            wire.adjustOutputs(outputs, outputTypes)
+            
+            PostIO()
+        end
+        
+        -- After making IO
+        function PostIO()
+            ChairEnt = wire.ports.Chair
+            
+            -- # Look-ups for grouped buttons
+            for _, panel in ipairs(Data.PanelGroup) do
+                panel.Grouped = {}
+                for k, btn in ipairs(panel.Buttons) do
+                    if btn.Grouped then table.insert(panel.Grouped, k) end
+                end
+            end
+            
+            -- # Destroy references to removed or errored starfall chips
+            local ListenerLUT = {}
+            for k, receiver in pairs(ReceiverIO) do
+                local ent = wire.ports[receiver[1]]
+                if ent:isValid() then table.insert(Data.Receivers, ent) end
+            end
+            
+            local UpdateReceivers = GenerateRemove(Data.Receivers, ListenerLUT)
+            InitializeListeners(Data.PanelGroup, Data.Receivers)
+            
+            hook.add("PlayerEnteredVehicle", "chair-enter", function(Ply, Chair) EnterChair(Ply, Chair, true) end)
+            hook.add("PlayerLeaveVehicle", "chair-exit", function(Ply, Chair) EnterChair(Ply, Chair, false) end)
+            hook.add("EntityRemoved", "entity-removed", UpdateReceivers)
+            hook.add("DupeFinished", "dupe-finished", OnDupeFinished)
+            net.receive(sv_UpdateButton, UpdateButton)
+            net.receive(sv_MenuOpened, MenuOpened)
+        end
+        
+        function OnDupeFinished()
+            timer.create("spawn-delay", 1, 1, function() InitializeListeners(Data.PanelGroup, Data.Receivers) end)
+        end
+    end
+    
+    -- >> Other functions
+    do
+        -- Entering & exiting the vehicle
+        function EnterChair(Ply, Chair, Board)
+            if ChairEnt:isValid() and ChairEnt == Chair then
+                if Board then
+                    net.start(cl_ChairEnter)
+                        net.writeTable(Data)
+                    net.send(Ply)
+                else
+                    net.start(cl_ChairExit)
+                    net.send(Ply)
+                end
+            end
+        end
+        
+        -- Set pressed on button & run server-side remote hook
+        function UpdateButton()
+            local ins = net.readTable()
+            local panel = Data.PanelGroup[ins[1]]
+            local btn = panel.Buttons[ins[2]]
+            
+            btn.Pressed = ins[3]
+            Broadcast(Data.Receivers, panel.PanelName .. "-" .. btn.ButtonName, btn.Pressed)
+        end
+        
+        -- Server-side remote hook for opening & closing menu
+        function MenuOpened()
+            Broadcast(Data.Receivers, "HUD_BUTTONS_OPENED", net.readBool())
+        end
+    end
+    
+    -- Call startup
+    SetupIO()
+end
+
+if CLIENT then
+    
+    -- >> Initialization
+    
+    UserSettings()
+    
+    local Data = {}
+    local EVENT = {
+        CURSOR_LEFT = "cursor-left"
+    }
+    
+    local MenuActive = false
+    local FontObject;
+    
+    local ResX = 0; local ResY = 0
+    ResX, ResY = render.getGameResolution()
+    
+    local LiveTexture = class("LiveTexture")
+    local SC = {}
+    local Keys = {}
+    local Button = class("Button")
+    
+    local ToggleMenu = Empty; local DrawCursor = Empty
+    local DrawMain = Empty; local DrawSmall = Empty; local DrawScreen = Empty; local DrawPanel = Empty
+    
+    -- >> Primary functions
+    do
+        local Await = true
+        local Receivers = {}; local ReceiversLUT = {}
+        local Buttons = {}
+        local ScreenSpan = 0
+        local PanelSlot; local LivePanel;
+        local MenuTexture;
+        local MenuBTN = {}; local GeneralBTN = {}
+        local DrawHook = "drawhud"
+        
+        local Initialize = Empty; local DrawMenu = Empty
+        local SetPanel = Empty; local UpdateScreen = Empty
+        local ToggleFunc = Empty; local PressFunc = Empty
+        
+        -- Entering & exiting the vehicle
+        local function EnterChair(Board)
+            if Board then
+                Data = net.readTable()
+                
+                if Await then
+                    Initialize()
+                else
+                    LivePanel = Data.PanelGroup[PanelSlot]
+                end
+            else
+                ToggleMenu(false)
+            end
+            
+            enableHud(player(), Board)
+            Keys:SetLogging(Board)
+        end
+        net.receive(cl_ChairEnter, function() EnterChair(true) end)
+        net.receive(cl_ChairExit, function() EnterChair(false) end)
+        
+        -- Turn UI on or off
+        function ToggleMenu(Active)
+            if MenuActive == Active then return end
+            
+            MenuActive = Active
+            input.enableCursor(MenuActive)
+            
+            if MenuActive then
+                hook.add(DrawHook, "draw-menu", function() MenuTexture:Draw() end)
+                hook.add("tick", "hitbox-collision", function() SC.CheckPoint(input.getCursorPos()) end)
+            else
+                hook.remove(DrawHook, "draw-menu")
+                hook.remove("tick", "hitbox-collision")
+            end
+            
+            Broadcast(Data.Receivers, "HUD_BUTTONS_OPENED", Active)
+            
+            net.start(sv_MenuOpened)
+                net.writeBool(Active)
+            net.send()
+        end
+        
+        -- Set up, make buttons, get keybinds
+        function Initialize()
+            local texSize = 1024 * SH.UIScale
+            
+            if SH.DrawOverHUD then DrawHook = "postdrawhud" end
+            FontObject = render.createFont(SH.Font, 30, 1000, true, false, false, false, 0, false, 0)
+            
+            MenuTexture = LiveTexture:new("Menu")
+            MenuTexture.W = texSize; MenuTexture.H = texSize
+            MenuTexture.X = (ResX - texSize) * 0.5 + SH.PanelOffsetX
+            MenuTexture.Y = ResY - texSize + 1
+            
+            MenuTexture:Queue("Panel", function() DrawPanel(16, 819, 994, 204) end)
+            MenuTexture:Bake(Color(0, 0, 0, 0))
+            
+            ScreenSpan = 924 / SH.ScreenCapacity
+            
+            -- # Main buttons drawing & functionality
+            local px = 40; local py = 836
+            local ph = 50
+            for k, panel in ipairs(Data.PanelGroup) do
+                local curX = px + (SH.PanelButtonWidth + 5) * (k - 1)
+                MenuBTN[k] = function(Down, Lit)
+                    MenuTexture:Queue("NAV-" .. k, function() DrawMain(curX, py, SH.PanelButtonWidth, ph, panel.PanelName, Down, Lit) end)
+                    MenuTexture:Bake()
+                end
+                
+                local btn = Button:new()
+                btn:SetAABB(curX * SH.UIScale + MenuTexture.X, py * SH.UIScale + MenuTexture.Y, SH.PanelButtonWidth * SH.UIScale, ph * SH.UIScale)
+                btn:SetActive(true)
+                btn.Func = function(Down)
+                    if Down then SetPanel(k) end
+                    MenuBTN[k](Down, true)
+                end
+            end
+            MenuBTN[1](false, true)
+            
+            -- # Generic buttons
+            local gx = 50; local gy = 895
+            local gw = 72; local gh = 36
+            for i = 1, SH.ScreenCapacity do
+                local curX = gx + ScreenSpan * (i - 0.5) - gw * 0.5
+                GeneralBTN[i] = function(Down)
+                    MenuTexture:Queue("BTN-" .. i, function() DrawSmall(curX, gy, gw, gh, Down) end)
+                    MenuTexture:Bake()
+                end
+                
+                local btn = Button:new()
+                btn:SetAABB(curX * SH.UIScale + MenuTexture.X, gy * SH.UIScale + MenuTexture.Y, gw * SH.UIScale, gh * SH.UIScale)
+                btn:SetActive(true)
+                GeneralBTN[i](false)
+                table.insert(Buttons, btn)
+            end
+            
+            -- # Destroy references to removed or errored starfall chips
+            local ListenerLUT = {}
+            local UpdateReceivers = GenerateRemove(Data.Receivers, ListenerLUT)
+            hook.add("EntityRemoved", "entity-removed", UpdateReceivers)
+            
+            InitializeListeners(Data.PanelGroup, Data.Receivers)
+            
+            SetPanel(1)
+            Keys:Initialize()
+            Await = false
+        end
+        
+        -- Activate a panel & update button functionality
+        function SetPanel(Slot)
+            if Slot == PanelSlot then return end
+            
+            PanelSlot = Slot
+            LivePanel = Data.PanelGroup[Slot]
+            
+            -- # Clear pressed state on other panel buttons
+            for i = 1, #Data.PanelGroup do
+                if i == Slot then continue end
+                MenuBTN[i](false, false)
+            end
+            UpdateScreen()
+            
+            -- # Set generic button functionality
+            for k, btn in ipairs(Buttons) do
+                local btnRef = LivePanel.Buttons[k]
+                if btnRef then
+                    if btnRef.IsToggle then
+                        btn.Func = function(Down) ToggleFunc(k, Down) end
+                    else
+                        btn.Func = function(Down) PressFunc(k, Down) end
+                    end
+                else
+                    btn.Func = function(Down) GeneralBTN[k](Down) end
+                end
+            end
+        end
+        
+        -- Refresh the screen to show button states
+        function UpdateScreen()
+            local content = {}
+            for k, btn in ipairs(LivePanel.Buttons) do
+                content[k] = { Bright = btn.Pressed, Text = btn.ButtonName }
+            end
+            MenuTexture:Queue("Screen", function() DrawScreen(16 + 24, 940, 944, 60, content) end)
+            MenuTexture:Bake()
+        end
+        
+        -- Run remote hooks & update buttons server-side
+        local function SyncedBroadcast(ID, Bool, PanelInd, ButtonInd)
+            Broadcast(Data.Receivers, LivePanel.PanelName .. "-" .. ID, Bool)
+            
+            net.start(sv_UpdateButton)
+                net.writeTable( { PanelInd, ButtonInd, Bool } )
+            net.send()
+        end
+        
+        -- Generic button functionality
+        
+        local function ClearGroup(Bypass)
+            for _, v in ipairs(LivePanel.Grouped) do
+                if v == Bypass then continue end
+                
+                local btn = LivePanel.Buttons[v]
+                if btn.Pressed then
+                    btn.Pressed = false
+                    SyncedBroadcast(btn.ButtonName, btn.Pressed, PanelSlot, v)
+                    UpdateScreen()
+                end
+            end
+        end
+        
+        function ToggleFunc(Ind, Down)
+            GeneralBTN[Ind](Down)
+            if Down then
+                local btn = LivePanel.Buttons[Ind]
+                
+                local wasPressed = btn.Pressed
+                if btn.Grouped then ClearGroup(Ind) end
+                btn.Pressed = not wasPressed
+                
+                SyncedBroadcast(btn.ButtonName, btn.Pressed, PanelSlot, Ind)
+                UpdateScreen()
+            end
+        end
+        
+        function PressFunc(Ind, Down)
+            GeneralBTN[Ind](Down)
+            local btn = LivePanel.Buttons[Ind]
+            
+            if btn.Grouped and Down then ClearGroup(Ind) end
+            btn.Pressed = Down
+            
+            SyncedBroadcast(btn.ButtonName, btn.Pressed, PanelSlot, Ind)
+            UpdateScreen()
+        end
+    end
+    
+    -- >> Compound draw functions
+    do
+        local FontSize = 30
+        
+        function DrawMain(Left, Top, Width, Height, Text, Pressed, Lit)
+            
+            // Border
+            render.setColor(SH.ButtonCol)
+            render.drawRoundedBox(7, Left, Top, Width, Height)
+            
+            // Crevice
+            render.setColor(SH.CreviceCol)
+            render.drawRoundedBox(14, Left + 3, Top + 3, Width - 6, Height - 6)
+            
+            // Pressable
+            local col = SH.ButtonCol
+            if Pressed then col = SH.ButtonDownCol end
+            render.setColor(col)
+            render.drawRoundedBox(14, Left + 6, Top + 6, Width - 12, Height - 12)
+            
+            // Backlit text
+            col = SH.ButtonUnlitCol
+            if Lit then col = SH.ButtonLitCol end
+            render.setColor(col)
+            render.setFont(FontObject)
+            render.drawText(Left + Width * 0.5, Top + (Height - FontSize) * 0.5, Text, TEXT_ALIGN.CENTER)
+        end
+        
+        function DrawSmall(Left, Top, Width, Height, Pressed)
+            
+            // Border
+            render.setColor(SH.ButtonCol)
+            render.drawRoundedBox(10, Left, Top, Width, Height)
+            
+            // Crevice
+            render.setColor(SH.CreviceCol)
+            render.drawRoundedBox(10, Left + 2, Top + 2, Width - 4, Height - 4)
+            
+            // Pressable
+            local col = SH.ButtonCol
+            if Pressed then col = SH.ButtonDownCol end
+            render.setColor(col)
+            render.drawRoundedBox(10, Left + 4, Top + 4, Width - 8, Height - 8)
+            
+            // Backlight
+            col = SH.ButtonUnlitCol
+            if Pressed then col = SH.ButtonLitCol end
+            render.setColor(col)
+            render.drawRect(Left + 4 + 4, Top + 4 + 5 + 2, Width - 8 - 8, 4)
+            render.drawRect(Left + 4 + 4, Top + 4 + 5 + (Height - 18) - 4 - 2, Width - 8 - 8, 4)
+        end
+        
+        function DrawScreen(Left, Top, Width, Height, Content)
+            
+            // Border
+            render.setColor(SH.PanelBorderCol)
+            render.drawRoundedBox(25, Left, Top, Width, Height)
+            
+            // Screen
+            render.setColor(SH.DisplayCol)
+            render.drawRoundedBox(10, Left + 10, Top + 10, Width - 20, Height - 20)
+            
+            local chunkSpan = (Width - 20) / SH.ScreenCapacity
+            local textX = Left + 10
+            local textY = Top + 10 + (Height - 20 - FontSize) * 0.5
+            local rectW = chunkSpan * 0.8
+            local rectH = Height - 30
+            local rectX = Left + 10 - rectW * 0.5
+            local rectY = Top + 10 + 5
+            
+            // Text
+            render.setFont(FontObject)
+            for i = 1, SH.ScreenCapacity do
+                local xOffset = chunkSpan * (i - 0.5)
+                
+                if Content[i] then
+                    local item = Content[i]
+                    
+                    if item.Bright then render.setColor(SH.DisplayTextLitCol)
+                    else render.setColor(SH.DisplayTextCol) end
+                    
+                    render.drawText(textX + xOffset, textY, item.Text, TEXT_ALIGN.CENTER)
+                else
+                    render.setColor(SH.DisplayTextCol)
+                    render.drawRectOutline(rectX + xOffset, rectY, rectW, rectH, 4)
+                end
+            end
+        end
+        
+        function DrawPanel(Left, Top, Width, Height)
+        
+            // Border
+            render.setColor(SH.PanelBorderCol)
+            render.drawRoundedBoxEx(25, Left, Top, Width, Height, true, true, false, false)
+            
+            // Panel
+            render.setColor(SH.PanelCol)
+            render.drawRoundedBoxEx(25, Left + 10, Top + 10, Width - 20, Height - 10, true, true, false, false)
+        end
+    end
+    
+    -- >> LiveTexture class
+    do
+        local ColWhite = Color(255, 255, 255)
+        
+        local BakeAll = Empty
+        
+        function LiveTexture:initialize(ID)
+            render.createRenderTarget(ID)
+            self.ID = ID
+            self.HookID = "generate-" .. ID
+            
+            self.X = 0; self.Y = 0
+            self.W = 1024; self.H = 1024
+            
+            self.QueueList = {}
+            self.StageList = {}
+            self.Writing = false
+            self.BakeList = {}
+        end
+        
+        -- Queue a draw function; functions do not execute in order!
+        function LiveTexture:Queue(FuncID, DrawFunc)
+            self.QueueList[FuncID] = DrawFunc
+        end
+        
+        -- Queue a group of draw functions
+        function LiveTexture:Stage()
+            if table.isEmpty(self.QueueList) then return end
+            
+            local drawFuncs = table.copy(self.QueueList)
+            table.empty(self.QueueList)
+            
+            local function DrawAll()
+                for _, func in pairs(drawFuncs) do
+                    func()
+                end
+            end
+            
+            table.insert(self.StageList, #self.StageList + 1, DrawAll)
+        end
+        
+        -- Queue a group of stage functions
+        function LiveTexture:Bake(RGBA)
+            self:Stage()
+            local stageFuncs = {}
+            
+            if not table.isEmpty(self.StageList) then
+                stageFuncs = table.copy(self.StageList)
+                table.empty(self.StageList)
+            end
+            
+            local function WriteToTexture()
+                if RGBA then render.clear(RGBA) end
+                
+                for _, func in ipairs(stageFuncs) do
+                    func()
+                end
+            end
+            
+            table.insert(self.BakeList, WriteToTexture)
+            
+            if not self.Writing then
+                self.Writing = true
+                hook.add("renderoffscreen", self.HookID, function() BakeAll(self) end)
+            end
+        end
+        
+        -- Draw functions
+        
+        function LiveTexture:Draw()
+            render.setRenderTargetTexture(self.ID)
+            render.setColor(ColWhite)
+            render.drawTexturedRect(self.X, self.Y, self.W, self.H)
+        end
+        
+        function LiveTexture:DrawDebugged()
+            self:Draw()
+            render.drawRectOutline(self.X, self.Y, self.W, self.H, 2)
+        end
+        
+        -- Execute all baking functions
+        function BakeAll(LiveTexture)
+            render.selectRenderTarget(LiveTexture.ID)
+            
+            while #LiveTexture.BakeList > 0 do
+                LiveTexture.BakeList[1]()
+                table.remove(LiveTexture.BakeList, 1)
+            end
+            
+            LiveTexture.Writing = false
+            hook.remove("renderoffscreen", LiveTexture.HookID)
+        end
+    end
+    
+    -- >> Screen Collision; manages collisions for selection on 2D plane
+    do
+        local Items = {}
+        local Selection = {}; local OldSelection = {}
+        local HasSelection = false
+        
+        local IsCollide = Empty
+        local CallSelection = Empty
+        
+        -- >> Global functions
+        
+        --[[
+            Add an item for collision checking
+                < Instructions > should be a key-value table with a function:
+                    [Hover] should take in a boolean
+                    You can put more in here, this is the table returned by SC.GetSelection()
+                < AABB > should be a key-value table with four entries:
+                    < posX1, posY1 > = top left coordinates of item
+                    < posX2, posY2 > = bottom right coordinates of item
+        --]]
+        function SC.AddItem(Instructions, AABB)
+            Items[AABB] = Instructions
+        end
+        
+        -- Remove this item from collision checking
+        function SC.RemoveItem(AABB)
+            if Items[AABB] != nil and Selection == Items[AABB] then SC.ClearSelection() end
+            Items[AABB] = nil
+        end
+        
+        -- Removes all items from collision checking
+        function SC.ClearItems()
+            SC.ClearSelection()
+            Items = {}
+        end
+        
+        function SC.ClearSelection()
+            Selection = {}
+            HasSelection = false
+            CallSelection()
+            OldSelection = {}
+        end
+        
+        -- Check if a point collides with an item & set active item if it does
+        function SC.CheckPoint(X, Y)
+            
+            OldSelection = Selection
+            Selection = {}
+            HasSelection = false
+            
+            -- # See if point is over a hitbox
+            for k, v in pairs(Items) do
+                if IsCollide(X, Y, k.posX1, k.posY1, k.posX2, k.posY2) then
+                    Selection = v
+                    HasSelection = true
+                    break
+                end
+            end
+            
+            CallSelection()
+        end
+        
+        -- Get whether or not there is a selection
+        function SC.HasSelection() return HasSelection end
+        
+        -- Get active selection
+        function SC.GetSelection() return Selection end
+        
+        -- >> Local functions
+        
+        -- Check if a point is within a box
+        function IsCollide(X, Y, PX1, PY1, PX2, PY2)
+            return (X > PX1 and X < PX2 and Y > PY1 and Y < PY2)
+        end
+        
+        -- Call Hover function
+        function CallSelection()
+            if OldSelection != Selection then
+                if not table.isEmpty(OldSelection) then OldSelection.Hover(false) end
+                if not table.isEmpty(Selection) then Selection.Hover(true) end
+            end
+        end
+    end
+    
+    -- >> Keys; keeps track of & updates user input
+    do
+        local Keybind = {}
+        
+        local Input = Empty
+        
+        Keys = {}
+        
+        -- Turns input listening on or off
+        function Keys:SetLogging(Active)
+            if Active then
+                hook.add("inputPressed", "input-down", function(Key) Input(Key, true) end)
+                hook.add("inputReleased", "input-up", function(Key) Input(Key, false) end)
+            else
+                hook.remove("inputPressed", "input-down")
+                hook.remove("inputReleased", "input-up")
+            end
+        end
+        
+        -- Get keybinds
+        function Keys:Initialize()
+            Keybind[SH.ToggleUI] = function(Down)
+                if Down then ToggleMenu(not MenuActive) end
+            end
+            
+            Keybind[MOUSE.LEFT] = function(Down)
+                if MenuActive then hook.run(EVENT.CURSOR_LEFT) end
+            end
+        end
+        
+        -- Run key functions
+        function Input(Key, Down)
+            if Keybind[Key] then Keybind[Key](Down) end
+        end
+    end
+    
+    -- >> Button class
+    do
+        function Button:initialize()
+            self.Func = Empty
+            self.AABB = {}
+            self.Pressed = false
+            
+            local function OnLeftClick() end
+            local function PushButton(Down) end
+            
+            self.Hover = function(Hovered)
+                if Hovered then
+                    hook.add(EVENT.CURSOR_LEFT, "left-click", OnLeftClick)
+                else
+                    if self.Pressed then PushButton(false) end
+                    hook.remove(EVENT.CURSOR_LEFT, "left-click")
+                end
+            end
+            
+            -- Extra functionality
+            do
+                function OnLeftClick()
+                    local leftMouse = input.isMouseDown(MOUSE.LEFT)
+                    if self.Pressed != leftMouse then PushButton(leftMouse) end
+                end
+                
+                function PushButton(Down)
+                    self.Pressed = Down
+                    self.Func(self.Pressed)
+                end
+            end
+        end
+        
+        -- Set hitbox dimensions
+        function Button:SetAABB(Left, Top, Width, Height)
+            self.AABB = {
+                posX1 = Left,
+                posY1 = Top,
+                posX2 = Left + Width,
+                posY2 = Top + Height,
+            }
+        end
+        
+        -- Toggle hitbox on or off
+        function Button:SetActive(Active)
+            if Active then
+                SC.AddItem({ Hover = self.Hover }, self.AABB)
+            else
+                SC.RemoveItem(self.AABB)
+            end
+        end
+    end
+end

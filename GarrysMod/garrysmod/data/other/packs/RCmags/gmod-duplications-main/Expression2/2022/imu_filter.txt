@@ -1,0 +1,52 @@
+@name IMU filter - Modified Mahony - v1
+@inputs 
+@outputs [Acc_local Zlocal]:vector 
+@persist Qt:quaternion Rate:vector 
+@persist Vel:vector
+
+if( first() ) {
+    Qt = quat(1, 0, 0, 0)
+}
+
+DT = 10
+interval(DT)
+DT *= 1e-3
+
+# 1. State
+E = entity()
+Pos = E:pos()
+Angvel = (  E:angVelVector() * 90/60 )* pi()/180  # need to correct scale
+
+    # global cceleration
+Vel_new = E:vel()
+Acc = (Vel_new - Vel)/DT
+Vel = Vel_new
+
+    # local acceleration
+Acc = Acc/900 + vec(0, 0, 1)
+Acc_local = E:toLocal( Pos + Acc )
+
+# 3. Sensor fusion
+KP = 0.1
+KC = sqrt(2*KP)
+
+    # orientation error
+Qz = conj(Qt) * quat(0, 0, 0, 1) * Qt 
+Zlocal = vec(Qz)
+Zest = Acc_local:normalized()
+Error = Zest:cross(Zlocal)
+
+    # rotation angle
+Rate += Error*KP - Rate*KC
+Theta = Angvel*DT + Rate
+Theta *= 180 / pi()
+
+Qt *= qRotation( Theta:normalized(), Theta:length() )
+
+
+
+
+
+
+
+

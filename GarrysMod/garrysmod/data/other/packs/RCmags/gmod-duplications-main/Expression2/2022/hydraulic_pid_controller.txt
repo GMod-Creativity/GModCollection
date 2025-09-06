@@ -1,0 +1,60 @@
+@name Hydraulic PID controller
+@inputs Measure
+# hydraulic
+@outputs Length
+@outputs Constant Damping
+# pid terms
+@outputs Error Deriv Int
+@persist Measure_1 Int
+# Constants
+@persist DT DT_MS
+@persist KP KI KD
+@persist INT_MAX
+@persist Constant Damping
+
+@trigger 
+
+if( first() ) {
+    # update time step
+    DT_MS = 10
+    DT = DT_MS * 1e-3
+    
+    # PID Constants
+    KP = 20
+    KI = 0
+    KD = 0.5
+        # Intergral overwind limit
+    INT_MAX = 10    
+    
+    # Initialize values
+    Measure_1 = Measure
+    Int = 0
+    
+    # Hydraulic constants
+    Constant = 1000
+    Damping = 500
+}
+
+interval(DT_MS)
+
+# 0. Set Target length
+Target = 28
+
+# 1.  Measure state error
+Error = Target - Measure
+
+# 2.  Derivative of error
+Deriv = -(Measure - Measure_1) / DT
+Measure_1 = Measure
+
+# 3. Intergral of error
+Int = Int + (KI*Error)*DT
+Int = clamp(Int, -INT_MAX, INT_MAX)
+
+# 4. PID controller
+PID = KP*Error + Int + KD*Deriv
+
+# 5. Modify length
+Length = Measure + PID
+    # Restrict length
+Length = clamp(Length, 0, 1e3)

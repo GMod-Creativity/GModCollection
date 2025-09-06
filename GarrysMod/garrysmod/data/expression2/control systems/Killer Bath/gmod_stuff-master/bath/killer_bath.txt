@@ -1,0 +1,153 @@
+@name killer_baths
+@inputs W S A D
+@persist MovePID:table RotPID:table MaxForce:number AttackDist:number AttackForce:number
+@trigger 
+
+
+interval(10)
+
+Me = entity()
+Base = Me:isWeldedTo()
+
+##############################################################
+# PID
+##############################################################
+
+function table init_pid(P:number, I:number, D:number)
+{
+    local PID = table()
+    PID["P_gain", number] = P
+    PID["I_gain", number] = I
+    PID["D_gain", number] = D
+    return PID
+}
+
+function number calc_pid(PID:table, Err:number, X:number)
+{    
+    # P
+    local P_Term = Err
+    
+    # I
+    local I_state = PID["I_state", number]
+    I_state += Err
+    I_state = min(I_state, PID["I_max", number])
+    I_state = max(I_state, PID["I_min", number])
+    PID["I_state", number] = I_state
+    local I_Term = PID["I_gain", number] * I_state
+    
+    # D
+    local D_Term = PID["D_gain", number] * (X - PID["D_state", number])
+    PID["D_state", number] = X
+    
+    return PID["P_gain", number] * (P_Term + I_Term - D_Term)
+}
+
+function table init_pid_3d(P:number, I:number, D:number)
+{
+    local PID = table()
+    PID["X", table] = init_pid(P, I, D)
+    PID["Y", table] = init_pid(P, I, D)
+    PID["Z", table] = init_pid(P, I, D)
+    return PID
+}
+
+function vector calc_pid_3d(PID:table, Err:vector, X:vector)
+{
+    local PX = calc_pid(PID["X", table], Err:x(), X:x())
+    local PY = calc_pid(PID["Y", table], Err:y(), X:y())
+    local PZ = calc_pid(PID["Z", table], Err:z(), X:z())
+    return vec(PX, PY, PZ)
+}
+
+##############################################################
+# MAIN
+##############################################################
+
+function setup()
+{
+    print("Setup")
+    MovePID = init_pid_3d(100, 0, 30)
+    RotPID = init_pid_3d(10000, 0, 10)
+    MaxForce = 100000
+    AttackDist = 70
+    AttackForce = 10000
+}
+
+
+# Calculate orientation error between current entity Forwared direction target point
+# This error function is used to make target aim given point
+function vector calc_orientation_error_target(Target:vector)
+{
+    # Yaw error
+    # Just bearing - signed angle between Base forward direction and target position
+    #                in horizontal plane
+    local YawErr = Base:bearing(Target)
+    
+    # Pitch error
+    # Just bearing - signed angle between Base forward direction and target position
+    #                in vertical error
+    local PitchErr = Base:elevation(Target)
+    
+    # Roll error
+    # This is quite difficult
+    # Use angle between "ideal" up vector (without any roll) and real up vector (with roll)
+    #
+    # "ideal" up vector calculation
+    # Ref: https://learnopengl.com/Getting-started/Camera
+    local Right = vec(0, 0, 1):cross(Base:eye())
+    local Up0 = Base:eye():cross(Right)
+    # Convet up0 to the local frame. Real up in local frame is always (0, 0, 1)
+    # Local up0 is always (0, y, z) (TODO: Proof), so just use atan2 to calc angle
+    # This is close to Bearing calculation in E2 standart function
+    Up0 = Base:toLocalAxis(Up0)
+    local Up = vec(0, 0, 1)
+    local RollErr = atan(Up0:y(), Up0:z())
+    
+    return vec(RollErr, PitchErr, YawErr)
+}   
+
+# Rotation PID-control
+function rot_control(Target:vector)
+{
+    local OrientationErr = calc_orientation_error_target(Target)
+    
+    # Note: 
+    # I don't use Error and Value (for differentiation) for orientation control, just Error
+    # So, controllable value - error, targer always (0, 0, 0)
+    # I tried to use actual angles for D but not works
+    local Torque = calc_pid_3d(RotPID, -OrientationErr, OrientationErr)
+    Base:applyTorque(Torque)
+}
+
+
+function pos_control(Target:vector)
+{
+    local MyPos = Base:pos()
+    local PosErr = MyPos - Target
+    local Dist = PosErr:length()
+    local Force = vec()
+    if (Dist > AttackDist) {
+        local Force = calc_pid_3d(MovePID, -PosErr, MyPos)
+        local ForceM = Force:length()
+        if (ForceM > MaxForce) {
+            Force = Force / ForceM * MaxForce
+        }
+    } else {
+        Force = -PosErr * AttackForce
+    }
+    Base:applyForce(Force)
+}
+
+
+function loop()
+{
+    rot_control(Player:pos())
+    pos_control(Player:pos())
+}
+
+if(first()) {
+    setup()
+}
+else {
+    loop()
+}

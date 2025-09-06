@@ -1,0 +1,434 @@
+@name dodgem_holo_Kolore!
+@inputs Dx:number Sx:number Fw:number Dw:number Confirm:number Cancel:number Reset:number
+@outputs Turno:number Vinto:number ColoreGiocatoreVinto:vector
+
+@persist CampoGioco:table Turno:number InfoHolo:table IdHoloAttuale:number 
+@persist Stato:string HoloDaMuovere:number ListaGBlu:array ListaGRosso:array IndiceHolo:number 
+@persist Vinto:number ColoreGiocatoreVinto:vector
+@persist DupeAcceso:number
+
+NumMacchine = 4
+ALPHA_MACCHINA_LIBERA = 0
+#--------------
+HoloWidth = 20 
+BLU = 0
+ROSSO = 1
+HOLO_DIR_SCELTA = 105
+HOLO_DIR_E = 101
+HOLO_DIR_N = 102
+HOLO_DIR_S = 103
+HOLO_DIR_W = 104
+
+
+function number getCoord(R:number, C:number) {
+    local NumColonne = NumMacchine+1
+    return R*(NumColonne)+C
+}
+
+function creaCampoGioco() {
+    CampoGioco = table()
+    Righe = NumMacchine+1
+    Colonne = NumMacchine+1
+    for(R=0, Righe) {
+        for(C=0, Colonne) {
+            CampoGioco[getCoord(R,C), number] = 0
+        }
+    }    
+}
+
+function stampaCampoGioco(CampoGioco:table) {
+    Righe = NumMacchine+1
+    Colonne = NumMacchine+1
+    Stringa = ""
+    for(R=0, Righe) {
+        
+        for(C=0, Colonne) {
+            Stringa += CampoGioco[getCoord(R,C), number]
+        }
+        
+        Stringa += "\n"
+    }    
+    
+    print(Stringa)
+}
+
+function vector coloreGiocatore(Giocatore:number) {
+    local Colore = vec(255, 0, 0)   #giocatore 1: ROSSO
+    if(Giocatore == BLU) {   #giocatore 0: BLU
+        Colore = vec(0,0,255)
+    }
+    
+    return Colore
+}
+
+
+function creaHoloGiocatore(Giocatore:number, IdHolo:number) {
+    holoCreate(IdHolo) #, vec(0,0,0)), vec(1,1,1), ang(0,0,0), vec(255,0,0), "cube")
+    holoColor(IdHolo, coloreGiocatore(Giocatore))
+    holoAlpha(IdHolo, 255)
+    holoParent(IdHolo, entity())
+    
+    if(holoModelAny()) {
+        #models/props_vehicles/car002a_physics.mdl
+        holoModel(IdHolo, "models/buggy.mdl") 
+        holoScaleUnits(IdHolo, vec(25, 30, 20) * 0.8)
+    } 
+}
+
+function creaHoloObiettivo(Giocatore:number, IdHolo:number, NumMacchine:number) {
+    holoCreate(IdHolo) 
+    
+    local Posizione = vec(
+        ((NumMacchine+1) * HoloWidth)/2  , 
+        ((NumMacchine+1) * HoloWidth)  , 
+        0)
+        
+    local Scala = vec((NumMacchine+1) * HoloWidth,
+        5,
+        5 )
+        
+    if(Giocatore==ROSSO){
+        Posizione = vec(
+            ((NumMacchine+1) * HoloWidth)  , 
+            ((NumMacchine+1) * HoloWidth)/2  , 
+            0)
+        
+        Scala = vec(5,
+            (NumMacchine+1) * HoloWidth,
+            5 )
+    }
+        
+    holoScaleUnits(IdHolo, Scala)
+    
+    holoPos(IdHolo, entity():toWorld(Posizione))
+    holoColor(IdHolo, coloreGiocatore(Giocatore))
+    holoAlpha(IdHolo, 150)
+    holoParent(IdHolo, entity())
+}
+
+function number getPosXHolo(IdHolo:number, InfoHolo:table) {
+    return InfoHolo[IdHolo + "_COL", number]
+}
+
+function number getPosYHolo(IdHolo:number, InfoHolo:table) {
+    return InfoHolo[IdHolo + "_ROW", number]
+}
+
+function setPosXYHolo(IdHolo:number, PosX:number, PosY:number, InfoHolo:table) {
+    HoloWidth = 20 # width, length
+    
+    InfoHolo[IdHolo + "_COL", number] = PosX
+    InfoHolo[IdHolo + "_ROW", number] = PosY
+    
+    holoPos(IdHolo, entity():toWorld(vec(PosX * HoloWidth, PosY * HoloWidth, 0)))
+}
+
+function creaGiocatori(IdHoloAttuale:number, InfoHolo:table, ListaGBlu:array, ListaGRosso:array) {
+    CampoGioco = table()
+    
+    for(R=NumMacchine, 1, -1) {
+        creaHoloGiocatore(BLU, IdHoloAttuale) 
+        setPosXYHolo(IdHoloAttuale, R, 0 , InfoHolo)
+        CampoGioco[getCoord(R, 0), number] = IdHoloAttuale
+        
+        ListaGBlu:pushNumber(IdHoloAttuale)
+        
+        IdHoloAttuale++
+    }
+    
+    for(C=NumMacchine, 1, -1) {
+        creaHoloGiocatore(ROSSO, IdHoloAttuale) 
+        CampoGioco[getCoord(0, C), number] = IdHoloAttuale
+        setPosXYHolo(IdHoloAttuale, 0, C , InfoHolo)
+        holoAng(IdHoloAttuale,  entity():toWorld(ang(0,270,0)))        
+        
+        ListaGRosso:pushNumber(IdHoloAttuale)
+        
+        IdHoloAttuale++
+    }
+    return IdHoloAttuale
+}
+
+function number controllaMossaValida(Giocatore:number, CampoGioco:table, PosX:number, PosY:number, PosXNuovo:number, PosYNuovo:number, NumMacchine:number) {
+    #caso: posto libero
+    local Valido = 0
+    
+    if(CampoGioco[getCoord(PosXNuovo, PosYNuovo), number] == 0) {            
+        Valido = 1
+    }     
+    
+    #casi: non superare il campo da gioco
+    if(PosYNuovo < 0 || PosYNuovo > NumMacchine || PosXNuovo < 0 || PosXNuovo > NumMacchine) {
+        Valido = 0
+    }
+    
+    #non tornare indietro
+    if(Giocatore == BLU & PosYNuovo < PosY) {
+        Valido = 0
+    } 
+    
+    if(Giocatore == ROSSO & PosXNuovo < PosX) {
+        Valido = 0
+    } 
+     
+    #caso: supera solo se hai raggiunto l'obiettivo
+    if(Giocatore == BLU & PosYNuovo == (NumMacchine+1)) {
+        Valido = 1
+    } 
+    
+    if(Giocatore == ROSSO & PosXNuovo == (NumMacchine+1)) {
+        Valido = 1
+    }
+            
+    #non superare un ostacolo in diagonale (se la distanza in diagonale per x ed y equivale ad 1)
+    if(  (PosXNuovo - PosX) * (PosXNuovo - PosX)  == 1 && (PosYNuovo - PosY) * (PosYNuovo - PosY) == 1) {
+         Valido = 0
+    }
+    
+    #print("dist x: " + (PosXNuovo - PosX))
+    #print("dist y: " + (PosYNuovo - PosY))
+    
+    return Valido
+}
+
+function number controllaSeGiocatoreBloccato(Giocatore:number, CampoGioco:table, ListaPedine:array, NumMacchine:number, InfoHolo:table) {
+    local AlmenoUnoLibero = 0 # 1: almeno uno libero, 0: tutti bloccati
+    
+    for(P=1, ListaPedine:count()) {
+        local Pedina = ListaPedine[P, number]
+        
+        #ottieni posizione i esima pedina
+        local PosX = getPosXHolo(Pedina, InfoHolo)
+        local PosY = getPosYHolo(Pedina, InfoHolo)
+        #print(format("Pedina %d, Posizione: %d %d", Pedina, PosX, PosY))
+        
+        local BloccoN = controllaMossaValida(Giocatore, CampoGioco, PosX, PosY, PosX+1, PosY, NumMacchine)
+        local BloccoS = controllaMossaValida(Giocatore, CampoGioco, PosX, PosY, PosX, PosY+1, NumMacchine)
+        local BloccoE = controllaMossaValida(Giocatore, CampoGioco, PosX, PosY, PosX, PosY-1, NumMacchine)
+        local BloccoO = controllaMossaValida(Giocatore, CampoGioco, PosX, PosY, PosX-1, PosY, NumMacchine)
+        
+        #print(format("Bloccato?: %d %d %d %d", BloccoN , BloccoS, BloccoE , BloccoO))
+        
+        if(BloccoN==0 & BloccoS==0 & BloccoE==0 & BloccoO==0) {
+            #print(format("- Pedina %d, Posizione: %d %d - (%d %d %d %d) BLOCCATO", Pedina, PosX, PosY, BloccoN, BloccoS, BloccoE, BloccoO))
+        } else {
+            #print(format("- Pedina %d, Posizione: %d %d - (%d %d %d %d) LIBERO", Pedina, PosX, PosY, BloccoN, BloccoS, BloccoE, BloccoO))
+            AlmenoUnoLibero = 1
+            break
+        }
+    }
+    
+    return AlmenoUnoLibero == 0
+}
+
+function creaHoloDirezione(IdHolo:number, Angolo:angle){
+    holoCreate(IdHolo)
+    holoColor(IdHolo, vec(0,255,0))
+    holoPos(IdHolo, entity():toWorld(vec(0,0, 0)))
+    holoModel(IdHolo, "cone")
+    holoAng(IdHolo, Angolo)
+    holoParent(IdHolo, entity()) 
+    
+    holoAlpha(IdHolo, 0)  
+}
+
+function resetGioco() {
+    IdHoloAttuale = 1
+    Turno = 0
+    InfoHolo = table()
+    ListaGBlu = array()
+    ListaGRosso = array()
+    Vinto = 0
+    
+    Stato = "selezione"
+    HoloDaMuovere = 1
+    IndiceHolo = 0
+    
+    creaCampoGioco()
+    #stampaCampoGioco(CampoGioco)
+    IdHoloAttuale = creaGiocatori(IdHoloAttuale, InfoHolo, ListaGBlu, ListaGRosso)
+    creaHoloObiettivo(BLU, 200, NumMacchine)
+    creaHoloObiettivo(ROSSO, 201, NumMacchine)
+ 
+    #rispetto giocatore rosso
+    
+    creaHoloDirezione(HOLO_DIR_E, entity():toWorld(ang(0,90,90)))      # destra
+    creaHoloDirezione(HOLO_DIR_N, entity():toWorld(ang(0,180,90)))     # su
+    creaHoloDirezione(HOLO_DIR_S, entity():toWorld(ang(0,0,90)))       # giu
+    creaHoloDirezione(HOLO_DIR_W, entity():toWorld(ang(0,270,90)))     # sinistra
+    
+    creaHoloDirezione(HOLO_DIR_SCELTA, ang(0,0,180))     # selezione macchina
+}
+
+if(first() | duped()) {
+    DupeAcceso = 0
+}
+
+if(!DupeAcceso & Reset) {
+    DupeAcceso = 1
+}
+if(DupeAcceso & Reset) {
+    
+    resetGioco()
+    
+}
+
+
+local Giocatore = (Turno % 2)
+local Indice = 1 + IndiceHolo % (Giocatore == 0 ? ListaGBlu:count() : ListaGRosso:count())
+
+if(DupeAcceso & Vinto == 0 && Stato == "selezione") {
+    
+    #HoloDaMuovere = Giocatore == 0 ? 1 : 5
+    
+    holoAlpha(HOLO_DIR_SCELTA, 255)
+    
+    holoAlpha(HOLO_DIR_E, 0) 
+    holoAlpha(HOLO_DIR_N, 0) 
+    holoAlpha(HOLO_DIR_S, 0)
+    holoAlpha(HOLO_DIR_W, 0) 
+    
+    if(Sx | Fw) {
+        IndiceHolo++
+    }
+    if(Dx | Dw) {
+        IndiceHolo--
+    }
+    
+    
+    HoloDaMuovere = Giocatore == BLU ? ListaGBlu[Indice, number] : ListaGRosso[Indice, number]
+    
+    #print(format("Count %d, Indice %d - %d, Holo %d", ListaGBlu:count()-1, IndiceHolo, Indice, HoloDaMuovere))
+        
+    if(Confirm) {
+        Stato = "muovi"
+    }
+    
+    local PosX = getPosXHolo(HoloDaMuovere, InfoHolo)
+    local PosY = getPosYHolo(HoloDaMuovere, InfoHolo)
+    
+    holoPos(HOLO_DIR_SCELTA, entity():toWorld(vec(PosX * HoloWidth, PosY * HoloWidth, HoloWidth )))
+}
+
+if(DupeAcceso & Vinto == 0 && Stato == "muovi") {
+    
+    holoAlpha(HOLO_DIR_SCELTA, 0)
+    
+    holoAlpha(HOLO_DIR_E, 0)
+    holoAlpha(HOLO_DIR_N, 0)
+    holoAlpha(HOLO_DIR_S, 0)
+    holoAlpha(HOLO_DIR_W, 0)
+    
+    #print(format("Giocatore: %d %s" , Giocatore, Giocatore == BLU ? "B" : "R"))
+    #print(format("Valore: %d" , CampoGioco[getCoord(PosX-1, PosY), number]))
+    
+    local PosX = getPosXHolo(HoloDaMuovere, InfoHolo)
+    local PosY = getPosYHolo(HoloDaMuovere, InfoHolo)
+    
+    
+    if(controllaMossaValida(Giocatore, CampoGioco, PosX, PosY, PosX+1, PosY, NumMacchine)) {
+        holoPos(HOLO_DIR_E, entity():toWorld(vec((PosX+1) * HoloWidth, PosY * HoloWidth, 0)))
+        holoAlpha(HOLO_DIR_E, 255)  
+    }
+    
+    if(controllaMossaValida(Giocatore, CampoGioco, PosX, PosY, PosX, PosY+1, NumMacchine)) {
+        holoPos(HOLO_DIR_N, entity():toWorld(vec(PosX * HoloWidth, (PosY+1) * HoloWidth, 0)))
+        holoAlpha(HOLO_DIR_N, 255)  
+    }
+    
+    if(controllaMossaValida(Giocatore, CampoGioco, PosX, PosY, PosX, PosY-1, NumMacchine)) {
+        holoPos(HOLO_DIR_S, entity():toWorld(vec(PosX * HoloWidth, (PosY-1) * HoloWidth, 0)))
+        holoAlpha(HOLO_DIR_S, 255)  
+    }
+    
+    if(controllaMossaValida(Giocatore, CampoGioco, PosX, PosY, PosX-1, PosY, NumMacchine)) {
+        holoPos(HOLO_DIR_W, entity():toWorld(vec((PosX-1) * HoloWidth, PosY * HoloWidth, 0)))
+        holoAlpha(HOLO_DIR_W, 255)  
+    }
+    
+    if(Cancel) {
+        Stato = "selezione"
+    }
+    
+    if(Fw | Dx | Sx | Dw) {
+        
+        #print("-----")
+        
+        local PosXNuovo = PosX
+        local PosYNuovo = PosY
+        
+        if(Dx) {
+            PosYNuovo++
+        }
+        
+        if(Fw) {
+            PosXNuovo--
+        }
+        
+        if(Dw) {
+            PosXNuovo++
+        }
+        
+        if(Sx) {
+            PosYNuovo--
+        }
+        
+        local MossaValida = controllaMossaValida(Giocatore, CampoGioco, PosX, PosY, PosXNuovo, PosYNuovo, NumMacchine)
+        
+        if(MossaValida == 0) {
+            
+            #mossa non valida
+            #print("non valida")
+            #print("Valore: " + CampoGioco[getCoord(PosXNuovo, PosYNuovo), number])
+        } else {
+            
+            Turno++
+            Stato = "controlla"
+            
+            #print("- valida")
+            
+            #rende libera la nuova posizione
+            CampoGioco[getCoord(PosX, PosY), number] = 0
+            CampoGioco[getCoord(PosXNuovo, PosYNuovo), number] = HoloDaMuovere
+            
+            setPosXYHolo(HoloDaMuovere, PosXNuovo, PosYNuovo , InfoHolo)
+            
+            #libera casella se raggiungi obiettivo
+            if(Giocatore == BLU & PosYNuovo == (NumMacchine+1)) {
+                CampoGioco[getCoord(PosX, PosYNuovo), number] = 0
+                holoAlpha(HoloDaMuovere, ALPHA_MACCHINA_LIBERA)
+                ListaGBlu:removeNumber(Indice)
+            }
+            
+            if(Giocatore == ROSSO & PosXNuovo == (NumMacchine+1)) {
+                CampoGioco[getCoord(PosXNuovo, PosY), number] = 0
+                holoAlpha(HoloDaMuovere, ALPHA_MACCHINA_LIBERA)
+                ListaGRosso:removeNumber(Indice)
+            }
+        }
+        
+    }
+}
+
+if(DupeAcceso & Vinto == 0 && Stato == "controlla") {
+    
+    holoAlpha(HOLO_DIR_SCELTA, 0)
+    holoAlpha(HOLO_DIR_E, 0)
+    holoAlpha(HOLO_DIR_N, 0)
+    holoAlpha(HOLO_DIR_S, 0)
+    holoAlpha(HOLO_DIR_W, 0)
+    
+    local GiocatoreOpposto = Giocatore == BLU ? ROSSO : BLU
+    
+    if(ListaGRosso:count() == 0 || ListaGBlu:count() == 0) {
+        Vinto = 1
+        ColoreGiocatoreVinto = ListaGBlu:count() == 0 ? coloreGiocatore(BLU) : coloreGiocatore(ROSSO)
+        Stato = "vinto"
+    }  elseif( controllaSeGiocatoreBloccato(GiocatoreOpposto, CampoGioco, GiocatoreOpposto == ROSSO ? ListaGRosso : ListaGBlu, NumMacchine, InfoHolo) == 1){
+        Stato = "vinto"
+        ColoreGiocatoreVinto = coloreGiocatore(GiocatoreOpposto)
+        Vinto = 1 
+    } else {
+        Stato = "selezione"
+    }
+}

@@ -1,0 +1,88 @@
+#Simulated aspect ratio; High Re assumed. 
+@name Ar = 9
+
+@inputs W:wirelink
+
+#-Constants:
+
+#Entity selection
+@persist E:entity
+
+#Bounding box dimensions
+@persist B:vector Bx By Bz
+
+#-------------------
+
+#-Entity trigger:
+
+if( ~W ) {
+
+#Entity selection
+E = W:entity()
+
+#Bounding box vector
+B = E:boxSize()
+
+#Bounding box dimensions
+Bx = B:x()
+By = B:y()
+Bz = B:z()
+
+#Calculation repetition
+
+runOnTick(1)
+
+} 
+
+#-------------------
+
+#-Valid entity selection
+
+if( W ) {
+
+#Velocity vector
+V = E:velL()
+
+# Velocity magnitude
+V2 = V:length()
+
+} else { runOnTick(0) }
+
+#-------------------
+
+#-Force calculation:
+
+if(V2 > 0) {
+
+#Angles of velocity vector (Relative to XY plane)
+A = V:toAngle()
+
+#Geometric angle of attack 
+P = A:pitch()
+
+#Side slip angle 
+Y = A:yaw()
+
+#Sine and cosine of angles
+
+Cp = cos(P)
+Cy = cos(Y)
+Sy = sin(Y)
+Sp = sin(P)
+
+# Drag coefficient and frontal proyected area
+
+D = ( By*Bz*abs(Cy*Cp) + Bx*Bz*abs(Sy*Cp) + Bx*By*abs(Sp) )*abs(Cp^3)
+Dx = D*Cp
+
+#Lift coefficient and top surface area
+
+L = Bx*By*sin(P*2)*(2.3 - 1.4/(1 + 80*abs(Cp)^70))
+Lx = Sp*L
+
+# Force application
+
+E:applyForce( (E:forward()*Cy*(Dx + Lx) - E:right()*Sy*(Dx + Lx) + E:up()*(Cp*L - Sp*D))*(V2^1.96)/3300000 )
+#                          X axis      ;         Y axis          ;        Z axis     ; Velocity multiplier
+
+}

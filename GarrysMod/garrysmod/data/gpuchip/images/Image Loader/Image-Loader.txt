@@ -1,0 +1,83 @@
+mov #regHWClear,0;
+
+cmp #DRAW_FLAG,1;
+je FrameUpdate;
+jmp Exit;
+
+FrameUpdate:
+
+    // Check if we need to initialize
+    cmp #init,0;
+    je FrameInit;
+    jmp FrameDraw;
+
+jmp Exit;
+
+FrameInit:
+
+    dclrscr bg_color;
+    mov #init,1;
+    mov eax,#WIDTH; mul eax,#HEIGHT;
+    mov #BUFFER_SIZE,eax;
+    mov #size.x,#CELLSIZE_X;
+    mov #size.y,#CELLSIZE_Y;
+    //div #size.x,1.5;
+    //div #size.y,1.5;
+    
+jmp Exit;
+
+FrameDraw:
+    
+    // Check for draw finish
+    cmp #index,#BUFFER_SIZE;
+    jg Exit;
+    
+    // Get pixel offset
+    mov #pos.x,#index; mod #pos.x,#WIDTH;
+    mov #pos.y,#index; div #pos.y,#HEIGHT; fint #pos.y;
+    
+    // Apply length offsets
+    mul #pos.x,#size.x;
+    mul #pos.y,#size.y;
+    
+    mov edx,PIXEL_BUFFER;
+    add edx,#index;
+    
+    // Copy single color number
+    mov #pixel.r,#edx;
+    mov #pixel.g,#edx;
+    mov #pixel.b,#edx;
+    
+    // Perform bit operations to get color
+    bshr #pixel.r,16; band #pixel.r,0xFF;
+    bshr #pixel.g,8; band #pixel.g,0xFF;
+    band #pixel.b,0xFF;
+    
+    // Draw pixel
+    dcolor pixel;
+    drectwh pos,size;
+
+    inc #index;
+    jl FrameDraw;
+    
+jmp Exit;
+
+Exit: dexit;
+
+color fg_color,255,0,0;
+color bg_color,100,149,237;
+
+define DRAW_FLAG,63488;
+define WIDTH,63489;
+define HEIGHT,63490;
+define CELLSIZE_X,63491;
+define CELLSIZE_Y,63492;
+
+alloc init;
+alloc index;
+vec2f pos;
+vec2f size,1,1;
+
+color pixel;
+define PIXEL_BUFFER,66000;
+alloc BUFFER_SIZE;

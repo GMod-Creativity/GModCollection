@@ -1,0 +1,80 @@
+--@name coincidence_rangefinder/save6
+--@author Mewing_Rizzmaster69
+--@client
+
+if player() != owner() then return end
+
+local PerfRatio = 0.5
+local FOV = 30
+local FocusDistance = 5000
+local OpticWidth = 100
+local BackgroundCol = Color(255, 255, 255)
+
+local TextureL = "Texture-L"
+local TextureR = "Texture-R"
+render.createRenderTarget(TextureL)
+render.createRenderTarget(TextureR)
+
+local Material = material.create("gmodscreenspace")
+Material:setFloat("$alpha", 0.5)
+
+local LeftHolo = hologram.create(Vector(), Angle(), "models/props_junk/PopCan01a.mdl")
+local RightHolo = hologram.create(Vector(), Angle(), "models/props_junk/PopCan01a.mdl")
+LeftHolo:setNoDraw(true)
+RightHolo:setNoDraw(true)
+
+local function OnCapture(Ent, ID, Texture)
+    render.selectRenderTarget(Texture)
+    
+    local origin = Ent:getPos()
+    local angles = Ent:getAngles()
+    
+    render.renderView(
+        {
+            origin = origin,
+            angles = angles,
+            aspectratio = 1,
+            x = 0,
+            y = 0,
+            w = 1024,
+            h = 1024,
+            fov = FOV
+        }
+    )
+    
+    hook.remove("renderscene", ID)
+end
+
+local function StartCapture(Ent, ID, Texture)
+    hook.add("renderscene", ID, function() OnCapture(Ent, ID, Texture) end)
+end
+
+local function Draw()
+    
+    if cpuTotalAverage() / cpuMax() < PerfRatio then
+        local focusPos = owner():getPos() + owner():getEyeAngles():getForward() * FocusDistance
+        local right = owner():getEyeAngles():getRight() * OpticWidth
+        local up = Vector(0, 0, 1)
+        
+        LeftHolo:setPos(owner():getPos() - right)
+        LeftHolo:setAngles( (focusPos - LeftHolo:getPos()):getAngleEx(up) )
+        StartCapture(LeftHolo, "left", TextureL)
+        
+        RightHolo:setPos(owner():getPos() + right)
+        RightHolo:setAngles( (focusPos - RightHolo:getPos()):getAngleEx(up) )
+        StartCapture(RightHolo, "right", TextureR)
+    end
+    
+    render.setColor(BackgroundCol)
+    render.drawRect(0, 0, 1024, 1024)
+    
+    render.setMaterial(Material)
+    Material:setTextureRenderTarget("$basetexture", TextureL)
+    render.drawTexturedRect(0, 0, 1024, 1024)
+    Material:setTextureRenderTarget("$basetexture", TextureR)
+    render.drawTexturedRect(0, 0, 1024, 1024)
+end
+
+enableHud(player(), true)
+
+hook.add("drawhud", "gaming", Draw)

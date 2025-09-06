@@ -1,0 +1,120 @@
+@name Simple E2 Lift - v5 - Step restriction
+@inputs E:entity
+@outputs [Xms Xn]:vector 
+
+@persist Gain:vector 
+@persist DT_MS DT 
+@persist LMAX 
+@persist CONST
+
+# First call
+if( first() ) {
+    #--- Constants ---
+    DT = tickInterval()
+        
+    # Decay ratio 
+    Gain = vec(0,0,0)
+    LMAX = 1.0              # Oscillates for L > 1
+        
+    #--- Functions ----
+    
+    # Set Prop velocity
+    function void setVelocity( Vel:vector ) {
+        Impulse = E:mass() * ( Vel - E:vel() )
+        E:applyForce( Impulse )
+    }
+    
+    # Step Restriction    
+    function vector stepLimit( Dv:vector, Vel:vector, I ) {
+        Vdot = Vel:dot(Dv)
+        if( Vdot != 0 ) {
+            # Measure decay ratio
+            Lmeas = -Dv:length2() / Vdot
+            # Set gain
+            if( Lmeas > LMAX ) {
+                Gain[I] = LMAX / Lmeas
+            } else {
+                Gain[I] = 1
+            }
+        }
+        # Modify step 
+        Dv = Dv * Gain[I]
+        return Dv       
+    }
+    
+    function vector stepLimitAxis( Dx:vector, X:vector, A:vector, I ) {
+        # Decompose force
+        Dxn = Dx:dot(A) * A     # Always decays motion - parallel to axis
+        Dxp = Dx - Dxn          # Has no decay ratio
+        
+        # Restrict axial component
+        Dxn = stepLimit(Dxn, Xms, I)
+        # Scale other components by gain        
+        Dxp = Dxp * Gain[I] 
+        return Dxn + Dxp
+    }
+
+    #--------
+
+    #- Force functions: 
+    Scale = 4e-6      # Scaling factor to match default drag: 4e-6
+    
+    # Surface area
+    Size = E:boxSize()
+    Area = Size:dot( shiftL(Size) )
+
+    # Multiplier
+    CONST = 0.5 * airDensity() * Area * Scale
+    
+    function vector lift_drag(V:vector) {    
+        # Force normal vectors
+        Wnorm = E:up()
+        Lnorm = ( Wnorm:cross(V):cross(V) ):normalized()
+        Dnorm = -V:normalized()
+        
+        # Angle of attack
+        Vz = Wnorm:dot(V)     # velocity component about z-axis
+        Vxy = V - Vz*Wnorm    # velocity about xy plane
+        Alpha = atanr( Vz, Vxy:length() )
+        
+        # Lift and drag coefficients
+        Cl = pi() * sinr(2*Alpha)  
+        Cd = pi() * sinr(Alpha)^2
+        
+        # Dynamic pressure
+        Rho = CONST * V:length2()
+    
+        # Aerodynamic forces
+        Lift = Rho * Cl * Lnorm
+        Drag = Rho * Cd * Dnorm
+            # Net force   
+        return Lift + Drag
+    }
+
+} # end, First call
+
+# Iterate
+runOnTick(1)
+
+# 1. Measure velocity
+Xms = E:vel()
+
+# 2a. Estimate acceleration
+Mass = E:mass()
+A = lift_drag(Xms) / Mass    # Lift and drag  
+
+# 2b. Estimate velocity changes: Explicit euler
+Dx = DT*A     
+
+# 3. Clamp velocity changes
+Dx = stepLimitAxis(Dx, Xms, E:up(), 1)    # Both forces primarily decay z-axis
+
+# 4. Update state
+Xn = Xms + Dx
+
+# 5. Set Prop state   [Must come after velocity measurement, or blocks measurement]
+setVelocity( Xn )
+
+# Note:
+# - Lift and drag components induce net damping force about E:up axis.
+#   They must be combined to create a single damping ratio     

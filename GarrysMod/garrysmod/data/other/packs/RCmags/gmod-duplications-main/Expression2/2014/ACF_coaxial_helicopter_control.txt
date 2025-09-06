@@ -1,0 +1,83 @@
+@name ACF coaxial helicopter control
+@inputs [E B1 B2]:entity
+@inputs W S A D Ri Space Shift Mouse1 Mouse2 
+@outputs R1 R2 R3 R4
+@outputs H1 H2 H3 H4
+@outputs Constant Damping
+@outputs Active Throttle
+@persist C Ap Ar Q
+
+interval(20)
+
+#Hydraulic settings:
+Constant = 5000
+Damping = 200
+
+#Common collective inputs
+L = 30
+C = clamp( (Space - Shift)/10 + C , -3 , 9 )
+Y = (Mouse1 - Mouse2)*1.5
+
+#Rotor 1 collective input:
+L1 = L + C - Y
+
+#Rotor 2 collective input:
+L2 = L + C + Y
+
+#Master stabilizatio gain:
+J = 0.01
+
+#Pitch and roll angular velocities:
+Wp = -E:angVel():pitch()*J
+Wr = E:angVel():roll()*J
+
+#Rotor angular velocities:
+W1 = B1:angVel():yaw()
+W2 = B2:angVel():yaw()
+
+#Stabilization gain control:
+Wm = ( abs(W1) + abs(W2) )/1000
+G = ( Wm^8 )/sqrt( 1 + Wm^16 )
+
+#Maximum cyclic deflection:
+M = 10
+
+#Pitch and roll target angle approximations:
+Ap = clamp( Wp + (S - W)*50*J + Ap , -M , M )*G
+Ar = clamp( Wr + (D - A)*50*J + Ar , -M , M )*G
+
+#Net Pitch and roll inputs:
+P = clamp( Ap + Wp + $Wp , -M , M )*G
+R = clamp( Ar + Wr + $Wr , -M , M )*G
+
+#Phase angle:
+F = 10.57
+
+#Nutation Gain:
+N = 0
+
+#Rotor 1, Pitch and roll outputs:
+Po1 = cos(F)*P - sin(F)*R + Wp*N
+Ro1 = cos(F)*R + sin(F)*P - Wr*N
+
+#Rotor 2, pitch and roll outputs:
+Po2 = cos(F)*P + sin(F)*R - Wp*N
+Ro2 = cos(F)*R - sin(F)*P + Wr*N
+
+#Rotor 1 length outputs:
+R1 = L1 + Po1
+R2 = L1 - Po1
+R3 = L1 + Ro1
+R4 = L1 - Ro1
+
+#Rotor 2 length outputs:
+H1 = L2 + Po2 
+H2 = L2 - Po2
+H3 = L2 + Ro2
+H4 = L2 - Ro2
+
+#ACF engine control:
+if( ~Ri & Ri ) { Active = !Active }
+Throttle = Active*100
+
+

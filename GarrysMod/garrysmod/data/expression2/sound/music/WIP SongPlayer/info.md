@@ -1,6 +1,19 @@
-Author: [Zenith]Games
-Date: 01-02-2016
-Title: My New WIP SongPlayer
+- Author: Zenith (Zenny) (drusketh) ([Zenith]Games) (zenithgames)
+- Steam Profile: https://steamcommunity.com/profiles/76561198182338335
+- Reddit: https://www.reddit.com/user/Drusketh/
+<!-- -->
+- Title: A whole bunch of my old Expression 2 contraptions
+- Date (dd-mm-yyyy): 02-01-2016
+- Source: https://web.archive.org/web/20160303182201/http://www.wiremod.com/forum/finished-contraptions/35386-whole-bunch-my-old-expression-2-contraptions.html
+- Source Accessed (dd-mm-yyyy): 25-08-2025
 
-*My New WIP SongPlayer*
+## My New WIP SongPlayer
+
+Hello. I have made quite a few things over the past year, Many of them I feel are good enough to be shared with you guys. So, here they are.
+Also, You need to have TylerB's moneyRequest() E2 function and TylerB's shipment E2 functions.
+Feel free to use these E2s, just give me credit if you use them. Don't take them as your own. Feel free to modify them. Just give me credit for them.
+
+Also, this thread isn't complete so expect that I will have more as I make them. I will add images + videos for each E2.
+
+**My New WIP SongPlayer**
 You use your numpad 8 to randomize the pitch, 5 to rapidly go up, 2 to go rapidly down, 7 to set itch to 100, 9 to set pitch to 255, 4 to go up by 1, 6 to go down by one, enter to switch songs.

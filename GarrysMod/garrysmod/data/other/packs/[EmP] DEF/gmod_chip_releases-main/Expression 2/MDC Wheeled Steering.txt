@@ -1,0 +1,283 @@
+@name MDC Wheeled Steering r1_toAngle fix
+@inputs StartLink STBLink CoreInfo:table InClutch
+@outputs SteerAngle Clutch Brake WeldLatch
+@persist [M STBInfo ECU STBSet SteerSet BrakeSet]:table
+@trigger none
+
+#[
+    
+    Instructions:
+    
+    This is a steering & braking unit!
+    
+    This chip requires an MDC Telemetry Unit to function.
+    
+        Wire...
+        
+        < StartLink > to [StartLink] on the MDC Telemetry Unit.
+        
+        < STBLink > to [STBLink] on the MDC Telemetry Unit.
+        
+        < CoreInfo > to [CoreInfo] on the MDC Telemetry Unit.
+
+]#
+
+if(duped() | dupefinished()) { reset() }
+
+if(first() | dupefinished()) {
+    
+    M = table()
+    STBSet = table()
+    local LatchSpeed = 0, local Brakeforce = 0, local DecayRate = 0
+    local Angle = 0, local AngVelMul = 0, local AntiDriftMul = 0, local MaxAngle = 0
+    
+    # # # # # # # # # # # # # # # # # # # # #
+    
+    #~ Required to run ~#
+    
+    ContributeData = 1          # You should leave this as 1, unless you have multiple of these for some reason.
+    
+    #~ General ~#
+    
+    M["AngleMul",number] = -1       # Final steering angle multiplier, useful if you need to invert.
+    
+    #~ Steering settings ~#
+    
+    #[
+    
+        LatchSpeed = -1
+        Brakeforce = 0.8
+        DecayRate = 0.5
+        STBSet["Active",table] = table(LatchSpeed, Brakeforce, DecayRate)
+        
+        This is what a settings block looks like for braking:
+        
+            < LatchSpeed >
+                
+                Speed where weld latches are used.
+            
+            < Brakeforce >
+                
+                Maximum brakeforce.
+            
+            < DecayRate >
+                
+                How quickly brakeforce decays with speed. This is basically a divisor working on speed.
+        
+        Angle = 30
+        DecayRate = 1
+        AngVelMul = 0.15
+        AntiDriftMul = 0.75
+        MaxAngle = 50
+        STBSet["Standard",table] = table(Angle, DecayRate, AngVelMul, AntiDriftMul, MaxAngle)
+        
+        This is the settings block for steering:
+        
+            < Angle >
+                
+                Steering angle.
+            
+            < MaxAngle >
+                
+                Steering angle limit.
+            
+            < AngVelMul >
+                
+                Steer angle used to resist angular velocity per degree per second.
+            
+            < AntiDriftMul >
+                
+                Percentage amount the wheel faces velocity vector.
+    ]#
+    
+    Angle = 30
+    MaxAngle = 50
+    DecayRate = 0.5
+    AngVelMul = 0.5
+    AntiDriftMul = 0.75
+    STBSet["Standard",table] = table(Angle, MaxAngle, DecayRate, AngVelMul, AntiDriftMul)
+    
+    LatchSpeed = -1
+    Brakeforce = 0.8
+    DecayRate = 0.5
+    STBSet["Active",table] = table(LatchSpeed, Brakeforce, DecayRate)
+    
+    LatchSpeed = -1
+    Brakeforce = 0.1
+    DecayRate = 0.5
+    STBSet["Passive",table] = table(LatchSpeed, Brakeforce, DecayRate)
+    
+    #~ Specific ~#
+        
+    M["SteerMul",number] = 2            # Multiplier of base turning setting to steer harder.
+    
+    M["TurnBuild",number] = 1/4         # Percentage steering gained per execution cycle.
+    
+    M["TurnDecay",number] = 1/2         # Percentage steering lost per execution cycle.
+    
+    M["AutoDeclutch",number] = 0        # 1 will clutch in when braking and auto-braking, 0 will not.
+    
+    #~ Keybinds ~#
+    
+    M["RightKey",string] = "d"          # Turn right.
+    
+    M["LeftKey",string] = "a"           # Turn left.
+    
+    M["MultiKey",string] = "lshift"     # Turn harder.
+    
+    M["BrakeKey",string] = "space"      # Brake.
+    
+    # # # # # # # # # # # # # # # # # # # # #
+    
+    # > Initialization
+    
+    STBInfo = table(
+        "IsBraking" = 0
+    )
+    
+    SteerSet = STBSet["Standard",table]
+    BrakeSet = STBSet["Active",table]
+    
+    M["SteerRight",number] = 0
+    M["SteerLeft",number] = 0
+    M["SteerSharp",number] = 0
+    M["Brake",number] = 0
+    M["SteerDir",number] = 0
+    M["RefSpd",number] = 100 * CoreInfo["SpeedMul",number]
+    
+    ECU = table(
+        "Connected" = 0,
+        "Clutch" = 0,
+        "IsMoving" = 1,
+        "AutoStop" = 0,
+        "IsCoasting" = 0
+    )
+    
+    # Try to get extra information from Telemetry Unit
+    if(StartLink == 1) {
+        
+        if(CoreInfo:exists("ECUInfo")) {
+            ECU["Connected",number] = 1
+        }
+    }
+    
+    # Send own information
+    STBInfo["Ready",number] = 1
+    if(ContributeData) { CoreInfo["STBInfo",table] = STBInfo }
+
+    # Does the same thing vec2:toAngle() does... or was it toAngle(vec2)? I can't tell anymore.
+    function number v2Angle(Vec2:vector2) {
+        return atan2(Vec2[2], Vec2[1]) * 180 / _PI
+    }
+}
+
+# > Keybinds
+event keyPressed(Player:entity, Key:string, Down:number, KeyBind:string) {
+    
+    if(Player == CoreInfo["Driver",entity]) {
+        
+        switch(Key) {
+            
+            # Steer
+            
+            case M["RightKey",string],
+            M["SteerRight",number] = Down
+            break
+            
+            case M["LeftKey",string],
+            M["SteerLeft",number] = Down
+            break
+            
+            # Steer harder
+            case M["MultiKey",string],
+            M["SteerSharp",number] = Down
+            break
+            
+            # Brake
+            case M["BrakeKey",string],
+            M["Brake",number] = Down
+            break
+        }
+    }
+}
+
+# > Execution triggers
+event input(InputName:string) {
+    
+    switch(InputName) {
+        
+        # Delayed start
+        case "StartLink",
+        reset()
+        break
+        
+        # Update
+        case "STBLink",
+        
+        if(CoreInfo["Active",number]) {
+            
+            # > Extra information
+            
+            if(ECU["Connected",number]) {
+                ECU["Clutch",number] = CoreInfo["ECUInfo",table]["Clutch",number]
+                ECU["IsMoving",number] = CoreInfo["ECUInfo",table]["IsMoving",number]
+                ECU["AutoStop",number] = CoreInfo["ECUInfo",table]["AutoStop",number]
+                ECU["IsCoasting",number] = CoreInfo["ECUInfo",table]["IsCoasting",number]
+            }
+            else {
+                ECU["Clutch",number] = InClutch
+            }
+            
+            # > Common stuff
+            
+            Clutch = ECU["Clutch",number]
+            WeldLatch=Brake = 0
+            
+            local Steer = (M["SteerRight",number] - M["SteerLeft",number]) * (M["SteerSharp",number] ? M["SteerMul",number] : 1)
+            
+            local Rate = M["TurnDecay",number]
+            if(Steer & (sign(M["SteerDir",number]) == sign(Steer) | !M["SteerDir",number])) { Rate = M["TurnBuild",number] }
+            M["SteerDir",number] = clamp(Steer, M["SteerDir",number] - Rate, M["SteerDir",number] + Rate)
+            
+            BrakeSet = STBSet[M["Brake",number] | ECU["AutoStop",number] ? "Active" : "Passive",table]
+            STBInfo["IsBraking",number] = (M["Brake",number] | (!ECU["IsMoving",number] & !ECU["IsCoasting",number]))
+            
+            local DecayMul = max(CoreInfo["SpeedMag",number] - M["RefSpd",number], 0)
+            
+            # > Braking
+            if(STBInfo["IsBraking",number]) {
+                
+                if(M["AutoDeclutch",number]) { Clutch = 1 }
+                
+                # Weld-latches or brakes
+                if(CoreInfo["SpeedMag",number] <= BrakeSet[1,number]) { WeldLatch = 1 }
+                else { Brake = BrakeSet[2,number] * M["RefSpd",number] / (M["RefSpd",number] + BrakeSet[3,number] * DecayMul) }
+            }
+            
+            # > Steering
+            
+            local SpeedMod = M["RefSpd",number] / (M["RefSpd",number] + SteerSet[3,number] * DecayMul)
+            local VelDir = sign(CoreInfo["Speed",number])
+            
+            local RawAngle = M["SteerDir",number] * SteerSet[1,number]
+            local AntiAV = CoreInfo["AngVelocity",vector][3] * VelDir * SteerSet[4,number]
+            local AntiDrift = SteerSet[5,number] * v2Angle(
+                vec2(
+                    max(abs(CoreInfo["Velocity",vector][1]), M["RefSpd",number]),
+                    CoreInfo["Velocity",vector][2] * VelDir
+                )
+            )
+            
+            SteerAngle = clamp(((RawAngle + AntiAV) * SpeedMod - AntiDrift) * M["AngleMul",number], -SteerSet[2,number], SteerSet[2,number])
+        }
+        
+        else {
+            M["SteerRight",number]=M["SteerLeft",number]=M["SteerSharp",number]=M["Brake",number] = 0
+            STBInfo["IsBraking",number] = 0
+            WeldLatch=Clutch = 1
+            Brake = STBSet["Active",table][2,number]
+        }
+        
+        break
+    }
+}

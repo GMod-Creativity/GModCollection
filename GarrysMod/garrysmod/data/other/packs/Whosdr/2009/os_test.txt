@@ -1,0 +1,393 @@
+@name OS_Test
+@inputs [Screen Keyboard Stargate Iris Drone]:wirelink
+@inputs A E C MA ME MC
+@outputs 
+@persist Page:string Option Select
+@persist Active Open Inbound
+@persist Key Players:array Target:entity Address:string Chevron
+@persist Warning WarnList:array Found:array
+@persist AlertA AlertE AlertC
+@trigger 
+if ((first() & Screen) | ~Screen) {
+Screen[2041] = 1
+timer("load",1000)
+#Page = "OS"#shortcut
+}
+
+if (duped()) {reset()}
+
+if (clk("load")) {
+Screen:writeString("Loading hardware...",0,0,555,1)
+
+Screen:writeString("Screen: ",0,1,444,1)
+Screen:writeString("Keyboard: ",0,2,444,1)
+Screen:writeString("Stargate: ",0,3,444,1)
+Screen:writeString("Iris: ",0,4,444,1)
+Screen:writeString("Drone: ",0,5,444,1)
+timer("screen",1000)
+}
+
+if (clk("screen")) {
+Screen:writeString( (Screen) ? "Loaded." : "Missing.",10,1,666,1)
+timer("keyboard",1000)
+}
+
+if (clk("keyboard")) {
+Screen:writeString( (Keyboard) ? "Loaded." : "Missing.",10,2,666,1)
+timer("stargate",1000)
+}
+
+if (clk("stargate")) {
+Screen:writeString( (Stargate) ? "Loaded." : "Missing.",10,3,666,1)
+timer("iris",1000)
+}
+
+if (clk("iris")) {
+Screen:writeString( (Iris) ? "Loaded." : "Missing.",10,4,666,1)
+timer("drone",1000)
+}
+
+if (clk("drone")) {
+Screen:writeString( (Drone) ? "Loaded." : "Missing.",10,5,666,1)
+timer("rest",1000)
+}
+
+if (clk("rest")) {
+    if (!Keyboard) {
+        Screen:writeString("   Error: Missing keyboard.   ",0,8,999,0,1)
+        Screen:writeString("You have 2 minutes to attach akeyboard.",0,9,999,0,0)
+        timer("shutdown",1000*60*2)
+        timer("keyboard-",1000)
+    } else {
+        timer("next",3000)
+    }
+}
+
+if (clk("keyboard-") & !Keyboard) {
+if (Keyboard) {stoptimer("shutdown") Page = "OS"} else {timer("keyboard",100)}
+}
+
+
+if (clk("shutdown")) {reset()}
+
+
+if (clk("next")) {Page = "OS"}
+if (changed(Page)) {Screen[2041] = 1}
+
+
+if (Page & changed(Page)) {
+    if (changed(Page)) {
+        Screen:writeString("     Systems functioning      ",0,0,999,444,0)  
+        Screen:writeString("                              ",0,17,999,444,0) 
+
+        for (X = 1,16) {
+            Screen:writeString(" ",0,X,999,444,0)
+            Screen:writeString(" ",29,X,999,444,0)
+        Option = 1
+        }
+}
+}
+
+
+timer("key",150)
+if (clk("key")) {
+Key = Keyboard["Memory",number]
+#if (Key != 0 & changed(Key)) {print(""+Key)}
+}
+
+
+
+if (Page == "OS") {
+
+
+if (changed(Key)) {
+if (Key == 18 & Option < 4) {Option++}
+if (Key == 17 & Option > 1) {Option--}
+if (Key == 127) {Page = "OS"}
+
+
+if (Option == 1) {
+    Screen:writeString("Stargate",3,3,999,333,1)
+if (Key == 13) {Page = "stargate"}
+} else {
+    Screen:writeString("Stargate",3,3,999,333,0)
+}
+
+if (Option == 2) {
+        Screen:writeString(" Drones ",3,6,999,333,1)
+    if (Key == 13) {Page = "drones"}
+} else {
+    Screen:writeString(" Drones ",3,6,999,333,0)
+}
+
+
+if (Option == 3) {
+        Screen:writeString("Warnings",3,9,(Warning) ? 90 : 900,333,1)
+    if (Key == 13) {Warning = !Warning}
+} else {
+    Screen:writeString("Warnings",3,9,(Warning) ? 90 : 900,333,0)
+}
+
+
+if (Option == 4) {
+        Screen:writeString("LSstatus",3,12,999,333,1)
+    if (Key == 13) {Page = "LS"}
+} else {
+    Screen:writeString("LSstatus",3,12,999,333,0)
+}
+
+
+
+}#changed Key
+}#Page OS
+
+
+if (Page == "drones") {
+if (changed(Page)) {
+findExcludePlayer(owner())
+findByClass("player")
+Players = findToArray()
+Option = 1
+}
+
+timer("update",100)
+
+    if (clk("update")) {
+        for (X = 1,10) {
+            if (Option == X) {
+                Screen:writeString(Players[X,entity]:name():sub(1,28),1,X,990,1,1)
+    if (Key == 13 & Option != Players:count()+1) {Target = Players[X,entity]}
+            } else {
+                Screen:writeString(Players[X,entity]:name():sub(1,28),1,X,990,1,0)
+            }        
+
+        }
+    }
+if (changed(Key)) {
+if (Key == 18 & Option < Players:count()+1) {Option++} 
+if (Key == 17 & Option > 1) {Option--}
+if (Key == 127) {Page = "OS"}
+}
+
+if (clk("update")) {
+Drone["X",number] = Target:pos():x()
+Drone["Y",number] = Target:pos():y()
+Drone["Z",number] = Target:pos():z()
+}
+if (changed(Target)) {
+Screen:writeString(" ":repeat(28),1,13,999,1)
+Screen:writeString("Target: " + Target:name():sub(1,20),1,13,999,1)
+}
+
+if (Option == Players:count()+1) {
+Screen:writeString("        Enter - FIRE        ",1,14,900,990,1)
+if (Key == 13) {Drone["Fire",number] = 1,timer("reload",1000)}
+} elseif (Option != Players:count()+1) {
+Screen:writeString("        Enter - FIRE        ",1,14,999,1,1)
+}
+
+
+}
+
+
+if (clk("reload")) {Drone["Fire",number] = 0, Drone["Lock",number] = 1}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+if (Page == "stargate") {
+#Static#
+    if (changed(Page)) {
+        Option = 1
+    }
+########
+    timer("update",200)
+
+    if (clk("update")) {
+        if (changed(Key)) {
+            if (Key == 17 & Option > 1) {Option--}
+            if (Key == 18 & Option < 3) {Option++}
+            if (Key == 127 & Option != 3) {Page = "OS"}
+
+
+if (Option == 3) {
+    if (Key == 13) {
+        timer("dial",100)
+    } elseif (Key == 127) {
+        Address = Address:sub(1,Address:length()-1)
+    } elseif (Address:length() < 6) {
+        Address += toChar(Key)
+Screen:writeString("Dial Address: ["+Address+"]",1,12,900,888,0)
+
+    }
+
+}
+
+
+        }
+
+if (changed(Option)) {
+    if (Iris["Activated",number] == 0) {
+        Screen:writeString("            Iris            ",1,3,90,1,(Option==1))
+    } else {
+        Screen:writeString("            Iris            ",1,3,900,1,(Option==1))
+    }
+Screen:writeString("           Close            ",1,8,999,1,(Option == 2))
+Screen:writeString("Dial Address: ["+Address+"]",1,12,900,1,0)
+}
+
+ 
+if (Option == 1 & Key == 13) {Iris["Activate",number] = !Iris["Activated",number]}
+if (Option == 2 & Key == 13) {Stargate["Close",number] = 1, timer("close",1000)}   
+
+
+    }
+
+}
+
+if (clk("close")) {Stargate["Close",number] = 0}
+
+
+
+if (clk("dial")) {
+    Chevron++
+    if (Chevron < 7) {
+        Stargate["Dial Address",number] = toByte(Address:index(Chevron))
+        timer("dial",100)
+    } else {
+        Stargate["Dial Address",number] = 13
+        Chevron = 0
+    }
+
+}
+
+
+
+
+
+
+
+
+if (Warning) {
+    runOnChat(1)
+    timer("warn",2000)
+
+if (clk("warn")) {
+    findExcludePlayer(owner())
+
+    for (X = 1,WarnList:count()) {
+        findExcludePlayerProps(noentity())
+        findExcludePlayerProps("world")
+        findExcludePlayer(WarnList[X,entity])
+        findExcludePlayerProps(WarnList[X,entity])
+    }
+    findInSphere(entity():pos(),3000)
+    Found = findToArray()
+
+    concmd("echo "+ Found:count() + " unknown entities in safe zone.")
+    findClipToClass("player")
+    Found = findToArray()
+    if (Found[1,entity]) {
+        print(_HUD_PRINTCENTER ,"Player "+Found[1,entity]:name()+ " Has breached the safty zone.")
+    }
+}
+
+if (owner():lastSaid():explode(" "):string(1) == "-allow" & chatClk(owner())) {
+    WarnList[WarnList:count()+1,entity] = findPlayerByName(owner():lastSaid():explode(" "):string(2))
+    hideChat(1)
+} elseif (owner():lastSaid():explode(" "):string(1) == "-deny" & chatClk(owner())) {
+    hideChat(1)
+    Temp = findPlayerByName(owner():lastSaid():explode(" "):string(2))
+        for (X = 1,WarnList:count()) {
+            if (WarnList[X,entity] == Temp) {WarnList:remove(X)}
+            }
+} else {
+hideChat(0)
+}
+
+
+
+}
+
+
+
+
+
+
+TmpA = ceil(A/MA*100)
+TmpE = ceil(E/ME*100)
+TmpC = ceil(C/MC*100)
+Air     = (A & MA) ? TmpA : 0
+Energy  = (E & ME) ? TmpE : 0
+Coolant = (C & MC) ? TmpC : 0
+
+
+if (Air < 5 & $A < 0 & ~A) {
+#owner():soundPlay(1,0,"synth/sine.wav")
+if (AlertA) {printColor(vec(255,0,0),"Air is low!"),AlertA = 0}
+} else {AlertA = 1,soundStop(1)}
+
+if (Energy < 5 & $E < 0 & ~E) {
+#owner():soundPlay(2,0,"synth/sine.wav")
+if (AlertE) {printColor(vec(255,255,0),"Energy is low!"),AlertE = 0}
+} else {AlertE = 1,soundStop(2)}
+
+
+if (Coolant < 5 & $C < 0 & ~C) {
+#owner():soundPlay(3,0,"synth/sine.wav")
+if (AlertC) {printColor(vec(0,100,255),"Coolant is low!"),AlertC = 0}
+} else {AlertC = 1,soundStop(3)}
+
+
+
+if (Page == "LS") {
+timer("update",1000)
+
+if (clk("update")) {
+for (X = 2,12) {
+if (X != 2 & X != 6 & X != 10) {Screen:writeString(" ":repeat(28),1,X,1,1)}
+}
+
+Screen:writeString("------------Air------------",2,2,999,1)
+Screen:writeString("["+floor(A)+"/"+MA+"] "+ Air     +"% ",2,3,999,1)
+Screen:writeString(" ":repeat( ceil(Air/10*2.6) ),2,4,1,999,0)
+
+Screen:writeString("----------Energy-----------",2,6,990,1)
+Screen:writeString("["+floor(E)+"/"+ME+"] "+ Energy  +"% ",2,7,990,1)
+Screen:writeString(" ":repeat( ceil(Energy/10*2.6) ),2,8,1,990,0)
+
+Screen:writeString("----------Coolant----------",2,10,39,1)
+Screen:writeString("["+floor(C)+"/"+MC+"] "+ Coolant +"% ",2,11, 39,1)
+Screen:writeString(" ":repeat( ceil(Coolant/10*2.6) ),2,12,1,39,0)
+}
+
+
+if (Key == 127) {Page = "OS"}
+
+
+
+}

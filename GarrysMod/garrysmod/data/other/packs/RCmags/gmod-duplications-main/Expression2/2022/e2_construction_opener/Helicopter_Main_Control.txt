@@ -1,0 +1,1936 @@
+@name Helicopter Main Control
+
+# Constraints Core E2
+@inputs Clk_WeldParent [Clk_Hydraulic1 Clk_Hydraulic2 Clk_Hydraulic3 Clk_Hydraulic4 Clk_Hydraulic5] Finished_CC
+
+# Helicopter Library E2
+@inputs [Library    Entity_Library]:table
+
+# Pod Controller Inputs     V, B: NumPad E2's OutPuts     X, Y: Wire Eye Pod    Exit: Wire Vehicle Exit Point Tool     Third_Cam_OnOff: Helicopter stuff's output
+@inputs [W A S D Shift Space Mouse2] [V B] [X Y] Third_Cam_OnOff
+@inputs [Pod Eye Exit]:wirelink
+
+# Entities
+@inputs [Gate Base Driver Engine Blade]:entity [XMSN1   Intermediate_XMSN   XMSN2]:wirelink
+
+
+
+@outputs [Active Throttle] [Hub1RPM Hub2RPM EngineRPM EngineTorque] [Intermediate_Clutch    XMSN1_Clutch    XMSN2_Clutch] [RetractsGear] LocalKPH:vector
+@outputs [DegreeXY1 DegreeXY2]   DragAng  [Wheel_Unloaded1     Wheel_Unloaded2]     [Wheel_Stroke1    Wheel_Stroke2]
+@outputs [ASE HHE HA HP] [Pi Ro Ya PiI RoI YaI] [Ta TaI] TYaw Altitude
+@outputs [SCAS_X SCAS_Y     FFX FFY]
+
+
+
+#-------- Entity Library's entities
+@persist [SwashPlate ExtraPlate     Hub1 Hub2]:entity
+@persist [NoseGearMaster Port_MainGearMaster Stbd_MainGearMaster ExtraGearMaster]:entity [W1 W4 Strut1 Strut4]:entity
+#-------- Weld Holo Parent Entities
+@persist [ElevatorPlate RudderPlate ExtraElevatorPlate ExtraRudderPlate]:entity
+
+
+
+@persist [Rotate1 Rotate3]:angle Rotate2 BladeDrag DI
+@persist LocalCG:vector
+@persist Gtab:gtable
+@persist [DPPV DPE]:table
+@persist RotorType:string
+
+
+
+#-------- Engine & XMSN Clutch
+@persist Start Tik Ct1 Sound:string Duration FadeTime IdleRate CLH ERPM Target_EngineRPM [ClutchSlip1 ClutchSlip2]
+
+
+#-------- Weld Parent Hologram
+@persist HI GaI HoloGate:entity
+@persist [ELEVATOR RUDDER] [E_ELEVATOR E_RUDDER]
+@persist [A_Offset1 A_Offset2] [A_Offset3 A_Offset4]:angle
+
+
+#-------- Eye Pod
+@persist [EyeAng Origin]:angle Chair:entity ChairAng [UFP UFY]
+
+
+#-------- Cam Controller logic
+@persist M2
+
+
+#-------- Landing gears
+@persist R4 RLG [RetractsSound SpreadsSound]:string
+#-------- Nose wheel control
+@persist WheelType [Unloaded_Wheel_Stroke First_Wheel_Stroke] [Wheel_Unloaded1 Wheel_Unloaded2] [R5 AAW1 AAW2] STEER
+@persist WAA
+
+
+#-------- Rotation Angles
+@persist [SP_AOR   R_AOR   E_AOR   NL_AOR   ML_AOR   Steer_AOR]
+@persist [Part_of_COL   Part_of_CYC   Part_of_RUD   Part_of_Differ_COL] [Advance_Angle   SAA]
+@persist [U1 U2 U3 U4]
+
+
+#-------- Constraint Core Hydraulic
+@persist Hyd_I    [HLL_A1    HLL_A2   HS_A]    [HLL_B1   HLL_B2   HS_B]
+@persist [Height Horizon] [Stroke1 Stroke2] [Constant1 Damping1] [Constant2 Damping2] [Constant3 Damping3] [R1 R2 R3] Mat:string Wid
+@persist [First_Length1     First_Length2] [CountA CountB] Reverse [Extra_Offset    Swash_Local_Axis    Extra_Local_Axis]:vector
+
+
+#-------- Control 1
+@persist DoubleDelay Fast [Idle T_Speed] [UpRate DownRate] [S2 C2] [R_Speed R_Sign Sign Sign2 RateR_Mul]
+#-------- Control 2
+@persist [C R] [Dx Dy Cx Cy CX CY] DegreeXY1 [DegreeXY2 CV SV]
+
+
+#-------- AFCS
+@persist [J1 K1 L1] [J2 K2 L2] [J3 K3 L3] [J4 K4] [J5 K5 L5] [J6 K6] [J7 K7] [J8 K8]
+@persist [C_A   C_L] [C_A2    C_L2] [C_X    C_Y] [C_X2    C_Y2] [S_Yaw   S_Ver]
+@persist SAS_X SAS_Y SAS_Z    F1
+
+
+#-------- Advanced increment
+@persist [Inc1 QR1] [Inc2 QR2] [Inc3 QR3]
+
+
+#-------- Double click
+@persist [NE1 NE2] [AR1 AR2]:array [NE3 NE4] [AR3 AR4]:array [NE5 NE6] [AR5 AR6]:array [NE7] [AR7]:array NE8 AR8:array
+@persist [DC1 DC2] [DC3 DC4]
+
+@trigger all
+
+@model models/jaanus/wiretool/wiretool_pixel_sml.mdl
+
+if(first() | dupefinished())
+{
+    E2FullName = "Helicopter Main Control E2 (5st Generation)"
+    
+    setName(E2FullName)
+    
+    entity():setColor(vec(255, 90, 0))
+    entity():setMaterial("sprops/sprops_grid_12x12")
+    
+    Chair = Pod["Entity", entity]
+    ChairAng = (Chair:model() == "models/vehicles/pilot_seat.mdl" ? 0 : -90)
+    
+    Rotate1 = Base:toLocal(Gate:angles())
+    
+    
+    
+    #ifdef enableConstraintUndo(number)
+    enableConstraintUndo(0)
+    
+    #else
+    constraintUndoEnabled(0)
+    
+    #endif
+    
+    
+    
+    HI = 0
+    
+    Cx = 0
+    Cy = 0
+    
+    Inc1 = 0
+    Inc2 = 0
+    Inc3 = 0
+    
+    
+    
+    function number number:increase(CurRPM:number, TarRPM:number, Add:number, MaxDisplacement:number)
+    {
+        local Normalization = (clamp(CurRPM, 0, TarRPM) * This) / (TarRPM * MaxDisplacement)
+        return This + (Normalization * Add)
+    }
+    
+    function number number:decrease(Max:number, At:number)
+    {
+        return 1 - (clamp(abs(This) - At, 0, Max - At) / (Max - At))
+    }
+    
+    function number number:curve(MaxValue:number, Exponential:number){return ((abs(This / MaxValue) ^ Exponential) * MaxValue * sign(This))}
+    
+    function number lerp(A:number, B:number, T:number) # T: 0~1
+    {
+        local Lerp = A + ((B - A) * T)
+        
+        return Lerp
+    }
+    
+    function array number:doubleClick(NEXT:number, Array:array, DoubleDelay:number)
+    {
+        if(!NEXT)
+        {
+            if(This){Array[1, number] = curtime()}
+            else{Array[2, number] = curtime()}
+            
+            local Sub = Array[2, number] - Array[1, number]
+            
+            if((Sub > 0) & (Sub < DoubleDelay)){NEXT = 1}
+        }
+        else
+        {
+            if(This){Array[3, number] = curtime()}
+            if((Array[3, number] - Array[2, number]) < DoubleDelay)
+            {
+                OutPut = This
+                NEXT = This
+            }
+        }
+        if(NEXT & ((Array[3, number] - Array[2, number]) >= DoubleDelay))
+        {
+            NEXT = 0
+            if(This){Array[1, number] = curtime()}
+        }
+        
+        return array(NEXT, OutPut)
+    }
+    
+    function switchSound(Index:string, Pitch:number)
+    {
+        Driver:soundPlay(Index, 0, "buttons/lightswitch2.wav")
+        soundPitch(Index, Pitch)
+    }
+    
+    function entity:propDrag2(Enable:number)
+    {
+        #ifdef entity:setCustomAirDrag(number, number, number)
+        This:setCustomAirDrag(Enable, Enable, Enable)
+        
+        #else
+        This:propDrag(Enable)
+        
+        #endif
+    }
+    
+    function weld2(Ent1:entity, Ent2:entity)
+    {
+        #ifdef weld(entity, entity)
+        weld(Ent1, Ent2)
+        
+        #else
+        Ent1:weldTo(1, Ent2, 0, 0, 0, 0)
+        
+        #endif
+    }
+    
+    function entity:weld_holoParent(HoloIndex:number)
+    {
+        if(This:isValid())
+        {
+            weld2(This, Base)
+            
+            This:parentTo(holoEntity(HoloIndex))
+            
+            This:propDrag2(0)
+        }
+    }
+    
+    function entity:cs_Holo()  # cs_Holo: Control Surface Hologram (Rudder Fin Plate, Elevator Fin Plate)
+    {
+        if(This)
+        {
+            HI++
+            
+            switch(This)
+            {
+                case ElevatorPlate,
+                
+                ELEVATOR = HI
+                LocalAngle = ang(A_Offset1, 90, 0)
+                
+                break
+                
+                
+                
+                case ExtraElevatorPlate,
+                
+                E_ELEVATOR = HI
+                LocalAngle = ang(A_Offset2, 90, 0)
+                
+                break
+                
+                
+                
+                case RudderPlate,
+                
+                RUDDER = HI
+                LocalAngle = ang(-90, 0, 0) + A_Offset3
+                
+                break
+                
+                
+                
+                case ExtraRudderPlate,
+                
+                E_RUDDER = HI
+                LocalAngle = ang(-90, 0, 0) + A_Offset3
+                
+                break
+            }
+            
+            holoCreate(HI, This:massCenter(), vec(), Gate:toWorld(LocalAngle), vec4(), "cube")
+            holoParent(HI, Base)
+        }
+    }
+    
+    function hydraulic2(Ent1:entity, LocalV1:vector, Ent2:entity, LocalV2:vector, Constant:number, Damping:number, RDamping:number, Material:string, Width:number, Stretch:number)
+    {
+        local Entity1 = (!Reverse ? Ent1 : Ent2)
+        local Entity2 = (!Reverse ? Ent2 : Ent1)
+        local LocalVector1 = (!Reverse ? LocalV1 : LocalV2)
+        local LocalVector2 = (!Reverse ? LocalV2 : LocalV1)
+        
+        local Index = Entity1:hasConstraints("rope") + Entity1:hasConstraints("elastic") + 1
+        
+        #ifdef hydraulic(number,entity,vector,entity,vector,number,number,number,string,number,number)
+        hydraulic(Index, 
+                  Entity1, LocalVector1,
+                  Entity2, LocalVector2,
+                  Constant, Damping, RDamping,
+                  Material, Width, Stretch)
+        
+        #else
+        Entity1:elasticTo(Index, 
+                       Entity2, 
+                       0, 0,
+                       LocalVector1, LocalVector2,
+                       Constant, Damping, RDamping,
+                       Material, Width, Stretch)
+        #endif
+    }
+    
+    function table hyd_cdr(Constant:number, Damping:number, RelativeDamping:number)
+    {
+        local MaxValue = max(Constant, Damping, RelativeDamping)
+        
+        local Q = MaxValue / 50000
+        local Count_50000 = int(Q)
+        
+        local C = clamp(Constant / Count_50000, 0, 50000)
+        local D = clamp(Damping / Count_50000, 0, 50000)
+        local RD = clamp(RelativeDamping / Count_50000, 0, 50000)
+        
+        R1 = 0 R2 = 0 R3 = 0
+        if(Count_50000)
+        {
+            if(MaxValue == Constant) {R1 = Constant % 50000}
+            if(MaxValue == Damping)  {R2 = Damping % 50000}
+            if(MaxValue == RelativeDamping){R3 = RelativeDamping % 50000}
+        }
+        else
+        {
+            R1 = Constant % 50000
+            R2 = Damping % 50000
+            R3 = RelativeDamping % 50000
+        }
+        
+        return table(C, D, RD, Count_50000, R1, R2, R3)
+    }
+    
+    function table entity:hyd_vector(Local_Axis:vector)
+    {
+        if(Local_Axis[1])
+        {
+            Vec1 = vec(0, 1, 0)
+            Vec2 = vec(0, 0, 1)
+        }
+        elseif(Local_Axis[2])
+        {
+            Vec1 = vec(1, 0, 0)
+            Vec2 = vec(0, 0, 1)
+        }
+        elseif(Local_Axis[3])
+        {
+            Vec1 = vec(1, 0, 0)
+            Vec2 = vec(0, 1, 0)
+        }
+        
+        local IF = ( abs(This:toWorldAxis(Vec1):dot(vec(0, 1, 0))) > abs(This:toWorldAxis(Vec2):dot(vec(0, 1, 0))) )
+        
+        local V1 = (IF ? Vec1 : Vec2)
+        local V2 = (IF ? Vec2 : Vec1)
+        
+        local Stroke = (This == SwashPlate ? Stroke1 : Stroke2)
+        
+        local S1 = sign( This:toWorldAxis(V1):dot(vec(0, 1, 0)) )
+        local S2 = sign( This:toWorldAxis(V2):dot(vec(-1, 0, 0)) )
+        
+        Vec1O = This:massCenterL() + (Horizon * V1 * S1) + ( Local_Axis * (Height + Stroke) )
+        Vec2O = This:massCenterL() + (Horizon * V2 * S2) + ( Local_Axis * (Height + Stroke) )
+        Vec3O = This:massCenterL() + (positive(Local_Axis) * Height)
+        
+        return table(Vec1O, Vec2O, Vec3O)
+    }
+    
+    
+    
+    
+    
+    
+    HI++
+    GaI = HI
+    holoCreate(HI, vec(), vec(), Gate:toWorld(A_Offset4), vec4(), "cube")
+    holoParent(HI, Base)
+    HoloGate = holoEntity(GaI)
+    
+    if(first())
+    {
+        NoseGearMaster = Entity_Library[19, entity]
+        Port_MainGearMaster = Entity_Library[20, entity]
+        Stbd_MainGearMaster = Entity_Library[21, entity]
+        ExtraGearMaster = Entity_Library[22, entity]
+        
+        if(NoseGearMaster:isValid())
+        {
+            NoseGearMaster:propFreeze(1)  NoseGearMaster:setAng(HoloGate:angles())
+            printColor(vec(255, 90, 0), "Finished Alignment (Nose Gear Master SetAng Master)")
+        }
+        if(Port_MainGearMaster:isValid())
+        {
+            Port_MainGearMaster:propFreeze(1)  Port_MainGearMaster:setAng(HoloGate:angles())
+            printColor(vec(255, 90, 0), "Finished Alignment (Port Main Gear Master SetAng Master)")
+        }
+        if(Stbd_MainGearMaster:isValid())
+        {
+            Stbd_MainGearMaster:propFreeze(1)  Stbd_MainGearMaster:setAng(HoloGate:angles())
+            printColor(vec(255, 90, 0), "Finished Alignment (Stbd Main Gear Master SetAng Master)")
+        }
+        if(ExtraGearMaster:isValid())
+        {
+            ExtraGearMaster:propFreeze(1) ExtraGearMaster:setAng(HoloGate:angles())
+            printColor(vec(255, 90, 0), "Finished Alignment (Extra Gear Master SetAng Master)")
+        }
+    }
+    
+    #ifdef noCollideAll(entity, number)
+    noCollideAll(NoseGearMaster, 1)
+    noCollideAll(Port_MainGearMaster, 1)
+    noCollideAll(Stbd_MainGearMaster, 1)
+    noCollideAll(ExtraGearMaster, 1)
+    
+    #endif
+    
+    
+    
+    
+    
+    
+    if(!owner():isValid() | (owner():steamID() != "STEAM_0:1:50642789"))
+    {
+        Base:constraintBreak()
+        Hub1:constraintBreak()
+        Hub2:constraintBreak()
+        Gate:deparent()
+        selfDestruct()
+    }
+}
+
+if(~Clk_WeldParent & Clk_WeldParent)
+{
+    ElevatorPlate:cs_Holo()
+    RudderPlate:cs_Holo()
+    ExtraElevatorPlate:cs_Holo()
+    ExtraRudderPlate:cs_Holo()
+    
+    ElevatorPlate:weld_holoParent(ELEVATOR)
+    RudderPlate:weld_holoParent(RUDDER)
+    ExtraElevatorPlate:weld_holoParent(E_ELEVATOR)
+    ExtraRudderPlate:weld_holoParent(E_RUDDER)
+}
+
+if(~Clk_Hydraulic1 & Clk_Hydraulic1)     # SwashPlate Lateral, Longitudinal Control
+{
+    Reverse = 0
+    
+    local Entity = (!Reverse ? SwashPlate : Base)
+    
+    Hyd_I = Entity:hasConstraints("rope") + Entity:hasConstraints("elastic")
+    
+    HLL_A1 = Hyd_I + 1
+    HLL_A2 = HLL_A1 + 1
+    
+    Extra_Gtab = gTable("Local_Vector_Gtab", 0)
+    Swash_Local_Axis = Extra_Gtab[1, vector]
+    
+    local O1 = SwashPlate:hyd_vector(Swash_Local_Axis)[1, vector]
+    local O2 = SwashPlate:hyd_vector(Swash_Local_Axis)[2, vector]
+    local O3 = SwashPlate:hyd_vector(Swash_Local_Axis)[3, vector]
+    
+    hydraulic2(SwashPlate, O3, Base, Base:toLocal(SwashPlate:toWorld(O1)), Constant1 / 2, Damping1 / 2, 0, Mat, Wid, 0)
+    hydraulic2(SwashPlate, O3, Base, Base:toLocal(SwashPlate:toWorld(O2)), Constant1 / 2, Damping1 / 2, 0, Mat, Wid, 0)
+}
+
+if(~Clk_Hydraulic2 & Clk_Hydraulic2)     # SwashPlate Stroke Control
+{
+    Reverse = 0
+    
+    local Entity = (!Reverse ? SwashPlate : Base)
+    
+    Hyd_I = Entity:hasConstraints("rope") + Entity:hasConstraints("elastic")
+    
+    HS_A = Hyd_I + 1
+    
+    Extra_Gtab = gTable("Local_Vector_Gtab", 0)
+    Swash_Local_Axis = Extra_Gtab[1, vector]
+    
+    local Tab = hyd_cdr(Constant2, Damping2, 0)
+    
+    local WorldVector = SwashPlate:toWorld(SwashPlate:massCenterL() + (Swash_Local_Axis * First_Length1 * sign(Height)))
+    
+    for(N = 1, Tab[4, number])
+    {
+        hydraulic2(SwashPlate, SwashPlate:massCenterL(), Base, Base:toLocal(WorldVector), Tab[1, number], Tab[2, number], 0, Mat, Wid, 0)
+    }
+    
+    if(Tab[5, number] | Tab[6, number])
+    {
+        hydraulic2(SwashPlate, SwashPlate:massCenterL(), Base, Base:toLocal(WorldVector), Tab[5, number], Tab[6, number], 0, Mat, Wid, 0)
+    }
+    
+    CountA = Tab[4, number] + (Tab[5, number] | Tab[6, number])
+    
+    for(N = 1, 10 - CountA)
+    {
+        hydraulic2(SwashPlate, SwashPlate:massCenterL(), Base, Base:toLocal(WorldVector), 0, 0, 0, Mat, Wid, 0)
+    }
+}
+
+if(~Clk_Hydraulic3 & Clk_Hydraulic3)     # Extra SwashPlate Lateral, Longitudinal Control
+{
+    Reverse = 0
+    
+    local Entity = (!Reverse ? ExtraPlate : Base)
+    
+    Hyd_I = Entity:hasConstraints("rope") + Entity:hasConstraints("elastic")
+    
+    HLL_B1 = Hyd_I + 1
+    HLL_B2 = HLL_B1 + 1
+    
+    Extra_Gtab = gTable("Local_Vector_Gtab", 0)
+    Extra_Local_Axis = Extra_Gtab[2, vector]
+    
+    local O1 = ExtraPlate:hyd_vector(Extra_Local_Axis)[1, vector]
+    local O2 = ExtraPlate:hyd_vector(Extra_Local_Axis)[2, vector]
+    local O3 = ExtraPlate:hyd_vector(Extra_Local_Axis)[3, vector]
+    
+    hydraulic2(ExtraPlate, O3, Base, Base:toLocal(ExtraPlate:toWorld(O1)), Constant1 / 2, Damping1 / 2, 0, Mat, Wid, 0)
+    hydraulic2(ExtraPlate, O3, Base, Base:toLocal(ExtraPlate:toWorld(O2)), Constant1 / 2, Damping1 / 2, 0, Mat, Wid, 0)
+}
+
+if(~Clk_Hydraulic4 & Clk_Hydraulic4)     # Extra Stroke Control
+{
+    Reverse = 0
+    
+    local Entity = (!Reverse ? ExtraPlate : Base)
+    
+    Hyd_I = Entity:hasConstraints("rope") + Entity:hasConstraints("elastic")
+    
+    HS_B = Hyd_I + 1
+    
+    local Tab = (RotorType == "single" ? hyd_cdr(Constant3, Damping3, 0) : hyd_cdr(Constant2, Damping2, 0))
+    
+    Extra_Gtab = gTable("Local_Vector_Gtab", 0)
+    Extra_Local_Axis = Extra_Gtab[2, vector]
+    Extra_Offset = Extra_Gtab[3, vector]
+    
+    local WorldVector = (RotorType == "single" 
+    ? 
+    ExtraPlate:toWorld(ExtraPlate:massCenterL() + (Extra_Offset:normalized() * First_Length2))
+    :
+    ExtraPlate:toWorld(ExtraPlate:massCenterL() + (Extra_Local_Axis * First_Length2 * sign(Height)))
+    )
+    
+    for(N = 1, Tab[4, number])
+    {
+        hydraulic2(ExtraPlate, ExtraPlate:massCenterL(), Base, Base:toLocal(WorldVector), Tab[1, number], Tab[2, number], 0, Mat, Wid, 0)
+    }
+    
+    if(Tab[5, number] | Tab[6, number])
+    {
+        hydraulic2(ExtraPlate, ExtraPlate:massCenterL(), Base, Base:toLocal(WorldVector), Tab[5, number], Tab[6, number], 0, Mat, Wid, 0)
+    }
+    
+    CountB = Tab[4, number] + (Tab[5, number] | Tab[6, number])
+    
+    for(N = 1, 10 - CountB)
+    {
+        hydraulic2(ExtraPlate, ExtraPlate:massCenterL(), Base, Base:toLocal(WorldVector), 0, 0, 0, Mat, Wid, 0)
+    }
+}
+
+if(~Clk_Hydraulic5 & Clk_Hydraulic5)     # Wheel Auto-alignment
+{
+    Reverse = 0
+    
+    local Entity = (!Reverse ? Strut1 : Base)
+    
+    Hyd_I = Entity:hasConstraints("rope") + Entity:hasConstraints("elastic")
+    
+    WAA = Hyd_I + 1
+    
+    local WorldVector1 = Entity:toWorld(Entity:massCenterL() + vec(1000.0, 0, 0))
+    local WorldVector2 = Entity:toWorld(Entity:massCenterL() - vec(1000.0, 0, 0))
+    
+    hydraulic2(Entity, Entity:massCenterL() + vec(0, 50, 0), Base, Base:toLocal(WorldVector1), 5000, 500, 0, Mat, Wid, 0)
+    hydraulic2(Entity, Entity:massCenterL() - vec(0, 50, 0), Base, Base:toLocal(WorldVector2), 5000, 500, 0, Mat, Wid, 0)
+}
+
+if(~Finished_CC & Finished_CC)
+{
+    function control()
+    {
+        C = clamp(Inc2:curve(1, 1) + S_Ver + (Ta + TaI), -1, 1)
+        
+        CX = clamp(Cx:curve(1, C2) + (SAS_X + FFX) - (Ro + RoI), -abs(CV), abs(CV))
+        CY = clamp(Cy:curve(1, C2) + (SAS_Y + FFY) - (Pi + PiI), -abs(SV), abs(SV))
+        
+        R = clamp(Inc3:curve(1, 1) + SAS_Z + (Ya + YaI), -1, 1) * R_Sign
+    }
+    
+    switch(RotorType)
+    {
+        case "single",
+        
+        Part_of_CYC = 1.0
+        
+        function hydraulic_Actuator()
+        {
+            CycVector = vec2(CX, CY)
+            
+            DegreeXY2 = atan(CY, CX)
+            
+            SwashAngle = ang(CycVector:length() * SP_AOR, DegreeXY2 - 90 + Advance_Angle - (90 * SAA), 0)
+            SwashVector = vec(0, 0, C * Stroke1) + vec(0, 0, Height):rotate(SwashAngle)
+            
+            Length1 = vec(Horizon, 0, Height + Stroke1):distance(SwashVector)
+            Length2 = vec(0, Horizon, Height + Stroke1):distance(SwashVector)
+            
+            SwashPlate:setLength(HLL_A1, Length1)
+            SwashPlate:setLength(HLL_A2, Length2)
+            
+            for(N = 1, CountA){SwashPlate:setLength(HS_A + (N - 1), 0.4 + First_Length1 + (C * Stroke1))}
+            
+            for(N = 1, CountB){ExtraPlate:setLength(HS_B + (N - 1), First_Length2 + (R * Stroke2))}
+        }
+        
+        break
+        
+        
+        
+        
+        case "coaxial",
+        
+        Part_of_CYC = 1.0
+        
+        function hydraulic_Actuator()
+        {
+            CycVector = vec2(CX, CY)
+            
+            DegreeXY2 = atan(CY, CX)
+            
+            SwashAngle = ang(CycVector:length() * SP_AOR, DegreeXY2 - 90 + Advance_Angle - (90 * SAA), 0)
+            SwashVector = vec(0, 0, C * Stroke1) + vec(0, 0, Height):rotate(SwashAngle)
+            
+            Length1 = vec(Horizon, 0, Height + Stroke1):distance(SwashVector)
+            Length2 = vec(0, Horizon, Height + Stroke1):distance(SwashVector)
+            
+            SwashPlate:setLength(HLL_A1, Length1)
+            SwashPlate:setLength(HLL_A2, Length2)
+            
+            for(N = 1, CountA){SwashPlate:setLength(HS_A + (N - 1), 0.5 + First_Length1 + (C * Stroke1))}
+            
+            for(N = 1, CountB){XMSN2:entity():setLength(HS_B + (N - 1), First_Length2 + (R * Stroke2))}
+        }
+        
+        break
+        
+        
+        
+        
+        case "tandem",
+        
+        Part_of_COL = U1                # 0.0 ~ 1.0
+        Part_of_CYC = U2                # 0.0 ~ 1.0 (Part_of_CYC > Part_of_RUD)
+        Part_of_RUD = 1 - Part_of_CYC
+        Part_of_Differ_COL = 1 - Part_of_COL
+        
+        function hydraulic_Actuator()
+        {
+            local CX2A = (CX * Part_of_CYC) + (R * Part_of_RUD)
+            local CX2B = (CX * Part_of_CYC) - (R * Part_of_RUD)
+            
+            local Degree1A = atan(CY, CX2A) - 90 + Advance_Angle - (90 * SAA)
+            local Degree1B = atan(CY, CX2B) - 90 - Advance_Angle + (90 * SAA)
+            
+            V2A = vec2(CY, CX2A)
+            V2B = vec2(CY, CX2B)
+            
+            local Degree2A = SP_AOR * V2A:length()
+            local Degree2B = SP_AOR * V2B:length()
+            
+            SwashAngle = ang(Degree2A, Degree1A, 0)  # Front swashplate
+            ExtraAngle = ang(Degree2B, Degree1B, 0)  # Rear swashplate
+            
+            local LR1 = (C * Part_of_COL) + (CY * Part_of_Differ_COL)
+            local LR2 = (C * Part_of_COL) - (CY * Part_of_Differ_COL)
+        }
+        
+        break
+        
+        
+        
+        
+        case "side by side",
+        
+        Part_of_COL = U1                # 0.0 ~ 1.0
+        Part_of_CYC = U2                # 0.0 ~ 1.0 (Part_of_CYC > Part_of_RUD)
+        Part_of_RUD = 1 - Part_of_CYC
+        Part_of_Differ_COL = 1 - Part_of_COL
+        
+        function hydraulic_Actuator()
+        {
+            local CY2A = (CY * Part_of_CYC) + (R * Part_of_RUD)
+            local CY2B = (CY * Part_of_CYC) - (R * Part_of_RUD)
+            
+            CX = CX * Part_of_CYC
+            
+            local Degree1A = atan(CY2A, CX) - 90 + Advance_Angle - (90 * SAA)
+            local Degree1B = atan(CY2B, CX) - 90 - Advance_Angle + (90 * SAA)
+            
+            V2A = vec2(CY2A, CX)
+            V2B = vec2(CY2B, CX)
+            
+            local Degree2A = SP_AOR * V2A:length()
+            local Degree2B = SP_AOR * V2B:length()
+            
+            local SwashAngle = ang(Degree2A, Degree1A, 0)
+            local ExtraAngle = ang(Degree2B, Degree1B, 0)
+            
+            local CCM1 = (C * Part_of_COL) + (CX * Part_of_Differ_COL) # Port side Collective & Cyclic Mixing
+            local CCM2 = (C * Part_of_COL) - (CX * Part_of_Differ_COL) # Stbd side Collective & Cyclic Mixing
+            
+            # Port side swashplate
+            local Length1 = vec(Horizon, 0, Height + CCM1):distance(vec(0, 0, CCM1) + vec(0, 0, Height):rotate(SwashAngle))
+            local Length2 = vec(0, Horizon, Height + CCM1):distance(vec(0, 0, CCM1) + vec(0, 0, Height):rotate(SwashAngle))
+            
+            SwashPlate:setLength(HLL_A1, Length1)
+            SwashPlate:setLength(HLL_A2, Length2)
+            
+            for(N = 1, CountA){SwashPlate:setLength(HS_A + (N - 1), 1.3 + First_Length1 + (CCM1 * Stroke1))}
+            
+            # Stbd side swashplate
+            local Length1 = vec(Horizon, 0, Height + CCM2):distance(vec(0, 0, CCM2) + vec(0, 0, Height):rotate(ExtraAngle))
+            local Length2 = vec(0, Horizon, Height + CCM2):distance(vec(0, 0, CCM2) + vec(0, 0, Height):rotate(ExtraAngle))
+            
+            ExtraPlate:setLength(HLL_B1, Length1)
+            ExtraPlate:setLength(HLL_B2, Length2)
+            
+            for(N = 1, CountB){ExtraPlate:setLength(HS_B + (N - 1), 1.3 + First_Length1 + (CCM2 * Stroke1))}
+        }
+        
+        break
+        
+        
+        
+        
+        case "intermeshing",
+        
+        function hydraulic_Actuator()
+        {
+            
+        }
+        
+        break
+        
+        
+        
+        
+        case "tilt rotor",
+        
+        function hydraulic_Actuator()
+        {
+            
+        }
+        
+        break
+        
+        
+        
+        
+        default,
+        
+        function hydraulic_Actuator()
+        {
+            
+        }
+    }
+    
+    
+    
+    #####################---------------- Elevator ----------------#####################
+    if(ElevatorPlate)
+    {
+        if(ExtraElevatorPlate)
+        {
+            function elevatorFIN()
+            {
+                #if(Cy > 0){SA = sin((Cy / SP_AOR) * 270) * E_AOR}
+                #else{SA = sin((-Cy / SP_AOR) * 180) * E_AOR}
+                
+                SA = abs(CY) * E_AOR
+                
+                holoAng(ELEVATOR, Gate:toWorld(ang(A_Offset1, 90, 0) + ang(0, 0, SA)))
+                holoAng(E_ELEVATOR, Gate:toWorld(ang(A_Offset2, 90, 0) + ang(0, 0, SA)))
+            }
+        }
+        else
+        {
+            function elevatorFIN()
+            {
+                if(Cy > 0){SA = sin((Cy / SP_AOR) * 270) * E_AOR}
+                else{SA = sin((-Cy / SP_AOR) * 180) * E_AOR}
+                
+                holoAng(ELEVATOR, Gate:toWorld(ang(A_Offset1, 90, SA)))
+            }
+        }
+    }
+    else
+    {
+        function elevatorFIN()
+        {
+            
+        }
+    }
+    
+    
+    
+    #####################---------------- Rudder ----------------#####################
+    if(RudderPlate)
+    {
+        if(ExtraRudderPlate)
+        {
+            function rudderFIN()
+            {
+                holoAng(RUDDER, Gate:toWorld(ang(-90, 0, R * R_AOR) + A_Offset3))
+                holoAng(E_RUDDER, Gate:toWorld(ang(-90, 0, R * R_AOR) + A_Offset3))
+            }
+        }
+        else
+        {
+            function rudderFIN()
+            {
+                holoAng(RUDDER, Gate:toWorld(ang(-90, 0, R * R_AOR) + A_Offset3))
+            }
+        }
+    }
+    else
+    {
+        function rudderFIN()
+        {
+            
+        }
+    }
+    
+    
+    
+    
+    #####################---------------- Nose(Tail) Wheel Auto alignment ----------------#####################
+    if(Strut1 | Strut4)
+    {
+        if(!Strut4 & WheelType) # Single nose landing gear
+        {
+            function nose_Wheel()
+            {
+                if(changed(Wheel_Unloaded1))
+                {
+                    if(Wheel_Unloaded1)
+                    {
+                        Strut1:setConstant(WAA, 5000)
+                        Strut1:setDamping(WAA, 500)
+                        
+                        Strut1:setConstant(WAA + 1, 5000)
+                        Strut1:setDamping(WAA + 1, 500)
+                    }
+                    else
+                    {
+                        Strut1:setConstant(WAA, 500)
+                        Strut1:setDamping(WAA, 50)
+                        
+                        Strut1:setConstant(WAA + 1, 500)
+                        Strut1:setDamping(WAA + 1, 50)
+                    }
+                }
+            }
+        }
+        elseif(WheelType) # With a Extra Nose Gear
+        {
+            function nose_Wheel()
+            {
+                if(changed(Wheel_Unloaded1))
+                {
+                    if(Wheel_Unloaded1)
+                    {
+                        Strut1:setConstant(WAA, 5000)
+                        Strut1:setDamping(WAA, 500)
+                    }
+                    else
+                    {
+                        Strut1:setConstant(WAA, 500)
+                        Strut1:setDamping(WAA, 50)
+                    }
+                }
+                
+                if(changed(Wheel_Unloaded2))
+                {
+                    if(Wheel_Unloaded2)
+                    {
+                        Strut4:setConstant(WAA + 1, 5000)
+                        Strut4:setDamping(WAA + 1, 500)
+                    }
+                    else
+                    {
+                        Strut4:setConstant(WAA + 1, 500)
+                        Strut4:setDamping(WAA + 1, 50)
+                    }
+                }
+            }
+        }
+        elseif(!WheelType) # Nose(Tail) Wheel Steering
+        {
+            function nose_Wheel()
+            {
+                if(((RLG != 1) & RetractsGear) | (RLG != 0 & !RetractsGear))
+                {
+                    RLG += clamp(RetractsGear - RLG, -tickInterval() * R4, tickInterval() * R4)
+                }
+                
+                if(Wheel_Unloaded1)
+                {
+                    #STEER += clamp(-STEER, -U4, U4)
+                    STEER = lerp(STEER, 0, U4)
+                    
+                    NoseGearMaster:setAng(HoloGate:toWorld(ang(RLG * NL_AOR, -(STEER / U3) * Steer_AOR, 0)))
+                }
+                else
+                {
+                                              # 0.05 = 5%
+                    local Steer = clamp(abs(R) - 0.05, 0, U3) * sign(R)
+                    
+                    #STEER += clamp(Steer - STEER, -U4, U4)
+                    STEER = lerp(STEER, Steer, U4)
+                    
+                    NoseGearMaster:setAng(HoloGate:toWorld(ang(0, -(STEER / U3) * Steer_AOR, 0)))
+                }
+            }
+        }
+    }
+    else
+    {
+        function nose_Wheel()
+        {
+            
+        }
+    }
+    
+    RetractsSound = "acf_extra/airfx/fx/gear_up.mp3"
+    SpreadsSound = "acf_extra/airfx/fx/gear_down.mp3"
+    
+    function toggle_Gear()
+    {
+        if(changed(Driver:keyPressed("6")) & Driver:keyPressed("6") & Wheel_Unloaded1 & Wheel_Unloaded2)
+        {
+            RetractsGear = !RetractsGear
+            
+            if(RetractsGear)
+            {
+                soundStop("Spreads_the_gear")
+                
+                Base:soundPlay("Retracts_the_gear", 0, RetractsSound)
+                soundPitch("Retracts_the_gear", 100.0)
+            }
+            else
+            {
+                soundStop("Retracts_the_gear")
+                
+                Base:soundPlay("Spreads_the_gear", 0, SpreadsSound)
+                soundPitch("Spreads_the_gear", 100.0)
+            }
+        }
+    }
+    
+    function retract_Gear()
+    {
+        toggle_Gear()
+    }
+    
+    if(first())
+    {
+        nose_Wheel()
+        retract_Gear()
+    }
+    
+    
+    
+    
+    
+    
+    
+    
+    function ase()
+    {
+        GU = Gate:up()
+        GL = -Gate:right()
+        
+        GLx = GL:x()
+        GLy = GL:y()
+        GLz = GL:z()
+        
+        K = (GU:x()*GU:z()*GLx) + (GU:z()*GU:y()*GLy) + ((GU:z()^2)*GLz)
+        
+        Ks = (GU:y()*GLx - GU:x()*GLy)
+        
+        Kc = (GU:x()*GU:z()*GLx + GU:z()*GU:y()*GLy + (GU:z()^2)*GLz - GLz)
+        
+        Sq1 = sqrt(Ks^2 + Kc^2)
+        
+        Alpha1 = atan(-Kc, -Ks)
+        
+        Theta1 = asin(-K / Sq1) - Alpha1
+        Theta1 = Theta1 + 180 - 90
+        
+        Pitch = acos(GU:dot(vec(0, 0, 1)))
+        
+        #DIV = clamp(Pitch / SP_AOR, 0, 1)
+        DIV = clamp(Pitch / (SP_AOR * Part_of_CYC), 0, 1)
+        #DIV = clamp(Pitch / SP_AOR, 0, 1)
+        
+        SignTx = (abs(angnorm(Theta1)) > 90 ? 1 : -1)
+        
+        Tx = sqrt(DIV^2 / (tan(Theta1)^2 + 1)) * SignTx
+        Ty = Tx * tan(Theta1)
+        
+        local Rate = tickInterval() * 0.65
+        
+        Cx += clamp(Tx - Cx, -Rate, Rate)
+        Gtab[6, number] = Cx
+        
+        Cy += clamp(Ty - Cy, -Rate, Rate)
+        Gtab[7, number] = Cy
+    }
+    
+    if(RotorType == "single")
+    {
+        function auto_Hover()
+        {
+            ase()
+            
+            # In below line, This math used on cyclic to compensate for side thrust of the tail rotor on the single rotor helicopter.
+            
+            Speed1 = 160         # Gmod unit
+            Speed2 = 160         # Gmod unit
+            
+            RotorBladeCount1 = 4
+            RotorBladeCount2 = 4
+            
+            BladeWeight1 = 25
+            BladeWeight2 = 4
+            
+            TargetRPM1 = 300
+            TargetRPM2 = 300
+            
+            Total_Lift = Speed1 * (Hub1RPM / TargetRPM1) * abs(C) * RotorBladeCount1
+            TailRotor_Thrust = Speed2 * (Hub2RPM / TargetRPM2) * R * RotorBladeCount2
+            
+            Swashplate_Tilt_At_Hover = asin(TailRotor_Thrust/ Total_Lift)
+            SideSlipSpeed = Base:vel():dot(Gate:toWorldAxis(vec(0, 1, 0)):setZ(0))
+            
+            ClockWise = 0
+            RD = (ClockWise ? 1 : -1)
+            STAH = (Swashplate_Tilt_At_Hover * RD) + F1
+            F1 = F1 + (SideSlipSpeed / 20)   
+        }
+    }
+    else
+    {
+        function auto_Hover()
+        {
+            ase()
+        }
+    }
+    
+    
+    
+    
+    
+    ####################### Engine Start-Up #######################
+    function startUp(Hold:number, KeyOnSound:string, Pitch:number)
+    {
+        if(changed(Driver:keyPressed("pad_0")))
+        {
+            if(Driver:keyPressed("pad_0"))
+            {
+                Ct1 = curtime()
+                
+                if(Start)
+                {
+                    Inc1 = 0
+                    Throttle = 0
+                    Start = 0
+                    Gtab[4, number] = Throttle
+                }
+                
+                Driver:soundPlay("EngineOn", soundDuration(KeyOnSound), KeyOnSound)
+                soundPitch("EngineOn", Pitch)
+                
+                Tik = !Tik
+            }
+            else{soundStop("EngineOn")}
+        }
+        
+        if(changed(Driver:keyPressed("pad_0")) & Driver:keyPressed("pad_0") & (curtime() <= (Ct1 + Hold)) & Tik)
+        {
+            if(Duration){Engine:soundPlay("Starter", 0, Sound)}
+            Start = 1
+        }
+        
+        if(changed(Start) & Start){Active = 1}
+    }
+    
+    function idleThrottle()
+    {
+        if(Start & Active & (Throttle < Idle))
+        {
+            Throttle += clamp(Idle - Throttle, 0, tickInterval() * IdleRate * CLH * 100)
+            Gtab[4, number] = Throttle / 100
+        }
+    }
+    
+    function turn_off_at(TurnOff_Timing:number)
+    {
+        if(!Start & Active & (EngineRPM <= TurnOff_Timing)){Active = 0}
+    }
+    
+    function engine()
+    {
+        if(!EngineRPM){CLH = 0}
+        
+        # Clutch disengage timing
+        CD = (EngineRPM <= (Engine:acfIdleRPM() + Library[3, table][8, number]))
+        
+        if(changed(CD) & CD){CLH = ($EngineRPM < 0) ERPM = EngineRPM}
+        Intermediate_Clutch = 1 - (clamp((EngineRPM - ERPM) / Library[3, table][9, number], 0, CLH) ^ 2)
+        Intermediate_XMSN["Clutch", number] = Intermediate_Clutch
+        
+        startUp(Library[3, table][3, number], "", 100)
+        
+        idleThrottle()
+        
+        turn_off_at(Engine:acfIdleRPM() + Library[3, table][4, number])
+    }
+    
+    
+    
+    
+    DPPV = table()
+    DPPV:pushVector(NoseGearMaster:pos()) DPPV:pushVector(Port_MainGearMaster:pos()) DPPV:pushVector(Stbd_MainGearMaster:pos()) DPPV:pushVector(ExtraGearMaster:pos())
+    
+    DPE = table()
+    DPE:pushEntity(NoseGearMaster) DPE:pushEntity(Port_MainGearMaster) DPE:pushEntity(Stbd_MainGearMaster) DPE:pushEntity(ExtraGearMaster)
+    
+    
+    
+    
+    if(W1 | W4)
+    {
+        Dot1 = abs(vec(0, 0, 1):dot(Strut1:toWorldAxis(vec(1, 0, 0))))
+        
+        Dot2 = abs(vec(0, 0, 1):dot(Strut1:toWorldAxis(vec(0, 1, 0))))
+        
+        Dot3 = abs(vec(0, 0, 1):dot(Strut1:toWorldAxis(vec(0, 0, 1))))
+        
+        MaxDot = max(Dot1, Dot2, Dot3)
+        
+        switch(MaxDot)
+        {
+            case Dot1,
+            
+            First_Wheel_Stroke = abs(Strut1:toLocal(W1:massCenter()):x())
+            
+            if(!W4)
+            {
+                function wheel_Unload()
+                {
+                    Wheel_Stroke1 = First_Wheel_Stroke - abs(Strut1:toLocal(W1:massCenter()):x())
+                    Wheel_Unloaded1 = (Wheel_Stroke1 <= Unloaded_Wheel_Stroke)
+                }
+            }
+            else
+            {
+                function wheel_Unload()
+                {
+                    Wheel_Stroke1 = First_Wheel_Stroke - abs(Strut1:toLocal(W1:massCenter()):x())
+                    Wheel_Unloaded1 = (Wheel_Stroke1 <= Unloaded_Wheel_Stroke)
+                    
+                    Wheel_Stroke2 = First_Wheel_Stroke - abs(Strut4:toLocal(W4:massCenter()):x())
+                    Wheel_Unloaded2 = (Wheel_Stroke2 <= Unloaded_Wheel_Stroke)
+                }
+            }
+            
+            break
+            
+            
+            
+            case Dot2, 
+            
+            First_Wheel_Stroke = abs(Strut1:toLocal(W1:massCenter()):y())
+            
+            if(!W4)
+            {
+                function wheel_Unload()
+                {
+                    Wheel_Stroke1 = First_Wheel_Stroke - abs(Strut1:toLocal(W1:massCenter()):y())
+                    Wheel_Unloaded1 = (Wheel_Stroke1 <= Unloaded_Wheel_Stroke)
+                }
+            }
+            else
+            {
+                function wheel_Unload()
+                {
+                    Wheel_Stroke1 = First_Wheel_Stroke - abs(Strut1:toLocal(W1:massCenter()):y())
+                    Wheel_Unloaded1 = (Wheel_Stroke1 <= Unloaded_Wheel_Stroke)
+                    
+                    Wheel_Stroke2 = First_Wheel_Stroke - abs(Strut4:toLocal(W4:massCenter()):y())
+                    Wheel_Unloaded2 = (Wheel_Stroke2 <= Unloaded_Wheel_Stroke)
+                }
+            }
+            
+            break
+            
+            
+            
+            default,
+            
+            First_Wheel_Stroke = abs(Strut1:toLocal(W1:massCenter()):z())
+            
+            if(!W4)
+            {
+                function wheel_Unload()
+                {
+                    Wheel_Stroke1 = First_Wheel_Stroke - abs(Strut1:toLocal(W1:massCenter()):z())
+                    Wheel_Unloaded1 = (Wheel_Stroke1 <= Unloaded_Wheel_Stroke)
+                }
+            }
+            else
+            {
+                function wheel_Unload()
+                {
+                    Wheel_Stroke1 = First_Wheel_Stroke - abs(Strut1:toLocal(W1:massCenter()):z())
+                    Wheel_Unloaded1 = (Wheel_Stroke1 <= Unloaded_Wheel_Stroke)
+                    
+                    Wheel_Stroke2 = First_Wheel_Stroke - abs(Strut4:toLocal(W4:massCenter()):z())
+                    Wheel_Unloaded2 = (Wheel_Stroke2 <= Unloaded_Wheel_Stroke)
+                }
+            }
+            
+            break
+        }
+    }
+    else
+    {
+        function wheel_Unload()
+        {
+            
+        }
+    }
+    
+    
+    
+    
+    
+    
+    
+    #runOnTick(1)
+    interval(50)
+}
+
+if(~Library & Library)
+{
+    # Throttle
+    Idle = Library[1, table][1, number]
+    IdleRate = Library[1, table][2, number]
+    R_Speed = Library[1, table][3, number]
+    
+    # Collective
+    UpRate = Library[1, table][4, number]
+    DownRate = Library[1, table][5, number]
+    
+    # Cyclic(Sensitivity, Curvature)
+    S2 = Library[1, table][6, number]
+    C2 = Library[1, table][7, number]
+    
+    # Rudder
+    R_Speed = Library[1, table][8, number]
+    R_Sign  = Library[1, table][9, number]
+    
+    # Fast rating
+    Fast = Library[1, table][10, number]
+    
+    # Rotor type ("single", "coaxial", "tandem", "side by side", "intermeshing")
+    RotorType = Library[1, table][11, string]:lower()
+    
+    # Drag max angle of a rotor blade
+    BladeDrag = Library[1, table][12, number]
+    
+    
+    
+    # AOR: Angle Of Rotation
+    
+    SP_AOR = Library[5, table][1, number]    # SwashPlate
+    
+    R_AOR = Library[5, table][2, number]     # Rudder Fin Plate
+    
+    E_AOR = Library[5, table][3, number]     # Elevator Fin Plate
+    
+    NL_AOR = Library[5, table][4, number]    # Nose landing gear strut
+    
+    ML_AOR = Library[5, table][5, number]    # Main landing gear
+    
+    R4 = Library[5, table][6, number]        # Rate of retracts or spread Landing gears
+    
+    Steer_AOR = Library[5, table][7, number] # Nose Wheel Steering
+    
+    R5 = Library[5, table][8, number]        # Rate of the Auto Alignment Wheel to the original position
+    
+    WheelType = Library[5, table][9, number] # If WheelType = 1, Auto-alignment otherwise Steering
+    
+    
+    
+    Advance_Angle = Library[5, table][10, number] # SwashPlate
+    SAA = sign(Advance_Angle)
+    
+    
+    
+    # Constraints Core Hydraulic
+    Height = Library[5, table][11, number]
+    Horizon = Library[5, table][12, number]
+    
+    Stroke1 = Library[5, table][13, number]
+    Stroke2 = Library[5, table][14, number]
+    
+    Constant1 = Library[5, table][15, number]
+    Damping1 = Library[5, table][16, number]
+    
+    Constant2 = Library[5, table][17, number]
+    Damping2 = Library[5, table][18, number]
+    
+    Constant3 = Library[5, table][19, number]
+    Damping3 = Library[5, table][20, number]
+    
+    Mat = Library[5, table][21, string]
+    Wid = Library[5, table][22, number]
+    
+    First_Length1 = Stroke1 * 6.0
+    First_Length2 = Stroke2 * 6.0
+    
+    
+    
+    A_Offset1 = Library[6, table][1, number] # ELEVATOR dihedral (Port)
+    A_Offset2 = Library[6, table][2, number] # Extra ELEVATOR dihedral (Starboard)
+    
+    A_Offset3 = Library[6, table][3, angle]  # Inclined angle of the vertical rudder fin on the Gate(Parent Gate)
+    A_Offset4 = Library[6, table][4, angle]  # Inclined angle of the wheel strut on the Gate(Parent Gate), This angle value used for math on the alignment wheel and on the wheel strut
+    
+    Unloaded_Wheel_Stroke = Library[6, table][5, number] # Unloaded stroke on the Auto-alignment wheel
+    
+    
+    
+    #####################---------------- AFCS ----------------#####################
+    
+    Rotate2 = Library[2, table][1, number]      # Gyroscopic precession counter angle
+    
+    J1 = Library[2, table][2, number]           # Pitch, Roll (P)
+    K1 = Library[2, table][3, number]           # Pitch, Roll (D)
+    L1 = Library[2, table][4, number]           # Max Control range(0.0 ~ 1.0)
+    
+    J2 = Library[2, table][5, number]           # Yaw (P)
+    K2 = Library[2, table][6, number]           # Yaw (D)
+    L2 = Library[2, table][7, number]           # Max Control range(0.0 ~ 1.0)
+    
+    J3 = Library[2, table][8, number]           # Local Speed X,Y (P)
+    K3 = Library[2, table][9, number]           # Local Speed X,Y (D)
+    L3 = Library[2, table][10, number]          # Max Control range(0.0 ~ 1.0)
+    
+    J4 = Library[2, table][11, number]          # Local Speed Z Off (Start Flight Speed(XY))
+    K4 = Library[2, table][12, number]          # Local Speed Z Off (End Flight Speed(XY))
+    
+    J5 = Library[2, table][13, number]          # Local Speed Z ( P(Max Vertical Speed) )
+    K5 = Library[2, table][14, number]          # Local Speed Z ( D )
+    L5 = Library[2, table][15, number]          # Max Control range(0.0 ~ 1.0)
+    
+    # ASE
+    J6 = Library[2, table][16, number]
+    K6 = Library[2, table][17, number]
+    
+    # HHE
+    J7 = Library[2, table][18, number]
+    K7 = Library[2, table][19, number]
+    
+    # Holding Altitude
+    J8 = Library[2, table][20, number]
+    K8 = Library[2, table][21, number]
+    
+    
+    
+    
+    #####################---------------- Engine Starter Sound ----------------#####################
+    Sound = Library[3, table][1, string]
+    Duration = Library[3, table][2, number]
+    
+    
+    
+    
+    #####################---------------- Center of Gravity ----------------#####################
+    CG_Gtab = gTable("CG Gtab", 0)
+    LocalCG = CG_Gtab[1, vector]
+    
+    Ang = Base:toWorld(LocalCG:toAngle())
+    Rig = Ang:right() Up = Ang:up()
+    Ang = Ang:rotateAroundAxis(Rig, 90)
+    Ang = Ang:rotateAroundAxis(Up, 180)
+    Rotate3 = Gate:toLocal(Ang)
+    
+    #[
+    HI++
+    holoCreate(HI, Base:massCenter())
+    holoModel(HI, "models/props_junk/TrashBin01a.mdl")
+    holoAng(HI, Ang)
+    print(round(Rotate3, 1))
+    ]#
+    
+    
+    
+    # Extra XMSN (Tail rotor XMSN)
+    Target_EngineRPM = Library[3, table][5, number]
+    ClutchSlip1 = Library[3, table][6, number]
+    ClutchSlip2 = Library[3, table][7, number]
+    
+    
+    
+    Exit["Local Position", vector] = Library[4, table][1, vector]
+    Exit["Local Angle", angle] = Library[4, table][2, angle]
+    Cam_distance = Library[4, table][3, number]
+    
+    
+    
+    Origin = Library[4, table][4, angle]:rotateAroundAxis(vec(0, 0, 1), (Chair:model() == "models/vehicles/pilot_seat.mdl" ? 90 : 0))
+    EyeAng = Origin
+    Eye["SetViewAngle", angle] = EyeAng
+    
+    
+    
+    DoubleDelay = Library[4, table][5, number]
+    
+    
+    
+    Gtab = gTable("A" + Chair:id():toString(), 0)
+    Gtab[4, number] = Throttle / 100
+    Gtab[5, number] = Inc2
+    Gtab[6, number] = Cx
+    Gtab[7, number] = Cy
+    Gtab[8, number] = Inc3
+    Gtab[10, number] = Cam_distance
+    
+    
+    
+    SwashPlate = Entity_Library[1, entity]
+    ExtraPlate = Entity_Library[2, entity]
+    
+    W1 = Entity_Library[3, entity]
+    W4 = Entity_Library[6, entity]
+    
+    Strut1 = Entity_Library[9, entity]
+    Strut4 = Entity_Library[12, entity]
+    
+    Hub1 = Entity_Library[13, entity]
+    Hub2 = Entity_Library[14, entity]
+    
+    ElevatorPlate = Entity_Library[15, entity]
+    RudderPlate = Entity_Library[16, entity]
+    
+    ExtraElevatorPlate = Entity_Library[17, entity]
+    ExtraRudderPlate = Entity_Library[18, entity]
+    
+    NoseGearMaster = Entity_Library[19, entity]
+    Port_MainGearMaster = Entity_Library[20, entity]
+    Stbd_MainGearMaster = Entity_Library[21, entity]
+    ExtraGearMaster = Entity_Library[22, entity]
+    
+    
+    
+    if(XMSN1:hasInput("Clutch"))
+    {
+        function xmsn1()
+        {
+            XMSN1["Clutch", number] = XMSN1_Clutch
+        }
+    }
+    else
+    {
+        if(XMSN1:entity():toLocal(Hub1:massCenter()):y() > 0)
+        {
+            function xmsn1()
+            {
+                XMSN1["Right Clutch", number] = XMSN1_Clutch
+            }
+        }
+        else
+        {
+            function xmsn1()
+            {
+                XMSN1["Left Clutch", number] = XMSN1_Clutch
+            }
+        }
+    }
+    
+    if(XMSN2:hasInput("Clutch"))
+    {
+        function xmsn2()
+        {
+            XMSN2["Clutch", number] = XMSN2_Clutch
+        }
+    }
+    else
+    {
+        if(XMSN2:entity():toLocal(Hub2:massCenter()):y() > 0)
+        {
+            function xmsn2()
+            {
+                XMSN2["Right Clutch", number] = XMSN2_Clutch
+            }
+        }
+        else
+        {
+            function xmsn2()
+            {
+                XMSN2["Left Clutch", number] = XMSN2_Clutch
+            }
+        }
+    }
+    
+    
+    
+    if(Finished_CC)
+    {
+        # Longitudinal & Lateral Hydraulic
+        SwashPlate:setConstant(HLL_A1, Constant1 / 2)
+        SwashPlate:setDamping(HLL_A1, Damping1 / 2)
+        
+        SwashPlate:setConstant(HLL_A2, Constant1 / 2)
+        SwashPlate:setDamping(HLL_A2, Damping1 / 2)
+        
+        
+        
+        # Local Vertical Stroke Hydraulic
+        local C_50000_A = hyd_cdr(Constant2, Damping2, 0)[4, number]
+        
+        for(N = 1, C_50000_A)
+        {
+            SwashPlate:setConstant(HS_A + (N - 1), Constant2 / C_50000_A)
+            SwashPlate:setDamping(HS_A + (N - 1), Damping2 / C_50000_A)
+        }
+        
+        if(hyd_cdr(Constant2, Damping2, 0)[5, number] | hyd_cdr(Constant2, Damping2, 0)[6, number])
+        {
+            SwashPlate:setConstant(HS_A + C_50000_A, Constant2 % 50000)
+            SwashPlate:setDamping(HS_A + C_50000_A, Damping2 % 50000)
+        }
+        
+        local Tab = hyd_cdr(Constant2, Damping2, 0)
+        CountA = Tab[4, number] + (Tab[5, number] | Tab[6, number])
+        
+        
+        
+        # Longitudinal & Lateral Hydraulic
+        ExtraPlate:setConstant(HLL_B1, Constant1 / 2)
+        ExtraPlate:setDamping(HLL_B1, Damping1 / 2)
+        
+        ExtraPlate:setConstant(HLL_B2, Constant1 / 2)
+        ExtraPlate:setDamping(HLL_B2, Damping1 / 2)
+        
+        
+        
+        # Local Vertical Stroke Hydraulic
+        local C_50000_A = hyd_cdr(Constant3, Damping3, 0)[4, number]
+        
+        for(N = 1, C_50000_A)
+        {
+            ExtraPlate:setConstant(HS_B + (N - 1), Constant3 / C_50000_A)
+            ExtraPlate:setDamping(HS_B + (N - 1), Damping3 / C_50000_A)
+        }
+        
+        if(hyd_cdr(Constant3, Damping3, 0)[5, number] | hyd_cdr(Constant3, Damping3, 0)[6, number])
+        {
+            ExtraPlate:setConstant(HS_B + C_50000_A, Constant3 % 50000)
+            ExtraPlate:setDamping(HS_B + C_50000_A, Damping3 % 50000)
+        }
+        
+        local Tab = hyd_cdr(Constant3, Damping3, 0)
+        CountB = Tab[4, number] + (Tab[5, number] | Tab[6, number])
+    }
+}
+
+
+
+
+#######################################
+###--- Quick Control Rate(Speed) ---###
+
+if(~Shift)
+{
+    # Throttle
+    QR1 = (Shift ? Fast : 1)
+    
+    # Collective
+    QR2 = (Shift ? Fast : 1)
+}
+
+if(W | S) ###--- Collective ---###
+{
+    local Rate = QR2 * (W ? UpRate : DownRate)
+    
+    Inc2 += clamp(W - Inc2, -tickInterval() * Rate, tickInterval() * Rate)
+    
+    Gtab[5, number] = Inc2
+}
+
+if(~X | ~Y | ~Space) ###--- Cyclic ---###
+{
+    Dx = (Space ? 0 : (X / 100) * S2)
+    Dy = (Space ? 0 : (Y / 100) * S2)
+    
+    DegreeXY1 = atan(Cy + Dy, Cx + Dx)
+    
+    if(Dx | Dy)
+    {
+        CV = cos(DegreeXY1)
+        SV = sin(DegreeXY1)
+    }
+    elseif(!Cx & !Cy)
+    {
+        CV = 1
+        SV = 1
+    }
+    
+    Sub1 = (cos(DegreeXY1) - (Cx + Dx)) * sign(cos(DegreeXY1))
+    Sub2 = (sin(DegreeXY1) - (Cy + Dy)) * sign(sin(DegreeXY1))
+    
+    Cx += clamp(sign(Dx) * abs(cos(DegreeXY1)) * (Sub1 > 0 ? 1 : -1) - Cx, -abs(Dx), abs(Dx))
+    Gtab[6, number] = Cx
+    
+    Cy += clamp(sign(Dy) * abs(sin(DegreeXY1)) * (Sub2 > 0 ? 1 : -1) - Cy, -abs(Dy), abs(Dy))
+    Gtab[7, number] = Cy
+}
+
+if(~A | ~D) ###--- Rudder ---###
+{
+    Sign = D - A
+    
+    if(abs(Sign)){Sign2 = Sign}
+    
+    QR3 = (!Sign ? Fast : 1)
+    
+    if(QR3 == Fast)
+    {
+        if((Sign2 == -1 & (Inc3 > 0)) | (Sign2 == 1 & (Inc3 < 0)))
+        {
+            RateR_Mul = 1.5
+        }
+        else{RateR_Mul = 1.0}
+    }
+    else{RateR_Mul = 1.0}
+}
+
+if(A | D) ###--- Rudder ---###
+{
+    if((~A | ~D) & (QR3 == Fast))
+    {
+        if((Inc3 > 0) & A){RateR = 0}
+        if((Inc3 < 0) & D){RateR = 0}
+    }
+    
+    local Rate = QR3 * R_Speed * RateR_Mul
+    
+    Inc3 += clamp(Sign2 - Inc3, -tickInterval() * Rate, tickInterval() * Rate)
+    
+    Gtab[8, number] = Inc3
+}
+
+if(~Third_Cam_OnOff & Third_Cam_OnOff)
+{
+    if(Chair:model() == "models/vehicles/pilot_seat.mdl")
+    {
+        EyeAng = Driver:eyeAngles()
+    }
+    else
+    {
+        EyeAng = Driver:eyeAngles():rotateAroundAxis(vec(0, 0, 1), -90)
+    }
+}
+
+
+
+
+#if(tickClk())
+if(clk())
+{
+    interval(20)
+    
+    Gtab = gTable("A" + Chair:id():toString(), 0)
+    
+    
+    
+    engine()
+    
+    EngineRPM = Engine:acfRPM()
+    EngineTorque = Engine:acfTorque()
+    
+    Hub1RPM = abs(Hub1:angVel():yaw()) / 6
+    Hub2RPM = abs(Hub2:angVel():yaw()) / 6
+    
+    XMSN1_Clutch = ClutchSlip1 * clamp(EngineRPM / Target_EngineRPM, 0, 1)
+    XMSN2_Clutch = ClutchSlip2 * clamp(EngineRPM / Target_EngineRPM, 0, 1)
+    
+    xmsn1()
+    xmsn2()
+    
+    
+    
+    ######################
+    ###--- Throttle ---###
+    
+    if(Start & (Throttle >= Idle) & (Driver:keyPressed("1") | Driver:keyPressed("2")))
+    {
+        Inc1 += clamp(((1 - (Idle / 100)) * Driver:keyPressed("1")) - Inc1, -tickInterval() * R_Speed * QR1, tickInterval() * R_Speed * QR1)
+        
+        Throttle = Idle + (Inc1 * 100)
+        
+        Gtab[4, number] = Throttle / 100
+    }
+    
+    
+    
+    ####################################
+    ############--- AFCS ---############
+    
+    # Angular speed sensor
+    AngVelVector = Base:angVelVector():rotate(Rotate1)
+    
+    C_A = atan(-AngVelVector:y(), -AngVelVector:x())
+    C_A = C_A + Rotate2
+    
+    C_L = clamp(AngVelVector:setZ(0):length() * J1, 0, L1)
+    C_L_D = $C_L * K1
+    C_L = C_L + C_L_D
+    
+    C_X = cos(C_A) * C_L * (sign(Cx) * sign(C_X) > 0 ? Cx:decrease(1, 0.5) : 1)
+    C_Y = sin(C_A) * C_L * (sign(Cy) * sign(C_Y) > 0 ? Cy:decrease(1, 0.5) : 1)
+    
+    S_Yaw = clamp(AngVelVector:z() * J2, -L2, L2) * Inc3:decrease(1, 0.5)
+    S_Yaw = S_Yaw + ($S_Yaw * K2)
+    
+    
+    
+    # Speed sensor
+    AngVec = toRad(vec(-AngVelVector:y(), AngVelVector:x(), 0)) # It is for counter calculating in Angular speed & Linear speed coupling
+    LinearVel = (LocalCG:length() * AngVec):rotate(Rotate3)
+    LocalKPH = (Gate:toLocalAxis(Base:vel()) + LinearVel) / 14.582
+    
+    C_A2 = atan(-LocalKPH:x(), -LocalKPH:y())
+    
+    C_L2 = sin(clamp(LocalKPH:setZ(0):length() * J3, 0, L3) * 180)
+    C_L2_D = $C_L2 * K3
+    C_L2 = C_L2 + C_L2_D
+    
+    C_X2 = cos(C_A2) * C_L2
+    C_Y2 = sin(C_A2) * C_L2
+    
+    S_Ver = clamp(LocalKPH:z() * J5 * -sign(Stroke1), -L5, L5) * LocalKPH:setZ(0):length():decrease(K4, J4)
+    S_Ver = S_Ver + ($S_Ver * K5)
+    
+    
+    
+    # SAS
+    SAS_X = C_X + C_X2
+    SAS_Y = C_Y + C_Y2
+    SAS_Z = S_Yaw
+    
+    # SCAS
+    SCAS_X = (abs(Dx) & abs(SAS_X) & (sign(Dx) != sign(SAS_X)))
+    SCAS_Y = (abs(Dy) & abs(SAS_Y) & (sign(Dy) != sign(SAS_Y)))
+    
+    Per_X = (SCAS_X ? abs(Dx) * 1.0 : tickInterval() * 5.0)
+    Per_Y = (SCAS_Y ? abs(Dy) * 1.0 : tickInterval() * 5.0)
+    
+    # Feed Forward X,Y
+    FFX += clamp((SCAS_X * -SAS_X * 0.0) - FFX, -Per_X, Per_X)
+    FFY += clamp((SCAS_Y * -SAS_Y * 0.0) - FFY, -Per_Y, Per_Y)
+    
+    
+    
+    # Attitude stabilization equipment(ASE)
+    if(ASE){auto_Hover()}
+    
+    # Holding heading equipment(HHE)
+    if(HHE)
+    {
+        if(Driver:keyPressed("pad_5") & (Driver:keyPressed("pad_plus") | Driver:keyPressed("pad_minus")))
+        {
+            local Rate = 5
+            TYaw += (Driver:keyPressed("pad_minus") ? tickInterval() : -tickInterval()) * Rate
+        }
+        
+        Ya = clamp(TYaw - Gate:angles():yaw(), -1, 1) * 1.0
+        #YaI = YaI:integral(TYaw - Gate:angles():yaw(), 1.0, 1 / 30)
+    }
+    
+    # Holding altitude (World Z Axis)
+    if(HA)
+    {
+        if(Driver:keyPressed("pad_6") & (Driver:keyPressed("pad_plus") | Driver:keyPressed("pad_minus")))
+        {
+            local Rate = 5
+            Altitude += (Driver:keyPressed("pad_plus") ? tickInterval() : -tickInterval()) * Rate
+        }
+        
+        Ta = clamp((Altitude - Base:toWorld(LocalCG):z()) * 1, -1, 1)
+        #TaI = TaI:integral(Ta, 1.0, 1 / 10)
+    }
+    
+    
+    
+    
+    
+    #########################################
+    ###--- Drag angle of a rotor blade ---###
+    #DragAng = -BladeDrag * (clamp(Hub1RPM, 0, TargetRPM1) / TargetRPM1)
+    #DragAng = bearing(Hub1:massCenter(), Hub1:toWorld(ang(0, 0, 0)), Blade:massCenter())
+    #DragAng++     DI++
+    #DragAng = round(DragAng, 1) / DI
+    
+    
+    
+    
+    # Wheel_Unloading signal taking off from the ground
+    wheel_Unload()
+    
+    # Lading gear control (Steering, Retract)
+    nose_Wheel()
+    retract_Gear()
+    
+    
+    
+    
+    
+    # Auto Positioning & Auto Freezing
+    if((changed(W1:isFrozen()) & !W1:isFrozen()) | Base:isPlayerHolding())
+    {
+        for(N = 1, DPPV:count())
+        {
+            DPE[N, entity]:propFreeze(1)
+            
+            DPE[N, entity]:setPos(DPPV[N, vector])
+        }
+    }
+    
+    
+    
+    
+    
+    ###--- ASE, Holding heading equipment, Holding altitude, Holding position ---###
+    if(changed(Driver:keyPressed("pad_7")) & Driver:keyPressed("pad_7"))
+    {
+        ASE = !ASE
+        
+        if(!ASE){Pi = 0 Ro = 0 PiI = 0 RoI = 0}
+        
+        switchSound("AFCS", 255)
+        Chair:printColorDriver(vec(255, 0, 0), "ASE" + (ASE ? " On" : " Off"))
+    }
+    if(changed(Driver:keyPressed("pad_8")) & Driver:keyPressed("pad_8"))
+    {
+        TYaw = Gate:angles():yaw()
+        
+        HHE = !HHE
+        
+        if(!HHE){Ya = 0 YaI = 0}
+        
+        switchSound("AFCS", 255)
+        Chair:printColorDriver(vec(255, 50, 50), "Holding heading" + (HHE ? " On" : " Off"))
+    }
+    if(changed(Driver:keyPressed("pad_9")) & Driver:keyPressed("pad_9"))
+    {
+        Altitude = Base:toWorld(LocalCG):z()
+        
+        HA = !HA
+        
+        if(!HA){Ta = 0 TaI = 0}
+        
+        switchSound("AFCS", 255)
+        Chair:printColorDriver(vec(255, 100, 100), "Holding altitude" + (HA ? " On" : " Off"))
+    }
+}
+
+
+
+if(Finished_CC)
+{
+    # Collective, Cyclic, Rudder Inputs
+    control()
+    
+    # SwashPlate control
+    hydraulic_Actuator()
+    
+    # Control a Fin plate of the Elevator
+    elevatorFIN()
+    
+    # Control a Fin plate of the Rudder
+    rudderFIN()
+    
+    # EyePod Free Look
+    if(changed(Driver)){Eye["Enable", number] = Driver:isValid() if(Driver){EyeAng = Origin M2 = 0}}
+    
+    if(changed(Third_Cam_OnOff) | ~Space)
+    {
+        NE7 = Space:doubleClick(NE7, AR7, DoubleDelay)[1, number]
+        DC7 = Space:doubleClick(NE7, AR7, DoubleDelay)[2, number]
+        
+        if(~Space | changed(DC7))
+        {
+            UFP = (Space & !DC7)
+            UFY = (Space & !DC7)
+        }
+        
+        if(~Space & !Space & Third_Cam_OnOff)
+        {
+            M2++
+        }
+        
+        if(!changed(DC7) & !Space & !DC7)
+        {
+            if(!Third_Cam_OnOff){EyeAng = Chair:toLocal(Driver:eyeAngles()):rotateAroundAxis(vec(0, 0, 1), ChairAng)}
+            elseif(M2)
+            {
+                EyeAng = Chair:toLocal(Driver:eyeAngles()):rotateAroundAxis(vec(0, 0, 1), ChairAng)
+            }
+        }
+        
+        if((changed(DC7) & DC7) | (changed(Third_Cam_OnOff) & !Third_Cam_OnOff)){EyeAng = Origin M2 = 0}
+        
+        if(changed(DC7) & !DC7){EyeAng = Origin M2 = 0}
+    }
+    
+    Eye["SetViewAngle", angle] = EyeAng:rotateAroundAxis(vec(0, 0, 1), (V | B ? 80 + (Mouse2 * 55) : 0) * (V - B))
+    
+    Eye["UnfreezePitch", number] = UFP
+    Eye["UnfreezeYaw", number] = UFY
+}

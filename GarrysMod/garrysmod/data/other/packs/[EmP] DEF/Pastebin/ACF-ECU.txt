@@ -1,0 +1,40 @@
+@name ACF ECU r6
+@inputs [Crank Gearbox]:entity RPM
+@outputs LinkeeRPM Clutch Brake
+@persist BrakeForce BrakeThreshhold GearRatio IdleRPM
+@trigger none
+
+if(first() | dupefinished()) {
+    
+    CrankInertia = vec(1, 1, 1) * 150        #Crankshaft inertia
+    
+    BrakeForce = 0.1       #Brakeforce used to keep the crankshaft rotating at the same speed as the engine
+    
+    BrakeThreshhold = 30    #Only use the brakes when the crankshaft is spinning this much faster than the engine
+    
+    GearRatio = -0.25       #Gear ratio from engine to shaft
+    
+    IdleRPM = 2230          #Idle rpm; let the engine idle before trying to spin the crank
+    
+    # # # # # # # # # # # # # # # # # #
+    
+    if(CrankInertia) {Crank:propInertia( CrankInertia )}
+    Crank:propDrag(0)
+}
+
+
+interval(60)
+
+
+#Measure error between ACF engine RPM and Crankshaft RPM
+local GearboxAV = Gearbox:toWorldAxis(Gearbox:angVelVector())
+local LinkeeAV = Crank:toWorldAxis(Crank:angVelVector())
+
+LinkeeRPM = (LinkeeAV - GearboxAV):dot(Gearbox:right()) / -6
+
+#Brake for overspeeding
+local Difference = LinkeeRPM + RPM * GearRatio
+Brake = (Difference > BrakeThreshhold ? (Difference - BrakeThreshhold) * BrakeForce : 0)
+
+#Clutch to let engine spin up
+Clutch = 1 - min(RPM / IdleRPM, 1)

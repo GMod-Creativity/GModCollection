@@ -1,4 +1,4 @@
-- Author: Chaquator
+- Author: Chaquator (Sly Fox)
 - Github: https://github.com/chaquator
 - Steam Profile: https://steamcommunity.com/profiles/76561198025785592
 - Youtube: https://www.youtube.com/@chaquator

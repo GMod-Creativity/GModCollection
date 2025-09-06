@@ -1,0 +1,325 @@
+@name Helicopter Library
+
+@inputs [Swash Extra Hub1 Hub2]:entity
+@inputs [ElevatorPlate RudderPlate ExtraElevatorPlate ExtraRudderPlate]:entity
+
+# Landing gear (Nose landing gear, Port main landing gear, STBD main landing gear, Extra Nose or Tail landing gear)
+@inputs [Strut1 W1]:entity [Strut2 W2]:entity [Strut3 W3]:entity [Strut4 W4]:entity [Extra_Wheel1 Extra_Wheel2]:entity
+
+# SetAng Master entities (Library)
+@inputs [NoseGearMaster    Port_MainGearMaster    Stbd_MainGearMaster     ExtraGearMaster]:entity
+
+@outputs [Library   Entity_Library]:table
+
+@persist [Tab1 Tab2 Tab3 Tab4 Tab5 Tab6]:table
+
+@trigger all
+
+@model models/sprops/rectangles_superthin/size_1/rect_3x3.mdl
+
+if(first() | dupefinished())
+{
+    #------------------------------------------------------------------------------#
+    #                                Lynx AH.1                                     #
+    #------------------------------------------------------------------------------#
+    
+    
+    
+    ##########################################################################################
+    #####################---------------- Control inputs ----------------#####################
+    # Throttle
+    Idle = 10
+    IdleRate = 2.5
+    R0 = 0.3
+    
+    # Collective (Up rate, Down rate)
+    R1U = 0.15
+    R1D = 0.15
+    
+    # Cyclic (Cyclic Snsitivity, Curvature of cyclic movement)
+    S2 = 0.4
+    C2 = 1.5
+    
+    # Rudder (Rate, Sign of Stroke)
+    R3 = 0.23
+    R_Sign = -1
+    
+    # Faster control Speed
+    Fast = 3.0
+    
+    RotorType = "single"
+    
+    
+    
+    #############################################################################################
+    #####################---------------- Angle of rotation ----------------#####################
+    SP_AOR = 5.5        # SwashPlate
+    
+    R_AOR = 25.0        # Rudder Fin
+    
+    E_AOR = 0.0         # Elevator Fin
+    
+    NL_AOR = 75.0       # Nose landing gear
+    
+    ML_AOR = 80.0       # Main landing gear
+    
+    R4 = 0.85           # Rate of retract gears
+    
+    Steer_AOR = 80.0    # Nose Wheel
+    
+    R5 = 550.0          # Rate of the Auto Alignment Wheel
+    
+    WheelType = 1       # If WheelType = 1, Auto-alignment otherwise Steering
+    
+    Advance_Angle = 45.0    # SwashPlate
+    
+    A_Offset1 = -10            # ELEVATOR dihedral (Port)
+    A_Offset2 = 10             # Extra ELEVATOR dihedral (Starboard)
+    
+    A_Offset3 = ang(-4, 0, 0)  # Inclined angle of the vertical rudder fin on the Gate(Parent Gate)
+    A_Offset4 = ang(-5, 0, 0)  # Inclined angle of the wheel strut on the Gate(Parent Gate), This angle value used for math on the alignment wheel and on the wheel strut
+    
+    Unloaded_Wheel_Stroke = 3.0  # Unloaded stroke distance on the Auto-alignment wheel
+    
+    
+    
+    #############################################################################################
+    #################---------------- Constraints Core Hydraulic ----------------################
+    Constant1 = 50000.0    # SwashPlate  (Longitudinal & Lateral control)
+    Damping1 = 500.0
+    
+    Constant2 = 300000.0   # SwashPlate  (Storoke control)
+    Damping2 = 3000.0
+    
+    Constant3 = 40000.0    # Extra Slider (Storoke)
+    Damping3 = 2500.0
+    
+    Height = -100.0
+    Horizon = 2000.0
+    
+    Stroke1 = 4.0
+    Stroke2 = 4.0
+    
+    Mat = "cable/new_cable_lit"    # Constraints Core Hydraulic material
+    Wid = 1                        # Constraints Core Hydraulic width
+    
+    
+    
+    #########################################################################################################################
+    #####################---------------- AFCS (Max displacement, Sensitivity, Damping) ----------------#####################
+    
+    Rotate2 = 0.0       # Gyroscopic precession counter angle
+    
+    J1 = 0.2/20         # Pitch, Roll (P)
+    K1 = 0.5            # Pitch, Roll (D)
+    L1 = 0.2            # Max Control range(0.0 ~ 1.0)
+    
+    J2 = 0.00           # Yaw (P)
+    K2 = 1.00           # Yaw (D)
+    L2 = 0.30           # Max Control range(0.0 ~ 1.0)
+    
+    J3 = 0.00           # Local Speed X,Y (P)
+    K3 = 1.00           # Local Speed X,Y (D)
+    L3 = 0.30           # Max Control range(0.0 ~ 1.0)
+    
+    J4 = 30             # Local Speed Z Off (Start Flight Speed(XY))
+    K4 = 60             # Local Speed Z Off (End Flight Speed(XY))
+    
+    J5 = 0.00           # Local Speed Z (Max Vertical Speed)
+    K5 = 1.00           # Local Speed Z (D)
+    L5 = 0.30           # Max Control range(0.0 ~ 1.0)
+    
+    # Attitude Stabilization Equipment
+    J6 = 0
+    K6 = 0
+    
+    # Heading Hold Equipment
+    J7 = 0
+    K7 = 0
+    
+    # Holding Altitude
+    J8 = 0
+    K8 = 0
+    
+    
+    
+    ###########################################################
+    ############---------- Engine & XMSN ----------############
+    
+    #Engine starter sound, Starter duration, Hold time to engine start
+    Sound = ""
+    Duration = 1.6
+    Hold = 0.1
+    
+    # Engine Turn off timing
+    TurnOff_Timing = 50          # IF: EngineRPM <= (Engine:acfIdleRPM() + TurnOff_Timing(this value))
+    
+    # Intermediate XMSN
+    Clutch_Disengage_Timing = 50 # IF: EngineRPM <= (Engine:acfIdleRPM() + Clutch_Disengage_Timing(this value))
+    Clutch_Div = 4000            # Clutch = (EngineRPM - ERPM) / Clutch_Div
+    
+    # XMSN(Main, Tail(Extra the other side XMSN))
+    Target_EngineRPM = 3300
+    ClutchSlip1 = 0.7
+    ClutchSlip2 = 0.92
+    
+    
+    
+    ############################################################
+    ############---------- Other settings ----------############
+    
+    # Vehicle exit point position & angle
+    LocalPosition = vec(150, 0, -30)
+    LocalAngle = ang(0, 0, 0)
+    
+    # Cam controller
+    CamDistance = 500
+    
+    # Eye pod origin local EyeAngle
+    Origin_Eye_Local_Ang = ang(12, 0, 0)
+    
+    # Double click delay
+    DoubleDelay = 0.13
+    
+    # Maximum angle of the rotor blade leag-lag
+    BladeDrag = 0.0
+    
+    
+    
+    
+    Tab1 = 
+    table(
+    Idle, IdleRate, R0, 
+    R1U, R1D,
+    S2, C2,
+    R3, R_Sign,
+    Fast,
+    RotorType,
+    BladeDrag
+    )
+    
+    Tab2 = 
+    table(Rotate2,
+    J1, K1, L1,
+    J2, K2, L2,
+    J3, K3, L3,
+    J4, K4, 
+    J5, K5, L5,
+    J6, K6, 
+    J7, K7, 
+    J8, K8
+    )
+    
+    Tab3 = 
+    table(Sound, Duration, Hold,
+    TurnOff_Timing,
+    Target_EngineRPM, ClutchSlip1, ClutchSlip2,
+    Clutch_Disengage_Timing, Clutch_Div
+    )
+    
+    Tab4 = 
+    table(LocalPosition, LocalAngle,
+    CamDistance,
+    Origin_Eye_Local_Ang,
+    DoubleDelay
+    )
+    
+    Tab5 = 
+    table(
+    SP_AOR,
+    R_AOR,
+    E_AOR,
+    NL_AOR,
+    ML_AOR,
+    R4,
+    Steer_AOR,
+    R5,
+    WheelType,
+    Advance_Angle,
+    Height, Horizon,
+    Stroke1, Stroke2,
+    Constant1, Damping1,
+    Constant2, Damping2,
+    Constant3, Damping3,
+    Mat, Wid
+    )
+    
+    Tab6 = 
+    table(
+    A_Offset1, A_Offset2,
+    A_Offset3, A_Offset4,
+    Unloaded_Wheel_Stroke
+    )
+    
+    
+    
+    
+    Space = "
+    "
+    D_Space = Space + Space
+    
+    XT0 = "Helicopter Library" + Space + Space + "Rotor type: " + RotorType
+    + D_Space + "< Lateral & Longitudinal Hydraulic >" + Space + "Constant: " + Constant1:toString() + Space + "Damping: " + Damping1:toString()
+    + D_Space + "< Vertical Hydraulic >" + Space + "Constant: " + Constant2:toString() + Space + "Damping: " + Damping2:toString()
+    + D_Space + "< Extra Hydraulic >" + Space + "Constant: " + Constant3:toString() + Space + "Damping: " + Damping3:toString()
+    
+    setName(XT0)
+    
+    entity():setColor(vec(255, 255, 0))
+    entity():setMaterial("sprops/sprops_grid_12x12")
+    
+    
+    
+    Library = table()
+    Entity_Library = table()
+    
+    if(!owner():isValid() | (owner():steamID() != "STEAM_0:1:50642789"))
+    {
+        selfDestruct()
+    }
+    
+    
+    
+    timer("PushValue", 35)
+}
+elseif(clk("PushValue"))
+{
+    Library:pushTable(Tab1)
+    Library:pushTable(Tab2)
+    Library:pushTable(Tab3)
+    Library:pushTable(Tab4)
+    Library:pushTable(Tab5)
+    Library:pushTable(Tab6)
+    
+    
+    
+    Entity_Library:pushEntity(Swash)
+    Entity_Library:pushEntity(Extra)
+    
+    Entity_Library:pushEntity(W1)
+    Entity_Library:pushEntity(W2)
+    Entity_Library:pushEntity(W3)
+    Entity_Library:pushEntity(W4)
+    
+    Entity_Library:pushEntity(Extra_Wheel1)
+    Entity_Library:pushEntity(Extra_Wheel2)
+    
+    Entity_Library:pushEntity(Strut1)
+    Entity_Library:pushEntity(Strut2)
+    Entity_Library:pushEntity(Strut3)
+    Entity_Library:pushEntity(Strut4)
+    
+    Entity_Library:pushEntity(Hub1)
+    Entity_Library:pushEntity(Hub2)
+    
+    Entity_Library:pushEntity(ElevatorPlate)
+    Entity_Library:pushEntity(RudderPlate)
+    Entity_Library:pushEntity(ExtraElevatorPlate)
+    Entity_Library:pushEntity(ExtraRudderPlate)
+    
+    # SetAng Master (Landing gear)
+    Entity_Library:pushEntity(NoseGearMaster)
+    Entity_Library:pushEntity(Port_MainGearMaster)
+    Entity_Library:pushEntity(Stbd_MainGearMaster)
+    Entity_Library:pushEntity(ExtraGearMaster)
+}

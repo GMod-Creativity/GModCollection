@@ -1,8 +1,9 @@
 - Author: Mr. Matthews
 - Steam Profile: http://steamcommunity.com/profiles/76561198064933831
 - Game banana: https://gamebanana.com/members/1362858
-- Date (dd-mm-yyyy): 15-03-2014
+<!-- -->
 - Title: Mario PAC 3 Outfit
+- Date (dd-mm-yyyy): 15-03-2014
 - Source: https://gamebanana.com/mods/237279
 - Source Accessed (dd-mm-yyyy): 20-06-2025
 

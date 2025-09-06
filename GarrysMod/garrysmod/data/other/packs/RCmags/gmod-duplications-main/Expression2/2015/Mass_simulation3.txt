@@ -1,0 +1,61 @@
+@name Mass simulation
+@inputs Ti E:entity
+@outputs W Pd Wd T I Ir
+@persist W Wi
+@persist Pd
+
+runOnTick(1)
+
+#--- Transmission
+
+#Gear ratio
+G = 1
+
+#Prop angular velocity
+Wi = E:angVel():yaw()
+
+#--- Piston engine simulation
+
+#Initial conditions
+if( first() ) {
+    
+    W = Wi/G
+}
+
+#Prop Inertia
+Ir = E:inertia():z()
+
+#Flywheel Inertia
+Is = 2
+
+#Smallest inertia
+I = ( Ir*( sign(Is - Ir) + 1 ) + Is*( sign( Ir - Is ) + 1 ) )/2
+
+#Piston inertia
+Ip = 0.000003
+
+#Maximum engine power
+P = Ti*10000000000 
+
+#Velocity difference
+Wd = W - Wi
+
+#Position difference
+Pd = Wd + Pd
+
+#Net torque
+T = Ip*( 3*sign(P)*( abs(P)/2 )^(2/3) - sign( W )*( W )^2 ) - ( Pd + 4*Wd )*I/10 
+
+#Net angular acceleration
+A = T/Is
+
+#Angular velocity 
+W = A + W
+
+#--- Entity output torque
+
+#Net output torque:
+To = ( 25*Wd + 10*Pd )*I
+
+#Output torque
+E:applyAngForce( ang( 0 , To , 0 ) )

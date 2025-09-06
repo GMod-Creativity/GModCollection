@@ -1,0 +1,411 @@
+// Bouncing Ball EXTREME by Hitman271
+//Moving to 512x512 !
+//Add logic to not set the separator point more than once!
+
+
+//LastUpdate-> Port this to cpu or E2, this is WAY too laggy!
+
+dentrypoint 0,_draw;		// Set draw start entrypoint to "_draw"
+        call ResetBallData;
+				//
+dexit;				// Exit the initialization routine...
+
+_Draw:
+cmp #FramesSinceDraw,0;
+mov #regHWClear,0;
+inc #FramesSinceDraw;
+jl AllDone;
+mov #FramesSinceDraw,0;
+
+dclr; //to black
+dsetwidth 1.2;
+dcolor Red; 
+
+//Cursor color and position
+        mov #Cursor.X,#65505;
+        mov #Cursor.Y,#65504;  
+        vmul Cursor,512; 
+        
+        dcircle Cursor,1;   
+
+//Incoming Point Handling
+    //Add distinct line support
+        in eax,0; //port0 is the drawpoint input
+        cmp eax,#DrawNewPoint;
+        jne AddCursorPoint;
+        je _End2;
+        
+        AddCursorPoint:
+            cmp eax,1;
+            jne _End1;
+            
+            mov #DrawNewPoint,1;
+            
+            vmov NewStackPoint,Cursor;
+            call AddendNewPoint;
+            jmp _End2;
+
+_End1:
+//The input has changed, but its not 1
+//meaning it went from 1 to 0
+mov #DrawNewPoint,0;
+
+_End2:
+
+////Separator Input
+SeparatorCode:
+    //Port1 is the separator input
+        in eax,1;
+        cmp eax,#SeparatorInput;
+        jne AddSepPoint;
+        je _End4;
+        
+        AddSepPoint:
+            cmp eax,1;
+            jne _End3;
+            
+            mov #SeparatorInput,1;
+            
+            vmov NewStackPoint,vSeparator;
+            call AddendNewPoint;
+            jmp _End4; 
+            
+_End3:           
+//The input has changed, but its not 1
+//meaning it went from 1 to 0
+mov #SeparatorInput,0;
+
+_End4:
+
+////////////////////////////////////////////////////////////////////////////////////////////        
+//Line to Map Render
+LoopSetup:
+        mov ecx,0; //ECX is which index to use for point
+        mov #LoopCounter,0;
+        sub #hit,#hit;
+        LineMapLoop:
+            // draw 1 line, loop
+            inc #LoopCounter;
+            //get first point, then second
+            
+            mov esi,Points;
+            vmov Point1,esi:ecx
+            add ecx,2;
+            vmov Point2,esi:ecx
+            
+            //logic to skip the separator
+            //if the x value is "whatever" then inc ecx and re-loop
+            cmp #Point2.x,-10;
+            jne LoopContinue;
+            add ecx,2;
+            jmp LineMapLoop;           
+            
+            LoopContinue:
+                                  
+            //Loop until I hit the end!
+            //The end is when Point2 == (0,0) and LC >4
+            cmp #LoopCounter,4;
+            jle RenderLine;
+            
+            vlen eax,Point2;
+            cmp eax,0;
+            je EndLoop;
+            
+            RenderLine:
+            //draw line between them
+            dcolor Red;
+            dline Point1,Point2;
+            
+            call doBallV;
+            call BallBounding; //I'll call it because it's too messy here! 
+                        
+            jmp LineMapLoop
+            
+        EndLoop: 
+        dcolor Green;
+        dcircle Ball,#Radius;
+        call DebugMe;
+        
+        call GetSpeed;
+        cmp eax,45;
+        cge ResetBallData;
+        
+AllDone:
+dexit;
+
+////////////////////////////////////////////////////////////////////////////////////////////   
+
+color Red, 205, 60, 60;
+color Blue, 60, 60, 205;
+color Green, 60, 205, 60;
+color White, 255, 255, 255;
+
+vec2f Cursor;
+
+vec2f V1; //dummy vectors
+vec2f V2;
+vec2f V3;
+vec2f V4;
+vec2f V5;
+
+vec2f Point3;
+
+vec2f vSeparator, -10, -10;
+
+vec2f HitPos, 128,128;
+
+float MinDistance,7;
+float FramesSinceDraw;
+float DrawNewPoint,0;
+float SeparatorInput,0;
+
+vec2f NewStackPoint;
+float StackNumber,7; //this is the number of TOTAL objects in the "Points" memory
+
+string DebFmt,'LC= %f P1- %i , %i      P2- %i   %i ECX= %f'
+float LoopCounter;
+vec2f Point1;
+vec2f Point2;
+alloc Sp1;
+
+vec2f Deb2Pos, 128, 128;
+string Deb2Fmt,'\nBall= %i , %i \nVel= %i , %i\nSpeed= %i \nGOOODBYE!!!'
+
+///Ball Stuff
+vec2f Ball;
+vec2f d, 12,5; //Ball velocity
+float Sp2;
+float Hit,0;
+
+vec2f SurfaceNorm;  //Normal to whatever line ball hits
+
+float Radius,12;
+
+
+Points:
+// WHAT IF??? 
+//I just kept increasing until I hit null space? 
+//GENIOUS AND LAZY AT THE SAME TIME!!!
+
+db 0,0;
+db 512,0;
+db 512,512;
+db 0,512;
+db 0,0;
+//default "world" bounders , 5 of them
+db -10,-10;
+////Empty Spacer? This point is used solely to separate the next set of points and is skipped
+db 100,400;
+db 200,400;
+
+alloc 1024
+
+
+//_CALLS
+BallBounding:
+    //ALL of the following should be Ball, not Cursor anymore!
+    //V1 is cursor to the first point( Cursor - Point1 )
+    //V2 is cursor to the second point( Cursor - Point2 )
+    //V3 is Point2 - Point1
+    //V4 is Point1 - Point2
+    //V5 is Perpendicular to Point2 - Point1
+    
+    //using dot products, tell where cursor will intersect!
+    //No need to normalize, except on perpendicular
+    //Point3 will hold where this intersection will occur
+        //Aren't comments just delightful?.....
+        mov #MinDistance,#Radius;
+        mul #MinDistance,1.08;
+        
+        vmov V1,Ball;
+        vsub V1,Point1;
+        //done
+        
+        vmov V2,Ball;
+        vsub V2,Point2;
+        //done
+        
+        vmov V3,Point2;
+        vsub V3,Point1;
+        //done
+        
+        vmov V4,Point1;
+        vsub V4,Point2;
+        //done
+        
+    //time for dot product stuff
+    //first, check if Point is even within the two points
+    //if V1:dot( V3 ) and V2:dot( V4 ) have the same sign then the point is included
+        vdot V1,V3;
+        
+        vdot V2,V4;
+        
+        //now to check signs (?)
+        fsgn ebx,#V2.x;
+        fsgn eax,#V1.x;
+        
+        cmp eax,ebx;
+        jne EndThisCall;
+    
+    //Now for all the perpendiculars
+    // in the ( -y,x ) form
+    // then norm-ed
+        mov #V5.x,#V3.y;
+        mov #V5.y,#V3.x;
+        neg #V5.x;
+        
+        vnorm V5,V5;
+        
+        //get distance from point from line
+        vmov V1,Ball;
+        vsub V1,Point1;
+        
+        vdot V1,V5;
+        mov edx,#V1.x;
+        //fabs edx,edx;
+            fsgn eax,edx;
+            cmp eax,-1;
+            //jne EndThisCall; //check if above line!
+            
+        fabs edx,edx;
+        //edx holds distance
+        cmp edx,#MinDistance;
+        jge EndThisCall;
+        
+    //Now for projected hit point!
+    //Cursor - Distance*Perp
+    //finally!!!!
+        vmov SurfaceNorm,V5;
+        
+        call ResetBallv;
+        vmul V5,edx;
+        neg eax;
+        vmul V5,eax;  //
+        vmov Point3,Ball;
+        vadd Point3,V5;
+        
+        dcolor Blue;
+        dcircle Point3,2;
+        inc #Hit;
+        
+EndThisCall:
+    ret;
+        
+///
+AddendNewPoint:
+        inc #StackNumber;
+        mov EDI,#StackNumber;
+        mul EDI,2;
+        add EDI,Points;
+              
+        vmov EDI,NewStackPoint;
+    ret;
+
+////
+DebugMe:    
+//        mov #Sp1,ecx;
+//        mov eax,#LoopCounter;
+//        mul eax,10;
+//        mov #HitPos.y,64;
+//        add #HitPos.y,eax;
+        
+        dcolor White;
+//        dwritefmt HitPos,DebFmt;
+        vmov Deb2Pos,Ball;
+        mov #Deb2Pos.y,#Ball.y;
+        sub #Deb2Pos.y,10;
+        
+        dsetfont 3;
+        dsetsize 20;
+        
+        call GetSpeed;
+        mov #sp2,eax;
+        dwritefmt Deb2Pos,Deb2Fmt;
+        dcolor Red;
+    ret;
+
+////
+
+ResetBallv:
+    //We have Incident(V1) and SurfNorm(V2)
+    //NewI = I - 2*(N.I * N)
+    //1 N.I
+    //2 N.I*N
+    //3 -2(N.I*N)
+    //4 I + -2(N.I*N)
+    
+    vnorm SurfaceNorm,SurfaceNorm;
+    vmov V1,D;
+    vmov V2,SurfaceNorm;
+    //1
+    vdot V1,SurfaceNorm;
+    //2
+    vmul V2,#V1.x;
+    //3
+    vmul V2,-2;
+    //4
+    vadd V2,D;   
+    
+    vmov D,V2; 
+    //vmul D,1.01;
+ret;
+
+////
+doBallV:
+        vmov V1,D;
+        vmul V1,0.065;
+        vadd Ball,V1;
+        
+        cmp #Ball.x,512;
+        jl  _1;
+        
+        min #Ball.x,512;
+        
+        _1:
+        
+        cmp #Ball.x,0;
+        jg _2;
+        
+        max #Ball.x,0;
+        
+        _2:
+        cmp #Ball.y,512;
+        jl  _3;
+        
+        min #Ball.y,512;
+        
+        _3:
+        cmp #Ball.y,0;
+        jg  _4;
+        
+        max #Ball.y,0;
+        
+        _4:
+ret;
+
+ResetBallData:
+        				//on event of crash-worthy things
+        rand #ball.x;			// Set random ball start point
+        rand #ball.y;			//
+        vmul Ball,128;
+        vadd Ball,HitPos; //Center of screen
+        
+        rand #d.x;
+        rand #d.y;
+        vmul d,16;
+        add #d.x,12;
+        add #d.y,12;
+ret;
+
+GetSpeed:
+        mov eax,#D.x;
+        mov ebx,#D.y;
+        
+        fpwr eax,2;
+        fpwr ebx,2;
+        
+        add eax,ebx;
+        
+        fpwr eax,0.5;
+        
+ret;

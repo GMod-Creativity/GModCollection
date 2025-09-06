@@ -15,4 +15,10 @@ hoyo's Midi Player (PHP & Expression2)(FIXED SOUND)
 it has simple PHP code(except parser one)
 i modified parser to easy to read for E2
 
+VideoOLD)
+https://web.archive.org/web/20161023132053/https://www.youtube.com/watch?v=87ElNoVrSTg
+
+VideoNEW)
+https://web.archive.org/web/20161023132054/https://www.youtube.com/watch?v=YZYtSR-I-K4
+
 hoyo321.iptime.org is activated when i turn on my computer

@@ -1,0 +1,139 @@
+@name XCONTROLLER
+@inputs 
+@outputs 
+@persist GT:gtable SHUTDOWN
+@trigger 
+@model models/props_phx/gears/bevel9.mdl
+@autoupdate
+interval(10)
+if(first()|dupefinished()){
+    printColor(vec(230,0,255),"[Controller]",vec(255),": Commands:\n#add <player>\n#addid <steamid>\n#remove <player>\n#removeid <steamid>\n#list\n#lockall\n#unlockall\n#backup")
+    runOnChat(1)
+    runOnLast(1)
+    runOnFile(1)
+    GT = gTable(owner():steamID())
+    GT["ready",number] = 0
+    GT["lockall",number] = 1
+    GT["players",table] = table()
+    #GT["players",table][owner():steamID(),number] = 1
+    holoCreate(1)
+    holoPos(1,entity():toWorld(entity():boxCenter()+vec(0,0,4)))
+    holoModel(1,"models/holograms/icosphere.mdl")
+    holoParent(1,entity())
+    holoCreate(2)
+    holoPos(2,entity():toWorld(entity():boxCenter()+vec(0,0,4)))
+    holoModel(2,"models/holograms/icosphere.mdl")
+    holoScale(2,vec(-1.1))
+    holoColor(2,vec(0))
+    holoParent(2,1)
+    if(fileCanLoad()){
+        fileLoad(">e2shared/doorsys/data.txt")
+    }
+    else{
+        printColor(vec(230,0,255),"[Controller]",vec(255),": Failed to read the file! Retrying...")
+        timer("LOAD",350)
+    }
+    SHUTDOWN = 0
+    timer("ENABLESHUTDOWN",5000)
+}
+if(clk("LOAD")){
+    if(fileCanLoad()){
+        fileLoad(">e2shared/doorsys/data.txt")
+    }
+    else{
+        timer("LOAD",350)
+    }
+}
+if(clk("ENABLESHUTDOWN")){
+    SHUTDOWN = 1
+}
+if(fileClk()){
+    Data = fileRead()
+    GT["players",table] = jsonDecode(Data)
+    GT["ready",number] = 1
+    printColor(vec(230,0,255),"[Controller]",vec(255),": Started!")
+}
+holoColor(1,hsv2rgb(curtime()*35%360,1,1))
+holoAng(1,entity():toWorld(ang(0,curtime()*15,0)))
+if(SHUTDOWN&last()){
+    GT["ready",number] = 0
+    printColor(vec(230,0,255),"[Controller]",vec(255),": Shutting down...")
+    if(GT["players",table]:count()==0){
+        printColor(vec(230,0,255),"[Controller]",vec(255,0,0),": WARNING 0 PLAYERS ARE ON THE WHITELIST! NOT SAVING TO PREVENT LOSS OF DATA")
+    }
+    else{
+        Data = jsonEncode(GT["players",table])
+        if(fileCanWrite()){
+            fileWrite(">e2shared/doorsys/data.txt",Data)
+        }
+        else{
+            printColor(vec(230,0,255),"[Controller]",vec(255,0,0),": WARNING E2 CAN NOT SAVE! ABORTING TO PREVENT LOSS OF DATA")
+        }
+        GT:clear()
+    }
+}
+if(chatClk(owner())){
+    MSG = lastSaid():explode(" ")
+    CMD = MSG[1,string]
+    if(CMD[1]=="#"){hideChat(1)
+    if(findPlayerByName(MSG[2,string]):isPlayer()){
+        Ply = findPlayerByName(MSG[2,string])
+    }
+    switch(CMD){
+        case "#add",
+            GT["players",table][Ply:steamID(),number] = 1
+            printColor(vec(230,0,255),"[Controller]",vec(255),": Added ",vec(0,200,255),Ply:name(),vec(255)," to the whitelist!")
+        break
+        case "#addid",
+            GT["players",table][MSG[2,string],number] = 1
+            printColor(vec(230,0,255),"[Controller]",vec(255),": Added ",vec(0,200,255),MSG[2,string],vec(255)," to the whitelist!")
+        break
+        case "#remove",
+            GT["players",table]:remove(Ply:steamID())
+            printColor(vec(230,0,255),"[Controller]",vec(255),": Removed ",vec(0,200,255),Ply:name(),vec(255)," from the whitelist!")
+        break
+        case "#removeid",
+            GT["players",table]:remove(MSG[2,string])
+            printColor(vec(230,0,255),"[Controller]",vec(255),": Removed ",vec(0,200,255),MSG[2,string],vec(255)," from the whitelist!")
+        break
+        case "#list",
+            printColor(vec(230,0,255),"[Controller]",vec(255),": Listing players")
+            Players = GT["players",table]
+            Print = array()
+            Print:pushVector(vec(230,0,255))
+            foreach(STEAMID,N:number=Players){
+                Ply = findPlayerBySteamID(STEAMID)
+                Print:pushString("      -"+(Ply:isPlayer() ? Ply:name() : STEAMID) + "\n")
+            }
+            Clean = Print:popString()
+            Print:pushString(Clean:explode("\n")[1,string])
+            printColor(Print)
+            printColor(vec(230,0,255),"[Controller]",vec(255),": There is a total of ",vec(0,200,255),Players:count(),vec(255)," player(s) on the whitelist!")
+        break
+        case "#lockall",
+            GT["lockall",number] = 1
+            printColor(vec(230,0,255),"[Controller]",vec(255),": The system is now ",vec(255,0,0),"locked for all players!")
+        break
+        case "#unlockall",
+            GT["lockall",number] = 0
+            printColor(vec(230,0,255),"[Controller]",vec(255),": The system is now ",vec(0,255,0),"open for all players!")
+        break
+        case "#backup",
+            PLYB = GT["players",table]
+            Data = jsonEncode(PLYB)
+            if(fileCanWrite()){
+                fileWrite(">e2shared/doorsys/databackup.txt",Data)
+                printColor(vec(230,0,255),"[Controller]",vec(255),": Backed up ",vec(0,200,255),GT["players",table]:count(),vec(255)," player(s)!")
+        
+            }
+            else{
+                printColor(vec(230,0,255),"[Controller]",vec(255,100,100),": Warning the e2 cannot save right now!")
+            }
+        break
+        #default,
+            
+        #break
+    }
+}
+}
+

@@ -1,6 +1,7 @@
 - Author: FailCake
 - Youtube: https://www.youtube.com/@edunad
 - Steam Profile: https://steamcommunity.com/profiles/76561198001836909
+- Github: https://github.com/edunad
 
 **E2 600 PACK**
 - Title: [600Subs] FailCake's E2 Pack - 66 E2's!

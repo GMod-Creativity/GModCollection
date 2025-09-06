@@ -1,0 +1,409 @@
+@name Poltergeist By Postman
+@inputs WL:wirelink
+@outputs Angle:angle Position:vector Ghost AG
+@outputs Mass AllowJump Stable Zoom
+@persist [Props BoomSounds Players Explosives]:array  [Old E Target]:entity [M V OVec]:vector [OMod OM]:string [OMass]
+@outputs AllowHide IsExplosive
+runOnTick(1) 
+propSpawnEffect(0)
+
+cameraPos(1,holoEntity(1):pos())
+cameraAng(1,(Target:pos()-holoEntity(1):pos()):toAngle()-ang(20,0,0))
+
+W=WL["W",number]
+A=WL["A",number]
+S=WL["S",number]
+D=WL["D",number]
+
+Shift=WL["Shift",number]
+Space=WL["Space",number]
+
+R=WL["R",number]
+F=WL["Light",number]
+Alt=WL["Alt",number]
+Active=WL["Active",number]
+
+M1=WL["Mouse1",number]
+M2=WL["Mouse2",number]
+
+Down=WL["PrevWeapon", number]
+Up=WL["NextWeapon", number]
+
+Seat=WL["Entity",entity]
+Ply=Seat:driver()
+
+
+if(first())
+{
+    E=propSpawn("models/props_interiors/Furniture_Lamp01a.mdl",entity():pos()+vec(0,0,40),ang(),0)
+    
+    #store old info
+    OMod=E:model()
+    OMass=E:mass()
+    OVec=E:getColor()
+    OM=E:getMaterial()
+    
+    cameraCreate(1)
+
+    holoCreate(1)
+    holoCreate(2)
+    
+    holoAlpha(1,0)
+    holoAlpha(2,0)
+    
+    AG=1
+    MI=1
+    Zoom=1.5
+    Mass=60
+    AllowJump=1
+    AllowHide=1
+    
+    BoomSounds=array(
+    "npc/advisor/advisorheadvx01.wav",
+    "npc/advisor/advisorheadvx02.wav",
+    "npc/advisor/advisorheadvx03.wav",
+    "npc/advisor/advisorheadvx04.wav",
+    "npc/advisor/advisorheadvx05.wav",
+    "npc/advisor/advisorheadvx06.wav")
+    
+    Explosives=array(
+    "models/props_c17/oildrum001_explosive.mdl",
+    "models/props_junk/gascan001a.mdl",
+    "models/props_junk/propane_tank001a.mdl",
+    "models/props_phx/amraam.mdl",
+    "models/props_phx/cannonball.mdl",
+    "models/props_phx/facepunch_barrel.mdl",
+    "models/props_phx/mk-82.mdl",
+    "models/props_phx/torpedo.mdl",
+    "models/props_phx/ww2bomb.mdl",
+    "models/props_phx/misc/flakshell_big.mdl",
+    "models/props_explosive/explosive_butane_can.mdl",
+    "models/props_explosive/explosive_butane_can02.mdl",
+    "models/props_outland/pumpkin01.mdl",
+    "models/props_junk/watermelon01.mdl",
+    "models/magnusson_device.mdl")
+}
+
+#<---zooming--->
+if(Up&Zoom<=10){Zoom+=0.1}
+if(Down&Zoom>=1.5){Zoom-=0.1}
+
+#<---hints--->
+if(changed(Active)&Active)
+{
+    cameraToggle(1,1,Seat)
+    if(E:isFrozen()){E:propFreeze(0)}
+    
+    Seat:hintDriver("Poltergiest, made by postman",7)
+    Seat:hintDriver("W,A,S,D, Space",7)
+    Seat:hintDriver("Right click is steady prop",7)
+    Seat:hintDriver("Left click is cloak",7)
+    Seat:hintDriver("F is ghosting/teleport",7)
+    Seat:hintDriver("Alt changes your model to the closest prop",7)
+}
+elseif(!Active)
+{
+    cameraToggle(1,0,Seat)
+    rangerFilter(E)
+    Rng=rangerOffset(10,E:pos(),vec(0,0,-1))
+    if(!E:isFrozen())
+    {
+        if(Rng:hitWorld())
+        {
+            E:propFreeze(1)
+        }
+    }
+}
+
+
+#<---camera--->
+if(E&!Ghost){Target=E}
+elseif(!E){Target=entity()}
+elseif(Ghost){Target=holoEntity(3)}
+
+holoPos(2,Target:massCenter())
+holoAng(2,holoEntity(1):angles():setPitch(0))
+
+
+X=sin(Ply:eyeAngles():yaw())*Mass*Zoom
+Y=cos(Ply:eyeAngles():yaw())*Mass*Zoom
+Z=(Ply:eyeAngles():pitch()>=50 ? sin(Ply:eyeAngles():pitch())*Mass*2 : 50)
+
+holoPos(1,Target:pos()+vec(Y,X,Z))
+holoAng(1,(Target:pos()-holoEntity(1):pos()):toAngle())
+
+
+
+#<---Non ghosted movement--->
+if(!Ghost)
+{
+
+
+    #<---movement--->
+    if(W){E:applyForce((holoEntity(1):pos():setZ(E:pos():z())-E:pos())*-E:mass()/8)}
+    if(W&Shift){E:applyForce((holoEntity(1):pos():setZ(E:pos():z())-E:pos())*-E:mass()/6)}
+    
+    if(S){E:applyForce((holoEntity(1):pos():setZ(E:pos():z())-E:pos())*E:mass()/8)}
+    
+    if(A){E:applyForce(holoEntity(2):right()*-E:mass()*10)}
+    if(D){E:applyForce(holoEntity(2):right()*E:mass()*10)}
+
+    
+    #jumping
+    if(changed(Space)&Space&AllowJump){E:applyForce(holoEntity(2):up()*E:mass()*300),AllowJump=0,timer("AJ",120)}
+    
+    #stablization
+    if(M2){E:applyTorque(( 150 * E:toLocalAxis(rotationVector(quat( (E:pos() - E:pos()):toAngle():setYaw(Ply:eyeAngles():yaw()) - ang(90,180,0) ) / quat(E) ) ) - 12 * E:angVelVector()) * E:inertia())}
+}
+#jumping clk
+if(clk("AJ")){AllowJump=1}
+
+#<---switching props--->
+if(changed(Alt)&Alt&!Ghost&!Shift)
+{
+    #turn explosive off
+    IsExplosive=0
+    
+    #search for props
+    findExcludeEntity(E)
+    findIncludeClass("prop_physics")
+    findInSphere(E:pos(),100)
+    findSortByDistance(E:pos())
+    
+    #find the nearest one
+    Props=findToArray()
+    N=Props[1,entity]
+    
+    if(N)
+    {
+        #save the old poltergiest pos
+        M=E:pos()
+        
+        #delete the old poltergiest
+        E:propDelete()
+        
+        #spawn a new one
+        E=propSpawn(N:model(),M+vec(0,0,20),ang(),0)
+        E:setColor(N:getColor())
+        E:setMaterial(N:getMaterial())
+        E:setMass( (E:mass()>10 ? E:mass() : 10) )
+        
+        #store old info
+        OMod=E:model()
+        OMass=E:mass()
+        OVec=E:getColor()
+        OM=E:getMaterial()
+    }
+    
+    if(changed(E:model())|first())
+    {
+        for(I=1,Explosives:count())
+        {
+            if(E:model()==Explosives[I,string])
+            {
+                IsExplosive=1
+            }
+        }
+    }
+}
+
+
+
+
+
+
+#<---remaking the prop if its broken/teleport--->
+if(changed(E:isValid())&!E&!first()){
+    Seat:hintDriver("Press R to respawn.",5)
+    Seat:hintDriver("Press R AND shift to respawn with lamp model.",5)
+}
+    
+if(!E&changed(R)&R)
+{
+    Ghost=0
+    
+    entity():soundPlay(1,0,"items/suitchargeok1.wav")
+    
+    #spawn a new one
+    E=propSpawn(OMod,entity():pos()+vec(0,0,40),ang(),0)
+    E:setColor(OVec)
+    E:setMaterial(OM)
+    E:setMass(OMass)
+}
+elseif(!E&changed(R)&R&Shift)
+{
+    Ghost=0
+    IsExplosive=0
+    
+    entity():soundPlay(1,0,"items/suitchargeok1.wav")
+    E=propSpawn("models/props_interiors/Furniture_Lamp01a.mdl",entity():pos()+vec(0,0,40),ang(),0)
+}
+elseif(E&changed(R)&R&!Ghost)
+{
+    entity():soundPlay(1,0,"items/suitchargeok1.wav")
+    
+    #store old info
+    OMod=E:model()
+    OMass=E:mass()
+    OVec=E:getColor()
+    OM=E:getMaterial()
+    
+    #delete old prop
+    E:propDelete()
+    
+    #spawn a new one
+    E=propSpawn(OMod,entity():pos()+vec(0,0,40),ang(),0)
+    E:setColor(OVec)
+    E:setMaterial(OM)
+    E:setMass(OMass)
+}
+elseif(E&changed(R)&R&Shift)
+{
+    Ghost=0
+    IsExplosive=0
+    
+    E:propDelete()
+    
+    entity():soundPlay(1,0,"items/suitchargeok1.wav")
+    
+    E=propSpawn("models/props_interiors/Furniture_Lamp01a.mdl",entity():pos()+vec(0,0,40),ang(),0)
+}
+
+
+
+
+
+
+
+#<---Detecting if prop is explosive--->
+if(changed(E:model())|first())
+{
+    for(I=1,Explosives:count())
+    {
+        if(E:model()==Explosives[I,string])
+        {
+            IsExplosive=1
+        }
+    }
+}
+
+#<---Cloaking/Exploding--->
+if(changed(M1)&M1&AllowHide&!Ghost&!IsExplosive)
+{
+    E:setAlpha(10)
+    
+    E:soundPlay(2,soundDuration("buttons/combine_button3.wav"),"buttons/combine_button3.wav")
+    timer("unHide",10000)
+    
+    timer("ah",200)
+}
+elseif(changed(M1)&M1&!AllowHide&E:getAlpha()>=255&!IsExplosive)
+{
+    E:soundPlay(3,soundDuration("buttons/combine_button2.wav"),"buttons/combine_button2.wav")
+}
+elseif(changed(M1)&M1&!AllowHide&E:getAlpha()<=10&!IsExplosive)
+{
+    stoptimer("unHide")
+    timer("unHide",200)
+}
+elseif(changed(M1)&M1&!Ghost&IsExplosive)
+{
+    E:soundPlay(4,soundDuration("weapons/strider_buster/strider_buster_stick1.wav"),"weapons/strider_buster/strider_buster_stick1.wav")
+    timer("AllahUAhkbar",1700)
+}
+
+if(clk("ah")){AllowHide=0}
+
+if(clk("AllahUAhkbar"))
+{
+    E:soundPlay(5,soundDuration("/weapons/strider_buster/strider_buster_detonate.wav"),"/weapons/strider_buster/strider_buster_detonate.wavropBreak()
+}
+
+if(clk("unHide"))
+{
+    E:setAlpha(255)
+    E:soundPlay(3,soundDuration("buttons/combine_button2.wav"),"buttons/combine_button2.wav")
+    
+    timer("cooldown",5000)
+}
+if(clk("cooldown")){AllowHide=1,E:soundPlay(4,soundDuration("items/nvg_off.wav"),"items/nvg_off.wav--Teleporting--->
+if(changed(F)&F&!Ghost)
+{
+    Ghost=1
+    
+    holoCreate(3)
+    holoModel(3,E:model())
+    holoPos(3,E:pos())
+    
+    findExcludeEntity(Ply)
+    findByClass("player")
+    Players=findToArray()
+    
+    holoAlpha(3,160)
+    
+    E:propFreeze(1)
+    
+    Seat:hintDriver("F again will teleport to the ghosted prop",6)
+    Seat:hintDriver("Left click cancels ghosting",6)
+    
+    
+    AG=0
+    timer("AG",500)
+}
+elseif(changed(F)&F&Ghost&AG)
+{
+    Ghost=0
+    
+    if(E:isFrozen()){E:propFreeze(0)}
+    
+    E:setPos(holoEntity(3):pos())
+    
+    E:soundPlay(6,soundDuration("npc/combine_gunship/ping_search.wav"),"npc/combine_gunship/ping_search.wav  holoDelete(3)
+}
+elseif(changed(M1)&M1&Ghost)
+{
+    Ghost=0
+    
+    if(E:isFrozen()){E:propFreeze(0)}
+    
+    holoDelete(3)
+}
+
+
+if(clk("AG")){AG=1}
+
+
+#<---Ghosting--->
+if(Ghost)
+{
+    GP=holoEntity(3)
+    
+    holoVisible(3,Players,0)
+    holoVisible(3,Ply,1)
+    
+    holoAng(3,ang(0,Ply:eyeAngles():yaw(),0))
+    
+    
+    if(W){holoPos(3,GP:pos()+GP:forward()*-Mass/15)}
+    if(A){holoPos(3,GP:pos()+GP:right()*Mass/15)}
+    if(S){holoPos(3,GP:pos()+GP:forward()*Mass/15)}
+    if(D){holoPos(3,GP:pos()+GP:right()*-Mass/15)}
+    
+    if(W&Shift){holoPos(3,GP:pos()+GP:forward()*-Mass/10)}
+
+    
+    Rng = rangerOffset(50,GP:pos(),-GP:up())
+    if(Rng:hit()&!Space)
+    {
+        Diff = GP:boxSize():z()/2-Rng:distance()
+        holoPos(3,GP:pos()+vec(0,0,Diff))
+    }
+    elseif(!Rng:hit()&!first()&!Space)
+    {
+        holoPos(3,GP:pos()+vec(0,0,-11.7))
+    }
+    elseif(Space)
+    {
+        holoPos(3,GP:pos()+vec(0,0,5))
+    }
+}

@@ -1,0 +1,139 @@
+@name Accelerometer pitch stabilization - self upright
+@inputs W S A D Shift Space Pitch
+
+# wing load
+@outputs Acc_z Acc_x Acc_mag Acc_mod Beta
+
+# wing hydros
+@outputs LengthL LengthR Constant Damping 
+# thruster
+@outputs Force
+
+# state
+@persist Vel:vector
+@persist Angle_t Angvel_change 
+@persist Roll Throttle 
+
+# ==== DESCRIPTION ====
+# This script controls a flying wing via weight shift.
+# It uses acceleration measurements to modulate the control inputs.
+
+# Note: 
+# this version directly changes the target angle of the PI Controller using  
+# user control inputs. When the measured acceleration exceeds the desired 
+# bounds, the difference in acceleration is used to correct the target angle.
+
+# This enables the aircraft to closely match the target acceleration without
+# inducing a wobble at small pitch angles. Higher PID gains are possible.
+
+# Moreover, only the acceleration and angular velocity need to be measured.
+# The airspeed of the vehicle is not required. 
+# =====================
+
+DT = 10
+interval(DT)
+DT *= 1e-3
+
+#---- Constants
+E = entity()
+Gravity_mag = 900
+Gravity = vec(0, 0, Gravity_mag)
+
+#---- Vehicle state
+    # global acceleration
+Vel_new = E:vel()
+Acc = (Vel_new - Vel)/DT 
+Vel = Vel_new
+
+    # include gravity
+Acc += Gravity
+Acc_local = E:toLocal( Acc + E:pos() )
+Acc_local /= Gravity_mag
+
+# scalar values:
+Vel_mag = Vel_new:length()
+    # acceleration in lift direction
+Acc_z = Acc_local:z()
+    # pitch angular velocity
+Angvel = -toRad(  E:angVel():pitch() )  
+
+#---- Acceleration feedback
+
+# target acceleration
+ACC_MIN  = 0.2      # Minimum G [must be positive to prevent load reversal]
+ACC_MAX  = 3        # Maximum positive G
+VEL_MEAN = 2000     # Average flight velocity
+
+ANGVEL_SCALE = Gravity_mag / VEL_MEAN
+ANGVEL_MIN = (ACC_MIN - 1) * ANGVEL_SCALE
+ANGVEL_MAX = (ACC_MAX - 1) * ANGVEL_SCALE
+
+    # pitch input
+Angvel_change += ( (S-W)*toRad(40) - Angvel_change)*0.25
+    # restrict rate
+Angvel_change = clamp(Angvel_change, ANGVEL_MIN, ANGVEL_MAX)         
+
+    # deadband on acceleration correction
+Acc_mod = Acc_z > ACC_MAX ? Acc_z - ACC_MAX :
+          Acc_z < ACC_MIN ? Acc_z - ACC_MIN : 0
+        
+    # modulate target angle 
+KACC = 0.80  # Gain to correct acceleration
+
+Angvel_input = Angvel_change - Acc_mod*KACC
+
+# Self upright correction
+KBETA = 0.2
+
+    # measure horizon angle [need sensor fusion]
+Beta = toRad( -E:angles():pitch() - 5 )
+
+Angvel_input -= Beta*KBETA  # offset rate
+
+#---- PID correction
+KP = 40   # proportional
+KD = 30   # derivative
+
+# integrate error
+Angvel_t = Angvel - Angvel_input 
+Angle_t += Angvel_t*DT
+
+    # Restrict deflection [allow integrator to leak for large deflections]
+ANGLE_MAX = toRad(15)
+Angle_t = clamp(Angle_t, -ANGLE_MAX, ANGLE_MAX)
+
+# control deflection
+Output = KP*Angle_t + KD*Angvel_t # change to Angvel for slow but damped response
+    # scale by gain
+Gain_force = Acc_z == 0 ? 0 : 1/Acc_z
+Output = Output * Gain_force 
+    # restrict output
+XMAX = 20    
+Output = clamp(Output, -XMAX, XMAX)
+
+#---- Stall correction (pitch down to gain speed)
+# Note: 
+# A real-life aircraft does not require this, so long as the 
+# max aft deflection does not exceed the 50 % MAC of the wing.
+# The aerocenter shifts during a stall, inducing nose down.
+
+VEL_STALL = 700
+
+if( Vel_mag < VEL_STALL ) { 
+    Output = XMAX * 0.5     # self stable deflection
+    Ang_p = 0               # reset integrator
+} 
+
+#---- Hydraulic output
+Constant = 10000
+Damping = 800
+
+Roll += ( (A - D)*20  - Roll )*0.05   # Smooth roll input
+LengthL = 100 + Output + Roll 
+LengthR = 100 + Output - Roll
+
+#---- Propulsion
+Throttle += (Space - Shift)*20
+Throttle = clamp(Throttle, 0, VEL_STALL + 1800) # Target velocity
+
+Force = clamp( (Throttle - Vel_mag)*4, 0, 1000) # Proportional on velocity

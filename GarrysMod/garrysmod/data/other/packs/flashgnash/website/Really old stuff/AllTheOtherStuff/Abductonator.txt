@@ -1,0 +1,158 @@
+@name Abductonator
+@persist Harvester:entity HarvesterWirelink:wirelink
+#include "lib/BetterPrint"
+
+
+
+function entity findTarget(String:string){
+    if(String == "!that"){
+        return(owner():aimEntity())
+    }
+    elseif(String == "!me"){
+        return(owner())
+    }
+    elseif(String == "!all"){
+        print("Well, OK then... Abducting ALL players")
+    }
+    else{
+        return(findPlayerByName(String))
+    }
+    
+}
+
+function abduct(AbductString:string,Silent){
+        Tar = findTarget(AbductString)
+        
+        if(Silent == 0){print("Abducting ["+Tar:name()+"]")}
+        
+        Harvester:setPos(Tar:pos() + vec(0,0,Tar:height() * 5 + 10))
+        
+        timer("startsuck",100)
+    
+}
+
+function abduct(AbductString:string){
+    abduct(AbductString,0)
+}
+
+function release(Amount,Silent){
+    for (I = 1,Amount) {
+        HarvesterWirelink["spit",normal] = 1
+        timer("stopspit",100)
+    }
+    if(Amount == 1){
+        if(Silent == 0){print("Released [1] entity")}
+    }
+    else{
+        if(Silent == 0){print("Released ["+Amount:toString()+"] entities")}
+    }    
+    
+}
+
+function release(Amount){
+    release(Amount,0)   
+}
+
+
+function resurrect(ResString:string){
+    if(ResString == ""){ResString = owner():name()}
+    abduct(ResString,1)
+    timer("ResTimer",1000)    
+}
+
+
+
+
+if(first()){
+    #Betterprint config
+    setColourScheme(vec(0,0,255),vec(255,255,255),vec(0,255,0),"[YSuck] ")
+    #Betterprint config
+    findByClass("wraith_harvester")
+    findAllowPlayerProps(owner())
+    Harvester = find()
+    print("Harvester found: ",Harvester)
+    HarvesterWirelink = Harvester:wirelink()
+
+
+    Constrained = Harvester:getConstraints()
+    
+    for (I = 0,Constrained:count()){
+        Prop = Constrained:shiftEntity()
+        Prop:parentTo(Harvester)
+        Prop:setColor(vec(0),0)
+    }
+}
+
+if(clk("stopsuck")){
+    HarvesterWirelink["on",normal] = 0
+}
+if(clk("stopspit")){
+    HarvesterWirelink["spit",normal] = 0
+}
+if(clk("startsuck")){
+    HarvesterWirelink["on",normal] = 1
+    timer("stopsuck",1000)
+}
+if(clk("ResTimer")){
+    release(1,1)
+}
+if(clk("SummonTimer")){
+    Harvester:setPos(owner():aimPos()+vec(0,0,500))
+    timer("ResTimer",100)
+}
+
+
+if(chatClk(owner())){
+    Message = owner():lastSaid()
+    Cmd = Message:explode(" ")
+    W1 = Cmd:shiftString()
+    W2 = Cmd:shiftString()
+    
+    if(W1 == "/abduct"){
+        hideChat(1)
+        abduct(W2)
+    }
+    
+    
+    elseif(W1 == "/release"){
+        hideChat(1)
+        if(W2 == ""){
+            Times = 1
+        }
+        else{
+            Times = W2:toNumber()
+        }
+        
+        release(Times)
+    }
+   
+    elseif(W1 == "/tp"){
+        hideChat(1)
+        
+        Tar = findTarget(W2)
+        print("Teleporting to: ",Tar:name())
+        Harvester:setPos(Tar:pos() + vec(0,0,Tar:height() * 5))
+        
+    }
+    
+    elseif(W1 == "/summon"){
+        hideChat(1)
+        if(W2 == ""){
+            Harvester:setPos(owner():aimPos()+vec(0,0,500))
+            timer("ResTimer",100)
+        }
+        else{
+            abduct(W2)
+            timer("SummonTimer",1000)
+        }
+    }
+    elseif(W1 == "/res"){
+        hideChat(1)
+        resurrect(W2)
+        
+    }
+}
+
+
+
+runOnChat(1)

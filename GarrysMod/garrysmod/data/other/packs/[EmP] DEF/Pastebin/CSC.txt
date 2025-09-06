@@ -1,0 +1,276 @@
+@name CSC v0.6
+@inputs PodController:wirelink CamRanger:ranger [PodControllerE Base Rudder AileronLeft AileronRight CnrdLeft CnrdRight]:entity
+@inputs ABSpeed [CamPos CamDir]:vector
+@persist MouseAng:angle Pilot:entity
+@persist [Trim TrimSpd PitchRate RollRate RudderRate MaxPitch MaxRoll MaxRudder PitchSpd RollSpd RudderSpd]:array
+@persist ManAng PAng RAng YAng CurMaxPitch PitchMul RollMul YawMul PAVMul RAVMul YAVMul LevMul HvelMul
+@persist [UpKey DownKey LeftKey RightKey HoldHdgKey]:string
+@outputs FilterEntities:array Ops_CPUus:vector2
+@trigger none
+
+if(duped() | dupefinished()) {reset()}
+
+if(first() | dupefinished()) {
+    
+    Trim = array(0,0)     #Minimum and maximum pitch trims, respectively
+    
+    TrimSpd = array(0,70)   #Trim speeds, corresponding to the previous trim values
+    
+    
+        #~ Pitch things ~#
+    
+    
+    PitchRate = array(5,2.5)      #How fast the elevators pitch, at a minimum speed and a maximum speed, in degrees/second.
+    
+    MaxPitch = array(20,15)       #This is the maximum pitch of the elevators, at minimum and maximum speed.
+    
+    PitchSpd = array(0,70)      #The minimum and maximum speed for the PitchRate.
+    
+    #Mouse-steer sub-division
+    
+    PitchMul = 1.5                #Pitch multiplier; multiplies the pitch angle to where you are pointing
+    
+    PAVMul = 0.5               #Pitch angular-velocity multiplier; dampens any shakiness from pitching
+    
+    
+        #~ Roll things ~#
+    
+    
+    RollRate = array(20,15)      #How fast the ailerons roll, at a minimum speed and a maximum speed, in degrees/second.
+    
+    MaxRoll = array(20,20)      #This is the maximum roll of the ailerons, in degrees, at minimum and maximum speed.
+    
+    RollSpd = array(0,70)       #The minimum and maximum speed for the RollRate and MaxRoll.
+    
+    #Mouse-steer sub-division
+    
+    RollMul = 1.4                 #Roll multiplier; multiplies the roll angle to where you are pointing
+    
+    RAVMul = 0.25               #Roll angular-velocity multiplier; similar to PAVMul, but dampens any shakiness from rolling
+    
+    LevMul = 0.35               #Leveller multiplier; this tries to keep the plane level (0 roll)
+    
+    
+        #~ Rudder things ~#
+    
+    
+    RudderRate = array(5,2.5)      #How fast the rudders rotate, at a minimum speed and a maximum speed.
+    
+    MaxRudder = array(10,7.5)       #This is the maximum angle of the rudder, at minimum and maximum speed.
+    
+    RudderSpd = array(0,70)      #The minimum and maximum speed for the RudderRate.
+    
+    #Mouse-steer sub-division
+    
+    YawMul = 1.5                  #Yaw multiplier; multiplies the yaw angle to where you are pointing
+    
+    YAVMul = 0.5               #Yaw angular-velocity multiplier; also similar to PAVMul, but dampens any shakiness from yawing
+    
+    HVelMul = 0.5             #Horizontal velocity multiplier; this is used to prevent the plane from slipping left-to-right
+    
+    #~ Keybind things ~#
+    
+    UpKey = "Up"
+    
+    DownKey = "Down"
+    
+    RightKey = "Right"
+    
+    LeftKey = "Left"
+    
+    HoldHdgKey = "LAlt"
+    
+            #~ THINGS YOU SHOULDN'T EDIT! ~#
+    
+    #This converts the Dg/s from before to a usable angle
+    PitchRate[1,number] = PitchRate[1,number]/5
+    PitchRate[2,number] = PitchRate[2,number]/5
+    
+    RollRate[1,number] = RollRate[1,number]/5
+    RollRate[2,number] = RollRate[2,number]/5
+    
+    RudderRate[1,number] = RudderRate[1,number]/5
+    RudderRate[2,number] = RudderRate[2,number]/5
+    
+    #Linear interpolation function, useful for transitioning from one number to another
+    function number blerp(OutArr:array,RefArr:array,Bias,Sample) {
+        
+        #The difference between the final reference point and the initial reference point.
+        local RefDiff = RefArr[2,number] - RefArr[1,number]
+        
+        #This adds a percentage of the difference between the initial output and the final output, based on were the sample
+        #is relative to the reference. It also raises the relative difference to a power to make a, optional, bias
+        #(Sample/RefDiff)^Bias.
+        local Result = OutArr[1,number] + ((clamp(Sample-RefArr[1,number],0,RefDiff)/RefDiff)^Bias)*(OutArr[2,number] - OutArr[1,number])
+        
+        return Result
+    }
+    
+    FilterEntities = entity():getConstraints()
+    
+    holoCreate(1)
+    holoAng(1,Base:angles())
+    holoPos(1,AileronRight:pos())
+    holoParent(1,Base)
+    AileronRight:parentTo(holoEntity(1))
+    
+    holoCreate(2)
+    holoAng(2,Base:angles())
+    holoPos(2,AileronLeft:pos())
+    holoParent(2,Base)
+    AileronLeft:parentTo(holoEntity(2))
+    
+    holoCreate(3)
+    holoAng(3,Base:angles())
+    holoPos(3,Rudder:pos())
+    holoParent(3,Base)
+    Rudder:parentTo(holoEntity(3))
+    
+    holoCreate(4)
+    holoAng(4,Base:angles())
+    holoPos(4,CnrdRight:pos())
+    holoParent(4,Base)
+    CnrdRight:parentTo(holoEntity(4))
+    
+    holoCreate(5)
+    holoAng(5,Base:angles())
+    holoPos(5,CnrdLeft:pos())
+    holoParent(5,Base)
+    CnrdLeft:parentTo(holoEntity(5))
+    
+    holoVisible(1,players(),0)
+    holoVisible(2,players(),0)
+    holoVisible(3,players(),0)
+    holoVisible(4,players(),0)
+    holoVisible(5,players(),0)
+    
+}
+
+interval(75)
+
+Active = PodController["Active",number]
+
+if(changed(Active) & Active) {
+    
+    Pilot = PodControllerE:driver()
+}
+
+if(Active) {
+
+    #W A S D inputs from the PodController.
+    A = PodController["A",number]
+    D = PodController["D",number]
+    
+    if(!Pilot:keyPressed(HoldHdgKey)) {
+        
+        #Angle of the plane relative to were the pilot is looking
+        MouseAng = Base:heading(CamRanger:position())
+    }
+    
+    #Base angular velocity
+    local AngVel = Base:angVel()
+    
+    local BaseYVel = Base:velL():y()*HVelMul
+    
+    local MouseAngYaw = MouseAng:yaw()
+    
+    
+    #Pitch angle rotation speed and limit
+    local PitchCurRate = blerp(PitchRate,PitchSpd,1,ABSpeed)
+    
+    CurMaxPitch = blerp(MaxPitch,PitchSpd,1,ABSpeed)
+    
+    #Roll angle rotation speed and limit
+    local RollCurRate = blerp(RollRate,RollSpd,1,ABSpeed)
+    
+    local CurMaxRoll = blerp(MaxRoll,RollSpd,1,ABSpeed)
+    
+    #Rudder angle and rotation speed limit
+    local RudderCurRate = blerp(RudderRate,RudderSpd,1,ABSpeed)
+    
+    local CurMaxRudder = blerp(MaxRudder,RudderSpd,1,ABSpeed)
+    
+    
+    #Speed-based trim
+    local TrimAng = blerp(Trim,TrimSpd,1,ABSpeed)
+    
+    
+    
+    if(Pilot:keyPressed(UpKey) | Pilot:keyPressed(DownKey)) {
+        
+        #This increments the angle of the elevators, and clamps them to the max pitch angle
+        ManAng = clamp((Pilot:keyPressed(UpKey)-Pilot:keyPressed(DownKey))*CurMaxPitch,ManAng-PitchCurRate,ManAng+PitchCurRate)
+        
+        PAng = clamp(ManAng + TrimAng,-CurMaxPitch,CurMaxPitch)
+    }
+    
+    else {
+        
+        #A reset for if the manual elevation angle was used
+        ManAng = 0
+        
+        #Pitch angle for mouse-steer
+        local PitchAng = -MouseAng:pitch()*PitchMul - AngVel:pitch()*PAVMul
+        
+        #This acounts for any other pitch adjustment angles
+        PAng = clamp(PitchAng + TrimAng,-CurMaxPitch,CurMaxPitch)
+    }
+
+    #Same as above, but for roll
+    if(A|D){
+        
+        RAng = clamp((D-A)*CurMaxRoll,RAng-RollCurRate,RAng+RollCurRate)
+    }
+    
+    else {
+        
+        local RollAng = MouseAngYaw*RollMul - AngVel:roll()*RAVMul - Base:angles():roll()*LevMul + BaseYVel
+        
+        RAng = clamp(RollAng,-CurMaxRoll,CurMaxRoll)
+    }
+    
+    #Same as above, but for the rudder
+    if(Pilot:keyPressed(RightKey) | Pilot:keyPressed(RightKey)){
+        
+        YAng = clamp((Pilot:keyPressed(RightKey)-Pilot:keyPressed(RightKey))*CurMaxRudder,YAng-RudderCurRate,YAng+RudderCurRate)
+    }
+    
+    else {
+        
+        local RudderAng = MouseAngYaw*YawMul + AngVel:yaw()*YAVMul + BaseYVel
+        
+        YAng = clamp(RudderAng,-CurMaxRoll,CurMaxRoll)
+    }
+    
+    
+    
+    #Where the angles are actually applied
+    holoAng(1,Base:toWorld(ang(clamp(-PAng+RAng,-CurMaxPitch,CurMaxPitch),0,0)))
+    
+    holoAng(2,Base:toWorld(ang(clamp(-PAng-RAng,-CurMaxPitch,CurMaxPitch),0,0)))
+    
+    holoAng(3,Base:toWorld(ang(0,clamp(YAng,-CurMaxRudder,CurMaxRudder),0)))
+    
+    holoAng(4,Base:toWorld(ang(clamp(PAng+RAng,-CurMaxPitch,CurMaxPitch),0,0)))
+    
+    holoAng(5,Base:toWorld(ang(clamp(PAng-RAng,-CurMaxPitch,CurMaxPitch),0,0)))
+}
+
+else {
+    
+    PAng=RAng = 0
+    
+    CurMaxPitch = 0
+    
+    holoAng(1,Base:toWorld(ang(0,0,0)))
+    
+    holoAng(2,Base:toWorld(ang(0,0,0)))
+    
+    holoAng(3,Base:toWorld(ang(0,0,0)))
+    
+    holoAng(4,Base:toWorld(ang(0,0,0)))
+    
+    holoAng(5,Base:toWorld(ang(0,0,0)))
+}
+
+Ops_CPUus = vec2(ops(),cpuUsage()*1000000)

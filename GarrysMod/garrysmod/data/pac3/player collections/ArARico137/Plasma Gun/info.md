@@ -1,8 +1,9 @@
 - Author: ArARico137
 - Steam Profile: http://steamcommunity.com/profiles/76561198144839158
 - Youtube: https://www.youtube.com/@ArARico137
-- Date (dd-mm-yyyy): 18-10-2016
+<!-- -->
 - Title: Gmod pac 3 Plasma Gun. +Download
+- Date (dd-mm-yyyy): 18-10-2016
 - Source: https://www.youtube.com/watch?v=LqhiPNCOig4
 - Source: https://www.dropbox.com/scl/fi/6zcne5xc6526892hmngm9/PlasmAGun.txt?rlkey=4g06ya1je0hfpra4w4fcaf8pi&e=1&dl=0
 - Source Accessed (dd-mm-yyyy): 19-06-2025

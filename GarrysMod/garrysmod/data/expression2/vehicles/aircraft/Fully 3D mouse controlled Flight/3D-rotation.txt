@@ -1,0 +1,45 @@
+@name 3D rotation
+@inputs W A S D Sh R EyeX EyeY
+@outputs CamPos:vector CamAng:angle DesiredQuat:quaternion V:vector 
+
+E = entity()
+runOnTick(1)
+if (first()) {DesiredQuat = quat(E)}
+#Assign the DesiredQuaternion to current position, can't multiply a 0,0,0,0 quaternion
+
+Pitch = (A-D)*3
+Roll = (S-W)*3 + EyeY/3
+Yaw = (Sh-R)*3 + (-EyeX)/3
+#Input from Eyepod/Keyboard
+
+PitchQuat = qRotation(DesiredQuat:right(),Roll) 
+YawQuat = qRotation(DesiredQuat:up(),Yaw)
+RollQuat = qRotation(DesiredQuat:forward(),Pitch)
+#Crate 3 quaternions, each the desired change depending on input. a 'Roll' of 45' will 
+#rotate the desired quaternion 'right' around the forward axis by 45 dgerees
+
+DesiredQuat = (PitchQuat*YawQuat*RollQuat)*DesiredQuat
+#Apply the desired rotation change to the desired quaternion
+
+CamAng = DesiredQuat:toAngle()
+#Create an angle that the cam controler can use, remember, this is not the same as simply
+#using the pitch/roll/yaw incriments to input in the cam controller. 
+CamPos = E:pos() + DesiredQuat:forward()*-140 + DesiredQuat:up()*10
+#Set the cam at the psotiion of the 'ship' and move it back and up slightly for a better view
+
+CurrentQuat = quat(E)
+#Get the current rotation of the entity as a quaternion
+
+Q = DesiredQuat/CurrentQuat
+#Calculate the difference between the current position and the desired position.
+#This is analogous to Desired Pitch - Current pitch for a simply pitch/roll/yaw system
+
+V = E:toLocal(rotationVector(Q)+E:pos())
+E:applyTorque((150*V - 55*E:angVelVector())*E:inertia())  
+E:applyForce(-E:vel()*(E:mass()/30))
+#These are from Fizyk's tutorial, essentialy it calculates a vector which is the current
+#rotation between DesiredQuat and CurrentQuat (Remember it only takes rotation around a 
+#single axis to get from any one rotation to any other) the magnitude of the vector is
+#the magnitude of the torque, two equal quaterniosn divided by one another will equal zero
+#so when the desired quaternion is the same as the current one, the magnitude of the
+#torque will also be zero.

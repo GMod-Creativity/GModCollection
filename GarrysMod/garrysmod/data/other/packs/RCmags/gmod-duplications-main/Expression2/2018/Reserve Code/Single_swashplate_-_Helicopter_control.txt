@@ -1,0 +1,65 @@
+@name Single swashplate - Helicopter control
+@inputs B:entity
+@inputs W S A D Ri Space Shift Mouse1 Mouse2 
+@outputs H1 H2 H3 H4
+@outputs Constant Damping
+@persist C Ap Ar Q
+
+interval(20)
+
+#Hydraulic settings:
+Constant = 5000
+Damping = 200
+
+#Common collective inputs
+Li = 30
+C = clamp( (Space - Shift)/10 + C , -3 , 9 )
+Y = (Mouse1 - Mouse2)*1.5
+
+#Rotor collective input:
+L = Li + C - Y
+
+#Master stabilizatio gain:
+J = 0.01
+
+#Pitch and roll angular velocities:
+Wp = E:angVel():pitch()*J
+Wr = E:angVel():roll()*J
+
+#Rotor angular velocity
+Wb = E:angVel():yaw()
+
+#Stabilization gain control:
+G = ( Wb^8 )/sqrt( 1 + Wb^16 )
+
+#Maximum cyclic deflection:
+M = 10
+
+#Target rotational velocity:
+U = 50
+
+#Pitch and roll target angle approximations:
+Ap = clamp( Wp + (S - W)*J*U + Ap , -M , M )*G
+Ar = clamp( Wr + (D - A)*J*U + Ar , -M , M )*G
+
+#Net Pitch and roll inputs:
+P = clamp( Ap + Wp + $Wp , -M , M )*G
+R = clamp( Ar + Wr + $Wr , -M , M )*G
+
+#Phase angle:
+F = 0
+
+#Nutation Gain:
+N = 0
+
+#Rotor 1, Pitch and roll outputs:
+Po = cos(F)*P - sin(F)*R + Wp*N
+Ro = cos(F)*R + sin(F)*P - Wr*N
+
+#Rotor 1 length outputs:
+H1 = L + Po
+H2 = L - Po
+H3 = L + Ro
+H4 = L - Ro
+
+

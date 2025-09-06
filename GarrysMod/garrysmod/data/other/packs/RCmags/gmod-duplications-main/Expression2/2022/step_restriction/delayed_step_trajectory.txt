@@ -1,0 +1,62 @@
+@name Velocity Step Restriction
+@inputs E:entity
+@outputs Xms Xn Ratio
+@persist DT_MS DT MASS
+@persist Xn Ratio LMAX
+@trigger 
+
+# First call
+if( first() ) {
+    #--- Constants ---
+    DT_MS = 10
+    DT = DT_MS * 1e-3
+    #MASS = E:mass()        # Update to prevent spazz when changed
+        
+    # Decay ratio 
+    Ratio = 0
+    LMAX = 1.5
+        
+    #--- Functions ----
+
+        # Ode function - feedback
+    function number ode(X) {
+        return -sign(X) * X^2 * 1 / DT
+    }
+    
+    #--- Set Prop velocity ---
+    function void setVelocity( Vel:vector ) {
+        Impulse = E:mass() * ( Vel - E:vel() )
+        E:applyForce( Impulse )
+    }
+} # end, First call
+
+# Iterate
+interval(DT_MS)
+
+# 1. Measure velocity
+Xms = E:vel():z()
+
+# 2. Estimate next state
+DX = DT*ode(Xms)
+Xn = Xms + DX
+
+# 3. Clamp velocity change (stable)
+    # |X - Xn| > |dt*dxdt| > 0  --> Velocity must decay
+# Measure decay rate of estimate
+if( Xms != 0 ) {
+    Ratio = 1 - Xn/Xms
+} 
+
+# Restrict decay of target state
+if( Ratio > LMAX ) {  
+    Xn = Xms * (1 - LMAX)    
+}
+
+# 4. Set Prop state   [Must come after velocity measurement, or blocks measurement]
+setVelocity( vec(0, 0, Xn) )
+
+# Note: 
+#   - Velocity restriction is more stable than an implicit method
+#   - This assumes velocity will always decay
+#   - The maximum force is limited by the velocity change.
+#     Implit methid has Lmax = 1

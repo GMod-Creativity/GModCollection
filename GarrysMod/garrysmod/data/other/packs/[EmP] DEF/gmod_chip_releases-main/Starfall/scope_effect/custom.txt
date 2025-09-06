@@ -1,0 +1,118 @@
+--@name Scope Effect/custom
+--@author Mewing_Rizzmaster69
+--@client
+
+if player() != owner() then return end
+
+local TextureID = "Scope-Effect"
+local TX = 0; local TY = 0
+
+local resX, resY = render.getGameResolution()
+TX = (resX - 1024) * 0.5
+TY = (resY - 1024) * 0.5
+
+render.createRenderTarget(TextureID)
+
+local function ResetStencil()
+    render.setStencilWriteMask( 0xFF )
+    render.setStencilTestMask( 0xFF )
+    render.setStencilReferenceValue( 0 )
+    render.setStencilPassOperation( STENCIL.KEEP )
+    render.setStencilZFailOperation( STENCIL.KEEP )
+    render.clearStencil()
+end
+
+local function StencilSetMask(Func)
+    render.setStencilReferenceValue( 1 )
+    render.setStencilCompareFunction( STENCIL.NEVER )
+    render.setStencilFailOperation( STENCIL.REPLACE )
+    Func()
+end
+
+function StencilDrawMasked(Func)
+    render.setStencilCompareFunction( STENCIL.GREATER )
+    render.setStencilFailOperation( STENCIL.KEEP )
+    Func()
+end
+
+local function Blackout()
+    render.setColor(Color(0, 0, 0, 255))
+    render.drawRect(0, 0, 1024, 1024)
+end
+
+local function MaskShape()
+    local m = Matrix()
+    m:setTranslation(Vector(412, 412))
+    
+    render.pushMatrix(m)
+    
+    render.setColor(Color(25, 25, 25, 255))
+    render.drawRoundedBoxEx(33, 30, 181, 60, 80, false, false, true, true)
+    
+    render.setColor(Color(25, 25, 25, 255))
+    render.drawRoundedBoxEx(33, 110, 181, 60, 80, false, false, true, true)
+    
+    render.setColor(Color(25, 25, 25, 255))
+    render.drawRoundedBoxEx(25, 130, 56, 70, 100, true, true, true, true)
+    
+    render.setColor(Color(25, 25, 25, 255))
+    render.drawRoundedBoxEx(80, 30, 1, 140, 180, true, true, false, false)
+    
+    render.setColor(Color(25, 25, 25, 255))
+    render.drawRoundedBoxEx(80, 0, 41, 110, 70, true, true, true, true)
+    
+    render.popMatrix()
+end
+
+local function DrawScope()
+    render.setStencilEnable(true)
+    ResetStencil()
+    StencilSetMask(MaskShape)
+    StencilDrawMasked(Blackout)
+    render.setStencilEnable(false)
+end
+
+local function WriteOnTexture()
+    render.selectRenderTarget(TextureID)
+    
+    render.clear(Color(0, 0, 0, 0))
+    DrawScope()
+    render.drawBlurEffect(1, 1, 1)
+    
+    hook.remove("renderoffscreen", "texture-maxxing")
+end
+
+local function StartTextureWrite()
+    hook.add("renderoffscreen", "texture-maxxing", WriteOnTexture)
+end
+
+local function DrawTexture()
+    render.setRenderTargetTexture(TextureID)
+    render.drawTexturedRect(TX, TY, 1024, 1024)
+end
+
+local function FullBlackout()
+    render.setColor(Color(0, 0, 0, 255))
+    render.drawRect(0, 0, render.getGameResolution())
+end
+
+local function FullMask()
+    render.setColor(Color(0, 0, 0, 255))
+    render.drawRect(TX, TY, 1024, 1024)
+end
+
+local function FinalDraw()
+    render.setStencilEnable(true)
+    ResetStencil()
+    StencilSetMask(FullMask)
+    StencilDrawMasked(FullBlackout)
+    render.setStencilEnable(false)
+    
+    DrawTexture()
+end
+
+enableHud(player(), true)
+StartTextureWrite()
+
+//hook.add("drawhud", "gaming", FinalDraw)
+hook.add("drawhud", "gaming", MaskShape)

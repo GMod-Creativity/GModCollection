@@ -1,0 +1,63 @@
+@name VtolControl
+@inputs Ri Alt W S A D Space Shift Mouse1 Mouse2
+@outputs Constant Damping L1 L2 R1 R2 C R P Throttle
+@persist Trans Tilt On
+
+E = entity()
+
+Constant = 50000
+Damping = 2100
+
+interval(10)
+
+#TiltControl:
+if(~Alt & Alt) { Trans = !Trans }
+
+Tilt = clamp( (2*Trans - 1)/5 + Tilt ,0,32)
+
+#Angle transform constant:
+N = 2.813
+
+STilt = sin(Tilt*N)
+CTilt = cos(Tilt*N)
+
+#Tilt Length:
+U1 = 54.76 - Tilt
+U2 = 22.6 + Tilt
+
+#Yaw Control:
+Yaw = (Mouse1 - Mouse2)*2
+
+YawHover = Yaw*CTilt
+YawLevel = Yaw*STilt
+
+#Roll Control:
+
+Roll = (A - D)
+
+RollHover = Roll*CTilt
+RollLevel = Roll*STilt*2
+
+#Nacelle hydraulics:
+
+L1 = U1 + YawHover - RollLevel
+L2 = U2 - YawHover + RollLevel
+
+R1 = U1 - YawHover - RollLevel
+R2 = U2 + YawHover + RollLevel
+
+#Rotor Collective:
+
+C = clamp( (Space - Shift)*(0.1 + STilt/4) + C , 1.5*(STilt -1) , (4 + STilt*6) ) 
+
+R = -RollHover + YawLevel
+
+#Pitch Control:
+
+P = (S - W)*2
+
+#Throttle Control:
+
+if(~Ri & Ri) { On = !On }
+
+Throttle = clamp( Throttle + On*100 ,0,23000)*On

@@ -1,6 +1,6 @@
 - Author: GalaxyOfWaffles
 - Steam Profile: https://steamcommunity.com/profiles/76561198067777852
-
+<!-- -->
 - Title: Fire alarm
 - Date (mm-yyyy): 03-2016
 - Source https://web.archive.org/web/20160417092609/http://www.wiremod.com:80/forum/finished-contraptions/35569-new-e2-fire-alarm.html

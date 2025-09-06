@@ -1,0 +1,154 @@
+@name Personal countermeasure suite (no propcore)
+@inputs 
+@outputs
+@persist [O E Victim]:entity [Shooters Threats]:array StdbyPos:vector ShieldMode UpdateFreq VisEffect NPCTestMode Visible ShieldDist JamMode Warn 
+@trigger 
+@model models/combine_helicopter/helicopter_bomb01.mdl
+if (first()) {
+    #=================================================  ================================================= options (type /killshield to self destruct)
+    ShieldMode = 1 #Main function, e2 will intercept bullets by hovering close to victim (protectee)
+    UpdateFreq = 1000 #update the chip with lesser priority info (ie not essential to victim protection) every this many milliseconds
+    VisEffect = 1 #make a hologram hexagon appear when shooter fires
+    NPCTestMode = 0 #when this is enabled, the victim will be whatever npc the owner of the chip is looking at
+    Visible = 0 #e2 will be visible
+    ShieldDist = 20 #Distance between victim and e2 when the chip moves to intercept projectiles. 20 will provide protection at any distance, and not cause problems. Larger distances will provide better protection from automatic fire, but might run into the world and enemies can walk past
+    JamMode = 0 #Jam enemy gun barrel. More effective against one target, less effective against many
+    Warn = 1 #Warn of potential threats via hud message
+    #=================================================  =================================================
+    O = owner()
+    runOnTick(1)
+    runOnChat(1)
+    runOnKeys(O,1)
+    E = entity()
+    if (!NPCTestMode) {
+        Victim = O
+    }
+    findIncludeClass("player")
+    findExcludePlayer(Victim)
+    findExcludeClass("npc")
+    findExcludeClass("vehicle")
+    findExcludeClass("prop_physics")
+    findInSphere(E:pos(),50000)
+    Shooters = findToArray()
+    timer("update",UpdateFreq)
+    E:setMass(50000)
+    StdbyPos = E:pos()
+    if (VisEffect) {
+        holoCreate(1,E:pos())
+        holoParent(1,E)
+        holoModel(1,"models/holograms/hexagon.mdl")
+        holoMaterial(1,"models/wireframe")
+        holoColor(1,vec(255,255,255))
+        holoAlpha(1,0)
+        holoScale(1,vec(1.5,1.5,0.1))
+    }    
+}
+
+if (chatClk(O))
+{
+    if (O:lastSaid():explode(" ")[1,string]:lower() == "/killshield") {
+        print(_HUD_PRINTCENTER,"Shield Deleted")
+        holoDeleteAll()
+        propDeleteAll()
+        selfDestructAll()
+    }
+}
+    
+if (clk("update")) {
+    findInSphere(E:pos(),50000)
+    Shooters = findToArray()
+    if (!Visible & !(E:isFrozen())) {
+        E:setAlpha(0)
+    }
+    if (O:aimEntity():isNPC() & NPCTestMode) {
+        Victim = O:aimEntity()
+    }
+    timer("update",UpdateFreq)
+}
+
+if (clk("holoalpha")) {
+    holoAlpha(1,0)
+}
+
+
+ThreatsC = Threats:count()
+
+if (clk("threat")) {
+    if (!ThreatsC) {
+        print(_HUD_PRINTCENTER,"")
+    }
+    else {
+        if (Warn) {
+            print(_HUD_PRINTCENTER,"WARN")
+        }
+        timer("threat",250)
+    }
+}
+
+if (Victim & !ThreatsC) {
+StdbyPos = Victim:pos()+vec(0,0,20)
+}
+else {
+    StdbyPos = E:pos()
+}
+
+ShootersC = Shooters:count()
+
+if (ShootersC) {
+    for (I=1,ShootersC) {                   #cycle through possible shooters, check if they are aiming close to victim
+        Shooter = Shooters[I,entity]
+        if (!Shooter) {                     #array clean up
+            Shooters:remove(I)
+            Threats:remove(I)
+            continue
+        }
+        
+        Weapon = Shooter:weapon():toString():sub(14) #check to see if shooter's weapon is a harmless known tool
+        
+        ShtVec = Shooter:eye() #unit vector of shooter's firing line/trajectory
+        VicPos = Victim:pos()+vec(0,0,50) #center of mass of victim
+        ShootPos = Shooter:shootPos() #shooter position
+        ShtTVic = VicPos-ShootPos #line between shooter and victim
+        Dist = (ShtVec:cross(ShtTVic)):length() #distance between the shooter's firing line and the center of mass of the victim
+        Ang = acos(ShtVec:dot(ShtTVic:normalized())) #acute angle formed by the two vectors: shooter's firing vector, and vector between shooter and victim
+        
+        if ((Dist <= 65) & (Ang <= 50) & !(Weapon == "gmod_tool]") & !(Weapon == "weapon_physgun]") & !(Weapon == "gmod_camera]")) { #If shooter's firing line crosses into a sphere around the victim
+            if (!Threats[I,entity]) {
+                Threats:insertEntity(I,Shooter)
+                if (Warn) {
+                    print(_HUD_PRINTCENTER,"WARN")
+                }
+                stoptimer("threat")
+                timer("threat",250)
+            }
+            if (ShieldMode) {
+                ETarPos = ShtVec * (ShtTVic:length()-ShieldDist) + ShootPos #calculate the location on the shooter's firing vector the e2 chip should move to, according to the distance from the shooter to the victim
+            }
+                else {
+                    ETarPos  = StdbyPos
+                }
+            runOnKeys(Shooter,1)
+            if (Shooter:keyAttack1()) {
+                if (JamMode) {
+                    ETarPos = ShtVec * (35) + ShootPos
+                }
+                if (VisEffect) {
+                    holoAlpha(1,255)
+                    holoAng(1, Shooter:toWorld(ang(90,45,45)) )
+                    stoptimer("holoalpha")
+                    timer("holoalpha",100)
+                }
+            }
+        }
+        else {
+            ETarPos = StdbyPos #reset to standby postion
+            if (Threats[I,entity]) {
+                Threats:remove(I)
+            }
+        }
+        applyForce((((ETarPos)-E:pos())*100-E:vel())*50000) #move the e2 chip to intercept shooter's projectile
+    }
+}
+else {
+    applyForce((((StdbyPos)-E:pos())*100-E:vel())*50000)
+}

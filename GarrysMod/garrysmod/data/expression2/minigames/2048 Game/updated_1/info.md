@@ -10,7 +10,7 @@
 
 ## [E2] 2048 Game
 
-2048 Game - [2048](https://web.archive.org/web/20150304053004/http://gabrielecirulli.github.io/2048/)
+2048 Game - [2048](https://gabrielecirulli.github.io/2048/)
   
 It's my first work which I upload on Wiremod.com
 Code was written in about 2 days

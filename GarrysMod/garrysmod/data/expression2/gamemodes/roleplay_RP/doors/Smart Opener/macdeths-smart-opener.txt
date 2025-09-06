@@ -1,0 +1,129 @@
+@name MacDeth's Smart Opener
+@persist OPEN_DISTANCE:number
+@persist GOVERNMENT_JOBS:array IncludeGovernmentJobs:number
+@persist PlayerAdditions:array AllowedPlayers:array
+@outputs Door:number
+
+#[
+    Written from scratch 2017 by MacDeth
+    http://steamcommunity.com/id/MacDeth
+    STEAM_0:1:15645964
+    
+    Please be nice and include a notice of attribution
+    when you redistribute/modify this code, or parts of it.
+]#
+
+interval(300)
+
+if (first()) {
+    runOnChat(1)
+    
+    #[
+        Threshold in Hammer Units needed for the player to cross before the
+        door opens. 16 HU = 1 foot = 304.80 mm
+    ]#
+    OPEN_DISTANCE = 50
+    
+    #[
+        Put your RP server's Government jobs in this array.
+    ]#
+    GOVERNMENT_JOBS = array(
+        "Police Officer",
+        "Police Chief",
+        "S.W.A.T",
+        "S.W.A.T Sniper",
+        "S.W.A.T Medic",
+        "Mayor",
+        "Mayor's Security Detail",
+        "SWAT Juggernaut",
+        "SWAT Leader"
+    )
+    
+    IncludeGovernmentJobs = 0
+    
+    function void reloadPlayers() {
+        AllowedPlayers = array()
+        
+        if (IncludeGovernmentJobs) {
+            foreach (K1, V1:entity = players()) {
+                foreach (K2, V2:string = GOVERNMENT_JOBS) {
+                    if (V1:team():teamName() == V2) {
+                        AllowedPlayers:pushEntity(V1)
+                    }
+                }
+            }
+        }
+        
+        foreach (K, V:entity = PlayerAdditions) {
+            AllowedPlayers:pushEntity(V)
+        }
+        
+        if (AllowedPlayers:exists(1)) {
+            print("Allowed Players:")
+            printTable(AllowedPlayers)
+        } else {
+            print("There are no currently allowed players!")
+        }
+    }
+    
+    printColor(
+        vec(0, 200, 200), "Welcome to MacDeth's Smart Opener!\n",
+        vec(200, 200, 200), "Chat Commands:\n",
+        vec(200, 0, 0), "!add ",
+        vec(200, 200, 200), "<",
+        vec(0, 200, 0), "Player Name",
+        vec(200, 200, 200), "> - Adds the specified player to your door.\n",
+        vec(200, 0, 0), "!remove ",
+        vec(200, 200, 200), "<",
+        vec(0, 200, 0), "Player Name",
+        vec(200, 200, 200), "> - Removes the specified player from your door.\n",
+        vec(200, 0, 0), "!reloadPlayers ",
+        vec(200, 200, 200), "- Refreshes player list. Useful if you need to update the government list.\n",
+        vec(200, 0, 0), "!toggleGovernment ",
+        vec(200, 200, 200), "- Toggles inclusion of government jobs. Useful for PD doors."
+    )
+    
+    reloadPlayers()
+}
+
+if (chatClk(owner())) {
+    local LS = owner():lastSaid():explode(" ")
+    
+    if (LS[1, string] == "!add" | LS[1, string] == "!a") {
+        hideChat(1)
+        
+        PlayerAdditions:pushEntity(findPlayerByName(LS[2, string]))
+        
+        reloadPlayers()
+    } elseif (LS[1, string] == "!remove" | LS[1, string] == "!r") {
+        hideChat(1)
+        
+        local Player = findPlayerByName(LS[2, string])
+        
+        foreach (K, V:entity = PlayerAdditions) {
+            if (Player == V) {
+                PlayerAdditions:removeEntity(K)
+            }
+        }
+        
+        reloadPlayers()
+    } elseif (LS[1, string] == "!reloadPlayers" | LS[1, string] == "!rl") {
+        hideChat(1)
+        
+        reloadPlayers()
+    } elseif (LS[1, string] == "!toggleGovernment" | LS[1, string] == "!tg") {
+        hideChat(1)
+        
+        IncludeGovernmentJobs = (IncludeGovernmentJobs ? 0 : 1 )
+        
+        reloadPlayers()
+    }
+}
+
+foreach (K, V:entity = AllowedPlayers) {
+    if (V:pos():distance(entity():pos()) <= OPEN_DISTANCE) {
+        Door = 1
+    } else {
+        Door = 0
+    }
+}

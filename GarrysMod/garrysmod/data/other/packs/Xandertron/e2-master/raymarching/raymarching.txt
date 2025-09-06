@@ -1,0 +1,92 @@
+@name raymarching
+@inputs DS:wirelink
+@outputs X Y I C
+@persist I C First Done V:vector Pos:vector Min RGB:vector
+@persist Res PPMF:string PPM:string Saving
+#@model models/dav0r/camera.mdl
+if(first()){
+    #include "raymarching/functions"
+    runOnTick(1)
+    runOnChat(1)
+    Res = 512 
+    DS[1048572]=Res 
+    DS[1048573]=Res 
+    DS[1048569]=2
+    for(I=1,10){
+        PPMF+=toChar(randint(65,90))
+    }
+    Saving = 1
+    function doPPM(){
+        if(fileCanWrite()&Saving){
+            fileAppend(">e2shared/ppm/raymarching/"+PPMF+".txt",PPM)
+            PPM=""
+        }
+        else{
+            timer("wait",1000)
+        }
+    }
+    PPM = "P3\n"+Res+" "+Res+"\n255\n" 
+    
+    print(distTest(vec(10,0,0)))
+    Done = 0
+    First = 1
+}
+if(clk("wait")& !fileCanWrite()){
+    timer("wait",1000)
+}
+elseif(fileCanWrite()){
+    fileAppend(">e2shared/ppm/raymarching/"+PPMF+".txt",PPM)
+    PPM=""
+}
+while(cpuUsage() < 15000/1000000 & opcounter() < softQuota() & I<Res^2){
+    if(First){
+        X=floor(I%Res)
+        Y=floor(I/Res)
+        V = (vec(1,1-(X/Res)-0.5,1-(Y/Res)-0.5)):normalized():rotate(35,0,0)
+        Pos = vec(0,25,5)
+        Min = 1000
+        First = 0
+        C = 0
+    }
+    ##MATH
+    #RGB = V*255
+    Dist = distTest(Pos)
+    if(Dist<Min){Min = Dist}
+    Pos = Pos+(V*Dist)
+    if(Dist<0.001){
+        RGB = vec(225)
+    }
+    else{
+        RGB = vec(0)
+    }
+    C++
+    if(C>=50){
+        Done = 1
+        if(RGB == vec(0)){
+            RGB = vec(0,0,clamp(255-Min*1500,0,255))
+        }
+    }
+
+    if(Done){
+        ##DRAW TO SCREEN
+        RGB = clamp(RGB,vec(0),vec(255))
+        DS[I]=rgb2digi(RGB,2)
+        I++
+        First = 1
+        Done = 0
+        setName(round(I/Res^2*100,2)+"%")
+        ##SAVE
+        if(Saving){
+            PPM += (ceil(abs(RGB[1])):toString() + " " + ceil(abs(RGB[2])):toString() + " " + ceil(abs(RGB[3])):toString() + "\n")
+            doPPM()
+            if(I==Res^2){
+                print("Done!\nFile saved to: >e2shared/ppm/raymarching/"+PPMF+".txt")
+                runOnTick(0)
+            }
+        }
+        if(I==Res^2){
+            print("Finished rendering!")
+            #owner():plySetPos(DS:entity():pos())
+        }
+    }
+}

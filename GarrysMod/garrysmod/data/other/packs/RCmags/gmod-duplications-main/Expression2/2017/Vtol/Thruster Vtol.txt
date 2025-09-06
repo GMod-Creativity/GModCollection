@@ -1,0 +1,48 @@
+@name Vtol
+@inputs W S A D R Mouse1 Mouse2 Space Shift
+@outputs [Left Right]:vector MulL MulR Forward Aft Constant 
+@persist On Tilt Throttle
+
+Constant = 25000
+
+E = entity()
+
+interval(10)
+
+if(~R & R) {On = !On}
+
+Tilt = clamp( (2*On - 1)/2 + Tilt ,0,77)
+SinTilt = sin(Tilt*1.169)
+CosTilt = cos(Tilt*1.169)
+
+Forward = 131.54 - Tilt
+Aft = 54.48 + Tilt
+
+Throttle = clamp( (Space - Shift)*60 + Throttle ,0,5000)
+
+if(Throttle < 100) {
+    
+    GainPY = SinTilt
+    
+} else {
+
+    GainPY = 100*SinTilt/Throttle
+
+}
+ 
+AeroOffset = 1 + ( E:velL():x()/1000 )^2
+
+RollControl = (A - D)*AeroOffset
+YawControl = (Mouse1 - Mouse2)*AeroOffset
+
+Pitch = ( E:angVel():pitch()/2 )*GainPY + (S - W)*AeroOffset/1.6
+Yaw = ( E:angVel():yaw()/2 - YawControl*20 )*GainPY + RollControl*CosTilt
+Roll = ( E:angVel():roll()/2 + RollControl*20 )*SinTilt*100 + YawControl*CosTilt*120
+
+Left = vec(Pitch - Yaw,0,-1)
+Right = vec(Pitch + Yaw,0,-1)
+
+Mul = Throttle - E:velL():z()*sign(Throttle)*SinTilt*10
+
+MulL = Mul - Roll 
+MulR = Mul + Roll 

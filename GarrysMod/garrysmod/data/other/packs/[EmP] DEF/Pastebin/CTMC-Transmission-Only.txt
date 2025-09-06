@@ -1,0 +1,297 @@
+@name CTMC v1.3.0 Transmission Only Ex11
+
+#Community Tracked Mobility Controller - Full, a driving E2 by DEF, with features that have been taken from other mobility
+#E2s, including but not limited to Mobility Control XK-K, the LanBox's E2, Red's GM15D, and Dobbers' EZTankMovement.
+
+# Video tutorial can be found here - https://youtu.be/XNRvzV1zKQY #
+
+@inputs Pod:wirelink [Base Engine MainGearbox]:entity
+@outputs Gear Throttle Speed EngineActive FuelActive AGearNum AGearStr:string
+
+#Transmission and steering
+@persist FRP FinalRatio GearCount TopGear Rev PwrBndMin ShiftRPM SpdMul VarSpd GearSpd:array
+
+#Engine, stabilisation, and misc
+@persist MaxThrottle IdleThrottle ThrottleStep MinSpdMul GovOn GovActiveRPM GovTargetRPM GovMul
+@persist [PodEnt Driver BaseHolo]:entity StartVol StopVol ShiftVol
+@persist [IgnitionKey ThrottleUpKey ThrottleDownKey]:string
+
+#Debug
+@outputs OpsCPUus:vector2
+@trigger none
+
+if(duped() | dupefinished()) {reset()}
+
+if(first() | dupefinished()) {
+    
+    FRP==1
+    
+    
+        # ~ You may begin editing here! ~ #
+    
+    
+    # # # Misc
+    
+    BaseAng = ang(0, 0, 0)      #Offset angle of the baseplate (align with holo).
+    
+    ShowHolo=0          #Show base alignment holo. 1 for yes, 0 for no.
+    
+    SpdMul=1/17.6       #Speed measurement multiplier. Default from speedometer is in inches/second.
+    
+    MaxThrottle=100     #Initial throttle setting.
+    
+    IdleThrottle=15     #Throttle when not touching any movement keys.
+    
+                   
+        #~ Transmission things ~#
+
+    
+    GearCount=0         #Custom gear count, otherwise leave this 0.
+    
+    WheelSize=35.2      #Your wheels' diameter.
+    
+    FinalRatio=0.32     #Total final drive ratio. If using a reversing final-drive setup, this would be
+                        #the main gearbox's final drive times the transfer-case(s) final drive (1.00 * 0.15 = 0.15).
+    
+    MaxShiftRPM=0       #RPM where the tank will shift up at 100% throttle. Relative to the top of the engine's powerband.
+    
+    MinShiftRPM=500     #RPM where the tank will shift up at 0% throttle. Relative to the bottom of the engine's power band.
+    
+    GBDebug=0           #Do you want the E2 to show your shifting speeds/ratios in chat? 1 for yes, 0 for no.
+    
+    
+        # ~ Governor ~ #
+
+
+    GovOn=1         #Governor on or off; 1 for on, 0 for off.
+
+    GovTarget=0     #The RPM that the governor will try to maintain, relative to the upper end of the powerband.
+    
+    GovActivate=-1300   #The RPM where the governor gets activated. Offset like before.
+    
+    GovMul=10       #Throttle subtracted per hundred RPM above the GovTarget.
+    
+    
+        # ~ Sound Effects ~ #
+    
+    
+    #This is the sound that plays when you enter your tank.
+    StartSnd="acf_extra/vehiclefx/engines/gnomefather/t71up.wav"
+    
+    StartVol=1          #Volume; accepts values of 0-1.
+    StartPitch=100      #Pitch; accepts values of 0-255, 100 being default.
+    
+    #This is the sound that plays when you exit your tank.
+    StopSnd="acf_extra/vehiclefx/engines/gnomefather/t71down.wav"
+    
+    StopVol=1
+    StopPitch=100
+    
+    #When you change gears, this sound plays
+    ShiftSnd="acf_extra/tankfx/clunk.wav"
+    
+    ShiftVol=0.5
+    ShiftPitch=150
+    
+    
+        # ~ Key-bindings and Misc ~ #
+    
+    
+    # http://wiki.garrysmod.com/page/Enums/KEY #
+    
+    IgnitionKey="H"     #Turns the engine on and off, if it's wired to the chip.
+    
+    # # # Changeable throttle
+    
+    ThrottleStep=10     #Amount of throttle added or subtracted when you press the following two buttons:
+    
+    ThrottleUpKey="Pad_Minus"
+    
+    ThrottleDownKey="Pad_Plus"
+
+
+        # ~ You are done editing here! ~ #
+    
+    
+    #Standard normalize function
+    function number norm(Val, Min, Max) {return (Val - Min)/(Max - Min)}
+    
+    #Standard linear interpolation function
+    function number lerp(Norm, Min, Max) {return (Max - Min)*Norm + Min}
+    
+    
+    #Miscellaneous variables pre-adjusted or pre-defined
+    
+    local IdleRPM = Engine:acfIdleRPM()
+    PwrBndMin = Engine:acfPowerbandMin(), local PwrBndMax = Engine:acfPowerbandMax()
+    ShiftRPM = PwrBndMax + MaxShiftRPM
+    
+    GovTargetRPM = PwrBndMax + GovTarget
+    GovActiveRPM = PwrBndMax + GovActivate
+    
+    holoCreate(1, Base:toWorld(vec()), vec(1), Base:toWorld(BaseAng), vec4(vec(255), 255*ShowHolo), "models/sprops/misc/origin.mdl"), holoParent(1, Base)
+    BaseHolo = holoEntity(1)
+    
+    soundPlay(1, 0, StartSnd), soundVolume(1, 0), soundPitch(1, StartPitch)
+    soundPlay(2, 0, StopSnd), soundVolume(2, 0), soundPitch(2, StopPitch)
+    soundPlay(3, 0, ShiftSnd), soundVolume(3, 0), soundPitch(3, ShiftPitch)
+    
+    MinSpdMul = ((PwrBndMin + MinShiftRPM) / ShiftRPM)
+    VarSpd = lerp(norm(MaxThrottle, 0, 100), MinSpdMul, 1)
+    
+    
+    #Gear count
+    if(!GearCount) {GearCount = MainGearbox:acfNumGears()}
+    
+    #Positive gears and first reverse gear
+    for(I=1, GearCount, 1) {if(MainGearbox:acfGearRatio(I) < 0 | I==GearCount) {TopGear = I-1, Rev = I, break}}
+    
+    #Using wheel size and ratios to make a shifting speed array.
+    local CommonVal = (ShiftRPM*FinalRatio/60) * WheelSize * pi()
+    for(I=1, GearCount, 1) {GearSpd[I,number] = abs(CommonVal * MainGearbox:acfGearRatio(I) * SpdMul)}
+
+    #Prints shift speeds
+    if(GBDebug) {
+        
+        local ForwardSpeeds = array(), local ReverseSpeeds = array()
+        
+        for(I=1, TopGear, 1) {ForwardSpeeds[I,number] = round(GearSpd[I,number], 1)}
+        for(I=Rev, GearCount, 1) {ReverseSpeeds[I-TopGear,number] = round(GearSpd[I,number], 1)}
+        
+        print("Forward and reverse shift speeds listed below")
+        print(ForwardSpeeds), print(ReverseSpeeds)
+    }
+    
+    
+    #Gets the vehicle's "actual" gear
+    function array getGear() {
+        
+        local GearNum = 0, local GearStr = ""
+        
+        #Gear number for reversing final-drive and non-reversing final-drive setups.
+        
+        GearStr = (!Gear ? "N" : (Gear > TopGear ? (Gear - TopGear) + "R" : Gear + "F"))
+        GearNum = (Gear > TopGear ? -(Gear - TopGear) : Gear)
+        
+        return array(GearNum, GearStr)
+    }
+}
+
+
+
+interval(150)
+
+
+
+#Active check and driver
+Active = Pod["Active",normal]
+if(changed(Active)) {PodEnt = Pod["Entity",entity], Driver = PodEnt:driver()}
+
+#Engine sfx
+if(!->EngineActive) {EngineActive = Active}
+elseif(changed(Driver:keyPressed(IgnitionKey)) & Driver:keyPressed(IgnitionKey)) {EngineActive = !EngineActive}
+
+if(changed(EngineActive) & !first()) {
+    
+    local Snd = (EngineActive ? 1 : 2)
+    soundVolume(Snd, 0), soundVolume(Snd, (EngineActive ? StartVol : StopVol))
+}
+
+#Base linear and angular speed
+BaseVel = BaseHolo:toLocalAxis(Base:vel())
+
+Speed = BaseVel[1] * SpdMul
+local ABSpeed = abs(Speed)
+
+if(Active) {
+
+    #Keybinds
+    local ThrtUp = Driver:keyPressed(ThrottleUpKey)
+    local ThrtDown = Driver:keyPressed(ThrottleDownKey)
+
+    #Wirelinks and engine speed.
+    local W = Pod["W",normal]
+    local S = Pod["S",normal]
+    local A = Pod["A",normal]
+    local D = Pod["D",normal]
+    EngineRPM = Engine:acfRPM()
+
+
+    #Variable throttle and shiftpoint multiplier
+    if(ThrtUp | ThrtDown) {
+        
+        MaxThrottle = clamp((ThrtUp ? MaxThrottle+ThrottleStep : MaxThrottle-ThrottleStep), IdleThrottle + abs(IdleThrottle%-ThrottleStep), 100)
+        
+        if(changed(MaxThrottle)) {
+            
+            PodEnt:hintDriver(MaxThrottle + "% Throttle", 3.5)
+            VarSpd = lerp(norm(MaxThrottle, 0, 100), MinSpdMul, 1)
+        }
+    }
+    
+    
+    #Throttle, fuel cutoff, and governor
+    local ThrottleTrigger = max(W & FRP==1, S & FRP==2)
+    local Governor = (GovOn & EngineRPM >= GovActiveRPM ? clamp((EngineRPM - GovTargetRPM)/100 * GovMul, 0, MaxThrottle - IdleThrottle) : 0)
+    
+    Throttle = clamp(ThrottleTrigger*MaxThrottle - Governor, IdleThrottle, 100)
+    FuelActive = ThrottleTrigger
+
+
+    
+    #Transmission things
+    
+    #A sort of PRNDL switch
+    #Forwards and reverse
+    if(W) {FRP = 1}
+    elseif(S) {FRP = 2}
+    
+    
+    #Manual gearboxes
+    switch(FRP) {
+        
+        #Forwards
+        case 1,
+        
+        #Gear reset if it's something it shouldn't be.
+        if(!Gear | Gear > TopGear) {Gear = 1}
+        
+        #Shift speed selector
+        else {
+            
+            if(ABSpeed > GearSpd[Gear,number]*VarSpd & Gear < TopGear) {Gear++}
+            elseif(ABSpeed < GearSpd[Gear-1,number]*VarSpd & Gear > 1) {Gear--}
+        }
+        break
+        
+        #Reverse
+        case 2,
+        
+        if(Gear < Rev) {Gear = Rev}
+        
+        else {
+            
+            if(ABSpeed > GearSpd[Gear,number]*VarSpd & Gear < GearCount) {Gear++}
+            elseif(ABSpeed < GearSpd[Gear-1,number]*VarSpd & Gear > Rev) {Gear--}
+        }
+        break
+        
+        case 0,
+        LeftGear=RightGear = 0
+        break
+    }
+    
+    
+    #Gear shift sfx and actual gear logging
+    if(changed(Gear)) {
+        
+        soundVolume(3, 0), soundVolume(3, ShiftVol)
+        local Arr = getGear(), AGearNum = Arr[1,number], AGearStr = Arr[2,string]
+    }
+}
+
+
+
+else {Throttle = IdleThrottle}
+
+OpsCPUus = vec2(ops(), cpuUsage()*1000000)

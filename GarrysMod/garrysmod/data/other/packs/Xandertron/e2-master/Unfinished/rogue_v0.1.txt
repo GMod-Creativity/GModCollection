@@ -1,0 +1,167 @@
+@name rogue v0.1
+@inputs M C:wirelink
+@outputs Data:table
+@persist Px Py Pd Ent:table Data:table
+interval(100)
+if(first()){
+    C = entity():isWeldedTo():wirelink()
+    C[2041]=1
+    Data = table()
+    for(I=1,18){
+        Data[I,array]=array(99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99,99)
+    }
+    function wcd(N,X,Y){
+        #0 is floor
+        #1 is wall
+        #2 is player
+        #3 is emeny
+        #4 is item
+        #99 is void (unused)
+        Data[Y,array][X,number] = N
+    }
+    function number gcd(X,Y){
+        return Data[Y,array][X,number]
+    }
+    function w(S:string,X,Y){
+        C:writeString(S,X-1,Y-1)
+    }
+    function wc(S:string,X,Y,Col:vector){
+        C:writeString(S,X-1,Y-1,Col)
+    }
+    function wallflat(X,X2,Y){
+        for(I=1,X2-X){
+            w("-",I+X,Y)
+            wcd(1,I+X,Y)
+        }
+    }
+    function walltall(Y,Y2,X){
+        for(I=1,Y2-Y){
+            w("|",X,I+Y)
+            wcd(1,X,I+Y)
+        }
+    }
+    function floor(X,Y,X2,Y2){
+        for(I=1,X2-X){
+            for(J=1,Y2-Y){
+                w(".",I+X,J+Y)
+                wcd(0,I+X,J+Y)
+            }
+        }
+    }
+    function room(X,Y,X2,Y2){
+        wallflat(X-1,X2,Y) #top 
+        walltall(Y,Y2-1,X) #left
+        walltall(Y,Y2,X2) #right
+        wallflat(X-1,X2,Y2) #bottom
+        floor(X,Y,X2-1,Y2-1)
+    }
+    function string face(N){
+        switch(N){
+            case 1, return "^"
+            case 2, return ">"
+            case 3, return "V"
+            case 4, return "<"
+        }
+    }
+    function playermove(N){
+        Pos = Ent[1,table]["pos",vector2]
+        switch(N-16){
+            case 1, #up
+                if(gcd(Pos[1],Pos[2]-1)!=1){ #if theres no wall above us
+                    w(".",Pos[1],Pos[2])
+                    Ent[1,table]["pos",vector2] = Pos+vec2(0,-1)
+                    Ent[1,table]["direction",number] = 1
+                }
+            break
+            case 2, #down
+                if(gcd(Pos[1],Pos[2]+1)!=1){ #if theres no wall above us
+                    w(".",Pos[1],Pos[2])
+                    Ent[1,table]["pos",vector2] = Pos+vec2(0,1)
+                    Ent[1,table]["direction",number] = 3
+                }
+            break
+            case 3, #left
+                if(gcd(Pos[1]-1,Pos[2])!=1){ #if theres no wall above us
+                    w(".",Pos[1],Pos[2])
+                    Ent[1,table]["pos",vector2] = Pos+vec2(-1,0)
+                    Ent[1,table]["direction",number] = 4
+                }
+            break
+            case 4, #right
+                if(gcd(Pos[1]+1,Pos[2])!=1){ #if theres no wall above us
+                    w(".",Pos[1],Pos[2])
+                    Ent[1,table]["pos",vector2] = Pos+vec2(1,0)
+                    Ent[1,table]["direction",number] = 2
+                }
+            break
+        }
+        for(I=2,Ent:count()){
+            if(Ent[I,table]["pos",vector2]==Ent[1,table]["pos",vector2]){
+                Ent[1,table]["pos",vector2] = Pos
+            }
+        }
+    }
+    #room(2,2,10,10)
+    room(1,1,30,15)
+    Px = 15
+    Py = 10
+    Ent = table(
+        1 = table(
+            "type" = "player",
+            "name" = "na",
+            "pos" = vec2(5,5),
+            "health" = 30,
+            "direction" = 1
+        ),
+        2 = table(
+            "type" = "enemy",
+            "name" = "Goblin",
+            "pos" = vec2(3,3),
+            "health" = 5
+        )
+    )
+    timer("think",1000)
+    print(Data[1,array])
+}
+if(~M){
+    playermove(M)
+}
+if(clk("think")){
+    for(I=1,Ent:count()){
+        Type = Ent[I,table]["type",string]
+        Name = Ent[I,table]["name",string]
+        Pos = Ent[I,table]["pos",vector2]
+        switch(Type){
+            case "player",
+                w(face(Ent[I,table]["direction",number]),Pos[1],Pos[2])
+                
+            break
+            case "enemy",
+                wc(Name[1],Pos[1],Pos[2],vec(255,0,0))
+            break
+        }
+    }
+    timer("think",1000)
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

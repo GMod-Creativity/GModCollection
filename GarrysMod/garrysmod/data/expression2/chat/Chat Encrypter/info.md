@@ -1,5 +1,7 @@
-- Author: Gato (XninjazXxx) (Devoided)
-
+- Author: XninjazXxx (gato) (Devoided) (Azule)
+- Steam Profile: https://steamcommunity.com/profiles/76561198054661508
+- Youtube: https://www.youtube.com/channel/UC-6WOjHUNpGwkk3fVCfrhGQ
+<!-- -->
 - Title: [E2] Chat Encrypter
 - Date (dd-mm-yyyy): 08-16-2014
 - Source: https://web.archive.org/web/20150304054934/http://www.wiremod.com:80/forum/finished-contraptions/33452-e2-chat-encrypter.html

@@ -1,18 +1,28 @@
+# Expression 2 - [E2] A remake of that "fus ro dah" e2 I made about two years ago
+
+## Details
+
+### Author
+
 - Author: malar163
-<!-- -->
+
+### Publication Info
+
 - Title: [E2] A remake of that "fus ro dah" e2 I made about two years ago
 - Date (dd-mm-yyyy): 29-12-2014
 - Source: https://web.archive.org/web/20150321102736/http://www.wiremod.com:80/forum/finished-contraptions/33851-e2-remake-fus-ro-dah-e2-i-made-about-two-years-ago.html
 - Source Accessed (dd-mm-yyyy): 10-08-2025
 
-## [E2] A remake of that "fus ro dah" e2 I made about two years ago
+## Description
 
-> sees a shitty old e2 in post history
-> didireallydothis.jpg
-> starts gmod
-> recodes e2
-> bugs.swf
-> posts to wiremod.com in greentext form
+```diff
++ > sees a shitty old e2 in post history
++ > didireallydothis.jpg
++ > starts gmod
++ > recodes e2
++ > bugs.swf
++ > posts to wiremod.com in greentext form
+```
 
 "fus ro dah" in chat, regardless of capitalization or inclusion of other phrases, will pick out the closest prop in front of you and propel it forwards, away from you.
 
@@ -24,4 +34,4 @@ Don't tell me this is a minge chip. You can only interact with your own props un
 
 Do whatever you want with this chip: copy paste it wherever, claim you made it, print it out, frame it and hang it in your room; I don't care.
 
-TL; DR: this is a useless e2.
+**TL; DR: this is a useless e2.**

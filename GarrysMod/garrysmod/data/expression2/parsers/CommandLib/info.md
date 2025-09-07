@@ -1,11 +1,19 @@
+# Expression 2 - CommandLib
+
+## Details
+
+### Author
+
 - Author: Filipe
-<!-- -->
+
+### Publication Info
+
 - Title: Re: Official WIP Thread - What are you working on?
 - Date (dd-mm-yyyy): 04-02-2012
 - Source: https://web.archive.org/web/20121113114618/http://www.wiremod.com/forum/finished-contraptions/28120-official-wip-thread-what-you-working-2.html
 - Source Accessed (dd-mm-yyyy): 23-08-2025
 
-## CommandLib
+## Description
 
 Not a WAYWO, it's actually finished
 

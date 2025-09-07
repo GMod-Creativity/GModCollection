@@ -1,15 +1,26 @@
+# Expression 2 - Re: [E2] Pet Balloonicorn
+
+## Details
+
+### Author
+
 - Author: XninjazXxx (gato) (Devoided) (Azule)
 - Steam Profile: https://steamcommunity.com/profiles/76561198054661508
 - Youtube: https://www.youtube.com/channel/UC-6WOjHUNpGwkk3fVCfrhGQ
-<!-- -->
+
+### Edited
+
 - Edited EnoSkyFire
-<!-- -->
+- Edited Date (dd-mm-yyyy): 07-09-2025
+
+### Publication Info
+
 - Title: [E2] Pet Balloonicorn & Heacrab Pet
-- Date (dd-mm-yyyy): 01-09-2013
+- Date (dd-mm-yyyy): 07-09-2025
 - Source: https://web.archive.org/web/20150304043559/http://www.wiremod.com/forum/finished-contraptions/32182-e2-pet-balloonicorn.html
 - Source Accessed (dd-mm-yyyy): 23-08-2025
 
-## Re: [E2] Pet Balloonicorn
+## Description
 
 Comment by jacoby6000:
 

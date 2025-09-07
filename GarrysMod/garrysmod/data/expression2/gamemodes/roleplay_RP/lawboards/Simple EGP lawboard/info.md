@@ -1,11 +1,19 @@
+# Expression 2 - Remake of Simple EGP lawboard
+
+## Details
+
+### Author
+
 - Author: Friend
-<!-- -->
+
+### Publication Info
+
 - Title: Remake of Simple EGP lawboard
 - Date (dd-mm-yyyy): 24-08-2015
 - Source: https://web.archive.org/web/20150901232109/http://www.wiremod.com/forum/finished-contraptions/34777-remake-simple-egp-lawboard.html
 - Source Accessed (dd-mm-yyyy): 25-08-2025
 
-## Remake of Simple EGP lawboard
+## Description
 
 I remade the lawboard i made and put it into hud, Yes it was easy but just wanted to share it to people
 

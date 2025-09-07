@@ -1,13 +1,25 @@
+# Expression 2 - Re: E2 how do u make something hover ?
+
+## Details
+
+### Author
+
 - Author: postman ([TBU-TEC] THE P)
 - Steam Profile: https://steamcommunity.com/profiles/76561197997916844
 - Youtube: https://www.youtube.com/@blankrofl
-<!-- -->
+
+### Publication Info
+
 - Title: Re: E2 how do u make something hover ?
 - Date (dd-mm-yyyy): 28-07-2011
 - Source: https://web.archive.org/web/20150427161915/http://www.wiremod.com/forum/wiremod-general-chat/26889-e2-how-do-u-make-something-hover.html#post240599
 - Source Accessed (dd-mm-yyyy): 31-08-2025
 
-## Re: E2 how do u make something hover ?
+### GMod Collection Comment:
+
+- GMODCOLLECTION_COMMENT: With propcore entity:propGravity(0) can be used
+
+## Description
 
 I presume you're new to wiremod, so this probably wont do you any good, but others looking at this thread in the future may.
 

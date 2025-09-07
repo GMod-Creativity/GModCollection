@@ -1,6 +1,14 @@
+# Expression 2 - Genetic Algorithm Visualizer
+
+## Details
+
+### Author
+
 - Author: Red Reaper (RedReaper) (redreaper2020)
 - Youtube: https://www.youtube.com/@redreaper-xe6so
-<!-- -->
+
+### Publication Info
+
 - Title: Genetic Algorithm Visualizer
 - Date (dd-mm-yyyy): 31-01-2016
 - Source: https://web.archive.org/web/20160306090807/http://www.wiremod.com:80/forum/finished-contraptions/35467-genetic-algorithm-visualizer.html
@@ -9,7 +17,7 @@
 - Source: https://www.dropbox.com/scl/fi/03d1yh2z9ugc9dp00t1tr/Genetic_Algorithm.txt?rlkey=pv0w32tbuqecut6rot5220ogo&e=1&dl=0
 - Source Accessed (dd-mm-yyyy): 12-08-2025
 
-## Genetic Algorithm Visualizer
+## Description
 
 Something i wrote for a science class in college back in november, which I've been too lazy to post here. Not sure this is necessarily what y'all would find interesting, since it's not a mech, tank, game, plane, etc.
 
@@ -17,5 +25,8 @@ Tl;dr holographic representation of genetic algorithms (algorithms which use the
 
 Since doing this, been considering GAs for actual uses but had no real solid ideas yet. Since doing this I finally got a non-upshifted mic, my voice sounds weird as fuck doing this.
 
+Genetic Algorithm Visualizer, Part 1:  
 https://www.youtube.com/watch?v=snXXbqESJ_c
+
+Genetic Algorithm Visualizer, Part 2:  
 https://www.youtube.com/watch?v=LDXsHTU6ZMk

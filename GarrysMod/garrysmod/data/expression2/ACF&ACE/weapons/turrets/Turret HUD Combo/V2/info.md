@@ -9,7 +9,7 @@
 - Youtube: https://www.youtube.com/user/spider0804
 - Pastebin: https://pastebin.com/u/Spider0804
 
-### Publisher
+### Separate Publisher
 
 - Publisher: GMODISM
 - Website: https://gmodism.com
@@ -24,8 +24,8 @@
 - Date (dd-mm-yyyy): 27-08-2014
 - Source: https://www.youtube.com/watch?v=-xh_dNx-3WU
 - Source: https://pastebin.com/pUB2ui1m
-- Source: https://www.youtube.com/watch?v=C0x_YI5V7h0
-- Source: https://pastebin.com/KPqKGPC6
+- Source2: https://www.youtube.com/watch?v=C0x_YI5V7h0
+- Source2: https://pastebin.com/KPqKGPC6
 - Source Accessed (dd-mm-yyyy): 21-08-2025
 
 ## Description

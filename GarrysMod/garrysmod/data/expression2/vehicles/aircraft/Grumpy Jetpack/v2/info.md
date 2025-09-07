@@ -1,4 +1,4 @@
-- Author: Grumpy Hit***
+- Author: Grumpy Hit*** (FridgeOats)
 - Youtube: https://www.youtube.com/@yamclam
 - Steam Profile: https://steamcommunity.com/profiles/76561197983180777
 <!-- -->

@@ -1,16 +1,25 @@
+# Expression 2 - AI Buggy Driver
+
+## Details
+
+### Author
+
 - Author: orderph
-<!-- -->
+
+### Publication Info
+
 - Title: AI Buggy Driver
 - Date (dd-mm-yyyy): 09-09-2007
 - Source: https://web.archive.org/web/20110513233419/http://www.wiremod.com:80/forum/finished-contraptions/2571-ai-buggy-driver.html
 - Source Accessed (dd-mm-yyyy): 30-08-2025
 
-## AI Buggy Driver
+## Description
 
-Hi there!
+Hi there!  
 I want to show off my new contraption. It's uses an expression to drive the buggy or other vehicle (no need to weld things to the it) by using only a target finder with two beacon sensors. I attached a save (and an advanced duplicator save) below so you guys can test it. It actually works pretty well.
 
-Features:
+### Features:
+
 - Drives to its targets and kills them by running them over.
 - It will not turn around a target forever, instead it will get away and then come back straight onto it.
 - Has a speed limit during turns to avoid flipping over.

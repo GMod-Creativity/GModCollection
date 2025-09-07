@@ -9,7 +9,7 @@
 - Steam Profile: https://steamcommunity.com/profiles/76561197970677684
 - Youtube: https://www.youtube.com/@Splambob
 
-### Publisher
+### Separate Publisher
 
 - Publisher: GMODISM
 - Website: https://gmodism.com
@@ -23,8 +23,8 @@
 - Title: ACF Bulletometer 2
 - Date (dd-mm-yyyy): 31-05-2013
 - Source: https://web.archive.org/web/20150304052657/http://www.wiremod.com/forum/finished-contraptions/31833-acf-bulletometer-2-a.html
-- Source: https://pastebin.com/X9TKZiLT
-- Source: https://www.youtube.com/watch?v=p-cm2zwp9gI
+- Source2: https://pastebin.com/X9TKZiLT
+- Source2: https://www.youtube.com/watch?v=p-cm2zwp9gI
 - Source Accessed (dd-mm-yyyy): 24-08-2025
 
 ## Description

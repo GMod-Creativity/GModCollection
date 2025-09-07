@@ -1,14 +1,23 @@
+# Expression 2 - Torque Sensor
+
+## Details
+
+### Author
+
+
 - Author: Tolyzor
 - Steam Profile: https://steamcommunity.com/profiles/76561197980070446
 - Youtube: https://www.youtube.com/user/Heatseeker1
 - Github: https://github.com/Tolyzor
-<!-- -->
+
+### Publication Info
+
 - Title: Torque Sensor
 - Date (dd-mm-yyyy): 25-07-2011
 - Source: https://web.archive.org/web/20150317233103/http://www.wiremod.com/forum/finished-contraptions/26847-torque-sensor.html
 - Source Accessed (dd-mm-yyyy): 11-08-2025
 
-## Torque Sensor
+## Description
 
 This simple little device can tell you the torque, speed and power being transmitted across it, by measuring weld deformation.
 

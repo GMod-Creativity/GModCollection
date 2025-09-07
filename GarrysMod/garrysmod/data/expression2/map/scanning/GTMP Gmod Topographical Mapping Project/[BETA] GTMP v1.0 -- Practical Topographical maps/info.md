@@ -1,14 +1,23 @@
+# Expression 2 - [BETA] GTMP v1.0 -- Practical Topographical maps
+
+## Details
+
+### Author
+
 - Author: Red Reaper (RedReaper) (redreaper2020)
 - Youtube: https://www.youtube.com/@redreaper-xe6so
-<!-- -->
+
+### Publication Info
+
 - Title: [BETA] GTMP v1.0 -- Practical Topographical maps
 - Date (dd-mm-yyyy): 17-08-2015
 - Source: https://web.archive.org/web/20150822211120/https://wiremod.com/forum/finished-contraptions/34745-beta-gtmp-v1-0-practical-topographical-maps.html#post289264
 - Source: https://www.youtube.com/watch?v=0X4l7cMV_FY
 - Source Accessed (dd-mm-yyyy): 25-08-2025
 
-## [BETA] GTMP v1.0 -- Practical Topographical maps
+## Description
 
+Video:
 https://www.youtube.com/watch?v=0X4l7cMV_FY
 
 Pretty much the title and the vid. This is a simple system that creates your average herapderp raycaster maps. A side project for when I was burned out on MPFC.

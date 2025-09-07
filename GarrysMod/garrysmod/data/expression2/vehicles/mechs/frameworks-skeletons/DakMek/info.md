@@ -1,4 +1,5 @@
 - Author: Dakota
+- Steam Profile: https://steamcommunity.com/profiles/76561198035645276
 <!-- -->
 - Title: New Mech Chip
 - Date (dd-mm-yyyy): 20-02-2016

@@ -15,7 +15,7 @@
 - Source: https://web.archive.org/web/20101117015858/http://www.wiremod.com/forum/finished-contraptions/23515-chip-8-emulator-99-speed-compatability-code-dupe-thread.html
 - Source Accessed (dd-mm-yyyy): 09-08-2025
 
-### GMod Collection Comment:
+### GMod Collection Comment
 
 - GMODCOLLECTION_COMMENT: change mtable to table
 

@@ -15,7 +15,7 @@
 - Source: https://web.archive.org/web/20150427161915/http://www.wiremod.com/forum/wiremod-general-chat/26889-e2-how-do-u-make-something-hover.html#post240599
 - Source Accessed (dd-mm-yyyy): 31-08-2025
 
-### GMod Collection Comment:
+### GMod Collection Comment
 
 - GMODCOLLECTION_COMMENT: With propcore entity:propGravity(0) can be used
 

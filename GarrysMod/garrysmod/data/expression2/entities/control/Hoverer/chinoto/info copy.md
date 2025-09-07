@@ -14,7 +14,7 @@
 - Source: https://web.archive.org/web/20120102232809/http://wiki.garrysmod.com/?title=Wire_Expression2:Examples
 - Source Accessed (dd-mm-yyyy): 07-09-2025
 
-### GMod Collection Comment:
+### GMod Collection Comment
 
 - GMODCOLLECTION_COMMENT: With propcore entity:propGravity(0) can be used
 

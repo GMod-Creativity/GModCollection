@@ -1,11 +1,19 @@
+# Expression 2 - Blink Indication
+
+## Details
+
+### Author
+
 - Author: GliTcHed
-<!-- -->
+
+### Publication Info
+
 - Title: M_997
 - Date (dd-mm-yyyy): 01-01-2015
 - Source: https://web.archive.org/web/20150429021624/http://www.wiremod.com/forum/finished-contraptions/33866-m_997-a.html
 - Source Accessed (dd-mm-yyyy): 05-09-2025
 
-## Blink Indication
+## Description
 
 A tracker and a health indicator that allows for the monitoring of other players
 

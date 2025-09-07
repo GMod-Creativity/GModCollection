@@ -32,9 +32,7 @@ $$F = m g$$
 
 Force due to gravity is in units of `[Kg * inches/s^2]`
 
-it is then apparent that
-
-$$\text{applyForce} = x \cdot \text{Force}, \quad \text{where } x = \text{ticks per second}.$$
+It is then apparent that `applyForce = x * Force`, where `x = ticks` in a second.
 
 `X` can be found experimentaly;
 

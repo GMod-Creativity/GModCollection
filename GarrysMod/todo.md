@@ -30,3 +30,4 @@
 - [ ] Move drones to machines or unmanned vehicles
 - [ ] Add stuff from SirDobbers: https://www.youtube.com/@SirDobbers
 - [ ] Add stuff from IceWolf94: https://www.youtube.com/@HOODINIOWL/videos, https://pastebin.com/u/IceWolf94
+- [ ] Add stuff from https://web.archive.org/web/20120102232809/http://wiki.garrysmod.com/?title=Wire_Expression2:Examples

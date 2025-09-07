@@ -9,10 +9,8 @@
 
 ## Cube blinder
 
--------------------------------------------------------------------
+(Part of pack)
 
 MY VERY VERY VERY VERY FIRST E2 THAT DID SOMETHING
-
--------------------------------------------------------------------
 
 I was an a person who hated minges at the time so I came up with this E2 to deal with them. type !box [name] to blind a person. To counter attack use wire_holograms_block_client in the console.

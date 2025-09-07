@@ -1,5 +1,13 @@
+# Expression 2 - Christmas Tree!
+
+## Details
+
+### Author
+
 - Author: Unconscious
-<!-- -->
+
+### Publication Info
+
 - Title: Christmas Tree!
 - Date (dd-mm-yyyy): 22-11-2014
 - Source: https://web.archive.org/web/20150429083749/http://www.wiremod.com/forum/finished-contraptions/33733-christmas-tree.html

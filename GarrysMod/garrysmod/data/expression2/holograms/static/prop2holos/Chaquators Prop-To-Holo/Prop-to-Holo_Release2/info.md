@@ -1,19 +1,28 @@
+# Expression 2 - Chaquator's Prop-To-Holo E2 Chip Version 2!
+
+## Details
+
+### Author
+
 - Author: Chaquator (Sly Fox)
 - Github: https://github.com/chaquator
 - Steam Profile: https://steamcommunity.com/profiles/76561198025785592
 - Youtube: https://www.youtube.com/@chaquator
-<!-- -->
+
+### Publication Info
+
 - Title: Chaquator's Prop-To-Holo E2 Chip Version 2!
 - Date (dd-mm-yyyy): 11-04-2013
 - Source: https://web.archive.org/web/20150304052559/http://www.wiremod.com:80/forum/finished-contraptions/31691-chaquators-prop-holo-e2-chip-version-2-a.html
 - Source: https://web.archive.org/web/20150110154219/https://dl.dropboxusercontent.com/u/48141622/prop-to-holo.txt
 - Source Accessed (dd-mm-yyyy): 23-08-2025
 
-## Chaquator's Prop-To-Holo E2 Chip Version 2!
+## Description
 
 Finally got around to re-making my old promised chip. All the instructions are on the side. If you spot a bug, or have a suggestion for a reasonable feature (reasonable like a multi-selector, which I shall soon add), don't hesitate to post it here!
 
-Path Notes
+### Path Notes
+
 2.0.0
 -First Release
 

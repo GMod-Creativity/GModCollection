@@ -1,4 +1,4 @@
-- Author: hoyo321
+- Author: hoyo321 (airtaxi)
 - Steam Profile: https://steamcommunity.com/profiles/76561198009199929
 - Youtube: https://www.youtube.com/@airtaxi
 - Github: https://github.com/airtaxi

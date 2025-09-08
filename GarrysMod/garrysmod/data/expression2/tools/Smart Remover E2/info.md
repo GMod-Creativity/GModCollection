@@ -1,15 +1,23 @@
+# Expression 2 - Smart Remover
+
+## Details
+
+### Author
+
 - Author: Vince Defash (VinceD70)
 - Steam Profile: https://steamcommunity.com/profiles/76561197990020012
 - Youtube: https://www.youtube.com/@MrVinceDefash
 - Pastebin: https://pastebin.com/u/VinceD70
-<!-- -->
+
+### Publication Info
+
 - Title: Smart Remover E2
 - Date (dd-mm-yyyy): 08-08-2014
 - Source: https://web.archive.org/web/20150304054923/http://www.wiremod.com:80/forum/finished-contraptions/33419-smart-remover.html
 - Source: http://pastebin.com/EyccFZXW
 - Source Accessed (dd-mm-yyyy): 22-08-2025
 
-## Smart Remover
+## Description
 
 Got pissed off that some servers don't have the Smart Remover tool, so I whipped up this mofo to do my removing.
 

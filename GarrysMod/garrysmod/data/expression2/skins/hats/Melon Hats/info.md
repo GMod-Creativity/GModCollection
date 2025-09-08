@@ -1,4 +1,4 @@
-# Advanced Duplicator - Melon Hats E2
+# Expression 2 - Melon Hats E2
 
 ## Details
 

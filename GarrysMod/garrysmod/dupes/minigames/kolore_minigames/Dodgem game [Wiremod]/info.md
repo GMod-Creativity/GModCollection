@@ -1,4 +1,4 @@
-# Expression 2 - Dodgem game [Wiremod]
+# Dupe - Dodgem game [Wiremod]
 
 ## Details
 

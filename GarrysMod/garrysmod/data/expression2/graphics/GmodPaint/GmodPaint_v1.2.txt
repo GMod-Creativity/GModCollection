@@ -1,0 +1,386 @@
+####################################################################
+#########GMODPAINT VERSION 1.2######################################
+#########CREDITS TO DONKIE##########################################
+####################################################################
+@name GmodPaint
+@inputs [Scr EGP CS]:wirelink
+@outputs Progress SaveSize
+#ScreenData
+@persist ScreenSizeUnits:vector2 [Welded Drawer]:entity ScreenSize Cells
+#Drawing
+@persist Size Cursor:string SavedDrawCol DrawColor X Y AimPos:vector CursorCell
+#Bucket
+@persist CurCol TargCol Squares:table Filling
+#EGP
+@persist [Colors Cursors]:array
+#ConsoleScreen
+@persist Rows:array Rowcount
+#SAVING
+@persist TargCell TargCell2 [TargStr TargStr2]:string CurrentColor CurrentColor2 CurrentColorBegin CurrentColorBegin2 FileToSaveTo:string
+#LOADING
+@persist LOADED LOAD_String:string LOAD_Cell LOAD_EndCell LOAD_Explode:array LOAD_Color LOAD_Chunk
+
+if(first()|dupefinished()){
+    ScreenSize=64
+    Cells = ScreenSize^2
+    runOnTick(1)
+    runOnChat(1)
+    
+    Scr[1048569] = 3
+    #Scr[1048574] = 1
+    #CS[2041] = 1
+    
+    FileToSaveTo = "default"
+    DrawColor=255255255
+    Size=3
+    Cursor = "pencil"
+    Drawer = owner()
+    Welded = entity():isWeldedTo()
+    ScreenSizeUnits = vec2(Welded:boxSize())
+    LOADED = 1
+    timer("colormode",1000)
+}
+if(clk("colormode")){
+    timer("colormode",1000)
+    Scr[1048569] = 3
+}
+
+AimEnt = Drawer:aimEntity()
+if(AimEnt==Welded&!Welded:isPlayerHolding()&Drawer:weapon():type()!="gmod_tool"){
+    # This simulates a graphic tablet
+    AimPos = AimEnt:toLocal(Drawer:aimPos())
+    X = round((abs(AimPos:y()+(ScreenSizeUnits:x()/2))/ScreenSizeUnits:x())*ScreenSize)
+    Y = round((abs(AimPos:x()+(ScreenSizeUnits:y()/2))/ScreenSizeUnits:y())*ScreenSize)
+    
+    CursorCell = X+(ScreenSize*Y)
+    
+    if(Drawer:keyUse()&!Filling){
+        if(Cursor=="pencil"|Cursor=="eraser"){
+            Offset = floor(Size/2)
+            for(I=1,Size*Size){
+                LocX = ((I-1)%Size)+1-(Size-Offset)
+                LocY = floor((I-1)/Size)+1-(Size-Offset)
+                
+                Cell = CursorCell+LocX+LocY*ScreenSize
+                Scr[Cell] = DrawColor
+            }
+        }elseif(Cursor=="bucket"){
+            Filling=1
+            CurCol=Scr[CursorCell]
+            TargCol=DrawColor
+            Squares=table()
+            Squares[CursorCell,number] = CurCol
+        }elseif(Cursor=="eraser"){
+            Cursor="pencil"
+            SavedDrawCol=DrawColor
+            DrawColor=0
+        }elseif(Cursor=="spraycan"){
+            Offset = floor(Size/2)
+            for(I=1,Size*Size){
+                if(randint(1,10)==1){
+                    LocX = ((I-1)%Size)+1-(Size-Offset)
+                    LocY = floor((I-1)/Size)+1-(Size-Offset)
+                    
+                    Cell = CursorCell+LocX+LocY*ScreenSize
+                    Scr[Cell] = DrawColor
+                }
+            }
+        }elseif(Cursor=="pick color"){
+            DrawColor = Scr[CursorCell]
+        }
+    }
+}
+while(Filling==1&perf()){
+    LPCurSquare = Squares:maxIndex()
+    LPCurCol = Squares[LPCurSquare,number]
+    
+    if(LPCurCol==-1){
+        Filling=0
+    }
+    
+    Scr[LPCurSquare] = TargCol #Paints this square
+    for(I=1,4){
+        if(I==1){
+            if(Scr[LPCurSquare-ScreenSize]==CurCol){
+                Scr[LPCurSquare-ScreenSize]=TargCol
+                Squares[LPCurSquare-ScreenSize,number] = TargCol
+            }
+        }elseif(I==2){
+            if(Scr[LPCurSquare-1]==CurCol){
+                Scr[LPCurSquare-1]=TargCol
+                Squares[LPCurSquare-1,number] = TargCol
+            }
+        }elseif(I==3){
+            if(Scr[LPCurSquare+1]==CurCol){
+                Scr[LPCurSquare+1]=TargCol
+                Squares[LPCurSquare+1,number] = TargCol
+            }
+        }elseif(I==4){
+            if(Scr[LPCurSquare+ScreenSize]==CurCol){
+                Scr[LPCurSquare+ScreenSize]=TargCol
+                Squares[LPCurSquare+ScreenSize,number] = TargCol
+            }
+        }
+    }
+    Squares[LPCurSquare,number] = -1
+}
+if(chatClk(Drawer)|chatClk(owner())){
+    LS = lastSaid()
+    Expl = LS:explode(" ")
+    if(Expl[1,string]=="!rgb"){
+        DrawColor = Expl[4,string]:toNumber()+(Expl[3,string]:toNumber()*1000)+(Expl[2,string]:toNumber()*1000000)
+    }elseif(Expl[1,string]=="!ownerscr"&lastSpoke()==owner()&owner():aimEntity()==Welded){
+        Drawer = findPlayerByName(Expl[2,string])
+        Rows:pushString("Set owner to: "+Expl[2,string])
+    }elseif(Expl[1,string]=="!file"){
+        FileToSaveTo = Expl[2,string]
+        Rows:pushString("Set savefilename to: "+Expl[2,string])
+    }elseif(Expl[1,string]=="!load"){
+        if(fileCanLoad()){
+            LOADED=0
+            fileLoad(Expl[2,string]+".txt")
+            FileToSaveTo = Expl[2,string]
+            Rows:pushString("Loading file: "+Expl[2,string])
+        }
+    }
+}
+if(fileLoaded()&!LOADED){
+    LOADED = 1
+    LOAD_String = fileRead()
+    SaveSize = LOAD_String:length()
+    LOAD_Explode = LOAD_String:explode("#")
+    LOAD_Cell = 0
+    LOAD_Chunk = 1
+    LOAD_EndCell = LOAD_Explode[1,string]:explode("-")[1,string]:toNumber()
+    LOAD_Color = LOAD_Explode[1,string]:explode("-")[2,string]:toNumber(32)
+    timer("PrintToScreen",0)
+    Rows:pushString("File loaded! Printing...")
+}
+if(clk("PrintToScreen")){
+    Scr[LOAD_Cell] = LOAD_Color
+    if(LOAD_Cell>=LOAD_EndCell){
+        LOAD_Chunk++
+        
+        LOAD_EndCell = LOAD_Explode[LOAD_Chunk,string]:explode("-")[1,string]:toNumber()
+        LOAD_Color = LOAD_Explode[LOAD_Chunk,string]:explode("-")[2,string]:toNumber(32)
+    }
+    if(LOAD_Cell<Cells){
+        LOAD_Cell++
+        Progress = ceil((LOAD_Cell/Cells)*100)
+        timer("PrintToScreen",0)
+    }else{
+        Rows:pushString("File printing done!")
+    }
+}
+
+## SAVING
+if(clk("Save")){
+    Str=""
+    TargCell = 0
+    TargCell2 = round(Cells/2)
+    TargStr=""
+    TargStr2=""
+    CurrentColorBegin = 0
+    CurrentColor = 0
+    CurrentColorBegin2 = round(Cells/2)
+    CurrentColor2 = 0
+    timer("DoRun",0)
+    timer("DoRun2",0)
+    Rows:pushString("Saving to file: "+FileToSaveTo)
+}
+if(clk("DoRun")){
+    TargCell++
+    Progress = ceil((TargCell/ceil(Cells/2))*100)
+    SaveSize = (TargStr:right(TargStr:length()-1)+TargStr2):length()
+    if((Scr[TargCell]!=CurrentColor)|TargCell+1==round(Cells/2)){
+        TargStr=TargStr+"#"+(TargCell-1)+"-"+Scr[TargCell-1]:toString(32)
+        CurrentColorBegin=TargCell
+        CurrentColor=Scr[TargCell]
+    }
+    if(TargCell+2<=Cells/2){
+        timer("DoRun",0)
+    }else{
+        timer("SaveToFile",1000)
+    }
+}
+if(clk("DoRun2")){
+    TargCell2++
+    if((Scr[TargCell2]!=CurrentColor2)|TargCell2==Cells){
+        TargStr2=TargStr2+"#"+(TargCell2-1)+"-"+Scr[TargCell2-1]:toString(32)
+        CurrentColorBegin2=TargCell2
+        CurrentColor2=Scr[TargCell2]
+        #print(TargStr2)
+    }
+    if(TargCell2<Cells){
+        timer("DoRun2",0)
+    }
+}
+if(clk("SaveToFile")){
+    if(fileCanWrite()){
+        if(FileToSaveTo==""){FileToSaveTo="default"}
+        fileWrite(FileToSaveTo+".txt", TargStr:right(TargStr:length()-1)+TargStr2)
+        hint("Saved to file "+FileToSaveTo, 4)
+    }else{
+        timer("SaveToFile",1000)
+        hint("Couldn't save to file!",4)
+    }
+}
+
+###EGP PART, FUCK THE REST###
+if(first()|dupefinished()){
+    EGP:egpDrawTopLeft(1)
+    EGP:egpClear()
+    EGP:egpBox(1,vec2(0,0),vec2(512,512))
+    EGP:egpColor(1,vec(140,140,140))
+    
+    Colors = array() ## Add new colors here :3 Nowhere else :D
+    Colors:pushVector(vec(255,255,255))
+    Colors:pushVector(vec(150,150,150))
+    Colors:pushVector(vec(0,0,0))
+    Colors:pushVector(vec(255,0,0))
+    Colors:pushVector(vec(150,0,0))
+    Colors:pushVector(vec(255,99,71))
+    Colors:pushVector(vec(255,69,0))
+    Colors:pushVector(vec(0,255,0))
+    Colors:pushVector(vec(0,150,0))
+    Colors:pushVector(vec(0,0,255))
+    Colors:pushVector(vec(0,0,150))
+    Colors:pushVector(vec(255,255,0))
+    Colors:pushVector(vec(150,150,0))
+    Colors:pushVector(vec(0,255,255))
+    Colors:pushVector(vec(0,150,150))
+    Colors:pushVector(vec(255,0,255))
+    Colors:pushVector(vec(150,0,150))
+    Colors:pushVector(vec(155,48,255))
+    Colors:pushVector(vec(224,102,255))
+    foreach(K,Col:vector=Colors){
+        EGP:egpBox(100+K,vec2((K*25)-20,10),vec2(20,100))
+        EGP:egpColor(100+K,Col)
+    }
+    
+    Cursors = array()
+    Cursors:pushString("Pencil")
+    Cursors:pushString("Bucket")
+    Cursors:pushString("Eraser")
+    Cursors:pushString("Spraycan")
+    Cursors:pushString("Pick Color")
+    foreach(K,Str:string=Cursors){
+        EGP:egpBox(200+K,vec2(400,(K*55)+70),vec2(110,50))
+        #EGP:egpOrder(200+K,1)
+        
+        #EGP:egpText(300+K,"Cock",vec2(380,(K+1*55)-0))
+        #EGP:egpOrder(300+K,100)
+        #EGP:egpColor(300+K,vec(0,0,0))# bugged fucking EGP, I hate you.
+    }
+    EGP:egpText(2,"Pencil",vec2(420,(2*55)+30))
+    EGP:egpColor(2,vec(0,0,0))
+    EGP:egpText(3,"Bucket",vec2(420,(3*55)+30))
+    EGP:egpColor(3,vec(0,0,0))
+    EGP:egpText(4,"Eraser",vec2(420,(4*55)+30))
+    EGP:egpColor(4,vec(0,0,0))
+    EGP:egpText(10,"Spraycan",vec2(420,(5*55)+30))
+    EGP:egpColor(10,vec(0,0,0))
+    EGP:egpText(15,"Pick Color",vec2(420,(6*55)+30))
+    EGP:egpColor(15,vec(0,0,0))
+    
+    EGP:egpBox(11,vec2(5,4*55+70),vec2(110,50))
+    EGP:egpBox(12,vec2(5,5*55+70),vec2(110,50))
+    EGP:egpBox(17,vec2(5,3*55+70),vec2(110,50))
+    EGP:egpText(13,"Abort Fill",vec2(15,(5*55)+30))
+    EGP:egpColor(13,vec(0,0,0))
+    EGP:egpText(14,"Clear Screen",vec2(15,(6*55)+30))
+    EGP:egpColor(14,vec(0,0,0))
+    EGP:egpText(18,"Save",vec2(15,(4*55)+30))
+    EGP:egpColor(18,vec(0,0,0))
+    
+    EGP:egpBox(5,vec2(0,412),vec2(512,100))
+    EGP:egpColor(5,vec(100,100,100))
+    EGP:egpBox(6,vec2(0,412),vec2(10,100))
+    EGP:egpColor(6,vec(50,50,50))
+    EGP:egpBox(7,vec2(502,412),vec2(10,100))
+    EGP:egpColor(7,vec(50,50,50))
+    EGP:egpBox(8,vec2(175,412),vec2(10,100))
+    EGP:egpText(9,"Size: 3",vec2(230,452))
+    EGP:egpColor(9,vec())
+    
+    EGP:egpBox(16,vec2(5,120),vec2(40,80))
+}
+Curz = EGP:egpCursor(Drawer)
+
+if(changed(DrawColor)){
+    Col = vec()
+    Str = DrawColor:toString()
+    L = Str:length()
+    if(L<=3){#Blue only
+        Col = vec(0,0,DrawColor)
+    }elseif(L<=6){#Blue and Green
+        Col = vec(0,Str:left(L-3):toNumber(),Str:right(3):toNumber())
+    }elseif(L<=9){#All 3
+        Col = vec(Str:left(L-6):toNumber(),Str:right(6):left(3):toNumber(),Str:right(3):toNumber())
+    }
+    EGP:egpColor(16,Col)
+}
+if(EGP["User",entity]==Drawer&Drawer:keyUse()){
+    if(inrange(Curz:y(),10,100)&Cursor!="eraser"){
+        for(I=1,Colors:count()){
+            if(inrange(Curz:x(),I*25-20,I*25)){
+                V = Colors[I,vector]
+                ODRAWCOL = DrawColor
+                DrawColor= V:z()+V:y()*1000+V:x()*1000000
+                if(DrawColor!=ODRAWCOL){
+                    Rows:pushString("Changed Color to "+V:x()+", "+V:y()+", "+V:z())
+                }
+                break
+            }
+        }
+    }elseif(inrange(Curz:y(),412,512)){
+        EGP:egpPos(8,vec2(clamp(Curz:x(),10,492),412))
+        Size = clamp(ceil((clamp(Curz:x(),10,502)-10)/(492/10)),1,10)
+        EGP:egpSetText(9,"Size: "+Size)
+        Rows:pushString("Changed size to "+Size)
+    }elseif(inrange(Curz:x(),400,510)){
+        for(I=1,Cursors:count()){
+            if(inrange(Curz:y(),I*55+70,I*55+120)){
+                Crs = Cursors[I,string]:lower()
+                if(Crs!=Cursor){
+                    if(Crs=="eraser"){
+                        SavedDrawCol = DrawColor
+                        DrawColor = 0
+                        Cursor = "eraser"
+                    }else{
+                        if(Cursor=="eraser"){ #We switch from eraser to something else, means we should retrieve the saved color
+                            DrawColor = SavedDrawCol
+                        }
+                        Cursor = Crs
+                    }
+                    Rows:pushString("Selected Cursor: "+Crs)
+                }
+                
+            }
+        }
+    }elseif(inrange(Curz:x(),5,115)){
+        if(inrange(Curz:y(),4*55+70,4*55+120)){
+            Filling=0
+            Rows:pushString("Aborted Filling")
+        }elseif(inrange(Curz:y(),5*55+70,5*55+120)){
+            Scr[1048574] = 1
+            Rows:pushString("Cleared Screen!")
+        }elseif(inrange(Curz:y(),3*55+70,3*55+120)){
+            timer("Save",0)
+        }
+    }
+}
+
+Rowcount = Rows:count()
+if(changed(Rowcount)){
+    if(Rows:count()>18){
+        Rows:removeString(1)
+    }  
+    CS[2041] = 1
+    
+    for(I=0,Rowcount-1){
+        #I = I-1
+        CS:writeString(Rows[Rowcount-I,string], 0, 17-I)
+    }
+    #CS:writeString(Rows[Rows:count(),string], 0, 18-Rows:count())
+}

@@ -1,4 +1,4 @@
-# Expression 2 - Connect 4th game [Wiremod]
+# Dupe - Connect 4th game [Wiremod]
 
 ## Details
 

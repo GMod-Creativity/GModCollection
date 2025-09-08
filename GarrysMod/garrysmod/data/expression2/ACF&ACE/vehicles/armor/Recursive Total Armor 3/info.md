@@ -25,4 +25,5 @@
 
 ## Desciption
 
-\<No Description\>
+Video explaining the chip:
+https://www.youtube.com/watch?v=p-cm2zwp9gI

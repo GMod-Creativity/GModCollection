@@ -22,12 +22,18 @@
 
 ## Description
 
+### Spy Camera:
+
 I have created an E2 which spies on unsuspecting players. This dupe allows you to know where anyone is at all times and lets you uncover their malicious schemes. It's best application is spotting enemies in raids. However, you need to know the player's name and he needs to be in a somewhat open area for the camera to see.
 
 **Adv Dupe:** [Player Spy V1.txt](https://www.mediafire.com/file/iv25796we7g6920)
+
+### Fullmech v7:
 
 I am also including my work-in-progress mech. The mech was originally created by Sesteze, but I have rebuilt it to serve as a murder tool. This mech allows safe passage between locations and is designed with war in mind. The mech has no weapons at the moment, so be sure to stomp them extra hard!
 
 **Adv Dupe2:** [fullmech v7.txt](https://www.mediafire.com/file/yg9clp2d3l8vu05)
 
-**Video:** https://www.youtube.com/watch?v=MbFeWWPMoPU
+### Video:
+
+[Youtube - GMod: Player Spy & Mech!](https://www.youtube.com/watch?v=MbFeWWPMoPU)

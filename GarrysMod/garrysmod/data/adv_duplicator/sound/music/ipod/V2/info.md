@@ -20,8 +20,11 @@ I decided to re-make my really old iPod that everyone seemed to like. This versi
 
 <!-- (Alternate download available below) -->
 
+### Features
+
 **iPod v2 has:**
 
+```GitHub
 - Clean GUI
 - Built-in cursor
 - 3D intro menu
@@ -31,3 +34,4 @@ I decided to re-make my really old iPod that everyone seemed to like. This versi
 - Custom menu for adding your own music
 - Hold button for freezing the screen
 - Multiple-menu switching
+```

@@ -26,4 +26,4 @@
 ## Desciption
 
 Video explaining the chip:
-https://www.youtube.com/watch?v=p-cm2zwp9gI
+[Youtube - Garry's Mod: Wiremod Expression 2 (E2) Collection Download at Pastebin!](https://www.youtube.com/watch?v=p-cm2zwp9gI)

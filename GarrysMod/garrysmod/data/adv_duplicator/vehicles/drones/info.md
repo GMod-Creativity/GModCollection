@@ -41,41 +41,46 @@ This version is controlled completely by chat commands. Listed below is a few of
 
 ### COMMANDS:
 
-- **/on**
-- **/off**
-- **/help**
-- **/follow \<Player Name\>**
-- **/stay**
-- **/aim**
-- **/target \<Player Name\>**
-- **/passive**
-- **/fire**
-- **/holdfire**
+```
+/on
+/off
+/help
+/follow <Player Name>
+/stay
+/aim
+/target <Player Name>
+/passive
+/fire
+/holdfire
+```
 
 You can find out the rest of the commands by checking it out.
 
 ### CREDITS:
 
-- *Gunnanmon for his lead collision code*
-- *Jadestorm215{JBC} for the anti flip idea*
-- *Peewee 1112 for testing, moral support*
-- *HaloGuy for help with the sounds*
-- *Sieze for being target practice*
-- *Jayg20769 for help with the turrets and competition*
-- *Dmitriy for help debugging missiles*
-- *Riosnyper for whatever it was he did*
-- *Grunt (Frozen), Dav1d, and Disco Biscuit for help*
-- *Viktor for teaching me the 'for loop' for the missiles*
-- *Disco's Public Build server and the guys there*
-- *WireMod forums and the people that helped here*
-- *credit to the others that helped but I forgot their names*
+```
+• Gunnanmon for his lead collision code
+• Jadestorm215{JBC} for the anti flip idea
+• Peewee 1112 for testing, moral support
+• HaloGuy for help with the sounds
+• Sieze for being target practice
+• Jayg20769 for help with the turrets and competition
+• Dmitriy for help debugging missiles
+• Riosnyper for whatever it was he did
+• Grunt (Frozen), Dav1d, and Disco Biscuit for help
+• Viktor for teaching me the 'for loop' for the missiles
+• Disco's Public Build server and the guys there
+• WireMod forums and the people that helped here
+• credit to the others that helped but I forgot their names
+```
 
 ### NOTES:
 
 If the turrets spaz for you, then use your E2 stool and update the expression. You don't need the E2 code prior, just right click on the expression on the bottom and click upload and it should fix it.
 
 Like I mentioned, I did not originally intend for this to be released in its current state, but I did it by popular demand.  
-In the future I would like to remake it using quaternions and applyTorque. The turrets get stuck sometimes and get less accurate when the drone is moving a lot. The drone cannot make large changes in elevation while moving forward because it will fall over. It will pick itself back up when flipped over, but it is not the most stabile.  
+In the future I would like to remake it using quaternions and applyTorque. The turrets get stuck sometimes and get less accurate when the drone is moving a lot. The drone cannot make large changes in elevation while moving forward because it will fall over. It will pick itself back up when flipped over, but it is not the most stabile.
+
 The missiles are an older, less effective code. I remade the missiles using quaternions and applyTorque, but I did not include that in this version (I like to keep the very best for myself :P). The missiles do not have an ops safety, if you spam too many missiles, the expression will go over the quota and die, this version has a limit of about 20 missiles at a time.
 
 And please keep in mind that I wrote all of this code (missiles too) back in November.

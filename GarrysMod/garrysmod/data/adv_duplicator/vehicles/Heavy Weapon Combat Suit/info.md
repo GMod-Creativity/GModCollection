@@ -27,49 +27,49 @@ The prop construction of the suit probably took around 4 hours of development, g
 
 ### CONTROLS
 
-#### General Controls
+```
+General Controls
+• Mouse1: Fire watermelon
+• Mouse2: Fire propane canister
+• Shift: Toggle grabbing the aimed at prop
+• The pressure guage dial indicates your health. If you run out of pressure, your suit kills you.
 
-- Mouse1: Fire watermelon
-- Mouse2: Fire propane canister
-- Shift: Toggle grabbing the aimed at prop
-- The pressure guage dial indicates your health. If you run out of pressure, your suit kills you.
+Walking Controls
+• W,A,S,D: Walks around.
+• Space: Jump, the longer you hold it, the higher the suit will jump.
+  If you press it while walking forwards, it will jump forwards.
+• Alt: Pressing this turns on the jetpack.
 
-#### Walking Controls
-
-- W,A,S,D: Walks around.
-- Space: Jump, the longer you hold it, the higher the suit will jump. If you press it while walking forwards, it will jump forwards.
-- Alt: Pressing this turns on the jetpack.
-
-#### Jetpack Controls
-
-- W,A,S,D: Controls pitch and roll.
-- Space: Increases the thrust. You do not need to hold this down, just hold this down when you need more thrust.
-- Mouse: Controls the yaw. ie. looking around will turn the suit to where you are looking.
+Jetpack Controls
+• W,A,S,D: Controls pitch and roll.
+• Space: Increases the thrust. You do not need to hold this down, just hold this down
+  when you need more thrust.
+• Mouse: Controls the yaw. ie. looking around will turn the suit to where you are looking.
+```
 
 ### VIDEO
 
-https://www.youtube.com/watch?v=lnTZDvVZUrs
+[Youtube - Garry's Mod: Combat Suit and Jetpack](https://www.youtube.com/watch?v=lnTZDvVZUrs)
 
 ### CREDITS
 
-#### Players:
+```
+Players:
+• soda can man: Suit pilot
+• Lolztheman: Suit pilot and failplane pilot (see my channel page for the failplane dupe)
+• XArchitectX: Suit pilot
+• longbyte1: Suit pilot
+• Necro: failcannon victim
+• Jesus: Fail hovercraft pilot victim
 
-- soda can man: Suit pilot
-- Lolztheman: Suit pilot and failplane pilot (see my channel page for the failplane dupe)
-- XArchitectX: Suit pilot
-- longbyte1: Suit pilot
-- Necro: failcannon victim
-- Jesus: Fail hovercraft pilot victim
+Servers:
+• Nodex: Video recording and some of the building
+• Ascension: A large part of the building
 
-#### Servers:
-
-- Nodex: Video recording and some of the building
-- Ascension: A large part of the building
-
-#### Music:
-
-- 10 Miles High by Nine Inch Nails (Version remixed by Keith Hillebrandt)
-The remix is available here: Remix - remix.nin.com
+Music:
+• 10 Miles High by Nine Inch Nails (Version remixed by Keith Hillebrandt)
+  The remix is available here: Remix - remix.nin.com
+```
 
 ### CODE
 

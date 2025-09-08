@@ -25,6 +25,7 @@ The main apply force part is TC Props, but the rest is mine.
 
 ### Commands:
 
+```
 /off  
 /on  
 /stay  
@@ -33,7 +34,9 @@ collide BROKEN
 sd (self destruct)  
 \* (name to give control)  
 ! (name to attack)  
-/me  
+/me
+```
+
 also, press 5 to use a LOT of igniters. (use while standing still/moving slow)
 
 ### Dupe File:
@@ -46,4 +49,4 @@ It's still being worked on, so expect it to be a bit buggy and rough around the 
 
 ### EDIT: 
 
-If you attempt to fly, do it at your own risk, I am working with nocolliders, but until then, type /off, nocollide the walls, walk back in, and collide them again.
+If you attempt to fly, do it at your own risk, I am working with nocolliders, but until then, type `/off`, nocollide the walls, walk back in, and collide them again.

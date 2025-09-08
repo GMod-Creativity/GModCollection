@@ -23,29 +23,35 @@
 
 ### M12 "Warthog" FAV from Halo
 
+This is an adv_dupe pack with 4 types of my M12 "Warthog" FAV from Halo
+
 ### Features:
 
-- Smooth ride on or off road, with E2 holo wheels and suspension
-- Military versions have accurate minigun or missile turret
-- Civilian version has gullwing doors
-- Multiple camouflage styles and civilian paint colours
-- A/D or Mouse Steering toggle
-- Music Track Player
+```
+• Smooth ride on or off road, with E2 holo wheels and suspension
+• Military versions have accurate minigun or missile turret
+• Civilian version has gullwing doors
+• Multiple camouflage styles and civilian paint colours
+• A/D or Mouse Steering toggle
+• Music Track Player
+````
+
+### HD Video:
+
+[Youtube - Halo M12 Warthog for Garry's Mod](https://www.youtube.com/watch?v=iTC8-rf3Lwg)
 
 ### Requires:
 
-- Wiremod, wire extras etc,
-including Expression 2 - i.e. Latest SVN
-
-### Video:
-
-https://www.youtube.com/watch?v=iTC8-rf3Lwg
+Wiremod, wire extras etc,  
+including Expression 2 <!-- - i.e. Latest SVN -->
 
 ### Instalation:
 
 Installation and driving instructions are in the readme. READ IT!!! :)
 
-Gun Turret = warthog gun.txt  
-Missile Launcher = warthog missile.txt  
-Gullwing Doors = warthog doors.txt  
-Basic = warthog plain.txt
+```
+Gun Turret        =  warthog gun.txt  
+Missile Launcher  =  warthog missile.txt  
+Gullwing Doors    =  warthog doors.txt  
+Basic             =  warthog plain.txt
+```

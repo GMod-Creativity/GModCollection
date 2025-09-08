@@ -25,23 +25,27 @@ And a couple ones with the new tank turret. Thanks to N3Xus Elite for building p
 
 ### Video
 
-https://www.youtube.com/watch?v=B4HgAC_KY6o
+[Youtube - Garrys Mod: Zeus Photon Torpedo Hovertank (dupe available!)](https://www.youtube.com/watch?v=B4HgAC_KY6o)
 
 ### Controls
 
-- W,A,S,D: Drives the tank around.
-- Space: Fires the jump-boost rockets.
-- Mouse1: Fires unguided photon torpedoes.
-- Mouse2: Fires guided photon torpedoes towards your locked target.
-- Alt: Changes hovermode.
-- The turret is controlled by your mouse.
+```
+• W,A,S,D: Drives the tank around.
+• Space: Fires the jump-boost rockets.
+• Mouse1: Fires unguided photon torpedoes.
+• Mouse2: Fires guided photon torpedoes towards your locked target.
+• Alt: Changes hovermode.
+• The turret is controlled by your mouse.
+```
 
 ### Server Requirements
 
 This hovertank has very few requirements and should work on almost any server!
 
-- E2
-- Portal Props
+```
+• E2
+• Portal Props
+```
 
 ### Advanced Dupe
 

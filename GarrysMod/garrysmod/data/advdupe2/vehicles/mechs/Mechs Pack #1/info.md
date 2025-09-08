@@ -33,24 +33,30 @@ How to install a duplication for advanced duplicator 2:
 
 ### Recommended Addons:
 
-- WireMod
-- Parent
-- multy
-- Weight
-- More Materials
+```
+• WireMod
+• Parent
+• multy
+• Weight
+• More Materials
+```
 
 ### Mechs:
 
-- Mech MM-101
-- Mech-nut MN-1
-- Horse-mech-HM-1
-- Scrapmetal mech-MM-101
+```
+• Mech MM-101
+• Mech-nut MN-1
+• Horse-mech-HM-1
+• Scrapmetal mech-MM-101
+```
 
 ### Controls:
 
-- A - move the left leg
-- D - move your right leg
-- ALT - sit down
-- Left Mouse Button - Shoot
-- if you hold down A and D, then the mech will fly
-- And also there is a place for a gunner
+```
+• A - move the left leg
+• D - move your right leg
+• ALT - sit down
+• Left Mouse Button - Shoot
+• if you hold down A and D, then the mech will fly
+• And also there is a place for a gunner
+```

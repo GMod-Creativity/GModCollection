@@ -146,8 +146,9 @@ This expression is based on some more complex state-space control system theorie
 1. System Identification
     When applying angular force to a prop, all props act differently. This behaviour is related to the objects mass, size in each direction, and welded/parented props. This behaviour can be represented as a [state space system](https://web.archive.org/web/20100210000758/http://en.wikipedia.org/wiki/State_space_(controls)). It is assumed that we have a second order state space system for each angular direction such as:
 
-    Pitch [Next Time Interval] = SomeFactor*Pitch [Last Interval] + SomeFactor*Velocity[Last Interval] + SomeFactor*applyAngForce[Last Interval]
-    Pitch Velocity[Next Time Interval] = SomeFactor*Velocity[Last Interval] + SomeFactor*applyAngForce[Last Interval]
+    `Pitch [Next Time Interval] = SomeFactor*Pitch [Last Interval] + SomeFactor*Velocity[Last Interval] + SomeFactor*applyAngForce[Last Interval]`
+
+    `Pitch Velocity[Next Time Interval] = SomeFactor*Velocity[Last Interval] + SomeFactor*applyAngForce[Last Interval]`
 
     Through applying some force, and measuring the pitch and angular velocity, these factors are determined for the prop based on some simple derivations I constructed.
 

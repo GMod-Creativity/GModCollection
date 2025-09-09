@@ -24,8 +24,8 @@ This expression 2 is actually my old E2 modded so the coding quality is pretty m
 ### How to use:
 
 - Installing: You save the instant base e2 and put the bunker.txt file into your e2shared folder.
-- Using: Hold down attack2 and press E to spawn the base/bunker/what ever you want to call it and then wait for it to spawn. Type /remove to remove it, /off to turn it off, /exclude:[name] (note that you need the colon and that it only works when turned off) to let people inside your base w/o killing them, /clear to clear all white-listed people on the list, and /on to turn back on.
-- Using the bunker saver: go inside a building at the very bottom floor in the middle and type /save [name]. Type /load [name] to load that file. If the building is too big then type /radius [number (default is 200)] to change the save radius. Type /angle [vector] to change loading the angle, type /offset [vector] to change the offset, and finally type /freezeall to freeze all spawned props.
+- Using: Hold down attack2 and press E to spawn the base/bunker/what ever you want to call it and then wait for it to spawn. Type `/remove` to remove it, `/off` to turn it off, `/exclude:[name]` (note that you need the colon and that it only works when turned off) to let people inside your base w/o killing them, `/clear` to clear all white-listed people on the list, and `/on` to turn back on.
+- Using the bunker saver: go inside a building at the very bottom floor in the middle and type `/save [name]`. Type `/load [name]` to load that file. If the building is too big then type `/radius [number (default is 200)]` to change the save radius. Type `/angle [vector]` to change loading the angle, type `/offset [vector]` to change the offset, and finally type `/freezeall` to freeze all spawned props.
 
 ### Instant Base:
 

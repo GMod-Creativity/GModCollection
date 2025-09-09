@@ -18,9 +18,9 @@
 
 ## Description
 
-I switched from ezvid to FFSPLIT which is an amazing stream/recording software that is also free by the way. I also decided to make an e2 for my ACF turrets and I came up with this.  
+<!-- I switched from ezvid to FFSPLIT which is an amazing stream/recording software that is also free by the way. --> I <!--also--> decided to make an e2 for my ACF turrets and I came up with this.  
 OLD VERSION (EVERYTHING WORKS 100%)
 
-https://web.archive.org/web/20161204031438/https://www.youtube.com/watch?v=H6JpBL7ffCI
+<!-- https://web.archive.org/web/20161204031438/https://www.youtube.com/watch?v=H6JpBL7ffCI
 
-Note: Auto doesn't want to work for some reason. I'd be great if someone told me how to make it work.
+Note: Auto doesn't want to work for some reason. I'd be great if someone told me how to make it work. -->

@@ -26,5 +26,5 @@ Well, this E2 I made inspired by latest update on my Garry's Mod Paint E2 which 
 **Well, I'm a bit perplexed to why my edit was a reply but here's what my reply said:**
 
 This is not an official update since it is still very buggy but this version of the E2 acually saves it to a txt file and then you can load that txt file.  
-/save [name] - saves to a txt file  
-/load [name] - loads a file
+`/save [name]` - saves to a txt file  
+`/load [name]` - loads a file

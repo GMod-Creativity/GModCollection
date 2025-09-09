@@ -19,9 +19,12 @@
 
 Third, my Hologram Creator
 
-**Commands:**  
+**Commands:**
+
+```
 /model "model name"  
 /col R G B  
 /scale X Y Z
+```
 
 You have you have your crowbar out for it to work. Mouse1 creates the hologram.

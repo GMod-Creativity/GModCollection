@@ -29,7 +29,7 @@ The only thing you need here is base wiremod svn (i think)
 
 - randomly wanders around, and when i say randomly, i mean i have like 4 different ways that its random, based on how often, strong, and in what direction he pushes.
 
-- sounds, it makes random sounds, of a rollermine, turn them off in the very first "if(first())" line, they are easily found.(im to lazy to make chat commands)
+- sounds, it makes random sounds, of a rollermine, turn them off in the very first `if(first())` line, they are easily found.(im to lazy to make chat commands)
 
 - runs on a battery, it runs on a battery, that is recharged by it rolling back to the plug.(when the battery reaches 0%, he will "die", which means he sits there not moving for a few minutes, and then gets a charge of like 20%, just to keep them from dying completely)
 

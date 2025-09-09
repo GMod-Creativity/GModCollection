@@ -20,7 +20,7 @@
 (Part of pack)
 
 Hello. I have made quite a few things over the past year, Many of them I feel are good enough to be shared with you guys. So, here they are.  
-Also, You need to have TylerB's moneyRequest() E2 function and TylerB's shipment E2 functions.  
+Also, You need to have TylerB's `moneyRequest()` E2 function and TylerB's shipment E2 functions.  
 Feel free to use these E2s, just give me credit if you use them. Don't take them as your own. Feel free to modify them. Just give me credit for them.
 
 Also, this thread isn't complete so expect that I will have more as I make them. I will add images + videos for each E2.

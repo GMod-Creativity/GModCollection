@@ -29,7 +29,7 @@ it just make sound holograms that plays channel of play-able channel(?)
 end of play, odd sound playing.
 
 if you want to play other song during calculation or playing, you need to reset the E2
-some midi format needs to type "type 1" to chat. so, if your sound odd, type "type 1" to chat
+some midi format needs to type "`type 1`" to chat. so, if your sound odd, type "`type 1`" to chat
 
 ### Video:
 

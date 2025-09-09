@@ -22,12 +22,14 @@ Alright, it's using a Digitalscreen for drawing, EGP for toolbox, Consolescreen 
 
 ### The feature's it got is:
 
+```
 - Fully working Saving&Loading with sort-of-compression (thanks Jasongamer & Andre)
 - Fully working bucket tool
 - Complete color choice
 - Tools: Pencil, Bucket, Eraser, Spraycan and Pickcolor
 - Ability to set pencil size from 1 to 10 pixels
 - Set custom owner
+```
 
 <!-- Some pictures: (Don't mind my immatureness)
 freespace_revolution0005.jpgfreespace_revolution0006.jpgfreespace_revolution0007.jpgfreespace_revolution0009.jpg
@@ -44,15 +46,19 @@ The lightblue thing is me filling the black space with lightblue color. It's fil
 
 ### To use saving/loading:
 
-- Paint your picture
-- Define imagename using !file \<name>, e.g, !file testpicture, several words must be in quotes
-- Press the Save button on the screen
-- Wait untill the progress says 100 and you've gotten a hint about that it's saved.
-- Save done!
-- Loading: write !load \<filename>, e.g, !load testpicture, to load the picture. Wait untill progress gets to 100% and log says that it's done.
-- Saving goes twice the speed of loading, couse it saves at 2 points at same time. Loading prints in 66.7 cells/second, and saving saves in 133.4 cells/second.
+```
+1. Paint your picture
+2. Define imagename using !file \<name>, e.g, !file testpicture, several words must be in quotes
+3. Press the Save button on the screen
+4. Wait untill the progress says 100 and you've gotten a hint about that it's saved.
+5. Save done!
+6. Loading: write !load \<filename>, e.g, !load testpicture, to load the picture. Wait until
+   progress gets to 100% and log says that it's done.
+7. Saving goes twice the speed of loading, couse it saves at 2 points at same time. Loading prints
+   in 66.7 cells/second, and saving saves in 133.4 cells/second.
+```
 
-My saving compression I got is, \<EndChunkCell>-\<ChunkColorInBase32>#  
+My saving compression I got is, `<EndChunkCell>-<ChunkColorInBase32>#`  
 Meaning, painting cell 0 to 400 color red, and chunk 401 to 600 green, it would be "400-7J5VE0#600-7P0O#". I'm quite proud of it, and it works great.
 
 I have only tested this at digitalscreen PCB size 7, EGP screen at size 5, and at pixel scales 64x64 and 128x128. To change pixel scale, change the topmost value in if(first()){, ScreenSize, to what you want.

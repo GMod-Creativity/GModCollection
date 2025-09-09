@@ -23,6 +23,7 @@ Finally got around to re-making my old promised chip. All the instructions are o
 
 ### Path Notes
 
+```
 2.0.0
 -First Release
 
@@ -52,3 +53,4 @@ Finally got around to re-making my old promised chip. All the instructions are o
 
 2.2.7
 -Fixed "@name" not being in exported text
+```

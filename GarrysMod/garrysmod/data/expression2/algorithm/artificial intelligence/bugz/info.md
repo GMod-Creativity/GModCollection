@@ -32,25 +32,31 @@ If they get to far away from alpha, they will become "lost" bugs, and will wande
 
 ### what types are there?
 
-- Alphabug(red)(Aka:Leader bug, its the e2 chip)
-- Betabug(blue)(Aka:creeper joe, its the blue rectangular prism thing.)
-- Omegabug(s)(white/blue)
-- Lostbug(s)(green)
+```
+• Alphabug(red)(Aka:Leader bug, its the e2 chip)
+• Betabug(blue)(Aka:creeper joe, its the blue rectangular prism thing.)
+• Omegabug(s)(white/blue)
+• Lostbug(s)(green)
+```
 
 ### What do i need to use this?
 
-- Wiremod.
-- Wire extras.(for propcore)
-- Phx(for the models)
+```
+• Wiremod.
+• Wire extras.(for propcore)
+• Phx(for the models)
+```
 
 ### Features?
 
-- ALpha bug will hop around, going who knows where
-- Betabug will stalk alpha, until he gets close enough to "make his way" with alpha.
-- A random # of baby bugs will be made.
-- If theres bugs when alpha is mating, they will dance around alpha, being purple.
-- A hunger system, bugs will die if theres not enough food(Amount judged by how many bugs there are)
-- Lost bugs will be lost, and die
+```
+• ALpha bug will hop around, going who knows where
+• Betabug will stalk alpha, until he gets close enough to "make his way" with alpha.
+• A random # of baby bugs will be made.
+• If theres bugs when alpha is mating, they will dance around alpha, being purple.
+• A hunger system, bugs will die if theres not enough food(Amount judged by how many bugs there are)
+• Lost bugs will be lost, and die
+```
 
 ### What im adding later on..
 

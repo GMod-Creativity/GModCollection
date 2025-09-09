@@ -29,7 +29,7 @@ You have to have admin privileges for the people to die when they fail.
 
 ### Instructions
 
-To start it, build your course, spawn the E2, look at the start prop and type ".start" then look at the goal prop and type ".goal".
+To start it, build your course, spawn the E2, look at the start prop and type "`.start`" then look at the goal prop and type "`.goal`".
 
 Any feedback would be appreciated!
 
@@ -41,5 +41,5 @@ Any feedback would be appreciated!
 how do we use
 
 **Rekondo:**  
-Build a track, spawn the E2, look at the starting prop and type ".start", then look and the last prop and type ".goal".
-Then make people stand on the start prop and type ".tfil"
+Build a track, spawn the E2, look at the starting prop and type "`.start`", then look and the last prop and type "`.goal`".
+Then make people stand on the start prop and type "`.tfil`"

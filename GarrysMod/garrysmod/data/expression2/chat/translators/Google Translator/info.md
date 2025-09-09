@@ -20,7 +20,7 @@ As the title said, i present a e2 that can translate.
 
 ### Syntax:
 
-:LangStartInitials|LangToInitials>Text  
+`:LangStartInitials|LangToInitials>Text`
 
 ### Use this for initials:
 

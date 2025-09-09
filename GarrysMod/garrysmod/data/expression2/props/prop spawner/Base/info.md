@@ -21,4 +21,4 @@
 
 ### BASE
 
-This E2 is proofed against the remove tool since it constantly spawns a new base for you. This E2 also explodes and blinds anyone near the base. Hold down Right click and hit the Use key, type !delete to get rid of it.
+This E2 is proofed against the remove tool since it constantly spawns a new base for you. This E2 also explodes and blinds anyone near the base. Hold down Right click and hit the Use key, type `!delete` to get rid of it.

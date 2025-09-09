@@ -23,11 +23,11 @@ There's also a race function which lets people race through the maze, from start
 
 ### Commands
 
-- "respawn [Width] [Length] [Square count of main path]" will generate a new maze
-- "respawn" will spawn a maze with the previous configuration
-- "add [Player's Name]" will add a player to the e2 for racing
-- "remove [Player's Name]" will remove the player, "remove all" will remove every player
-- "delete" will delete the spawned maze
+- "`respawn [Width] [Length] [Square count of main path]`" will generate a new maze
+- "`respawn`" will spawn a maze with the previous configuration
+- "`add [Player's Name]`" will add a player to the e2 for racing
+- "`remove [Player's Name]`" will remove the player, "remove all" will remove every player
+- "`delete`" will delete the spawned maze
 
 ### Video
 

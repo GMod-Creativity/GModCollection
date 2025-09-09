@@ -5,6 +5,11 @@
 - Youtube: https://www.youtube.com/Gmodism
 - Pastebin: https://pastebin.com/u/Gmodism
 
+**ACF Tank Tutorial 2020**
+- Source: https://www.youtube.com/watch?v=2AWomepPfqA
+- Source: https://www.mediafire.com/file/dqafrqqzn0n6sp7/chipsAndDupe.zip/file
+- Source Accessed (dd-mm-yyyy): 09-09-2025
+
 **Gmod_things**
 - Description: [GMod] Builds & Code Packs
 - Source: https://gmodism.com/resources/

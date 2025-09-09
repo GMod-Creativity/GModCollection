@@ -29,7 +29,7 @@ This is a simple entertaining chip which:
 
 I recommend watching the video to see how to use the chip, but here is a basic list of controls:
 E (use): Plays the next sound file in the search result.
-Prefix a chat with '.': Keeps the chat silent but voice is still played.
+Prefix a chat with '`.`': Keeps the chat silent but voice is still played.
 
 ### Video
 

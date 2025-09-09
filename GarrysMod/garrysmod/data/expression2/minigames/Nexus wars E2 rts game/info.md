@@ -41,10 +41,10 @@ A whopping 2000 lines of code, I seem unable to include it in this post because 
 
 ### REQUIREMENTS
 
-Here are a couple servers it works well on:
+<!-- Here are a couple servers it works well on:
 
 Omnicron's server: 173.56.27.170:27017 (The large unit set doesn't work here)
-Unsmart's server: 89.238.160.112:27017
+Unsmart's server: 89.238.160.112:27017 -->
 
 Propcore. This is on about 30% of servers. For the large unit set, the server must also have HL2:ep2 props enabled.
 

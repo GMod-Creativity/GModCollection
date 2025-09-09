@@ -27,4 +27,7 @@
 
 ## Description
 
-\<No Description\>
+Videos that use the chip:
+- [Youtube - How to make a simple ACF/ACE tank Part 1](https://www.youtube.com/watch?v=5TICzxuc73w)
+
+- [Youtube - How to make a simple ACF/ACE tank Part 2](https://www.youtube.com/watch?v=KzupbHzk9bs)

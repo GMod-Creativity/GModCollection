@@ -37,16 +37,18 @@ The game is a great way to pass time so I made a makeshift E2 version of it. Enj
 
 ### HOW TO PLAY
 
+```
 - Click to bake cookies
-- Cursor **(C)** - 10 cookies
-- Grandma **(B)** - 50 cookies
-- Mine **(M)** - 2000 cookies
-- Alchemy Lab **(L)** - 10000 cookies
-- Rocket Ship **(R)** - 25000 cookies
-- Time Machine **(T)** - 250000 cookies
-- Portal **(P)** - 1000000 cookies
-- Hadron Collider **(G)** - 1500000 cookies
-- Unethical Child Labor **(I)** - 2500000 cookies
+- Cursor (C) - 10 cookies
+- Grandma (B) - 50 cookies
+- Mine (M) - 2000 cookies
+- Alchemy Lab (L) - 10000 cookies
+- Rocket Ship (R) - 25000 cookies
+- Time Machine (T) - 250000 cookies
+- Portal (P) - 1000000 cookies
+- Hadron Collider (G) - 1500000 cookies
+- Unethical Child Labor (I) - 2500000 cookies
+```
 
 **The letters in the () are the keys you need to press in order to buy that item. Each item spawns a hologram.**
 
@@ -56,25 +58,29 @@ This version contains a function called Cookie Console.
 
 #### commands:
 
-- cookie.
-- add
-- remove
-- amount
-- enable
-- =
-- cursor.
-- grandma.
-- mine.
-- lab.
-- rocket.
-- time.
-- portal.
-- collide.
-- child.
-- hologram.
+```
+cookie.
+add
+remove
+amount
+enable
+=
+cursor.
+grandma.
+mine.
+lab.
+rocket.
+time.
+portal.
+collide.
+child.
+hologram.
+```
 
 #### Examples:
 
-- cookie.add= 10
-- cookie.portal.add= 1000
-- cookie.hologram.add= 1
+```
+cookie.add= 10
+cookie.portal.add= 1000
+cookie.hologram.add= 1
+```

@@ -23,31 +23,39 @@ mostly this project has given me something to do, but i like it, and i plan to i
 
 ### requirements:
 
-- wire extras, and prop core turned on.
-- wiremod
-- holo model any turned on.
+```
+• wire extras, and prop core turned on.
+• wiremod
+• holo model any turned on.
+```
 
 note: you need to spawn tribbles for it to work, their model is (the tiny sphere in phx misc.)
 "models/hunter/misc/sphere025x025.mdl"
 
 ### Features:
 
-- tribbles will goto a tree, and take a piece of wood.
-- then they roll back to the mill and place it in the mills "stock pile".
-- it adjusts how many trees spawn based on the ammount of tribbles.
-- other various things
-- (they look kinda like round ants from above ^^)
+```
+• tribbles will goto a tree, and take a piece of wood.
+• then they roll back to the mill and place it in the mills "stock pile".
+• it adjusts how many trees spawn based on the ammount of tribbles.
+• other various things
+• (they look kinda like round ants from above ^^)
+```
 
 **New features from V2(actually v6, but w/e)**
-- There is now 3 materials, wood, metal, and rocks.-
 
-    ```
-    Make them collect metal too
-    ```
+```
+• There is now 3 materials, wood, metal, and rocks.-
+    `Quote: Make them collect metal too`
 
-- Each material has its own set of "gibs" (small thing that goes above their heads when they are done gathering)
-- they now wait at the resource for 5 seconds(i think), before returning to the mill(they also have different tools, im aware a skill saw isnt very good for cutting metal XD)
-- resources are randomly spawning, and timed
+• Each material has its own set of "gibs" 
+  (small thing that goes above their heads when they are done gathering)
+  
+• they now wait at the resource for 5 seconds(i think), before returning to the mill
+  (they also have different tools, im aware a skill saw isnt very good for cutting metal XD)
+  
+• resources are randomly spawning, and timed
+```
 
 #### Things to add for v3 (planned)
 

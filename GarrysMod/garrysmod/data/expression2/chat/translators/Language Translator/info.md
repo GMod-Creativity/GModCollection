@@ -27,10 +27,10 @@ see image LWMu9As.png
 
 ### Usage:
 
-!lang to set the language. (eg '!lang fr' for French)  
-~Text to write in that language. (eg '~Hello, how are you?')
+`!lang` to set the language. (eg '`!lang fr`' for French)  
+`~Text` to write in that language. (eg '`~Hello, how are you?`')
 
 ### Notes:
 
-It takes about a second or so to retrieve the data since it's using httpRequest().  
-You must set: wire_expression2_concmd 1
+It takes about a second or so to retrieve the data since it's using `httpRequest()`.  
+You must set: `wire_expression2_concmd 1`

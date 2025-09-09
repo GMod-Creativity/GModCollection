@@ -19,4 +19,4 @@
 
 This E2 gives out lots and lots of information about player on a server including steamid, position, number of props they have, admin status, ect.
 
-Type /playerinfo [name] to get their information
+Type `/playerinfo [name]` to get their information

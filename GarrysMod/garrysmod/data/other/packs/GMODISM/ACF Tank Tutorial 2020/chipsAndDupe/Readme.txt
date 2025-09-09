@@ -1,0 +1,2 @@
+Install RDC chips in expression 2 folder as per instruction in video description, same with dupe in dupe folder.
+If you miss addons, check my list of addons in the video for build tools or the content pack for our Total Nerds build Server. https://steamcommunity.com/sharedfiles/filedetails/?id=1387124653

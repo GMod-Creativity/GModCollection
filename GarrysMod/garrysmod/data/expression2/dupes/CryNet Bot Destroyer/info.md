@@ -18,6 +18,14 @@
 
 ## Description
 
+> [!NOTE]
+> ### jpwanabe question:
+> jpwanabe:
+> Care to explain what this crynet e2 actually does and how it can get from dupe to dupe?
+>
+> xk4melot:
+> The original creator would have probably given everyone his prop protection and spawned a bunch of them near people, from there it spreads pretty rapidly from server to server. This was huge problem back in 2013 but I haven't seen much of it since.
+
 **RUN THIS ON YOUR SERVER, IT WILL IMPROVE PERFORMANCE IF BOTS ARE FOUND.**
 
 Hello there,  
@@ -37,9 +45,3 @@ You most likely will find some of these bots in some of the dupes spawned on you
 
 Also, heres a simple looping version, for inexperienced people who don't know how to edit the code. Helpful for owners that want to keep it running on the server while players spawn their dupes throughout the day. Making sure every bot spawned is rinsed.
 
-### jpwanabe question:
-jpwanabe:
-    Care to explain what this crynet e2 actually does and how it can get from dupe to dupe?
-
-xk4melot:
-    The original creator would have probably given everyone his prop protection and spawned a bunch of them near people, from there it spreads pretty rapidly from server to server. This was huge problem back in 2013 but I haven't seen much of it since.

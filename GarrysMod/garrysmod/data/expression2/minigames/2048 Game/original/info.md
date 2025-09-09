@@ -25,6 +25,7 @@ Code was written in about 2 days
 SG White Panda:  
 After playing around some more, I figured how to make it work.
 
+```
 1. Spawn E2
 
 2. Spawn Big Office Chair (from vehicles)
@@ -40,3 +41,4 @@ After playing around some more, I figured how to make it work.
 7. Wire E2 to the [Pod WireLink]
 
 8. Update the E2 chip.
+```

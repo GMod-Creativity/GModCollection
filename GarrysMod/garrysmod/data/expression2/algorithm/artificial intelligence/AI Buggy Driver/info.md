@@ -20,13 +20,16 @@ I want to show off my new contraption. It's uses an expression to drive the bugg
 
 ### Features:
 
-- Drives to its targets and kills them by running them over.
-- It will not turn around a target forever, instead it will get away and then come back straight onto it.
-- Has a speed limit during turns to avoid flipping over.
-- Designed specifically for the buggy, but can drive any WSAD car (though it can't steer the airboat well yet)
-- Uses the new E-Gate concommand functionality to control the vehicle (Thanks, Syranide  ).
-- There's no need to add anything to the car; the "control panel" is autonomous and can be anywhere on the map.
-- It uses only the player's and the target's world positions (X & Y coords; I recommend Beacon Sensors + Target Finder to get them)
+```
+• Drives to its targets and kills them by running them over.
+• It will not turn around a target forever, instead it will get away and then come back straight onto it.
+• Has a speed limit during turns to avoid flipping over.
+• Designed specifically for the buggy, but can drive any WSAD car (though it can't steer the airboat well yet)
+• Uses the new E-Gate concommand functionality to control the vehicle (Thanks, Syranide  ).
+• There's no need to add anything to the car; the "control panel" is autonomous and can be anywhere on the map.
+• It uses only the player's and the target's world positions 
+  (X & Y coords; I recommend Beacon Sensors + Target Finder to get them)
+```
 
 The save is attached below. I have already placed some NPCs for you. Get in the car (or spawn your own) and press the numpad "-" symbol to engage the system.
 

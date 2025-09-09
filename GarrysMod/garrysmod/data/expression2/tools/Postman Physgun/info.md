@@ -39,7 +39,7 @@ Postman physgun
 
 #### Instructions:
 
-If you want to be able to rotate the actual physgun in any direction (no gimbal lock), spawn 4 numbpad inputs (8,4,6,5), and wire the e2 (up down left right) to those numbpads.
+If you want to be able to rotate the actual physgun in any direction (no gimbal lock), spawn 4 numbpad inputs (8,4,6,5), and wire the e2 (up down left right) to those numpads.
 
 #### Controls:
 

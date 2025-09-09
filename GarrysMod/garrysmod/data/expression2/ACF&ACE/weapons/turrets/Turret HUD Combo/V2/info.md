@@ -24,11 +24,13 @@
 - Date (dd-mm-yyyy): 27-08-2014
 - Source: https://www.youtube.com/watch?v=-xh_dNx-3WU
 - Source: https://pastebin.com/pUB2ui1m
-- Source2: https://www.youtube.com/watch?v=C0x_YI5V7h0
+- Source2: https://www.youtube.com/watch?v=p-cm2zwp9gI
 - Source2: https://pastebin.com/KPqKGPC6
 - Source Accessed (dd-mm-yyyy): 21-08-2025
 
 ## Description
+
+Video: [Youtube - Gmod - Updated Tank Aiming Chip](https://www.youtube.com/watch?v=-xh_dNx-3WU)
 
 A project I needed done for tanks and ships was making a better aiming chip, with the help of several people it has been completed and is available for all to use. Links below:
 

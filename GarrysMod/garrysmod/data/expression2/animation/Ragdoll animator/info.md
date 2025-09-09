@@ -23,6 +23,7 @@ you can create u animation.
 
 ### Chat commands:
 
+```
 - !animation Name  
 (Change animation name for watching or creation)
 
@@ -43,8 +44,8 @@ you can create u animation.
 
 - !reset  
 (reset)
+```
 
 ### Video
 
-ragdoll animator in gmod.avi:  
-https://www.youtube.com/watch?v=f57KMv2j0Zc
+[Youtube - ragdoll animator in gmod.avi](https://www.youtube.com/watch?v=f57KMv2j0Zc)

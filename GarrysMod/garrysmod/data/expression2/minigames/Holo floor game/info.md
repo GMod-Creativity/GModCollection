@@ -21,7 +21,7 @@ This is basically a maze-like game using holos. You must walk along the "safe" p
 
 Try it out! Simply spawn the expression near the center of the map (a flat map will work best).
 
-Type "help" for instructions.
+Type "`help`" for instructions.
 
 I would love to hear your constructive criticism and if you find any problems or bugs, please post!  
 Thanks, hope you enjoy.

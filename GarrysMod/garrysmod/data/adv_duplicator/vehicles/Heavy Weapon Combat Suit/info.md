@@ -36,14 +36,12 @@ General Controls
 
 Walking Controls
 • W,A,S,D: Walks around.
-• Space: Jump, the longer you hold it, the higher the suit will jump.
-  If you press it while walking forwards, it will jump forwards.
+• Space: Jump, the longer you hold it, the higher the suit will jump. If you press it while walking forwards, it will jump forwards.
 • Alt: Pressing this turns on the jetpack.
 
 Jetpack Controls
 • W,A,S,D: Controls pitch and roll.
-• Space: Increases the thrust. You do not need to hold this down, just hold this down
-  when you need more thrust.
+• Space: Increases the thrust. You do not need to hold this down, just hold this down when you need more thrust.
 • Mouse: Controls the yaw. ie. looking around will turn the suit to where you are looking.
 ```
 
@@ -68,8 +66,9 @@ Servers:
 
 Music:
 • 10 Miles High by Nine Inch Nails (Version remixed by Keith Hillebrandt)
-  The remix is available here: Remix - remix.nin.com
 ```
+
+<!-- The remix is available here: Remix - remix.nin.com -->
 
 ### CODE
 

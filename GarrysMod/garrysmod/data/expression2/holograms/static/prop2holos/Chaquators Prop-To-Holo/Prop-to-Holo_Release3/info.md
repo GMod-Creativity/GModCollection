@@ -24,14 +24,13 @@ ZeroG sent me a PM a week or two back that inspired me to do better in my chips 
 
 ```
 Originally Posted by ZeroG:
-To show you why that chip you threw together has such great potential, I'd like to show you two
-contraptions me and an admin of my server made.
+To show you why that chip you threw together has such great potential, I'd like to show you two contraptions me and an admin of my server made.
 
 - First, a working ACF hovertank using the chip as a base:
-see izz8Ifv.jpg
+  see izz8Ifv.jpg
 
 - And second, a better version of the hoverbike I showed on the thread:
-see 7nNOVra.jpg and yQlc3DM.jpg
+  see 7nNOVra.jpg and yQlc3DM.jpg
 ```
 
 This guy deserves a lot of props for that.

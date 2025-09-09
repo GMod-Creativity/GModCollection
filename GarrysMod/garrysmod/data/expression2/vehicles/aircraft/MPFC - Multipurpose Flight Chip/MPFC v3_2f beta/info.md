@@ -1,22 +1,31 @@
+# Expression 2 - [RELEASE] Red's Flight Chip
+
+## Details
+
+### Author
+
 - Author: RedReaper (redreaper2020)
 - YouTube: https://www.youtube.com/@redreaper-xe6so
-<!-- -->
+
+### Publication Info
+
 - Title: [RELEASE] Red's Flight Chip
 - Date (dd-mm-yyyy): 12-05-2014
 - Source: https://web.archive.org/web/20150508094511/http://www.wiremod.com:80/forum/finished-contraptions/33034-release-reds-flight-chip.html
 - Source: https://www.youtube.com/watch?v=b4cjSZOe1Go
 - Source Accessed (dd-mm-yyyy): 04-09-2025
 
-## [RELEASE] Red's Flight Chip
+## Description
 
-This is a multipurpose, multifeature flight chip, with surprisingly good capabilities and modularity. It not as high in ops as some chips, but still runs at a relatively low interval, by optimizing code and pertick executions. Flight is incredibly easy, and setup is a breeze--just read the annotations!
+This is a multipurpose, multifeature flight chip, with surprisingly good capabilities and modularity. It not as high in ops as some chips, but still runs at a relatively low interval, by optimizing code and pertick executions. Flight is incredibly easy, and setup is a breeze--just read the annotations!  
 New for v3.2d is an in-cockpit "realistic" flight mode, for those who feel particularly masochistic, a (hopefully) fixed autopilot, altitude hold with "hold", "aim" autopilot waypoint settings (just goes forward x amount and sets a point there), and a few minor fixes. If there are any bugs or possible optimizations, let me know.
 
 The new EGP HUD. Prettier than the old one. Also you can fully recolor it as you desire.
 To get the chip simply copy the code into a text file, save that to your e2 folder, and open in game.
 
-**Features:**
+### Features:
 
+```
 - Simple "instructor" flight controls similar to war thunder
 - NEW! Semirealistic flight controls option--most vehicles can be controlled with mouse only
 - Easy to set up and modify--few necessary inputs and lots of annotations
@@ -36,7 +45,11 @@ To get the chip simply copy the code into a text file, save that to your e2 fold
 - NEW! Ammo selection for primary armament
 - Cats
 - NEW! Now 50% more cats.
+```
 
 Airplane flight is like war thunder--super easy mouse & keyboard, with automatic "instructor" rolling. All of the controls are the same for the different flight modes, so there's no confusion--collective on a heli is collective on an airship, throttle forward on a plane is throttle forward on a tiltrotor, etc.
-Instructional video to teach you how to fly planes:
-https://www.youtube.com/watch?v=b4cjSZOe1Go
+
+### Video:
+
+Instructional video to teach you how to fly planes:  
+[YouTube - TUTORIAL - How to fly a plane with my flight chip](https://www.youtube.com/watch?v=b4cjSZOe1Go)

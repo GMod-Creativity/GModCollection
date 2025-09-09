@@ -1,18 +1,26 @@
+# Expression 2 - [E2] Holo GearStick v2
+
+## Details
+
+### Author
+
 - Author: Monskiller (// Dak)
 - Steam Profile: https://steamcommunity.com/profiles/76561198034202243
-<!-- -->
+
+### Publication Info
+
 - Title: [E2] Holo GearStick v2
 - Date (dd-mm-yyyy): 27-01-2015
 - Source: https://web.archive.org/web/20150429005047/http://www.wiremod.com/forum/finished-contraptions/33999-e2-holo-gearstick-v2.html
 - Source Accessed (dd-mm-yyyy): 04-09-2025
 
-## [E2] Holo GearStick v2
+## Description
 
 **UPDATE**
 
 **Holo GearStick v2**
 
-Changes:
+### Changes:
 
 - Slight optimisation to the code, now instead of idling at 169ops, it'll spawn with ~100ops and gradually decrease at 0ops/0%, bouncing up to ~30ops when gear is changed and back down to 0ops
 - Added a slight angle tilt when the stick shifts, for visual effect. (Thanks Jack37 for suggestion)

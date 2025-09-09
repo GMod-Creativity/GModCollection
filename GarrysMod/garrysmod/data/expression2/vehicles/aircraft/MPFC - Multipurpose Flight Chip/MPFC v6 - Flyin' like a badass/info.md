@@ -1,6 +1,14 @@
+# Expression 2 - MPFC v6 - Flyin' like a badass
+
+## Details
+
+### Author
+
 - Author: RedReaper (redreaper2020)
 - YouTube: https://www.youtube.com/@redreaper-xe6so
-<!-- -->
+
+### Publication Info
+
 - Title: MPFC v6 - Flyin' like a badass
 - Date (dd-mm-yyyy): 10-07-2015
 - Source: https://web.archive.org/web/20160420201801/http://www.wiremod.com:80/forum/finished-contraptions/34601-mpfc-v6-flyin-like-badass.html
@@ -9,44 +17,47 @@
 - Source: https://www.youtube.com/watch?v=ME7bGVOLtgI
 - Source Accessed (dd-mm-yyyy): 04-09-2025
 
-## MPFC v6 - Flyin' like a badass
+## Description
 
 **MPFC,** or Multi-Purpose Flight Chip, is a general do-all flight e2 that's surprisingly sophisticated. It's the result of about 6 months of tinkering on and off, with features that seem to be pretty much miles beyond your average flight chip.
 
-This vid is of the almost-done version--I since removed the egp and added the instrument panel, but the rest is pretty much the same
-https://www.youtube.com/watch?v=B5JENnLvyVM
+This vid is of the almost-done version--I since removed the egp and added the instrument panel, but the rest is pretty much the same:  
+[YouTube - MPFC v6 -- Features](https://www.youtube.com/watch?v=B5JENnLvyVM)
 
-**Updated: 26-02-2016**
+### Updated: 26-02-2016
+
+```
 From the changelog:
-VERSION: 26-02-2016
+VERSION: 2/26/2016
+-fixed freezeself failure--I dun goofed months ago
+-fixed the aim/missile hitting shit, by adding dedicated range-agnostic coordinate for flight
+-reformatting and massive refactoring for readability and improved performance/safety
+-proper GNU style brackest instead of older custom style
+-fixed a lot of vars to local scope, as the codebase is particularly old. Shouldn't have broken anything.
+-transferred some flag-based items to event-based, so as to reduce CPU/ops overhead
+-restructured startup to not have errors and attempt to increase clarity
+-removed unnecessary missile check
+-ground-hugging radar mode, enter with R+tab or R+L, exit with tab or R+L or a sharp look up, for PLANES ONLY
+-new strafe indicator ballistic sight for 3rd person. drifting line you just get over your target and fire, no ranging required.
+-reworked ballistic backend to ACF scaling
+-properly halts instrument panel updates on 3rd person, to save CPU usage and lag
+-changed back the lead computer to mouse/aim based. Fixes some minor bugs.
+-crash indicator now updated to 1 seconds, to provide less annoying collision warning
+-decreased max zoom slightly to be more practical, it's still zeospanteramode though
+-new console screen flight data computer for those who prefer more electronic instruments
+-minor adjustments to flight model to make dogfighting less...annoying.
+-version namer
+```
 
-- fixed freezeself failure--I dun goofed months ago
-- fixed the aim/missile hitting shit, by adding dedicated range-agnostic coordinate for flight
-- reformatting and massive refactoring for readability and improved performance/safety
-- proper GNU style brackest instead of older custom style
-- fixed a lot of vars to local scope, as the codebase is particularly old. Shouldn't have broken anything.
-- transferred some flag-based items to event-based, so as to reduce CPU/ops overhead
-- restructured startup to not have errors and attempt to increase clarity
-- removed unnecessary missile check
-- ground-hugging radar mode, enter with R+tab or R+L, exit with tab or R+L or a sharp look up, for PLANES ONLY
-- new strafe indicator ballistic sight for 3rd person. drifting line you just get over your target and fire, no ranging required.
-- reworked ballistic backend to ACF scaling
-- properly halts instrument panel updates on 3rd person, to save CPU usage and lag
-- changed back the lead computer to mouse/aim based. Fixes some minor bugs.
-- crash indicator now updated to 1 seconds, to provide less annoying collision warning
-- decreased max zoom slightly to be more practical, it's still zeospanteramode though
-- new console screen flight data computer for those who prefer more electronic instruments
-- minor adjustments to flight model to make dogfighting less...annoying.
-- version namer
-
-**So, ground hugging radar (for missile avoidance, think F-111), new 3rd person sight, flight data computer, and of course lag reductions and minor fixes.**
-This is hte flight data computer, it runs optionally if it's wired and you're in first person view.
+**So, ground hugging radar (for missile avoidance, think F-111), new 3rd person sight, flight data computer, and of course lag reductions and minor fixes.**  
+This is the flight data computer, it runs optionally if it's wired and you're in first person view.
 see 4000_screenshots_2016-02-26_00002.jpg
 
 To update new vehicles, copy new one over your current copy in your e2 folder. That's it
 
-**Features:**
+### Features:
 
+```
 - Support for eight types of aircraft, with a template for user extension
 - Intuitive mouse control similar to war thunder but extended to more aircraft types
 - A keyboard-only control backup, for turreted gunnery or general freelook
@@ -70,20 +81,27 @@ To update new vehicles, copy new one over your current copy in your e2 folder. T
 - Code structure built around user modability, for community extension. No more "black box" style coding.
 - Uses @autoupdate so updates can be posted
 - Instructions & documentation at the top of the code, variable library at the bottom.
+```
 
 Special thanks to fervidusletum, he did some guru work on the autogyro mode, making its instructor work well and balancing its scheme entry.
 
-Some stuff made with it!
-Dogfights on frs
-https://www.youtube.com/watch?v=_eVMM_MW4ys
+### Some stuff made with it!
 
-ZeroG's twinrotor copter
+- Dogfights on frs  
+[YouTube - Dogfighting on FRS](https://www.youtube.com/watch?v=_eVMM_MW4ys)
 
-ZeroG's small plane
+- ZeroG's twinrotor copter  
+Video not available anymore
 
-A vid to help with setup if you don't for some reason get the instruction in the e2. Should cover both basic setup and a few more advanced features. I spent a lot of time writing that damn documentation!
-https://www.youtube.com/watch?v=ME7bGVOLtgI
+- ZeroG's small plane  
+Video not available anymore
 
-Code is way, way too long to post. I'm linking it to a dropbox until I get back. It's 2,011--MAKE THAT 2425!lines. Yep.
+### Setup Video
 
+A vid to help with setup if you don't for some reason get the instruction in the e2. Should cover both basic setup and a few more advanced features. I spent a lot of time writing that damn documentation!  
+[YouTube - mpfc v6 setup](https://www.youtube.com/watch?v=ME7bGVOLtgI)
+
+### Code
+
+Code is way, way too long to post. I'm linking it to a dropbox until I get back. It's 2,011--MAKE THAT 2425!lines. Yep.  
 https://www.dropbox.com/scl/fi/fd8sp31vmtcbxiqimm0ph/MPFC_v6.txt?rlkey=p5e2usehnbtspd45pupsmsmsb&dl=0

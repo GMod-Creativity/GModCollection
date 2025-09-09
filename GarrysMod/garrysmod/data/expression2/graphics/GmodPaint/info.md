@@ -52,10 +52,8 @@ The lightblue thing is me filling the black space with lightblue color. It's fil
 3. Press the Save button on the screen
 4. Wait untill the progress says 100 and you've gotten a hint about that it's saved.
 5. Save done!
-6. Loading: write !load \<filename>, e.g, !load testpicture, to load the picture. Wait until
-   progress gets to 100% and log says that it's done.
-7. Saving goes twice the speed of loading, couse it saves at 2 points at same time. Loading prints
-   in 66.7 cells/second, and saving saves in 133.4 cells/second.
+6. Loading: write !load \<filename>, e.g, !load testpicture, to load the picture. Wait until progress gets to 100% and log says that it's done.
+7. Saving goes twice the speed of loading, couse it saves at 2 points at same time. Loading prints in 66.7 cells/second, and saving saves in 133.4 cells/second.
 ```
 
 My saving compression I got is, `<EndChunkCell>-<ChunkColorInBase32>#`  

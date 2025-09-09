@@ -1,23 +1,31 @@
+# Expression 2 - [E2] Holo GearStick
+
+## Details
+
+### Author
+
 - Author: Monskiller (// Dak)
 - Steam Profile: https://steamcommunity.com/profiles/76561198034202243
-<!-- -->
+
+### Publication Info
+
 - Title: [E2] Holo GearStick
 - Date (dd-mm-yyyy): 22-01-2015
 - Source: https://web.archive.org/web/20150429010953/http://www.wiremod.com:80/forum/finished-contraptions/33970-e2-holo-gearstick.html
 - Source Accessed (dd-mm-yyyy): 04-09-2025
 
-## [E2] Holo GearStick
+## Description
 
 Been working on this lately, and though about releasing it.
-As the title sais, it's a car gearstick. But instead of changing the angles of a rod, it'll change it's position accordingly to the gear, in a semi-decent smooth animation without the stick jumping around.
+As the title says, it's a car gearstick. But instead of changing the angles of a rod, it'll change it's position accordingly to the gear, in a semi-decent smooth animation without the stick jumping around.
 
 All you need to give it is the Gear input.
 
-Note: It's been mostly designed for ACF content, using Sprops Shiftplate, so in this version/release it'll only support 4 and 6 gears (Reverse included).
+**Note:** It's been mostly designed for ACF content, using Sprops Shiftplate, so in this version/release it'll only support 4 and 6 gears (Reverse included).
 But you can also use this for E2 engines as long as reverse is your 6th gear. In the future I'll add an option to chose which gear number is your reverse.
 
-PS: I know the final part of the code is messy and could of been done better. I'm not that advanced, but it works.
+**PS:** I know the final part of the code is messy and could of been done better. I'm not that advanced, but it works.
 
 Credits to xk4melot for the Table approach into making holograms.
 
-PPS: The base model is longer and intersecting with the E2 chip (In the middle of the base) because I've had problems before with placing the chip in places and having it shoved in inaccessible spots, this way there's an initial distance so you can access the chip and also not have holos floating around.
+**PPS:** The base model is longer and intersecting with the E2 chip (In the middle of the base) because I've had problems before with placing the chip in places and having it shoved in inaccessible spots, this way there's an initial distance so you can access the chip and also not have holos floating around.

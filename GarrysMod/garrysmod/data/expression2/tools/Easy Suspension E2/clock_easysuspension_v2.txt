@@ -1,0 +1,336 @@
+@name clock_easysuspension_v2
+@persist [ E O BASE WHEEL SETANG ]:entity [ FORWARD OUTSIDE ]:vector 
+@persist STEP SHOW_HYDRAULIC SHOW_ROPES HYDRAULIC_CONSTANT HYDRAULIC_DAMPING ROPE_LENGTH DO_SETANG DO_ROPES DO_HYDRAULICS
+
+#with love, ClockEFFX
+
+if ( first() ) {
+    
+    # settings ---------------------------------------------------
+    
+    # hydraulic settings
+    HYDRAULIC_CONSTANT = 20000
+    HYDRAULIC_DAMPING = 1000
+    
+    # visual ropes on or off
+    SHOW_ROPES = 0
+    SHOW_HYDRAULIC = 0
+    
+    # wishbone length (you probably dont need to change this)
+    ROPE_LENGTH = 50
+    
+    # end of settings -------------------------------------------
+    
+    
+    
+    
+    
+    # not a setting
+    STEP = 1
+    E = entity()
+    O = owner()
+    BASE = noentity()
+    WHEEL = noentity()
+    SETANG = noentity()
+    FORWARD = vec()
+    OUTSIDE = vec()
+    DO_SETANG = 0
+    DO_ROPES = 0
+    DO_HYDRAULICS = 0
+    runOnKeys( O, 1 )
+    # enableConstraintUndo( 0 )
+    
+    
+    #pointer
+    holoCreate( 1, E:toWorld( vec() ), vec( 0.2 ), E:toWorld( ang() ), vec( 255, 25, 25 ), "cplane" )
+    holoMaterial( 1, "engine/preloadtexture" )
+    
+    holoCreate( 2, E:toWorld( vec( 0, 0, 15 ) ), vec( 0, 0.6, 1 ), E:toWorld( ang( 0, 0, 180 ) ), vec( 25, 255, 25 ), "pyramid" )
+    holoMaterial( 2, "engine/preloadtexture" )
+    holoParent( 2, 1 )
+    
+    
+    timer( "hint", 500 )
+    timer( "update", 1 )
+    
+}
+
+if ( clk( "hint" ) ) {
+    
+    local TEXT = ""
+    
+    switch( STEP ) {
+        case( 1 ),
+            TEXT = "Press E on the FRONT surface of your Base prop"
+        break
+        case( 2 ),
+            TEXT = "Press E on the OUTWARDS-FACING side of your Wheel prop"
+        break
+        case( 3 ),
+            TEXT = "Press E on the \"Ballsocket Target\" - Either your Base prop or Setang (Press R to skip placing ballsockets)"
+        break
+        case( 4 ),
+            TEXT = "Press E to place \"Wishbone\" ropes (Press R to skip placing ropes)"
+        break
+        case( 5 ),
+            TEXT = "Press E to place suspension hydraulics (Press R to skip placing hydraulics)"
+        break
+    }
+    
+    print( TEXT )
+    hint( TEXT, 5 )
+    
+}
+
+if ( clk( "step" ) ) {
+    STEP = STEP + 1
+    
+    if ( STEP > 5 ) {
+        runOnKeys( O, 0 )
+        
+        timer( "build", 1000 )
+    } else {
+        timer( "hint", 1 )
+    }
+}
+
+if ( keyClk() ) {
+    
+    local USE = O:keyUse()
+    local RELOAD = O:keyReload()
+    
+    if ( changed( USE ) && USE ) {
+        
+        switch( STEP ) {
+        
+            case( 1 ),
+                local AIM_ENTITY = O:aimEntity()
+                
+                if ( AIM_ENTITY:isValidPhysics() ) {
+                    
+                    BASE = AIM_ENTITY
+                    FORWARD = round( O:aimNormal() )
+                    
+                    holoCreate( 3, BASE:toWorld( vec() ), vec( 1.01 ), BASE:toWorld( ang() ), vec( 25, 255, 25 ), BASE:model() )
+                    holoParent( 3, BASE )
+                    holoMaterial( 3, "engine/preloadtexture" )
+                    # holoMaterial( 3, "models/spawn_effect2" )
+                    # holoEntity( 3 ):setRenderMode( 9 )
+                    
+                    O:soundPlay( "blip", 0.5, "buttons/blip1.wav" )
+                    
+                    timer( "step", 500 )
+                    
+                } else {
+                    
+                    local TEXT = "Invalid entity!"
+                    print( TEXT )
+                    hint( TEXT, 5 )
+                    
+                    O:soundPlay( "error", 0.5, "buttons/button10.wav" )
+                    
+                    timer( "hint", 1000 )
+                    
+                }
+            break
+            
+            case( 2 ),
+                local AIM_ENTITY = O:aimEntity()
+                
+                if ( AIM_ENTITY:isValidPhysics() ) {
+                    
+                    WHEEL = AIM_ENTITY
+                    OUTSIDE = round( O:aimNormal() )
+                    
+                    holoCreate( 4, WHEEL:toWorld( vec() ), vec( 1.01 ), WHEEL:toWorld( ang() ), vec( 255, 25, 25 ), WHEEL:model() )
+                    holoParent( 4, WHEEL )
+                    holoMaterial( 4, "engine/preloadtexture" )
+                    # holoMaterial( 3, "models/spawn_effect2" )
+                    # holoEntity( 3 ):setRenderMode( 9 )
+                    
+                    O:soundPlay( "blip", 0.5, "buttons/blip1.wav" )
+                    
+                    timer( "step", 500 )
+                    
+                } else {
+                    
+                    local TEXT = "Invalid entity!"
+                    print( TEXT )
+                    hint( TEXT, 5 )
+                    
+                    O:soundPlay( "error", 0.5, "buttons/button10.wav" )
+                    
+                    timer( "hint", 1000 )
+                    
+                }
+            break
+            
+            case( 3 ),
+                local AIM_ENTITY = O:aimEntity()
+                
+                if ( AIM_ENTITY:isValidPhysics() ) {
+                    
+                    SETANG = AIM_ENTITY
+                    
+                    DO_SETANG = 1
+                    
+                    holoCreate( 5, SETANG:toWorld( vec() ), vec( 1.01 ), SETANG:toWorld( ang() ), vec( 25, 25, 255 ), SETANG:model() )
+                    holoParent( 5, SETANG )
+                    holoMaterial( 5, "engine/preloadtexture" )
+                    # holoMaterial( 3, "models/spawn_effect2" )
+                    # holoEntity( 3 ):setRenderMode( 9 )
+                    
+                    O:soundPlay( "blip", 0.5, "buttons/blip1.wav" )
+                    
+                    timer( "step", 500 )
+                    
+                } else {
+                    
+                    local TEXT = "Invalid entity!"
+                    print( TEXT )
+                    hint( TEXT, 5 )
+                    
+                    O:soundPlay( "error", 0.5, "buttons/button10.wav" )
+                    
+                    timer( "hint", 1000 )
+                    
+                }
+            break
+            
+            case( 4 ),
+                
+                DO_ROPES = 1
+                
+                O:soundPlay( "blip", 0.5, "buttons/blip1.wav" )
+                    
+                timer( "step", 500 )
+                
+            break
+            
+            case( 5 ),
+            
+                DO_HYDRAULICS = 1
+                
+                O:soundPlay( "blip", 0.5, "buttons/blip1.wav" )
+                    
+                timer( "step", 500 )
+                
+            break
+            
+        }
+    }
+    
+    if ( changed( RELOAD ) && RELOAD ) {
+        switch( STEP ) {
+            case( 3 ),
+                
+                O:soundPlay( "blip", 0.5, "buttons/blip1.wav" )
+                
+                timer( "step", 500 )
+            break
+            case( 4 ),
+                
+                O:soundPlay( "blip", 0.5, "buttons/blip1.wav" )
+                
+                timer( "step", 500 )
+                
+            break
+            case( 5 ),
+                
+                O:soundPlay( "blip", 0.5, "buttons/blip1.wav" )
+                
+                timer( "step", 500 )
+                
+            break
+        }
+    }
+
+}
+
+if ( clk( "build" ) ) {
+    
+    local TEXT = "Creating constraints..."
+    print( TEXT )
+    hint( TEXT, 5 )
+    
+    # wishbone time
+    if ( DO_ROPES ) {
+        
+        local WHEEL_POS = WHEEL:toLocal( WHEEL:massCenter() )
+        local ROPE_POS_A = BASE:toLocal( WHEEL:massCenter() + ( ( FORWARD - OUTSIDE ) * ROPE_LENGTH ) )
+        local ROPE_POS_B = BASE:toLocal( WHEEL:massCenter() + ( ( -FORWARD - OUTSIDE ) * ROPE_LENGTH ) )
+        
+        rope( 1, WHEEL, WHEEL_POS, BASE, ROPE_POS_A, 0, SHOW_ROPES, "cable/cable2", 1 )
+        rope( 2, WHEEL, WHEEL_POS, BASE, ROPE_POS_B, 0, SHOW_ROPES, "cable/cable2", 1 )
+        
+    }
+    
+    
+    
+    # the ballsockets
+    if ( DO_SETANG ) {
+        
+        local WHEEL_POS = WHEEL:toLocal( WHEEL:massCenter() )
+        
+        
+        local BALLSOCKET_MAXIMUMS_A = ( vec( 0.0001 ) + ( positive( OUTSIDE ) * 179.9999 ) )
+        
+        ballsocket( WHEEL, WHEEL_POS, SETANG, -BALLSOCKET_MAXIMUMS_A, BALLSOCKET_MAXIMUMS_A, vec(), 1 )
+        ballsocket( SETANG, WHEEL_POS, WHEEL, -BALLSOCKET_MAXIMUMS_A, BALLSOCKET_MAXIMUMS_A, vec(), 1 )
+        
+        
+        local BALLSOCKET_MAXIMUMS_B = ( vec( 0.0001 ) + ( ( positive( OUTSIDE ) + positive( FORWARD ) ) * 179.9999 ) )
+        
+        ballsocket( WHEEL, WHEEL_POS, SETANG, -BALLSOCKET_MAXIMUMS_B, BALLSOCKET_MAXIMUMS_B, vec(), 1 )
+        ballsocket( SETANG, WHEEL_POS, WHEEL, -BALLSOCKET_MAXIMUMS_B, BALLSOCKET_MAXIMUMS_B, vec(), 1 )
+        
+        
+        local BALLSOCKET_MAXIMUMS_C = ( vec( 0.0001 ) + ( ( positive( OUTSIDE ) + vec( 0, 0, 1 ) ) * 179.9999 ) )
+        
+        ballsocket( WHEEL, WHEEL_POS, SETANG, -BALLSOCKET_MAXIMUMS_C, BALLSOCKET_MAXIMUMS_C, vec(), 1 )
+        ballsocket( SETANG, WHEEL_POS, WHEEL, -BALLSOCKET_MAXIMUMS_C, BALLSOCKET_MAXIMUMS_C, vec(), 1 )
+    }
+    
+    
+    if ( DO_HYDRAULICS ) {
+        
+        # hydralice
+        local WHEEL_POS = WHEEL:toLocal( WHEEL:massCenter() )
+        local BASE_POS = BASE:toLocal( WHEEL:massCenter() )
+        
+        local HYDRAULIC_COUNT = ceil( HYDRAULIC_CONSTANT / 50000 )
+        
+        for ( INDEX = 1, HYDRAULIC_COUNT ) {
+            hydraulic( INDEX + 2, WHEEL, WHEEL_POS, BASE, BASE_POS, HYDRAULIC_CONSTANT - ( ( -1 + INDEX ) * 50000 ), HYDRAULIC_DAMPING * ( INDEX == 1 ), "cable/cable2", SHOW_HYDRAULIC, 1 )
+        }
+        
+    }
+    
+    
+    O:soundPlay( "done", 0.7, "buttons/bell1.wav" )
+    
+    
+    local TEXT = "Done! Removing E2"
+    print( TEXT )
+    hint( TEXT, 5 )
+    
+    selfDestruct()
+    
+}
+
+if ( clk( "update" ) ) {
+
+    timer( "update", 100 )
+    
+    holoPos( 1, O:aimPos() )
+    holoAng( 1, O:aimNormal():toAngle() + ang( 90, 0, 0 ) )
+    
+    holoPos( 2, holoEntity( 1 ):toWorld( vec( 0, 0, 15 + ( sin( curtime() * 200 ) * 3 ) ) ) )
+    holoAng( 2, holoEntity( 1 ):toWorld( ang( 0, curtime() * 200, 180 ) ) )
+    
+    holoAlpha( 3, 100 + sin( curtime() * 200 ) * 50 )
+    holoAlpha( 4, 100 + sin( curtime() * 200 ) * 50 )
+    holoAlpha( 5, 100 + sin( curtime() * 200 ) * 50 )
+}
+
+

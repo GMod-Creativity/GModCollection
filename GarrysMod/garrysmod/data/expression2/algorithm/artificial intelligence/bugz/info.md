@@ -71,9 +71,9 @@ And anything else i can think of.
 
 see images
 
-### Video
+<!-- ### Video
 
-[E2 Bugs - Xfire Video](https://web.archive.org/web/20110809084016/http://www.xfire.com/video/37ab73/)
+[E2 Bugs - Xfire Video](https://web.archive.org/web/20110809084016/http://www.xfire.com/video/37ab73/) -->
 
 ### Whats new in 2.4?
 

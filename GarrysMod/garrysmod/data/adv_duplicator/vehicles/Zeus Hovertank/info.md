@@ -49,8 +49,5 @@ This hovertank has very few requirements and should work on almost any server!
 
 ### Advanced Dupe
 
-<!-- Download this  
-http://www.100paperclips.com/files/zeusHovertank2.txt -->
-
-download and save this to your advanced duplicator folder:  
+Download this https://gmods.org/view/33681 <!-- http://www.100paperclips.com/files/zeusHovertank2.txt --> and save this to your advanced duplicator folder:  
 C:\Program Files\Steam\steamapps\<username>\garrysmod\garrysm od\data\adv_duplicator

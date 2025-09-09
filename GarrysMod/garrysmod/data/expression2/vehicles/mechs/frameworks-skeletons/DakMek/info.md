@@ -1,6 +1,14 @@
+# Expression 2 - New Mech Chip
+
+## Details
+
+### Author
+
 - Author: Dakota
 - Steam Profile: https://steamcommunity.com/profiles/76561198035645276
-<!-- -->
+
+### Publication Info
+
 - Title: New Mech Chip
 - Date (dd-mm-yyyy): 20-02-2016
 - Source: https://web.archive.org/web/20160615113708/http://www.wiremod.com:80/forum/finished-contraptions/35508-new-mech-chip.html
@@ -9,7 +17,7 @@
 - Source: https://pastebin.com/QufKKDCP
 - Source Accessed (dd-mm-yyyy): 04-09-2025
 
-## New Mech Chip
+## Description
 
 Hello, this is my first post here, but I've been around on Gmod for a few years now as a builder. I've taken the past 3 days to create a new mech chip after previous public ones I've used were not cutting it for me.
 
@@ -19,6 +27,8 @@ This mech chip is for bipedal walkers only, in the future I may release a versio
 
 Contact information is also provided in the chip.
 
+### Dakmek 2016
+
 Pastebin Link:
 [Dakmek 2016](https://pastebin.com/QgAPi2ua)
 
@@ -26,6 +36,7 @@ I would like to hear any feedback you have.
 
 Special thanks to Sestze for his suggestion and instruction on hip bobbing forces.
 
+```
 EDIT:
 I've edited a few things, thanks to my friend Oh Please, his scrutiny is unmatched. He also told me about the code tags.
 
@@ -43,11 +54,13 @@ Fixed an issue with sound triggers.
 
 EDIT6:
 Added torso chip link and code to post.
+```
 
-**Mech Torso stuff**
+### Mech Torso stuff
 
 [Mech Torso Stuff](https://pastebin.com/DBMQNxHZ)
 
+```
 EDIT 7:
 Released an update for the torso chip for a variable to swap the roll and pitch in cases in which it is needed.
 
@@ -65,11 +78,13 @@ Updated Torso chip stability.
 
 EDIT 12:
 Included gun control chip.
+```
 
-**Mech Gun Stuff**
+### Mech Gun Stuff
 
 [Mech Gun Stuff](https://pastebin.com/QufKKDCP)
 
+```
 EDIT 13:
 Added variables for the torso chip to allow flipping of various angles.
 
@@ -84,3 +99,4 @@ Fixed an issue with the mech sliding when stationary.
 
 EDIT 17:
 Fixed an issue with feet being very far infront of or behind the hip causing issues with the speed of the mech, also added in more info in the constraint tips.
+```

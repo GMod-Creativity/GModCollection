@@ -1,7 +1,15 @@
+# Expression 2 - Universal Tank, Heli, and Plane codes
+
+## Details
+
+### Author
+
 - Author: Versus (Badger130)
 - Steam Profile: https://steamcommunity.com/profiles/76561197990481035
 - YouTube: https://www.youtube.com/@badger13013 
-<!-- -->
+
+### Publication Info
+
 - Title: Universal Tank, Heli, and Plane codes
 - Date (dd-mm-yyyy): 22-12-2013
 - Source: https://web.archive.org/web/20150504214508/http://www.wiremod.com/forum/finished-contraptions/32523-universal-tank-heli-plane-codes.html
@@ -13,7 +21,7 @@
 - Source: https://www.dropbox.com/s/pud7yutbfuben5s/Universal%20plane%20chip.txt
 - Source Accessed (dd-mm-yyyy): 23-08-2025
 
-## Universal Tank, Heli, and Plane codes
+## Description
 
 so I dont like updating the codes on the wiremod forum, becasue dragging the txt files into my dropbox is so much easier, i'll only update those from now on, and this thread is for those links, to keep them all together, and to allow me to do minimal work.
 

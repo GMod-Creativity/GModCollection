@@ -1,7 +1,7 @@
 - Author: Naki (Nakkitsunami) (dstmnaki) (4naki)
 - Steam Profile: https://steamcommunity.com/profiles/76561198255904264/
 - Github: https://github.com/dstmnaki
-- Youtube: https://www.youtube.com/@dstmnaki
+- YouTube: https://www.youtube.com/@dstmnaki
 
 **My-Public-E2-Repository-main**
 - Description:

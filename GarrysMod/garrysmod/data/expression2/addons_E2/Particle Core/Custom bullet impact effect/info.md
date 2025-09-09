@@ -5,7 +5,7 @@
 ### Author
 
 - Author: Antis.motioN
-- Youtube: https://www.youtube.com/@dark4king
+- YouTube: https://www.youtube.com/@dark4king
 
 ### Publication Info
 

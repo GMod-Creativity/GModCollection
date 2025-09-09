@@ -1,6 +1,6 @@
 - Author: XninjazXxx (gato) (Devoided) (Azule)
 - Steam Profile: https://steamcommunity.com/profiles/76561198054661508
-- Youtube: https://www.youtube.com/channel/UC-6WOjHUNpGwkk3fVCfrhGQ
+- YouTube: https://www.youtube.com/channel/UC-6WOjHUNpGwkk3fVCfrhGQ
 <!-- -->
 - Title: [E2] Land Mines
 - Date (dd-mm-yyyy): 07-06-2014

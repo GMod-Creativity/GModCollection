@@ -1,5 +1,5 @@
 - Author: SinkableSea
-- Youtube: https://www.youtube.com/@sinkablesea2634
+- YouTube: https://www.youtube.com/@sinkablesea2634
 <!-- -->
 - Title: HardLight Bubble Shield v2 [PUBLIC RELEASE:ADV DUPE 2]
 - Date (dd-mm-yyyy): 25-01-2016

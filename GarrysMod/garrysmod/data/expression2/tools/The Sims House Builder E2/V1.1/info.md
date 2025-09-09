@@ -6,7 +6,7 @@
 
 - Author: Playzr
 - Steam Profile: https://steamcommunity.com/profiles/76561197973672474
-- Youtube: https://www.youtube.com/@PlayzrUK
+- YouTube: https://www.youtube.com/@PlayzrUK
 
 ### Publication Info
 

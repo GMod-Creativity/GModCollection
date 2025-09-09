@@ -1,6 +1,6 @@
 - Author: Seris (AJ10017)
 - Steam Profile: https://steamcommunity.com/profiles/76561198000118795
-- Youtube: https://www.youtube.com/@Seris_/
+- YouTube: https://www.youtube.com/@Seris_/
 <!-- -->
 - Title: [E2 Release] Energy Shield V2
 - Date (dd-mm-yyyy): 29-06-2014

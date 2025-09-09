@@ -1,7 +1,7 @@
 - Author: [C17] Red Fox
 - Steam Profile: http://steamcommunity.com/profiles/76561197998433532
 - Github: https://github.com/nokillnando
-- Youtube: https://www.youtube.com/user/nokillnando
+- YouTube: https://www.youtube.com/user/nokillnando
 
 **Pack Dupes e E2**
 - Date (dd-mm-yyyy): 17-09-2017

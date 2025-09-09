@@ -1,5 +1,5 @@
 - Author: RedReaper (redreaper2020)
-- Youtube: https://www.youtube.com/@redreaper-xe6so
+- YouTube: https://www.youtube.com/@redreaper-xe6so
 <!-- -->
 - Title: [RELEASE] Red's Flight Chip
 - Date (dd-mm-yyyy): 12-05-2014

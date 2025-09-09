@@ -1,5 +1,5 @@
 - Author: goluch
-- Youtube: https://www.youtube.com/@goluch
+- YouTube: https://www.youtube.com/@goluch
 <!-- -->
 - Title: EGP E2's
 - Date (dd-mm-yyyy): 16-12-2009

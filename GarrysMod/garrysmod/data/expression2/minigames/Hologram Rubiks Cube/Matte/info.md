@@ -6,7 +6,7 @@
 
 - Author: Matte (azi777)
 - Steam Profile: https://steamcommunity.com/profiles/76561197993587755
-- Youtube: https://www.youtube.com/@azzi777
+- YouTube: https://www.youtube.com/@azzi777
 
 ### Publication Info
 

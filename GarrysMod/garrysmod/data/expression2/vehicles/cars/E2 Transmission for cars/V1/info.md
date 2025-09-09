@@ -1,5 +1,5 @@
 - Author: Monty (Trueharmony) (LowlyForeskin)
-- Youtube: https://www.youtube.com/@lowlyestoftheforeskinest
+- YouTube: https://www.youtube.com/@lowlyestoftheforeskinest
 - Pastebin: https://pastebin.com/u/lowlyforskin
 <!-- -->
 - Title: E2 Transmission for cars

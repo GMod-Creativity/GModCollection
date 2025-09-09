@@ -5,7 +5,7 @@
 ### Author
 
 - Author: Grumpy Hit*** (FridgeOats)
-- Youtube: https://www.youtube.com/@yamclam
+- YouTube: https://www.youtube.com/@yamclam
 - Steam Profile: https://steamcommunity.com/profiles/76561197983180777
 
 ### Publication Info
@@ -47,13 +47,17 @@ I am really really happy with the end product, it is really easy to control with
 <!-- Vid will come soon, more info on the garrysmod.org link -->
 Not very good pics - mainly function over form but still looks good imo simple and sweet
 
-<img src="https://web.archive.org/web/20150504221328im_/http://i208.photobucket.com/albums/bb270/yamclam999/gm_flatgrass20081139.jpg" width="200"/>
-<img src="https://web.archive.org/web/20150504221328im_/http://i208.photobucket.com/albums/bb270/yamclam999/gm_flatgrass20081138.jpg" width="200"/>
-<img src="https://web.archive.org/web/20150504221328im_/http://i208.photobucket.com/albums/bb270/yamclam999/hl22010-02-0614-31-51-14.jpg" width="200"/>
+<p float="left">
+  <img src="https://web.archive.org/web/20150504221328im_/http://i208.photobucket.com/albums/bb270/yamclam999/gm_flatgrass20081139.jpg" width="200"/>
+  <img src="https://web.archive.org/web/20150504221328im_/http://i208.photobucket.com/albums/bb270/yamclam999/gm_flatgrass20081138.jpg" width="200"/>
+  <img src="https://web.archive.org/web/20150504221328im_/http://i208.photobucket.com/albums/bb270/yamclam999/hl22010-02-0614-31-51-14.jpg" width="200"/>
+</p>
 
-<img src="https://web.archive.org/web/20150504221328im_/http://i208.photobucket.com/albums/bb270/yamclam999/hl22010-02-0613-44-00-50.jpg" width="200"/>
-<img src="https://web.archive.org/web/20150504221328im_/http://i208.photobucket.com/albums/bb270/yamclam999/gm_flatgrass20081136.jpg" width="200"/>
-<img src="https://web.archive.org/web/20150504221328im_/http://i208.photobucket.com/albums/bb270/yamclam999/gm_flatgrass20081137.jpg" width="200"/>
+<p float="left">
+  <img src="https://web.archive.org/web/20150504221328im_/http://i208.photobucket.com/albums/bb270/yamclam999/hl22010-02-0613-44-00-50.jpg" width="200"/>
+  <img src="https://web.archive.org/web/20150504221328im_/http://i208.photobucket.com/albums/bb270/yamclam999/gm_flatgrass20081136.jpg" width="200"/>
+  <img src="https://web.archive.org/web/20150504221328im_/http://i208.photobucket.com/albums/bb270/yamclam999/gm_flatgrass20081137.jpg" width="200"/>
+</p>
 
 <!-- 
 ![image1](https://web.archive.org/web/20150504221328im_/http://i208.photobucket.com/albums/bb270/yamclam999/gm_flatgrass20081139.jpg =200x200)

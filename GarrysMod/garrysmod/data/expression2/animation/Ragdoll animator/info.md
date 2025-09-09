@@ -6,7 +6,7 @@
 
 - Author: Foton (Foton63rus)
 - Steam Profile: https://steamcommunity.com/profiles/76561198031875647
-- Youtube: https://www.youtube.com/@Foton63rus
+- YouTube: https://www.youtube.com/@Foton63rus
 
 ### Publication Info
 
@@ -48,4 +48,4 @@ you can create u animation.
 
 ### Video
 
-[Youtube - ragdoll animator in gmod.avi](https://www.youtube.com/watch?v=f57KMv2j0Zc)
+[YouTube - ragdoll animator in gmod.avi](https://www.youtube.com/watch?v=f57KMv2j0Zc)

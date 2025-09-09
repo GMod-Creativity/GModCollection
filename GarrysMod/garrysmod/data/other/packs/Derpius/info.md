@@ -1,6 +1,6 @@
 - Author: Derpius
 - Steam Profile: https://steamcommunity.com/profiles/76561199055729194
-- Youtube: https://www.youtube.com/channel/UCEsmT8ZnrfsVkbvneb12Meg
+- YouTube: https://www.youtube.com/channel/UCEsmT8ZnrfsVkbvneb12Meg
 - Github: https://github.com/Derpius
 
 **public-starfalls-master**

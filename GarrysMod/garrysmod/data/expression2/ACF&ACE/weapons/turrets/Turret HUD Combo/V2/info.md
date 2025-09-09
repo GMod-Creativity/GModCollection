@@ -6,7 +6,7 @@
 
 - Author: Spider0804
 - Steam Profile: https://steamcommunity.com/profiles/76561197996888024
-- Youtube: https://www.youtube.com/user/spider0804
+- YouTube: https://www.youtube.com/user/spider0804
 - Pastebin: https://pastebin.com/u/Spider0804
 
 ### Separate Publisher
@@ -15,7 +15,7 @@
 - Website: https://gmodism.com
 - Reddit: https://www.reddit.com/r/GMODISM/
 - Steam Profile: http://steamcommunity.com/profiles/76561198056037449
-- Youtube: https://www.youtube.com/Gmodism
+- YouTube: https://www.youtube.com/Gmodism
 - Pastebin: https://pastebin.com/u/Gmodism
 
 ### Publication Info
@@ -30,7 +30,7 @@
 
 ## Description
 
-Video: [Youtube - Gmod - Updated Tank Aiming Chip](https://www.youtube.com/watch?v=-xh_dNx-3WU)
+Video: [YouTube - Gmod - Updated Tank Aiming Chip](https://www.youtube.com/watch?v=-xh_dNx-3WU)
 
 A project I needed done for tanks and ships was making a better aiming chip, with the help of several people it has been completed and is available for all to use. Links below:
 

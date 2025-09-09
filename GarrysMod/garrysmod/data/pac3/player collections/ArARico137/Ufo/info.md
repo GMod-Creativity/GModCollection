@@ -1,6 +1,6 @@
 - Author: ArARico137
 - Steam Profile: http://steamcommunity.com/profiles/76561198144839158
-- Youtube: https://www.youtube.com/@ArARico137
+- YouTube: https://www.youtube.com/@ArARico137
 <!-- -->
 - Title: Ufo pac 3 gmod. +Download
 - Date (dd-mm-yyyy): 3-10-2016

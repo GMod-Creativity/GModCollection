@@ -6,7 +6,7 @@
 
 - Author: Mandera
 - Steam Profile: https://steamcommunity.com/profiles/76561197982632516
-- Youtube: https://www.youtube.com/@Mandera93
+- YouTube: https://www.youtube.com/@Mandera93
 
 ### Publication Info
 

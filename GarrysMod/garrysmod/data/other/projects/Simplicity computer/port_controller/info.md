@@ -1,6 +1,6 @@
 - Author: tlarson911
 - Steam Profile: http://steamcommunity.com/profiles/76561197988253631
-- Youtube: https://www.youtube.com/@tlarson91119/
+- YouTube: https://www.youtube.com/@tlarson91119/
 <!-- -->
 - Title: Simplicity Computer
 - Date (dd-mm-yyyy): 19-10-2009

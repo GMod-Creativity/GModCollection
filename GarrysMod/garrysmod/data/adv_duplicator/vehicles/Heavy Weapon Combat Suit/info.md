@@ -6,7 +6,7 @@
 
 - Author: Paper Clip (glmcd) (glmcdona21) (glmcdona)
 - Steam Profile: https://steamcommunity.com/profiles/76561197990877852
-- Youtube: https://www.youtube.com/@glmcdona21
+- YouTube: https://www.youtube.com/@glmcdona21
 
 ### Publication Info
 
@@ -49,7 +49,7 @@ Jetpack Controls
 
 ### VIDEO
 
-[Youtube - Garry's Mod: Combat Suit and Jetpack](https://www.youtube.com/watch?v=lnTZDvVZUrs)
+[YouTube - Garry's Mod: Combat Suit and Jetpack](https://www.youtube.com/watch?v=lnTZDvVZUrs)
 
 ### CREDITS
 

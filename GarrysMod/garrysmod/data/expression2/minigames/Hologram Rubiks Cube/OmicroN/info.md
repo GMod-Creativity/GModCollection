@@ -1,6 +1,6 @@
 - Author: OmicroN
 - Steam Profile: https://steamcommunity.com/profiles/76561197978386457
-- Youtube: https://www.youtube.com/@omicronium
+- YouTube: https://www.youtube.com/@omicronium
 - Github: https://github.com/OmicroNiuM
 <!-- -->
 - Title: [E2] - Hologram Rubik's Cube - OmicroN

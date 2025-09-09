@@ -1,5 +1,5 @@
 - Author: Red Reaper (RedReaper) (redreaper2020)
-- Youtube: https://www.youtube.com/@redreaper-xe6so
+- YouTube: https://www.youtube.com/@redreaper-xe6so
 <!-- -->
 - Title: [RELEASE] GTMP2
 - Date (dd-mm-yyyy): 17-08-2015

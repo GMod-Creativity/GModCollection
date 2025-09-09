@@ -1,5 +1,5 @@
 - Author: Red Reaper (RedReaper) (redreaper2020)
-- Youtube: https://www.youtube.com/@redreaper-xe6so
+- YouTube: https://www.youtube.com/@redreaper-xe6so
 <!-- -->
 - Title: Red's Holo Aircraft Instrument Panel
 - Date (dd-mm-yyyy): 22-05-2012

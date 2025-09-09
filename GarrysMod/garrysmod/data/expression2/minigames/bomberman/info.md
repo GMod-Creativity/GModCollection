@@ -6,7 +6,7 @@
 
 - Author: sabady (sabadyCZ)
 - Steam Profile: https://steamcommunity.com/profiles/76561197988983496
-- Youtube: https://www.youtube.com/@sabady
+- YouTube: https://www.youtube.com/@sabady
 - Github: https://github.com/sabadyCZ
 
 ### Publication Info

@@ -6,7 +6,7 @@
 
 - Author: Desmaize38
 - Steam Profile: https://steamcommunity.com/profiles/76561198040576554
-- Youtube: https://www.youtube.com/user/coolerthanu9
+- YouTube: https://www.youtube.com/user/coolerthanu9
 
 ### Publication Info
 

@@ -1,6 +1,6 @@
 - Author: CrishNate
 - Steam Profile: steamcommunity.com/profiles/76561198039998355
-- Youtube: https://www.youtube.com/@CrishNate
+- YouTube: https://www.youtube.com/@CrishNate
 - Github: https://github.com/CrishNate
 <!-- -->
 - Edited: Ashleyjamesy

@@ -7,7 +7,7 @@
 - Author: KemGus
 - Steam Profile: https://steamcommunity.com/profiles/76561198181988395
 - Github: https://github.com/KemGus
-- Youtube: https://www.youtube.com/channel/UCVHjWMKsv3wVqNOXUVJe01w
+- YouTube: https://www.youtube.com/channel/UCVHjWMKsv3wVqNOXUVJe01w
 
 ### Publication Info
 

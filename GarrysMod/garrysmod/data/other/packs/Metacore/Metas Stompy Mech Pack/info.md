@@ -1,6 +1,6 @@
 - Author: Metacore (M. Core) (M_CORE) (Meta)
 - Steam Profile: https://steamcommunity.com/profiles/76561198012705170
-- Youtube: https://www.youtube.com/@Metacore91
+- YouTube: https://www.youtube.com/@Metacore91
 - Pastebin: https://pastebin.com/u/M_Core
 <!-- -->
 - Title: Meta's Stompy Mech Pack by Meta

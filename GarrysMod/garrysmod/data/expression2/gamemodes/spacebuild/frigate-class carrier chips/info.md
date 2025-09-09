@@ -6,7 +6,7 @@
 
 - Author: Paper Clip (glmcd) (glmcdona21) (glmcdona)
 - Steam Profile: https://steamcommunity.com/profiles/76561197990877852
-- Youtube: https://www.youtube.com/@glmcdona21
+- YouTube: https://www.youtube.com/@glmcdona21
 
 ### Publication Info
 

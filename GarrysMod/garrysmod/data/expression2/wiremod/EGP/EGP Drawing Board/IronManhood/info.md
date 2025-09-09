@@ -1,6 +1,6 @@
 - Author: IronManhood
 - Steam Profile: https://steamcommunity.com/profiles/76561198055869357
-- Youtube: https://www.youtube.com/channel/UCfynRS2GwIwrOjcoj5_j3Eg
+- YouTube: https://www.youtube.com/channel/UCfynRS2GwIwrOjcoj5_j3Eg
 - Github: https://github.com/IronManhood
 <!-- -->
 - Title: EGP Drawing Board v2.4

@@ -3,7 +3,7 @@
 - Edited: ArchmageNydia
 - Edited Date (dd-mm-yyyy): 11-07-2014
 - Steam Profile: https://steamcommunity.com/profiles/76561198043159088
-- Youtube: https://www.youtube.com/user/ArchmageNydia
+- YouTube: https://www.youtube.com/user/ArchmageNydia
 <!-- -->
 - Title: [E2] Fully Customizable User Friendly SetAng Steering Chip for Land Vehicles.
 - Date (dd-mm-yyyy): 11-07-2014

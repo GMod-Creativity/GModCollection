@@ -1,6 +1,6 @@
 - Author: Alix1723
 - Steam Profile: https://steamcommunity.com/profiles/76561197991851508
-- Youtube: https://www.youtube.com/@Alix1723
+- YouTube: https://www.youtube.com/@Alix1723
 - Github: https://github.com/Alix1723
 
 **RWBY-E2-Weapons-master:**

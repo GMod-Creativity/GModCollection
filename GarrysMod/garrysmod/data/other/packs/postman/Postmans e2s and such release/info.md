@@ -1,6 +1,6 @@
 - Author: postman ([TBU-TEC] THE P)
 - Steam Profile: https://steamcommunity.com/profiles/76561197997916844
-- Youtube: https://www.youtube.com/@blankrofl
+- YouTube: https://www.youtube.com/@blankrofl
 <!-- -->
 - Title: Postman's e2s and such release [large thread]
 - Date (dd-mm-yyyy): 14-05-2011

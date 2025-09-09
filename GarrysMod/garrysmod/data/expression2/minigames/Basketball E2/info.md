@@ -6,7 +6,7 @@
 
 - Author: thearst3rd (GuitarFREAK9700)
 - Steam Profile: https://steamcommunity.com/profiles/76561198028564573
-- Youtube: https://www.youtube.com/@GuitarFREAK9700
+- YouTube: https://www.youtube.com/@GuitarFREAK9700
 
 ### Publication Info
 

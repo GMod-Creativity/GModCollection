@@ -2,7 +2,7 @@
 - Steam Profile: http://steamcommunity.com/profiles/76561198025003452
 - Github: https://github.com/valeriedesumo
 - Deviantart: https://www.deviantart.com/ultimaximus
-- Youtube: https://www.youtube.com/channel/UCx3u3OYZ99l3cF_cOpFmiTg
+- YouTube: https://www.youtube.com/channel/UCx3u3OYZ99l3cF_cOpFmiTg
 - Gamebanana: https://gamebanana.com/mods/347484
 - Reddit: https://www.reddit.com/user/Persona_Alio
 

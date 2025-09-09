@@ -6,7 +6,7 @@
 
 - Author: Masogir
 - Steam Profile: https://steamcommunity.com/profiles/76561197964150729
-- Youtube: https://www.youtube.com/@Maso5
+- YouTube: https://www.youtube.com/@Maso5
 
 ### Publication Info
 

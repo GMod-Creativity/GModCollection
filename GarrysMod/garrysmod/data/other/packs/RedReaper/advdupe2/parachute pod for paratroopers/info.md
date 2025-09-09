@@ -1,5 +1,5 @@
 - Author: RedReaper (redreaper2020)
-- Youtube: https://www.youtube.com/@redreaper-xe6so
+- YouTube: https://www.youtube.com/@redreaper-xe6so
 <!-- -->
 - Title: Parachute Pod For Paratroopers
 - Date (dd-mm-yyyy): 23-10-2017

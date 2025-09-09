@@ -6,7 +6,7 @@
 
 - Author: Papa Marsh
 - Steam Profile: https://steamcommunity.com/profiles/76561198011601596
-- Youtube: https://www.youtube.com/@BenjaminMarshallScienceMan
+- YouTube: https://www.youtube.com/@BenjaminMarshallScienceMan
 
 ### Publication Info
 

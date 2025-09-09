@@ -1,6 +1,6 @@
 - Author: Seris (AJ10017)
 - Steam Profile: https://steamcommunity.com/profiles/76561198000118795
-- Youtube: https://www.youtube.com/@Seris_/
+- YouTube: https://www.youtube.com/@Seris_/
 <!-- -->
 - Title: E2 Rocket pod tutorial
 - Date (dd-mm-yyyy): 06-03-2013

@@ -6,7 +6,7 @@
 
 - Author: Vince Defash (VinceD70)
 - Steam Profile: https://steamcommunity.com/profiles/76561197990020012
-- Youtube: https://www.youtube.com/@MrVinceDefash
+- YouTube: https://www.youtube.com/@MrVinceDefash
 - Pastebin: https://pastebin.com/u/VinceD70
 
 ### Publication Info

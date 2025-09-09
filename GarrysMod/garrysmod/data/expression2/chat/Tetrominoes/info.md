@@ -7,7 +7,7 @@
 - Author: Shadowscion
 - Steam Profile: https://steamcommunity.com/profiles/76561198001319717
 - Github: https://github.com/shadowscion
-- Youtube: https://www.youtube.com/@shadowscion
+- YouTube: https://www.youtube.com/@shadowscion
 
 ### Publication Info
 

@@ -7,14 +7,14 @@
 - Author: Chaquator (Sly Fox)
 - Github: https://github.com/chaquator
 - Steam Profile: https://steamcommunity.com/profiles/76561198025785592
-- Youtube: https://www.youtube.com/@chaquator
+- YouTube: https://www.youtube.com/@chaquator
 
 ### Edited
 
 - Edited: IronManhood
 - Edited Date (dd-mm-yyyy): 07-06-2014
 - Steam Profile: https://steamcommunity.com/profiles/76561198055869357
-- Youtube: https://www.youtube.com/channel/UCfynRS2GwIwrOjcoj5_j3Eg
+- YouTube: https://www.youtube.com/channel/UCfynRS2GwIwrOjcoj5_j3Eg
 - Github: https://github.com/IronManhood
 
 ### Publication Info

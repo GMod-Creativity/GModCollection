@@ -1,6 +1,6 @@
 - Author: Cody Crest
 - Steam Profile: http://steamcommunity.com/profiles/76561198077799720
-- Youtube: https://www.youtube.com/@CodyCrestpac3
+- YouTube: https://www.youtube.com/@CodyCrestpac3
 <!-- -->
 - Title: [Gmod] Pac3 A Night Out {Download}
 - Date (dd-mm-yyyy): 13-01-2017

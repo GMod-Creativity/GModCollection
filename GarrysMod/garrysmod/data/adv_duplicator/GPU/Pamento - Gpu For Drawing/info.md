@@ -5,7 +5,7 @@
 ### Author
 
 - Author: Hitman271 (radixdev)
-- Youtube: https://www.youtube.com/@Hitman271
+- YouTube: https://www.youtube.com/@Hitman271
 
 ### Publication Info
 

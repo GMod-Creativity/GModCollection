@@ -7,7 +7,7 @@
 - Author: Bubbus (Splambob)
 - Github: https://github.com/bubbus
 - Steam Profile: https://steamcommunity.com/profiles/76561197970677684
-- Youtube: https://www.youtube.com/@Splambob
+- YouTube: https://www.youtube.com/@Splambob
 
 ### Publication Info
 

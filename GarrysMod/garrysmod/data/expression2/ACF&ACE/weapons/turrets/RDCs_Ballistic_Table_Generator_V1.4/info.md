@@ -6,7 +6,7 @@
 
 - Author: RedDeadlyCreeper (RDC)
 - Steam Profile: https://steamcommunity.com/profiles/76561198042326436
-- Youtube: https://www.youtube.com/@reddeadlycreeper
+- YouTube: https://www.youtube.com/@reddeadlycreeper
 - Github: https://github.com/reddeadlycreeper
 
 ### Publisher
@@ -15,7 +15,7 @@
 - Website: https://gmodism.com
 - Reddit: https://www.reddit.com/r/GMODISM/
 - Steam Profile: http://steamcommunity.com/profiles/76561198056037449
-- Youtube: https://www.youtube.com/Gmodism
+- YouTube: https://www.youtube.com/Gmodism
 - Pastebin: https://pastebin.com/u/Gmodism
 
 ### Publication Info
@@ -35,17 +35,17 @@
 
 - **E2 controlled ACF turret with ballistic compensation:**
 
-    [Youtube - [Tutorial] Garry's Mod: How to make a E2 controlled ACF turret with ballistic compensation](https://www.youtube.com/watch?v=vIGB2vJZy6M)
+    [YouTube - [Tutorial] Garry's Mod: How to make a E2 controlled ACF turret with ballistic compensation](https://www.youtube.com/watch?v=vIGB2vJZy6M)
 
     In this video I show you how to make a ACF turret in Garry's Mod, that uses E2 turret code with ballistic compensation calculations to hit targets far away easily, this turret chip is coded by RDC that got tired of chips with high CPU time, so this one is modern, more efficient and minimalistic. Also very easy to use it when installed, as well ass adjusting it and changing HUD color. Get it below with other good info links.
 
-    Install ACF/ACE: [Youtube - Garry's Mod: How to install ACE - Armored Combat Extended (New ACF)](https://www.youtube.com/watch?v=VtlWne-Obbs)  
+    Install ACF/ACE: [YouTube - Garry's Mod: How to install ACE - Armored Combat Extended (New ACF)](https://www.youtube.com/watch?v=VtlWne-Obbs)  
     Get the E2 chips from this video: https://www.mediafire.com/file/fx058z1lcd3081e/E2_for_acf_turret_building.zip/file  
     Center tools (required): https://steamcommunity.com/sharedfiles/filedetails/?id=457466766
 
 - **ACF Tank Tutorial 2020 + Mouse Aim Turret With Ballistics Calculator:**
 
-    [Youtube - Garry's Mod ACF Tank Tutorial 2020 + Mouse Aim Turret With Ballistics Calculator](https://www.youtube.com/watch?v=2AWomepPfqA)
+    [YouTube - Garry's Mod ACF Tank Tutorial 2020 + Mouse Aim Turret With Ballistics Calculator](https://www.youtube.com/watch?v=2AWomepPfqA)
 
     Gmod tutorial on how you can build a ACF tank with a mouse aim turret that has ballistics calculations and can hit targets far away accurately. Hope this Garry's Mod tutorial is useful, I know it is live very long but I just wanted to explain as much ass possible so that the builder understand the most possible, here it is anyways, finally after many years, a new tank tutorial!
 

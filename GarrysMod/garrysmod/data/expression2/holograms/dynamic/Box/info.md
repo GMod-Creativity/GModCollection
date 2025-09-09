@@ -7,7 +7,7 @@
 - Author: bigdogmat
 - Steam Profile: https://steamcommunity.com/profiles/76561198075926617
 - Github: https://github.com/bigdogmat
-- Youtube: https://www.youtube.com/@mandmproduction880
+- YouTube: https://www.youtube.com/@mandmproduction880
 
 ### Publication Info
 

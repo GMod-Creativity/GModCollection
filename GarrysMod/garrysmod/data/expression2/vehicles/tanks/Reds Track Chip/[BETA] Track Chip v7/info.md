@@ -1,5 +1,5 @@
 - Author: Red Reaper (RedReaper) (redreaper2020)
-- Youtube: https://www.youtube.com/@redreaper-xe6so
+- YouTube: https://www.youtube.com/@redreaper-xe6so
 <!-- -->
 - Title: [BETA] Track Chip v7
 - Date (dd-mm-yyyy): 27-10-2014

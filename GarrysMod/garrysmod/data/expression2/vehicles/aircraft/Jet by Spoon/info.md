@@ -1,6 +1,6 @@
 - Author: Spoom (SpoomWolf) (Spoon God)
 - Steam Profile: https://steamcommunity.com/profiles/76561197997700900
-- Youtube: https://www.youtube.com/@IRASpoon
+- YouTube: https://www.youtube.com/@IRASpoon
 <!-- -->
 - Title: [E2] Jet
 - Date (dd-mm-yyyy): 14-08-2010

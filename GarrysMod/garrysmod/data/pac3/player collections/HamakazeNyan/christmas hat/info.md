@@ -1,6 +1,6 @@
 - Author: HamakazeNyan
 - Steam Profile: http://steamcommunity.com/profiles/76561198151906547
-- Youtube: https://www.youtube.com/channel/UCI96HETep2R_tnxswrDQsAw
+- YouTube: https://www.youtube.com/channel/UCI96HETep2R_tnxswrDQsAw
 - Pastebin: https://pastebin.com/u/HamakazeNyan
 <!-- -->
 - Title: pac4 christmas hat

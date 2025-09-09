@@ -1,5 +1,5 @@
 - Author: FailCake
-- Youtube: https://www.youtube.com/@edunad
+- YouTube: https://www.youtube.com/@edunad
 - Steam Profile: https://steamcommunity.com/profiles/76561198001836909
 - Github: https://github.com/edunad
 

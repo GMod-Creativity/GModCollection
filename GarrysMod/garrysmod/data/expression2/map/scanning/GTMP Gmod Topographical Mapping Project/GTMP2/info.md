@@ -5,7 +5,7 @@
 ### Author
 
 - Author: Red Reaper (RedReaper) (redreaper2020)
-- Youtube: https://www.youtube.com/@redreaper-xe6so
+- YouTube: https://www.youtube.com/@redreaper-xe6so
 
 ### Publication Info
 

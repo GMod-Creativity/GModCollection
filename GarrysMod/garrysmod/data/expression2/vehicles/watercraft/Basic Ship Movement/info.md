@@ -1,7 +1,7 @@
 - Author: EnyxRB (Enyx)
 - Steam Profile: https://steamcommunity.com/profiles/76561197977307695
 - Github: https://github.com/EnyxRB
-- youtube: https://www.youtube.com/@Enyx
+- YouTube: https://www.youtube.com/@Enyx
 <!-- -->
 - Title: Basic Ship Movement E2 [Propulsion & Self Buoyancy]
 - Date (dd-mm-yyyy): 30-08-2015

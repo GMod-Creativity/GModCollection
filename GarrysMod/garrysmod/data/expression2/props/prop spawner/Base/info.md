@@ -6,7 +6,7 @@
 
 - Author: XninjazXxx (gato) (Devoided) (Azule)
 - Steam Profile: https://steamcommunity.com/profiles/76561198054661508
-- Youtube: https://www.youtube.com/channel/UC-6WOjHUNpGwkk3fVCfrhGQ
+- YouTube: https://www.youtube.com/channel/UC-6WOjHUNpGwkk3fVCfrhGQ
 
 ### Publication Info
 

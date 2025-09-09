@@ -1,5 +1,5 @@
 - Publisher: Catcher (Lua) (WNxCatcher) (Catchertehsaver)
-- Youtube: [https://www.youtube.com/@catcher.](https://www.youtube.com/@catcher.)
+- YouTube: [https://www.youtube.com/@catcher.](https://www.youtube.com/@catcher.)
 - Moddb: https://www.moddb.com/members/catchertehsaver
 
 **adv_duplicator**

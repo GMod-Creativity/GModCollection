@@ -1,6 +1,6 @@
 - Author: Traine ZeroOne
 - Steam Profile: https://steamcommunity.com/id/PabloGonzalez1997
-- Youtube: https://www.youtube.com/@Traine01
+- YouTube: https://www.youtube.com/@Traine01
 <!-- -->
 - Title: [Pac 3] Outfit " MECH from F.E.A.R " +DOWNLOAD
 - Date (dd-mm-yyyy): 01-05-2017

@@ -5,7 +5,7 @@
 ### Author
 
 - Author: RedReaper (redreaper2020)
-- Youtube: https://www.youtube.com/@redreaper-xe6so
+- YouTube: https://www.youtube.com/@redreaper-xe6so
 
 ### Publication Info
 
@@ -19,4 +19,4 @@
 
 ### Video that includes Parachute Pod:
 
-[Youtube - RELEASE - MPFC 7.1](https://www.youtube.com/watch?v=Y0Ksok9W-9E)
+[YouTube - RELEASE - MPFC 7.1](https://www.youtube.com/watch?v=Y0Ksok9W-9E)

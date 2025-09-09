@@ -1,6 +1,6 @@
 - Author: ArARico137
 - Steam Profile: http://steamcommunity.com/profiles/76561198144839158
-- Youtube: https://www.youtube.com/@ArARico137
+- YouTube: https://www.youtube.com/@ArARico137
 <!-- -->
 - Title: Gmod (bad)Pac3 Kickback +Download
 - Date (dd-mm-yyyy): 27-01-2020

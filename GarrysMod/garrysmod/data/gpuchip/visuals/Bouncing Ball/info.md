@@ -1,5 +1,5 @@
 - Author: Hitman271 (radixdev)
-- Youtube: https://www.youtube.com/@Hitman271
+- YouTube: https://www.youtube.com/@Hitman271
 <!-- -->
 - Title: Bouncing Ball
 - Date (dd-mm-yyyy): 23-06-2010

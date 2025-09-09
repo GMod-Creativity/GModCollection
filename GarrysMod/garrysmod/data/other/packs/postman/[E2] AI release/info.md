@@ -1,6 +1,6 @@
 - Author: postman ([TBU-TEC] THE P)
 - Steam Profile: https://steamcommunity.com/profiles/76561197997916844
-- Youtube: https://www.youtube.com/@blankrofl
+- YouTube: https://www.youtube.com/@blankrofl
 <!-- -->
 - Title: [E2] AI release thread
 - Date (dd-mm-yyyy): 07-11-2011

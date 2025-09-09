@@ -6,7 +6,7 @@
 
 - Author: Mentin2
 - Steam Profile: https://steamcommunity.com/profiles/76561198017950753
-- Youtube: https://www.youtube.com/@IsakViste/videos
+- YouTube: https://www.youtube.com/@IsakViste/videos
 - Pastebin: https://pastebin.com/u/IsakViste
 
 ### Publication Info

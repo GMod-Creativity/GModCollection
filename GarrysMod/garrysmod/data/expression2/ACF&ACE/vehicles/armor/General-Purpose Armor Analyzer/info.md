@@ -5,7 +5,7 @@
 ### Author
 
 - Author: Red Reaper (RedReaper) (redreaper2020)
-- Youtube: https://www.youtube.com/@redreaper-xe6so
+- YouTube: https://www.youtube.com/@redreaper-xe6so
 
 ### Publication Info
 
@@ -19,7 +19,7 @@
 
 This is a layered armor scanner, for ballistics checking. This project came about as a combination of seeing a very similar (almost identical) tool demonstrated by fervidusletum, and a need by myself to develop many of the rendering functions, for a completely unrelated project.
 
-**Video:** [Youtube - [RELEASE] E2 Armor Analyzer](https://www.youtube.com/watch?v=AYWlaeelFfg)
+**Video:** [YouTube - [RELEASE] E2 Armor Analyzer](https://www.youtube.com/watch?v=AYWlaeelFfg)
 
 This E2 saves a lot of time and headache. It allows you to quickly scan something for weakness, ricochet tendencies, and vulnerabilities. It is useful for self-diagnostic; it only works on either your own things, or those which you have prop permissions on.
 

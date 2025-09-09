@@ -1,7 +1,7 @@
 - Author: Chaquator
 - Github: https://github.com/chaquator
 - Steam Profile: https://steamcommunity.com/profiles/76561198025785592
-- Youtube: https://www.youtube.com/@chaquator
+- YouTube: https://www.youtube.com/@chaquator
 <!-- -->
 - Title: [E2] TF2 Grenade Launcher
 - Date (dd-mm-yyyy): 11-07-2014

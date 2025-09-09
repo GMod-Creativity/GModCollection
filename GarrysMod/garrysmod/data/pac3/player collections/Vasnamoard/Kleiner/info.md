@@ -1,6 +1,6 @@
 - Author: Vasnamoard
 - Steam Profile: http://steamcommunity.com/profiles/76561198350705116
-- Youtube: https://www.youtube.com/@vasnamoard941
+- YouTube: https://www.youtube.com/@vasnamoard941
 <!-- -->
 - Title: Kleiner - Pac3 | Gmod (Download)
 - Date (dd-mm-yyyy): 26-07-2021

@@ -1,6 +1,6 @@
 - Author: Versus (Badger130)
 - Steam Profile: https://steamcommunity.com/profiles/76561197990481035
-- Youtube: https://www.youtube.com/@badger13013 
+- YouTube: https://www.youtube.com/@badger13013 
 <!-- -->
 - Title: Universal Tank, Heli, and Plane codes
 - Date (dd-mm-yyyy): 22-12-2013

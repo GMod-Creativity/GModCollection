@@ -1,5 +1,5 @@
 - Author: Cipher_Ultra
-- Youtube: https://www.youtube.com/user/CipherUltra
+- YouTube: https://www.youtube.com/user/CipherUltra
 - Steam Profile: https://steamcommunity.com/profiles/76561197978513282
 <!-- -->
 - Edited: [NQMB] Noorquacker

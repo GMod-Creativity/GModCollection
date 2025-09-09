@@ -1,6 +1,6 @@
 - Author: Traine ZeroOne
 - Steam Profile: http://steamcommunity.com/profiles/76561198059511685
-- Youtube: https://www.youtube.com/@Traine01
+- YouTube: https://www.youtube.com/@Traine01
 <!-- -->
 - Title: [Pac 3] Outfit " Eye of Cthulhu from Terraria " +DOWNLOAD
 - Date (dd-mm-yyyy): 30-07-2017

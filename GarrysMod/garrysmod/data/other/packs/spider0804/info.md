@@ -1,6 +1,6 @@
 - Author: Spider0804
 - Steam Profile: https://steamcommunity.com/profiles/76561197996888024
-- Youtube: https://www.youtube.com/user/spider0804
+- YouTube: https://www.youtube.com/user/spider0804
 - Pastebin: https://pastebin.com/u/Spider0804
 
 **Tank Pack V2**

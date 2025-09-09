@@ -7,7 +7,7 @@
 - Author: Bubbus (Splambob)
 - Github: https://github.com/bubbus
 - Steam Profile: https://steamcommunity.com/profiles/76561197970677684
-- Youtube: https://www.youtube.com/@Splambob
+- YouTube: https://www.youtube.com/@Splambob
 
 ### Separate Publisher
 
@@ -15,7 +15,7 @@
 - Website: https://gmodism.com
 - Reddit: https://www.reddit.com/r/GMODISM/
 - Steam Profile: http://steamcommunity.com/profiles/76561198056037449
-- Youtube: https://www.youtube.com/Gmodism
+- YouTube: https://www.youtube.com/Gmodism
 - Pastebin: https://pastebin.com/u/Gmodism
 
 ### Publication Info

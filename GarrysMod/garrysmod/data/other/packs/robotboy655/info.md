@@ -1,7 +1,7 @@
 - Author: Rubat (Robotboy655) (Robot)
 - Steam Profile: https://steamcommunity.com/profiles/76561197996891752
 - Github: https://github.com/robotboy655
-- Youtube: https://www.youtube.com/user/RobotBoy655
+- YouTube: https://www.youtube.com/user/RobotBoy655
 
 **wiremod-dump**
 - Date (dd-mm-yyyy): 04-03-2013

@@ -5,7 +5,7 @@
 ### Author
 
 - Author: Jim Dangle
-- Youtube: https://www.youtube.com/@RuthlessSpork
+- YouTube: https://www.youtube.com/@RuthlessSpork
 
 ### Publication Info
 

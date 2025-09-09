@@ -1,6 +1,6 @@
 - Author: d3cr1pt0r
 - Steam Profile: https://steamcommunity.com/profiles/76561197998898990
-- Youtube: https://www.youtube.com/@d3cr1pt0r
+- YouTube: https://www.youtube.com/@d3cr1pt0r
 <!-- -->
 - Title: Gpu Mts Radar
 - Date (dd-mm-yyyy): 04-11-2008

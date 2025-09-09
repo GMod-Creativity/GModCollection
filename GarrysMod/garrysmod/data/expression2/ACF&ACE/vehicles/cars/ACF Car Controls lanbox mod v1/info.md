@@ -12,7 +12,7 @@
 
 - Edited: buder5
 - Steam Profile: https://steamcommunity.com/profiles/76561198010059730
-- Youtube: https://www.youtube.com/@buder5116
+- YouTube: https://www.youtube.com/@buder5116
 
 ### Publication Info
 

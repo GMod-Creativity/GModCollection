@@ -1,6 +1,6 @@
 - Author: Lapis PAC3
 - Steam Profile: http://steamcommunity.com/profiles/76561198064171182
-- Youtube: https://www.youtube.com/@lapispac3298
+- YouTube: https://www.youtube.com/@lapispac3298
 <!-- -->
 - Title: PAC3: Basscannon (Download included!)
 - Date (dd-mm-yyyy): 23-11-2015

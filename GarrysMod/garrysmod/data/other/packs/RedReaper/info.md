@@ -1,5 +1,5 @@
 - Author: Red Reaper (RedReaper) (redreaper2020)
-- Youtube: https://www.youtube.com/@redreaper-xe6so
+- YouTube: https://www.youtube.com/@redreaper-xe6so
 
 **advdupe2**
 - Description: all redreapers advdupe2 stuff from the collection

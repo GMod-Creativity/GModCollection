@@ -1,5 +1,5 @@
 - Author: XninjazXxx (gato) (Devoided) (Azule)
-- Youtube: https://www.youtube.com/channel/UC-6WOjHUNpGwkk3fVCfrhGQ
+- YouTube: https://www.youtube.com/channel/UC-6WOjHUNpGwkk3fVCfrhGQ
 <!-- -->
 - Title: [E2] Box o' E2's [Super long thread]
 - Date (dd-mm-yyyy): 29-01-2014

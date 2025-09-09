@@ -6,8 +6,8 @@
 
 - Author: DEElekgolo (wunkolo)
 - Steam Profile: https://steamcommunity.com/profiles/76561197991136523
-- Youtube: https://www.youtube.com/user/DEElekgolo
-- Youtube: https://www.youtube.com/@Wunkolo
+- YouTube: https://www.youtube.com/user/DEElekgolo
+- YouTube: https://www.youtube.com/@Wunkolo
 - Github: https://github.com/wunkolo
 - Modacity: https://www.modacity.net/forums/member.php?2127-DEElekgolo
 

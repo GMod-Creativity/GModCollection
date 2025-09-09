@@ -6,7 +6,7 @@
 
 - Author: xiiliea
 - Steam Profile: https://steamcommunity.com/profiles/76561198053197228
-- Youtube: https://www.youtube.com/@xiiliea
+- YouTube: https://www.youtube.com/@xiiliea
 
 ### Publication Info
 

@@ -1,9 +1,9 @@
 - Author: Fervidusletum (Damnation)
 - Steam Profile: https://steamcommunity.com/profiles/76561197961226486
-- Youtube: https://www.youtube.com/@fervidusletum
+- YouTube: https://www.youtube.com/@fervidusletum
 <!-- -->
 - Author: RedReaper (redreaper2020)
-- Youtube: https://www.youtube.com/@redreaper-xe6so
+- YouTube: https://www.youtube.com/@redreaper-xe6so
 <!-- -->
 - Title: Ferv & Red's Coloring/Camo Chip v2
 - Date (dd-mm-yyyy): 12-06-2014

@@ -2,7 +2,7 @@
 - Steam Profile: https://steamcommunity.com/profiles/76561198008093053
 - Github: https://github.com/Fasteroid
 - Github page: https://fasteroid.github.io/about
-- Youtube: https://www.youtube.com/c/Fasteroid
+- YouTube: https://www.youtube.com/c/Fasteroid
 
 **expression2-public-master**
 - Description: Various E2 things for Garry's Mod.

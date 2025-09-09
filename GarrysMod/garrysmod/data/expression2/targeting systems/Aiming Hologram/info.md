@@ -12,7 +12,7 @@
 - Website: https://gmodism.com
 - Reddit: https://www.reddit.com/r/GMODISM/
 - Steam Profile: http://steamcommunity.com/profiles/76561198056037449
-- Youtube: https://www.youtube.com/Gmodism
+- YouTube: https://www.youtube.com/Gmodism
 - Pastebin: https://pastebin.com/u/Gmodism
 
 ### Publication Info
@@ -26,4 +26,4 @@
 ## Details
 
 Video explaining the chip:  
-[Youtube - Garry's Mod: Wiremod Expression 2 (E2) Collection Download at Pastebin!](https://www.youtube.com/watch?v=p-cm2zwp9gI)
+[YouTube - Garry's Mod: Wiremod Expression 2 (E2) Collection Download at Pastebin!](https://www.youtube.com/watch?v=p-cm2zwp9gI)

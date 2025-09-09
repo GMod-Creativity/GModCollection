@@ -1,6 +1,6 @@
 - Author: ArARico137
 - Steam Profile: http://steamcommunity.com/profiles/76561198144839158
-- Youtube: https://www.youtube.com/@ArARico137
+- YouTube: https://www.youtube.com/@ArARico137
 <!-- -->
 - Title: Plague Doctor
 - Date (dd-mm-yyyy): 27-10-2019

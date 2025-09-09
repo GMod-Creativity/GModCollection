@@ -5,7 +5,7 @@
 ### Author
 
 - Author: Tolyzor
-- Youtube: https://www.youtube.com/user/Heatseeker1
+- YouTube: https://www.youtube.com/user/Heatseeker1
 - Github: https://github.com/Tolyzor
 
 ### Publication Info

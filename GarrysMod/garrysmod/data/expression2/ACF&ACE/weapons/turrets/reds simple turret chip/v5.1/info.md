@@ -5,7 +5,7 @@
 ### Author
 
 - Author: Red Reaper (RedReaper) (redreaper2020)
-- Youtube: https://www.youtube.com/@redreaper-xe6so
+- YouTube: https://www.youtube.com/@redreaper-xe6so
 
 ### Publication Info
 
@@ -18,7 +18,7 @@
 ## Description
 
 Video:
-[Youtube - [RELEASE] Simple Turret v5.2 (updated Xmas 2017)](https://www.youtube.com/watch?v=oRBLVgnpOtI)
+[YouTube - [RELEASE] Simple Turret v5.2 (updated Xmas 2017)](https://www.youtube.com/watch?v=oRBLVgnpOtI)
 
 A simple turret e2.  Low lag, has optional PID aim, a ballistic recticle and rangefinder, hull/turret rotation, and can be used as a remote turret.
 

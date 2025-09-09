@@ -7,8 +7,8 @@
 - Author: ChupachuGames (coolerthanu9)
 - Steam Profile: https://steamcommunity.com/profiles/76561198023815430
 - Reddit: https://www.reddit.com/user/ChupachuGames/
-- Youtube: https://www.youtube.com/user/coolerthanu9
-- Youtube: https://www.youtube.com/channel/UCc_t13NWt4gX0jrIeW16_fg
+- YouTube: https://www.youtube.com/user/coolerthanu9
+- YouTube: https://www.youtube.com/channel/UCc_t13NWt4gX0jrIeW16_fg
 
 ### Publication Info
 
@@ -36,4 +36,4 @@ I am also including my work-in-progress mech. The mech was originally created by
 
 ### Video:
 
-[Youtube - GMod: Player Spy & Mech!](https://www.youtube.com/watch?v=MbFeWWPMoPU)
+[YouTube - GMod: Player Spy & Mech!](https://www.youtube.com/watch?v=MbFeWWPMoPU)

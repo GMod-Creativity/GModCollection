@@ -6,7 +6,7 @@
 
 - Author: H3xCat (edgarasf123)
 - Steam Profile: https://steamcommunity.com/profiles/76561198000622892
-- Youtube: https://www.youtube.com/user/edgarasf123
+- YouTube: https://www.youtube.com/user/edgarasf123
 - Github: https://github.com/edgarasf123
 - Github: https://github.com/h3xcat/
 

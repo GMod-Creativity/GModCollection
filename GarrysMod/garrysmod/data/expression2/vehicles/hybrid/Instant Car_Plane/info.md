@@ -1,6 +1,6 @@
 - Author: XninjazXxx (gato) (Devoided) (Azule)
 - Steam Profile: https://steamcommunity.com/profiles/76561198054661508
-- Youtube: https://www.youtube.com/channel/UC-6WOjHUNpGwkk3fVCfrhGQ
+- YouTube: https://www.youtube.com/channel/UC-6WOjHUNpGwkk3fVCfrhGQ
 <!-- -->
 - Title: New Box of E2s
 - Date (dd-mm-yyyy): 20-12-2014

@@ -1,6 +1,6 @@
 - Author: Xandertron
 - Steam Profile: https://steamcommunity.com/profiles/76561198046149851
-- Youtube: https://www.youtube.com/@Xandertron_
+- YouTube: https://www.youtube.com/@Xandertron_
 - Github: https://github.com/Xandertron
 
 **e2-master**

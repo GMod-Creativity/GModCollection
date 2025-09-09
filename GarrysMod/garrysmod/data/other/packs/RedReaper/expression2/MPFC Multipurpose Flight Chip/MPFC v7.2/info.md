@@ -1,5 +1,5 @@
 - Author: RedReaper (redreaper2020)
-- Youtube: https://www.youtube.com/@redreaper-xe6so
+- YouTube: https://www.youtube.com/@redreaper-xe6so
 <!-- -->
 - Title: RELEASE - MPFC 7.1
 - Date (dd-mm-yyyy): 25-12-2017

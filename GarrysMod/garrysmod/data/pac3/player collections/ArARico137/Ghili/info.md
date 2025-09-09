@@ -1,6 +1,6 @@
 - Author: ArARico137
 - Steam Profile: http://steamcommunity.com/profiles/76561198144839158
-- Youtube: https://www.youtube.com/@ArARico137
+- YouTube: https://www.youtube.com/@ArARico137
 <!-- -->
 - Title: Gmod pac 3 Ghili. +Download
 - Date (dd-mm-yyyy): 06-10-2016

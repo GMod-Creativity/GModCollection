@@ -1,5 +1,5 @@
 - Author: Red Reaper (RedReaper) (redreaper2020)
-- Youtube: https://www.youtube.com/@redreaper-xe6so
+- YouTube: https://www.youtube.com/@redreaper-xe6so
 <!-- -->
 - Title: Red's Useful E2s Thread
 - Date (dd-mm-yyyy): 30-07-2014

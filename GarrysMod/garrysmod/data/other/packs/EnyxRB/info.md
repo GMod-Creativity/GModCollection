@@ -1,7 +1,7 @@
 - Author: EnyxRB
 - Steam Profile: https://steamcommunity.com/profiles/76561197977307695
 - Github: https://github.com/EnyxRB
-- youtube: https://www.youtube.com/@Enyx
+- YouTube: https://www.youtube.com/@Enyx
 
 **CodeRelease-master**
 - Description: Code Dump for my Gmod Expression2 projects and Lua Addons.

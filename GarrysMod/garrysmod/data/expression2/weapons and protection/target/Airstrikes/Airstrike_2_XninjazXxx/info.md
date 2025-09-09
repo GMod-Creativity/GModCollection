@@ -1,6 +1,6 @@
 - Author: XninjazXxx (gato) (Devoided) (Azule)
 - Steam Profile: https://steamcommunity.com/profiles/76561198054661508
-- Youtube: https://www.youtube.com/channel/UC-6WOjHUNpGwkk3fVCfrhGQ
+- YouTube: https://www.youtube.com/channel/UC-6WOjHUNpGwkk3fVCfrhGQ
 <!-- -->
 - Title: [E2] Mouse Aimed Bombing Plane + Base + Air strike + EVEN MORE STUFF
 - Date (dd-mm-yyyy): 10-05-2014

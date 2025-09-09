@@ -1,6 +1,6 @@
 - Author: tlarson911 (T_larson911)
 - Steam Profile: https://steamcommunity.com/profiles/76561197988253631
-- Youtube: https://www.youtube.com/@tlarson91119/
+- YouTube: https://www.youtube.com/@tlarson91119/
 <!-- -->
 - Title: E2010 Programmable computer (FINISHED)
 - Date (dd-mm-yyyy): 02-06-2010

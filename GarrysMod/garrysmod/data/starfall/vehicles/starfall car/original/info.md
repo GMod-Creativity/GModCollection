@@ -6,7 +6,7 @@
 
 - Author: galaxy (ZeroTut0rials) (GDOGS)
 - Steam Profile: https://steamcommunity.com/profiles/76561198128391261
-- Youtube: https://www.youtube.com/@ZeroTut0rials
+- YouTube: https://www.youtube.com/@ZeroTut0rials
 
 ### Publication Info
 

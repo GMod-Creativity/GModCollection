@@ -1,6 +1,6 @@
 - Author: ArARico137
 - Steam Profile: http://steamcommunity.com/profiles/76561198144839158
-- Youtube: https://www.youtube.com/@ArARico137
+- YouTube: https://www.youtube.com/@ArARico137
 <!-- -->
 - Title: GMod pac 3 Arthas Ver.1 +Download
 - Date (dd-mm-yyyy): 09-03-2020

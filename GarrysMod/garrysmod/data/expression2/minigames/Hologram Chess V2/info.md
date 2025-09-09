@@ -6,7 +6,7 @@
 
 - Author: SpectreCat
 - Steam Profile: https://steamcommunity.com/profiles/76561197994706868
-- Youtube: https://www.youtube.com/@MadCatVII
+- YouTube: https://www.youtube.com/@MadCatVII
 
 ### Publication Info
 

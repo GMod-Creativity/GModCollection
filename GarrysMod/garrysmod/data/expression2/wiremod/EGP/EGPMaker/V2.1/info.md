@@ -1,5 +1,5 @@
 - Author: RedReaper (redreaper2020)
-- Youtube: https://www.youtube.com/@redreaper-xe6so
+- YouTube: https://www.youtube.com/@redreaper-xe6so
 <!-- -->
 - Title: [RELEASE] EGPMaker v2
 - Date (dd-mm-yyyy): 23-03-2016

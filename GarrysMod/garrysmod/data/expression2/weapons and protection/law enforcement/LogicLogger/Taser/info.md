@@ -1,6 +1,6 @@
 - Author: LogicLogger
 - Steam Profile: http://steamcommunity.com/profiles/76561198820889307
-- Youtube: https://www.youtube.com/@LogicLogger
+- YouTube: https://www.youtube.com/@LogicLogger
 - Github: https://github.com/LogicLogger
 - Pastebin: https://pastebin.com/u/LogicLogger
 <!-- -->

@@ -1,7 +1,7 @@
 - Author: [EmP] DEF (ARaccoonNamedDEF) (xEmPx_DEF)
 - Steam Profile: https://steamcommunity.com/profiles/76561198100006970
 - Github: https://github.com/ARaccoonNamedDEF
-- Youtube: https://www.youtube.com/@FUNC_DEF
+- YouTube: https://www.youtube.com/@FUNC_DEF
 - Pastebin: https://pastebin.com/u/xEmPx_DEF
 
 **Boat Demos**

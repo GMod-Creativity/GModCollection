@@ -2,7 +2,7 @@
 <!-- -->
 - Publisher: SirDobbers (Dman) (Dmanbiker)
 - Steam Profile: https://steamcommunity.com/profiles/76561197973187542
-- Youtube: https://www.youtube.com/@SirDobbers
+- YouTube: https://www.youtube.com/@SirDobbers
 <!-- -->
 - Title: Garry's Mod - Set Ang Steering Turotial
 - Date (dd-mm-yyyy): 03-10-2015
@@ -20,7 +20,7 @@ Regarding setAng and setPos. These two functions come with propcore which comes 
 - Website: https://gmodism.com
 - Reddit: https://www.reddit.com/r/GMODISM/
 - Steam Profile: http://steamcommunity.com/profiles/76561198056037449
-- Youtube: https://www.youtube.com/Gmodism
+- YouTube: https://www.youtube.com/Gmodism
 - Pastebin: https://pastebin.com/u/Gmodism
 <!-- -->
 - Title: Garry's Mod EZCarSteering

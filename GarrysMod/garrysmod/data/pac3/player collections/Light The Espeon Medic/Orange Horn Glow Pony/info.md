@@ -1,6 +1,6 @@
 - Author: Light The Espeon Medic
 - Steam Profile: http://steamcommunity.com/profiles/76561198196697889
-- Youtube: https://www.youtube.com/channel/UCFBPun0MFTNRCrpoQWQRtXw
+- YouTube: https://www.youtube.com/channel/UCFBPun0MFTNRCrpoQWQRtXw
 - Pastebin: https://pastebin.com/u/cadenater11
 <!-- -->
 - Title: Orange Horn Glow Pony Pac3

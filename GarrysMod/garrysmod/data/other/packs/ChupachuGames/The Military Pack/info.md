@@ -1,8 +1,8 @@
 - Author: ChupachuGames (coolerthanu9)
 - Steam Profile: https://steamcommunity.com/profiles/76561198023815430
 - Reddit: https://www.reddit.com/user/ChupachuGames/
-- Youtube: https://www.youtube.com/user/coolerthanu9
-- Youtube: https://www.youtube.com/channel/UCc_t13NWt4gX0jrIeW16_fg
+- YouTube: https://www.youtube.com/user/coolerthanu9
+- YouTube: https://www.youtube.com/channel/UCc_t13NWt4gX0jrIeW16_fg
 <!-- -->
 - Title: The Military Pack
 - Date (dd-mm-yyyy): 19-10-2013

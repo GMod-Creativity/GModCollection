@@ -1,11 +1,11 @@
 - Author: RCmags (XXXmags)
 - Steam Profile: https://steamcommunity.com/profiles/76561197991496783
-- Youtube: https://www.youtube.com/@XXXmags
+- YouTube: https://www.youtube.com/@XXXmags
 - Github: https://github.com/RCmags
 <!-- -->
 - Edited: Spider0804
 - Steam Profile: https://steamcommunity.com/profiles/76561197996888024
-- Youtube: https://www.youtube.com/user/spider0804
+- YouTube: https://www.youtube.com/user/spider0804
 - Pastebin: https://pastebin.com/u/Spider0804
 <!-- -->
 - Edited: Christian

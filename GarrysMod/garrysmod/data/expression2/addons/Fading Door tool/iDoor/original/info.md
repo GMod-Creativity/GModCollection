@@ -6,7 +6,7 @@
 
 - Author: IrishTnT
 - Steam Profile: https://steamcommunity.com/profiles/76561198076914559
-- Youtube: https://www.youtube.com/@irishtnt
+- YouTube: https://www.youtube.com/@irishtnt
 
 ### Publication Info
 

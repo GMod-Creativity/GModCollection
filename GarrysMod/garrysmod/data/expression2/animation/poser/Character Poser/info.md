@@ -7,7 +7,7 @@
 - Author: Jacbo
 - Steam Profile: https://steamcommunity.com/profiles/76561198247542006
 - Github: https://github.com/Jacbo1
-- Youtube: https://www.youtube.com/@Jacbo1
+- YouTube: https://www.youtube.com/@Jacbo1
 
 ### Publication Info
 

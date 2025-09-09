@@ -1,6 +1,6 @@
 - Author: thewhitish
-- Youtube: https://www.youtube.com/@nathansmith9820
-- Youtube: https://www.youtube.com/@thewhitish
+- YouTube: https://www.youtube.com/@nathansmith9820
+- YouTube: https://www.youtube.com/@thewhitish
 <!-- -->
 - Title: personal countermeasure suite, universal prop shooter, energetic area denial, more
 - Date (dd-mm-yyyy): 26-03-2015

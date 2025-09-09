@@ -6,7 +6,7 @@
 
 - Author: Technicolour (Techni)
 - Steam Profile: https://steamcommunity.com/profiles/76561197983168201
-- Youtube: https://www.youtube.com/@Technicolour777
+- YouTube: https://www.youtube.com/@Technicolour777
 
 ### Publication Info
 

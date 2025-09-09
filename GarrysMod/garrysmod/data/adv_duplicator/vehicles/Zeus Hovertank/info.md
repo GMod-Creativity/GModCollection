@@ -6,7 +6,7 @@
 
 - Author: Paper Clip (glmcd) (glmcdona21) (glmcdona)
 - Steam Profile: https://steamcommunity.com/profiles/76561197990877852
-- Youtube: https://www.youtube.com/@glmcdona21
+- YouTube: https://www.youtube.com/@glmcdona21
 
 ### Publication Info
 
@@ -25,7 +25,7 @@ And a couple ones with the new tank turret. Thanks to N3Xus Elite for building p
 
 ### Video
 
-[Youtube - Garrys Mod: Zeus Photon Torpedo Hovertank (dupe available!)](https://www.youtube.com/watch?v=B4HgAC_KY6o)
+[YouTube - Garrys Mod: Zeus Photon Torpedo Hovertank (dupe available!)](https://www.youtube.com/watch?v=B4HgAC_KY6o)
 
 ### Controls
 

@@ -5,7 +5,7 @@
 ### Author
 
 - Author: Cipher_Ultra
-- Youtube: https://www.youtube.com/user/CipherUltra
+- YouTube: https://www.youtube.com/user/CipherUltra
 - Steam Profile: https://steamcommunity.com/profiles/76561197978513282
 
 ### Publication Info
@@ -38,7 +38,7 @@ This is an adv_dupe pack with 4 types of my M12 "Warthog" FAV from Halo
 
 ### HD Video:
 
-[Youtube - Halo M12 Warthog for Garry's Mod](https://www.youtube.com/watch?v=iTC8-rf3Lwg)
+[YouTube - Halo M12 Warthog for Garry's Mod](https://www.youtube.com/watch?v=iTC8-rf3Lwg)
 
 ### Requires:
 

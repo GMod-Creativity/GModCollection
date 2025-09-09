@@ -1,6 +1,6 @@
 - Author: thewhitish
-- Youtube: https://www.youtube.com/@nathansmith9820
-- Youtube: https://www.youtube.com/@thewhitish
+- YouTube: https://www.youtube.com/@nathansmith9820
+- YouTube: https://www.youtube.com/@thewhitish
 <!-- -->
 - Title: [E2] Bounding mine deployer, personal energy shield, orbital bombardment, pocket sand
 - Date (dd-mm-yyyy): 17-05-2014

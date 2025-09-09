@@ -6,7 +6,7 @@
 
 - Author: Moglizorz
 - Steam Profile: https://steamcommunity.com/profiles/76561197984909994
-- Youtube: https://www.youtube.com/@Mogliz0rz
+- YouTube: https://www.youtube.com/@Mogliz0rz
 
 ### Publication Info
 

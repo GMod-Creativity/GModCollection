@@ -1,5 +1,5 @@
 - Author: Red Reaper (RedReaper) (redreaper2020)
-- Youtube: https://www.youtube.com/@redreaper-xe6so
+- YouTube: https://www.youtube.com/@redreaper-xe6so
 <!-- -->
 - Title: [RELEASE] Simple Turret v5.2 (updated Xmas 2017)
 - Date (dd-mm-yyyy):  25-10-2016

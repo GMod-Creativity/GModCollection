@@ -1,6 +1,6 @@
 - Author: sicklebrick
 - Steam Profile: https://steamcommunity.com/profiles/76561197996355226
-- Youtube: https://www.youtube.com/channel/UCcGq-VdvMTrs19qcUpo6L_Q
+- YouTube: https://www.youtube.com/channel/UCcGq-VdvMTrs19qcUpo6L_Q
 <!-- -->
 - Title: [E2] Fully functional Hexapod walker.
 - Date (dd-mm-yyyy): 06-03-2012

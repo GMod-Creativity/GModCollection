@@ -6,13 +6,13 @@
 
 - Author: Mike Dude (Blaylock1988)
 - Steam Profile: https://steamcommunity.com/profiles/76561197972933601
-- Youtube: https://www.youtube.com/user/Blaylock1988
+- YouTube: https://www.youtube.com/user/Blaylock1988
 - Github: https://github.com/Blaylock1988
 
 ### Publisher
 
 - Publisher: Catcher (Lua) (WNxCatcher) (Catchertehsaver)
-- Youtube: [https://www.youtube.com/@catcher.](https://www.youtube.com/@catcher.)
+- YouTube: [https://www.youtube.com/@catcher.](https://www.youtube.com/@catcher.)
 - Moddb: https://www.moddb.com/members/catchertehsaver
 
 ### Publication Info

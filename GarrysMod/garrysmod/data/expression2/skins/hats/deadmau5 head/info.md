@@ -6,7 +6,7 @@
 
 - Author: raubana
 - Steam Profile: https://steamcommunity.com/profiles/76561197999234076
-- Youtube: https://www.youtube.com/dylanjraub
+- YouTube: https://www.youtube.com/dylanjraub
 
 ### Publication Info
 

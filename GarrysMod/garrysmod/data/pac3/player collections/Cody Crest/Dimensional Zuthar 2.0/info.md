@@ -1,6 +1,6 @@
 - Author: Cody Crest
 - Steam Profile: http://steamcommunity.com/profiles/76561198077799720
-- Youtube: https://www.youtube.com/@CodyCrestpac3
+- YouTube: https://www.youtube.com/@CodyCrestpac3
 <!-- -->
 - Title: [Gmod] Pac3 Dimensional Zuthar 2.0 {Download}
 - Date (dd-mm-yyyy): 28-12-2016

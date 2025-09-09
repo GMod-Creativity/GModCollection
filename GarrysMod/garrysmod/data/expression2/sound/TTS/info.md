@@ -20,4 +20,4 @@
 I made a text to speech chip for the vox announcer.
 It's clunky and the sound doesn't follow you, but I thought you all might find it neat.
 
-[Youtube - Half-Life - VOX Announcement System Lines](https://www.youtube.com/watch?v=cSehhpW6stE)
+[YouTube - Half-Life - VOX Announcement System Lines](https://www.youtube.com/watch?v=cSehhpW6stE)

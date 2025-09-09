@@ -1,5 +1,5 @@
 - Author: Red Reaper (RedReaper) (redreaper2020)
-- Youtube: https://www.youtube.com/@redreaper-xe6so
+- YouTube: https://www.youtube.com/@redreaper-xe6so
 <!-- -->
 - Title: [RELEASE] Red's Track Chip V6 - Slack tracks and snow cats, oh my!
 - Date (dd-mm-yyyy): 27-05-2014

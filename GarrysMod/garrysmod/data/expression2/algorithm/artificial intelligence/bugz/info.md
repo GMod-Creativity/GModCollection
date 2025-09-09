@@ -4,11 +4,12 @@
 
 ### Author
 
-
 - Author: postman ([TBU-TEC] THE P)
 - Steam Profile: https://steamcommunity.com/profiles/76561197997916844
-- Youtube: https://www.youtube.com/@blankrofl
-<!-- -->
+- YouTube: https://www.youtube.com/@blankrofl
+
+### Publication Info
+
 - Title: Bugz 2.4 (release)
 - Date (dd-mm-yyyy): 14-05-2011
 - Source: https://web.archive.org/web/20110809084016/http://www.wiremod.com/forum/finished-contraptions/25904-bugz-2-4-release.html#post234733

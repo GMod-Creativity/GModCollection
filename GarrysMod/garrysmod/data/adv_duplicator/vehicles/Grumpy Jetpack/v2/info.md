@@ -5,7 +5,7 @@
 ### Author
 
 - Author: Grumpy Hit*** (FridgeOats)
-- Youtube: https://www.youtube.com/@yamclam
+- YouTube: https://www.youtube.com/@yamclam
 - Steam Profile: https://steamcommunity.com/profiles/76561197983180777
 
 ### Publication Info
@@ -54,9 +54,11 @@ https://www.youtube.com/watch?v=4Crya-Z0sHE
 
 <!-- I'll just upload the 1 picture, there are 2 more on the download page but using is better than seeing, so give it a go! -->
 
-<img src="https://web.archive.org/web/20250908204303/http://garrys-mods.ru/wp-content/uploads/2018/09/Grumpy-Jetpack-V2-2-728x409.jpg" width="200"/>
-<img src="https://web.archive.org/web/20250908204302/http://garrys-mods.ru/wp-content/uploads/2018/09/Grumpy-Jetpack-V2.jpg" width="200"/>
-<img src="https://web.archive.org/web/20250908204314/http://garrys-mods.ru/wp-content/uploads/2018/09/Grumpy-Jetpack-V2-3.jpg" width="200"/>
+<p float="left">
+  <img src="https://web.archive.org/web/20250908204303/http://garrys-mods.ru/wp-content/uploads/2018/09/Grumpy-Jetpack-V2-2-728x409.jpg" width="200"/>
+  <img src="https://web.archive.org/web/20250908204302/http://garrys-mods.ru/wp-content/uploads/2018/09/Grumpy-Jetpack-V2.jpg" width="200"/>
+  <img src="https://web.archive.org/web/20250908204314/http://garrys-mods.ru/wp-content/uploads/2018/09/Grumpy-Jetpack-V2-3.jpg" width="200"/>
+</p>
 
 <!-- 
 ![image1](https://web.archive.org/web/20250908204303/http://garrys-mods.ru/wp-content/uploads/2018/09/Grumpy-Jetpack-V2-2-728x409.jpg =200x200)

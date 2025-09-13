@@ -106,7 +106,7 @@ Just Spawn, Unfreeze and You Are Ready To Fly.
 
 Open the e2 on the control board for a bit more info and to change the sensitiviy of the jetpack (a higher sensitivity value is less sensitve >_>)
 
-### Final Note:
+### Final Thoughts:
 
 <!-- Comments appreciated, plus somebody make me a video lol. -->
 

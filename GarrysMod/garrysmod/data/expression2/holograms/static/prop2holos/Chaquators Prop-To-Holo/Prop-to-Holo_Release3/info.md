@@ -22,7 +22,7 @@
 
 ZeroG sent me a PM a week or two back that inspired me to do better in my chips that I release..
 
-```
+```plaintext
 Originally Posted by ZeroG:
 To show you why that chip you threw together has such great potential, I'd like to show you two contraptions me and an admin of my server made.
 

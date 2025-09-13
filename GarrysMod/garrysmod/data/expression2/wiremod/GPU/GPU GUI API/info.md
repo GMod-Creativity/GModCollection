@@ -86,7 +86,7 @@ Color (once per tick, works for every object)
 
 - Code:
 
-    ```
+    ```plaintext
     Update["Color", vector4] = vec(255, 255, 255, 255)
     Update["ColorObject", string] = "Button.Play"
     ```
@@ -95,7 +95,7 @@ Text (several per tick, works for Button, Label and BigLabel)
 
 - Code:
 
-    ```
+    ```plaintext
     Update["Texts", array] = array("Stop", "Currently playing...")
     Update["TextObjects", array] = array("Button.Play", "Label.Title")
     ```
@@ -104,7 +104,7 @@ List (once per tick, works for List)
 
 - Code:
 
-    ```
+    ```plaintext
     Update["List", array] = array("Cuban Music", "Belgian Music", "Epic Sax Guy")
     Update["ListObject", string] = "List.Songs"
     ```
@@ -113,7 +113,7 @@ Slider (several per tick, works for Slider)
 
 - Code:
 
-    ```
+    ```plaintext
     Update["Sliders", array] = array(1, 100)
     Update["SliderObjects", array] = array("Slider.Volume", "Slider.Pitch")
     ```

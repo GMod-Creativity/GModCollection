@@ -53,7 +53,7 @@ If you are playing singleplayer or you own the multiplayer server, do this to en
 1. Install uwsvn: Unofficial Wire-Extras SVN (UWSVN)
 2. Type these commands in console to enable propcore:
 
-```
+```plaintext
 wire_expression2_extension_enable propcore
 sbox_E2_PropCore 2
 sbox_E2_maxPropsPerSecond 10

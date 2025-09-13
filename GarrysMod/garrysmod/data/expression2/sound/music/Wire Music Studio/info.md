@@ -23,12 +23,12 @@
 This is a project that started as a simple holopiano and then slowly evolved into something awesomely fun. It's essentially a minimalistic remake of FL Studio's piano roll with EGP.  
 The video explains it best:
 
-https://www.youtube.com/watch?v=V_fOeonDqgk
+[YouTube - Wire Music Studio](https://www.youtube.com/watch?v=V_fOeonDqgk)
 
 Interaction is pretty easy, left click to place a note in the edit area, play a key, or select an option. Right click to remove a placed note. E will move the playbar to the specified area.  
 Chat commands are done for more complicated functions:
 
-```
+```plaintext
 !load will load the specified file, eg: "!load aerodynamic"
 !save will save the current song with the specified filename, eg: "!save mortal kombat"
 !clear will clear the entire song, a dialog will pop up to confirm.

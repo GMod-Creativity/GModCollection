@@ -22,7 +22,7 @@ Alright, it's using a Digitalscreen for drawing, EGP for toolbox, Consolescreen 
 
 ### The feature's it got is:
 
-```
+```plaintext
 - Fully working Saving&Loading with sort-of-compression (thanks Jasongamer & Andre)
 - Fully working bucket tool
 - Complete color choice
@@ -37,7 +37,7 @@ The lightblue thing is me filling the black space with lightblue color. It's fil
 
 ### Chatcommands:
 
-```
+```plaintext
 !owner <partofplayername> - Sets who can draw on the screen and use the chatcommands (except !owner)
 !rgb <red> <green> <blue> - Set a custom color
 !file <filename> - Set which name the file you save to will have.
@@ -46,7 +46,7 @@ The lightblue thing is me filling the black space with lightblue color. It's fil
 
 ### To use saving/loading:
 
-```
+```plaintext
 1. Paint your picture
 2. Define imagename using !file \<name>, e.g, !file testpicture, several words must be in quotes
 3. Press the Save button on the screen

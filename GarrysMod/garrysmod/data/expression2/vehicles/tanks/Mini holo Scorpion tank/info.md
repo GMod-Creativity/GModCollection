@@ -21,7 +21,7 @@ I had a sudden urge to make a tank and decided to make a miniature hologram tank
 
 **instructions for use:**
 
-```
+```plaintext
 1. spawn a chair
 2. spawn pod controler and link to chair
 3. spawn cam controler and link to chair

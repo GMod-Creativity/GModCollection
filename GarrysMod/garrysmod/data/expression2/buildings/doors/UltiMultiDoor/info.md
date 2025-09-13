@@ -47,19 +47,19 @@ i love the door e2 but how to i make it go left/right?
 **Rekondo's answer:**  
 If your door is square, you can just go to the bottom of the code and change the
 
-```
+```plaintext
 E:setPos(BasePos+vec(0,0,Anim))
 ```
 
 to
 
-```
-E:setPos(BasePos+vec(Anim,0,0)
+```plaintext
+E:setPos(BasePos+vec(Anim,0,0))
 ```
 
 or
 
-```
+```plaintext
 E:setPos(BasePos+vec(0,Anim,0))
 ```
 
@@ -68,7 +68,7 @@ depending on what way the door is facing.
 If you want it to go down or to the other side just put a - in front of the Anim part  
 If the door is not a perfect square, you have to tweak the
 
-```
+```plaintext
     Top=E:nearestPoint(E:pos()+vec(0,0,1000))
     Bot=E:nearestPoint(E:pos()-vec(0,0,1000))
     L=Bot:distance(Top)

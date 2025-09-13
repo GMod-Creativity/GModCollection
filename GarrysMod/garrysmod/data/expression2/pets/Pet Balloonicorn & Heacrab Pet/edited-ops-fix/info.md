@@ -27,7 +27,7 @@ Comment by jacoby6000:
 stick this
 Code:
 
-```
+```plaintext
     Songs[1,string] = "ui/gamestartup1.mp3"
     Songs[2,string] = "ui/gamestartup2.mp3"
     Songs[3,string] = "ui/gamestartup3.mp3"

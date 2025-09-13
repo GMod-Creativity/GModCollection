@@ -26,7 +26,7 @@ I presume you're new to wiremod, so this probably wont do you any good, but othe
 First you create a ranger, using "rangerOffset(argument 1, argument 2, argument 3)"
 Code:
 
-```
+```plaintext
 Rng = rangerOffset()
 ```
 
@@ -37,21 +37,21 @@ The third argument is the prop's down direction (Prop:up()*-1) or (-Prop:up())
 Giving you:
 Code:
 
-```
+```plaintext
 Rng = rangerOffset(100,Prop:pos(),-Prop:up())
 ```
 
 You also need to filter the prop that will be hovering from the ranger's view, as the ranger will hit it.
 Code:
 
-```
+```plaintext
 rangerFilter(Prop)
 ```
 
 Then you need to detect when the ranger hits something, and in that statement you will make the prop go upwards.
 Code:
 
-```
+```plaintext
 if (Rng:hit()) 
 {
 }
@@ -60,14 +60,14 @@ if (Rng:hit())
 The amount of upward thrust is determined by subracting the ranger's distance by the height you want to hover at.
 Code:
 
-```
+```plaintext
 Diff = 40-Rng:distance()
 ```
 
 then you apply your force in the same statement:
 Code:
 
-```
+```plaintext
 Prop:applyForce((vec(0,0,Diff)*20-Prop:vel())*35)
 ```
 
@@ -76,7 +76,7 @@ Prop:applyForce((vec(0,0,Diff)*20-Prop:vel())*35)
 The final code being:
 Code:
 
-```
+```plaintext
 rangerFilter(Prop)
 Rng = rangerOffset(100,Prop:pos(),-Prop:up())
 

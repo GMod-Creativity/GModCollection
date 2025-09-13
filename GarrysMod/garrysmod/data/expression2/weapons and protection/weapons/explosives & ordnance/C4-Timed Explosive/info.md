@@ -1,16 +1,27 @@
+# Expression 2 - [E2] C4/Timed Explosive
+
+## Details
+
+### Author
+
 - Author: XninjazXxx (gato) (Devoided) (Azule)
 - Steam Profile: https://steamcommunity.com/profiles/76561198054661508
 - YouTube: https://www.youtube.com/channel/UC-6WOjHUNpGwkk3fVCfrhGQ
-<!-- -->
+
+### Publication Info
+
 - Title: [E2] C4/Timed Explosive
 - Date (dd-mm-yyyy): 27-09-2014
 - Source: https://web.archive.org/web/20150429010434/http://www.wiremod.com/forum/finished-contraptions/33578-e2-c4-timed-explosive.html
 - Source Accessed (dd-mm-yyyy): 22-08-2025
 
-## [E2] C4/Timed Explosive
+## Description
 
 This E2 spawns 1 C4 that is highly configurable with ~30 commands and sticks to props.
-HOW TO USE:
+
+### HOW TO USE:
+
+```
 -- Spawning C4
 There are 2 ways of planting the C4, they are:
 -Pressing the P key
@@ -48,10 +59,11 @@ Commands:
 /help 4
 /help 5
 /help 6
-Code: (~610 lines)
+```
 
-VIDEO:
-https://web.archive.org/web/20160720113003/https://www.youtube.com/watch?v=IAl7q--Y7dA
+<!-- ### VIDEO:
 
-EASTER EGG COMMAND!!!!
-/attach /suicide
+https://web.archive.org/web/20160720113003/https://www.youtube.com/watch?v=IAl7q--Y7dA -->
+
+### EASTER EGG COMMAND!!!!
+`/attach` `/suicide`

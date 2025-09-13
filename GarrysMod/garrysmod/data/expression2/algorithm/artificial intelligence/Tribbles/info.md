@@ -23,7 +23,7 @@ mostly this project has given me something to do, but i like it, and i plan to i
 
 ### requirements:
 
-```
+```plaintext
 • wire extras, and prop core turned on.
 • wiremod
 • holo model any turned on.
@@ -34,7 +34,7 @@ note: you need to spawn tribbles for it to work, their model is (the tiny sphere
 
 ### Features:
 
-```
+```plaintext
 • tribbles will goto a tree, and take a piece of wood.
 • then they roll back to the mill and place it in the mills "stock pile".
 • it adjusts how many trees spawn based on the ammount of tribbles.
@@ -44,7 +44,7 @@ note: you need to spawn tribbles for it to work, their model is (the tiny sphere
 
 **New features from V2(actually v6, but w/e)**
 
-```
+```plaintext
 • There is now 3 materials, wood, metal, and rocks.-
     `Quote: Make them collect metal too`
 

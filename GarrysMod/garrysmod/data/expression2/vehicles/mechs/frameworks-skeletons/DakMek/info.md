@@ -36,7 +36,7 @@ I would like to hear any feedback you have.
 
 Special thanks to Sestze for his suggestion and instruction on hip bobbing forces.
 
-```
+```plaintext
 EDIT:
 I've edited a few things, thanks to my friend Oh Please, his scrutiny is unmatched. He also told me about the code tags.
 
@@ -60,7 +60,7 @@ Added torso chip link and code to post.
 
 [Mech Torso Stuff](https://pastebin.com/DBMQNxHZ)
 
-```
+```plaintext
 EDIT 7:
 Released an update for the torso chip for a variable to swap the roll and pitch in cases in which it is needed.
 
@@ -84,7 +84,7 @@ Included gun control chip.
 
 [Mech Gun Stuff](https://pastebin.com/QufKKDCP)
 
-```
+```plaintext
 EDIT 13:
 Added variables for the torso chip to allow flipping of various angles.
 

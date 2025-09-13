@@ -25,7 +25,7 @@ To get the chip simply copy the code into a text file, save that to your e2 fold
 
 ### Features:
 
-```
+```plaintext
 - Simple "instructor" flight controls similar to war thunder
 - NEW! Semirealistic flight controls option--most vehicles can be controlled with mouse only
 - Easy to set up and modify--few necessary inputs and lots of annotations

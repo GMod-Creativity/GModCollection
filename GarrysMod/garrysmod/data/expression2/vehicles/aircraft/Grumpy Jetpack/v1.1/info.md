@@ -83,6 +83,8 @@ this is V1.1 - to add - A boost power bar for limited boosting
 - Some extra sound effects and basic tweaks
 - Optimising and Cleaning up my code, made a mess of it but cbf fixing now. (normally i'm a very tidy coder but I did most of the code at ~4am )
 
+### Final Thoughts:
+
 Please download and enjoy, I'm releasing this only because I wish to share this little thing with you guys.
 
 C&C Please

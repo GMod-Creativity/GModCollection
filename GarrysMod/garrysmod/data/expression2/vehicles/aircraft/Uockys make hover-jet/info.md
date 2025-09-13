@@ -32,7 +32,7 @@ and I added a few features that I hope will make it enjoyable to mess around wit
 
 ### A few Credits before we go on
 
-```
+```plaintext
 • -orb- for inspiring me in the first place (he's also the one to blame for the fact that I even know what the heck wiremod is).
 • Syranide and Fizyk - for helping me out with the couple of places where I got REALLY stuck.
 • And obviously the entire wiremod team - without you lot I wouldnt be sitting here typing all these weird codes in the first place.
@@ -41,7 +41,7 @@ and I added a few features that I hope will make it enjoyable to mess around wit
 
 ### So what are these features you ask?
 
-```
+```plaintext
 • A fully working fuel system /w shootable fuel tank/engine (a damaged tank will make the fuel drain faster and blowing it up will make it go *puff*).
   This system was originally intended as a way of having a nice little dog fight battle and should work pretty well to that effect.
 • Pitch controled elevation - meaning no cheapskate hoverballs or anti-gravitational-thinga-ma-bobs.
@@ -59,7 +59,7 @@ in the dupe there's also a couple of turrets mounted fire 'em with mouse1.
 
 - **HoverMode:**
 
-  ```
+  ```plaintext
     • Shift - Forward motion
     • A - Turn Left
     • D - Turn Right *gasp*
@@ -67,7 +67,7 @@ in the dupe there's also a couple of turrets mounted fire 'em with mouse1.
 
 - **FlightMode:**
 
-  ```
+  ```plaintext
     • Shift - Forward motion (releasing shift will cut out the engine and turn off all stabilization)
     • W - Pitch down
     • S - Pitch up

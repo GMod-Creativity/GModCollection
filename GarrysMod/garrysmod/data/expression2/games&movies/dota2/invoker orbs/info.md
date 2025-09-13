@@ -17,7 +17,7 @@
 
 With these you may invoke 10 spells! Though, due to the lacking of E2 functionality they not fully resemble the original spells.
 
-```
+```plaintext
 1. Deafening Blast.
 2. EMP.
 3. Alacrity.
@@ -39,7 +39,7 @@ To use Attack (magic blast), press MouseLeftButton.
 
 ### Orb combination invocation:
 
-```
+```plaintext
 QQQ - Cold Snap, encase the AimEntity in an ice sphere for some time.
 QQW - Ghost Walk, a protective shell around you.
 QWW - Tornado, uplifts at the set position, SPAWN AT THE GROUND.

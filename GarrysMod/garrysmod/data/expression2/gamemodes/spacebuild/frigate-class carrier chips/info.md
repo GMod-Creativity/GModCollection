@@ -103,7 +103,7 @@ This controls all 6 fighters.
 
 - **Inputs:**
 
-    ```
+    ```plaintext
     Energy <- Energy output of resource cache on a single fighter
     Energy Max <- Energy Max output of resource cache on a single fighter
     Parent:entity <- {Wire->Detection->Entity Marker} linked to the main prop of the carrier. This is used for welding when docked.
@@ -117,7 +117,7 @@ This controls all 6 fighters.
 
 - **Outputs:**
 
-    ```
+    ```plaintext
     Laser -> The lasers sending power to all of the fighters.
     Fire1 through 6 -> Wired up the guns on fighters 1 through 6.
     Targ1:entity -> The entity that fighter #1 is currently targeting. This is used as input for special guns which take a target entity input.
@@ -128,13 +128,13 @@ This controls all 6 fighters.
 
 - **Inputs:**
 
-    ```
+    ```plaintext
     Seat:entity <- Wired from adv. pod controller.
     ```
 
 - **Outputs:**
 
-    ```
+    ```plaintext
     CamEnable -> Adv. Cam Controller
     CamPos:vector -> Adv. Cam Controller Position
     CamDir:vector -> Adv. Cam Controller Direction
@@ -144,7 +144,7 @@ This controls all 6 fighters.
 
 - **Inputs:**
 
-    ```
+    ```plaintext
     Fire <- I wire this up to Mouse2 on Adv. Pod Controller. This forces the beam cannons to fire.
     Ship:entity <- This is the main prop on my carrier.
     Gun1:wirelink <- A wirelink to beam cannon #1.
@@ -156,7 +156,7 @@ This controls all 6 fighters.
 
 - **Outputs:**
 
-    ```
+    ```plaintext
     FireOut1 -> Output to beam cannon #1 fire
     FireOut2 -> Output to beam cannon #2 fire
     ```

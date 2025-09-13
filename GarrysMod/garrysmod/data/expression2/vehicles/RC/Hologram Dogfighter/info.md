@@ -23,7 +23,7 @@ Just going to cover the controls and how to set it up...it requires Spacebuild2 
 
 ### Controls:
 
-```
+```plaintext
 W = Forward
 A = Strife Left
 S = Backwards

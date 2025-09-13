@@ -31,7 +31,7 @@ It's as simple as that.
 
 ### The controls are:
 
-```
+```plaintext
 • W & S - Control Pitch
 • A & D - Control Roll
 • M1 & M2 - Control Yaw

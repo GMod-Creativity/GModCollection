@@ -37,7 +37,7 @@ More videos and the E2 code to come.
 
 ### Re: Techni's A* PathFinder
 
-```
+```plaintext
 Quote Originally Posted by l3ulletje
 Very nicely done.
 ```

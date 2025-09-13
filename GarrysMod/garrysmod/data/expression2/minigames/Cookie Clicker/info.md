@@ -37,7 +37,7 @@ The game is a great way to pass time so I made a makeshift E2 version of it. Enj
 
 ### HOW TO PLAY
 
-```
+```plaintext
 - Click to bake cookies
 - Cursor (C) - 10 cookies
 - Grandma (B) - 50 cookies
@@ -58,7 +58,7 @@ This version contains a function called Cookie Console.
 
 #### commands:
 
-```
+```plaintext
 cookie.
 add
 remove
@@ -79,7 +79,7 @@ hologram.
 
 #### Examples:
 
-```
+```plaintext
 cookie.add= 10
 cookie.portal.add= 1000
 cookie.hologram.add= 1

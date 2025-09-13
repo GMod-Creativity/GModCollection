@@ -23,7 +23,7 @@ Maybe someone else will find this useful.
 
 there are hints printed to chat, but heres some instructions anyway (caps are important)
 
-```
+```plaintext
 step 1, place the e2
 step 2, press E on the FRONT/BACK of your baseplate
 step 3, press E on the OUTWARDS-SIDE of your wheel

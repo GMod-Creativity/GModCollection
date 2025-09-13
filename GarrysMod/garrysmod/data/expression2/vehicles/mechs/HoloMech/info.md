@@ -17,7 +17,7 @@
 
 ### Features:
 
-```
+```plaintext
 • runs off chat commands
 • spawns a random color but color can be changed as well as hsv2rgb values with !color, !hue, !sat, !v
 • can follow people say !follow

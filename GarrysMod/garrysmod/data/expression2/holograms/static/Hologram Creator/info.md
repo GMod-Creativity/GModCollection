@@ -21,7 +21,7 @@ Third, my Hologram Creator
 
 **Commands:**
 
-```
+```plaintext
 /model "model name"  
 /col R G B  
 /scale X Y Z

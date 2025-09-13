@@ -20,7 +20,7 @@ I want to show off my new contraption. It's uses an expression to drive the bugg
 
 ### Features:
 
-```
+```plaintext
 • Drives to its targets and kills them by running them over.
 • It will not turn around a target forever, instead it will get away and then come back straight onto it.
 • Has a speed limit during turns to avoid flipping over.

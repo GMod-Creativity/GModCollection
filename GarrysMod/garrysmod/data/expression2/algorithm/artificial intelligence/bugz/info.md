@@ -33,7 +33,7 @@ If they get to far away from alpha, they will become "lost" bugs, and will wande
 
 ### what types are there?
 
-```
+```plaintext
 • Alphabug(red)(Aka:Leader bug, its the e2 chip)
 • Betabug(blue)(Aka:creeper joe, its the blue rectangular prism thing.)
 • Omegabug(s)(white/blue)
@@ -42,7 +42,7 @@ If they get to far away from alpha, they will become "lost" bugs, and will wande
 
 ### What do i need to use this?
 
-```
+```plaintext
 • Wiremod.
 • Wire extras.(for propcore)
 • Phx(for the models)
@@ -50,7 +50,7 @@ If they get to far away from alpha, they will become "lost" bugs, and will wande
 
 ### Features?
 
-```
+```plaintext
 • ALpha bug will hop around, going who knows where
 • Betabug will stalk alpha, until he gets close enough to "make his way" with alpha.
 • A random # of baby bugs will be made.

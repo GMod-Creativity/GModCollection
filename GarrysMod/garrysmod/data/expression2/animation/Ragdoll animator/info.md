@@ -23,7 +23,7 @@ you can create u animation.
 
 ### Chat commands:
 
-```
+```plaintext
 - !animation Name  
 (Change animation name for watching or creation)
 

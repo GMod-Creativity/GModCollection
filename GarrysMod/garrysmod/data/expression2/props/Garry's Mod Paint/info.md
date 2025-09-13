@@ -26,7 +26,7 @@ You might be thinking "this is useless when you have the paint tool form vanilla
 
 Inspired by my chat E2 and ulx, these are the commands and descriptions for the expression 2.
 
-```
+```plaintext
 !red [number] - set's the red of a prop to that number
 !blue [number] - set's the blue of a prop to that number
 !green [number] - set's the green of a prop to that number
@@ -49,7 +49,7 @@ use key to select props one at a time and color them
 
 ### INSTRUCTIONS HOW TO SAVE COLORS
 
-```
+```plaintext
 Step 1. To begin it all, type !record to record the colors.
 Step 2. Type !red, !green, and !blue just as normal.
 Step 3. Type !save [number from 1-20] to save your vector.

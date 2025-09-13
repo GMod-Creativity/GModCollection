@@ -31,7 +31,7 @@ Great, now here's a video demonstrating all of it's functions:
 
 Honoring Friendly for his comment on my video:  
 
-```
+```plaintext
 Quote Originally Posted by Friendly:  
 always good to know that te maker of a heli e2 cant fly
 ```

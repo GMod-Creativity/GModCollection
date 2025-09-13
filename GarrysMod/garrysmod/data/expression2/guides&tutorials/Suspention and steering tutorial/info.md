@@ -22,7 +22,7 @@ Video: https://www.youtube.com/watch?v=23WW61pHxGo
 
 ### Steering code:
 
-```
+```plaintext
 @name 2 hydraulic steering
 @inputs A D
 @outputs Right Left
@@ -56,7 +56,7 @@ else
 
 ### Propulsion E2:
 
-```
+```plaintext
 @name Engine_Base
 @inputs AdvPod:wirelink
 @outputs RPM

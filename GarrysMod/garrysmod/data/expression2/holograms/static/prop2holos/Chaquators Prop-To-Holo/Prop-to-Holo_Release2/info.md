@@ -23,7 +23,7 @@ Finally got around to re-making my old promised chip. All the instructions are o
 
 ### Path Notes
 
-```
+```plaintext
 2.0.0
 -First Release
 

@@ -35,7 +35,7 @@ I made a new thread for the V2, for all of you that are tired of seeing the V1 t
 
 This is the HK-Drone V2 Release. I did not intend to release this one yet, so I have not added some of the commands to it that I want. Also, the Expression 2 is EXTREMELY messy and has not been optimized or cleaned up at all. Please do not flame about how horribly coded it is.
 
-https://www.youtube.com/watch?v=w78zQ1uqMkY
+[YouTube - Mike Dude's HK-Drone V2](https://www.youtube.com/watch?v=w78zQ1uqMkY)
 
 This version is controlled completely by chat commands. Listed below is a few of the commands:
 

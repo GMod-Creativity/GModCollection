@@ -27,7 +27,7 @@ MAKE SURE TO UPDATE YOUR WIREMOD OR THIS MAY NOT WORK
 
 This is a cheat sheet you will need to write music (thanks to |3ulletje). You can place this in your E2 while writing the music:
 
-```
+```plaintext
 #|  2  3     5  6  7     9  0     =  a  s     f  g     j  k  l     '
 #| |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
 #| |C#|D#|  |F#|G#|A#|  |C#|D#|  |F#|G#|A#|  |C#|D#|  |F#|G#|A#|  |C#|

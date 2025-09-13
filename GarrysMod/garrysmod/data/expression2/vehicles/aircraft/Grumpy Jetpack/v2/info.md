@@ -31,7 +31,7 @@ This is not only a new model, but a fully re-written flight system. Puts my old 
 
 ### Features:
 
-```
+```plaintext
 • Fully Mouse Aimed
 • Boost Function For Crazy Speedz
 • Full Sounds And Effects
@@ -68,7 +68,7 @@ https://www.youtube.com/watch?v=4Crya-Z0sHE
 
 ### Controls:
 
-```
+```plaintext
 • W Forwards/Thrust
 • S Reverse
 • Mouse Control
@@ -82,7 +82,7 @@ To Colour The Jetpack Just Colour The White Square On The Control Board (You'll 
 
 ### Requirements:
 
-```
+```plaintext
 • Hl2 (duh)
 • PHX3 (Please Use Real Svn and Update It, Otherwise You Won't Hear The Sounds)
 • Wire
@@ -96,7 +96,7 @@ Just Spawn, Unfreeze and You Are Ready To Fly.
 
 ### Issues:
 
-```
+```plaintext
 • Sometimes Having Multiple Cam Controllers Screws Up The 3rd Person.
 • this will not handle properly on space build UNLESS you remove `Lift` Variable from line 157 
   (Please don't try this unless you know what you are doing with e2).
@@ -106,7 +106,7 @@ Just Spawn, Unfreeze and You Are Ready To Fly.
 
 Open the e2 on the control board for a bit more info and to change the sensitiviy of the jetpack (a higher sensitivity value is less sensitve >_>)
 
-### Final Note:
+### Final Thoughts:
 
 <!-- Comments appreciated, plus somebody make me a video lol. -->
 

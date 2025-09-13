@@ -29,7 +29,7 @@ You can place this on effectively any prop. I recommend building your vehicle si
 
 Features whole new code for all parts, including customisable:
 
-```
+```plaintext
 Suspension height
 Wheel position
 Wheel size
@@ -43,7 +43,7 @@ and more!
 
 ### Instructions
 
-```
+```plaintext
 Wire(link) an adv pod controller to it and you have an instant car!
 Gas = W
 Brake = S

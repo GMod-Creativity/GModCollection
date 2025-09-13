@@ -26,7 +26,7 @@ This vid is of the almost-done version--I since removed the egp and added the in
 
 ### Updated: 26-02-2016
 
-```
+```plaintext
 From the changelog:
 VERSION: 2/26/2016
 -fixed freezeself failure--I dun goofed months ago
@@ -57,7 +57,7 @@ To update new vehicles, copy new one over your current copy in your e2 folder. T
 
 ### Features:
 
-```
+```plaintext
 - Support for eight types of aircraft, with a template for user extension
 - Intuitive mouse control similar to war thunder but extended to more aircraft types
 - A keyboard-only control backup, for turreted gunnery or general freelook

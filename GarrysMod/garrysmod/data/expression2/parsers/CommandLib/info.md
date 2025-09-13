@@ -19,15 +19,15 @@ Not a WAYWO, it's actually finished
 
 I don't know if I'm using the local keyword correctly, haven't looked into the documentation yet, but here's hoping.
 
-Usage:
+**Usage:**
 
-```
+```plaintext
     Command = readCommand("my_command 'arg1' arg2 'arg3 with spaces',10,20,30, 'escaped\' quote character'")
 ```
 
-Return value:
+**Return value:**
 
-```
+```plaintext
     :table->
     command:string = "my_command",
     args:table->

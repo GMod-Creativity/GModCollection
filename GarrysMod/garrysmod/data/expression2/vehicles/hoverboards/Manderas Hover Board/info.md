@@ -29,7 +29,7 @@ manderas hover board.txt -->
 
 ### Controls:
 
-```
+```plaintext
 W and S = Forward and Backward movement.
 A and D = Turning.
 Shift on Ground = Activating Drifting Function.

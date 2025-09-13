@@ -21,7 +21,7 @@
 
 To get it to work:
 
-```
+```plaintext
 1. Spawn a chair
 2. Spawn a Cam Controller with the following settings checked/unchecked:
    - Coordinates local to parent checked

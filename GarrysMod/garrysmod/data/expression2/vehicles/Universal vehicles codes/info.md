@@ -25,7 +25,8 @@
 
 so I dont like updating the codes on the wiremod forum, becasue dragging the txt files into my dropbox is so much easier, i'll only update those from now on, and this thread is for those links, to keep them all together, and to allow me to do minimal work.
 
-Important notice, some servers lack correct svns of wiremod, and therefore will not have the holoVisible fix for wiremod, that means that if your using any holos on my codes, they WILL NOT SHOW UP. This is NOT my fault, but the servers, or your client
+> [!Important] Important notice, 
+> some servers lack correct svns of wiremod, and therefore will not have the holoVisible fix for wiremod, that means that if your using any holos on my codes, they WILL NOT SHOW UP. This is NOT my fault, but the servers, or your client
 
 
 [Universal Helicopter Code](https://www.dropbox.com/s/r63dc3ytqoj6q5z/Universal%20helicopter%20chip.txt) - This is by far the best of my codes

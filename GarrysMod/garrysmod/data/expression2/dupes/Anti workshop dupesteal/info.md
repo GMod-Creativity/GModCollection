@@ -16,11 +16,11 @@
 
 ## Description
 
-If you've ever browsed the workshop dupes, you know it's a mess. The dupes are either stolen or useless one-entity dupes such as weapons from an addon you probably don't even have. This E2 aims to eliminate the stolen wiremod dupes by preventing skids from taking the credit for your work. Important note:
+If you've ever browsed the workshop dupes, you know it's a mess. The dupes are either stolen or useless one-entity dupes such as weapons from an addon you probably don't even have. This E2 aims to eliminate the stolen wiremod dupes by preventing skids from taking the credit for your work. 
 
-- **This only works with servers that have wiremod**
-
-- **It's only useful for protecting wire dupes.**
+> [!Important] Important Note:
+> - **This only works with servers that have wiremod**
+> - **It's only useful for protecting wire dupes.**
 
 ### Usage:
 

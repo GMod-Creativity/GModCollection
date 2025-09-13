@@ -24,19 +24,19 @@
 
 Automatically generates the FASTEST POSSIBLE applyForce and appyAngForce code for a specific prop. It achieves this through some advanced control systems techniques as follows:
 
-  - Generates a state-space model of the angle physics through a simple system identification technique.
-  - Generates a dead-beat state feedback system for a specified interval, which works even when aiming straight up or down.
-  - Prints simple E2 file to the console with the control system, for easy use in your contraption.
-  - Outputs performance plots to e2files\positions.txt and e2files\angles.txt
+- Generates a state-space model of the angle physics through a simple system identification technique.
+- Generates a dead-beat state feedback system for a specified interval, which works even when aiming straight up or down.
+- Prints simple E2 file to the console with the control system, for easy use in your contraption.
+- Outputs performance plots to e2files\positions.txt and e2files\angles.txt
 
 ### Instructions
 
 This works on either single props, or parented contraptions. To use this chip to design a perfect applyForce and applyAngForce , perform these steps:
 
-  1. Spawn the prop to generate the apply force for.
-  2. (optional) Edit the E2 options to pick the interval you desire. An interval of ~50 is good.
-  3. Place the E2 chip on the prop.
-  4. After a couple seconds, check your console for designed apply force chip. Copy and paste this code into a new e2.
+1. Spawn the prop to generate the apply force for.
+2. (optional) Edit the E2 options to pick the interval you desire. An interval of ~50 is good.
+3. Place the E2 chip on the prop.
+4. After a couple seconds, check your console for designed apply force chip. Copy and paste this code into a new e2.
 
 ### Video
 
@@ -54,7 +54,7 @@ http://www.youtube.com/v/8eaJpYEybpw
 
 When this expression is applied to a Pop Can, it outputs the following to the console. People who use apply force may be interested in the difference between the code which works for looking straight up and down versus not working for straight up and down. If anyone is interested, I can try to explain the fix in more details.
 
-```
+```plaintext
 ---SIMPLIFIED E2 CODE IMPLEMENTATION---
 ---(Does not work aiming straight up or down)---
 @persist Prop:entity
@@ -93,7 +93,7 @@ Prop:applyAngForce(-ang(-16221632.593187*DifAngle:pitch() + 1477385.8142291*Prop
 
 The carrier flight system featured in the video used the designed applyAngForce as follows: (my parent prop was rotated in a weird way with respect to my ship forwards, so I had to make some changes)
 
-```
+```plaintext
 @name Paper Carrier Flight System
 @inputs Seat:entity W A S D
 @outputs CamEnable CamPos:vector CamDir:vector

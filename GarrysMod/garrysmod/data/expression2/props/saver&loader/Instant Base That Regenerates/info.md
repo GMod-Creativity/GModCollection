@@ -31,7 +31,7 @@ This expression 2 is actually my old E2 modded so the coding quality is pretty m
 
 #### COMMANDS:
 
-```
+```plaintext
 /off - turns base off
 /on - turns base on
 /owner [name] - gives co-ownership of the E2 to someone (put your name in name space if you want to keep to self)

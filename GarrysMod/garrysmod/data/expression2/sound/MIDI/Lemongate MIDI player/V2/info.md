@@ -38,7 +38,7 @@ mc.php (Optional, only if your running it off of your own server)
 
 ### Commands:
 
-```
+```plaintext
 set 
      > Arguments:
        ta <number> | Adds <number> to the timebase, then restarts the song.

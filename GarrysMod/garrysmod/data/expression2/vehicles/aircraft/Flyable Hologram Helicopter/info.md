@@ -20,7 +20,7 @@ This the hologram helicopter I've been working on. It's 100% applyForce/applyAng
 
 ### Features:
 
-```
+```plaintext
 • Minimalist Design
 • Autolanding
 • Cannot crash into the ground or ceiling
@@ -33,7 +33,7 @@ This the hologram helicopter I've been working on. It's 100% applyForce/applyAng
 
 ### Controls:
 
-```
+```plaintext
 • W/S - Forward/Back
 • A/D - Yaw
 • Mouse1/Mouse1 - Strafe

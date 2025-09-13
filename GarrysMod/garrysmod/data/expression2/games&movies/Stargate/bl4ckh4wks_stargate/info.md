@@ -30,7 +30,7 @@ Do not reupload this file without my permission !
 
 ### Wire instruction ( Stargate Control+Dialing Screen v1.0 ) :
 
-```
+```plaintext
 wire: Active(e2)         -> Active(SG)
 wire: Open(e2)           -> Open(SG)
 wire: Inbound(e2)        -> Inbound(SG)
@@ -48,7 +48,7 @@ wire: IrisCode(e2)       -> Received Code (Iris computer)
 
 ### Wire instruction ( Stargate Dialing Screen v1.0 ) :
 
-```
+```plaintext
 wire: Active(e2)         -> Active(SG)
 wire: Open(e2)           -> Open(SG)
 wire: Inbound(e2)        -> Inbound(SG)
@@ -63,7 +63,7 @@ wire: Close(SG)          -> Close(e2)
 
 ### Wire instruction ( Stargate Control v3.0 )
 
-```
+```plaintext
 wire: Open(e2)           -> Open(SG)
 wire: Inbound(e2)        -> Inbound(SG)
 wire: DialingAddress(e2) -> Dialing Address(SG)
@@ -77,7 +77,7 @@ wire: IrisCode(e2)       -> Received Code (Iris computer)
 
 ### Changelog v3.0
 
-```
+```plaintext
 -works for every Stargate Group
 -added Iris auto Bot
 -added Atlantis & SG1 EGPv3 screens
@@ -95,7 +95,7 @@ wire: IrisCode(e2)       -> Received Code (Iris computer)
 
 ### Changelog v2.0
 
-```
+```plaintext
 -added e2 chip for singleplayer
 -added version for 'sb_forlorn_sb3_r3'
 -added Stargate alarm

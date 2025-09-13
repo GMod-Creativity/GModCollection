@@ -21,7 +21,7 @@
 
 remove:
 
-```
+```plaintext
 if(P:steamID()!="STEAM_0:0:47197890"){
     selfDestruct()  
     print("Pls don't steal mah e2")

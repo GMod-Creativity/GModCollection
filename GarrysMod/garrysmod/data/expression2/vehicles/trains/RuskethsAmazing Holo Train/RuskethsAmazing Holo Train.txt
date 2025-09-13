@@ -1,0 +1,213 @@
+@name
+@inputs
+@outputs
+@persist TrainPos Caridges
+@persist StepDistace ScanSpeed
+@persist TrackWidth TrackDeph
+@persist ScanData:array Count Status Util
+@persist Start:vector Pos:vector Forward:vector Right:vector Up:vector
+@persist Engine_Model:string Engine_Pos:vector Engine_Ang:angle
+@persist Caridge_Model:string Caridge_Pos:vector Caridge_Ang:angle
+@trigger
+
+if ( first() )
+{
+
+    interval(1)
+
+    local E = entity()
+    local P = E:pos()
+    local U = E:up()
+
+    #Setting
+        StepDistace = 25
+        ScanSpeed = 10
+
+    #Engine Settings
+        Engine_Pos = vec()
+        Engine_Ang = ang()
+        Engine_Model = "models/props_combine/CombineTrain01a.mdl"
+
+        Caridges = 50
+        Caridge_Pos = vec(0, 0, 30)
+        Caridge_Ang = ang(0, 90, 0)
+        Caridge_Model = "models/props_combine/combine_train02a.mdl"
+
+    #Track Deph
+        local WidthRD = rangerOffset(P, P + (U * 999))
+
+        TrackWidth = WidthRD:distance()
+
+        print("TrackWidth: ", TrackWidth)
+
+    #Track Height
+        local Off = vec(0, 0, 30)
+
+        local P1 = P + (U * 5)
+        local P2 = P - (U * 5)
+
+        local DownRD1 = rangerOffset(P1 + Off, P1 - Off)
+        local DownRD2 = rangerOffset(P2 + Off, P2 - Off)
+
+        TrackDeph = (DownRD2:pos():z() - DownRD1:pos():z())
+
+        print("TrackDeph: ", TrackDeph)
+
+    #Intial Setup
+        Up = DownRD1:hitNormal()
+        Right = U
+        Forward = E:right()
+
+        Pos = P + (U * 5)
+        Start = Pos
+
+        Count = 0
+        ScanData = array()
+
+    #functions
+        function vector getPos(Index)
+        {
+            I = Index
+
+            if ( Index < 0 )
+            {
+                Index = Count + Index
+            }
+            elseif ( Index > Count )
+            {
+                return getPos(Index - Count)
+            }
+
+            Value = ScanData[Index, vector]
+
+            #print(I, " = ", Index, " == ", Value)
+
+            return Value
+        }
+
+        function vector getCenter(A:vector, B:vector)
+        {
+            return A + ((B - A) * 0.5)
+        }
+
+        function void updateHolo(ID, Front, Back, OffV:vector, OffA:angle)
+        {
+            local Start = getPos(TrainPos + Front)
+            local End = getPos(TrainPos + Back)
+            local Center = getCenter(Start, End)
+
+            holoPos(ID, Center + OffV)
+            holoAng(ID, (Start - End):toAngle() + OffA)
+        }
+
+    #Scan function, where the magic happens
+        function void scan()
+        {
+            local ForwardStart = Pos
+            local ForwardEnd = Pos + (Forward * StepDistace)
+            local ForwardRD = rangerOffset(ForwardStart, ForwardEnd)
+            local ForwardHit = ForwardRD:hit() ? ForwardRD:pos() : ForwardEnd
+
+            local TrackPos = ForwardHit - (Right * 10)
+            local DownStart = TrackPos + vec(0, 0, 20)
+            local DownEnd = TrackPos #- vec(0, 0, 20)
+            local DownRD = rangerOffset(DownStart, DownEnd)
+
+            if ( DownRD:hit() )
+            {
+                #Up = DownRD:hitNormal()
+                ForwardHit = ForwardHit:setZ( DownRD:pos():z() - (TrackDeph * 0.5) )
+            }
+
+            local LeftStart = ForwardHit + (Right * 2)
+            local LeftEnd = ForwardHit - (Right * 40)
+            local LeftRD = rangerOffset(LeftStart, LeftEnd)
+            local LeftHit = LeftRD:pos()
+
+            if ( !LeftRD:hit() )
+            {
+                if (Status != -1)
+                {
+                    print("Suck at: ", Pos)
+                }
+
+                Status = -1
+                exit()
+            }
+
+
+            Right = LeftRD:hit() ? LeftRD:hitNormal() : Right
+
+            Reflection = LeftHit + (Right * 5)
+
+            Forward = (Reflection - Pos):normalized()
+
+            Pos = Reflection
+
+            Status = 0
+
+            Count++
+
+            ScanData[Count, vector] = LeftHit + (Right * (TrackWidth * 0.5))
+        }
+
+}
+elseif ( Status == 1 )
+{
+
+    interval(100)
+
+    TrainPos++
+
+    if( TrainPos > Count )
+    {
+        TrainPos = 1
+        print("Lapped")
+    }
+
+    local Length = 30
+    local Pos = 1
+
+    for (I = 2, Caridges + 1)
+    {
+        updateHolo(I, Pos, Pos + Length, Caridge_Pos, Caridge_Ang)
+        Pos += Length
+    }
+
+    updateHolo(1, Pos, Pos + Length, Engine_Pos, Engine_Ang)
+}
+elseif ( Count > 50 & Start:distance(Pos) < StepDistace )
+{
+    interval(1)
+
+    print("Track Scan Completed: ", Count, " Pounts.")
+
+    TrainPos = 1
+
+    Status = 1
+
+    holoDeleteAll()
+
+    holoCreate(1)
+    holoModel(1, Engine_Model)
+
+    for (I = 2, Caridges + 1)
+    {
+        holoCreate(I)
+        holoModel(I, Caridge_Model)
+    }
+}
+else
+{
+    interval(1)
+
+    for ( I = 1, ScanSpeed)
+    {
+        scan()
+    }
+
+    if ( Count % 1000 == 0 )
+    {
+        print("Progress: ", Count, " Points.")
+    }
+}

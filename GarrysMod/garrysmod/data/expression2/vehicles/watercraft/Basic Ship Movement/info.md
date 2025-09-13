@@ -23,14 +23,14 @@ So a couple of weeks back, I released an acf cruiser dupe, which included my cra
 
 This chip is pretty easy to use on anything. It is recommended that you setup the base with the chip and test it all out before making an exterior, just in the case that you set the base up the incorrectly.
 
-> [!IMPORTANT] 
+> [!IMPORTANT]
 > When setting up on the base, there are two things that are paramount.  
 1: Use P.A or some similar tool to get the angles of the base, make sure pitch is at 0 while you are building your exterior, otherwise the base could flip to the opposite side.  
 EDIT: Shadow showed me there was a `propSetBuoyancy()` function, this makes the chip even easier to set up.
 
 ### Features:
 
-```
+```plaintext
 -Settings for max speed, accel and turning speed. Makes for good use on any type of ship. I've seen it used on speed boats, warships and oil tankers of sorts.
 
 -Engine sound, tis relative to the speed over maxspeed. So don't worry about changing it.

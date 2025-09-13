@@ -25,7 +25,7 @@ Code was written in about 2 days
 SG White Panda:  
 After playing around some more, I figured how to make it work.
 
-```
+```plaintext
 1. Spawn E2
 
 2. Spawn Big Office Chair (from vehicles)

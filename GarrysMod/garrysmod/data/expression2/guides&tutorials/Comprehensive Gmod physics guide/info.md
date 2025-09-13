@@ -42,7 +42,7 @@ $$\text{sum of forces} = \frac{\text{applyForce}(\vec{0,0,1})}{x} + (-600) = 0$$
 
 therefore to negate force due to gravity in game
 
-```
+```plaintext
 Entity:applyForce(vec(0, 0, 1)/x)
 ```
 
@@ -51,7 +51,7 @@ note; try releasing the prop you are testing using the grav gun rather than the 
 
 tldr proof:
 
-```
+```plaintext
 @name Gravity negater
 @inputs Target:entity
 @trigger none

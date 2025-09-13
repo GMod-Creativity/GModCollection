@@ -31,7 +31,7 @@ As the video says it is easy to setup, All it requires is:
 
 ### Setup
 
-```
+```plaintext
 1. Place the pod inside the jet prop respectively.
 2. Spawn the E2 ON THE JET PROP, if you do not have an advanced pod controller it will remove itself and swap you to the adv pod tool, (if wire_expression2_concmd is 1)
 3. Place an advanced pod controller ON THE JET PROP (you can link it now if you wish.)
@@ -43,7 +43,7 @@ As the video says it is easy to setup, All it requires is:
 
 ### Controls
 
-```
+```plaintext
 W - Pitch down
 S - Pitch up
 A - Roll left

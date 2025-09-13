@@ -46,7 +46,7 @@ You can switch between games by typing !load gamename. Here's a list of game nam
 
 ### Arcade Games:
 
-```
+```plaintext
 • Pong #Works perfectly 2 Player
 • Pong2 #Works perfectly 2 player
 • Pacman #Wierd ass controls but works perfectly
@@ -70,7 +70,7 @@ You can switch between games by typing !load gamename. Here's a list of game nam
 
 ### Demos/Test roms:
 
-```
+```plaintext
 • Pic
 • IBM
 • zero
@@ -81,7 +81,7 @@ You can switch between games by typing !load gamename. Here's a list of game nam
 
 ### Puzzle games:
 
-```
+```plaintext
 • Hidden
 • TicTac #Two player
 • puzzle15

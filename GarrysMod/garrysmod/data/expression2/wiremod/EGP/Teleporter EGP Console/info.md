@@ -1,11 +1,19 @@
+# Expression 2 - [E2] Teleporter EGP Console
+
+## Details
+
+### Author
+
 - Author: CPcoder
-<!-- -->
+
+### Publication Info
+
 - Title: [E2] Teleporter EGP Console
 - Date (dd-mm-yyyy): 08-08-2014
 - Source: https://web.archive.org/web/20150508102015/http://www.wiremod.com:80/forum/finished-contraptions/33417-e2-teleporter-egp-console.html
 - Source Accessed (dd-mm-yyyy): 29-08-2025
 
-## [E2] Teleporter EGP Console
+## Description
 
 Hello,
 
@@ -21,7 +29,10 @@ https://web.archive.org/web/20180114213006/https://www.youtube.com/watch?v=LHe7e
 I got this idea from watching a youtube video of a spacebuild creation where the guy had tons of console such as these for weapons and Life Support and such. I Did not directly copy any of his code instead created my own TouchScreen Teleporter using the same Techniques.
 
 **Wiring**
+
+```plaintext
 Inputs: EGP -> EGP Screen,User -> EGP Screen
 Outputs: Jump <- Teleporter(Jump),JumpPos <- Teleporter(TargetPos)
+```
 
 Last edited by CPcoder; 08-08-2014 at 11:54 AM. Reason: Took away RunOnTick, Was from developing forgot to take it out.

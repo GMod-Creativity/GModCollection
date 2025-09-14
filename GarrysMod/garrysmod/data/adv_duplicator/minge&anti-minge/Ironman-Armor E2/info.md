@@ -25,7 +25,7 @@ The main apply force part is TC Props, but the rest is mine.
 
 ### Commands:
 
-```
+```plaintext
 /off  
 /on  
 /stay  

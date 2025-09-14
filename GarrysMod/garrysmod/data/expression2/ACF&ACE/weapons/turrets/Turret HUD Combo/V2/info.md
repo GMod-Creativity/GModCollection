@@ -9,7 +9,7 @@
 - YouTube: https://www.youtube.com/user/spider0804
 - Pastebin: https://pastebin.com/u/Spider0804
 
-### Separate Publisher
+### External publisher
 
 - Publisher: GMODISM
 - Website: https://gmodism.com

@@ -29,7 +29,7 @@ And a couple ones with the new tank turret. Thanks to N3Xus Elite for building p
 
 ### Controls
 
-```
+```plaintext
 • W,A,S,D: Drives the tank around.
 • Space: Fires the jump-boost rockets.
 • Mouse1: Fires unguided photon torpedoes.
@@ -42,7 +42,7 @@ And a couple ones with the new tank turret. Thanks to N3Xus Elite for building p
 
 This hovertank has very few requirements and should work on almost any server!
 
-```
+```plaintext
 • E2
 • Portal Props
 ```

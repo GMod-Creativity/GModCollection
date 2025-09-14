@@ -24,7 +24,7 @@ I decided to re-make my really old iPod that everyone seemed to like. This versi
 
 **iPod v2 has:**
 
-```GitHub
+```plaintext
 - Clean GUI
 - Built-in cursor
 - 3D intro menu

@@ -27,7 +27,7 @@ This is an adv_dupe pack with 4 types of my M12 "Warthog" FAV from Halo
 
 ### Features:
 
-```
+```plaintext
 • Smooth ride on or off road, with E2 holo wheels and suspension
 • Military versions have accurate minigun or missile turret
 • Civilian version has gullwing doors
@@ -49,7 +49,7 @@ including Expression 2 <!-- - i.e. Latest SVN -->
 
 Installation and driving instructions are in the readme. READ IT!!! :)
 
-```
+```plaintext
 Gun Turret        =  warthog gun.txt  
 Missile Launcher  =  warthog missile.txt  
 Gullwing Doors    =  warthog doors.txt  

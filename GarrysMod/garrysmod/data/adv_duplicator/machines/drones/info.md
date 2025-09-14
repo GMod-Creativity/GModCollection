@@ -41,7 +41,7 @@ This version is controlled completely by chat commands. Listed below is a few of
 
 ### COMMANDS:
 
-```
+```plaintext
 /on
 /off
 /help
@@ -58,7 +58,7 @@ You can find out the rest of the commands by checking it out.
 
 ### CREDITS:
 
-```
+```plaintext
 • Gunnanmon for his lead collision code
 • Jadestorm215{JBC} for the anti flip idea
 • Peewee 1112 for testing, moral support

@@ -9,7 +9,7 @@
 - Steam Profile: https://steamcommunity.com/profiles/76561197970677684
 - YouTube: https://www.youtube.com/@Splambob
 
-### Separate Publisher
+### External publisher
 
 - Publisher: GMODISM
 - Website: https://gmodism.com

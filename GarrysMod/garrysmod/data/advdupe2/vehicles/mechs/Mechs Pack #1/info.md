@@ -33,7 +33,7 @@ How to install a duplication for advanced duplicator 2:
 
 ### Recommended Addons:
 
-```
+```plaintext
 • WireMod
 • Parent
 • multy
@@ -43,7 +43,7 @@ How to install a duplication for advanced duplicator 2:
 
 ### Mechs:
 
-```
+```plaintext
 • Mech MM-101
 • Mech-nut MN-1
 • Horse-mech-HM-1
@@ -52,7 +52,7 @@ How to install a duplication for advanced duplicator 2:
 
 ### Controls:
 
-```
+```plaintext
 • A - move the left leg
 • D - move your right leg
 • ALT - sit down

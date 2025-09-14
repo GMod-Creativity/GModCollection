@@ -27,7 +27,7 @@ The prop construction of the suit probably took around 4 hours of development, g
 
 ### CONTROLS
 
-```
+```plaintext
 General Controls
 • Mouse1: Fire watermelon
 • Mouse2: Fire propane canister
@@ -51,7 +51,7 @@ Jetpack Controls
 
 ### CREDITS
 
-```
+```plaintext
 Players:
 • soda can man: Suit pilot
 • Lolztheman: Suit pilot and failplane pilot (see my channel page for the failplane dupe)

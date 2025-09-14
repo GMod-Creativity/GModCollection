@@ -1,3 +1,9 @@
+# Expression 2 - [E2] High Energy Pistol
+
+## Details
+
+### Author
+
 - Author: Seris (AJ10017)
 - Steam Profile: https://steamcommunity.com/profiles/76561198000118795
 - YouTube: https://www.youtube.com/@Seris_/
@@ -10,12 +16,17 @@
 ## [E2 Release] Plasma/energy launcher
 
 (Code is absolute shit and disorganized, but i dont care)
+
 how to use:
+
+```plaintext
 -make sure RPG is equipped
 -make sure you have TF2 installed and mounted
 -make sure server has propcore and E2
 -to fire, either hold the right click or just click
 -the longer you hold down the fire, the more powerful the shot will be
 -Extract the folders for the audio files in your sounds/weapons folder
-Video:
-https://web.archive.org/web/20161204031438/https://www.youtube.com/watch?v=dY6vlX36UqA
+```
+
+<!-- Video:
+https://web.archive.org/web/20161204031438/https://www.youtube.com/watch?v=dY6vlX36UqA -->

@@ -21,7 +21,7 @@
 
 ### Commands
 
-```
+```plaintext
 -print <message>     Adds message tobe printed ( Acts as a buffer, so you can stack )
 -here                      Moves the printer to your aimPos
 -debug                    Will print every charecter possible

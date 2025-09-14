@@ -6,7 +6,7 @@
 
 - Author: NinjaDanzer
 
-### Publivation Info
+### Publication Info
 
 - Title: [E2] Simple ACF helicopter chip
 - Date (dd-mm-yyyy): 07-01-2015

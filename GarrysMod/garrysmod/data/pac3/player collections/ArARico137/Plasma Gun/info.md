@@ -1,14 +1,22 @@
+# PAC3 - Gmod pac 3 Plasma Gun. +Download
+
+## Details
+
+### Author
+
 - Author: ArARico137
 - Steam Profile: http://steamcommunity.com/profiles/76561198144839158
 - YouTube: https://www.youtube.com/@ArARico137
-<!-- -->
+
+### Publication Info
+
 - Title: Gmod pac 3 Plasma Gun. +Download
 - Date (dd-mm-yyyy): 18-10-2016
 - Source: https://www.youtube.com/watch?v=LqhiPNCOig4
 - Source: https://www.dropbox.com/scl/fi/6zcne5xc6526892hmngm9/PlasmAGun.txt?rlkey=4g06ya1je0hfpra4w4fcaf8pi&e=1&dl=0
 - Source Accessed (dd-mm-yyyy): 19-06-2025
 
-## Gmod pac 3 Plasma Gun. +Download
+## Description
 
 Хееей, Delta Psi народ! На связи Рико и это мой 12 pac 3 скин Плазма пушка . Извиняюсь за то что долго небыло костюмов))) Просто небыло идей , а тут раз и налепил. [https://www.dropbox.com/s/hoi20uze9hv...](https://www.dropbox.com/scl/fi/6zcne5xc6526892hmngm9/PlasmAGun.txt?rlkey=4g06ya1je0hfpra4w4fcaf8pi&e=1&dl=0)
 

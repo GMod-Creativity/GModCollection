@@ -1,7 +1,15 @@
+# PAC3 - [Gmod] Pac3 Rebel Lounge {Download}
+
+## Details
+
+### Author
+
 - Author: Cody Crest
 - Steam Profile: http://steamcommunity.com/profiles/76561198077799720
 - YouTube: https://www.youtube.com/@CodyCrestpac3
-<!-- -->
+
+### Publication Info
+
 - Title: [Gmod] Pac3 Rebel Lounge {Download}
 - Date (dd-mm-yyyy): 13-01-2017
 - Source: https://www.youtube.com/watch?v=p2z9IIydjhA
@@ -10,7 +18,7 @@
 - Song: Fallout New Vegas Soundtrack - Jingle Jangle Jingle - Kay Kyser
 - Song_URL: https://www.youtube.com/watch?v=BzL4P74C44s
 
-## [Gmod] Pac3 Rebel Lounge {Download}
+## Description
 
 how to get copyright strike pt 1
 or like hopefully not,

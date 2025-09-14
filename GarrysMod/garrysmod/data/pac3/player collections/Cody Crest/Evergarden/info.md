@@ -1,7 +1,15 @@
+# PAC3 - [Gmod] Pac3 Evergarden
+
+## Details
+
+### Author
+
 - Author: Cody Crest
 - Steam Profile: http://steamcommunity.com/profiles/76561198077799720
 - YouTube: https://www.youtube.com/@CodyCrestpac3
-<!-- -->
+
+### Publication Info
+
 - Title: [Gmod] Pac3 Evergarden
 - Date (dd-mm-yyyy): 12-08-2018
 - Source: https://www.youtube.com/watch?v=Xm-6_0N2uJg
@@ -10,7 +18,7 @@
 - Song: Across the Violet Sky - Evan Call
 - Song_URL: https://www.youtube.com/watch?v=z5Dhxw0SeMs
 
-## [Gmod] Pac3 Evergarden
+## Description
 
 wait, he still makes videos?
 

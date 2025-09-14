@@ -1,14 +1,22 @@
+# PAC3 - GMod pac 3 Arthas Ver.1 +Download
+
+## Details
+
+### Author
+
 - Author: ArARico137
 - Steam Profile: http://steamcommunity.com/profiles/76561198144839158
 - YouTube: https://www.youtube.com/@ArARico137
-<!-- -->
+
+### Publication Info
+
 - Title: GMod pac 3 Arthas Ver.1 +Download
 - Date (dd-mm-yyyy): 09-03-2020
 - Source: https://www.youtube.com/watch?v=u9uqY-c_vf8
 - Source: https://www.dropbox.com/scl/fi/rjbfvyl4zc1oz3zv6cdy1/ArthasYT.txt?rlkey=jksmr762izlf0bruzzonmje2v&e=1&dl=0
 - Source Accessed (dd-mm-yyyy): 19-06-2025
 
-## GMod pac 3 Arthas Ver.1 +Download
+## Description
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 После перерыва решил начать лепить Артаса. Но т.к не знаю какие у него там были перки, заделал пока то что есть. Почему давно не было видео? Был в отъезде, попытаемся нагнать))

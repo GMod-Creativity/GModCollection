@@ -1,7 +1,15 @@
+# PAC3 - [Gmod] Pac3 Dimensional Zuthar {Download}
+
+## Details
+
+### Author
+
 - Author: Cody Crest
 - Steam Profile: http://steamcommunity.com/profiles/76561198077799720
 - YouTube: https://www.youtube.com/@CodyCrestpac3
-<!-- -->
+
+### Publication Info
+
 - Title: [Gmod] Pac3 Dimensional Zuthar {Download}
 - Date (dd-mm-yyyy): 24-12-2016
 - Source: https://www.youtube.com/watch?v=HvWcZecvFMY
@@ -10,7 +18,7 @@
 - Song: In a Million Days - Rijko
 - Song_URL: https://www.youtube.com/watch?v=3TEkX5OUMRw
 
-## [Gmod] Pac3 Dimensional Zuthar {Download}
+## Description
 
 Remember when zuthar made that dimensional movie rp, and its intro was like kinda trippy? well this outfit is like that, yknow, with the floating objects. with the desk and headcrab. recorded in 2k, cuz obs cant take 4k. oh right, heres the download: [https://pastebin.com/NYMTBBPZ]. dont copy without giving credit, blah blah blah. looks cool, rite?
 

@@ -1,7 +1,15 @@
+# PAC3 - [Gmod] Pac3 Madeon's Shelter {Download} {Final}
+
+## Details
+
+### Author
+
 - Author: Cody Crest
 - Steam Profile: http://steamcommunity.com/profiles/76561198077799720
 - YouTube: https://www.youtube.com/@CodyCrestpac3
-<!-- -->
+
+### Publication Info
+
 - Title: [Gmod] Pac3 Madeon's Shelter {Download} {Final}
 - Date (dd-mm-yyyy): 05-03-2017
 - Source: https://www.youtube.com/watch?v=wrabKRITXyw
@@ -10,7 +18,7 @@
 - Song: Shelter - Madeon - Porter Robinson
 - Song_URL: https://www.youtube.com/watch?v=vxVig1gPnLo
 
-## [Gmod] Pac3 Madeon's Shelter {Download} {Final}
+## Description
 
 PLEASE READ THE DESCRIPTION BELOW
 
@@ -21,12 +29,13 @@ Fair use is a use permitted by copyright statute that might otherwise be infring
 
 Non-profit, educational or personal use tips the balance in favor of fair use.
 
---------------------------------------------------------------------------------------------------------
+---
+
 I do not own the song, and this creation is a parody on on Madeon and Porter Robinson's Shelter animation, which can be found here:
 
 - [Porter Robinson & Madeon - Shelter (Offici...](https://www.youtube.com/watch?v=fzQ6gRAEoy0)
 
---------------------------------------------------------------------------------------------------------
+---
 
 As for the outfits, I will not be continuing them for a long time. This does not mean permanently, however it is unlikely I will upload in the next month or so.
 

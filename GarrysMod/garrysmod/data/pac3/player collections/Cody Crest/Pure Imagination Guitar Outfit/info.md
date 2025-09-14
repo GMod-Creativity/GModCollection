@@ -1,7 +1,15 @@
+# PAC3 - [Gmod] Pac3 Pure Imagination Guitar Outfit {Download}
+
+## Details
+
+### Author
+
 - Author: Cody Crest
 - Steam Profile: http://steamcommunity.com/profiles/76561198077799720
 - YouTube: https://www.youtube.com/@CodyCrestpac3
-<!-- -->
+
+### Publication Info
+
 - Title: [Gmod] Pac3 Pure Imagination Guitar Outfit {Download}
 - Date (dd-mm-yyyy): 12-12-2016
 - Source: https://www.youtube.com/watch?v=P7H3r1MWKlo
@@ -10,6 +18,6 @@
 - Song: Pure Imagination (arrangement) by Helen Marshall - Dracapalley
 - Song_URL: https://www.youtube.com/watch?v=KrUak31dVqc
 
-## [Gmod] Pac3 Pure Imagination Guitar Outfit {Download}
+## Description
 
 Yes, it is like the one from Elevator. Yes, it is a bit dark. It gets lighter the further you stand away. Plus, its for the a e s t h e t i c. The animation is a bit stiff and repetitive, but the light is so bright it doesnt really matter rip. Oh, right, heres the download: [ https://pastebin.com/QTp04Edm ] Please, for the love of god, do not take credit on this.

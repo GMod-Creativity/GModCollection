@@ -21,7 +21,7 @@ This E2 spawns 1 C4 that is highly configurable with ~30 commands and sticks to 
 
 ### HOW TO USE:
 
-```
+```plaintext
 -- Spawning C4
 There are 2 ways of planting the C4, they are:
 -Pressing the P key

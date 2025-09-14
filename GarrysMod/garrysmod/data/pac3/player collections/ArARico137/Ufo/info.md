@@ -1,14 +1,22 @@
+# PAC3 - Ufo pac 3 gmod. +Download
+
+## Details
+
+### Author
+
 - Author: ArARico137
 - Steam Profile: http://steamcommunity.com/profiles/76561198144839158
 - YouTube: https://www.youtube.com/@ArARico137
-<!-- -->
+
+### Publication Info
+
 - Title: Ufo pac 3 gmod. +Download
 - Date (dd-mm-yyyy): 3-10-2016
 - Source: https://www.youtube.com/watch?v=0tGCl3WgiXw
 - Source: https://www.dropbox.com/scl/fi/3u36p4d0xu1t0pldtmfo3/Ufo.txt?rlkey=j8mo6hktqceqf8g1hm66jrnb3&e=1&dl=0
 - Source Accessed (dd-mm-yyyy): 19-06-2025
 
-## Ufo pac 3 gmod. +Download
+## Description
 
 Хеееей, Delta psi народ! На связи Рико(почти на связи) иии я решил выложить видео по своим костюмчикам pac 3 в игре gmod.  Выложить я решил по простой причине-надоело просто так сидеть в гаррисе. Надеюсь кому то понравится.
 

@@ -1,7 +1,15 @@
+# PAC3 - [Gmod] Pac3 Memories {DOWNLOAD}
+
+## Details
+
+### Author
+
 - Author: Cody Crest
 - Steam Profile: http://steamcommunity.com/profiles/76561198077799720
 - YouTube: https://www.youtube.com/@CodyCrestpac3
-<!-- -->
+
+### Publication Info
+
 - Title: [Gmod] Pac3 Memories {DOWNLOAD}
 - Date (dd-mm-yyyy): 9-09-2017
 - Source: https://www.youtube.com/watch?v=e_iNFRG2vvo
@@ -10,7 +18,7 @@
 - Song: Kickstarter - William Reid
 - Song_URL: https://www.youtube.com/watch?v=go3HxaWeH8Q
 
-## [Gmod] Pac3 Memories {DOWNLOAD}
+## Description
 
 Totally not based on a game I may or may not have played but have definitely Not been sponsored by to advertise or publicize.
 

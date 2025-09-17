@@ -18,3 +18,4 @@
 - Source: https://www.dropbox.com/scl/fi/apld9uimpv222f1e3rriq/E2-600-PACK.rar?e=1&rlkey=hxmfler3tzw9pox624tiyu97u
 - Source: https://www.youtube.com/watch?v=MM7QJr6WSP0
 - Source Accessed (dd-mm-yyyy): 06-06-2025
+- Pack Type: expression2

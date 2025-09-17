@@ -1,0 +1,178 @@
+--@name susp_lib/spring_lib
+--@author Cheezus
+
+local clamp, max = math.clamp, math.max
+local Spring = class("Spring")
+local springs = {}
+local springID = 0
+
+--- Create a new spring controller.
+-- @param e1 The first entity to attach the spring to
+-- @param e2 The second entity to attach the spring to
+-- @param lPos1 The position on the first entity which the spring should attach to, in local coordinates
+-- @param lPos2 The position on the second entity which the spring should attach to, in local coordinates
+-- @return The spring object
+function Spring:initialize(e1, e2, lPos1, lPos2)
+    if not isValid(e1) then
+        error("Failed to create spring: entity 1 is not valid")
+    end
+
+    if not isValid(e2) then
+        error("Failed to create spring: entity 2 is not valid")
+    end
+
+    if e1 == e2 then
+        error("Failed to create spring: cannot constrain an entity to itself")
+    end
+
+    self.e1 = e1
+    self.e2 = e2
+
+    self.phys1 = e1:getPhysicsObject()
+    self.phys2 = e2:getPhysicsObject()
+
+    self.lPos1 = lPos1 or Vector()
+    self.lPos2 = lPos2 or Vector()
+
+    self.constant = 0
+    self.damping = 0
+    self.maxDamping = math.huge
+    self.restingLength = (e1:localToWorld(self.lPos1) - e2:localToWorld(self.lPos2)):getLength()
+    self.displacement = 0
+    self.lastDisplacement = 0
+    self.stretchOnly = false
+
+    self.id = springID
+    springs[springID] = self
+    springID = springID + 1
+end
+
+--- Set the spring constant of the spring, in newtons per meter.
+-- @param const The spring constant
+function Spring:setConstant(const)
+    self.constant = max(0, const)
+end
+
+--- Set the damping rate of the spring, in newtons per meter per second.
+-- @param const The spring constant
+function Spring:setDamping(damping)
+    self.damping = max(0, damping)
+end
+
+--- Set the maximum damping force of the spring, in newtons.
+-- @param const The spring constant
+function Spring:setMaxDamping(maxDamping)
+    self.maxDamping = max(0, maxDamping)
+end
+
+--- Sets a custom damping function taking the current spring displacement rate as an argument, and returning the damping force in newtons.
+-- @param func The damping function to use instead of the default one
+function Spring:setCustomDamping(func)
+    self.customDamping = func
+end
+
+--- Sets the resting length of the spring, can be used to adjust suspension height on vehicles.
+-- @param restingLength The new resting length
+function Spring:setRestingLength(restingLength)
+    self.restingLength = max(0, restingLength)
+end
+
+--- Gets the current resting length of the spring
+-- @return The spring's resting length
+function Spring:getRestingLength()
+    return self.restingLength
+end
+
+--- Sets whether the spring should act more like an elastic rope, only applying force in tension.
+-- @param stretchOnly True to enable stretch only, false to disable
+function Spring:setStretchOnly(stretchOnly)
+    self.stretchOnly = stretchOnly
+end
+
+--- Removes the spring.
+function Spring:remove()
+    springs[self.id] = nil
+end
+
+-- https://github.com/Facepunch/garrysmod-issues/issues/5159
+local ENTITY = getMethods("Entity")
+local m_in_sq = 1 / 39.37 ^ 2 -- in^2 to m^2
+local const = m_in_sq * 360 / (2 * 3.1416)
+function ENTITY:applyForceOffsetFixed(force, pos)
+    self:applyForceCenter(force)
+
+    local off = pos - self:localToWorld(self:getMassCenter())
+    local angf = off:cross(force) * const
+
+    self:applyTorque(angf)
+end
+
+local m_in = 39.3701 -- Meter/inch conversion factor
+
+function Spring:__tostring()
+    local str =
+        "Spring [Ent " .. self.e1:entIndex() .. " - Ent " .. self.e2:entIndex() .. "]\n" ..
+        "LPos1: " .. tostring(self.lPos1) .. "\n" ..
+        "LPos2: " .. tostring(self.lPos2) .. "\n" ..
+        "Constant: " .. self.constant .. " N/m\n" ..
+        "Damping: " .. self.damping .. " N/m/s"
+
+    return str
+end
+
+local dt = game.getTickInterval()
+
+-- Can this be optimized further?
+hook.add("tick", "SpringTick", function()
+    for _, spring in pairs(springs) do
+        if isValid(spring.phys1) and isValid(spring.phys2) then
+            local e1 = spring.e1
+            local e2 = spring.e2
+
+            local frozen1 = e1:isFrozen()
+            local frozen2 = e2:isFrozen()
+
+            if not frozen1 or not frozen2 then
+                local wPos1 = e1:localToWorld(spring.lPos1)
+                local wPos2 = e2:localToWorld(spring.lPos2)
+
+                local forceVector = wPos1 - wPos2
+                local forceLen = forceVector:getLength()
+
+                spring.displacement = (forceVector:getLength() - spring.restingLength) / m_in -- Displacement of spring from rest position, in meters
+
+                if forceLen ~= 0 and not (spring.stretchOnly and spring.displacement <= 0) then
+    
+                    forceVector:normalize()
+    
+                    local currentForce = (-spring.constant * m_in) * spring.displacement * dt -- N/m
+                    local springForceVector = forceVector * currentForce
+    
+                    local displacementRate = (spring.displacement - spring.lastDisplacement) / dt -- m/s
+                    spring.lastDisplacement = spring.displacement
+    
+                    local dampingForce
+                    if spring.customDamping then
+                        dampingForce = forceVector * spring.customDamping(displacementRate) * m_in * dt
+                    else
+                        dampingForce = forceVector * clamp((-spring.damping * m_in) * displacementRate * dt, -spring.maxDamping, spring.maxDamping) -- N/m/s
+                    end
+    
+                    local totalForce = springForceVector + dampingForce
+    
+                    if not frozen1 then
+                        e1:applyForceOffsetFixed(totalForce, wPos1)
+                    end
+    
+                    if not frozen2 then
+                        e2:applyForceOffsetFixed(-totalForce, wPos2)
+                    end
+                end
+            end
+        else
+            spring:remove()
+        end
+    end
+end)
+
+return Spring

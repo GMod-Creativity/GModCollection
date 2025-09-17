@@ -1,0 +1,900 @@
+--@name wheels fx public
+--@author
+--@shared
+
+if SERVER then
+    
+    wire.adjustInputs(
+        {
+            "Chassis",
+            "Wheels"
+        },
+        {
+            "Entity",
+            "Array"
+        }
+    )
+    
+    local round = math.round
+    local abs = math.abs
+    local min = math.min
+    
+    local stressAngVelTicks = 0
+    local stressAngVelSkip = 6
+
+    local angVelAxis = "y"
+    
+    function sendStressAngVel(wheels)
+        local frozen = false
+        
+        if stressAngVelTicks > 0 then
+            stressAngVelTicks = stressAngVelTicks - 1
+            return
+        end
+        
+        local wCount = #wheels
+        
+        if wCount > 0 and net.getBytesLeft() > 34*wCount then
+            
+            net.start("send_data")
+            
+            net.writeInt(wCount,8)
+                   
+            for i,w in ipairs(wheels) do
+                
+                if frozen == false then
+                    frozen = w:isFrozen()
+                end
+                
+                local idx = w:entIndex()
+                local pobj = w:getPhysicsObject()
+                local v = w:getVelocity()*0.1
+                local av = pobj:getAngleVelocity()[angVelAxis]*0.1
+                local stress,_ = pobj:getStress()
+                
+                net.writeUInt(idx,13)
+                net.writeUInt(stress > 0 and 1 or 0,1)
+                net.writeInt(round(v.x),15)
+                net.writeInt(round(v.y),15)
+                net.writeInt(round(v.z),15)
+                net.writeInt(round(av),15)
+          
+            end
+            
+            net.send(find.allPlayers(),true)
+            
+        end
+        
+        stressAngVelTicks = stressAngVelSkip * (frozen and 20 or 1)
+
+        return    
+    end
+    
+    hook.add("tick","send_stress_angvels",function()
+        sendStressAngVel(wire.ports.Wheels)
+    end)
+
+        
+    net.receive("request_entities", function(len, ply)
+        local wheels = {}
+        
+        for i,e in ipairs(wire.ports.Wheels) do
+            table.insert(wheels,{i = e:entIndex(), w = e})
+        end
+        
+        if table.count(wheels) > 0 then
+            local cid = wire.ports.Chassis:isValid() and wire.ports.Chassis:entIndex() or 0
+            
+            net.start("send_entities")
+            
+            net.writeString(angVelAxis)
+            net.writeFloat(game.getTickInterval() * (stressAngVelSkip + 1))
+            
+            net.writeUInt(cid,13)
+            
+            net.writeUInt(table.count(wheels),8)
+            for _,w in pairs(wheels) do
+                net.writeUInt(w.i,13)
+            end
+
+            net.send(ply)
+        end
+    end)
+    
+    net.receive("send_failed_perm",function(_,ply)
+        net.start("send_failed_perm_to_owner")
+        net.writeString(ply:getName())
+        net.writeString(net.readString())
+        net.send(owner(),true)
+    end)
+
+end
+
+if CLIENT then
+    
+    local mat_enums = {
+    [65] = "antlion",
+    [66] = "bloodyflesh",
+    [67] = "concrete",
+    [68] = "dirt",
+    [69] = "eggshell",
+    [70] = "flesh",
+    [71] = "grate",
+    [72] = "alienflesh",
+    [73] = "clip",
+    [74] = "snow",
+    [76] = "plastic",
+    [77] = "metal",
+    [78] = "sand",
+    [79] = "foliage",
+    [80] = "computer",
+    [83] = "slosh",
+    [84] = "tile",
+    [85] = "grass",
+    [86] = "vent",
+    [87] = "wood",
+    [88] = "default",
+    [89] = "glass",
+    [90] = "warpshield"
+}
+
+    
+    local mathabs = math.abs
+    local mathmax = math.max
+    local mathmin = math.min
+    local mathclamp = math.clamp
+    local mathsign = math.sign
+    local mathrand = math.rand
+    local mathlerp = math.lerp
+    local mathlerpV = math.lerpVector
+    local getTime = timer.curtime
+    local frameTime = timer.frametime
+    local trandom = table.random
+    local randindex = math.random(1000000,9999999)
+
+    local rate = 0
+    local timestamp = 0
+    
+    function avg(array) --function to get average from array of numbers
+
+        if #array == 0 then return 0 end
+    
+        local avg = 0
+
+        for i,v in ipairs(array) do
+            avg = avg + v
+        end
+        
+        avg = avg / #array
+        
+        return avg
+    
+    end
+
+    function averageButNoZeroes(numbers)
+        local count,avg = 0,0
+        
+        for _,v in ipairs(numbers) do
+            if v == 0 then continue end
+            count = count + 1
+            avg = avg + v
+        end
+    
+        return count>0 and avg/count or 0
+    end
+
+    function interpolateWheelsData(wheels,timestamp,rate)        
+        
+        if interval == 0 then
+            for i,w in pairs(wheels) do
+                w.dataInt = table.copy(w.dataNew)
+            end    
+        
+            return
+        end 
+        
+        local curtime = getTime()
+        local interpolation = (curtime - timestamp)*rate
+                
+        for i,w in pairs(wheels) do
+            w.dataInt = {}
+            for k,d in pairs(w.dataNew) do
+                if d == w.dataOld[k] then
+                    w.dataInt[k] = d
+                    continue
+                end
+                local l = type(d) == "Vector" and mathlerpV or mathlerp
+                w.dataInt[k] = l(interpolation,w.dataOld[k],w.dataNew[k])
+            end
+        end
+        
+    end
+    
+    local function createSound(ent, path, onCreated)
+        
+        local snd = {}
+        onCreated = onCreated or function() end
+        snd.web = string.find(path, "https://") and true or false
+
+        function snd:play()
+            if not snd.obj then return end
+            snd.obj:play()
+
+            hook.add("think", tostring(snd), function()
+                if not ent:isValid() then return end
+                snd.obj:setPos(ent:getPos())
+            end)
+        end
+
+        function snd:stop()
+            if not snd.obj then return end
+
+            snd.obj:pause()
+            snd.obj:setTime(0)
+            hook.remove("think", tostring(snd))
+        end
+        
+        function snd:destroy()
+            if not snd.obj then return end
+            
+            snd.obj:stop()
+            hook.remove("think", tostring(snd))
+        end
+
+        function snd:isValid()
+            return snd.obj and true or false
+        end
+
+        function snd:isPlaying()
+            if not snd.obj then return false end
+            return snd.obj:isPlaying()
+        end
+
+        function snd:setPitch(pitch)
+            if not snd.obj then return end
+            pitch = pitch
+            snd.obj:setPitch(pitch)
+        end
+
+        function snd:setVolume(volume)
+            if not snd.obj then return end
+            snd.obj:setVolume(volume)
+        end
+
+        local load = snd.web and bass.loadURL or bass.loadFile
+        load(path, "3d noblock noplay mono", function(s)
+            if not s then return end
+            s:setLooping(true)
+            snd.obj = s
+            onCreated(snd)
+        end)
+
+        return snd
+    end
+    
+    local axisStringToNumber =
+        {
+            x = 1,
+            y = 2,
+            z = 3
+        }
+    
+
+    local axisStringToVector =
+        {
+            x = Vector(1,0,0),
+            y = Vector(0,1,0),
+            z = Vector(0,0,1)
+        }
+        
+    local particles = {
+            tiresmoke = {        
+                path = {"particle/particle_smokegrenade","particle/particle_smokegrenade1"},
+                spawnOnSkid = true, --true - use skid value, false - use wheel angSpeed value
+                color = Color(255,255,255),
+                affectByLight = false,
+                startAt = 300,
+                maxAt = 600,
+                sizeStart = 30,
+                sizeEnd = 120,
+                alphaStart = 255,
+                alphaEnd = 0,
+                multMin = 0.9,
+                multMax = 1.1,
+                velocityMult = Vector(0.1,1,0.01),
+                gravity = Vector(0,0,20),
+                airResistance = 50,
+                ttl = 5,
+                interval = 0.10,
+            },
+            roaddust = {
+                path = {"particle/particle_smokegrenade","particle/particle_smokegrenade1"},
+                spawnOnSkid = false, --true - use skid value, false - use wheel angSpeed value
+                color = Color(189,157,121),
+                affectByLight = false,
+                startAt = 20,
+                maxAt = 800,
+                sizeStart = 20,
+                sizeEnd = 300,
+                alphaStart = 255,
+                alphaEnd = 0,
+                multMin = 0.9,
+                multMax = 1.1,
+                velocityMult = Vector(0.1,1,0.01),
+                gravity = Vector(0,0,20),
+                airResistance = 50,
+                ttl = 2,
+                interval = 0.07,
+            },
+            grass = {
+                path = {"particle/debris2/debris_2"},
+                affectByLight = true,
+                color = Color(100,120,70),
+                spawnOnSkid = false,
+                startAt = 200,
+                maxAt = 800,
+                sizeStart = 10,
+                sizeEnd = 10,
+                alphaStart = 255,
+                alphaEnd = 255,
+                multMin = 0.5,
+                multMax = 1.1,
+                velocityMult = Vector(0.1,1,0.1),
+                gravity = Vector(0,0,-600),
+                airResistance = 5,
+                ttl = 2,
+                interval = 0.05,              
+            },
+             snow = {
+                path = {"particle/particle_smokegrenade","particle/particle_smokegrenade1"},
+                affectByLight = false,
+                color = Color(255,255,255),
+                spawnOnSkid = false,
+                startAt = 60,
+                maxAt = 1800,
+                sizeStart = 20,
+                sizeEnd = 200,
+                alphaStart = 255,
+                alphaEnd = 0,
+                multMin = 0.9,
+                multMax = 1.1,
+                velocityMult = Vector(0.1,1,0.1),
+                gravity = Vector(0,0,60),
+                airResistance = 80,
+                ttl = 2,
+                interval = 0.07,              
+            },
+        }
+        
+    local defMaterial = 0
+    local materials = {
+        
+        [67] = {
+            name = "concrete",
+            particles = particles.tiresmoke,
+            sounds = {
+                skid = {
+                    sndsource = "https://raw.githubusercontent.com/nrlulz/ACF/master/sound/acf_extra/vehiclefx/tires/scrub1_dry_in.wav",
+                    volume = 1,
+                    pitchMin = 1.9,
+                    pitchMax = 0.8
+                },
+                roll = {
+                    sndsource = "https://raw.githubusercontent.com/RedDeadlyCreeper/ArmoredCombatExtended/master/sound/acf_extra/vehiclefx/tires/road.wav",
+                    volume = 1,
+                    pitchMin = 0.9,
+                    pitchMax = 1.8
+                },
+            },
+        },
+            
+            
+        [68] = {
+            name = "dirt",
+            particles = particles.roaddust,
+            sounds = {
+                skid = {
+                    sndsource = "https://raw.githubusercontent.com/dobriyprop/sounds/main/tire_sounds/dirt/tire_skid_dirt.wav",
+                    volume = 1,
+                    pitchMin = 1,
+                    pitchMax = 2.1
+                },
+                roll = {
+                    sndsource = "https://raw.githubusercontent.com/dobriyprop/sounds/main/tire_sounds/dirt/tire_roll_dirt_medium_v4.wav",
+                    volume = 1,
+                    pitchMin = 0.8,
+                    pitchMax = 1.2
+                },
+            },
+        },
+        
+        [85] = {
+            name = "grass",
+            particles = particles.grass,
+            sounds = {
+                skid = {
+                    sndsource = "https://raw.githubusercontent.com/dobriyprop/sounds/main/tire_sounds/grass/tire_roll_grass_fast_v4.wav",
+                    volume = 0.7,
+                    pitchMin = 1,
+                    pitchMax = 2.1
+                },
+                roll = {
+                    sndsource = "https://raw.githubusercontent.com/dobriyprop/sounds/main/tire_sounds/grass/tire_skid_grass.wav",
+                    volume = 1.5,
+                    pitchMin = 0.8,
+                    pitchMax = 1.2
+                },
+            },
+        },
+            
+        [74] = {
+            name = "snow",
+            particles = particles.snow,
+            sounds = {
+                skid = {
+                    sndsource = "https://raw.githubusercontent.com/dobriyprop/sounds/main/tire_sounds/grass/tire_roll_grass_fast_v4.wav",
+                    volume = 0.7,
+                    pitchMin = 1,
+                    pitchMax = 2.1
+                },
+                roll = {
+                    sndsource = "https://raw.githubusercontent.com/dobriyprop/sounds/main/tire_sounds/grass/tire_skid_grass.wav",
+                    volume = 1.5,
+                    pitchMin = 0.8,
+                    pitchMax = 1.2
+                },
+            }
+        },
+        
+        [78] = {
+            name = "sand",
+            particles = particles.roaddust,
+            sounds = {
+                skid = {
+                    sndsource = "https://raw.githubusercontent.com/dobriyprop/sounds/main/tire_sounds/dirt/tire_skid_dirt.wav",
+                    volume = 1,
+                    pitchMin = 1,
+                    pitchMax = 2.1
+                },
+                roll = {
+                    sndsource = "https://raw.githubusercontent.com/RedDeadlyCreeper/ArmoredCombatExtended/master/sound/acf_extra/vehiclefx/tires/snowroll.wav",
+                    volume = 1,
+                    pitchMin = 0.8,
+                    pitchMax = 1.2
+                },
+            },
+        },
+        
+        [87] = {
+            name = "wood",
+            particles = particles.tiresmoke,
+            sounds = {
+                skid = {
+                    sndsource = "https://raw.githubusercontent.com/RedDeadlyCreeper/ArmoredCombatExtended/master/sound/acf_extra/vehiclefx/tires/scrub1_dry_in.wav",
+                    volume = 1,
+                    pitchMin = 1,
+                    pitchMax = 2.1
+                },
+                roll = {
+                    sndsource = "https://raw.githubusercontent.com/RedDeadlyCreeper/ArmoredCombatExtended/master/sound/acf_extra/vehiclefx/tires/woodroll.wav",
+                    volume = 3,
+                    pitchMin = 0.8,
+                    pitchMax = 1.2
+                },
+            },
+        },
+    }
+    local soundsLoadDone = false
+    local soundsLoaded = 0
+
+    local traceTicks = 0
+    local traceSkip = 5
+    local traceFilter = {}
+
+    local angVelAxis = "y"
+    
+    local volumeGlobal = 1
+    
+    local skidTrigger = 70 -- min u/s difference between real and angvel derived velocity of the wheel that will trigger the skid sound
+    local skidPitchMax = 1200   -- max u/s difference between real and angvel derived velocity of the wheel at which skid sound will reach full max pitch and volume
+    local skidVolumeMax = 700   -- max u/s difference between real and angvel derived velocity of the wheel at which skid sound will reach full max pitch and volume
+    
+    local rollMaxSpeed = 4500 -- at this u/s roll sound will be 100%
+    local rollMaxVolume = 0.7 -- roll sound global volume multiplier
+
+    local stressDebounce = 3
+    
+    local wheels = {}
+    local wheelscount = 0
+    local initWheelsDone = false
+    local chassisid = nil
+    local chassis = nil
+    
+    local timestamp = 0
+    
+    function checkPermissions()
+        local permissions = {
+            {func="http.get",sample="https://raw.githubusercontent.com/dobriyprop/sounds/main/tire_sounds/grass/tire_roll_grass_fast_v4.wav"},
+            {func="bass.loadURL",sample="https://raw.githubusercontent.com/dobriyprop/sounds/main/tire_sounds/grass/tire_roll_grass_fast_v4.wav"},
+            {func="bass.loadFile",sample=nil},
+            {func="particle.create",sample=nil},
+            {func="material.create",sample=nil},
+            }
+        
+        local fail = false
+        for _,perm in ipairs(permissions) do
+            if not hasPermission(perm.func,perm.sample) then
+                if not failedPermsSent then
+                    net.start("send_failed_perm")
+                    net.writeString(perm.func)
+                    net.send(true)
+                end
+                fail = true
+            end
+        end
+
+        if fail == true then
+            failedPermsSent = true
+            timer.simple(5,checkPermissions)
+            return
+        end
+        
+        downloadSounds()
+        initNetworking()
+    end
+        
+    function requestEntities()
+        net.start("request_entities")
+        net.send()
+    end
+
+    function processInitData()
+        timer.stop("request_entities")
+        
+        angVelAxis = net.readString()
+        rate = 1/net.readFloat()
+                
+        local id = net.readUInt(13)
+        local count = net.readUInt(8)
+        
+        if id == 0 or count == 0 then
+            timer.simple(3,requestEntities)
+            return
+        end
+        
+        chassisid = id
+        wheelscount = count 
+        
+        for i=1,wheelscount do
+            local id = net.readUInt(13)
+            if id == 0 then
+                timer.simple(3,requestEntities)
+                return
+            end
+
+            local wheel = {}
+            wheel.id = id
+            wheels[id] = wheel
+        end       
+
+        discoverEntities()
+    end
+    
+    function discoverEntities()
+        chassis = entity(chassisid)
+        if chassis == nil or not chassis:isValid() then
+            timer.simple(1,discoverEntities)
+            return
+        end     
+        
+        table.insert(traceFilter,chassis) 
+
+        for i,w in pairs(wheels) do
+            w.entity = entity(w.id)
+            if w.entity == nil or not w.entity:isValid() then
+                timer.simple(1,discoverEntities)
+                return
+            end
+            table.insert(traceFilter,w.entity)      
+        end
+        
+        initWheels()
+    end
+    
+    function downloadSounds()
+        local function verifyAllLoaded()
+            if soundsLoaded < table.count(materials)*2 then return end
+            soundsLoadDone = true
+        end
+        
+        for id,m in pairs(materials) do
+            if (http.getMaximumRequests()-http.getActiveRequests()) < 2 then timer.simple(0.5,downloadSounds) return end
+            if m.sounds.skid.sndfile or m.sounds.roll.sndfile then continue end
+            
+            m.sounds.skid.sndfile = "loading"
+            m.sounds.roll.sndfile = "loading"
+            
+            if string.find(m.sounds.skid.sndsource, "https://") then
+                http.get(m.sounds.skid.sndsource,function(data) m.sounds.skid.sndfile = file.writeTemp(tostring(randindex).."_"..m.name.."_skid.dat", data) soundsLoaded=soundsLoaded+1 verifyAllLoaded() end)
+            else
+                m.sounds.skid.sndfile = "sounds/"..m.sounds.skid.sndsource
+                soundsLoaded=soundsLoaded+1
+                verifyAllLoaded()
+            end
+
+            if string.find(m.sounds.roll.sndsource, "https://") then
+                http.get(m.sounds.roll.sndsource,function(data) m.sounds.roll.sndfile = file.writeTemp(tostring(randindex).."_"..m.name.."_roll.dat", data) soundsLoaded=soundsLoaded+1 verifyAllLoaded() end)
+            else
+                m.sounds.roll.sndfile = "sounds/"..m.sounds.roll.sndsource
+                soundsLoaded=soundsLoaded+1
+                verifyAllLoaded()
+            end
+        end
+    end
+    
+    function initWheels()
+        for id,w in pairs(wheels) do            
+            w.dataNew = {
+                vel = Vector(),
+                angVel = 0,
+                stress = 0
+                }
+            w.dataOld = {}
+            table.copyFromTo(w.dataNew,w.dataOld)
+            
+            w.axis = axisStringToVector[angVelAxis]
+            w.wheelAxis = w.entity:localToWorld(w.axis)-w.entity:getPos()
+            w.direction = math.sign(math.round(chassis:getRight():dot(w.wheelAxis),3))
+
+            w.physmat = nil
+            w.rawStress = {}
+            w.isStressed = false
+            w.isSkidding = false
+            w.angSpeed = 0
+            w.skid = 0
+            w.skidslow = 0
+            w.sounds = {}
+            w.particles = particle.create(chip():getPos(),false)
+            w.particlesTimestamp = 0
+            w.diameter = mathmax(unpack(w.entity:obbSize()))
+            w.diameterPi360 = w.diameter * 3.141592 / 360
+        end
+
+        timestamp = getTime()
+        
+        net.receive("send_data",processData)
+        hook.add("tick","main",main)
+        
+        initWheelsDone = true
+    end
+    
+    function processData()
+        timestamp = getTime()
+        
+        local wCount = net.readUInt(8)
+        for i=1,wCount do
+            local idx = net.readUInt(13)
+            local w = wheels[idx]
+
+            w.dataOld = w.dataNew
+            w.dataNew = {}
+            
+            local rawstress = net.readUInt(1)
+            table.insert(w.rawStress,rawstress)
+            if #w.rawStress > stressDebounce then table.remove(w.rawStress,1) end
+                            
+            w.dataNew.vel = Vector(net.readInt(15),net.readInt(15),net.readInt(15))*10
+            w.dataNew.angVel = net.readInt(15)*10
+            w.stress = mathmax(unpack(w.rawStress)) > 0
+        end
+    end
+    
+
+
+-- Function to retrieve the material type name from MAT enum
+function getMatTypeName(matType)
+    return mat_enums[matType] or "unknown"
+end
+-- Function to retrieve the material type name from MAT enum
+function materialTraces()
+    if not soundsLoadDone or not initWheelsDone or traceTicks > 0 then 
+        traceTicks = traceTicks - 1 
+        return 
+    end
+    traceTicks = traceSkip
+
+    for id,w in pairs(wheels) do
+        if not w.entity:isValid() then
+            hook.remove("tick","main")
+            killSounds()
+            discoverEntities()
+            return
+        end
+        local startPos = w.entity:getPos()
+        local endPos = (startPos - chassis:getUp()*w.diameter)
+
+        local wheeltrace = trace.line(startPos, endPos, traceFilter)
+        if wheeltrace.Entity:isValid() and (wheeltrace.Entity:getParent() == chassis or wheeltrace.Entity:getParent() == w.entity) then 
+            table.insert(traceFilter, wheeltrace.Entity) 
+            continue 
+        end
+
+        local matID = wheeltrace.MatType
+        local matTypeName = getMatTypeName(matID)
+        
+        -- You can use matTypeName as needed in your logic
+        --print(matTypeName)
+        
+
+        local physmat = matID ~= 0 and (materials[matID] ~= nil and materials[matID] or materials[defMaterial]) or nil
+
+        if w.physmat ~= physmat then
+            w.physmat = physmat
+            swapWheelSound(w)
+        end
+    end
+end
+
+
+    
+    function swapWheelSound(w)
+        if w.sounds.skid then w.sounds.skid:destroy() w.sounds.skid = nil end
+        if w.sounds.roll then w.sounds.roll:destroy() w.sounds.roll = nil end
+
+        if w.physmat then
+            w.sounds.skid = createSound(w.entity,w.physmat.sounds.skid.sndfile)
+            w.sounds.roll = createSound(w.entity,w.physmat.sounds.roll.sndfile)
+        end
+    end
+    
+    function killSounds()
+        for i,w in pairs(wheels) do
+            if w.sounds.skid then w.sounds.skid:destroy() w.sounds.skid = nil end
+            if w.sounds.roll then w.sounds.roll:destroy() w.sounds.roll = nil end
+        end
+    end
+    
+    function domath()
+        if not soundsLoadDone then return end
+                        
+        for i,w in pairs(wheels) do
+            if not w.entity:isValid() then
+                hook.remove("tick","main")
+                killSounds()
+                discoverEntities()
+                return
+            end
+            
+            local ent = w.entity
+            local vel = w.dataInt.vel
+            local angVel = w.dataInt.angVel
+            
+            if w.stress then
+                w.wheelAxis = ent:localToWorld(w.axis)-ent:getPos()
+                w.velScalar = vel:getLength()
+                local dot = w.velScalar > 0 and (1 - mathabs( w.wheelAxis:dot(vel:getNormalized()) )) or 0
+                w.angSpeed = w.diameterPi360*angVel
+                w.skid = mathabs( w.velScalar * dot - mathabs(w.angSpeed) )
+                w.isSkidding = w.skid > skidTrigger
+            end   
+        end
+    end
+
+    function sounds()
+        if not soundsLoadDone then return end
+                        
+        for i,w in pairs(wheels) do
+            if not w.physmat or not w.sounds.roll or not w.sounds.skid then continue end
+            
+            local isStressed = w.stress
+            local skidData = w.physmat.sounds.skid
+            local rollData = w.physmat.sounds.roll
+            local skidSound = w.sounds.skid
+            local rollSound = w.sounds.roll
+            
+            if isStressed then
+                if not rollSound:isPlaying() then
+                    rollSound:play()
+                    rollSound:setVolume(0)
+                end
+                
+                local rollPercent = mathclamp(mathabs(w.angSpeed)/rollMaxSpeed,0,1)
+                rollSound:setPitch(rollData.pitchMin + (rollData.pitchMax - rollData.pitchMin)*rollPercent)
+                rollSound:setVolume(rollPercent*rollMaxVolume*rollData.volume*volumeGlobal)
+                
+                if w.isSkidding then
+                    if not skidSound:isPlaying() then
+                        skidSound:play()
+                        skidSound:setPitch(0)
+                        skidSound:setVolume(0)
+                    end
+                    
+                    local skid = w.skid - skidTrigger
+                    local skidPitchPercent = mathclamp(((skidPitchMax - skidTrigger) - skid)/(skidPitchMax - skidTrigger),0,1)
+                    local skidVolumePercent = mathclamp(((skidVolumeMax - skidTrigger) - skid)/(skidVolumeMax - skidTrigger),0,1)
+
+                    skidSound:setPitch(mathlerp(skidPitchPercent,skidData.pitchMin,skidData.pitchMax))
+                    skidSound:setVolume(mathclamp((1-skidVolumePercent)*2,0,1)*skidData.volume*volumeGlobal)
+                elseif not w.isSkidding and skidSound:isPlaying() then
+                    skidSound:stop()
+                end
+                    
+            elseif not isStressed and (skidSound:isPlaying() or rollSound:isPlaying()) then
+                w.isSkidding = false
+                rollSound:stop()
+                skidSound:stop()
+            end                   
+        end
+    end
+    
+    function particles()
+        for i,w in pairs(wheels) do
+            if not w.physmat or not w.physmat.particles then continue end
+            local time = getTime()
+            local isStressed = w.stress
+            local pData = w.physmat.particles
+            local particles = w.particles
+            w.skidslow = w.skidslow + ((isStressed and mathmax(w.skid,0) or 0) - w.skidslow)*0.35*frameTime()
+            
+            if not pData.materials then
+                pData.materials = {}
+                for i,v in ipairs(pData.path) do
+                    try(function() pData.materials[i] = material.load(v) end)
+                end
+            end
+            local pMats = pData.materials
+            
+            local onSkid = pData.spawnOnSkid
+            local strengthSource = onSkid and w.skidslow or mathabs(w.angSpeed)
+            local condition = onSkid and (w.skid >= skidTrigger and strengthSource >= pData.startAt) or (strengthSource >= pData.startAt)
+            if isStressed and condition and time > w.particlesTimestamp+pData.interval and #pMats>0 and particles:getParticlesLeft() ~= 0 then
+                w.particlesTimestamp = time
+                local mat = trandom(pMats)
+                local pos = w.entity:getPos() + -0.5*w.diameter*chassis:getUp()
+                local diff = pData.maxAt - pData.startAt
+                local strength = mathmax(0,mathmin(1,(strengthSource - pData.startAt)/diff))
+                local randomnessMult = pData.multMin == pData.multMax and pData.multMin or mathrand(pData.multMin,pData.multMax)
+                local direction = chassis:getUp():cross(w.wheelAxis):getNormalized()
+                local directionSpeed = w.velScalar > 0 and w.velScalar*direction:dot(w.dataInt.vel:getNormalized()) or 0
+                local velocity = (direction * pData.velocityMult.x * (w.angSpeed-directionSpeed) + chassis:getUp() * mathabs(w.angSpeed) * pData.velocityMult.z) * randomnessMult
+                local p = particles:add(mat,pos,pData.sizeStart*strength,pData.sizeEnd*strength,0,0,pData.alphaStart*strength,pData.alphaEnd*strength,pData.ttl*strength)
+                
+                p:setCollide(true)
+                p:setRoll(math.random(360))
+                p:setRollDelta(math.rand(-1,1))
+                p:setLighting(pData.affectByLight)
+                p:setVelocity(velocity)
+                p:setGravity(pData.gravity)
+                p:setAirResistance(pData.airResistance)
+                p:setColor(pData.color)
+            end
+        end
+    end
+    
+    function main()
+        interpolateWheelsData(wheels,timestamp,rate)
+        materialTraces()
+        domath()
+        sounds()
+        particles()
+    end
+    
+    function initNetworking()
+        net.receive("send_entities",processInitData)
+        timer.create("request_entities",2,0,requestEntities)
+        requestEntities()
+    end
+    
+    function init()
+        net.receive("send_failed_perm_to_owner",function()
+            local player = net.readString()
+            local perm = net.readString()
+            print(player.." failed permission: "..perm)        
+        end)
+        checkPermissions()
+        timestamp = getTime()
+    end
+
+    init()
+    
+end

@@ -17,3 +17,4 @@
 - Date (dd-mm-yyyy): 17-02-2022
 - Source: https://github.com/Derpius/public-starfalls
 - Source Accessed (dd-mm-yyyy): 23-08-2025
+- Pack Type: starfall

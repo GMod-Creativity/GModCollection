@@ -1,0 +1,143 @@
+--@name Setang + Drift Assist v2.7 - Slip Angle Damping
+--@author [C17] Red Fox & Manus
+--@shared
+--@model models/sprops/rectangles/size_2/rect_12x12x3.mdl
+
+--[[
+    This version implements the most critical lesson from the E2 code.
+    It scales the entire corrective force based on the car's slip angle.
+    The drift assist is now weak when driving straight (preventing wobble)
+    and strong when actually drifting (providing stability). This is the
+    definitive fix for high-speed oscillation.
+]]--
+
+if SERVER then
+    wire.adjustInputs({"Pod","Base"},{"wirelink","entity"})
+    wire.adjustOutputs({
+        "Angle", "SpeedL", "SpeedDir", "IsSlipping", "IsDrifting", "SlipAmount", "YawDampAmt"
+    },{"number","number","number","number","number","number","number"})
+
+    -- CONFIG: Steering limits & behavior
+    local Lock                    = 40
+    local SpeedEffect             = 800
+    local SteeringSpeed           = 1
+    local DriftResistance         = 65
+    local Caster                  = -20
+
+    -- NEW: This controls how quickly the drift assist ramps up with the slip angle.
+    -- Higher values mean the assist becomes powerful even with small slides.
+    -- Lower values require a larger slide for the assist to kick in strongly.
+    -- This is now the main anti-wobble tuning parameter.
+    local SlipAngleFactor         = 15
+
+    -- CONFIG: Slip vs Drift thresholds
+    local SlipCorrectionThreshold = 2.5
+    local DriftThreshold          = 2.5
+
+    -- CONFIG: Force multipliers
+    local SlipCounterForce        = 1.5
+    local GyroCounterForce        = 1.5
+    
+    local OppositeMultiplier      = 1.25
+    local SameDirMultiplier       = 1.5
+
+    -- CONFIG: Gyro effect scaling by speed
+    local GyroSpeedThreshold      = 200
+    local GyroMinScale            = 0
+    local GyroMaxScale            = 3
+
+    local Direction               = -1
+
+    -- Runtime state
+    local AngleT = 0
+    local InA,InD = 0,0
+    local SetAng = chip()
+    SetAng:setNocollideAll(true)
+
+    hook.add("think","SetangDriftAssist_FinalFinalFix",function()
+        local Base = wire.ports.Base
+        if not Base or not Base:isValid() then return end
+
+        local Pod = wire.ports.Pod
+        if Pod then InA,InD = Pod.A or 0, Pod.D or 0 end
+
+        local dt = game.getTickInterval()
+        
+        local worldVel     = Base:getVelocity()
+        local localVel     = Base:worldToLocal(worldVel + Base:getPos()) * Direction
+        local ForwardSpeed = localVel.x / 14.5
+        local LateralSpeed = localVel.y / 14.5
+        local SpeedDir     = (ForwardSpeed >= 0) and 1 or -1
+
+        wire.ports.SpeedL   = ForwardSpeed
+        wire.ports.SpeedDir = SpeedDir
+        wire.ports.SlipAmount = LateralSpeed
+
+        -- ### THE CRITICAL NEW LOGIC ###
+        -- Calculate the slip angle. atan2 is perfect for this.
+        -- It gives us the angle between where the car is pointing and where it's actually going.
+        local slipAngle = math.atan2(LateralSpeed, math.abs(ForwardSpeed))
+        
+        -- Create our scaling factor. It will be 0 when going straight (slipAngle is 0)
+        -- and approach 1 as the car goes more sideways.
+        local correctionScale = math.clamp(math.abs(slipAngle) * SlipAngleFactor, 0, 1)
+
+        -- Yaw Damping Calculation (Unchanged)
+        local upWorld    = Base:localToWorldVector(Vector(0,0,1))
+        local yawVel     = Base:getAngleVelocity():dot(upWorld)
+        local speedScale = math.clamp(math.abs(ForwardSpeed) / GyroSpeedThreshold, 0, 1)
+        local gyroScale  = GyroMinScale + (GyroMaxScale - GyroMinScale) * speedScale
+        local yawDamping = yawVel * dt * GyroCounterForce * gyroScale * Direction
+        wire.ports.YawDampAmt = yawDamping
+
+        -- Slip Correction Calculation (Unchanged)
+        local slipCorrection = 0
+        local isSlipping      = math.abs(LateralSpeed) > SlipCorrectionThreshold
+        if isSlipping then
+            slipCorrection = LateralSpeed * SlipCounterForce * -Direction
+        end
+
+        -- Drift Correction Calculation
+        local isDrifting      = math.abs(LateralSpeed) > DriftThreshold
+        local driftCorrection = 0
+        local driftDir        = 0
+        if isDrifting then
+            driftDir        = (LateralSpeed > 0) and 1 or -1
+            local slipDrift  = slipCorrection / DriftResistance
+            driftCorrection = slipDrift + yawDamping
+        end
+
+        -- ### APPLY THE SCALING FACTOR ###
+        -- We multiply the entire calculated correction by our new scale.
+        -- No correction when going straight, full correction when sideways.
+        local finalCorrection = driftCorrection * correctionScale
+
+        wire.ports.IsSlipping = isSlipping and 1 or 0
+        wire.ports.IsDrifting = isDrifting and 1 or 0
+
+        -- Player Input (Unchanged)
+        local inputAmt    = InA - InD
+        local inputEffect = inputAmt * SteeringSpeed
+        if isDrifting and inputAmt ~= 0 then
+            local inputDir = (inputAmt > 0) and -1 or 1
+            if inputDir == driftDir then
+                inputEffect = inputAmt * SteeringSpeed * SameDirMultiplier
+            else
+                inputEffect = inputAmt * SteeringSpeed * OppositeMultiplier
+            end
+        end
+
+        -- Final Steering Calculation (Original logic, but with our scaled correction)
+        AngleT = AngleT + inputEffect + finalCorrection
+        AngleT = math.clamp(AngleT, -Lock, Lock)
+        AngleT = AngleT * (1 - math.min(math.abs(ForwardSpeed), SpeedEffect) / SpeedEffect)
+
+        wire.ports.Angle = AngleT
+
+        if not SetAng:isPlayerHolding() then
+            SetAng:enableMotion()
+            local finalAng = Base:localToWorldAngles(Angle(0, AngleT, -AngleT / Caster))
+            SetAng:setAngles(finalAng)
+        end
+    end)
+end

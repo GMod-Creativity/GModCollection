@@ -1,0 +1,251 @@
+--@name Suspension Smoother 1.1
+--@author GDOGS Original Car Code - [C17] Red Fox Adapted
+--@server
+    
+ wire.adjustPorts({
+    Wheels = "array",
+    SteerAngle = "number",
+    Speed = "number",
+    Base = "entity"
+},{SteerOut = "number", SpeedOut = "number"})
+local wheels = wire.ports.Wheels
+local base = wire.ports.Base
+
+
+        local smoothingPitch = 5  -- Adjust the smoothing factor as needed
+        local smoothingRoll =10  -- Adjust the smoothing factor as needed
+        local smoothingYaw = 0 -- Adjust the smoothing factor as needed
+        
+        local forceMultiplier = 100
+        local YawMultAD = 0 --unless something has gone wrong or you changed Z value, dont change this
+        local MaxTurnInput = 45
+        
+        local Alpha = 0
+        
+        local ColorFR = Color(255,0,0,Alpha)
+        local ColorFL = Color(0,255,0,Alpha)
+        local ColorRR = Color(0,0,255,Alpha)
+        local ColorRL = Color(255,255,255,Alpha)
+
+
+
+   -- local E = prop.create(chip():localToWorld(Vector(0,0,10)), chip():localToWorldAngles(Angle(0,0,0)), "models/sprops/rectangles_thin/size_66/rect_66x120x1_5.mdl", 0) 
+    if isValid(base) then
+    E = base
+else
+    E = chip():isWeldedTo()
+end
+    chip():setParent(E)
+    --E:setMass(150) E:setMaterial("sprops/sprops_grid_12x12")
+   -- E:setColor(Color(255,255,255,255))
+    
+    local HeightF, HeightB = 30, 30
+    local LengthF, LengthB, WidthF, WidthB = 65, 55, -45, -45
+    
+    local Holos = {}
+    
+    function getSurfaceAngle(Base, FL, FR, BL, BR)
+                
+        local FrontAvg = Base:worldToLocal((FR.HitPos + FL.HitPos) / 2)
+        local BackAvg  = Base:worldToLocal((BR.HitPos + BL.HitPos) / 2)
+        local Pitch    = (180/math.pi)*math.atan((FrontAvg[3]-BackAvg[3]) / (FrontAvg[1] - BackAvg[1]))
+        
+        local RightAvg = Base:worldToLocal((FR.HitPos + BR.HitPos) / 2)
+        local LeftAvg  = Base:worldToLocal((FL.HitPos + BL.HitPos) / 2)
+        local Roll     = (180/math.pi)*math.atan((RightAvg[3]-LeftAvg[3]) / (RightAvg[2] - LeftAvg[2]))
+        
+        return Angle(-Pitch, Base:getAngles()[2], Roll)
+    
+    end
+    
+    function hit(Ranger)
+        if Ranger.Hit == true then return 1 else return 0 end end
+    
+        -- ranger length
+    function rangerLength(ranger)
+        return (ranger.HitPos - ranger.StartPos):getLength() end
+        
+    function rangerOffset(length, pos, dir, filter)
+        if filter then
+            return trace.trace(pos, pos + dir:getNormalized() * length, filter)
+        else
+            return trace.trace(pos, pos + dir:getNormalized() * length)
+        end
+    end
+    
+    -- holoCreate(tbl:table, index:number, pos:vector, scale:vector, ang:angle, color:color, model:string, parent:entity, mat:string, disableshading:boolean)
+    function holoCreate(tbl, index, pos, scale, ang, color, model, parent, mat, disableshading)
+        if tbl == nil then
+            local holo = holograms.create(pos, ang, model, scale)
+            holo:setColor(color)
+            holo:setMaterial(mat)
+            holo:suppressEngineLighting(disableshading)
+            holo:setParent(parent)
+            
+            return holo
+        else
+            tbl[index] = holograms.create(pos, ang, model, scale)
+            tbl[index]:setColor(color)
+            tbl[index]:setMaterial(mat)
+            tbl[index]:suppressEngineLighting(disableshading)
+            tbl[index]:setParent(parent)
+        end
+    end
+    
+    function lerpN(A,B,C)
+        return A + (B - A) * C   
+    end
+    
+    -- converts an entity pos to world axis
+    function toWorldAxis(ent, localAxis)
+    
+        if not ent:isValid() then return Vector(0,0,0) end
+        return ent:localToWorld(Vector(localAxis[1],localAxis[2],localAxis[3]))-ent:getPos()
+        
+    end
+    
+    function velL(ent)
+        if not ent:isValid() then return Vector(0,0,0) end
+        return ent:worldToLocal(ent:getVelocity() + ent:getPos())
+    end
+    
+    function shiftLA(rv1)
+        return Angle(rv1[2], rv1[3], rv1[1])
+    end
+    
+    -- Wheel parents
+    holoCreate(Holos, 1, E:localToWorld(Vector(0)), Vector(1), E:localToWorldAngles(Angle(0)), Color(255,255,255,0), "models/sprops/misc/axis_plane.mdl", E, "", false)
+    holoCreate(Holos, 2, E:localToWorld(Vector(0)), Vector(1), E:localToWorldAngles(Angle(0)), Color(255,255,255,0), "models/sprops/misc/axis_plane.mdl", E, "", false)
+    holoCreate(Holos, 3, E:localToWorld(Vector(0)), Vector(1), E:localToWorldAngles(Angle(0)), Color(255,255,255,0), "models/sprops/misc/axis_plane.mdl", E, "", false)
+    holoCreate(Holos, 4, E:localToWorld(Vector(0)), Vector(1), E:localToWorldAngles(Angle(0)), Color(255,255,255,0), "models/sprops/misc/axis_plane.mdl", E, "", false)
+    
+    -- Actual wheel holos
+    --fr
+    holoCreate(Holos, 5, Holos[1]:localToWorld(Vector(0)), Vector(1,0.65,1), Angle(0), ColorFR, "models/sprops/trans/wheel_d/t_wheel25.mdl", Holos[1], "", false)Holos[5]:setBodygroup(1,9)
+    --fl
+    holoCreate(Holos, 6, Holos[2]:localToWorld(Vector(0)), Vector(1,0.65,1), Angle(0), ColorFL, "models/sprops/trans/wheel_d/t_wheel25.mdl", Holos[2], "", false)Holos[6]:setBodygroup(1,9)
+    --rl
+    holoCreate(Holos, 7, Holos[3]:localToWorld(Vector(0)), Vector(1,0.65,1), Angle(0), ColorRL, "models/sprops/trans/wheel_d/t_wheel25.mdl", Holos[3], "", false)Holos[7]:setBodygroup(1,9)
+    --rr
+    holoCreate(Holos, 8, Holos[4]:localToWorld(Vector(0)), Vector(1,0.65,1), Angle(0), ColorRR, "models/sprops/trans/wheel_d/t_wheel25.mdl", Holos[4], "", false)Holos[8]:setBodygroup(1,9)
+    
+    -- Debug holo for surface angle
+   -- holoCreate(Holos, 9, E:localToWorld(Vector(-50,0,5)), Vector(0.5), Angle(0), Color(255), "models/sprops/misc/axis_plane.mdl", E, "", true)
+    
+
+    
+   
+    
+    -- spawn and initialize seat
+    
+    WheelSpin = 0 oldv = Vector(0) Sp = 0
+
+function lerpNormalized(inputValue, maxInputValue)
+    -- Map [0, 45] to [0, 1] for turning right
+    local rightLerpedValue = inputValue / -maxInputValue
+
+    -- Map [-45, 0] to [-1, 0] for turning left
+    local leftLerpedValue = inputValue / maxInputValue
+
+    -- Determine which direction the steering is going
+    local lerpedValue
+    if inputValue > 0 then
+        lerpedValue = rightLerpedValue
+    else
+        lerpedValue = leftLerpedValue
+    end
+
+    return lerpedValue
+end
+
+
+    timer.create("interval", 0.02, 0, function()
+
+        
+        local FL = rangerOffset(HeightF+14, E:localToWorld(Vector(LengthF, WidthF, 0)), -E:getUp(), {E,chip(),wheels[1],wheels[2],wheels[3],wheels[4]})
+        Holos[1]:setPos(FL.HitPos + (E:getUp() * 12.5))
+        local FR = rangerOffset(HeightF+14, E:localToWorld(Vector(LengthF, -WidthF, 0)), -E:getUp(), {E,chip(),wheels[1],wheels[2],wheels[3],wheels[4]})
+        Holos[2]:setPos(FR.HitPos + (E:getUp() * 12.5))
+        local BL = rangerOffset(HeightB+14, E:localToWorld(Vector(-LengthB, -WidthB, 0)), -E:getUp(), {E,chip(),wheels[1],wheels[2],wheels[3],wheels[4]})
+        Holos[3]:setPos(BL.HitPos + (E:getUp() * 12.5))
+        local BR = rangerOffset(HeightB+14, E:localToWorld(Vector(-LengthB, WidthB, 0)), -E:getUp(), {E,chip(),wheels[1],wheels[2],wheels[3],wheels[4]})
+        Holos[4]:setPos(BR.HitPos + (E:getUp() * 12.5))
+        
+        WheelSpin = WheelSpin + velL(E)[1] / 3.5
+        vel = velL(E)
+        deltav = oldv-vel if deltav[1] > 0 then deltav[1] = deltav[1]/3 end
+        oldv = vel
+        
+
+        
+        local Hit      = (hit(FL) + hit(FR) + hit(BL) + hit(BR)) / 4
+        local Distance = (rangerLength(FL) + rangerLength(FR) + rangerLength(BL) + rangerLength(BR)) / 4
+        
+        --if Hit > 0.5 then E:enableGravity(false) else E:enableGravity(true) end
+            
+
+local steerAngle = wire.ports.SteerAngle        
+local inputValue = steerAngle  -- Example input value between 0 and 45
+local maxInputValue
+if inputValue >= 0 then
+    maxInputValue = MaxTurnInput  -- Maximum input value for turning right
+else
+    maxInputValue = -MaxTurnInput  -- Maximum input value for turning left
+end
+
+
+local lerpedValue = lerpNormalized(inputValue, maxInputValue) 
+ 
+
+local steerOut = lerpedValue  
+local speed = wire.ports.Speed
+
+wire.ports.SteerOut = steerOut
+wire.ports.SpeedOut = speed
+
+        
+        local SurfaceAngle = getSurfaceAngle(E, FL, FR, BR, BL) --why does this only work in this order?
+        local Jerk         = Angle(math.clamp(deltav[1]/9,-12,18), 0, math.clamp(-vel[2]/150, -12, 12))
+        local MaxTurn      = ((math.clamp(vel[1]/10,-55,55))-(math.clamp(vel[1]/90, -33, 33)))
+        local Yaw          = E:getAngles()[2] + (lerpedValue * YawMultAD * speed)
+        
+        Holos[1]:setAngles(E:localToWorldAngles(Angle(0,Turn,0)))
+        Holos[2]:setAngles(E:localToWorldAngles(Angle(0,Turn,0)))
+
+        
+        Holos[5]:setAngles(Holos[1]:localToWorldAngles(Angle(WheelSpin,0,0)))
+        Holos[6]:setAngles(Holos[2]:localToWorldAngles(Angle(WheelSpin,0,0)))
+        Holos[7]:setAngles(Holos[3]:localToWorldAngles(Angle(WheelSpin,0,0)))
+        Holos[8]:setAngles(Holos[4]:localToWorldAngles(Angle(WheelSpin,0,0)))
+        
+        local smoothingFactorPitch = smoothingPitch  -- Adjust the smoothing factor as needed
+        local smoothingFactorRoll =smoothingRoll  -- Adjust the smoothing factor as needed
+        local smoothingFactorYaw = smoothingYaw -- Adjust the smoothing factor as needed
+        local angleVelocity = E:getAngleVelocityAngle()
+        local pitchVelocity, yawVelocity, rollVelocity = angleVelocity[1], angleVelocity[2], angleVelocity[3]
+        
+        -- Apply smoothing only to the roll angle velocity
+        pitchVelocity = pitchVelocity * smoothingFactorPitch
+        rollVelocity = rollVelocity * smoothingFactorRoll
+        yawVelocity = yawVelocity * smoothingFactorYaw
+
+-- Reconstruct the angle velocity vector with the smoothed roll velocity
+        angleVelocity = Angle(pitchVelocity, yawVelocity, rollVelocity)
+
+        
+        
+        local ForceF = toWorldAxis(E, Vector((-vel[1]/100000),(-vel[2]/10000),( ((HeightF) - Distance) * (1) - (vel[3] * 0) )))
+        local ForceB = toWorldAxis(E, Vector((-vel[1]/100000),(-vel[2]/10000),( ((HeightB) - Distance) * (1) - (vel[3] * 0) )))
+        local Ang   = (E:worldToLocalAngles((SurfaceAngle+E:getAngles()+Jerk):setY(Yaw)))*300
+        
+        --Entity:applyForceOffset(Vector force, Vector position)
+        --E:applyForceCenter(ForceF * (E:getMass() / 3) * Hit)
+        --E:applyForceCenter(ForceB * (E:getMass() / 3) * Hit)
+        
+        E:applyAngForce((Ang * forceMultiplier - angleVelocity * shiftLA(E:getInertia())) * Hit) --smoothing force
+       -- E:applyForceOffset(ForceF * (E:getMass() / 3) * Hit,E:localToWorld(Vector(LengthF,0,0)))
+       -- E:applyForceOffset(ForceB * (E:getMass() / 3) * Hit,E:localToWorld(Vector(-LengthB,0,0)))
+        
+ 
+    
+    end)

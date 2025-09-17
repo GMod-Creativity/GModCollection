@@ -1,0 +1,176 @@
+@name RedFox Simulated Engine Extra
+@inputs [POD Cam]:wirelink [Base]:entity
+@outputs CamOn BrakeL ReverseL LightL
+@outputs Light LightA Ind FOV Brightness LowBeamFov HighBeamFov LowBeamBrightness HighBeamBrightness
+@outputs [WLight ReverseWLight BrakeWLight]:vector Brake
+@persist HeadlightsKey CamKey Active
+@persist CountHeadlights CountCam
+@persist UseWireBrakeLight UseWireLight UseWireReverseLight 
+@persist BrakeWLightColor:vector WLightColor:vector ReverseWLightColor:vector
+@persist ReverseGearNumber ReverseGearNum
+@persist Position:vector CamDistance CamOffsetVector:vector SameLightInHighBeam CamOffset:vector CamDist
+@persist UseHints
+
+@persist LowBFov LowBBrightness HighBFov HighBBrightness
+@persist UseWLight UseWBrakeLight UseWReverseLight [WireLColor BrakeWireLightColor ReverseWireLightColor]:vector
+@persist [HeadlightKey CameraKey ManualModeKey ComfortSportModeKey]:string Gearbox_Gear
+
+@persist AutoGear ClassicAuto ManualModeEnabled UseComfortSportMode AlwaysSportMode
+@autoupdate
+
+# [C17] Red Fox's Extra E2 Core, Camera and Lighting Module
+
+
+function initializeExtras()
+{
+    # Configuration Settings
+    
+    # Wire Light Options
+    UseWireLight = UseWLight
+    WLightColor = WireLColor
+    
+    UseWireBrakeLight = UseWBrakeLight
+    BrakeWLightColor = BrakeWireLightColor
+    
+    UseWireReverseLight = UseWReverseLight
+    ReverseWLightColor = ReverseWireLightColor
+    
+    # Beam Settings
+    LowBeamFov = LowBFov
+    LowBeamBrightness = LowBBrightness
+    
+    HighBeamFov = HighBFov
+    HighBeamBrightness = HighBBrightness
+    
+    # Camera Configuration
+    CamOffset = CamOffsetVector  # Camera position relative to Base
+    CamDist = CamDistance  # Camera distance from CamOffset
+    Position = Base:pos() + CamOffset
+    
+    Cam["Position", vector] = Position    
+    Cam["Parent", entity] = Base
+    Cam["Distance", number] = CamDist
+
+    # Reverse Gearbox_Gear Number
+    ReverseGearNumber = ReverseGearNum
+}
+
+function engine_extras()
+{
+    # Input Processing
+    Active = POD["Active", number]
+    DriverHint = POD["Entity", entity]
+    Driver = POD["Driver", entity]
+    
+    HeadlightsKey = Driver:keyPressed(HeadlightKey)
+    CamKey = Driver:keyPressed(CameraKey)    
+ 
+    
+    # Headlights Key Toggle
+    if (changed(HeadlightsKey) & HeadlightsKey) {    
+        CountHeadlights++
+    }   
+    
+    # Headlights Key Toggle
+    if (changed(CamKey) & CamKey) {    
+        CountCam++
+    } 
+    
+    # Camera Toggle
+    #if (~CamKey) { CamOn = !CamOn }
+    
+    if(CountCam==0)
+    {
+        CamOn = 0   
+    }elseif(CountCam==1)
+    {
+        CamOn = 1
+    }
+    if(CountCam>1)
+    {CountCam = 0}
+    
+    #Cam["Activated",number] = CamOn
+    
+    # Driver Hints on Activation
+    if(UseHints)
+    {
+        if (changed(Active) & (Active)) {
+            DriverHint:printDriver("-Controls-")
+            DriverHint:printDriver("F to start and Alt to use Clutch | R to reset gears")
+            DriverHint:printDriver("W/A/S/D to control the car | Space is handbrake | Shift for full throttle")
+            DriverHint:printDriver(HeadlightKey +" for headlights | "+ CameraKey + " for 3rd or 1st person camera")           
+            DriverHint:printDriver("M1 and M2 to control gears") 
+            
+            if(AutoGear)
+            {
+                DriverHint:printDriver("-You are in automatic gears mode-")
+                if(UseComfortSportMode&!AlwaysSportMode)
+                {
+                    DriverHint:printDriver("-You are using comfort / sport mode-")
+                    DriverHint:printDriver("Press " + ComfortSportModeKey +" to change driving mode")
+                }
+                
+                if(ClassicAuto)
+                {
+                    DriverHint:printDriver("-You are using PRND12 mode-")   
+                    DriverHint:printDriver("M1 and M2 to control mode selection")  ,
+                    DriverHint:printDriver("Press " + ManualModeKey +" to enter manual Gearbox_Gear selection mode")  
+                }
+            }
+        }
+    }
+    
+    # Headlights Mode Switching
+    switch (CountHeadlights) {
+        case 1,
+            Light = 1
+            LightL = 1  # Always set
+            if (UseWireLight == 1) { WLight = WLightColor }
+            FOV = LowBeamFov 
+            Brightness = LowBeamBrightness 
+            LightA = 0
+            break
+
+                
+        case 2,
+            Light = 0
+            LightL = 1  # Always set
+            if (UseWireLight == 1) { WLight = WLightColor }
+            if (SameLightInHighBeam) { Light = 1 }
+            LightA = 1
+            FOV = HighBeamFov
+            Brightness = HighBeamBrightness
+            break
+        
+        default,
+            CountHeadlights = 0
+            Light = 0
+            LightL = 0  # Always set
+            if (UseWireLight == 1) { WLight = vec(0, 0, 0) }
+            LightA = 0
+
+    }  
+    
+
+    # Reverse Light Control
+    if (Gearbox_Gear <= ReverseGearNumber) {       
+        ReverseL = 1
+        if (UseWireReverseLight == 1) { ReverseWLight = ReverseWLightColor }
+    }
+    else {
+        ReverseL = 0
+        if (UseWireReverseLight == 1) { ReverseWLight = vec(0, 0, 0) }
+    }
+
+    
+    # Brake Light Control
+    if (Brake > 0) {          
+    BrakeL = 1
+        if (UseWireBrakeLight == 1) { BrakeWLight = BrakeWLightColor }
+    }
+    else {
+        BrakeL = 0
+        if (UseWireBrakeLight == 1) { BrakeWLight = vec(0, 0, 0) }
+    }
+
+}

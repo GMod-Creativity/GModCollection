@@ -1,0 +1,776 @@
+--@name Mesh Loader Core
+--@author [C17] Red Fox
+--@shared
+
+local Version = "2.07"
+
+if CLIENT then
+
+    local vtfDownloads = vtfDownloads or {}
+
+    local function vtfTempPath(url)
+        local name = url:match("([^/]+)%.vtf") or "unnamed.vtf"
+        return "../data/sf_filedatatemp/" .. owner():getSteamID64(false) .. "/" .. name
+    end
+
+local function asyncDownloadVtf(url, callback)
+    if not url:lower():find("%.vtf") then
+        callback(nil)
+        return
+    end
+
+    local fileName = url:match("([^/]+%.vtf)") or "unnamed.vtf"
+    local tempPath = vtfTempPath(url)
+
+    -- already on disk?
+    if file.existsTemp(fileName) then
+        callback(tempPath)
+        return
+    end
+
+    -- somebody else already downloading it?
+    if vtfDownloads[url] then
+        local tries = 0
+        local poll
+        poll = function()
+            tries = tries + 1
+            if file.existsTemp(fileName) then
+                callback(tempPath)
+            elseif tries < 30 then
+                timer.simple(0.25, poll)
+            else
+                callback(nil)
+            end
+        end
+        timer.simple(0.1, poll)
+        return
+    end
+
+    vtfDownloads[url] = true
+
+    ------------------------------------------------------------------
+    -- NEW: never break the global limit
+    local function safeGet()
+        local active = http.getActiveRequests()
+        local max    = http.getMaximumRequests()
+
+        if active >= max then
+            -- still full  try again later
+            timer.simple(0.25, safeGet)
+            return
+        end
+
+        -- now we are guaranteed to have a free slot
+        file.deleteTemp(fileName)
+
+        http.get(url,
+            function(data)
+                vtfDownloads[url] = nil
+                if data and #data > 0 then
+                    file.writeTemp(fileName, data)
+                    callback(tempPath)
+                else
+                    callback(nil)
+                end
+            end,
+            function()
+                vtfDownloads[url] = nil
+                callback(nil)
+            end
+        )
+    end
+
+    safeGet()
+end
+
+
+local downloadQueue = {}
+
+local function processDownloadQueue()
+    local activeRequests = http.getActiveRequests()
+    local maxRequests = http.getMaximumRequests()
+
+    while activeRequests < maxRequests and #downloadQueue > 0 do
+        local job = table.remove(downloadQueue, 1)
+        asyncDownloadVtf(job.url, job.callback)
+        activeRequests = activeRequests + 1
+    end
+
+    if #downloadQueue > 0 then
+        timer.simple(0.1, processDownloadQueue)
+    end
+end
+
+local vtfQueue = {}
+local vtfRunning = 0
+
+local function pumpVtfQueue()
+    local max = http.getMaximumRequests()
+    while vtfRunning < max and #vtfQueue > 0 do
+        local job = table.remove(vtfQueue, 1)
+        vtfRunning = vtfRunning + 1
+        asyncDownloadVtf(job.url, function(path)
+            vtfRunning = vtfRunning - 1
+            if job.callback then job.callback(path) end
+            pumpVtfQueue()               -- may start next
+        end)
+    end
+end
+
+-- drop-in replacement for every place that used queueVtfDownload
+local function queueVtfDownload(url, callback)
+    table.insert(vtfQueue, { url = url, callback = callback })
+    pumpVtfQueue()
+end
+
+
+
+
+
+    local base = chip()
+
+    net.start("requestBase")
+    net.send()
+
+    net.receive("sendBase", function()
+        local ent = net.readEntity()
+        base = isValid(ent) and ent or chip()
+    end)
+
+    local buildThread
+    local function doneBuilding(meshName, debugPrints, meshSpawnDelay, showMeshSpawnProgress, meshes, offsetPos, offsetAngle, globalScale, triangles, W, R, G, progressData)
+        local triCount = triangles - mesh.trianglesLeft()
+        setName("Mesh Loader - " .. triCount .. " tris ".."- "..meshName)
+        if debugPrints then print(W, "Finished building, using ", G, triCount, W, " tris") end
+        if debugPrints then print(W, "Starting to spawn meshes with ", G, meshSpawnDelay, W, " second delay between each...") end
+
+        local spawnQueue = {}
+        for meshIndex, v in ipairs(meshes) do
+            if v.holoMeshes and #v.holoMeshes > 0 then
+                for i, holomesh in ipairs(v.holoMeshes) do
+                    table.insert(spawnQueue, {
+                        meshIndex = meshIndex,
+                        submeshIndex = i,
+                        mesh = v,
+                        holomesh = holomesh
+                    })
+                end
+            end
+        end
+
+        progressData.building = false
+        progressData.spawning = true
+        progressData.currentStage = "Spawning Meshes"
+        progressData.spawnProgress = 0
+        progressData.spawnedMeshes = 0
+        progressData.totalSpawnItems = #spawnQueue
+
+        local totalToSpawn = #spawnQueue
+        local spawned = 0
+
+        local function spawnNextMesh()
+            if #spawnQueue == 0 then
+                if debugPrints then print(G, "All meshes spawned successfully!") end
+                progressData.spawning = false
+                setName("Mesh Loader - " .. triCount .. " tris, "..meshName.." - Complete")
+                return
+            end
+
+            local item = table.remove(spawnQueue, 1)
+            local v = item.mesh
+            local holomesh = item.holomesh
+
+            spawned = spawned + 1
+
+            progressData.spawnedMeshes = spawned
+            progressData.spawnProgress = spawned / totalToSpawn
+
+            if showMeshSpawnProgress and debugPrints then
+                print(W, "Spawning mesh ", G, item.meshIndex, W, " (submesh ", G, item.submeshIndex, W, ") - ",
+                      G, spawned, W, "/", G, totalToSpawn, W, " (",
+                      G, math.floor(spawned/totalToSpawn*100), W, "%)")
+            end
+
+            local holo = hologram.create(base:localToWorld(offsetPos), base:localToWorldAngles(offsetAngle), "models/Combine_Helicopter/helicopter_bomb01.mdl")
+            holo:setParent(base)
+            holo:setFilterMag(v.LowPolyTexture)
+            holo:setFilterMin(v.LowPolyTexture)
+            holo:setMesh(holomesh)
+            holo:setMeshMaterial(v.mat)
+            holo:setRenderBounds(Vector(-200), Vector(200))
+            holo:setScale((v.scale or Vector(1)) * globalScale)
+            holo:setColor(v.ColorAndAlpha or Color(255))
+
+            if not v.SuppressEngineLighting == true then
+                holo:suppressEngineLighting(false)
+            else
+                holo:suppressEngineLighting(v.SuppressEngineLighting)
+            end
+
+            if #spawnQueue > 0 then
+                timer.simple(meshSpawnDelay, spawnNextMesh)
+            else
+                if debugPrints then print(G, "All meshes spawned successfully!") end
+                progressData.spawning = false
+                setName("Mesh Loader - " .. triCount .. " tris, "..meshName.." - Complete")
+            end
+        end
+        spawnNextMesh()
+    end
+
+    local function buildMeshes(meshName, debugPrints, meshSpawnDelay, showMeshSpawnProgress, meshes, offsetPos, offsetAngle, globalScale, progressData, W, R, G)
+        setName("Mesh Loader - Building meshes...")
+        if debugPrints then print(W, "Starting to build meshes...") end
+
+        progressData.building = true
+        progressData.currentStage = "Building Meshes"
+        progressData.builtMeshes = 0
+        progressData.buildProgress = 0
+
+        local hasMeshData = false
+        for _, v in ipairs(meshes) do
+            if v.meshData then
+                hasMeshData = true
+                break
+            end
+        end
+
+        if not hasMeshData then
+            if debugPrints then print(true, W, "No valid mesh data found to build!") end
+            progressData.building = false
+            return
+        end
+
+        local triangles = mesh.trianglesLeft()
+
+        buildThread = coroutine.wrap(function()
+            local builtCount = 0
+            for k, v in ipairs(meshes) do
+                progressData.builtMeshes = builtCount
+                progressData.buildProgress = builtCount / #meshes
+
+                if v.UseModTexture then
+                    local mat = material.create("VertexLitGeneric")
+                    mat:setUndefined("$basetexture")
+                    mat:setUndefined("$bumpmap")
+                    mat:setUndefined("$envmapmask")
+                    mat:setUndefined("$phongexponenttexture")
+
+                    if v.EnableHalfLambert then
+                        mat:setInt("$flags", 134217728)
+                    end
+
+                    if v.EnableBaseMapAlphaEnvMask then
+                        mat:setInt("$flags", 1048576)
+                    end
+
+                    if v.EnableBaseMapAlphaPhongMask then
+                        mat:setInt("$basemapalphaphongmask", 1)
+                    else
+                        mat:setInt("$basemapalphaphongmask", 0)
+                    end
+
+                    if v.EnableNormalmapAlphaEnvMapMask then
+                        mat:setInt("$flags", 4194304)
+                    end
+
+                    local combinedFlags = 0
+                    for _, flag in ipairs(v.Flags) do
+                        combinedFlags = bit.bor(combinedFlags, flag)
+                    end
+                    mat:setInt("$flags", combinedFlags)
+
+                    mat:setFloat("$envmapcontrast", v.EnvMapContrast)
+                    mat:setFloat("$envmapsaturation", v.EnvMapSaturation)
+                    mat:setVector("$envmaptint", v.EnvMapShinyness)
+                    mat:setFloat("$envmapfresnel", v.EnvMapFresnel)
+
+                    mat:setInt("$phong", v.UsePhong)
+                    mat:setInt("$invertphongmask", v.InvertPhongMask)
+                    mat:setVector("$phongtint",v.PhongTint)
+                    mat:setFloat("$phongalbedotint",v.PhongAlbedoTint)
+                    mat:setFloat("$phongboost", v.PhongBoost)
+                    mat:setFloat("$phongexponent", v.PhongExp)
+                    mat:setVector("$phongfresnelranges", v.PhongFresnelRange)
+                    mat:setFloat("$phongalbedoboost", v.PhongAlbedoBoost)
+
+                    mat:setInt("$rimlight", v.UseRimLight)
+                    mat:setFloat("$rimlightexponent", v.RimLightExp)
+                    mat:setFloat("$rimlightboost", v.RimLightBoost)
+
+                    mat:setVector("$color2", v.Color2)
+
+                    if v.UseEnvMapSpecularReflections == true then
+                        local cubemapUpdateInterval = 2
+                        local previousPosition = chip():getPos()
+                        local isInitialSpawn = true
+                        local function setCubeMap()
+                            local currentPosition = chip():getPos()
+                            if currentPosition ~= previousPosition or isInitialSpawn then
+                                local Nmat = material.load(v.CubeMapTexture)
+                                local newEnvMap = Nmat:getTexture("$envmap")
+                                for _, mesh_val in ipairs(meshes) do
+                                    if mesh_val.mat then
+                                        mesh_val.mat:setTexture("$envmap", newEnvMap)
+                                    end
+                                end
+                                previousPosition = currentPosition
+                                isInitialSpawn = false
+                            end
+                        end
+                        timer.simple(1, setCubeMap)
+                        local function updateCubemap()
+                            setCubeMap()
+                            timer.simple(cubemapUpdateInterval, updateCubemap)
+                        end
+                        timer.simple(cubemapUpdateInterval, updateCubemap)
+                    end
+
+                                        -- ENV MAP MASK
+                    if v.EnvMapLink:lower():find("%.vtf") then
+                        mat:setUndefined("$envmapmask")
+                        queueVtfDownload(v.EnvMapLink, function(path)
+                            if path then
+                                mat:setTexture("$envmapmask", path)
+                            else
+                                mat:setUndefined("$envmapmask")
+                            end
+                        end)
+                    elseif v.EnvMapLink:sub(1, 4) == "http" then
+                        if hasPermission("material.urlcreate", v.EnvMapLink) then
+                            mat:setTextureURL("$envmapmask", v.EnvMapLink, function(_, _, w, h, layout)
+                                if not (w and h) then
+                                    mat:setUndefined("$envmapmask")
+                                    return
+                                end
+                                local sx, sy = 1024 / w, 1024 / h
+                                layout(0, 0, w * sx, h * sy)
+                            end)
+                        else
+                            mat:setUndefined("$envmapmask")
+                        end
+                    else
+                        mat:setUndefined("$envmapmask")
+                    end
+                    
+                    -- PHONG EXPONENT TEXTURE
+                    if v.PhongExponentTexture:lower():find("%.vtf") then
+                        mat:setUndefined("$phongexponenttexture")
+                        queueVtfDownload(v.PhongExponentTexture, function(path)
+                            if path then
+                                mat:setTexture("$phongexponenttexture", path)
+                            else
+                                mat:setUndefined("$phongexponenttexture")
+                            end
+                        end)
+                    elseif v.PhongExponentTexture:sub(1, 4) == "http" then
+                        if hasPermission("material.urlcreate", v.PhongExponentTexture) then
+                            mat:setTextureURL("$phongexponenttexture", v.PhongExponentTexture, function(_, _, w, h, layout)
+                                if not (w and h) then
+                                    mat:setUndefined("$phongexponenttexture")
+                                    return
+                                end
+                                local sx, sy = 1024 / w, 1024 / h
+                                layout(0, 0, w * sx, h * sy)
+                            end)
+                        else
+                            mat:setUndefined("$phongexponenttexture")
+                        end
+                    else
+                        mat:setUndefined("$phongexponenttexture")
+                    end
+                    
+                    -- BUMPMAP
+                    if v.BumpMapLink:lower():find("%.vtf") then
+                        mat:setUndefined("$bumpmap")
+                        queueVtfDownload(v.BumpMapLink, function(path)
+                            if path then
+                                mat:setTexture("$bumpmap", path)
+                            else
+                                mat:setUndefined("$bumpmap")
+                            end
+                        end)
+                    elseif v.BumpMapLink:sub(1, 4) == "http" then
+                        if hasPermission("material.urlcreate", v.BumpMapLink) then
+                            mat:setTextureURL("$bumpmap", v.BumpMapLink, function(_, _, w, h, layout)
+                                if not (w and h) then
+                                    mat:setUndefined("$bumpmap")
+                                    return
+                                end
+                                local sx, sy = 1024 / w, 1024 / h
+                                layout(0, 0, w * sx, h * sy)
+                            end)
+                        else
+                            mat:setUndefined("$bumpmap")
+                        end
+                    elseif v.UseIngameBumpMapp then
+                        local bump = material.load(v.BumpMapTexture)
+                        mat:setTexture("$bumpmap", bump:getTexture("$bumpmap"))
+                    else
+                        mat:setUndefined("$bumpmap")
+                    end
+                    
+                    -- BASE TEXTURE
+                    local vtfUrl = v.texture
+                    if vtfUrl:lower():find("%.vtf") then
+                        mat:setTexture("$basetexture", "hunter/myplastic")
+                        queueVtfDownload(vtfUrl, function(path)
+                            if path then
+                                mat:setTexture("$basetexture", path)
+                            else
+                                mat:setTexture("$basetexture", "hunter/myplastic")
+                            end
+                        end)
+                    elseif v.texture:sub(1, 4) == "http" then
+                        if hasPermission("material.urlcreate", v.texture) then
+                            mat:setTextureURL("$basetexture", v.texture, function(_, _, w, h, layout)
+                                if not (w and h) then
+                                    mat:setTexture("$basetexture", "hunter/myplastic")
+                                    return
+                                end
+                                local sx, sy = 1024 / w, 1024 / h
+                                layout(0, 0, w * sx, h * sy)
+                            end)
+                        else
+                            mat:setTexture("$basetexture", "hunter/myplastic")
+                        end
+                    else
+                        local m = material.load(v.texture)
+                        mat:setTexture("$basetexture", m:getTexture("$basetexture"))
+                    end
+
+
+                    local textureMatrix = Matrix()
+                    textureMatrix:setScale(Vector(v.TextureScale, v.TextureScale, 1))
+                    mat:setMatrix("$basetexturetransform", textureMatrix)
+                    v.mat = mat
+                else
+                    v.mat = material.load(v.Material)
+                end
+
+                local success = false
+                local trianglesBefore = mesh.trianglesLeft()
+                
+                local meshTable = mesh.createFromObj(v.meshData, true)
+                v.holoMeshes = {}
+                local meshNames = {}
+
+                for name, _ in pairs(meshTable) do
+                    table.insert(meshNames, name)
+                end
+
+                for i = 1, #meshNames do
+                    local meshName = meshNames[i]
+                    try(
+                        function()
+                            local holomesh = meshTable[meshName]
+                            table.insert(v.holoMeshes, holomesh)
+                            v.finalMesh = meshTable[meshName]
+                            success = true
+                        end,
+                        function(err)
+                            print(true, W, "Failed to build mesh ", G, meshName, W, ": ", R, err.message)
+                        end
+                    )
+                end
+
+                if success then
+                    builtCount = builtCount + 1
+                    if debugPrints then print(W, "Built mesh " .. k, W, ": ", G, trianglesBefore - mesh.trianglesLeft(), W, " tris") end
+                end
+            end
+            progressData.buildProgress = 1
+            progressData.builtMeshes = #meshes
+            return true
+        end)
+
+        hook.add("think", "build", function()
+            while chip():getQuotaAverage() < chip():getQuotaMax() / 8 do
+                if buildThread() then
+                    doneBuilding(meshName, debugPrints, meshSpawnDelay, showMeshSpawnProgress, meshes, offsetPos, offsetAngle, globalScale, triangles, W, R, G, progressData)
+                    hook.remove("think", "build")
+                    return
+                end
+            end
+        end)
+    end
+
+    local function downloadMeshes(debugPrints, meshes, buildMeshes, meshName, meshSpawnDelay, showMeshSpawnProgress, offsetPos, offsetAngle, globalScale, downloadStatus, progressData, W, R, G)
+        local downloadCount = 0
+        local failCount = 0
+        local alreadyDownloaded = {}
+        local requestQueue = {}
+
+        downloadStatus.total = #meshes
+        downloadStatus.completed = 0
+        downloadStatus.failed = {}
+
+        progressData.downloading = true
+        progressData.currentStage = "Downloading Meshes"
+        progressData.totalMeshes = #meshes
+        progressData.downloadedMeshes = 0
+        progressData.downloadProgress = 0
+
+        local function processQueue()
+            progressData.downloadedMeshes = downloadCount
+            progressData.downloadProgress = downloadCount / #meshes
+
+            local activeRequests = http.getActiveRequests()
+            local maxRequests = http.getMaximumRequests()
+
+            while activeRequests < maxRequests and #requestQueue > 0 do
+                local k, v = unpack(table.remove(requestQueue, 1))
+                if debugPrints then print(W, "Downloading mesh ", G, k, W, " from URL") end
+
+                http.get(v.mdl, function(data)
+                    if data[1] == "<" or data[1] == "{" then
+                        failCount = failCount + 1
+                        if debugPrints then print(true, W, "Failed to download mesh ", G, k, W, ": ", R, "Invalid format") end
+                    else
+                        v.meshData = data
+                        alreadyDownloaded[v.mdl] = k
+                        downloadCount = downloadCount + 1
+                        if debugPrints then print(W, "Successfully downloaded mesh ", G, k, W, ", size: ", G, math.round(#data / 1048576, 3) .. "mb") end
+                    end
+                    processQueue()
+                end, function(err)
+                    failCount = failCount + 1
+                    if debugPrints then print(true, W, "HTTP error for mesh ", G, k, W, ": ", R, err) end
+                    processQueue()
+                end)
+                activeRequests = activeRequests + 1
+            end
+        end
+
+        for k, v in ipairs(meshes) do
+            if not alreadyDownloaded[v.mdl] then
+                table.insert(requestQueue, {k, v})
+            else
+                v.meshData = meshes[alreadyDownloaded[v.mdl]].meshData
+                downloadCount = downloadCount + 1
+                print(W, "Reused mesh data for mesh ", G, k)
+            end
+        end
+
+        timer.create("downloadMeshes", 0.1, 0, function()
+            if #requestQueue == 0 and http.getActiveRequests() == 0 then
+                timer.remove("downloadMeshes")
+                if downloadCount > 0 then
+                    if debugPrints then print(W, "All available meshes downloaded: ", G, downloadCount, "/", #meshes) end
+                    progressData.downloading = false
+                    buildMeshes(meshName, debugPrints, meshSpawnDelay, showMeshSpawnProgress, meshes, offsetPos, offsetAngle, globalScale, progressData, W, R, G)
+                else
+                    if debugPrints then print(true, W, "Failed to download any meshes!") end
+                    progressData.downloading = false
+                end
+            else
+                processQueue()
+            end
+        end)
+    end
+
+local function checkVersionOnSpawn(config)
+    if not config.AllowCheckVersion then return end
+
+    local githubURL = "https://raw.github.com/nokillnando/Starfall/main/mesh_loaders_new/mesh_loader_core.txt"
+    local localVersion = Version
+    local maxRetries = 10
+
+    local function doVersionCheck()
+        if not http.canRequest() then
+            maxRetries = maxRetries - 1
+        if maxRetries <= 0 then return end
+            timer.simple(0.5, doVersionCheck)
+            return
+        end
+
+        http.get(githubURL,
+            function(data)
+                if not (data and data ~= "") then
+                    if config.AllowCheckVersion then
+                        print(config.W, "Core MeshLoader version check failed - no data received")
+                    end
+                    return
+                end
+
+                local versionStart = data:find('Version = "')
+                if not versionStart then
+                    if config.AllowCheckVersion then
+                        print(config.W, "Core MeshLoader version check failed - version string not found")
+                    end
+                    return
+                end
+
+                versionStart = versionStart + 11
+                local versionEnd = data:find('"', versionStart)
+                if not versionEnd or versionEnd <= versionStart then
+                    if config.AllowCheckVersion then
+                        print(config.W, "Core MeshLoader version check failed - could not parse remote version")
+                    end
+                    return
+                end
+
+                local remoteVersion = data:sub(versionStart, versionEnd - 1)
+                local remoteParts = string.explode(".", remoteVersion)
+                local localParts = string.explode(".", localVersion)
+
+                local remoteMajor = tonumber(remoteParts[1]) or 0
+                local remoteMinor = tonumber(remoteParts[2]) or 0
+                local localMajor = tonumber(localParts[1]) or 0
+                local localMinor = tonumber(localParts[2]) or 0
+
+                if remoteMajor > localMajor or (remoteMajor == localMajor and remoteMinor > localMinor) then
+                    print(config.W, "Check config file for updated default variables")
+                    print(config.W, "Core MeshLoader Update available! Local: ", config.G, localVersion, config.W, " | Remote: ", config.G, remoteVersion)
+                    print(config.W, "Check config file for URL")
+                else
+                    print(config.W, "Local Core MeshLoader is up to date or higher than online! Version: ", config.G, localVersion)
+                end
+            end,
+            function(err)
+                if config.AllowCheckVersion then
+                    print(config.W, "Core MeshLoader version check failed - could not connect to remote: ", config.R, err)
+                end
+            end
+        )
+    end
+
+    -- Delay start by 1s just like before
+    timer.simple(1, doVersionCheck)
+end
+
+    local function initClient(config)
+        checkVersionOnSpawn(config)
+        downloadMeshes(config.debugPrints, config.meshes, buildMeshes, config.meshName, config.meshSpawnDelay, config.showMeshSpawnProgress, config.offsetPos, config.offsetAngle, config.globalScale, config.downloadStatus, config.progressData, config.W, config.R, config.G)
+
+        if config.showProgressDisplay then
+            local font = render.createFont("Roboto", 64, 400, true)
+            local smallFont = render.createFont("Roboto", 32, 400, true)
+            local scale = 0.1
+
+            hook.add("PostDrawTranslucentRenderables", "meshLoaderProgress", function()
+                if not config.progressData.downloading and not config.progressData.building and not config.progressData.spawning then
+                    return
+                end
+
+                local entity = isValid(base) and base or chip()
+                local m = entity:getMatrix()
+                m:translate(Vector(0, 0, config.progressDisplayHeight))
+                m:setAngles((eyePos() - m:getTranslation()):getAngle() + Angle(90, 0, 0))
+                m:rotate(Angle(0, 90, 0))
+                m:setScale(Vector(0.1, -0.1))
+
+                render.pushMatrix(m)
+
+                render.depthRange(0, 0.9)
+                render.setColor(Color(0, 0, 0, 200))
+                render.drawRect(-300, -90, 600, 120)
+
+                local stage = config.progressData.currentStage
+                local progress = 0
+
+                if config.progressData.downloading then
+                    progress = config.progressData.downloadProgress
+                elseif config.progressData.building then
+                    progress = config.progressData.buildProgress
+                elseif config.progressData.spawning then
+                    progress = config.progressData.spawnProgress
+                end
+
+                render.enableDepth(true)
+                render.depthRange(0, 0.8)
+                render.setFont(font)
+                render.setColor(Color(255, 255, 255))
+                render.drawSimpleText(0, -40, stage, 1, 1)
+                render.depthRange(0, 1)
+
+                if config.progressDisplayType == "bar" then
+                    render.setColor(Color(100, 100, 100))
+                    render.drawRect(-200, 0, 400, 25)
+
+                    render.depthRange(0, 0.7)
+                    render.setColor(Color(20, 150, 250))
+                    render.drawRect(-200, 0, 400 * progress, 25)
+
+                    render.depthRange(0, 0.6)
+                    render.setFont(smallFont)
+                    render.setColor(Color(255, 255, 255))
+                    render.drawSimpleText(0, 13, math.floor(progress * 100) .. "%", 1, 1)
+                    render.depthRange(0, 1)
+                else
+                    render.depthRange(0, 0.85)
+                    render.setFont(smallFont)
+                    render.setColor(Color(255, 255, 255))
+
+                    if config.progressData.downloading then
+                        render.drawSimpleText(0, 10, config.progressData.downloadedMeshes .. " / " .. config.progressData.totalMeshes, 1, 1)
+                    elseif config.progressData.building then
+                        render.drawSimpleText(0, 10, config.progressData.builtMeshes .. " / " .. config.progressData.totalMeshes, 1, 1)
+                    elseif config.progressData.spawning then
+                        render.drawSimpleText(0, 10, config.progressData.spawnedMeshes .. " / " .. config.progressData.totalSpawnItems, 1, 1)
+                    end
+                    render.depthRange(0, 1)
+                end
+                render.popMatrix()
+            end)
+
+            if player() == owner() then
+                enableHud(nil, true)
+            end
+        end
+    end
+
+    _G.MeshLoaderCore = {
+        mirror = mirror,
+        initClient = initClient,
+        Version = Version
+    }
+
+
+
+else -- SERVER
+    local clientMeshes = {}
+
+    net.receive("reportMeshStatus", function(_, ply)
+        local status = net.readTable()
+        clientMeshes[ply] = status
+    end)
+
+    net.receive("requestMissingMeshes", function(_, ply)
+        local missingIndices = net.readTable()
+        for possibleSender, status in pairs(clientMeshes) do
+            if possibleSender ~= ply and isValid(possibleSender) then
+                for _, index in ipairs(missingIndices) do
+                    if status.completed[index] then
+                        net.start("sendMeshToClient")
+                        net.writeEntity(ply)
+                        net.writeInt(index, 16)
+                        net.send(possibleSender)
+                        print("Requested client ", possibleSender:getName(), " to send mesh ", index, " to ", ply:getName())
+                        break
+                    end
+                end
+            end
+        end
+    end)
+
+    wire.adjustPorts({
+        Base = "entity",
+    })
+
+    local base = wire.ports.Base
+
+
+    net.receive("requestBase", function(_, ply)
+        if not isValid(base) then return end
+        net.start("sendBase")
+        net.writeEntity(base)
+        net.send(ply)
+    end)
+
+end
+hook.add("removed", "stopStreams", function()
+    if net.isStreaming() then
+        net.cancelStream()
+    end
+end)

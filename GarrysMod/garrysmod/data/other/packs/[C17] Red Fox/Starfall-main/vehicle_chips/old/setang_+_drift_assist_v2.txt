@@ -1,0 +1,134 @@
+--@name Setang + Drift Assist v2
+--@author [C17] Red Fox
+--@shared
+--@model models/sprops/rectangles/size_2/rect_12x12x3.mdl
+
+--[[
+    Originally made as a E2, adapted to Starfall and changed
+    with help from AI, if you dont like that, this isnt for you
+    Should be mostly stable, but you should play with the settings
+]]--
+
+if SERVER then
+    wire.adjustInputs({"Pod","Base"},{"wirelink","entity"})
+    wire.adjustOutputs({
+        "Angle",        -- final steering angle
+        "SpeedL",       -- forward speed
+        "SpeedDir",     -- direction of travel
+        "IsSlipping",   -- 1 when performing mild slip correction
+        "IsDrifting",   -- 1 when performing full drift assist
+        "SlipAmount",   -- raw lateral slip value (for debugging)
+        "YawDampAmt"    -- raw yaw damping amount (for debugging)
+    },{
+        "number","number","number","number","number","number","number"
+    })
+
+    -- CONFIG: Steering limits & behavior
+    local Lock                    = 35     -- max steering angle (degrees)
+    local SpeedEffect             = 800    -- how much speed dampens steering
+    local SteeringSpeed           = 1      -- player input steering speed
+    local DriftResistance         = 30     -- divisor for slip-based drift correction; lower = less prone to drift; higher = driftier
+    local Caster                  = -20     -- caster effect divisor
+
+    -- CONFIG: Slip vs Drift thresholds
+    local SlipCorrectionThreshold = 1      -- lateral slip threshold for mild correction; can be left as is
+    local DriftThreshold          = 4      -- lateral slip threshold for full drift assist; change as necessary
+
+    -- CONFIG: Force multipliers
+    local SlipCounterForce        = 1      -- lateral grip correction multiplier; can be left as is
+    local GyroCounterForce        = 1      -- yaw-rate damping multiplier; can be left as is
+    
+    local OppositeMultiplier      = 1.5    -- multiplier when steering opposite drift; power to overpower the drift steering, change as needed
+    local SameDirMultiplier       = 2.5    -- multiplier when steering into drift; same as above
+
+    -- CONFIG: Gyro effect scaling by speed
+    local GyroSpeedThreshold      = 50     -- speed at which gyro effect is at max; change this if you cant steer at low speed, along with DriftThreshold
+    local GyroMinScale            = 0    -- min gyro influence at zero speed; does it really do anything?
+    local GyroMaxScale            = 2    -- max gyro influence at threshold and above; how much does it correct the drift
+                                         -- go from slightly correction to drift king
+
+    -- Flip local velocities & forces if axes are inverted
+    local Direction               = -1      -- set -1 if forward axis reversed
+
+    -- Runtime state
+    local AngleT = 0
+    local InA,InD = 0,0
+    local SetAng = chip()
+    SetAng:setNocollideAll(true)
+
+    hook.add("think","SetangDriftAssistV5_1",function()
+        local Base = wire.ports.Base
+        if not Base or not Base:isValid() then return end
+
+        -- Inputs from Pod
+        local Pod = wire.ports.Pod
+        if Pod then InA,InD = Pod.A or 0, Pod.D or 0 end
+
+        -- Local velocity, adjusted by Direction
+        local BaseVel      = Base:worldToLocal(Base:getVelocity() + Base:getPos()) * Direction
+        local ForwardSpeed = BaseVel.x / 14.5
+        local LateralSpeed = BaseVel.y / 14.5
+        local SpeedDir     = (ForwardSpeed >= 0) and 1 or -1
+
+        -- Debug outputs: speed
+        wire.ports.SpeedL   = ForwardSpeed
+        wire.ports.SpeedDir = SpeedDir
+        wire.ports.SlipAmount = LateralSpeed
+
+        -- Yaw damping with speed-based scaling
+        local upWorld    = Base:localToWorldVector(Vector(0,0,1))
+        local yawVel     = Base:getAngleVelocity():dot(upWorld)
+        local dt         = game.getTickInterval()
+        local speedScale = math.clamp(math.abs(ForwardSpeed) / GyroSpeedThreshold, 0, 1)
+        local gyroScale  = GyroMinScale + (GyroMaxScale - GyroMinScale) * speedScale
+        local yawDamping = yawVel * dt * GyroCounterForce * gyroScale * Direction
+        wire.ports.YawDampAmt = yawDamping
+
+        -- Mild slip correction (keeps the car from sliding too much)
+        local slipCorrection = 0
+        local isSlipping      = math.abs(LateralSpeed) > SlipCorrectionThreshold
+        if isSlipping then
+            slipCorrection = LateralSpeed * SlipCounterForce * -Direction
+        end
+
+        -- Full drift assist when slip exceeds DriftThreshold
+        local isDrifting      = math.abs(LateralSpeed) > DriftThreshold
+        local driftCorrection = 0
+        local driftDir        = 0
+        if isDrifting then
+            driftDir        = (LateralSpeed > 0) and 1 or -1
+            local slipDrift  = slipCorrection / DriftResistance
+            driftCorrection = slipDrift + yawDamping
+        end
+
+        -- Debug flags for states
+        wire.ports.IsSlipping = isSlipping and 1 or 0
+        wire.ports.IsDrifting = isDrifting and 1 or 0
+
+        -- Player steering input
+        local inputAmt    = InA - InD
+        local inputEffect = inputAmt * SteeringSpeed
+        if isDrifting and inputAmt ~= 0 then
+            local inputDir = (inputAmt > 0) and -1 or 1
+            if inputDir == driftDir then
+                inputEffect = inputAmt * SteeringSpeed * SameDirMultiplier
+            else
+                inputEffect = inputAmt * SteeringSpeed * OppositeMultiplier
+            end
+        end
+
+        -- Final steering calculation
+        AngleT = AngleT + inputEffect + driftCorrection
+        AngleT = math.clamp(AngleT, -Lock, Lock)
+        AngleT = AngleT * (1 - math.min(math.abs(ForwardSpeed), SpeedEffect) / SpeedEffect)
+
+        wire.ports.Angle = AngleT
+
+        -- Apply final angle to chip
+        if not SetAng:isPlayerHolding() then
+            SetAng:enableMotion()
+            local finalAng = Base:localToWorldAngles(Angle(0, AngleT, -AngleT / Caster))
+            SetAng:setAngles(finalAng)
+        end
+    end)
+end

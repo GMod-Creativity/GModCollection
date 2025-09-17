@@ -15,3 +15,4 @@
 - Date (dd-mm-yyyy): 04-03-2021
 - Source: https://github.com/dogBaldwin/emd-trucks-holo
 - Source Accessed (dd-mm-yyyy): 06-06-2025
+- Pack Type: expression2

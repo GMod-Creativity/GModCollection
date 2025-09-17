@@ -1,7 +1,27 @@
-## Epic things
+# Pack - Epic things
+
+## Details
+
+### Author
+
+- Author: Divran
+- Steam Profile: https://steamcommunity.com/profiles/76561197979433542
+- Github: https://github.com/Divran
+
+### Publication Info
+
+- Title: Divran's E2/Contraptions Thread
+- Date (dd-mm-yyyy): 20-11-2009
+- Source: https://web.archive.org/web/20160510070918/http://www.wiremod.com:80/forum/finished-contraptions/16081-divrans-e2-contraptions-thread.html
+- Source Accessed (dd-mm-yyyy): 30-08-2025
+
+## Description
 
 My most epic creations will go here.
 
+### Hangman
+
+```plaintext
 - Name: **Hangman**
 - Description: Hangman! It's too epic for words.
 Note! After dupe, you need to update the expressions to get it to work.
@@ -21,9 +41,13 @@ Note! After dupe, you need to update the expressions to get it to work.
 - Code:
     Main E2 -> hangman.txt
     Derma Text Box E2 -> E2-derma-text-box.txt
+```
 
 ---
 
+### Color CD Player
+
+```plaintext
 - Name: **Color CD Player**
 - Description: I know this has been made loads of times before. But this one has some extra features. It automatically picks up the CD and puts it in the player and plays the song. Louder volume. And it looks awesome.
 - Update! I have added speakers, and they actually MOVE when you play music! (Not shown in the video, as that was filmed before I made the speakers)
@@ -33,9 +57,13 @@ Remember! After dupe, you need to push the Reset button to make it work.
 - Additional Credits To: -
 - Dupe File: Wiremod.com Forums
 - Code: color-CD-player.txt
+```
 
 ---
 
+### Toaster
+
+```plaintext
 - Name: **Toaster**
 - Description: This is for you Schilcote.
 - Video/Pictures: Use fullscreen mode!
@@ -43,9 +71,13 @@ Remember! After dupe, you need to push the Reset button to make it work.
 - Additional Credits To: -
 - Dupe File: Wiremod.com Forums
 - Code: toaster.txt
+```
 
 ---
 
+### Lollercoaster
+
+```plaintext
 - Name: **Lollercoaster**
 - Description: A dynamic rollercoaster. Create the track as you ride on it!
 - Controls are:
@@ -72,3 +104,4 @@ Remember! After dupe, you need to push the Reset button to make it work.
     [Lollercoaster - Xfire Video](https://web.archive.org/web/20160510070918/http://tinyurl.com/ygdpqkh)
 - Additional Credits To: - FlieBoy101 for giving me the idea (He has also made one just like this)
 - Code: lollercoaster.txt
+```

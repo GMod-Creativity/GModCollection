@@ -1,19 +1,27 @@
+# Pack - Divran's E2/Contraptions Thread
+
+## Details
+
+### Author
+
 - Author: Divran
 - Steam Profile: https://steamcommunity.com/profiles/76561197979433542
 - Github: https://github.com/Divran
-<!-- -->
+
+### Publication Info
+
 - Title: Divran's E2/Contraptions Thread
 - Date (dd-mm-yyyy): 20-11-2009
 - Source: https://web.archive.org/web/20160510070918/http://www.wiremod.com:80/forum/finished-contraptions/16081-divrans-e2-contraptions-thread.html
 - Source Accessed (dd-mm-yyyy): 30-08-2025
 
-## Divran's E2/Contraptions Thread
+## Description
 
 Divran's E2/Contraptions Thread
 In this thread, I will post any E2s and contraptions I dare release.
 I have placed this thread in the Custom Gates forum because it will most likely have more E2s than contraptions.
 
-**Table of Contents**
+### Table of Contents
 
 - E2 Only Stuff
   - Hologram Artillery
@@ -33,7 +41,7 @@ I have placed this thread in the Custom Gates forum because it will most likely 
     - Toaster
     - Lollercoaster
 
-**I will use this for each E2:**
+### I will use this for each E2:
 
 - Name:
 - Description:

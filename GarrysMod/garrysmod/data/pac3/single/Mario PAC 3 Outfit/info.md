@@ -1,13 +1,21 @@
+# PAC3 - Mario PAC 3 Outfit
+
+## Details
+
+### Author
+
 - Author: Mr. Matthews
 - Steam Profile: http://steamcommunity.com/profiles/76561198064933831
 - Game banana: https://gamebanana.com/members/1362858
-<!-- -->
+
+### Publication Info
+
 - Title: Mario PAC 3 Outfit
 - Date (dd-mm-yyyy): 15-03-2014
 - Source: https://gamebanana.com/mods/237279
 - Source Accessed (dd-mm-yyyy): 20-06-2025
 
-## Mario PAC 3 Outfit
+## Description
 
 DUE TO NEW GMOD UPDATE,YOU MIGHT NEED TO WEAR YOUR PAC MORE THAN ONCE TO MAKE IT WORK!
 

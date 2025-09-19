@@ -32,7 +32,7 @@ To use it is like my previous versions, spawn an advanced entity marker and link
 Current Known Issues:  
 Op count is absurdly high due to wire counting indexing an array as 10 ops. I have no idea why wire counts it as that, but indexing a var as 1 op. That has nothing to do with actual lag or performance, CPU load isn't that high.
 It occasionally spams a "function undefined at runtime" error on dupe, just reset the chip. That's e2 for ya.  
-"Static" chat command is basically non-functional, it will be fixed in near future. Don't use it or the var yet. Just change int to like 50000
+"`Static`" chat command is basically non-functional, it will be fixed in near future. Don't use it or the var yet. Just change int to like 50000
 If you link over 20 wheels it'll argue with you, as it should. Turdlord.
 
 Technical mumbo-jumbo for people who mod e2s: this is a lot easier to use, I switched to calling functions and using array indexes instead of direct hard-coding. About time. I have a list of the holo indexes too, it should support in theory about 48 wheels and 24 return rollers per track. I optimized the slack-track run, to if applicable copy track angling via persistence to save op load.

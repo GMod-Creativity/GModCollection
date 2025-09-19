@@ -18,13 +18,14 @@
 
 (Part of pack)
 
-Here is a small collection of E2s I've been working on.
+Here is a small collection of E2s I've been working on.  
 None of these are very complicated, but I use them all the time.
 
 ### UnfrozenPropFinder
 
 Have you ever been building something, then you hear the nasty shuffling sound of colliding props? Or do you just need to check that all of the props in your contraption are frozen? Then this is for you!  
-The UnfrozenPropFinder!  
+The UnfrozenPropFinder!
+
 Spawn in near your base and it highlight all the unfrozen props for you so you can easily locate and freeze them! It has variables for range, and if you need to check for unfrozen wire gates or something, it has a variable for searching for anything! (You might have to tweak the interval depending on your contraption)
 
 ### Final Note

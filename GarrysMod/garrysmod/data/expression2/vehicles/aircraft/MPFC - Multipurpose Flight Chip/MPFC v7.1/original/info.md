@@ -17,7 +17,10 @@
 
 ## Description
 
-about time, a near-total recode of MPFC6. A good deal easier on the servers, more tightly integrated features, and way better structure.
+Video:
+[YouTube - [RELEASE] MPFC7](https://www.youtube.com/watch?v=AcCaPFeNKpc)
+
+About time, a near-total recode of MPFC6. A good deal easier on the servers, more tightly integrated features, and way better structure.
 
 Overdue download:
 https://www.dropbox.com/scl/fi/7mj93h0jul5pojr2uk3er/MPFC_v7.txt?rlkey=ow67ombblq2hkk30d9wfs3dr8&e=1&dl=0

@@ -18,7 +18,7 @@
 
 (Part of pack)
 
-Here is a small collection of E2s I've been working on.
+Here is a small collection of E2s I've been working on.  
 None of these are very complicated, but I use them all the time.
 
 ### UltiMultiDoor
@@ -27,7 +27,7 @@ Last one!
 
 The UltiMultiDoor! (Pls, I'm terrible at names)
 Shoot it in the corner of of a doorway and wham, instant automatic door! Or maybe you already have a prop there, shoot the E2 on it and wham, instant automatic door! Or if you like keeping chips in a separate spot, wire it to an entity marker and wham, instant automatic door!  
-There are variables for model, material, range, speed and one called "All" that you can enable to let anyone use the door (It default to opening for just you) There is also an array you can add players to for allowing them to use it as well, but there is currently no built-in way to add people (Sorry). Also, look at it and type ".lock" to lock it, so it stays down!
+There are variables for model, material, range, speed and one called "All" that you can enable to let anyone use the door (It default to opening for just you) There is also an array you can add players to for allowing them to use it as well, but there is currently no built-in way to add people (Sorry). Also, look at it and type "`.lock`" to lock it, so it stays down!
 
 By the way, you have to change the model variable to something that fits your doorway! It also has inputs for Keypads and/or buttons!
 

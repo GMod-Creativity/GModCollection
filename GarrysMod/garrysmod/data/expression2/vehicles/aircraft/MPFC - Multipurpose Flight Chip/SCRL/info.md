@@ -1,4 +1,4 @@
-# Expression 2 - MPFC V7.2 + SCRL
+# Expression 2 - SCRL
 
 ## Details
 

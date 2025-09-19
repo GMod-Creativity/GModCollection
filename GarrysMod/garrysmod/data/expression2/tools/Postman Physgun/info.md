@@ -48,3 +48,5 @@ Works like a normal physgun, besides rotating the actual physgun.
 Crouch + E throws it (let go of holding at the right time)
 
 *I know its glitchy, i know it has issues, i know it sucks, but its cool to say the least.*
+
+<!-- Picture: -->

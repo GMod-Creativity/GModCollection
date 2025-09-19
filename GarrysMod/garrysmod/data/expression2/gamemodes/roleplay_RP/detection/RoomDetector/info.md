@@ -18,7 +18,7 @@
 
 (Part of pack)
 
-Here is a small collection of E2s I've been working on.
+Here is a small collection of E2s I've been working on.  
 None of these are very complicated, but I use them all the time.
 
 ### RoomDetector

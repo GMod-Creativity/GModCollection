@@ -10,7 +10,6 @@
 ### Publisher
 
 - Publisher: trainchase
-- Edited: trainchase
 - Steam Profile: https://steamcommunity.com/profiles/76561198168553509
 
 ### Publication Info

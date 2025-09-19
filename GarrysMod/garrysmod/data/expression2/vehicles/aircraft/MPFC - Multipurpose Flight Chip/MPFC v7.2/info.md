@@ -18,7 +18,11 @@
 
 ## Description
 
-Download MPFC 7.1:
+Videos:  
+[YouTube - RELEASE - MPFC 7.1](https://www.youtube.com/watch?v=Y0Ksok9W-9E)  
+[YouTube - TUTORIAL - How to dogfight with MFPC](https://www.youtube.com/watch?v=8dT43tQBuiA)
+
+Download MPFC v7.2:
 https://www.dropbox.com/scl/fi/7vigqa3bn6mq2mioqgf2o/MPFC_v7.txt?rlkey=y64nrwccfyn0e6rbjiowobx94&e=1&dl=0
 
 > [!NOTE]

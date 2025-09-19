@@ -39,6 +39,7 @@
 
 ### 4. Pastebin
 
+- Description: [EmP] DEF's GMod Pastebins.
 - Source: https://pastebin.com/u/xEmPx_DEF
 - Source Accessed (dd-mm-yyyy): 21-08-2025
 - Pack Type: expression2

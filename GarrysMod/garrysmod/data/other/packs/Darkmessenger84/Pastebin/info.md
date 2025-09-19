@@ -1,4 +1,4 @@
-# Pack - Darkmessenger84's Pastebin
+# Pack - Darkmessenger84's Pastebins
 
 ## Details
 

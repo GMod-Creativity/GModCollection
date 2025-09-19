@@ -18,6 +18,7 @@
 - Source: https://www.youtube.com/watch?v=2AWomepPfqA
 - Source: https://www.mediafire.com/file/dqafrqqzn0n6sp7/chipsAndDupe.zip/file
 - Source Accessed (dd-mm-yyyy): 09-09-2025
+- Pack Type: advdupe2, expression2
 
 ### 2. Gmod_things
 
@@ -25,6 +26,7 @@
 - Source: https://gmodism.com/resources/
 - Source: https://www.mediafire.com/folder/hy0ru085a3ogo/Gmod_things
 - Source Accessed (dd-mm-yyyy): 21-08-2025
+- Pack Type: advdupe2, expression2
 
 ### 3. Gmodism_mega_dupe_pack
 
@@ -32,19 +34,23 @@
 - Source: https://web.archive.org/web/20230701000459/https://garrysmods.org/download/60205/gmodisms-mega-advdupe-2-pack
 - Source: Thanks to a player for sharing the files :>
 - Source Accessed (dd-mm-yyyy): 29-08-2025
+- Pack Type: advdupe2
 
 ### 4. moddb
 
-- Description: [GMod] Adv.Dupe2 Dupelications (Builds)
+- Description: GMODISM's ModDB GMod addons.
 - Source: https://gmodism.com/resources/
 - Source: https://www.moddb.com/members/gmodism-tnc/addons
 - Source Accessed (dd-mm-yyyy): 21-08-2025
+- Pack Type: advdupe2
 
 ### 5. Pastebin
 
+- Description: GMODISM's GMod Pastebins.
 - Source: https://gmodism.com/resources/
 - Source: https://pastebin.com/u/Gmodism
 - Source Accessed (dd-mm-yyyy): 21-08-2025
+- Pack Type: expression2
 
 ### 6. Toad Mech MK1
 
@@ -52,3 +58,4 @@
 - Source: https://www.youtube.com/watch?v=4C96rY7z7vA
 - Source: https://drive.google.com/file/d/153Q_xi-jWESergUkYX8hbQedmalizFVL/edit
 - Source Accessed (dd-mm-yyyy): 18-07-2025
+- Pack Type: advdupe2

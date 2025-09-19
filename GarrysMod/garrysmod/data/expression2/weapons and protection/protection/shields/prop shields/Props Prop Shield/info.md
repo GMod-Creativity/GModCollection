@@ -23,7 +23,7 @@
 
 ### GMod Collection Comment
 
-- GMODCOLLECTION_COMMENT: changed the name to "Props Prop Shield - By Moglizorz"
+- GModCollection Comment: changed the name to "Props Prop Shield - By Moglizorz"
 since it contained someone elses name and not the authors name.
 
 ## Description

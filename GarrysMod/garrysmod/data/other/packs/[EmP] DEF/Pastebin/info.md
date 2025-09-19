@@ -1,4 +1,4 @@
-# Pack - [EmP] DEF's Pastebin
+# Pack - [EmP] DEF's Pastebins
 
 ## Details
 

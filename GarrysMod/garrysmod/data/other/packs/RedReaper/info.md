@@ -2,11 +2,11 @@
 - YouTube: https://www.youtube.com/@redreaper-xe6so
 
 **advdupe2**
-- Description: all redreapers advdupe2 stuff from the collection
+- Description: All Red Reapers advdupe2 stuff from the GMod Collection.
 - Date (dd-mm-yyyy): 05-09-2025
 
 **expression2**
-- Description: all redreapers expression2 stuff from the collection
+- Description: All Red Reapers expression2 stuff from the GMod Collection.
 - Date (dd-mm-yyyy): 05-09-2025
 
 **Reds Useful E2s**

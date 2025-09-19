@@ -17,7 +17,7 @@
 
 ### GMod Collection Comment
 
-- GMODCOLLECTION_COMMENT:
+- GModCollection Comment:
 
 remove:
 

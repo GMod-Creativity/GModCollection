@@ -17,7 +17,7 @@
 
 ### GMod Collection Comment
 
-- GMODCOLLECTION_COMMENT:
+- GModCollection Comment:
 
 1. Spawn POD controller and paste E2 onto the POD controller.
 2. Connect POD controller to seat.

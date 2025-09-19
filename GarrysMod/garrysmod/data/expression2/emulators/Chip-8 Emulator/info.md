@@ -17,7 +17,7 @@
 
 ### GMod Collection Comment
 
-- GMODCOLLECTION_COMMENT: change mtable to table
+- GModCollection Comment: change mtable to table
 
 ## Description
 

@@ -17,7 +17,7 @@
 
 ### GMod Collection Comment
 
-- GMODCOLLECTION_COMMENT: With propcore entity:propGravity(0) can be used
+- GModCollection Comment: With propcore entity:propGravity(0) can be used
 
 ## Description
 

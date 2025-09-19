@@ -27,7 +27,7 @@ All of these chips have a single button input, which is coded into the chip and 
 
 Drop up to 44 bounding mines (like bouncing betty), all controlled with a single E2. Has three modes, **flash-bang** (blinds target, only triggered by players), **anti-personnel** (explosive triggered by npc, players, vehicles), and **anti-vehicle** (only triggered by vehicles, large). Mines jump to height of target, and will explode if tampered with by enemy.
 
-Extremely simple chatless interface that uses only one button (default `H`), but controls many functions of chip, including displaying stats, switching modes, undo mine drops, and purging all mines.
+Extremely simple chatless interface that uses only one button (default H), but controls many functions of chip, including displaying stats, switching modes, undo mine drops, and purging all mines.
 
 Features thought out performance control, that limits functions of the chip as the ops limit is approached, and will purge mines to maintain control before the real hard limit is reached.
 

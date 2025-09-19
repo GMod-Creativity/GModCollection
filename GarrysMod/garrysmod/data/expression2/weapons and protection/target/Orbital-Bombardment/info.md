@@ -29,4 +29,4 @@ Rain explosive props from the sky, with some pretty neat visuals and audio. High
 
 The button (default M) has to be held down for a short time. Tapping might not always work.
 
-https://web.archive.org/web/20161010171318/https://www.youtube.com/watch?v=0U7VJYDqxSs
+<!-- https://web.archive.org/web/20161010171318/https://www.youtube.com/watch?v=0U7VJYDqxSs -->

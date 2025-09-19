@@ -11,9 +11,9 @@
 ### Publication Info
 
 - Title: E2 Microprocessor (E2010)
-- Date (dd-mm-yyyy): 11-04-2010
+- Date (dd-mm-yyyy): 13-04-2010
 - Source: https://web.archive.org/web/20100603222550/http://www.wiremod.com:80/forum/finished-contraptions/19360-e2010-microprocessor-simplicity.html
-- Source: https://gmods.org/view/9044
+- Source: https://gmods.org/view/49904
 - Source Accessed (dd-mm-yyyy): 17-08-2025
 
 ## Description

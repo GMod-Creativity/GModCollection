@@ -17,3 +17,9 @@
 ## Description
 
 \<No Description\>
+
+### Images
+
+![image1](./data/adv_duplicator/gmflatgrass0005j.jpg)
+![image2](./data/adv_duplicator/gmflatgrass0006p.jpg)
+![image3](./data/adv_duplicator/gmflatgrass0016j.jpg)

@@ -23,9 +23,11 @@
 
 ### Music Player v2.0
 
-by Mentin2 w/ help from Maci
+![image1](./image1.jpg)
 
-Check out Maci's new Advanced Alarm System!
+by [Mentin2](https://steamcommunity.com/profiles/76561198017950753) w/ help from [Maci](https://steamcommunity.com/profiles/76561198042400651)
+
+Check out Maci's new [Advanced Alarm System](https://web.archive.org/web/20150426125126/http://www.wiremod.com/forum/finished-contraptions/34201-e2-advanced-alarm-system-video-tutorial.html)!
 
 **Info:**  
 I have many more ideas in mind, that I will start working on! So expect more updates!

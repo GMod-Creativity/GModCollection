@@ -26,3 +26,6 @@ So, I recently got reminded of the old snake games on the mobile, that I'd spend
 Here we have, a completely client based game made in Expression Advanced, ( Everyone can play at once ) that networks scores and shows them off against other players on the server.
 
 As always, feel free to edit and modify.
+
+![image1](./20150204_004547.png)
+![image2](./20150204_004755.png)

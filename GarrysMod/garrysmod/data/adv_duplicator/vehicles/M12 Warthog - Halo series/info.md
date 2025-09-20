@@ -23,7 +23,12 @@
 
 ### M12 "Warthog" FAV from Halo
 
+> [!NOTE]
+> If the car holograms dont load correctly, reload the upper "Warthog parts" expression 2 on the dashboard.
+
 This is an adv_dupe pack with 4 types of my M12 "Warthog" FAV from Halo
+
+![image1](./warthog.jpg)
 
 ### Features:
 

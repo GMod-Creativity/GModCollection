@@ -30,6 +30,8 @@ I have attached 2 energy launchers to the side of my mech and made some modifica
 
 [YouTube - GMod: Mech V2](https://www.youtube.com/watch?v=JpRWrdnbF0A)
 
+![image1](./hqdefault.jpg)
+
 Sorry for the lag, my FPS is diminished in SP.
 
 ### Advanced Dupe

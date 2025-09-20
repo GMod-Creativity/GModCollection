@@ -18,6 +18,16 @@
 
 ## Description
 
+<p float="left">
+  <img src="./combat suit/img1.jpg" height="310"/>
+  <img src="./combat suit/img3.jpg" height="310"/>
+</p>
+
+<!--
+![image1](./combat suit/img1.jpg =200x200)
+![image2](./combat suit/img3.jpg =200x200)
+-->
+
 ### DESCRIPTION
 This is a steam-punk styled heavy weapon combat suit designed complete with a melon launcher, propane launcher, and jetpack. It is a general combat suit capable of combat with both ground and air units.
 
@@ -72,7 +82,7 @@ Music:
 
 ### CODE
 
-There is quite a lot of code in this combat suit, all in a single e2 chip:
+There is quite a lot of code in this combat suit, all in a single e2 chip.
 
 ### REQUIREMENTS
 

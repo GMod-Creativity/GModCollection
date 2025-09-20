@@ -18,4 +18,31 @@
 
 ## Description
 
+> [!Note]
+> The expression 2 is outdated
+>
+> Comment out this part in the expression 2 chip or remove it:
+>
+> ```plaintext
+> if (!Ent:driver()) {
+> gShare(1)
+> gSetStr("string", entity():pos():toString() + entity():forward() * 50)
+> 
+> }
+> ```
+
 Mine.
+
+### Instructions
+
+1. Spawn
+2. Unfreeze the spacecraft
+
+### Controls
+
+- Movement - your movement keys
+- Cloak - reload
+
+### Image
+
+![image1](./image1.jpg)

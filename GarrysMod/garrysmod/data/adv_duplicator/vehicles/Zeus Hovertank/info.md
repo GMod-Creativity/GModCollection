@@ -23,6 +23,19 @@ The Zeus Photon Torpedo Hovertank battling a carrier spaceship and its fighters.
 
 And a couple ones with the new tank turret. Thanks to N3Xus Elite for building part of the pose for these screenshots:
 
+<p float="left">
+  <img src="./zeushovertank2/zeus1.jpg" width="600"/>
+  <br/>
+  <img src="./zeushovertank2/zeus2_1.jpg" width="300"/>
+  <img src="./zeushovertank2/zeus2_2.jpg" width="300"/>
+</p>
+
+<!--
+![image1](./zeushovertank2/zeus1.jpg)
+![image2](./zeushovertank2/zeus2_1.jpg)
+![image3](./zeushovertank2/zeus2_2.jpg)
+-->
+
 ### Video
 
 [YouTube - Garrys Mod: Zeus Photon Torpedo Hovertank (dupe available!)](https://www.youtube.com/watch?v=B4HgAC_KY6o)

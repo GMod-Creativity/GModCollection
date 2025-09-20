@@ -17,6 +17,12 @@
 
 ## Description
 
+<p float="left">
+  <img src="./image1.jpg" width="500"/>
+</p>
+
+<!-- ![image1](./image1.jpg) -->
+
 vanilla duplicator is VERY VERY BAD so I recommend downloading a duplicate from the link below.
 FOLDER WITH DUPES: https://www.dropbox.com/sh/k9dmmk0p4v1kdcy/AABZeW5ETlgmHzcL7BICa8tqa?dl=0
 

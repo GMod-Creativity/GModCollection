@@ -35,3 +35,8 @@ I decided to re-make my really old iPod that everyone seemed to like. This versi
 - Hold button for freezing the screen
 - Multiple-menu switching
 ```
+
+### Images
+
+![image1](./data/adv_duplicator/gmflatgrass0020.jpg)
+![image2](./data/adv_duplicator/gmflatgrass0022.jpg)

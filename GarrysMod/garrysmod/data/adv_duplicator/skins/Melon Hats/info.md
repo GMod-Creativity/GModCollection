@@ -18,6 +18,8 @@
 
 Ahoy, everyone. This E2 finds all of the Watermelons on the map and gives them "Cone Hats". Special thanks to Adult Legs OLeary for helping me get the array working.
 
+![image1](./image1.jpg)
+
 ### Instructions
 
 To wire it you need two buttons.

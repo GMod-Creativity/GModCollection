@@ -1,4 +1,4 @@
-# Advanced Duplicator 2 - Parachute Pod For Paratroopers
+# Expression 2 - Reds Parachute v2
 
 ## Details
 

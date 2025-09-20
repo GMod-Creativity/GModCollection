@@ -23,6 +23,8 @@
 This is an Iron Man/Armor suit that I built. I didn't make ALL parts of it, but I combined one and made the rest.  
 The main apply force part is TC Props, but the rest is mine.
 
+![image1](./image1.jpg)
+
 ### Commands:
 
 ```plaintext

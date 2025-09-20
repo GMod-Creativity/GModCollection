@@ -27,3 +27,5 @@ The screen can be cleared and it also has an erase function!
 Because of the "special" nature of how I coded this, the actual program probably won't go released for a while. But a dupe is available!
 
 https://www.youtube.com/watch?v=GgcSbabgOqg
+
+![image1](./hqdefault.jpg)

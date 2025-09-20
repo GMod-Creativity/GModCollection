@@ -37,3 +37,5 @@ I am also including my work-in-progress mech. The mech was originally created by
 ### Video:
 
 [YouTube - GMod: Player Spy & Mech!](https://www.youtube.com/watch?v=MbFeWWPMoPU)
+
+![image1](./hqdefault.jpg)

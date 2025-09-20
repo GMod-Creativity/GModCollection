@@ -1,10 +1,10 @@
-# Expression 2 - Grumpy Jetpack V2 !
+# Advanced Duplicator - Grumpy Jetpack V2 !
 
 ## Details
 
 ### Author
 
-- Author: Grumpy Hit*** (FridgeOats)
+- Author: FridgeOats (Grumpy Hitler) (A Hunter) (yamclam)
 - YouTube: https://www.youtube.com/@yamclam
 - Steam Profile: https://steamcommunity.com/profiles/76561197983180777
 
@@ -29,7 +29,7 @@ Same deal as the old one, fully mouse aimed, all apply force etc
 
 This is not only a new model, but a fully re-written flight system. Puts my old jetpack to shame. V2 is smooth and easy to fly with many great effects including my artificial horizon! (Kinda useless but badass none the less)
 
-### Features:
+### Features
 
 ```plaintext
 • Fully Mouse Aimed
@@ -44,29 +44,29 @@ Mouse 1 and 2 have been left free so you can easily arm it with what ever weapon
 
 Flies Like A Mouse Aimed Dream.
 
-### Video:
+### Video
 
 This is a video made by Xro (lastxp) of my jetpack (v2) in gmod  
 So a special thanks to him :D  
-https://www.youtube.com/watch?v=4Crya-Z0sHE
+[YouTube - Grumpy Jetpack V2 - Gmod](https://www.youtube.com/watch?v=4Crya-Z0sHE)
 
-### Images:
+### Images
 
 <!-- I'll just upload the 1 picture, there are 2 more on the download page but using is better than seeing, so give it a go! -->
 
 <p float="left">
-  <img src="https://web.archive.org/web/20250908204303/http://garrys-mods.ru/wp-content/uploads/2018/09/Grumpy-Jetpack-V2-2-728x409.jpg" width="200"/>
-  <img src="https://web.archive.org/web/20250908204302/http://garrys-mods.ru/wp-content/uploads/2018/09/Grumpy-Jetpack-V2.jpg" width="200"/>
-  <img src="https://web.archive.org/web/20250908204314/http://garrys-mods.ru/wp-content/uploads/2018/09/Grumpy-Jetpack-V2-3.jpg" width="200"/>
+  <img src="./images/Grumpy-Jetpack-V2-2-728x409.jpg" width="300"/>
+  <img src="./images/Grumpy-Jetpack-V2.jpg" width="300"/>
+  <img src="./images/Grumpy-Jetpack-V2-3.jpg" width="300"/>
 </p>
 
 <!-- 
-![image1](https://web.archive.org/web/20250908204303/http://garrys-mods.ru/wp-content/uploads/2018/09/Grumpy-Jetpack-V2-2-728x409.jpg =200x200)
-![image2](https://web.archive.org/web/20250908204302/http://garrys-mods.ru/wp-content/uploads/2018/09/Grumpy-Jetpack-V2.jpg =200x200)
-![image3](https://web.archive.org/web/20250908204314/http://garrys-mods.ru/wp-content/uploads/2018/09/Grumpy-Jetpack-V2-3.jpg =200x200)
+![image1](./images/Grumpy-Jetpack-V2-2-728x409.jpg =200x200)
+![image2](./images/Grumpy-Jetpack-V2.jpg =200x200)
+![image3](./images/Grumpy-Jetpack-V2-3.jpg =200x200)
 -->
 
-### Controls:
+### Controls
 
 ```plaintext
 • W Forwards/Thrust
@@ -80,7 +80,7 @@ https://www.youtube.com/watch?v=4Crya-Z0sHE
 
 To Colour The Jetpack Just Colour The White Square On The Control Board (You'll Know What I Mean)
 
-### Requirements:
+### Requirements
 
 ```plaintext
 • Hl2 (duh)
@@ -94,7 +94,7 @@ The artificial horizon is set up for 1920 x 1080 resolution, so if you aren't ru
 
 Just Spawn, Unfreeze and You Are Ready To Fly.
 
-### Issues:
+### Issues
 
 ```plaintext
 • Sometimes Having Multiple Cam Controllers Screws Up The 3rd Person.
@@ -102,11 +102,11 @@ Just Spawn, Unfreeze and You Are Ready To Fly.
   (Please don't try this unless you know what you are doing with e2).
 ```
 
-### Customization:
+### Customization
 
 Open the e2 on the control board for a bit more info and to change the sensitiviy of the jetpack (a higher sensitivity value is less sensitve >_>)
 
-### Final Thoughts:
+### Final Thoughts
 
 <!-- Comments appreciated, plus somebody make me a video lol. -->
 

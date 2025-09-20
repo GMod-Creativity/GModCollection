@@ -11,7 +11,7 @@
 
 - Title: Easy Suspension E2
 - Date (dd-mm-yyyy): 06-12-2023
-- Source: ACF Discord: community-resources
+- Source: Armored Combat Framework Discord: community-resources
 - Source Accessed (dd-mm-yyyy): 09-09-2025
 
 ## Description

@@ -37,6 +37,8 @@ This is the HK-Drone V2 Release. I did not intend to release this one yet, so I 
 
 [YouTube - Mike Dude's HK-Drone V2](https://www.youtube.com/watch?v=w78zQ1uqMkY)
 
+![image1](./hqdefault.jpg)
+
 This version is controlled completely by chat commands. Listed below is a few of the commands:
 
 ### COMMANDS:

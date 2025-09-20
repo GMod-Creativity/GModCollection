@@ -1,10 +1,10 @@
-# Expression 2 - Grumpy's Jetpack - my first release
+# Advanced Duplicator - Grumpy's Jetpack - my first release
 
 ## Details
 
 ### Author
 
-- Author: Grumpy Hit*** (FridgeOats)
+- Author: FridgeOats (Grumpy Hitler) (A Hunter) (yamclam)
 - YouTube: https://www.youtube.com/@yamclam
 - Steam Profile: https://steamcommunity.com/profiles/76561197983180777
 
@@ -48,21 +48,19 @@ I am really really happy with the end product, it is really easy to control with
 Not very good pics - mainly function over form but still looks good imo simple and sweet
 
 <p float="left">
-  <img src="https://web.archive.org/web/20150504221328im_/http://i208.photobucket.com/albums/bb270/yamclam999/gm_flatgrass20081139.jpg" width="200"/>
-  <img src="https://web.archive.org/web/20150504221328im_/http://i208.photobucket.com/albums/bb270/yamclam999/gm_flatgrass20081138.jpg" width="200"/>
-  <img src="https://web.archive.org/web/20150504221328im_/http://i208.photobucket.com/albums/bb270/yamclam999/hl22010-02-0614-31-51-14.jpg" width="200"/>
+  <img src="./images/gm_flatgrass20081139.jpg" width="300"/>
+  <img src="./images/gm_flatgrass20081138.jpg" width="300"/>
+  <img src="./images/hl22010-02-0614-31-51-14.jpg" width="300"/>
+  <br/>
+  <img src="./images/hl22010-02-0613-44-00-50.jpg" width="300"/>
+  <img src="./images/gm_flatgrass20081136.jpg" width="300"/>
+  <img src="./images/gm_flatgrass20081137.jpg" width="300"/>
 </p>
 
-<p float="left">
-  <img src="https://web.archive.org/web/20150504221328im_/http://i208.photobucket.com/albums/bb270/yamclam999/hl22010-02-0613-44-00-50.jpg" width="200"/>
-  <img src="https://web.archive.org/web/20150504221328im_/http://i208.photobucket.com/albums/bb270/yamclam999/gm_flatgrass20081136.jpg" width="200"/>
-  <img src="https://web.archive.org/web/20150504221328im_/http://i208.photobucket.com/albums/bb270/yamclam999/gm_flatgrass20081137.jpg" width="200"/>
-</p>
-
-<!-- 
-![image1](https://web.archive.org/web/20150504221328im_/http://i208.photobucket.com/albums/bb270/yamclam999/gm_flatgrass20081139.jpg =200x200)
-![image2](https://web.archive.org/web/20150504221328im_/http://i208.photobucket.com/albums/bb270/yamclam999/gm_flatgrass20081138.jpg =200x200)
-![image3](https://web.archive.org/web/20150504221328im_/http://i208.photobucket.com/albums/bb270/yamclam999/hl22010-02-0614-31-51-14.jpg =200x200)
+<!--
+![image1](./images/gm_flatgrass20081139.jpg =200x200)
+![image2](./images/gm_flatgrass20081138.jpg =200x200)
+![image3](./images/hl22010-02-0614-31-51-14.jpg =200x200)
 
 ![image4](https://web.archive.org/web/20150504221328im_/http://i208.photobucket.com/albums/bb270/yamclam999/hl22010-02-0613-44-00-50.jpg =200x200)
 ![image5](https://web.archive.org/web/20150504221328im_/http://i208.photobucket.com/albums/bb270/yamclam999/gm_flatgrass20081136.jpg =200x200)
@@ -83,7 +81,7 @@ this is V1.1 - to add - A boost power bar for limited boosting
 - Some extra sound effects and basic tweaks
 - Optimising and Cleaning up my code, made a mess of it but cbf fixing now. (normally i'm a very tidy coder but I did most of the code at ~4am )
 
-### Final Thoughts:
+### Final Thoughts
 
 Please download and enjoy, I'm releasing this only because I wish to share this little thing with you guys.
 

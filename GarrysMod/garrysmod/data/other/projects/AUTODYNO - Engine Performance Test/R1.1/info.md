@@ -15,15 +15,8 @@
 - Date (dd-mm-yyyy): 06-02-2011
 - Source: https://web.archive.org/web/20150426144535/http://www.wiremod.com/forum/finished-contraptions/24735-autodyno-engine-performance-test.html
 - Source: https://www.youtube.com/watch?v=b1JRxzCrFwA
-- Source Accessed (dd-mm-yyyy): 19-09-2025
-
-#### autodyno_r1
-
-- Source: https://gmods.org/view/43023
-
-#### autodyno_r1.1
-
 - Source: https://gmods.org/view/33541
+- Source Accessed (dd-mm-yyyy): 19-09-2025
 
 ## Description
 

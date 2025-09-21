@@ -16,9 +16,11 @@
 
 ## Description
 
+![image1](./image1.jpg)
+
 This the hologram helicopter I've been working on. It's 100% applyForce/applyAngForce and is designed to be easy and fun to fly rather than being realistic.
 
-### Features:
+### Features
 
 ```plaintext
 • Minimalist Design
@@ -31,7 +33,7 @@ This the hologram helicopter I've been working on. It's 100% applyForce/applyAng
 • Has fairly low lag so it should be fine on most servers
 ```
 
-### Controls:
+### Controls
 
 ```plaintext
 • W/S - Forward/Back

@@ -29,7 +29,9 @@ then please tell me, so I can fix it.
 Great, now here's a video demonstrating all of it's functions:  
 [YouTube - Helicopter Base Chip Demo](https://www.youtube.com/watch?v=j2sLaSeiuGE)
 
-Honoring Friendly for his comment on my video:  
+![image1](./image1.jpg)
+
+Honoring Friendly for his comment on my video:
 
 ```plaintext
 Quote Originally Posted by Friendly:  

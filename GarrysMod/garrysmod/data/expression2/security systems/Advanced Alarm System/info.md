@@ -36,12 +36,12 @@ You can share this anywhere if you want, just make sure to give me credits.
 You copy the code and make a new E2 out of it.
 Spawn it in your entry or whereever you wanna have the alarm.
 
-Now you have to use the "!pos <1/2>" command to define the two diagonal corners of the room/entry.
-Once you did that use the "!alarm" command to turn the alarm on, you can use the same command to turn it off again.
+Now you have to use the "`!pos <1/2>`" command to define the two diagonal corners of the room/entry.
+Once you did that use the "`!alarm`" command to turn the alarm on, you can use the same command to turn it off again.
 
-You can use "!holo" to toggle a hologram for visualisation of the Alarm area, however that only going to work in smaller spaces as holograms are limited to the size of 50x50x50.
+You can use "`!holo`" to toggle a hologram for visualisation of the Alarm area, however that only going to work in smaller spaces as holograms are limited to the size of 50x50x50.
 
-Use "!whitelist <name>" and "!blacklist <name>" to add or remove people from the alarm.
+Use "`!whitelist <name>`" and "`!blacklist <name>`" to add or remove people from the alarm.
 All that is better explained in the Video Tutorial below.
 
 <!-- ### Video Tutorial

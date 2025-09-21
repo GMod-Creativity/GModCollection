@@ -48,6 +48,8 @@ IF you do NOT have a way to get the gears, the e2 will base the gears on your sp
 
 *mind the lower resolution, i made it lower so i could still use the task bar* -->
 
+---
+
 ### *Thus concludes*
 
 Enjoy these chips, i sure did, and it was quite fun putting them together, dont put them elsewhere.

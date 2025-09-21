@@ -25,3 +25,5 @@ Updated:
 6 years later, here's the 'fixed' E2 code: [https://pastebin.com/UKuHeyyc](https://pastebin.com/UKuHeyyc)
 
 It's the same code just with the glonEncode and glonDecode changed to vonEncode and vonDecode. As for missing textures, this still works fine for me when I test it on a multiplayer server. I'm delighted some people still think this old E2 is pretty cool.
+
+![image1](./image1.jpg)

@@ -20,14 +20,14 @@
 I'm using this E2 pretty often because the server I'm playing on does not have a smart parent tool. Now I decided to throw it here, I know this was done once, but this is better optimised and working.
 Requires PropCore
 
-### Instructions:
+### Instructions
 
 Simple spawn E2
 
 - E to select the main prop (parent)
 - Right Mouse to select other props (children)
 
-### Chat Commands:
+### Chat Commands
 
 - `parent` - to parent selected props
 - `unparent` - to unparent (deparent?) props

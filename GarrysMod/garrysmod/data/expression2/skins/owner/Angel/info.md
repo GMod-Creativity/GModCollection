@@ -17,4 +17,6 @@
 
 ## Description
 
-Meh, I played with the lightCreate function and got this
+Meh, I played with the lightCreate function and got this.
+
+![image1](./image1.jpg)

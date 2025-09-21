@@ -23,16 +23,18 @@ Hai! Hai!
 Been a while since i posted something here, so here i go.  
 I've been working on a "minigame" e2 based on playrz gautlier.
 
-Here is how it looks so far:
-https://www.youtube.com/watch?v=jejcrfxP_BE
+Here is how it looks so far:  
+[YouTube - [GMOD][E2] FailCake's Gautlier - Showcase](https://www.youtube.com/watch?v=jejcrfxP_BE)
 
 Also i made a design for my e2s (like a skin), i really think it  
 would look good on the actual e2 :<
 
-Here is it :
-https://www.youtube.com/watch?v=UO9kZZM7IWM
+Here is it :  
+[YouTube - [GMOD][E2] Skin - By Me!](https://www.youtube.com/watch?v=UO9kZZM7IWM)
 
-### Commented by Thal Verscholen:
+![image1](./image1.jpg)
+
+### Commented by Thal Verscholen
 
 not posting the code of the e2 skin  
 FailCake_e2_skin.txt

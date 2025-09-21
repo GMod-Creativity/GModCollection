@@ -21,6 +21,10 @@
 
 ## Description
 
+> [!Note]
+> This expression 2 is extracted from an advanced duplicator 2 dupe.  
+> Check the "advdupe2" folder if you want the whole contraption.
+
 Ok,
 
 You know or have probably seen my jetpack at one point or another, it was getting a bit old and I had made significant improvements to my flight code while building my Apache and Chitty Chitty Bang Bang, so I decided it was time for a new one.
@@ -88,6 +92,7 @@ To Colour The Jetpack Just Colour The White Square On The Control Board (You'll 
 • Wire
 • Wire Extras (This Is Optional But Is Required To Display The HUD)
 ```
+
 REFRESH THE E2 AFTER SPAWNING FOR COLOURING TO WORK (Look at the e2 with the e2 tool and press R)
 
 The artificial horizon is set up for 1920 x 1080 resolution, so if you aren't running this... Bad luck I', afraid.

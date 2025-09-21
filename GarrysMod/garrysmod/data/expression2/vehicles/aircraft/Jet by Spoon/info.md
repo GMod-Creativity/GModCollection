@@ -22,6 +22,8 @@ This E2 turns any prop into a jet. Recommend you use an actual jet model; note t
 
 [YouTube - E2 Jet by Spoon_God](https://www.youtube.com/watch?v=qggi_TM8GUg)
 
+![image1](./image1.jpg)
+
 As the video says it is easy to setup, All it requires is:
 
 - The Jet Model (to prevent tickQuota rape it only uses one prop, so I recommend you only use one prop.)

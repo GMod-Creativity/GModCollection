@@ -29,10 +29,8 @@
 
 ### Re: Chaqua VTOL E2
 
-#### IronManhood:
-
+**IronManhood:**  
 Hey, I took out mouse control. Check it out and let me know what you think.
 
-#### Chaquator:
-
+**Chaquator:**  
 So you made pressing A and D change the yaw as well as the roll? Nicely done, but I prefer having full control of all 3 axis of rotation separately.

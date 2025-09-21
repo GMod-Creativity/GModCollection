@@ -19,17 +19,19 @@
 
 ## Description
 
+![image1](./image1.jpg)
+
 This expression 2 is actually my old E2 modded so the coding quality is pretty messy.
 
-### How to use:
+### How to use
 
 - Installing: You save the instant base e2 and put the bunker.txt file into your e2shared folder.
 - Using: Hold down attack2 and press E to spawn the base/bunker/what ever you want to call it and then wait for it to spawn. Type `/remove` to remove it, `/off` to turn it off, `/exclude:[name]` (note that you need the colon and that it only works when turned off) to let people inside your base w/o killing them, `/clear` to clear all white-listed people on the list, and `/on` to turn back on.
 - Using the bunker saver: go inside a building at the very bottom floor in the middle and type `/save [name]`. Type `/load [name]` to load that file. If the building is too big then type `/radius [number (default is 200)]` to change the save radius. Type `/angle [vector]` to change loading the angle, type `/offset [vector]` to change the offset, and finally type `/freezeall` to freeze all spawned props.
 
-### Instant Base:
+### Instant Base
 
-#### COMMANDS:
+#### COMMANDS
 
 ```plaintext
 /off - turns base off
@@ -44,13 +46,13 @@ This expression 2 is actually my old E2 modded so the coding quality is pretty m
 /clear - clears all people excluded from kill aura except for you
 ```
 
-### Bunker Saver:
+### Bunker Saver
 
 <!-- #### Video:
 
 https://web.archive.org/web/20170104233012/https://www.youtube.com/watch?v=cat78XP_h9k -->
 
-#### Saved bunker samples:
+#### Saved bunker samples
 
 [First bunker](https://gist.githubusercontent.com/anonymous/1f5b3fe88f417c981e4b/raw/3cacaf4c447abf216194c4b06b9c22521eb3e815/aaaa)  
 [Second Bunker](https://gist.githubusercontent.com/anonymous/80f3bfc39370dbd6c887/raw/874c645c54ecbb588b807d3a092fa1bb5fe441c2/bunker2.txt)

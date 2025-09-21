@@ -57,6 +57,8 @@ This e2 is a blast, fun to mess with people, try it out, you wont be disappointe
 
 LOTS of pictures.-->
 
+---
+
 ### *Thus concludes*
 
 Enjoy these chips, i sure did, and it was quite fun putting them together, dont put them elsewhere.

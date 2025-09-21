@@ -19,7 +19,7 @@
 Made a auto suspension e2 because i didnt want to manually do suspension on 14 tank wheels.  
 Maybe someone else will find this useful.
 
-### Instructions:
+### Instructions
 
 there are hints printed to chat, but heres some instructions anyway (caps are important)
 
@@ -33,13 +33,13 @@ step 6, press E to confirm placing the hydraulics
 step 7, done - the e2 will auto remove itself
 ```
 
-### Some notes:
+### Some notes
 
 You can press R on some steps to skip parts of the e2, say if you only want to place ballsockets, you can press R on the rope and hydraulic step to skip them.  
 It should work with any direction, but facing north gives best results
 the ballsockets are "special" and have less wobble than doing them manually (in my experience)
 
-see GIF_12-5-2023_6-07-26_PM.gif
+![gif1](./GIF_12-5-2023_6-07-26_PM.gif)
 
 ### Requirements
 

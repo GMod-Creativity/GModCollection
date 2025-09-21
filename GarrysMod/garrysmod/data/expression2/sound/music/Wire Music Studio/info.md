@@ -15,7 +15,7 @@
 - Source: https://web.archive.org/web/20110126173413/http://www.wiremod.com/forum/finished-contraptions/24530-wire-music-studio.html
 - Source: https://web.archive.org/web/20170803104657/https://facepunch.com/threads/1052614-Wire-Music-Studio
 - Source: https://www.youtube.com/watch?v=V_fOeonDqgk
-- Source: Thanks to an dev from Meta Construct for sharing the file :>
+- Source: Thanks to a dev from Meta Construct for sharing the file :>
 - Source Accessed (dd-mm-yyyy): 06-06-2025
 
 ## Description
@@ -24,6 +24,8 @@ This is a project that started as a simple holopiano and then slowly evolved int
 The video explains it best:
 
 [YouTube - Wire Music Studio](https://www.youtube.com/watch?v=V_fOeonDqgk)
+
+![image1](./images/image1.jpg)
 
 Interaction is pretty easy, left click to place a note in the edit area, play a key, or select an option. Right click to remove a placed note. E will move the playbar to the specified area.  
 Chat commands are done for more complicated functions:
@@ -35,6 +37,7 @@ Chat commands are done for more complicated functions:
 !bpm will change the beats (4 notes blocks) per minute, eg "!bpm 130"
 !page or !p will jump to the specified page, eg "!page 10", "!p 10"
 ```
+
 For multi-link you wire the desired master E2 e2link to the desired slave E2 e2ent.
 
 Thanks to Zoombahh for coding the multi-screen synchronisation, it's great for more complicated songs, omicron for helping out with some of the interface code and MoPaZoDoZ for the awesome intro in the video. Thanks to the above and the following for bug testing and writing music for WM Studio: Wenli, Divran, Rasa, Volvox

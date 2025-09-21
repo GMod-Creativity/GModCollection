@@ -17,6 +17,8 @@
 
 ## Description
 
+![image1](./image1.jpg)
+
 **DO NOT USE THE !RAINBOW COMMAND <!-- OR WATCH THE VIDEO --> IF YOU HAVE EPILEPSY. YOU HAVE BEEN WARNED!!!!!**
 
 This E2 allows you to paint and *potentially* make raves!

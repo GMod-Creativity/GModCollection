@@ -30,6 +30,8 @@ I plan to upload the code at a later date so watch this space. I appreciate your
 You can see it here (I recommend watching it in HD):  
 [Playzr - 'The Sims' House Builder E2 - YouTube](https://www.youtube.com/watch?v=dn1uvH_prfA)
 
+![image1](./image1.jpg)
+
 Thanks,  
 Playzr
 

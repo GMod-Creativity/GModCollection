@@ -15,15 +15,21 @@
 
 ## Description
 
+**Dimension Door**  
+![image1](./images/q5BPp0L.jpg)
+
 Welcome, new Aethernauts! Here a most important tool in the young Cadet's toolbelt! I present to you, the Dimension Door.
 
 Setting up the Dimension Door is as easy as Clockwork Technician School, if you know what you're doing! Simply place the Ethereal Translocation Over World (ETWO, for short) on any Prison Pod (available in the SteamPunker's gift store for as low as 250₧), and you'll be on your way to traversing walls and floors!
+
+![image2](./images/8lorTyP.jpg)
+![image3](./images/lgImC25.jpg)
 
 To use, simply press your General Device Button on any surface, and removal can be done in the same fashion, only less limited to surface placement. Remember, constructing a door requires proximity! My students always forget that.
 
 Happy Translocating!
 
-<!-- Dimension Door E2-wfuabfm.jpg -->
+![image4](./images/WfuABfm.jpg)
 
 ---
 

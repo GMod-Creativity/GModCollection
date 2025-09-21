@@ -25,9 +25,11 @@ Another method of flight control is simply resisting/dampening movements, this o
 Using vectors instead of pitch roll and yaw usualy gets rid of the pitch zero point however there is still the problem of gimble lock and that it's not truely 3D. I used vectors on my tie-fighter a few months ago: [YouTube - techni117's Channel](https://www.youtube.com/@Technicolour777)  
 Mouselook makes it easy to control and easy to aim, however What if I want to combine a truely 3D system with the ease of use and inherent accuracy of mouse controlled flight? I have to delve into quaternions.
 
-### This is my latest creation:
+### This is my latest creation
 
-(Video not available anymore)  
+> [!Note]
+> (Video not available anymore)  
+
 Quaternion 3D Flight - Xfire Video
 
 it uses quaternions for both the cam controller and for the control and orientation of the craft itself. The vehicle will orientate itself directly (The shortest rotation route) to wherever the camera is orientated. The camera is controlled using an eyepod for the Yaw and Pitch, and Shift and R for the roll. It can do everything a true 3D craft can do: Barrel roll, leep and turn in any dimension at angle, completely independently of where 'up' and 'down' are in the world.  
@@ -36,6 +38,8 @@ It doesn't suffer from any of the problems that semi-2D flight does. If you look
 I'm currently tidying up the code and making something decently pretty to look at before I post an advance dupe/E2-Code. My first improvements will be to the forwards flight system, which is right now just a regular thruster on the rear.
 
 Massive thanks to Fizyk, without his continuing efforts on Quaternion E2 code this would've been incredibly difficult, if not impossible.
+
+---
 
 ### Re: Fully 3D mouse controlled Flight
 

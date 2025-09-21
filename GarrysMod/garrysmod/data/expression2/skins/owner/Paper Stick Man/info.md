@@ -19,6 +19,8 @@
 
 ## Description
 
+![image1](./image1.jpg)
+
 ### How to Become a Stickman
 
 Download the attached file and save it to the following folder:

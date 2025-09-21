@@ -17,6 +17,11 @@
 
 ## Description
 
+Video:  
+[YouTube - Garrysmod E2: PartyPlanes (Download in desc)](https://www.youtube.com/watch?v=HHzrwN-3mLk)
+
+![image1](./image.jpg)
+
 Place chip on the back of an airboat seat, no wiring required.
 
 If you use the code to make your own stuff it'd be cool if you showed me, enjoy!

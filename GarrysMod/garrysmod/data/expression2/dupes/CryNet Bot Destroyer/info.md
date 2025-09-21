@@ -18,7 +18,7 @@
 
 ## Description
 
-> [!NOTE]
+> [!Note]
 > ### jpwanabe question:
 > jpwanabe:
 > Care to explain what this crynet e2 actually does and how it can get from dupe to dupe?

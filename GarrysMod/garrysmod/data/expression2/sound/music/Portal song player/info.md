@@ -29,16 +29,13 @@ Im working on a v2 version that looks better and works better and also with only
 
 ### Re: Portal song player
 
-#### Vince Defash:
-
+**Vince Defash:**  
 Strange to see two `if(first())` statements. You could compress it to one and include that `dupefinished()` with it, not really going to affect you negatively. Would help clean/organize your code.  
 Seems like a good concept, I'll check it out. Also, I assume you'd have to copy the songs into the /sound/music folder correct?
 
-#### maxi123xx:
-
+**maxi123xx:**  
 you could use 1 channel instead of 15, and, there are 4 `if(first())` statements, try fixing what i say.  
 
-#### TheExecuter:
-
+**TheExecuter:**  
 Yes you have to copy them in /music if you dont got them there exept if you change them to your folder.  
 also its not the best one ofcourse because this was the first EGP e2 i ever made and also the first touchscreen e2 i ever made.

@@ -19,6 +19,6 @@
 
 The last thread got closed before i could even update it so here's the new version that works much better (Tested 1 time on a wiremod server)
 
-### Instructions:
+### Instructions
 
 To add props use the Set Mass E2 on the extra props and make sure to weld thoroughly!

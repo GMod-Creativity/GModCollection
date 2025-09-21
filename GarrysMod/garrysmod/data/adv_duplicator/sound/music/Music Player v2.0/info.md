@@ -32,7 +32,8 @@ Check out Maci's new [Advanced Alarm System](https://web.archive.org/web/2015042
 **Info:**  
 I have many more ideas in mind, that I will start working on! So expect more updates!
 
-**Requirements:**  
+**Requirements:**
+
 - ➢ 3D Stream Radio
 - ➢ WireMod
 
@@ -49,14 +50,15 @@ I have many more ideas in mind, that I will start working on! So expect more upd
 ☛ URL to URL  
 ☛ Loop is to be left alone!  
 
-**Adding Music Instructions:**  
+**Adding Music Instructions:**
+
 - ☩ Find the song you want either on soundcloud (and then use this link SoundCloudConverter, to get the .mp3 url) or from anywhere you want, but the link needs to end in .mp3 for it to work!  
 - ☩ Now, you want to add songs at the end of the list !!Remember commas, between every "xxx", "xxx", "xxx" (quotation mark) EXCEPT the very last one!!  
 - ☩ Format: "Song Name", "Song Artist", "Song Time Minutes", "Song Time Seconds", "Song Link"  
 - ☩ Song Name & Song Artist are for display only, while Song Time Minutes and Seconds are for how long it should keep playing that specific url!
 
 **Video:**
-https://www.youtube.com/watch?v=89C-54XOiTw
+[YouTube - WireMod - Music Player V2.0](https://www.youtube.com/watch?v=89C-54XOiTw)
 
 **Music Player Code (E2):**
 https://pastebin.com/REtMvU1Z

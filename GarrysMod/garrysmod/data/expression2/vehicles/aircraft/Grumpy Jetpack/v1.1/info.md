@@ -19,7 +19,11 @@
 
 ## Description
 
-> [!NOTE]
+> [!Note]
+> This expression 2 is extracted from an advanced duplicator 2 dupe.  
+> Check the "advdupe2" folder if you want the whole contraption.
+
+> [!Note]
 > WHEN YOU HAVE DOWNLOADED THIS, YOU MUST RENAME THE DUPE FILE: "Grumpy jetpackv1.1" to "Grumpyjetpack" OTHERWISE IT WILL NOT WORK
 >
 > SORRY THAT WAS A NOVICE MISTAKE

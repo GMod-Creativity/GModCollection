@@ -19,6 +19,8 @@
 
 ## Description
 
+![image1](./image1.jpg)
+
 Saw some people flying on a server, felt bad since my recent flying E2s were too complex to be enjoyable, so I made this one.
 
 ### Instructions
@@ -29,7 +31,9 @@ All you do is spawn your base prop, parent (or even weld) your chair to the base
 
 It's as simple as that.
 
-### The controls are:
+### Controls
+
+The controls are
 
 ```plaintext
 • W & S - Control Pitch
@@ -38,16 +42,16 @@ It's as simple as that.
 • Shift & Space - Control Throttle
 ```
 
-### Video:
+### Video
 
-https://www.youtube.com/watch?v=d7dlG0jICyM
+[YouTube - Chaqua VTOL E2](https://www.youtube.com/watch?v=d7dlG0jICyM)
 
 ---
 
 ### BMA OR1G1NAL issue
 
-BMA OR1G1NAL:
-    Great work but you might have to fixur code it keeps on going up for me ?
+**BMA OR1G1NAL:**  
+Great work but you might have to fixur code it keeps on going up for me ?
 
-Chaquator:
-    Change FC to something lower than 9. This number is different for lots of servers.
+**Chaquator:**  
+Change FC to something lower than 9. This number is different for lots of servers.

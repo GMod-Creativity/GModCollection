@@ -16,13 +16,21 @@
 
 ## Description
 
+<p float="left">
+  <img src="./images/image3.jpg" width="600"/>
+</p>
+
+<!--
+![image1](./images/image3.jpg)
+-->
+
 This is a wiremod version of the RPS multiplayer game. It uses no E2 chips so is suitable in server who doesn't t accept it.
 
 Players have a controller with 3 buttons to choose what to play in the match.
 
-### Buttons:
+### Buttons
 
-```
+```plaintext
 1 - rock
 2 - paper
 3 - scissor

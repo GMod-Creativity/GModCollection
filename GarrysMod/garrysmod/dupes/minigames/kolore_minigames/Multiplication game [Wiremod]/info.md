@@ -17,6 +17,14 @@
 
 ## Description
 
+<p float="left">
+  <img src="./images/image1.jpg" width="600"/>
+</p>
+
+<!--
+![image1](./images/image1.jpg)
+-->
+
 Use with chat, say:
 
 ```plaintext

@@ -17,7 +17,8 @@
 
 ## Description
 
-(Part of pack)
+> [!Note]
+> Part of a pack
 
 All of these chips have a single button input, which is coded into the chip and can be changed or disabled (see the Key variable at the top of each chip). They also have one input that is designed to be wired to a momentary numpad input (not toggle) or pod controller, which can replace the internal button.
 

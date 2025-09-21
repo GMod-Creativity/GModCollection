@@ -17,6 +17,11 @@
 
 ## Description
 
+Video:  
+[YouTube - E2 Finder / Stealer by Jim Dangle aka Me](https://www.youtube.com/watch?v=LNTjy76B4-E)
+
+![image1]()
+
 I made this chip here is the code. I am almost certain you need to be an admin for this chip to work completely.
 
 http://pastebin.com/Ftxf55Eh

@@ -20,7 +20,7 @@ My take on an npc avatar system. No offensive capabilities, strafing or regular-
 
 To aid map exploration, I also made sure it smoothly handles stargate travel. This is only relevant for cap users, but a feature nonetheless.
 
-### To use:
+### To use
 
 - Spawn the e2 on a chair
 - Spawn a cam controller and wire Activated to On, and Position and Angle to the outputs of the corresponding types.
@@ -28,7 +28,7 @@ To aid map exploration, I also made sure it smoothly handles stargate travel. Th
 - Select npc with use key.
 - Sit in chair.
 
-### Controls:
+### Controls
 
 - **W-** forward.
 - **Mouse-** turn.

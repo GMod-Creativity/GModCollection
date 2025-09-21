@@ -22,4 +22,6 @@
 Hi. I made simple pixel multiplayer bomberman using e2 and egp. I love egp because with that i can make things like this. Graphics doesn't look so well but it isn't too important.
 
 Here is video:
-https://www.youtube.com/watch?v=mFXxSJqhAL4
+[YouTube - [CZ] Garry's mod E2 EGP Multiplayer Bomberman](https://www.youtube.com/watch?v=mFXxSJqhAL4)
+
+![image1](./image1.jpg)

@@ -17,7 +17,8 @@
 
 ## Description
 
-(Part of pack)
+> [!Note]
+> Part of a pack
 
 Hello. I have made quite a few things over the past year, Many of them I feel are good enough to be shared with you guys. So, here they are.  
 Also, You need to have TylerB's `moneyRequest()` E2 function and TylerB's shipment E2 functions.  

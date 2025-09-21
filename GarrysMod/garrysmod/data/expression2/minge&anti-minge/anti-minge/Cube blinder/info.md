@@ -17,7 +17,8 @@
 
 ## Description
 
-(Part of pack)
+> [!Note]
+> Part of a pack
 
 ### MY VERY VERY VERY VERY FIRST E2 THAT DID SOMETHING
 

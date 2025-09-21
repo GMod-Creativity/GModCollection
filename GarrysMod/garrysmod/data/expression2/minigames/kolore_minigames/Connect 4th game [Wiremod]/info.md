@@ -17,6 +17,18 @@
 
 ## Description
 
+> [!Note]
+> This expression 2 is extracted from a dupe.  
+> Check the "dupes" folder if you want the whole contraption.
+
+<p float="left">
+  <img src="./image1.jpg" width="300"/>
+</p>
+
+<!--
+![image1](./image1.jpg)
+-->
+
 Classic connect 4 game  
 2 players game  
 To be found in "Dupes" Section
@@ -34,7 +46,7 @@ Unfreeze things with physgun
 
 ---
 
-### thanks to:
+### thanks to
 
 - player feedbacks on Metastruct, I just wanna Build.
 - Friends who tried it without knowing what to do

@@ -14,19 +14,23 @@ Hello people of Wiremod,
 
 I decided to re-make my old Rubik's cube, now it looks and functions a whole lot better.
 
-How do you use it?
+### How do you use it?
+
 Spawn the chip with any model that you want, it SHOULD be a cube. It can spawn with any size cube as well.
 
-Turning:
-When you look at the middle of any of the sides, the center square will glow brighter than the rest, that means that you are ready to turn.
-LEFT CLICK to turn the side LEFT
+### Turning
+
+When you look at the middle of any of the sides, the center square will glow brighter than the rest, that means that you are ready to turn.  
+LEFT CLICK to turn the side LEFT  
 RIGHT CLICK to turn the size RIGHT
 
-You can scramble the cube my typing "scramble" in the chat, once that is done you can start solving.
+You can scramble the cube my typing "`scramble`" in the chat, once that is done you can start solving.
 
-If you want to give up and undo all of the turns, type "solve" and it will go back to an unsolved state.
+If you want to give up and undo all of the turns, type "`solve`" and it will go back to an unsolved state.
 
-This is all that I am adding for now, a help chat will print when you spawn the chip.
+This is all that I am adding for now, a help chat will print when you spawn the chip.  
 I am heading off to sleep for now
 
-GOOD LUCK AND ENJOY
+![image1](./rubikscube.jpg)
+
+**GOOD LUCK AND ENJOY**  

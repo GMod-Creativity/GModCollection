@@ -16,18 +16,24 @@
 
 ## Description
 
-```plaintext
-1- place the dupe
-2- say "guess " and a number from 1 to 100
-3- check if you won
-4- if you didn't won, don't worry, I suggest to go to step 2
-5- reset the game by the on\off button
-```
+<p float="left">
+  <img src="./images/image1.jpg" width="600"/>
+</p>
 
-```plaintext
+<!--
+![image1](./images/image1.jpg)
+-->
+
+1- place the dupe  
+2- say "guess " and a number from 1 to 100  
+3- check if you won  
+4- if you didn't won, don't worry, I suggest to go to step 2  
+5- reset the game by the on\off button  
+
+---
+
 - it's best played with many peoples
 - you can study it ! :)
 - have "dragonesque" games !
 - I know it's a bit ugly, but it works :)
 - needs wiremod, uses only wiremod gates
-```

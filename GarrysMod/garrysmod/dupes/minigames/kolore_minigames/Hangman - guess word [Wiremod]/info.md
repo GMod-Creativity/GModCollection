@@ -17,14 +17,22 @@
 
 ## Description
 
+<p float="left">
+  <img src="./images/image5.jpg" width="600"/>
+</p>
+
+<!--
+![image1](./images/image5.jpg)
+-->
+
 Guessing word game in wiremod
 
 2+ players game
 Perfect for party games!
 
-### Usage:
+### Usage
 
-```
+```plaintext
 1 - input a word by keyboard USE, exit by pressing ALT
 2 - give hints about the word
 3 - let the player guess the word:

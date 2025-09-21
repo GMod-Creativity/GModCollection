@@ -17,6 +17,9 @@
 
 Got really bored with no ideas, so I decided to start a graphing calculator e2. So far it only functions with Y= X^n (will be adding more later), but the graphing part is giving me issues.
 
+Here's a picture:  
+![image1](./gm_construct0000-1-1.jpg)
+
 I apologize in advance if its a little sloppy I wrote it in about 15 minutes. Issue is kind of obvious based on the output graph which is giving 2 positive (x,y) lines while only drawing about 1/3 of the (-x,y) line.
 
 Equation used was x^2.  

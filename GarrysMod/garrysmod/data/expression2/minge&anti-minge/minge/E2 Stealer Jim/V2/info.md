@@ -17,6 +17,9 @@
 
 ## Description
 
+Video:  
+[YouTube - E2 Stealer Fix/Update](https://www.youtube.com/watch?v=cgOothTu8O4)
+
 I added a few new features.
 
 - Return

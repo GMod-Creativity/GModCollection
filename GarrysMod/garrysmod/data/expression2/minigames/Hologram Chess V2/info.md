@@ -17,7 +17,7 @@
 
 ## Description
 
-*HUGE UPDATE, ALL BUGS FIXED*
+*HUGE UPDATE, ALL BUGS FIXED*  
 
 Well, I guess some on had to do it eventually, lucky it was me :D.
 
@@ -25,7 +25,7 @@ I did all the math so all you have to do is spawn the chip on the PHX chess boar
 
 It gives you movement options for the King, Knight, and Pawn (Others have unlimited movement, and I did not want to hit holo limit). I also added an easy to use interface (For everyone but IraqiKid apparently =S).
 
-### New update:
+### New update
 
 1. A nicer chess shell using cam controllers
 2. Changed Models to HQ
@@ -38,17 +38,19 @@ It gives you movement options for the King, Knight, and Pawn (Others have unlimi
 9. Fallen pieces will now appear at the side of the board
 10. When you capture the king, the board will be wiped and the king will be behind the winner.
 
-### Video:
+### Video
 
-[Hologram Chess (Garrysmod)](https://www.youtube.com/watch?v=tkZJwcsyUcQ)
+[YouTube - Hologram Chess (Garrysmod)](https://www.youtube.com/watch?v=tkZJwcsyUcQ)
 
-### How to move 
+![image1](./image1.jpg)
+
+### How to move
 
 Use W A S D to move around the "Selector" and Mouse 1 to select, Mouse 2 is to Cancel. Once you click on a piece, you can move the Blue "Selector" to where you want the piece to go"
 
 No Pawn To Queen Feature Yet, I might add that later however.
 
-### To Set up:
+### To Set up
 
 Create a new txt file in your data/expression2 folder, copy and paste the preferred code into the txt file then save.
 
@@ -56,8 +58,8 @@ Ive included the setup of the board (chess setup v2) as an attachment. Spawn it 
 
 ### Code
 
-**PHX Chess Pieces (Compatible with SOME servers)**
+**PHX Chess Pieces (Compatible with SOME servers)**  
 Installation of holoModelAny() IS REQUIRED to use this version of the expression
 holoModelAny()
 
-**Non PHX Chess Pieces (Compatible with ALL servers)**
+**Non PHX Chess Pieces (Compatible with ALL servers)**  

@@ -17,7 +17,8 @@
 
 ## Description
 
-(Part of pack)
+> [!Note]
+> Part of a pack
 
 Now i decided to release a bunch more e2's today, I just finished the "AI release thread (check sig), and now i have 3 more e2's
 

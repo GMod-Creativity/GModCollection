@@ -18,7 +18,13 @@
 
 ## Description
 
+### Re: EGP Graphing Calculator
+
 To reduce lag, use egpPolyOutline. To draw a line with it, route the first and last vertices along on of the axis lines, and draw a line the same colour as the background over the connecting vertex. This also allows you to increase the detail of the line immensely. (your issue may be down to the egpLimit being used up by all those lines; egpPoly counts as just 1 object)
 
 For example, this plots 2d data using egpPolyOutline:
 (it also has auto axis scaling and modular size scaling controls that might be useful to you)
+
+<!-- Pic*:
+
+*left hand graph shows a signal made up of 4 sinusoids (with a Hann window applied). Right hand graph shows the real part of their discrete fourier transform -->

@@ -23,16 +23,18 @@ So I decided to learn E2 holograms properly by making a contraption which emulat
 
 Even if the code is 710 lines long, it hardly uses more than 10% of the performance quota at any time. It spawns 54 holograms, so you will need to raise the holo-limit to try it.
 
-### Video of it all:
+### Video of it all
 
-https://www.youtube.com/watch?v=jrExWK70iC4
+[YouTube - Rubik's Cube emulation in Garry's Mod](https://www.youtube.com/watch?v=jrExWK70iC4)
 
-### How to use it:
+![image1](./image1.jpg)
+
+### How to use it
 
 The buttons are used to rotate on of the 12 different 9x9 sets of cubes, up-arrow for clockwise rotation, and down-arrow for counter-clockwise. The pixels between the buttons tells which center-cube you are rotating about. To scramble it, you press the "compile"-button, which then scrambles the cube with 14-200 moves. To reset it, you simply press "reset", which will reload the cube.
 
 Yeah, I really need a better interface >.>
 
-### Code here due to longness.
+### Code here due to longness
 
 [Lua pastebin - collaborative debugging tool](https://pastebin.com/f351688cf)

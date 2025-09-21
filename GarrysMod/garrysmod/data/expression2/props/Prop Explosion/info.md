@@ -18,7 +18,8 @@
 
 ## Prop Explosion
 
-(Part of pack)
+> [!Note]
+> Part of a pack
 
 ### PROP EXPLOSION
 

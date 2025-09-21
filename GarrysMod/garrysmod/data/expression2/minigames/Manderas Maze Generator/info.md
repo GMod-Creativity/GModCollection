@@ -35,3 +35,5 @@ I made a video that pretty much sumarizes everything!
 (Tried to keep it short ^^)
 
 [https://www.youtube.com/watch?v=4bi4jD0Ec9A](https://www.youtube.com/watch?v=4bi4jD0Ec9A)
+
+![image1](./image1.jpg)

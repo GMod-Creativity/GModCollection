@@ -27,6 +27,10 @@
 
 ## Description
 
+> [!Note]
+> This expression 2 is extracted from an advanced duplicator dupe.  
+> Check the "adv_duplicator" folder if you want the whole contraption.
+
 ### HK-Drone Version 2 RELEASED!
 
 <!-- Dupe Attached Below! -->

@@ -17,7 +17,7 @@
 
 This is an game i has been working for long, please comment if you have liked it or if you think i must change something of it.
 
-### Instructions: 
+### Instructions
 
 1. Spawn a seat a digital screen, the e2 and a advanced pod controller
 2. Link the advanced pod controller to the seat

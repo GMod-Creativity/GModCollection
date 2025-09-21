@@ -17,8 +17,8 @@
 
 ## Description
 
-Video:
-https://www.youtube.com/watch?v=0X4l7cMV_FY
+Video:  
+[YouTube - GTMP v1](https://www.youtube.com/watch?v=0X4l7cMV_FY)
 
 Pretty much the title and the vid. This is a simple system that creates your average herapderp raycaster maps. A side project for when I was burned out on MPFC.
 

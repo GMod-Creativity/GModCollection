@@ -20,8 +20,10 @@
 
 Here's probably the most complex E2 contraption I ever made. It's basically a mini-game where you have to drive a "car" and avoid bumping into walls.
 
-Video:
-https://www.youtube.com/watch?v=01X2SqQEauM
+Video:  
+[YouTube - [Garry's Mod] Wiremod E2 - Driving Minigame!](https://www.youtube.com/watch?v=01X2SqQEauM)
+
+![image1](./image1.jpg)
 
 Note: I know the code looks weird, that I chose to store each possible line in an array, instead of calculating it later on, because it would have made a tick quota exceeded error. Also I didn't really know how to use the explode() function to convert strings to arrays until I finished it, but whatever since it works.
 

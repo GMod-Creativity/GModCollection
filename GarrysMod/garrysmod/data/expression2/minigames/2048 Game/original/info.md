@@ -20,7 +20,7 @@
 It's my first work which I upload on Wiremod.com
 Code was written in about 2 days
 
-### SG White Panda comment:
+### SG White Panda comment
 
 SG White Panda:  
 After playing around some more, I figured how to make it work.

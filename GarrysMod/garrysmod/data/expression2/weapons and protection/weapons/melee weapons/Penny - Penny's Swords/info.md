@@ -18,7 +18,8 @@
 
 ## Description
 
-(Part of pack)
+> [!Note]
+> Part of a pack
 
 from American animated web series: RWBY
 

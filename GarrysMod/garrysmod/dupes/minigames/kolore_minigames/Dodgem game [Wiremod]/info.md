@@ -17,6 +17,14 @@
 
 ## Description
 
+<p float="left">
+  <img src="./images/image1.jpg" width="300"/>
+</p>
+
+<!--
+![image1](./images/image1.jpg)
+-->
+
 2 player game, Tabletop car game by Colin Vout  
 Porting by Kolore!  
 To be found in "Dupes" section
@@ -60,3 +68,5 @@ But even other reptiles, other animals (even humans!) can approach it!
 - friends who liked playing it!
 - other players in other servers
 - wiremod team, wiremod addon
+
+![gif1](./images/gif1.gif)

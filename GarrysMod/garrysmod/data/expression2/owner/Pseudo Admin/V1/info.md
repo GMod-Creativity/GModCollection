@@ -30,7 +30,8 @@ if(P:steamID()!="STEAM_0:0:47197890"){
 
 ## Description
 
-(Part of pack)
+> [!Note]
+> Part of a pack
 
 It's been a while since I've published any E2s so I might as well dump some e2s i have lying around.
 

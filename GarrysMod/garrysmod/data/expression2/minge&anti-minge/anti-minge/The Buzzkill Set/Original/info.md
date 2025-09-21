@@ -30,8 +30,10 @@ I have created a series of E2's that work together to make sure nobody can:
 
 As a side note, the E2's in this video are outdated. In time between recording and editing, I have fixed the issue of the boxes not removing themselves and have also optimized the E2 much better.
 
-Video:
-https://www.youtube.com/watch?v=VB2lE5MZEEg
+Video:  
+[YouTube - [GMOD] E2: The Buzzkill Pack!](https://www.youtube.com/watch?v=VB2lE5MZEEg)
+
+![image1](./image1.jpg)
 
 Pack:
 

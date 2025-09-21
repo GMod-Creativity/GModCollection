@@ -17,7 +17,8 @@
 
 ## Description
 
-(Part of pack)
+> [!Note]
+> Part of a pack
 
 Now first off a description:  
 None of these are *TRUE* AI's, but they do simulate or respond to the environment, and that's as close as you can get in e2.

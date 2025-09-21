@@ -19,18 +19,20 @@
 
 ## Description
 
+![image1](./image1.jpg)
+
 If you create your own unit tree or ai strategy, please post it!
 
 ### VIDEO
 
-https://www.youtube.com/watch?v=e29cnWGgWz4
+[YouTube - Garry's Mod: Nexus wars E2 rts game](https://www.youtube.com/watch?v=e29cnWGgWz4)
 
 ### CODE
 
 **Click on this link for the e2 code:** [[C] Garry's Mod Nexus Wars e2 - Pastebin.com](https://pastebin.com/fLAPkH6A)  
 A whopping 2000 lines of code, I seem unable to include it in this post because it is so big. The attached files at the bottom of this post are dupes where the e2 chip is already wired up.
 
-#### Input wiring instructions:
+#### Input wiring instructions
 
 - Egp1:wirelink -> EGP Screen for player 1
 - Egp2:wirelink -> EGP Screen for player 2

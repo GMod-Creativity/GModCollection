@@ -17,6 +17,18 @@
 
 ## Description
 
+> [!Note]
+> This expression 2 is extracted from a dupe.  
+> Check the "dupes" folder if you want the whole contraption.
+
+<p float="left">
+  <img src="./image1.jpg" width="300"/>
+</p>
+
+<!--
+![image1](./image1.jpg)
+-->
+
 2 player game, Tabletop car game by Colin Vout  
 Porting by Kolore!  
 To be found in "Dupes" section

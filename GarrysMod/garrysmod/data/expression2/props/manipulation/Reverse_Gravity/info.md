@@ -17,6 +17,7 @@
 
 ## Description
 
-(Part of pack)
+> [!Note]
+> Part of a pack
 
 Some old E2s I made a while ago that I found

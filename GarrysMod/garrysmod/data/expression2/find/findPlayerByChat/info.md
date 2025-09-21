@@ -15,6 +15,7 @@
 
 ## Description
 
-(Part of pack)
+> [!Note]
+> Part of a pack
 
 4th, my tutorial chip for finding a player by chat.

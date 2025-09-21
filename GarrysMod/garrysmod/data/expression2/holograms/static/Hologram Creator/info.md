@@ -15,7 +15,8 @@
 
 ## Description
 
-(Part of pack)
+> [!Note]
+> Part of a pack
 
 Third, my Hologram Creator
 

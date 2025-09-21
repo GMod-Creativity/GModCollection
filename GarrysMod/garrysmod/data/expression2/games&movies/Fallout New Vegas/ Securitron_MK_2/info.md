@@ -28,6 +28,8 @@ This project was pretty fun throughout, but really became a headache during the 
 Video:
 https://www.youtube.com/watch?v=QMzBkPavZeI
 
+![image1](./hqdefault1.jpg)
+
 No, I will not make it drive backwards.
 
 I hope you have more fun using this than I did making it. :P

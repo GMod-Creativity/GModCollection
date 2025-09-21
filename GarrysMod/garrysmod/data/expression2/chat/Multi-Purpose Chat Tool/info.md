@@ -18,7 +18,7 @@
 
 ## Description
 
-**WARNING THE !ANNOY COMMAND CAN CAUSE HEARING DAMAGE SO USE AT YOUR OWN RISK**
+**WARNING THE `!ANNOY` COMMAND CAN CAUSE HEARING DAMAGE SO USE AT YOUR OWN RISK**
 
 Ummm... this E2 CAN be used to wreck havoc on a server so.....
 
@@ -28,9 +28,9 @@ By using this Expression 2 you agree that you are fully responsible and I am not
 ::::
 
 This expression 2 gives you a whole arsenal of commands for your use!!!!
-KNOWN BUGS(MAY VARY ON SERVER YOU'RE PLAYING ON): !kill and !killc are not hidden;  !hide does not go away until you delete the cip and spawn it again;  
-after using !remove then !fly again the props do not disappear unless you use !reset;  
-and !butcher is untested after the addition of people exploding when they come nearby the expression 2;  
+KNOWN BUGS(MAY VARY ON SERVER YOU'RE PLAYING ON): `!kill` and `!killc` are not hidden;  `!hide` does not go away until you delete the cip and spawn it again;  
+after using `!remove` then `!fly` again the props do not disappear unless you use `!reset`;  
+and `!butcher` is untested after the addition of people exploding when they come nearby the expression 2;  
 people won't explode when they come nearby e2.
 
 <!--VIDEO
@@ -44,3 +44,5 @@ Side Note: For people who say I need to code neatly.
 >Wiremod Bug
 >Finished in 3 days + where it could have taken me less than an hour.
 -->
+
+![image1](./hqdefault.jpg)

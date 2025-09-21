@@ -20,12 +20,12 @@ Killer Bath is a main and the best of my scripts. Basically, It's just a prop of
 flying very fast to the closest player and kill it. The terrable nightmare with no mercy It will finally find you
 and kill you. Run, Forest, run!
 
-### Core bath features:
+### Core bath features
 
 - orientation control with PID-controller
 - position control with PID-controller
 
-### Modifications:
+### Modifications
 
 - killer bath - fly, hit and kill
 - flying bath - controllable flying bath-based vechicle

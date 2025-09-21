@@ -18,10 +18,10 @@
 
 As the title said, i present a e2 that can translate.
 
-### Syntax:
+### Syntax
 
 `:LangStartInitials|LangToInitials>Text`
 
-### Use this for initials:
+### Use this for initials
 
 [ISO 639-1 language matrix - Wikipedia, the free encyclopedia](https://en.wikipedia.org/wiki/ISO_639-1_language_matrix)

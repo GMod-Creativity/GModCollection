@@ -20,7 +20,7 @@
 
 Well this is sorta pointless but I made a chat encrpyter.
 
-### Usage:
+### Usage
 
 - `/e:[message]`
 
@@ -29,7 +29,7 @@ For adv users:
 
 A working key must contain each numbers between 1-20 and also must not have repeating numbers.
 
-### Example keys:
+### Example keys
 
 ```plaintext
 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20

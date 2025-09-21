@@ -25,7 +25,7 @@ I have really wanted to create a E2 like this for a while, but ran into a dilemm
 
 I intend this Expression 2 to teach and better expand your knowledge on expression 2's language, though I tried many new things and explained some of the things i was doing in this E2, I still am very novice at Expression 2's language and would love it you see flaws, or see a better, faster, less op way of doing things it would be an honor for you to enlighten me in your ways.
 
-### Required Addons:
+### Required Addons
 
 - Unofficial Wire-Extras
 - Sprops

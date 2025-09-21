@@ -24,7 +24,10 @@ I made a Scout Bot that follows you.
 If you know how to E2, you can change the code up to have your own follower, or even a different target. The choice is yours!
 
 Here is the video I made with this bot:
-https://www.youtube.com/watch?v=ZfhnZ_yIG_M
+[YouTube - New York Offers Verbal Abuse](https://www.youtube.com/watch?v=ZfhnZ_yIG_M)
 
 And a video I made with a scout bot I made long ago:
-https://www.youtube.com/watch?v=Y81GzgBuWxU
+[Following MVM Scout Bot](https://www.youtube.com/watch?v=Y81GzgBuWxU)
+
+![image1](./image1.jpg)
+![image2](./kUVxhg3.jpg)

@@ -28,4 +28,13 @@ Then type #turn on to turn it on or #turn off to turn it off.
 ### Screenies
 
 I was too lazy to make a video, so i made some screenshots.  
-see images
+
+<p float="left">
+  <img src="./2012-04-17_00003.jpg" width="150"/>
+  <img src="./2012-04-17_00005.jpg" width="150"/>
+</p>
+
+<!--
+![image1](./2012-04-17_00003.jpg)
+![image2](./2012-04-17_00005.jpg)
+-->

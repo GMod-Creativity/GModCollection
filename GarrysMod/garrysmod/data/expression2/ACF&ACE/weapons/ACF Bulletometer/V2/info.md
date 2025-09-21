@@ -47,6 +47,15 @@ ACF guns start empty until you reload them. Also, this chip only re-calculates t
 
 Here are some results from my testing of the chip:
 
-(
-    see images
-)
+<p float="left">
+  <img src="./gm_flatgrass0007.jpg" width="700"/>
+  <br/>
+  <img src="./gm_flatgrass0008.jpg" height="450"/>
+  <img src="./gm_flatgrass0009.jpg" height="450"/>
+</p>
+
+<!--
+![image1](./gm_flatgrass0007.jpg)
+![image1](./gm_flatgrass0008.jpg)
+![image1](./gm_flatgrass0009.jpg)
+-->

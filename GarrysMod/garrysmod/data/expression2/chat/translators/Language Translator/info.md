@@ -17,20 +17,18 @@
 
 ## Description
 
-### Description:
-
 This takes what you write and converts it instead into another language of your choosing.
 
-### Image:
+### Image
 
-see image LWMu9As.png
+![image1](./LWMu9As.png)
 
-### Usage:
+### Usage
 
 `!lang` to set the language. (eg '`!lang fr`' for French)  
 `~Text` to write in that language. (eg '`~Hello, how are you?`')
 
-### Notes:
+### Notes
 
 It takes about a second or so to retrieve the data since it's using `httpRequest()`.  
 You must set: `wire_expression2_concmd 1`

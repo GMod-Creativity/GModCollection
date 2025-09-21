@@ -22,4 +22,4 @@ I made an e2 that you can animate a barney holo with. You can set fps (it will i
 you can change the model but I made the joints to fit with the barney model as best i could
 
 Video:  
-https://www.youtube.com/watch?v=iyf4BO7--S0
+[YouTube - hi](https://www.youtube.com/watch?v=iyf4BO7--S0)

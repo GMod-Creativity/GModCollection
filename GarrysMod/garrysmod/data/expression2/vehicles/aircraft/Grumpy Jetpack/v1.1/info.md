@@ -1,4 +1,4 @@
-# Advanced Duplicator - Grumpy's Jetpack - my first release
+# Expression 2 - Grumpy's Jetpack - my first release
 
 ## Details
 
@@ -62,9 +62,9 @@ Not very good pics - mainly function over form but still looks good imo simple a
 ![image2](./images/gm_flatgrass20081138.jpg =200x200)
 ![image3](./images/hl22010-02-0614-31-51-14.jpg =200x200)
 
-![image4](https://web.archive.org/web/20150504221328im_/http://i208.photobucket.com/albums/bb270/yamclam999/hl22010-02-0613-44-00-50.jpg =200x200)
-![image5](https://web.archive.org/web/20150504221328im_/http://i208.photobucket.com/albums/bb270/yamclam999/gm_flatgrass20081136.jpg =200x200)
-![image6](https://web.archive.org/web/20150504221328im_/http://i208.photobucket.com/albums/bb270/yamclam999/gm_flatgrass20081137.jpg =200x200)
+![image4](./images/hl22010-02-0613-44-00-50.jpg =200x200)
+![image5](./images/gm_flatgrass20081136.jpg =200x200)
+![image6](./images/gm_flatgrass20081137.jpg =200x200)
 -->
 
 ### Controls
@@ -88,5 +88,3 @@ Please download and enjoy, I'm releasing this only because I wish to share this 
 C&C Please
 
 Please Do Not Remove My Name From This Contraption, I Normally Do Not Release So If You Want More From Me, Give Credit Where Credit Is Due And Keep It "Grumpy's" Jetpack.
-
-<!-- Do Not Redistribute -->

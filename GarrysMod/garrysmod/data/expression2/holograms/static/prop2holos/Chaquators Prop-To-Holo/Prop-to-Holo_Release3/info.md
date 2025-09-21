@@ -27,11 +27,29 @@ Originally Posted by ZeroG:
 To show you why that chip you threw together has such great potential, I'd like to show you two contraptions me and an admin of my server made.
 
 - First, a working ACF hovertank using the chip as a base:
-  see izz8Ifv.jpg
-
-- And second, a better version of the hoverbike I showed on the thread:
-  see 7nNOVra.jpg and yQlc3DM.jpg
 ```
+
+<p float="left">
+  <img src="./izz8Ifv.jpg" width="400"/>
+</p>
+
+<!--
+![image1](./izz8Ifv.jpg)
+-->
+
+```plaintext
+- And second, a better version of the hoverbike I showed on the thread:
+```
+
+<p float="left">
+  <img src="./7nNOVra.jpg" width="400"/>
+  <img src="./yQlc3DM.jpg" width="400"/>
+</p>
+
+<!--
+![image2](./7nNOVra.jpg)
+![image3](./yQlc3DM.jpg)
+-->
 
 This guy deserves a lot of props for that.
 
@@ -39,13 +57,13 @@ Anyways, I was inspired to remake my prop-to-holo chip once again. This time aro
 
 I made a video showing off how I could do it in a snap. In real time, it took me like 7-9 minutes in total.
 
-Here's the video:
+Here's the videos:
 
 [Gmod] E2 Prop-to-holo | Release 3!:  
-https://www.youtube.com/watch?v=jRAyJiq2eW8
+[YouTube - [Gmod] E2 Prop-to-holo | Release 3!](https://www.youtube.com/watch?v=jRAyJiq2eW8)
 
 [Gmod] E2 Prop-to-holo Release 3 | New Feature: Area Selection:  
-https://www.youtube.com/watch?v=BI4lOsWKnw0
+[YouTube - [Gmod] E2 Prop-to-holo Release 3 | New Feature: Area Selection](https://www.youtube.com/watch?v=BI4lOsWKnw0)
 
 Now that inverse-kinematics function isn't entirely mine. Artik had given me the little bit and I turned it into a function for him. I was gonna exclude it, which is why you see #include "lib/functions" in the video, but I got over that because you can find it on the forums with some searching.  
 I feel like a bitch for making this post, Artik. Sorry bout that.

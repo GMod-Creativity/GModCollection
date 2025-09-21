@@ -24,4 +24,6 @@ For this to work in singleplayer, you need to have PropCore installed in wiremod
 
 spawn and connect chip to egp hud
 
-Video: https://www.youtube.com/watch?v=vwiTFSIYwqA
+Video: [YouTube - [CZ] Garry's mod Wire E2 SabsCraft (Minecraft)](https://www.youtube.com/watch?v=vwiTFSIYwqA)
+
+![image1](./image1.jpg)

@@ -23,10 +23,10 @@
 
 Made this thing because I felt like it.
 
-### Videos:
+### Videos
 
 [Gmod] E2 Jellyfish/Squid:  
-https://www.youtube.com/watch?v=FnHOUeAt-L4
+[YouTube - [Gmod] E2 Jellyfish/Squid](https://www.youtube.com/watch?v=FnHOUeAt-L4)
 
 This would be my screensaver if it were possible.:  
-https://www.youtube.com/watch?v=HRHnm50o_6E
+[YouTube - This would be my screensaver if it were possible.](https://www.youtube.com/watch?v=HRHnm50o_6E)

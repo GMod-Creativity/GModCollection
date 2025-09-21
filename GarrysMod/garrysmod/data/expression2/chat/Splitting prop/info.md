@@ -21,4 +21,4 @@
 
 It's been a while since I've published any E2s so I might as well dump some e2s i have lying around.
 
-This E2 spawns a prop when you type /start and removes when you type /remove. It also sets the prop's material, model, color, and alpha with the commands: /material, color, model, and alpha. Also /save:[filename] and /load:[filename] will save the settings and load
+This E2 spawns a prop when you type `/start` and removes when you type `/remove`. It also sets the prop's material, model, color, and alpha with the commands: `/material`, `/color`, `/model`, and `/alpha`. Also `/save:[filename]` and `/load:[filename]` will save the settings and load.

@@ -18,6 +18,8 @@
 
 ## Description
 
+### Re: ACF Bulletometer 2
+
 Cool. Why only predict the hit position, when instead you can predict the required launch angle to hit a target?
 
 My vanilla gmod solution here uses RKF45 + a newton-raphson iterative solver, and is very quick. You tell it where the target is and the required accuracy, and it tells you what angle to shoot at. It also outputs the firing solution trajectory, which you can plot using holos of course. I'm sure you can convert it to ACF

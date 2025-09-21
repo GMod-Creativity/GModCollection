@@ -50,7 +50,7 @@ A\* uses that but in addition it keeps track of the distance along the path it's
 If I read correctly your uses Best Search First (F = H), the advantage of this system is that it is much faster, the disadvantage is that it doesn't guarantee the absolute shortest path possible. If you already have a F = H system in place it shouldn't be too hard to get an an A* system in place without changing much code. (Grab the 'G' from the last node and add the distance from that node onto it, then just add this number to H.)
 
 This image demonstrates the differences between the systems:  
-see concave2.png
+![image1](./concave2.png)
 
 The blue line being A* and the red line being Best Search First.
 

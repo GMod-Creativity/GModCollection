@@ -41,6 +41,7 @@ Oh well, cya!
 ---
 
 ### ICEMAN[CGA] question
+
 **ICEMAN[CGA]:**  
 i love the door e2 but how to i make it go left/right?
 

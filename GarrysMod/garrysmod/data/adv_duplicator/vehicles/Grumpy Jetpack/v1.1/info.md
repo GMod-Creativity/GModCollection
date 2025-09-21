@@ -88,5 +88,3 @@ Please download and enjoy, I'm releasing this only because I wish to share this 
 C&C Please
 
 Please Do Not Remove My Name From This Contraption, I Normally Do Not Release So If You Want More From Me, Give Credit Where Credit Is Due And Keep It "Grumpy's" Jetpack.
-
-<!-- Do Not Redistribute -->

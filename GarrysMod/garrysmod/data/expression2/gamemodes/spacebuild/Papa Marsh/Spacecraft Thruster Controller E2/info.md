@@ -18,6 +18,9 @@
 
 ## Description
 
-Video: https://www.youtube.com/watch?v=DLy6NUSoNts
+Video: [YouTube - Garry's Mod Spacecraft Thruster Controller E2](https://www.youtube.com/watch?v=DLy6NUSoNts)
 
 This E2 code I wrote intelligently controls all the thrusters on a spacecraft in order to allow for rotations & translations, as well as angular and lateral stabilization.
+
+![image1](./image1.jpg)
+![image2](./image2.jpg)

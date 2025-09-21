@@ -21,5 +21,7 @@
 
 It's just a robot heavy that runs away from players and jumps in shock when someone is close enough to them.
 
-The Cowardly Heavy Video:
-https://www.youtube.com/watch?v=a2H8bqtk1IE
+The Cowardly Heavy Video:  
+[YouTube - The Cowardly Heavy](https://www.youtube.com/watch?v=a2H8bqtk1IE)
+
+![image1](./image1.jpg)

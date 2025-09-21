@@ -30,14 +30,15 @@ With these you may invoke 10 spells! Though, due to the lacking of E2 functional
 10. Tornado.
 ```
 
-### To change orbs, press:
+### Controls
 
+**To change orbs, press:**  
 KeyUse for Quas, KeyReload for Wex, KeyZoom for Exort.
 
 To invoke AND use the spell press MouseRightButton.
 To use Attack (magic blast), press MouseLeftButton.
 
-### Orb combination invocation:
+### Orb combination invocation
 
 ```plaintext
 QQQ - Cold Snap, encase the AimEntity in an ice sphere for some time.
@@ -51,3 +52,35 @@ QEE - Forge Spirit, creates two spirit models near you, which launch magic blast
 QQE - Ice Wall, spawns a wall in front of you.
 QWE - Deafening Blast, spawns a quick moving prop in front of you.
 ```
+
+### Images
+
+1. Deafening Blast.  
+![image1](./images/Deafening_Blast.png)
+
+2. EMP.  
+![image2](./images/EMP.png)
+
+3. Alacrity.  
+![image3](./images/Alacrity.png)
+
+4. Forge Spirit.  
+![image4](./images/Forge_Spirit.png)
+
+5. Ghost Walk.  
+![image5](./images/Ghost_Walk.png)
+
+6. Sun Strike.  
+![image6](./images/Sun_Strike.png)
+
+7. Chaos Meteor.  
+![image7](./images/Chaos_Meteor.png)
+
+8. Cold Snap.  
+![image8](./images/Cold_Snap.png)
+
+9. Ice Wall.  
+![image9](./images/Ice_Wall.png)
+
+10. Tornado.  
+![image10](./images/Tornado.png)

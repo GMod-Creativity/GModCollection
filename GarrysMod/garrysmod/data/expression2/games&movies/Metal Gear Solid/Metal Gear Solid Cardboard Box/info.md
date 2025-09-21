@@ -28,7 +28,7 @@ Video:
 https://www.youtube.com/watch?v=kAH6F0eaz70
 
 I made the box fall on top of you instead of just appearing now!  
-see szpoih.gif
+![gif1](./szpoih.gif)
 
 To activate it, press your crouch and your zoom key, and it'll toggle on and off.
 

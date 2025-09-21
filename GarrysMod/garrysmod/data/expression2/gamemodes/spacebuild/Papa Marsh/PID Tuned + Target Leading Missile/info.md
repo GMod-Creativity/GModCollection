@@ -18,6 +18,8 @@
 
 ## Description
 
-Video: https://www.youtube.com/watch?v=pGW0C1PNzIU
+Video: [YouTube - Garry's Mod PID Tuned + Target Leading Missile](https://www.youtube.com/watch?v=pGW0C1PNzIU)
 
 Just a small little project I've been working on since I've been busy with school lately. PID control and tuning is a handy thing to know about in many engineering fields, so I'm happy to have a chance to use it somewhere. If you want the E2 code, just ask.
+
+![image1](./image1.jpg)

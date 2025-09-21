@@ -21,14 +21,32 @@ BL4CKH4WK's Stargate e2 pack
 paste the .txt files in
 C:\Program Files (x86)\Steam\SteamApps\'steam_name'\garrysmod\garrysmod\data\Expression2
 
-Stargate Control allows you to control your Stargate with chat commands ( for example '!iris').  
+Stargate Control allows you to control your Stargate with chat commands ( for example '`!iris`').  
 Most dialcommands work only for 'sb_galaxies_beta6_1' or 'sb_forlorn_sb3_r3' !  
 If you spawn the e2 chip you will get a list of commands and functions.  
 If you found some bugs write me a message ( Steam: _BL4CKH4WK ) and i will fix the bugs.
 
-Do not reupload this file without my permission !
+<p float="left">
+  <img src="./BL4CKH4WK&apos;s%20Stargate%20e2%20pack/Screenshots/2012-09-10_00001.jpg" width="300"/>
+  <img src="./BL4CKH4WK&apos;s%20Stargate%20e2%20pack/Screenshots/2012-09-10_00002.jpg" width="300"/>
+  <img src="./BL4CKH4WK&apos;s%20Stargate%20e2%20pack/Screenshots/2012-09-10_00003.jpg" width="300"/>
+  <br/>
+  <img src="./BL4CKH4WK&apos;s%20Stargate%20e2%20pack/Screenshots/2012-09-10_00004.jpg" width="300"/>
+  <img src="./BL4CKH4WK&apos;s%20Stargate%20e2%20pack/Screenshots/2012-09-10_00005.jpg" width="300"/>
+  <img src="./BL4CKH4WK&apos;s%20Stargate%20e2%20pack/Screenshots/2012-09-10_00006.jpg" width="300"/>
+</p>
 
-### Wire instruction ( Stargate Control+Dialing Screen v1.0 ) :
+<!--
+![image1](./BL4CKH4WK&apos;s%20Stargate%20e2%20pack/Screenshots/2012-09-10_00001.jpg =200x200)
+![image2](./BL4CKH4WK&apos;s%20Stargate%20e2%20pack/Screenshots/2012-09-10_00002.jpg =200x200)
+![image3](./BL4CKH4WK&apos;s%20Stargate%20e2%20pack/Screenshots/2012-09-10_00003.jpg =200x200)
+
+![image4](./BL4CKH4WK&apos;s%20Stargate%20e2%20pack/Screenshots/2012-09-10_00004.jpg =200x200)
+![image5](./BL4CKH4WK&apos;s%20Stargate%20e2%20pack/Screenshots/2012-09-10_00005.jpg =200x200)
+![image6](./BL4CKH4WK&apos;s%20Stargate%20e2%20pack/Screenshots/2012-09-10_00006.jpg =200x200)
+-->
+
+### Wire instruction ( Stargate Control+Dialing Screen v1.0 )
 
 ```plaintext
 wire: Active(e2)         -> Active(SG)
@@ -46,7 +64,7 @@ wire: IrisCode(e2)       -> Received Code (Iris computer)
 
 ##########################################################
 
-### Wire instruction ( Stargate Dialing Screen v1.0 ) :
+### Wire instruction ( Stargate Dialing Screen v1.0 )
 
 ```plaintext
 wire: Active(e2)         -> Active(SG)

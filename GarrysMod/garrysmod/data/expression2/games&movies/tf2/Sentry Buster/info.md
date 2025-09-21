@@ -28,15 +28,17 @@
 - 1 month ago - I release a third Sentry Buster video because I felt like it.
 - Today - I release that E2 for like 1 person to download it.
 
-### Videos:
+### Videos
 
-Sentry Buster video #1:
-https://www.youtube.com/watch?v=2EzHftiPSLg
+![gif1](./dxkrxe.gif)
 
-Sentry Buster video #2:
-https://www.youtube.com/watch?v=d99gYJPF3v0
+Sentry Buster video #1:  
+[YouTube - Sentry Buster video #1](https://www.youtube.com/watch?v=2EzHftiPSLg)
 
-Sentry Buster video #3:
-https://www.youtube.com/watch?v=IjCSfdeljsw
+Sentry Buster video #2:  
+[YouTube - Sentry Buster video #2](https://www.youtube.com/watch?v=d99gYJPF3v0)
+
+Sentry Buster video #3:  
+[YouTube - Sentry Buster video #3](https://www.youtube.com/watch?v=IjCSfdeljsw)
 
 Enjoy!

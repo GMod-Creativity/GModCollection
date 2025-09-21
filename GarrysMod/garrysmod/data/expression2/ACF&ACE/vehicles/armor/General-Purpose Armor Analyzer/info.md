@@ -24,7 +24,7 @@ This is a layered armor scanner, for ballistics checking. This project came abou
 This E2 saves a lot of time and headache. It allows you to quickly scan something for weakness, ricochet tendencies, and vulnerabilities. It is useful for self-diagnostic; it only works on either your own things, or those which you have prop permissions on.
 
 It will output an image onto a digital screen in the set resolution, colored for clarity. Here is an example:  
-see 4000_screenshots_2015-03-06_00021.jpg
+![image1](./4000_screenshots_2015-03-06_00021.jpg)
 
 The green areas are highly resistant--they manage to stop a round of the input penetration.  
 Any orangishness or reddishness means it would not stop the round of the input penetration.  

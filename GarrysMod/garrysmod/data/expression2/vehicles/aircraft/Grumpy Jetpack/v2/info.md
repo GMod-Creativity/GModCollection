@@ -1,4 +1,4 @@
-# Advanced Duplicator - Grumpy Jetpack V2 !
+# Expression 2 - Grumpy Jetpack V2 !
 
 ## Details
 

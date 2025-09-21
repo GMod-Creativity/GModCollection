@@ -15,10 +15,6 @@
 - Source: https://web.archive.org/web/20101117015858/http://www.wiremod.com/forum/finished-contraptions/23515-chip-8-emulator-99-speed-compatability-code-dupe-thread.html
 - Source Accessed (dd-mm-yyyy): 09-08-2025
 
-### GMod Collection Comment
-
-- GModCollection Comment: change mtable to table
-
 ## Description
 
 After hitting a roadblock on my GB emulator I decided to start a bit lower, a Chip 8 Emulator coded entirely in E2, runs 100% without unlimited 1. Originally, like the GB emulator this was merely meant to be a proof of concept but after writing it, debugging it and optomising it like fuck I've actualy got it to more or less 100% speed of a real Chip 8, and alot of games are not only fully playable but pretty damn fun.
@@ -44,7 +40,7 @@ My emulator currently emulates all but 1 (Difficult to impliment but rarely ever
 
 You can switch between games by typing !load gamename. Here's a list of game names and any relevent information. Likewise there are several demos for testing the Chip 8 emulator and displaying its capabilities.
 
-### Arcade Games:
+### Arcade Games
 
 ```plaintext
 • Pong #Works perfectly 2 Player
@@ -68,7 +64,7 @@ You can switch between games by typing !load gamename. Here's a list of game nam
 • Rush Hour #Hangs at menu
 ```
 
-### Demos/Test roms:
+### Demos/Test roms
 
 ```plaintext
 • Pic
@@ -79,7 +75,7 @@ You can switch between games by typing !load gamename. Here's a list of game nam
 • test
 ```
 
-### Puzzle games:
+### Puzzle games
 
 ```plaintext
 • Hidden
@@ -94,11 +90,53 @@ You can switch between games by typing !load gamename. Here's a list of game nam
 
 All Roms are contained within the E2 and are in the public domain, there are no legal issues.
 
-### Pictures:
+### Pictures
 
-see images
+<p float="left">
+  <img src="./images/hl2gmod20101112193225.png" width="300"/>
+  <img src="./images/hl2gmod20101112193547.png" width="300"/>
+  <img src="./images/hl2gmod20101112193607.png" width="300"/>
+  <br/>
+  <img src="./images/hl2gmod20101112193623.png" width="300"/>
+  <img src="./images/hl2gmod20101112193624.png" width="300"/>
+  <img src="./images/hl2gmod20101112193636.png" width="300"/>
+  <br/>
+  <img src="./images/hl2gmod20101112193717.png" width="300"/>
+  <img src="./images/hl2gmod20101112194111.png" width="300"/>
+  <img src="./images/hl2gmod20101112194209.png" width="300"/>
+  <br/>
+  <img src="./images/hl2gmod20101112194229.png" width="300"/>
+  <img src="./images/hl2gmod20101112194232.png" width="300"/>
+  <img src="./images/hl2gmod20101112194234.png" width="300"/>
+  <br/>
+  <img src="./images/hl2gmod20101112194235.png" width="300"/>
+  <img src="./images/hl2gmod20101112194236.png" width="300"/>
+  <img src="./images/hl2gmod20101112194311.png" width="300"/>
+</p>
 
-### Code:
+<!--
+![image1](./images/hl2gmod20101112193225.png =200x200)
+![image2](./images/hl2gmod20101112193547.png =200x200)
+![image3](./images/hl2gmod20101112193607.png =200x200)
+
+![image4](./images/hl2gmod20101112193623.png =200x200)
+![image5](./images/hl2gmod20101112193624.png =200x200)
+![image6](./images/hl2gmod20101112193636.png =200x200)
+
+![image7](./images/hl2gmod20101112193717.png =200x200)
+![image8](./images/hl2gmod20101112194111.png =200x200)
+![image9](./images/hl2gmod20101112194209.png =200x200)
+
+![image10](./images/hl2gmod20101112194229.png =200x200)
+![image11](./images/hl2gmod20101112194232.png =200x200)
+![image12](./images/hl2gmod20101112194234.png =200x200)
+
+![image13](./images/hl2gmod20101112194235.png =200x200)
+![image14](./images/hl2gmod20101112194236.png =200x200)
+![image15](./images/hl2gmod20101112194311.png =200x200)
+-->
+
+### Code
 
 E2 Code, to use wire the Screen to a digital screen and the Pad to a wired numpad.
 

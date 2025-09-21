@@ -29,31 +29,32 @@ Download this e2 file: carrier_fighter_controller_simplified.txt
 I added a simplified version of the fighter control e2 chip to the post, feel free to make your own carrier! This is really easy to use and this e2 will work on any server with up-to-date wiremod.
 
 #### Chat Commands:
-- orbit -> This tells the fighters to take off and orbit your carrier.
-- land -> This tells the fighters to land.
-- attack {name or part of name} -> This tells the fighters to attack the specified player. Eg. "attack Pap" would tell them to attack me, Paper Clip.
+
+- `orbit` -> This tells the fighters to take off and orbit your carrier.
+- `land` -> This tells the fighters to land.
+- `attack {name or part of name}` -> This tells the fighters to attack the specified player. Eg. "attack Pap" would tell them to attack me, Paper Clip.
 
 #### Here is how it is wired up:
 
-- @inputs Mouse1 Mouse2  
+- `@inputs Mouse1 Mouse2`  
 Wire these from your adv. pod controller. Mouse 1 will order the fighters to attack any prop it finds forwards from the carrier. Press mouse 1 again to recall the fighters. I don't think Mouse 2 does anything.
 
-- @inputs ParentLink:wirelink  
+- `@inputs ParentLink:wirelink`  
 Wire ParentLink directly a prop on you carrier. This prop should have :forward() direction being the forward direction of your carrier. It only uses this input when you press Mouse1 and it searches for targets.
 
-- @inputs [F1 F2 F3 F4 F5 F6]:wirelink  
+- `@inputs [F1 F2 F3 F4 F5 F6]:wirelink`  
 Wire this up directly to the smallest of the PHX Transportation prop jets. F1 if fighter #1, F2 is fighter #2 ect. If you want to make different looking fighters, just build your fighter parented to this jet model and make it invisible.
 
-- @inputs [L1 L2 L3 L4 L5 L6]:wirelink  
+- `@inputs [L1 L2 L3 L4 L5 L6]:wirelink`  
 Wire this up to the landing props. L1 is the landing prop for Fighter #1, it lands where this prop is and orients itself with it when docked. It is best to use a small prop like a helibomb prop.
 
-- @outputs Fire1 Fire2 Fire3 Fire4 Fire5 Fire6  
+- `@outputs Fire1 Fire2 Fire3 Fire4 Fire5 Fire6`  
 These are the fire signals for each of the fighters. If Fighter #1 is attacking someone and it gets a valid ranger hit on the target, it will set Fire1 to 1.
 
-- @outputs Targ1:entity Targ2:entity Targ3:entity Targ4:entity Targ5:entity Targ6:entity  
+- `@outputs Targ1:entity Targ2:entity Targ3:entity Targ4:entity Targ5:entity Targ6:entity`  
 These are the entities that each of the fighters are attacking, this can be used as inputs to weapons that take an [ENTITY] input.
 
-- @outputs XYZ1:vector XYZ2:vector XYZ3:vector XYZ4:vector XYZ5:vector XYZ6:vector  
+- `@outputs XYZ1:vector XYZ2:vector XYZ3:vector XYZ4:vector XYZ5:vector XYZ6:vector`  
 These are the XYZ coords that each of the fighters are attacking, this can be used as inputs to weapons that take a [VECTOR] input.
 
 **ALSO NOTE:** You need to repaste the e2 for it reload the fighters. So you need to wire the fighters up, then update the e2. It waits about 10 seconds before initializing, this is to avoid initializing while your carrier is still pasting.
@@ -93,11 +94,17 @@ Then use the Adv. Dupe Tool in-game to upload it to the server and paste it.
 Newest Video:
 [YouTube - Spacebuild Battle #3, Carrier versus titan (Diaspora spacebuild server)](https://www.youtube.com/watch?v=48gGbpWWWrM)
 
+![image1](./images/hqdefault3.jpg)
+
 Somewhat New Video:
 [YouTube - Spacebuild Battle #2, Carrier versus carrier 2 (Diaspora servers)](https://www.youtube.com/watch?v=8eaJpYEybpw)
 
+![image2](./images/hqdefault2.jpg)
+
 Old Video:
 [YouTube - Spacebuild Battle #1, Carrier versus carrier short clip](https://www.youtube.com/watch?v=SE7PfgocE6o)
+
+![image3](./images/hqdefault1.jpg)
 
 ### E2 Code
 

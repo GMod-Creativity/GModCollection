@@ -41,14 +41,14 @@ This works on either single props, or parented contraptions. To use this chip to
 ### Video
 
 Filmed on McBuilds spacebuild servers.
-New Version
-https://www.youtube.com/v/Ja58hnd3slI
+New Version  
+[YouTube - Garrys Mod: Automatic fastest possible applyForce and applyAngForce code generation chip (Version 2)](https://www.youtube.com/v/Ja58hnd3slI)
 
-Old Version (applyAngForce only)
-http://www.youtube.com/v/dftycqtjepI
+Old Version (applyAngForce only)  
+[YouTube - Garrys Mod: Apply Angle Force System Identification and Dead Beat Controller Design E2 Chip](http://www.youtube.com/v/dftycqtjepI)
 
-Bonus Spacebuild carrier battle video!
-http://www.youtube.com/v/8eaJpYEybpw
+Bonus Spacebuild carrier battle video!  
+[YouTube- Spacebuild Battle #2, Carrier versus carrier 2 (Diaspora servers)](http://www.youtube.com/v/8eaJpYEybpw)
 
 ### Example Output Control Design
 

@@ -22,7 +22,9 @@
 
 Well, it isn't rocket science, but it's fun to watch the little guy stack those boxes.
 
-Video:
-https://www.youtube.com/watch?v=wcZ54X-jAp4
+Video:  
+[YouTube - E2 Stacker HQ](https://www.youtube.com/watch?v=wcZ54X-jAp4)
 
 Reload the E2 after you spawn the boxes!
+
+![image1](./image1.jpg)

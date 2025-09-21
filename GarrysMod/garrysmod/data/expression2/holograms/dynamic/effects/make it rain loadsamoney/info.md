@@ -21,7 +21,7 @@
 
 I noticed that there hasn't been an E2 that makes it rain LOADSAMONEY on your head. I decided to make my own.
 
-Video:
-https://www.youtube.com/watch?v=Yd2J5uXW09w
+Video:  
+[YouTube - [Gmod] LOADSAMONEY](https://www.youtube.com/watch?v=Yd2J5uXW09w)
 
 Requires: CS:S

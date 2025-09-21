@@ -25,8 +25,10 @@ The lone chat command not seen in the video is the "lasor.active X" command. Any
 
 The parameters for the code include: Number of points, draw distance, and the interval update time. These are all edited in the code to give examples of how to use them.
 
-Video:
-https://www.youtube.com/watch?v=uvj30msdHnk
+Video:  
+[YouTube - RealTime Laser Eg2 - HD Video](https://www.youtube.com/watch?v=uvj30msdHnk)
+
+![image1](./image1.jpg)
 
 This code was made in Notepad ++ so you might have to edit it in that
 

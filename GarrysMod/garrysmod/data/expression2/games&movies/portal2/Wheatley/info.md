@@ -16,3 +16,13 @@
 ## Description
 
 This was a project inspired from OmicroN's Whealtey Replica. This Was a fun build. I also got others I'm gonna be posting here too. I just gotta finish them. People who play on CT (Canadian's Turf) have already seen them because that's where I'm building all my stuff. I'm giving everyone the code to this because I don't think enough people do this with really good E2's *cough* Bill and Tyler *cough*.
+
+<p float="left">
+  <img src="./Desktop%2011-17-2014%204-44-42%20AM-717.png" width="150"/>
+  <img src="./gm_construct0006.jpg" width="150"/>
+</p>
+
+<!--
+![image1](./Desktop%2011-17-2014%204-44-42%20AM-717.png)
+![image2](./gm_construct0006.jpg)
+-->

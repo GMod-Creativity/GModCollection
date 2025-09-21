@@ -18,6 +18,8 @@
 
 ## Description
 
+![image1](./image1.jpg)
+
 After much work on making this as universal as I could, so that it could fit any arial vehicle's role, I am proud to present my helicopter chip, it has 4 aiming modes, a 3rd person cam controlled by the players eye angles (heli goes to where your cam is pointing) a first person cam (same as one above but in 1st person) and 1st and 3rd person bf3 aiming modes.
 
 It also can create a main and tail rotor out of holos to decrease physical lag of prop rotors, they look better than normal ones, can be any length or number (if holo limit is 9001 you can have 9001 blades on the rotors) and can be in any pos and rotate at any angle.

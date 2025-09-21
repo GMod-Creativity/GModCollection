@@ -16,6 +16,8 @@
 
 ## Description
 
+![image1](./image1.jpg)
+
 Hello, friends. I made this yesterday and thought I would share it. Its modelled on the A10 Warthog, uses my Iron Dome weapons system and my Flight Mk3 movement. It supports ACF weapons and I HIGHLY recommend using them.
 
 - **Requires: PropCore.**  

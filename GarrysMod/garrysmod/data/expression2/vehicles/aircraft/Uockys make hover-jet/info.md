@@ -106,7 +106,7 @@ If you find any serious bugs or have any suggestions of any kinda feel free to p
 
 ---
 
-### Edit:
+### Edit
 
 Forgot to mention that the E2 is designed for use with a 1x2 PHX plate as the chip model so expect weirdness if using something else
 for those of you who dont know how to set the E2 chip model type in "wire_expression2_model models/props_phx/construct/metal_plate1x2.mdl".

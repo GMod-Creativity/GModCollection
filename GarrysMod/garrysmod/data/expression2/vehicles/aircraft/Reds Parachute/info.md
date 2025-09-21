@@ -17,7 +17,16 @@
 
 ## Description
 
+> [!Note]
+> This expression 2 is extracted from an advanced duplicator 2 dupe.  
+> Check the "advdupe2" folder if you want the whole contraption.
+
 ### Video
 
 Video that includes Parachute Pod:
 [YouTube - RELEASE - MPFC 7.1](https://www.youtube.com/watch?v=Y0Ksok9W-9E)
+
+### Images
+
+![image1](./image1.jpg)
+![image2](./image2.jpg)

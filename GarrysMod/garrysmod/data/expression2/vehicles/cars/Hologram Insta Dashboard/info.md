@@ -30,13 +30,15 @@ Im going to split this into 3 sections, each E2 will have instructions, descript
 
 ### *Hologram Dashboard*
 
-### Description:
+![image1](./image1.jpg)
+
+### Description
 
 this is a dashboard, made out of holograms, it is designed to take data inputs, and display them in the form of a dash. It is not meant to control the vehicle in any way. I made this specifically using my crawler, of which the e2 engine has gears, 8 of them (-2,-1,0,1,2,3,4,5).
 
 Making this was a blast, and also quite difficult, over the period of about 2 weeks. It has a gear shift, a working gas, brake, and clutch pedal, a speedometer percent bar, a working steering wheel, the ability to be right OR wrong(left) side driven. A rear view mirror, and last but not least, a beer.
 
-### Instructions:
+### Instructions
 
 1. Wire the WL:wirelink output to your pod controller, and reweld your seat (or place it) in the correct position.  
 2. Wire the SteeringPlate:entity output to your steering plate/steering bar, the dash will pull angles from this and display it by turning the wheel (it has a bug while going reverse and steering, not enough of a problem to fix)  

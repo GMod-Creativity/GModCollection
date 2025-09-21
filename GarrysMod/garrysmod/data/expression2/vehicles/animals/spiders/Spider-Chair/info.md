@@ -16,4 +16,9 @@
 
 ## Description
 
+> [!Note]
+> This expression 2 is extracted from a dupe.  
+
+![image1](./image1.jpg)
+
 Figure It Out >:| jk |Directions:WASD To Move|Mouse1 And Mouse 2 To Face Directions! :)|

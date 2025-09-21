@@ -15,6 +15,11 @@
 
 ## Description
 
+> [!Note]
+> **(random colors)**
+
+![image1](./image1.jpg)
+
 Again all you need to put this chip onto any chair and fly away!
 
 Thanks to Disturbed for converting the holo code over to the new smaller format.

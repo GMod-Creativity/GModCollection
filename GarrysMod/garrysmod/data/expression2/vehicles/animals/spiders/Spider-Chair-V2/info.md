@@ -22,6 +22,17 @@
 
 ## Description
 
+> [!Note]
+> This expression 2 is extracted from a dupe.
+
+<p float="left">
+  <img src="./image1.jpg" width="500"/>
+</p>
+
+<!--
+![image1](./image1.jpg)
+-->
+
 This long legged spider chair allows anybody to climb walls, wherever you want!
 
 The E2 I got it from was from this link:

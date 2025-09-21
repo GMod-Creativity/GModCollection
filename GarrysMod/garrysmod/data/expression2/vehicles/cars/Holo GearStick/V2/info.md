@@ -16,11 +16,13 @@
 
 ## Description
 
-**UPDATE**
+![image1](./image1.jpg)
 
-**Holo GearStick v2**
+**UPDATE**  
 
-### Changes:
+**Holo GearStick v2**  
+
+### Changes
 
 - Slight optimisation to the code, now instead of idling at 169ops, it'll spawn with ~100ops and gradually decrease at 0ops/0%, bouncing up to ~30ops when gear is changed and back down to 0ops
 - Added a slight angle tilt when the stick shifts, for visual effect. (Thanks Jack37 for suggestion)

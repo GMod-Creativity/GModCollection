@@ -15,6 +15,8 @@
 
 ## Description
 
+![image1](./image1.jpg)
+
 Needs a Chair, the E2, A CamController and an Adv Pod Contoller.
 
 Link the Pod:wirelink to the Adv Pod and the Cam:wirelink to the Camcontroller and enjoy!!!!

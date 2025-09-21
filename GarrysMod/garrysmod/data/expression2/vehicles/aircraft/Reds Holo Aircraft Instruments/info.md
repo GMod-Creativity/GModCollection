@@ -17,6 +17,8 @@
 
 ## Description
 
+![image1](./image1.jpg)
+
 This is a comprehensive, easy-to-use instrument panel for aircraft. It includes an [attitude indicator](https://en.wikipedia.org/wiki/Attitude_indicator), a [turn and bank indicator](https://en.wikipedia.org/wiki/Turn_indicator), an [altimeter](https://en.wikipedia.org/wiki/Barometric_altimeter#Pressure_altimeter), and a [heading indicator](https://en.wikipedia.org/wiki/Heading_indicator). Only one input required, and a few simple self-scaling variables to alter.
 
 [YouTube - Red's Aircraft Instruments](https://www.youtube.com/watch?v=JZFeNFENQPU)

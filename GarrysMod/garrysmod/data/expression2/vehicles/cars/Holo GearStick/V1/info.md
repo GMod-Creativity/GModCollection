@@ -16,6 +16,8 @@
 
 ## Description
 
+![image1](./image1.jpg)
+
 Been working on this lately, and though about releasing it.
 As the title says, it's a car gearstick. But instead of changing the angles of a rod, it'll change it's position accordingly to the gear, in a semi-decent smooth animation without the stick jumping around.
 

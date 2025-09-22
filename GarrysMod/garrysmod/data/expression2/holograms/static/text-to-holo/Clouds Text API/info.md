@@ -24,3 +24,11 @@ Cloud[Surf]: So, I made this a while ago, is there any significant input anyone 
 https://pastebin.com/raw/T97SKZ7x
 
 Cloud[Surf]: Its a Holo Text API that uses Sprops as the characters
+
+### Example
+
+![image1](./image1.jpg)
+
+```plaintext
+holoText(1,"hello world",0)
+```

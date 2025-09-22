@@ -15,7 +15,9 @@
 
 ## Description
 
+![image1](./image1.jpg)
+
 no need to no trig you can use this and save your self some time
 
 this is my first e2 post i may update it tho have fun!  
-also youtube is almost ready so yea. good luck
+<!-- also youtube is almost ready so yea. good luck -->

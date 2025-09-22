@@ -19,4 +19,6 @@ Just got bored the other day and made this tree it took me 5 minutes so chill ou
 Do what you wish with it i really dont care  
 Have fun
 
-the smaller one with presents around it
+the smaller one with presents around it :)
+
+![image1](./image1.jpg)

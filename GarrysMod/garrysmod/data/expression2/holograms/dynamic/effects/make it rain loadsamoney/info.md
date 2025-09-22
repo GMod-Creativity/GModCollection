@@ -19,6 +19,8 @@
 
 ## Description
 
+![image1](./image1.jpg)
+
 I noticed that there hasn't been an E2 that makes it rain LOADSAMONEY on your head. I decided to make my own.
 
 Video:  

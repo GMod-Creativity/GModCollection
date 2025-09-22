@@ -17,6 +17,15 @@
 
 ## Description
 
+> [!Note]
+> The following if statement at line 167 is not complete:
+> 
+> ```plaintext
+>     if(C1=="/remove"){
+>        
+>        }
+> ```
+
 Video:  
 [YouTube - E2 Stealer Fix/Update](https://www.youtube.com/watch?v=cgOothTu8O4)
 

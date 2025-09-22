@@ -41,11 +41,11 @@ This is the HK-Drone V2 Release. I did not intend to release this one yet, so I 
 
 [YouTube - Mike Dude's HK-Drone V2](https://www.youtube.com/watch?v=w78zQ1uqMkY)
 
-![image1](./hqdefault.jpg)
+![image1](./image1.jpg)
 
 This version is controlled completely by chat commands. Listed below is a few of the commands:
 
-### COMMANDS:
+### COMMANDS
 
 ```plaintext
 /on
@@ -62,7 +62,7 @@ This version is controlled completely by chat commands. Listed below is a few of
 
 You can find out the rest of the commands by checking it out.
 
-### CREDITS:
+### CREDITS
 
 ```plaintext
 • Gunnanmon for his lead collision code
@@ -80,7 +80,7 @@ You can find out the rest of the commands by checking it out.
 • credit to the others that helped but I forgot their names
 ```
 
-### NOTES:
+### NOTES
 
 If the turrets spaz for you, then use your E2 stool and update the expression. You don't need the E2 code prior, just right click on the expression on the bottom and click upload and it should fix it.
 

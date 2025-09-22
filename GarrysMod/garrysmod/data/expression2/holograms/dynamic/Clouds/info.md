@@ -19,14 +19,17 @@
 
 Clouds attempts to replicate clouds from Minecraft. However it is incomplete.
 
-### Features:
+### Features
 
 - Randomly generated clouds (Needs better algorithm)
 - Moving clouds!
 - Cloud looping (Once the cloud exit the maps, it starts again at the other end of the map)
 
-### Following options you'll see:
+### Following options you'll see
 
 1) GridBase: Size of clouds.
 2) Height: How high the sky will be, leave 0 if unsure.
 3) CloudsCount: Amount of clouds.
+
+![image1](./image1.jpg)
+![image2](./image2.jpg)

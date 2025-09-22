@@ -94,17 +94,17 @@ Then use the Adv. Dupe Tool in-game to upload it to the server and paste it.
 Newest Video:
 [YouTube - Spacebuild Battle #3, Carrier versus titan (Diaspora spacebuild server)](https://www.youtube.com/watch?v=48gGbpWWWrM)
 
-![image1](./images/hqdefault3.jpg)
+![image1](./images/image3.jpg)
 
 Somewhat New Video:
 [YouTube - Spacebuild Battle #2, Carrier versus carrier 2 (Diaspora servers)](https://www.youtube.com/watch?v=8eaJpYEybpw)
 
-![image2](./images/hqdefault2.jpg)
+![image2](./images/image2.jpg)
 
 Old Video:
 [YouTube - Spacebuild Battle #1, Carrier versus carrier short clip](https://www.youtube.com/watch?v=SE7PfgocE6o)
 
-![image3](./images/hqdefault1.jpg)
+![image3](./images/image1.jpg)
 
 ### E2 Code
 

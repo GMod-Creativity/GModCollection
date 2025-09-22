@@ -22,3 +22,5 @@ Its a simple disco-like floor where all the tiles on the floor change to a rando
 It's size is also adjustable with the '!size' command in chat (e.g. '!size 4x4').
 
 UPDATE: Now allows fixed colours with new commands '!red', '!green', '!blue' and '!all"
+
+![image1](./image1.jpg)

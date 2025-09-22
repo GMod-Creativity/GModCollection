@@ -28,4 +28,4 @@ Because of the "special" nature of how I coded this, the actual program probably
 
 https://www.youtube.com/watch?v=GgcSbabgOqg
 
-![image1](./hqdefault.jpg)
+![image1](./image1.jpg)

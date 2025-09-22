@@ -24,7 +24,7 @@
 A pod Racer track Xro and I (Grumpy Hitler/Hunta) built to race pod racers/ hover vehicles.  
 Built for the compedators in the facepunch competiton at: https://web.archive.org/web/20160607074413/http://www.facepunch.com/showthread.php?t=740646  
 
-![image1](./hqdefault.jpg)
+![image1](./image1.jpg)
 
 Spawn in 2 parts, Huge amount of props, becareful not 2 exit the map, you'll crash  
 2 props need removing/colouring when pasted, the big red tube(you'll see it) and the random phx plate in the stadium.

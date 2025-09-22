@@ -32,4 +32,4 @@ Adv Dupe2: [fullmech v7](https://www.mediafire.com/file/yg9clp2d3l8vu05)
 
 Video: https://www.youtube.com/watch?v=MbFeWWPMoPU
 
-![image1](./hqdefault.jpg)
+![image1](./image1.jpg)

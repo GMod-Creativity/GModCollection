@@ -25,4 +25,4 @@ OLD VERSION (EVERYTHING WORKS 100%)
 
 Note: Auto doesn't want to work for some reason. I'd be great if someone told me how to make it work. -->
 
-![image1](./hqdefault.jpg)
+![image1](./image1.jpg)

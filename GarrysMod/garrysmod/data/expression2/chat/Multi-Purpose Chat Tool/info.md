@@ -45,4 +45,4 @@ Side Note: For people who say I need to code neatly.
 >Finished in 3 days + where it could have taken me less than an hour.
 -->
 
-![image1](./hqdefault.jpg)
+![image1](./image1.jpg)

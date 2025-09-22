@@ -18,4 +18,4 @@
 
 Requires E2 particle extension
 
-![image1](./hqdefault.jpg)
+![image1](./image1.jpg)

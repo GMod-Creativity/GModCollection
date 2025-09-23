@@ -21,3 +21,8 @@
 
 Video that includes Parachute Pod:
 [YouTube - RELEASE - MPFC 7.1](https://www.youtube.com/watch?v=Y0Ksok9W-9E)
+
+### Images
+
+![image1](./image1.jpg)
+![image2](./image2.jpg)

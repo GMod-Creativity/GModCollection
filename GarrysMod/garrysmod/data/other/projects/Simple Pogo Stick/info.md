@@ -20,9 +20,12 @@
 
 ## Description
 
-[Gmod simple pogo stick](https://www.youtube.com/watch?v=-DC2_Pob4ls)
+![image1](./sddefault.jpg)
 
-Simple control, M1 = bounce the fuck around.
+Video:  
+[YouTube - Gmod simple pogo stick](https://www.youtube.com/watch?v=-DC2_Pob4ls)
+
+Simple control, M1 = bounce around.
 
 [PogoStickE2 - Pastebin.com](https://web.archive.org/web/20150509230313/http://pastebin.com/7Kwn89cm)
 

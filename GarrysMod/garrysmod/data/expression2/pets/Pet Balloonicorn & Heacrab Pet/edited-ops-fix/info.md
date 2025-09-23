@@ -17,14 +17,15 @@
 
 - Title: [E2] Pet Balloonicorn & Heacrab Pet
 - Date (dd-mm-yyyy): 07-09-2025
-- Source: https://web.archive.org/web/20150304043559/http://www.wiremod.com/forum/finished-contraptions/32182-e2-pet-balloonicorn.html
-- Source Accessed (dd-mm-yyyy): 23-08-2025
+- Source: GMODCOLLECTION
+- Source Accessed (dd-mm-yyyy): 07-09-2025
 
 ## Description
 
-Comment by jacoby6000:
+### Re: [E2] Pet Balloonicorn
 
-stick this
+**Comment by jacoby6000 on 01-09-2013:**  
+stick this  
 Code:
 
 ```plaintext
@@ -46,5 +47,5 @@ Code:
     Songs[16,string] = "ui/gamestartup16.mp3"
 ```
 
-in if first
+in if first  
 and ops will drop

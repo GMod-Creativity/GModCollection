@@ -21,7 +21,7 @@
 What is it ? ... its program for creation of animations with ragdolls
 you can create u animation.
 
-### Chat commands:
+### Chat commands
 
 ```plaintext
 - !animation Name  

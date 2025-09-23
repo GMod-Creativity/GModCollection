@@ -20,11 +20,13 @@
 
 If you want to graph math functions or game data, this is for you.
 
-### Description: 
+### Description
 
 Input the size, position, titles, axis labels, colours and data, and it draws you a graph.
 
-### Special features: 
+![image1](./qt8RD.jpg)
+
+### Special features
 
 Axis scale properly for negatives in either axis, and will scale the minimum and maximum values to nice round numbers and draw gridlines.
 

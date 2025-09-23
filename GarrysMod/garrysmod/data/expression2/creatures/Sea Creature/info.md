@@ -21,6 +21,8 @@
 
 ## Description
 
+![image1](./image1.jpg)
+
 Made this thing because I felt like it.
 
 ### Videos

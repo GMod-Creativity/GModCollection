@@ -19,7 +19,7 @@
 ## Description
 
 > [!Note]
-> ### jpwanabe question:
+> **jpwanabe question:**  
 > jpwanabe:
 > Care to explain what this crynet e2 actually does and how it can get from dupe to dupe?
 >
@@ -37,11 +37,10 @@ Note that this E2 becomes part of the Crynet DSGroup, in order to find its peers
 
 You most likely will find some of these bots in some of the dupes spawned on your server, as its a fast spreading virus, thats been around for a bit.
 
-### Features:
+### Features
 
 - If you have the prop protection / added the buddy of everyone on the bot owners on the sever (bot owners being the players unfortunate enough to have these bots somewhere in their props). Then after bots are deleted, you will be told who had the bots in their build.
 
 - If you don't have prop protection of certain bot owners, after running the E2, it will print to chat who needs to run a bot destroyer in order to get rid of their own evil bots.
 
 Also, heres a simple looping version, for inexperienced people who don't know how to edit the code. Helpful for owners that want to keep it running on the server while players spawn their dupes throughout the day. Making sure every bot spawned is rinsed.
-

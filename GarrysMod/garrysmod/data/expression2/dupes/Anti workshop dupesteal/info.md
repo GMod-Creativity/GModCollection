@@ -19,10 +19,11 @@
 If you've ever browsed the workshop dupes, you know it's a mess. The dupes are either stolen or useless one-entity dupes such as weapons from an addon you probably don't even have. This E2 aims to eliminate the stolen wiremod dupes by preventing skids from taking the credit for your work. 
 
 > [!Important] Important Note:
+> 
 > - **This only works with servers that have wiremod**
 > - **It's only useful for protecting wire dupes.**
 
-### Usage:
+### Usage
 
 1. Create your wiremod dupe
 2. Paste the E2 on it

@@ -19,6 +19,9 @@
 
 ## Description
 
+Video:  
+[YouTube - [Gmod] E2 Sperm Pod V2](https://www.youtube.com/watch?v=3ZRHUNP6vhA)
+
 To get it to work:
 
 ```plaintext

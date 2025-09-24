@@ -18,6 +18,8 @@
 - Source: Meta Construct, advanced duplicator 1: public folder
 - Source Accessed (dd-mm-yyyy): 04-09-2025
 
-## Mech BY DJ_F
+## Description
 
 \<No Description\>
+
+![image1](./image1.jpg)

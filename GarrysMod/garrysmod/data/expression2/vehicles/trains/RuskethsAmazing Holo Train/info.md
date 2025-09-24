@@ -19,9 +19,14 @@
 
 I made an E2 Train, it scans the map.
 
+Video:  
+[YouTube - RuskethsAmazing Holo Train](https://www.youtube.com/watch?v=GtttQFPSZ2g)
+
+![image1](./image1.jpg)
+
 ---
 
-### User's question:
+### User's question
 
 **User:**  
 Scans for what in the map?

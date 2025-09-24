@@ -16,7 +16,7 @@
 ## Description
 
 > [!Note]
-> **(random colors)**
+> **Random Colors**
 
 ![image1](./image1.jpg)
 

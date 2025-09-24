@@ -28,3 +28,5 @@ Here are some simple steps to use:
 
 Edit 1: Added trails  
 Edit 2: No longer will get stuck on walls, now it will either stop or explode.
+
+![image1](./image1.jpg)

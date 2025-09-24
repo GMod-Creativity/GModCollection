@@ -21,7 +21,9 @@
 
 An E2 that allows users of any skill level to have an instant steering, suspension and transmission system.
 
-- Image of V1, but V2 basically looks the same.
+![image1](./chassis.jpg)
+
+\- Image of V1, but V2 basically looks the same.
 
 You can place this on effectively any prop. I recommend building your vehicle similar to the example dupe I have included. i.e. 1 'base' prop and 1 or more weighted 'collison box' props or bumpers.
 

@@ -27,7 +27,7 @@ It has got alot of nice features such as Jumping, Doing Tricks in air and even a
 
 manderas hover board.txt -->
 
-### Controls:
+### Controls
 
 ```plaintext
 W and S = Forward and Backward movement.

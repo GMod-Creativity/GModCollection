@@ -30,7 +30,7 @@ This is an adv_dupe pack with 4 types of my M12 "Warthog" FAV from Halo
 
 ![image1](./warthog.jpg)
 
-### Features:
+### Features
 
 ```plaintext
 • Smooth ride on or off road, with E2 holo wheels and suspension
@@ -39,18 +39,18 @@ This is an adv_dupe pack with 4 types of my M12 "Warthog" FAV from Halo
 • Multiple camouflage styles and civilian paint colours
 • A/D or Mouse Steering toggle
 • Music Track Player
-````
+```
 
-### HD Video:
+### HD Video
 
 [YouTube - Halo M12 Warthog for Garry's Mod](https://www.youtube.com/watch?v=iTC8-rf3Lwg)
 
-### Requires:
+### Requires
 
 Wiremod, wire extras etc,  
 including Expression 2 <!-- - i.e. Latest SVN -->
 
-### Instalation:
+### Instalation
 
 Installation and driving instructions are in the readme. READ IT!!! :)
 

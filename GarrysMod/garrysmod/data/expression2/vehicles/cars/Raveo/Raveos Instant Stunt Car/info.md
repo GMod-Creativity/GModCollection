@@ -15,6 +15,9 @@
 
 ## Description
 
+> [!Note]
+> **random colors**
+
 Hello everyone. This is my instant stunt car. No wiring is required. simply copy the E2 and put it on any chair! Very easy.
 
 First of all I would like to apologise for the crappy looking car. I'm not very creative or good when it comes to modelling holograms. To make up for this somewhat I've made this car as customisable as possible. Almost anything pertaining to the physics or aesthetics can be changed easily, you can even disable the holograms and then build your own body. Just remember to set all the weights to 0 and parent them to the chair!!!!!!!
@@ -34,3 +37,5 @@ Thirdly, **I am open to suggestions and ideas**. I would appreciate it if you in
 **I hope you enjoy using it as much as I enjoyed writing it. Please leave a "like" if you like it. Thank you. Have fun!**
 
 23/01/2014: Updated version 1.1. Fixed random bouncing and tightened up most applyForce code. Added Reverse gear.
+
+![image1](./image1.jpg)

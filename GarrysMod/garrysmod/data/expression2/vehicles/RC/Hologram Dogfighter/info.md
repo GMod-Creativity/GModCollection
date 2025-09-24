@@ -21,7 +21,7 @@ It's a Holo mini flying spaceship Techni and a few of my friends inspired me to 
 
 Just going to cover the controls and how to set it up...it requires Spacebuild2 Materials to see what it truly looks like.
 
-### Controls:
+### Controls
 
 ```plaintext
 W = Forward
@@ -45,6 +45,14 @@ Now for putting it together..
 Spawn a small plate, place a Adv pod controller on it and then a cam controller..
 
 wire all of the above to the Adv pod..then Activated from the Cam to the pod on "active" and finally Position Vector / Direction Vector to the E2 Chip which is inside the hologram don't mind pos vector.
+
+### Images
+
+Heres some pictures.
+
+![image1](./rlawed.jpg)
+![image2](./14b291e.jpg)
+![image3](./jpg26v.jpg)
 
 ### Credits & Feedback
 

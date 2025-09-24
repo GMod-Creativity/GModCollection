@@ -33,3 +33,4 @@
 - [ ] Add stuff from https://web.archive.org/web/20120102232809/http://wiki.garrysmod.com/?title=Wire_Expression2:Examples
 - [ ] add missing dupes duck, spider
 - [ ] add images
+- [ ] Updated edited

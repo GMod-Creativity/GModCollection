@@ -15,7 +15,7 @@
 
 ## Description
 
-### Features:
+### Features
 
 ```plaintext
 • runs off chat commands
@@ -38,13 +38,24 @@
 Thanks to Omicron for helping me pick materials!
 and to many others from Drunkie's server and the [W.I.R.E] server who motivated/inspired me and helped me along the way.
 
-### Ktccd's Edited version:
+---
+
+### Ktccd's Edited version
 
 **Originally Posted by ktccd:**
 
 Lol XD.
 KK, this is really very simple, I planned on more fixes, but flieboy caught me in his holo-creations trap, and now I gotta make some too XD.
 
-#### How to set up:
+#### How to set up
 
 Not much different, spawn a wire gun, wire fire to the output, press E when watching it and it should go invisible and noclip itself this time XD. (noclip it yourself if you don't have propcore. Code does not require propcore to work though.)
+
+---
+
+### Image
+
+> [!Note]
+> **Random Colors**
+
+![image1](./image1.jpg)

@@ -42,3 +42,5 @@ After playing around some more, I figured how to make it work.
 
 8. Update the E2 chip.
 ```
+
+![image1](./image1.jpg)

@@ -43,3 +43,5 @@ Give me some feedback and tell me what you think. :)
 
 **I've added a tutorial for those of you who want to assemble it. =)**  
 [YouTube - Garrys Mod Hover Board - Tutorial](http://www.youtube.com/v/AC8JiK4MUzE)
+
+![image1](./image1.jpg)

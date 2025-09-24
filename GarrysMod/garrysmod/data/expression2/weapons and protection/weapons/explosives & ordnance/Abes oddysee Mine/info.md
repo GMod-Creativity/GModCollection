@@ -26,4 +26,6 @@ I've re-created the Abe's oddysee Mine.
 
 [YouTube - \[GMOD\]\[#1\] Let's Create! - Abe's oddysee Mine!](https://www.youtube.com/watch?v=b1C6sfQS5FA)
 
+![image1](./image1.jpg)
+
 The code might not be optimized! Im sorry about that, it was my first "tutorial" video

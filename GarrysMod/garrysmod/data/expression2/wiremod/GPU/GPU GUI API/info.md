@@ -15,7 +15,8 @@
 
 ## Description
 
-### Comment on 26-09-2011:
+### Comment on 26-09-2011
+
 This E2 does not work anymore, it's outdated because of the new ZGPU. You'll need to edit a bit the opcodes, registers and such to get it working on ZCPU2.  
 Sure you can, I guess now with UDF's it'd be awesome. <!-- I don't know what admins will do to you though, for bumping this topic -->
 
@@ -36,7 +37,7 @@ GUI table is used for use events, to clear screen, load a form, as Update table 
 
 In order to make a form you need to initialize an array with strings describing each "object" of the GUI.
 
-- #### Here's the objects :
+- #### Here's the objects
 
     ```plaintext
     Every object have at least custom color option (alpha included).
@@ -59,7 +60,7 @@ In order to make a form you need to initialize an array with strings describing 
     Every GUI object have at least R, G, B, A, Parent, Row and Column members.
     ```
 
-- #### Special objects :
+- #### Special objects
 
     ```plaintext
     - Grid : information holding start position, size, spacing and number of columns and rows. Used to locate any of the GUI objects, since you can't place them directly.
@@ -138,15 +139,15 @@ You can also reload the form as many times as you want.
 The E2 will likely use 4% ops when idle, and generally goes up to 40-50% when loading a form (during three ticks only). GUI["Ops", number] is set every tick to ops().  
 The sample code uses 50 ops when idle. You can probably break up the E2 if you make a form too big filled with lot of 64-length labels, or updating an entire 4096-length big label.
 
-- #### Advantages :
+- #### Advantages
 
     Simple to use, clean code, no any manipulation of coordinates or GPU's internal memory and I think grids are really useful and efficient. I first made it as a challenge, and because it was fun to make some library for other E2s, but I think this one could be used by several people who just want to make a GUI without touching either at GPU's assembly langage or EGP's functions.
 
-- #### Inconvenients :
+- #### Inconvenients
 
     The big problem is lag occured when spawning the E2 (Topic), so apparently this won't get fixed until someone wants to.
 
-- #### Notes on optimization :
+- #### Notes on optimization
 
     I tried to use data signals to make E2 ops-free, and better coding (dsSendDirect("UpdateText", GGA, array("Button.Play", "Stop"))), but it randomly went into infinite loops of data signals then broke up the E2.  
     I also tried to make better updating functions but finally my code got screwed up, thanks to adv. dupe for giving me old working code.

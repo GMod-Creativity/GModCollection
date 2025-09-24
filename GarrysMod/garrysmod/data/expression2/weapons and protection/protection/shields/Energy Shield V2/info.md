@@ -21,7 +21,7 @@
 
 So more than a year ago i made an E2 that regenerates your health and armor as long as you have more than 1 armor, but it was a little overpowered. so now after messing around with it for fun several months later, ive balanced it a lot more and i believe it is finally ready for release.
 
-### Requirements:
+### Requirements
 
 - EP2
 - EP1
@@ -29,7 +29,7 @@ So more than a year ago i made an E2 that regenerates your health and armor as l
 - TF2
 - AutoTitan soundpack (link gone) <!--that you can get here: [www.serisism.tk/download/misc/autotitan.rar](www.serisism.tk/download/misc/autotitan.rar) -->
 
-### How to Use:
+### How to Use
 
 - paste the dupe and then upload the E2 to the chip
 

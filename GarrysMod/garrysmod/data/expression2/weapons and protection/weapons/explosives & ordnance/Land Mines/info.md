@@ -23,3 +23,5 @@ Mine Destroyer (Place on top of a mine)
 
 <!-- Video
 https://web.archive.org/web/20161117110359/https://www.youtube.com/watch?v=TOLZhxRdykg -->
+
+![image1](./image1.jpg)

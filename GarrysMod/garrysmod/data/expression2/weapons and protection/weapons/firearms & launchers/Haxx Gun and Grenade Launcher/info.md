@@ -24,4 +24,6 @@ I made that come true with this Expression 2 that I created.
 Controls: Right click to shoot a computer. Don't worry with spamming "undo" they automatically delete after 10000 milliseconds (10 seconds). Hope you enjoy!
 <!-- https://web.archive.org/web/20161126180804/https://www.youtube.com/watch?v=djluHhgL21A -->
 
+![image1](./image1.jpg)
+
 As a bonus here's the edited version of my hacks gun insted of computers it shoot grenades. They eventually explode the more grenades you spawn the longer it takes for them to explode.

@@ -35,3 +35,5 @@ Features thought out performance control, that limits functions of the chip as t
 Extremely customizable and modular; options at the top.
 
 <!-- https://web.archive.org/web/20161010171318/https://www.youtube.com/watch?v=TiKSMkBrIHM -->
+
+![image1](./image1.jpg)

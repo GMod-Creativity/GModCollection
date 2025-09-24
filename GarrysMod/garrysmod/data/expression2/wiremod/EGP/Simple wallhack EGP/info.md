@@ -22,7 +22,7 @@
 
 Just a grab-bag of E2s I've been working on.
 
-**SIMPLE WALLHACK EGP**
+**SIMPLE WALLHACK EGP**  
 
 A very simple EGP wallhack. Shows you the distance between you and [subject name here]. Also the color of the text is [subject name here]'s team color. Wire to an EGP hud (and press E to link to it).
 

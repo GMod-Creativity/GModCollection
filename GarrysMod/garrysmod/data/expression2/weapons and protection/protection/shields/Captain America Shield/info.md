@@ -21,13 +21,16 @@ and when you press mouse 2 you throw the shield in the direction you aim. (if yo
 
 you need sprops to see the shield and modelany needs to be on
 
-### Screens (Sorry no action shots):
+### Screens (Sorry no action shots)
 
-see pictures
+![image1](./gm_orifice-construct-C40000.jpg)
+![image2](./gm_orifice-construct-C40001.jpg)
 
-### Edit:
+### Edit
 
 so now the whole thing is solid (well just the e2 model is bigger still uses holos), and it can actually protect you... not sure from what belly shots maybe? tanks driving into you? well idk.
 another thing, i tried making it come back more realiticly, when you throw it like at a angle it comes back like a boomerang and well... can kill you.
 
 thats everything that i changed so enjoy.
+
+![image3](./image1.jpg)

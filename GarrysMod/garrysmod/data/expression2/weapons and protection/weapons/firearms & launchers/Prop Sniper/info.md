@@ -23,6 +23,8 @@ I got board and instead of trying to make a prop body to Acf guns, I made a prop
 Here's it in action:  
 [YouTube - Gmod Prop Sniper](https://www.youtube.com/watch?v=eJPU83lZHF4)
 
+![image1](./image1.jpg)
+
 I may release the firing e2, but not the trigger.
 If and when that happens, I'd like to see different sniper rifle designs.
 

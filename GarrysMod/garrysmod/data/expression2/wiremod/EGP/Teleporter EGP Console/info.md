@@ -28,7 +28,7 @@ https://web.archive.org/web/20180114213006/https://www.youtube.com/watch?v=LHe7e
 
 I got this idea from watching a youtube video of a spacebuild creation where the guy had tons of console such as these for weapons and Life Support and such. I Did not directly copy any of his code instead created my own TouchScreen Teleporter using the same Techniques.
 
-**Wiring**
+**Wiring**  
 
 ```plaintext
 Inputs: EGP -> EGP Screen,User -> EGP Screen

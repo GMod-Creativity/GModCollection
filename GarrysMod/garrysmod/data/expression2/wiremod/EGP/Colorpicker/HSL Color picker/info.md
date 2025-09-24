@@ -17,3 +17,8 @@
 
 Easy color picker, wire EGP in and RGB out.  
 https://dj.je/3a2d (Video)
+
+<video controls autoplay loop muted playsinline width="720">
+  <source src="./bfbfaf9bf94522e20eadfb60c2901a4a.mp4" type="video/mp4">
+  Sorry — your browser doesn't support MP4.
+</video>

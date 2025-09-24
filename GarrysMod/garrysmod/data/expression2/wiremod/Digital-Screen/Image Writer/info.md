@@ -22,8 +22,10 @@
 2. Spawn a digital screen.
 3. Wire digi from chip to the digital screen.
 
-### ATTENTION! :
+### ATTENTION!
 
 - Max Resolution: 128x128  
 - Supports only .png format.  
 - The code is old and messy as fawx.  
+
+![image1](./8MSS6.jpg)

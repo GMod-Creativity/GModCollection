@@ -1,4 +1,4 @@
-# PAC3 - Gmod (bad)Pac3 Kickback +Download
+# PAC3 - Kickback
 
 ## Details
 
@@ -20,5 +20,15 @@
 
 Заделал трансформера Кикбэка, но шот хз, по мне-такое себе. Хотя выпилил довольно ровно еахъхъеахъеа))
 
-(Translated with deepL)
+---
+
+(Translated with deepL)  
 I made a Transformer Kickback, but I don't know what I think it is. I sawed it pretty smoothly, though.)
+
+### Video
+
+[YouTube - Gmod (bad)Pac3 Kickback +Download](https://www.youtube.com/watch?v=5mTUSh7Jdw8)
+
+### Image
+
+![image1](./image1.jpg)

@@ -1,4 +1,4 @@
-# PAC3 - GMod pac 3 Arthas Ver.1 +Download
+# PAC3 - Arthas Ver.1
 
 ## Details
 
@@ -18,8 +18,16 @@
 
 ## Description
 
----------------------------------------------------------------------------------------------------------------------------------------------------------------
 После перерыва решил начать лепить Артаса. Но т.к не знаю какие у него там были перки, заделал пока то что есть. Почему давно не было видео? Был в отъезде, попытаемся нагнать))
 
----------------------------------------------------------------------------------------------------------------------------------------------------------------
+---
+
 After the break, I decided to start sculpting Arthas. But because I don’t know what kind of perks he had there, so far I have patched up what is. Why hasn't there been a video for a long time? Was away, try to catch up))
+
+### Video
+
+[YouTube - GMod pac 3 Arthas Ver.1 +Download](https://www.youtube.com/watch?v=u9uqY-c_vf8)
+
+### Image
+
+![image1](./image1.jpg)

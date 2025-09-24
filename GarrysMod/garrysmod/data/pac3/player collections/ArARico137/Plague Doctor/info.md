@@ -20,5 +20,15 @@
 
 Хееей всем привет!! Решил по тихоньку делать ремейки паков, первая тройка на выдаче-док, терминатор и мимик!
 
-(Translated with deepL)
+---
+
+(Translated with deepL)  
 Hey everybody!!! I've decided to remake the packs, the first three to be given away are Dock, Terminator and Mimic!
+
+### Video
+
+[YouTube - Gmod pac 3 Plague Doctor and Download 3 pac's](https://www.youtube.com/watch?v=UoTwAJGyhlA)
+
+### Image
+
+![image1](./image1.jpg)

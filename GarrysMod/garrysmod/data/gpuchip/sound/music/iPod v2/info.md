@@ -1,4 +1,4 @@
-# Expression 2 - iPod v2 [Release]
+# GPU - iPod v2 [Release]
 
 ## Details
 
@@ -20,16 +20,23 @@ I decided to re-make my really old iPod that everyone seemed to like. This versi
 
 <!-- (Alternate download available below) -->
 
-iPod v2 has:
+### Features
+
+**iPod v2 has:**
 
 ```plaintext
-Clean GUI
-Built-in cursor
-3D intro menu
-Pitch slider
-Volume slider
-All songs from HL1, HL2, EP2, CSS, TF2 and Portal
-Custom menu for adding your own music
-Hold button for freezing the screen
-Multiple-menu switching
+- Clean GUI
+- Built-in cursor
+- 3D intro menu
+- Pitch slider
+- Volume slider
+- All songs from HL1, HL2, EP2, CSS, TF2 and Portal
+- Custom menu for adding your own music
+- Hold button for freezing the screen
+- Multiple-menu switching
 ```
+
+### Images
+
+![image1](./data/adv_duplicator/gmflatgrass0020.jpg)
+![image2](./data/adv_duplicator/gmflatgrass0022.jpg)

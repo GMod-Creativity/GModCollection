@@ -1,4 +1,4 @@
-# Expression 2 - Procedural Terrain Generator
+# GPU - Procedural Terrain Generator
 
 ## Details
 
@@ -18,11 +18,16 @@
 
 Working on a procedural terrain generator in GPU.
 
-### Details:
+### Details
 
-Written in C with the GL driver.
-Rendered in the sprite buffer by iteratively drawing one quad at a time. #nolag
-It uses the index buffer (new feature of the GPU).
-Really fast!
+- Written in C with the GL driver.
+- Rendered in the sprite buffer by iteratively drawing one quad at a time. #nolag
+- It uses the index buffer (new feature of the GPU).
+- Really fast!
 
 (Update your SVN to get the updated graphics library: drv_gl.txt)
+
+### Screenshots
+
+![image1](./bOuka.jpg)
+![image2](./cdAvQ.jpg)

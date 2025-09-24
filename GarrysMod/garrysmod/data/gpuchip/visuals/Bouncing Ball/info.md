@@ -1,4 +1,4 @@
-# Expression 2 - Bouncing Ball
+# GPU - Bouncing Ball
 
 ## Details
 
@@ -17,10 +17,12 @@
 
 ## Description
 
-Video:
+Video:  
 [YouTube - Miley Cyrus in The Terminator](https://www.youtube.com/watch?v=B1gF8--HNq0)
 
-### Description:
+![image1](./image1.jpg)
+
+### Description
 
 Imagine BP's bounce gpu example. Now imagine editing which surfaces the ball can collide with. This gpu accomplishes that by looping up to 512 distinct points in the memory. Video-visible error occurs when the ball's velocity actually skips my dot product check and instead flies through a line.
 

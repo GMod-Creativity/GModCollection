@@ -77,3 +77,5 @@ If you are having testing issues accompanied by error hints, please post the err
 
 Thanks to the inhabitants of Spaceindavers, Nodex and Unsmarts for providing engines to test!
 Sneaky peek.
+
+![image1](AUTODYNO%20R1.1/AUTODYNO%20r1.1%20boxer%204%20cylinder%20(from%20video).jpg)

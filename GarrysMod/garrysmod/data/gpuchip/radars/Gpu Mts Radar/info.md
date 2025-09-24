@@ -1,4 +1,4 @@
-# Expression 2 - Gpu Mts Radar
+# GPU - Gpu Mts Radar
 
 ## Details
 
@@ -20,7 +20,7 @@
 Hi,
 I decided to make like a super cool radar with GPU. So this is what I made. It is very useful for bases. You can put it on a car or anywhere you want.
 
-### Functions:
+### Functions
 
 - Fancy looking radar
 - Mts (Multiple targeting system)

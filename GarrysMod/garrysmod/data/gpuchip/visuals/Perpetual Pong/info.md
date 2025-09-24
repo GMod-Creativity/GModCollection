@@ -1,4 +1,4 @@
-# Expression 2 - [GPU] Perpetual Pong v1.0
+# GPU - [GPU] Perpetual Pong v1.0
 
 ## Details
 

@@ -1,4 +1,4 @@
-# PAC3 - GMod pac3 Diesel punk-Stalker (part1) Download!
+# PAC3 - Diesel punk-Stalker
 
 ## Details
 
@@ -20,5 +20,15 @@
 
 Попробую тему дизель панка, этот пак можно сказать концепт. Делал по одному из артов Якуба Розальски.
 
-(Translated with deepL)
+---
+
+(Translated with deepL)  
 I'll try the diesel punk theme, this pack is a concept. I made it based on one of Jakub Rozalski's artworks.
+
+### Video
+
+[YouTube - GMod pac3 Diesel punk-Stalker (part1) Download!](https://www.youtube.com/watch?v=BD4etiDHXZ4)
+
+### Image
+
+![image1](./image1.jpg)

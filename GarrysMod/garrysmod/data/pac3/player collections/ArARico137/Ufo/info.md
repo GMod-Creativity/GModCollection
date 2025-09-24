@@ -20,5 +20,15 @@
 
 Хеееей, Delta psi народ! На связи Рико(почти на связи) иии я решил выложить видео по своим костюмчикам pac 3 в игре gmod.  Выложить я решил по простой причине-надоело просто так сидеть в гаррисе. Надеюсь кому то понравится.
 
-(Translated with deepL)
+---
+
+(Translated with deepL)  
 Heyyyy, Delta psi people! Rico is on the phone (almost on the phone) and I decided to post a video of my pac 3 costumes in the gmod game.  I decided to post it for a simple reason - I'm tired of just sitting in harris. I hope someone will like it.
+
+### Video
+
+[YouTube - Ufo pac 3 gmod. +Download](https://www.youtube.com/watch?v=0tGCl3WgiXw)
+
+### Image
+
+![image1](./image1.jpg)

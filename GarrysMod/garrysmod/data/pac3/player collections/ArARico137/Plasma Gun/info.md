@@ -22,7 +22,17 @@
 
 Pы.Sы. Вообщем я создал группу в стиме, там будут разные обсуждения,ссылки на паки тд. Кто хочет вступайте http://steamcommunity.com/groups/DeltaPZ (вскоре начну ей плотно заниматься).
 
-(Translated with deepL)
+---
+
+(Translated with deepL)  
 Hey, Delta Psi people! This is Rico and this is my 12 pac 3 skin Plasma Cannon. I apologize for the long absence of costumes.) Just had no ideas, and then one and stick. [https://www.dropbox.com/s/hoi20uze9hv...](https://www.dropbox.com/scl/fi/6zcne5xc6526892hmngm9/PlasmAGun.txt?rlkey=4g06ya1je0hfpra4w4fcaf8pi&e=1&dl=0)
 
 Ry.Sys. In general, I created a group in stime, there will be different discussions, links to packs td. Who wants to join http://steamcommunity.com/groups/DeltaPZ (soon I will start it tightly engaged).
+
+### Video
+
+[YouTube - Gmod pac 3 Plasma Gun. +Download](https://www.youtube.com/watch?v=LqhiPNCOig4)
+
+### Image
+
+![image1](./image1.jpg)

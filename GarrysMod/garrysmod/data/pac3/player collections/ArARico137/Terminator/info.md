@@ -1,4 +1,4 @@
-# PAC3 Terminator
+# PAC3 - Terminator
 
 ## Details
 
@@ -19,6 +19,8 @@
 ## Description
 
 Хееей всем привет!! Решил по тихоньку делать ремейки паков, первая тройка на выдаче-док, терминатор и мимик!
+
+---
 
 (Translated with deepL)
 Hey everybody!!! I've decided to remake the packs, the first three to be given away are Dock, Terminator and Mimic!

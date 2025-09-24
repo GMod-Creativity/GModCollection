@@ -1,4 +1,4 @@
-# PAC3 - Gmod pac 3 Ezic + Download
+# PAC3 - Ezic
 
 ## Details
 
@@ -20,5 +20,13 @@
 
 Хеей Delta Psi народ! На связи Рико и это мой 8 pac 3 скин в игре Gmod. Понравилась игра Papers Please и давненько решил сделать скин на тему Ezic. Лайк если понравилось)
 
-(Translated with deepL)
+(Translated with deepL)  
 Hey Delta Psi people! This is Rico and this is my 8 pac 3 skin in the game Gmod. Loved the game Papers Please and long ago decided to make a skin on the theme Ezic. Like it if you like it)
+
+### Video
+
+[YouTube - Gmod pac 3 Ezic + Download](https://www.youtube.com/watch?v=mtETMbcDxjs)
+
+### Image
+
+![image1](./image1.jpg)

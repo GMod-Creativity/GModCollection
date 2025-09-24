@@ -1,4 +1,4 @@
-# Expression 2 - Extremely Fast Image Loader [HL-ZASM]
+# GPU - Extremely Fast Image Loader [HL-ZASM]
 
 ## Details
 
@@ -21,7 +21,7 @@ Many image loaders have been made. But none of them utilize the raw power of the
 
 And wait till BP figures out how to over-clock this thing. Then we'll be talking.
 
-### The process:
+### The process
 
 ```plaintext
 1. Visit my site, use the PHP interface to upload a PNG image.
@@ -33,7 +33,7 @@ And wait till BP figures out how to over-clock this thing. Then we'll be talking
 7. Profit!
 ```
 
-### Features:
+### Features
 
 ```plaintext
 1. Once uploaded to GPU's internal memory, you can redraw as many times as you like without having to reupload the image over the network (like with the digital screen). Original image will always remain in memory.

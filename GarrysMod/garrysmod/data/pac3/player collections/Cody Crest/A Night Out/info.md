@@ -1,4 +1,4 @@
-# PAC3 - [Gmod] Pac3 A Night Out {Download}
+# PAC3 - A Night Out
 
 ## Details
 
@@ -20,4 +20,12 @@
 
 ## Description
 
-so, heres your second biweekly upload. i aint sure about thine copyright future, but hopefully it wont be a shtstorm. i had this song in my dropbox for a long time, and i decided to make a pac about it. but you're not here to listen to me talk, you're here to download this pac and wow your friends and/or server. Download: {http://pastebin.com/LqmDFhFG} stay cool my dudes
+So, heres your second biweekly upload. I ain't sure about thine copyright future, but hopefully it wont be a shitstorm. I had this song in my dropbox for a long time, and I decided to make a pac about it. But you're not here to listen to me talk, you're here to download this pac and wow your friends and/or server. Download: {http://pastebin.com/LqmDFhFG} stay cool my dudes.
+
+### Video
+
+[YouTube - [Gmod] Pac3 A Night Out {Download}](https://www.youtube.com/watch?v=0FjcZP37G3c)
+
+### Image
+
+![image1](./image1.jpg)

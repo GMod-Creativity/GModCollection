@@ -1,4 +1,4 @@
-# PAC3 - [Pac 3] Outfit " Eye of Cthulhu from Terraria " +DOWNLOAD
+# PAC3 - Eye of Cthulhu from Terraria
 
 ## Details
 
@@ -30,6 +30,24 @@ CONTROLS:
 
 My steam: [http://steamcommunity.com/profiles/76...](http://steamcommunity.com/profiles/76561198059511685)
 
-All credits for model and textures goes to Astute
-Thank you guys for your support, you really inspire me to make more pacs!
+All credits for model and textures goes to Astute  
+Thank you guys for your support, you really inspire me to make more pacs!  
 GUYS, when we'll hit 400 subs, i will release some cool downloadable pacs! :D
+
+### Video
+
+[YouTube - [Pac 3] Outfit " Eye of Cthulhu from Terraria " +DOWNLOAD](https://www.youtube.com/watch?v=Q2-1iszj6Kc)
+
+### Images
+
+![image1](./image1.jpg)
+
+<p float="left">
+  <img src="./image2.jpg" height="300"/>
+  <img src="./image3.jpg" height="300"/>
+</p>
+
+<!--
+![image2](./image2.jpg)
+![image3](./image3.jpg)
+-->

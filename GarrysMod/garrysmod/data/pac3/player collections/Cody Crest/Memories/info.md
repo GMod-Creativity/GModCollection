@@ -1,4 +1,4 @@
-# PAC3 - [Gmod] Pac3 Memories {DOWNLOAD}
+# PAC3 - Memories
 
 ## Details
 
@@ -26,7 +26,15 @@ Totally not based on a game I may or may not have played but have definitely Not
 
 Download: https://pastebin.com/21Pqr4Nd
 
-Steam profile: https://steamcommunity.com/id/bricksiceweeb
+Steam profile: https://steamcommunity.com/id/bricksiceweeb  
 Do not add me for questions or bug reports
 
 Sorry I couldn't make an outfit was well as shelter, I had some time restrictions. But I did include a hide proxy (finally) so you don't have to press any more buttons, and a few effects.
+
+### Video
+
+[YouTube - [Gmod] Pac3 Memories {DOWNLOAD}](https://www.youtube.com/watch?v=e_iNFRG2vvo)
+
+### Image
+
+![image1](./image1.jpg)

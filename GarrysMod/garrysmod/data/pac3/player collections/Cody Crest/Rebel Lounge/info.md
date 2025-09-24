@@ -1,4 +1,4 @@
-# PAC3 - [Gmod] Pac3 Rebel Lounge {Download}
+# PAC3 - Rebel Lounge
 
 ## Details
 
@@ -20,8 +20,16 @@
 
 ## Description
 
-how to get copyright strike pt 1
-or like hopefully not,
-Jingle Jangle Jingle - Kay Kyser Radio Edit
-either way, turned out great. a bit lighter than i expected, but still nice. not as dramatic as the guitar pac, but still aesthetic.
+How to get copyright strike pt 1  
+or like hopefully not,  
+Jingle Jangle Jingle - Kay Kyser Radio Edit  
+Either way, turned out great. A bit lighter than I expected, but still nice. Not as dramatic as the guitar pac, but still aesthetic.  
 Download: {http://pastebin.com/csSp4KiB}
+
+### Video
+
+[YouTube - [Gmod] Pac3 Rebel Lounge {Download}](https://www.youtube.com/watch?v=p2z9IIydjhA)
+
+### Image
+
+![image1](./image1.jpg)

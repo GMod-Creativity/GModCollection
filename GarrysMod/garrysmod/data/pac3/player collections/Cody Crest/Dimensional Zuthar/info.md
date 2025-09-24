@@ -1,4 +1,4 @@
-# PAC3 - [Gmod] Pac3 Dimensional Zuthar {Download}
+# PAC3 - Dimensional Zuthar
 
 ## Details
 
@@ -20,6 +20,14 @@
 
 ## Description
 
-Remember when zuthar made that dimensional movie rp, and its intro was like kinda trippy? well this outfit is like that, yknow, with the floating objects. with the desk and headcrab. recorded in 2k, cuz obs cant take 4k. oh right, heres the download: [https://pastebin.com/NYMTBBPZ]. dont copy without giving credit, blah blah blah. looks cool, rite?
+Remember when zuthar made that dimensional movie rp, and its intro was like kinda trippy? well this outfit is like that, yknow, with the floating objects. With the desk and headcrab. Recorded in 2k, cuz obs cant take 4k. Oh right, heres the download: [https://pastebin.com/NYMTBBPZ]. Dont copy without giving credit, blah blah blah. looks cool, rite?
 
 EDIT: Equip your camera to start the pac
+
+### Video
+
+[YouTube - [Gmod] Pac3 Dimensional Zuthar {Download}](https://www.youtube.com/watch?v=HvWcZecvFMY)
+
+### Image
+
+![image1](./image1.jpg)

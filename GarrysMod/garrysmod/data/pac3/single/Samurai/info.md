@@ -21,7 +21,7 @@
 Hello there!
 I submitting my first best Pac3 editor skin - Samurai.
 
-### To install that skin you should:
+### To install that skin you should
 
 1. Unzip File to get "Samurai - complete.txt"
 2. Then send it to your Steam\steamapps\common\GarrysMod\garrysmod\data\pac3
@@ -29,7 +29,7 @@ I submitting my first best Pac3 editor skin - Samurai.
 4. And to see the correct skin recommended to use player model - male03
 5. Have fun! :D
 
-### Main Weapons\Tools:
+### Main Weapons\Tools
 
 - Fists
 - Crowbar
@@ -38,7 +38,14 @@ I submitting my first best Pac3 editor skin - Samurai.
 
 Also to charge your weapon use button [ g ]
 
-### Credits:
+### Credits
 
 - Solrick
 - JakeTheDog: modeler
+
+### Images
+
+![image1](./image1.jpg)
+![image2](./image2.jpg)
+![image3](./image3.jpg)
+![image4](./image4.jpg)

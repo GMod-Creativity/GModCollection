@@ -1,4 +1,4 @@
-# PAC3 - [Gmod] Pac3 Pure Imagination Guitar Outfit {Download}
+# PAC3 - Pure Imagination Guitar Outfit
 
 ## Details
 
@@ -21,3 +21,11 @@
 ## Description
 
 Yes, it is like the one from Elevator. Yes, it is a bit dark. It gets lighter the further you stand away. Plus, its for the a e s t h e t i c. The animation is a bit stiff and repetitive, but the light is so bright it doesnt really matter rip. Oh, right, heres the download: [ https://pastebin.com/QTp04Edm ] Please, for the love of god, do not take credit on this.
+
+### Video
+
+[YouTube - [Gmod] Pac3 Pure Imagination Guitar Outfit {Download}](https://www.youtube.com/watch?v=P7H3r1MWKlo)
+
+### Image
+
+![image1](./image1.jpg)

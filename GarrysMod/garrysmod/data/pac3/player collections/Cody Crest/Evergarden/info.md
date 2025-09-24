@@ -1,4 +1,4 @@
-# PAC3 - [Gmod] Pac3 Evergarden
+# PAC3 - Evergarden
 
 ## Details
 
@@ -20,19 +20,27 @@
 
 ## Description
 
-wait, he still makes videos?
+Wait, he still makes videos?
 
 DISCLAIMER: I do not own the music presented in this video. Music credit belongs to Lantis Company Ltd.
 
-Download: https://pastebin.com/rdrTtQ12
+Download: https://pastebin.com/rdrTtQ12  
 Hold B for the birds in the 2nd stage
 
 It's not like this pac took an entire year to make, its more like I've had a year full of other personal things
 
 Also, to the 29 people that saw the first version, this is a reupload with improvements and fixes.
 
-https://steamcommunity.com/id/bricksiceweeb/
+https://steamcommunity.com/id/bricksiceweeb/  
 Profile is only here for ownership clarification, please don't contact with questions
+
+### Video
+
+[YouTube - [Gmod] Pac3 Evergarden](https://www.youtube.com/watch?v=Xm-6_0N2uJg)
+
+### Image
+
+![image1](./image1.jpg)
 
 ### Credits
 

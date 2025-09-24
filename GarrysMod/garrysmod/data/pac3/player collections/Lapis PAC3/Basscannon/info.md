@@ -1,4 +1,4 @@
-# PAC3 - PAC3: Basscannon (Download included!)
+# PAC3 - Basscannon
 
 ## Details
 
@@ -22,3 +22,11 @@
 
 This is just a pac that will help/teach you the basics about some proxies. Added a download so you can enjoy it!  
 DL and dropbox folder: [https://www.dropbox.com/sh/qr662efwso...](https://www.dropbox.com/scl/fo/akunkqbq4c5jijthjduni/AGBbBu-iIF8tPFpsTk70htU?rlkey=i8a78mmgm10bzr7qdcqa2i7f8&e=1&dl=0)
+
+### Video
+
+[YouTube - PAC3: Basscannon (Download included!)](https://www.youtube.com/watch?v=epeEF2tfg40)
+
+### Image
+
+![image1](./image1.jpg)

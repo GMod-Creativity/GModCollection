@@ -1,4 +1,4 @@
-# PAC3 - [Gmod] Pac3 Metro Outfits Showcase {DOWNLOADS}
+# PAC3 - Metro Outfits
 
 ## Details
 
@@ -17,7 +17,7 @@
 - Source: https://puu.sh/x3gSV/879d185b41.txt
 - Source Accessed (dd-mm-yyyy): 19-06-2025
 
- #### Metro Guitar
+#### Metro Guitar
 
 - Song: Солдат (Soldat) by 5’nizza
 - Song_URL: https://www.youtube.com/watch?v=UYKLGX9-_4Y
@@ -33,7 +33,7 @@
 
 ## Description
 
-shadowplay shows my runescape cursors 2: electric boogaloo [DOWNLOAD in DESC]
+Shadowplay shows my runescape cursors 2: electric boogaloo [DOWNLOAD in DESC]
 
 ---
 
@@ -50,14 +50,23 @@ Carrier
 Russia Hardbass
 [https://puu.sh/x3gSY/ae8d70a872.txt]
 
-Metro Guitar
-Note: You will have to set binds for this. It will consume about 3 keys. I've also added a guitar pick to the download version of this outfit.
-bind key1 "pac_event soldat 2; pac_event guitar 2"
-bind key2 "pac_event thunder 2; pac_event guitar 2"
-bind key3 "pac_event acoustic 2; pac_event guitar 2"
-[https://puu.sh/x3gSV/879d185b41.txt]
+Metro Guitar  
+Note: You will have to set binds for this. It will consume about 3 keys. I've also added a guitar pick to the download version of this outfit.  
+`bind key1 "pac_event soldat 2; pac_event guitar 2"`  
+`bind key2 "pac_event thunder 2; pac_event guitar 2"`  
+`bind key3 "pac_event acoustic 2; pac_event guitar 2"`  
+[https://puu.sh/x3gSV/879d185b41.txt]  
 [SECOND SONG UNAVAILABLE, UNABLE TO FIX]
 
-also, here's my steam profile:
+also, here's my steam profile:  
 https://steamcommunity.com/id/bricksiceweeb
-don't add me for questions or concerns, list them in the video's comments.
+
+Don't add me for questions or concerns, list them in the video's comments.
+
+### Video
+
+[YouTube - [Gmod] Pac3 Metro Outfits Showcase {DOWNLOADS}](https://www.youtube.com/watch?v=HeRdgCJW2uc)
+
+### Image
+
+![image1](./image1.jpg)

@@ -1,4 +1,4 @@
-# PAC3 - [Gmod] Pac3 Dimensional Zuthar 2.0 {Download}
+# PAC3 - Dimensional Zuthar 2.0
 
 ## Details
 
@@ -20,4 +20,12 @@
 
 ## Description
 
-So, turns out, the song I made in 1.0 was a different variation than the song used in the Dimensional RP video. Instead of simply fixing it, i just made a whole 'nother pac. This one took FOREVER to make, so I'm pretty glad with the results. Download: [http://pastebin.com/FzXZrBzz]. Pretty good, amirite?
+So, turns out, the song I made in 1.0 was a different variation than the song used in the Dimensional RP video. Instead of simply fixing it, I just made a whole 'nother pac. This one took FOREVER to make, so I'm pretty glad with the results. Download: [http://pastebin.com/FzXZrBzz]. Pretty good, amirite?
+
+### Video
+
+[YouTube - [Gmod] Pac3 Dimensional Zuthar 2.0 {Download}](https://www.youtube.com/watch?v=rJ5b7XQIARg)
+
+### Image
+
+![image1](./image1.jpg)

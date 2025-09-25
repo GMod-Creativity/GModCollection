@@ -4,12 +4,11 @@
 
 ### Author
 
+- Author: Squizls
+
+### Original Author
+
 - Author: MrCilliman
-
-### Edited
-
-- Edited: Squizls
-- Edited Date (dd-mm-yyyy): 16-02-2014
 
 ### Publication Info
 

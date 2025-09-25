@@ -4,21 +4,26 @@
 
 ### Author
 
+- Author: EnoSkyFire
+
+### Original Author
+
 - Author: XninjazXxx (gato) (Devoided) (Azule)
 - Steam Profile: https://steamcommunity.com/profiles/76561198054661508
 - YouTube: https://www.youtube.com/channel/UC-6WOjHUNpGwkk3fVCfrhGQ
-
-### Edited
-
-- Edited EnoSkyFire
-- Edited Date (dd-mm-yyyy): 07-09-2025
 
 ### Publication Info
 
 - Title: [E2] Pet Balloonicorn & Heacrab Pet
 - Date (dd-mm-yyyy): 07-09-2025
 - Source: GMODCOLLECTION
-- Source Accessed (dd-mm-yyyy): 07-09-2025
+
+### Original Publication Info
+
+- Title: [E2] Pet Balloonicorn & Heacrab Pet
+- Date (dd-mm-yyyy): 31-08-2013
+- Source: https://web.archive.org/web/20150304043559/http://www.wiremod.com/forum/finished-contraptions/32182-e2-pet-balloonicorn.html
+- Source Accessed (dd-mm-yyyy): 23-08-2025
 
 ## Description
 

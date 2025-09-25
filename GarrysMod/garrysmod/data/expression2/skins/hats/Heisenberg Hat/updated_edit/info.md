@@ -4,20 +4,25 @@
 
 ### Author
 
+- Author: EnoSkyFire
+
+### Original Author
+
 - Author: Captain Puddleboat
 - Steam Profile: https://steamcommunity.com/profiles/76561198053913970
-
-### Edited
-
-- Edited: EnoSkyFire
-- Edited Date (dd-mm-yyyy): 25-08-2025
 
 ### Publication Info
 
 - Title: Heisenberg Hat
 - Date (dd-mm-yyyy): 25-08-2025
 - Source: GMODCOLLECTION
-- Source Accessed (dd-mm-yyyy): 25-08-2025
+
+### Original Publication Info
+
+- Title: Heisenberg Hat
+- Date (dd-mm-yyyy): 02-11-2014
+- Source: https://web.archive.org/web/20150429021613/http://www.wiremod.com/forum/finished-contraptions/33698-heisenberg-hat.html
+- Source Accessed (dd-mm-yyyy): 12-08-2025
 
 ## Description
 

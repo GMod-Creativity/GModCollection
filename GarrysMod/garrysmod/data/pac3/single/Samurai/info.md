@@ -45,7 +45,22 @@ Also to charge your weapon use button [ g ]
 
 ### Images
 
-![image1](./image1.jpg)
-![image2](./image2.jpg)
-![image3](./image3.jpg)
-![image4](./image4.jpg)
+<p float="left">
+  <img src="./images/image1.jpg" width="300"/>
+  <img src="./images/image2.jpg" width="300"/>
+  <img src="./images/image3.jpg" width="300"/>
+  <br/>
+  <img src="./images/image4.jpg" width="300"/>
+  <img src="./images/image5.jpg" width="300"/>
+  <img src="./images/image6.jpg" width="300"/>
+</p>
+
+<!--
+![image1](./images/image1.jpg =200x200)
+![image2](./images/image2.jpg =200x200)
+![image3](./images/image3.jpg =200x200)
+
+![image4](./images/image4.jpg =200x200)
+![image5](./images/image5.jpg =200x200)
+![image6](./images/image6.jpg =200x200)
+-->

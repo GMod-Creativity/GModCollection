@@ -4,13 +4,13 @@
 
 ### Author
 
+- Author: Meetric (Mee)
+- Steam Profile: https://steamcommunity.com/profiles/76561198390576907
+
+### Original Author
+
 - Author: ❤LinkShire❤
 - Steam Profile: https://steamcommunity.com/profiles/76561198153557002
-
-### Edited
-
-- Edited: Meetric (Mee)
-- Steam Profile: https://steamcommunity.com/profiles/76561198390576907
 
 ### Publication Info
 
@@ -18,6 +18,13 @@
 - Date (dd-mm-yyyy): 23-10-2019
 - Source: https://catalogue.smods.ru/archives/235528
 - Source: https://steamcommunity.com/workshop/filedetails/?id=1896417111
+- Source Accessed (dd-mm-yyyy): 06-06-2025
+
+### Original Publication Info
+
+- Title: Spider Chair
+- Date (dd-mm-yyyy): 24-01-2016
+- Source: https://steamcommunity.com/sharedfiles/filedetails/?id=607992146
 - Source Accessed (dd-mm-yyyy): 06-06-2025
 
 ## Description

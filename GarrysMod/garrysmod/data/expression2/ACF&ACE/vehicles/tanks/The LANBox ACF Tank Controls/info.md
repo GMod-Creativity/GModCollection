@@ -14,7 +14,6 @@
 - Date (dd-mm-yyyy): 04-06-2012
 - Source: https://web.archive.org/web/20141017155126/http://www.thelanbox.com.au/blog/post/393/garry-s-mod-acf-tank-controls/
 - Source: https://web.archive.org/web/20140228234021/http://www.thelanbox.com.au/uploads/lb_acf_tank_controls.txt
-- Source: https://web.archive.org/web/20150506130949/http://www.wiremod.com:80/forum/finished-contraptions/33601-acf-car-controls-lanbox-mod-v1.html
 - Source Accessed (dd-mm-yyyy): 10-08-2025
 
 ## Description

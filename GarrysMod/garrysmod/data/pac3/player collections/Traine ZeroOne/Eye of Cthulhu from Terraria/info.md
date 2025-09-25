@@ -40,14 +40,14 @@ GUYS, when we'll hit 400 subs, i will release some cool downloadable pacs! :D
 
 ### Images
 
-![image1](./image1.jpg)
+![image1](./images/image1.jpg)
 
 <p float="left">
-  <img src="./image2.jpg" height="300"/>
-  <img src="./image3.jpg" height="300"/>
+  <img src="./images/image2.jpg" height="300"/>
+  <img src="./images/image3.jpg" height="300"/>
 </p>
 
 <!--
-![image2](./image2.jpg)
-![image3](./image3.jpg)
+![image2](./images/image2.jpg)
+![image3](./images/image3.jpg)
 -->

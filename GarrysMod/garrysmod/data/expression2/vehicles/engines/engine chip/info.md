@@ -4,21 +4,21 @@
 
 ### Author
 
-- Author: RCmags (XXXmags)
-- Steam Profile: https://steamcommunity.com/profiles/76561197991496783
-- YouTube: https://www.youtube.com/@XXXmags
-- Github: https://github.com/RCmags
-
-### Edited
-
-- Edited: Spider0804
+- Author: Spider0804
 - Steam Profile: https://steamcommunity.com/profiles/76561197996888024
 - YouTube: https://www.youtube.com/user/spider0804
 - Pastebin: https://pastebin.com/u/Spider0804
 
-### Edited 2
+### Author 2
 
-- Edited: Christian
+- Author: Christian
+
+### Original Author
+
+- Author: RCmags (XXXmags)
+- Steam Profile: https://steamcommunity.com/profiles/76561197991496783
+- YouTube: https://www.youtube.com/@XXXmags
+- Github: https://github.com/RCmags
 
 ### Publication Info
 

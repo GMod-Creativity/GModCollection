@@ -23,33 +23,44 @@ I have placed this thread in the Custom Gates forum because it will most likely 
 
 ### Table of Contents
 
-- E2 Only Stuff
-  - Hologram Artillery
-- Weapons
-  - Missile Launcher
-- Useful & Useless
-  - Useful
+```plaintext
+1. E2 Only Stuff
+  • Hologram Artillery
+1. Useful & Useless
+  • Useful
     - LS Information Screen
-
-  - Useless
+  • Useless
     - Afro
     - Crowbar Hax
     - Automatic Rater
-  - Epic Things
-    - Hangman
-    - Color CD Player
-    - Toaster
-    - Lollercoaster
+1. Epic Things
+  • Hangman
+  • Color CD Player
+  • Toaster
+  • Lollercoaster
+```
 
-### I will use this for each E2:
+<!--
+2. Weapons
+  • Missile Launcher
+-->
 
+### I will use this for each E2
+
+```plaintext
 - Name:
 - Description:
 - Chat Commands <- I will only have this here if there are any chat commands.
-- Video/Pictures:
 - Additional Credits To:
 - Code:
+```
 
+<!--
+- Video/Pictures: 
+-->
+
+<!--
 I will add more and more E2s to this thread as I make them and determine them to be release worthy.
 Please excuse my crappy videos. I don't have a program to edit them, and I generally suck at recording and that stuff.
-The Videos use tinyURL to break the automatic video thing on this forum on purpose. The XFire videos playing automatically got annoying for myself and many people.
+The Videos use tinyURL to break the automatic video thing on this forum on purpose. The XFire videos playing automatically got annoying for myself and many people. 
+-->

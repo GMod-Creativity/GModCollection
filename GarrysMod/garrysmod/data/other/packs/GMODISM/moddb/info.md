@@ -5,10 +5,11 @@
 ### Author
 
 - Author: GMODISM
-- Website: https://gmodism.com
-- Reddit: https://www.reddit.com/r/GMODISM/
 - Steam Profile: http://steamcommunity.com/profiles/76561198056037449
 - YouTube: https://www.youtube.com/Gmodism
+- Website: https://gmodism.com
+- Reddit: https://www.reddit.com/r/GMODISM/
+- Pastebin: https://pastebin.com/u/Gmodism
 
 ## Advanced Duplicator 2 Dupes
 

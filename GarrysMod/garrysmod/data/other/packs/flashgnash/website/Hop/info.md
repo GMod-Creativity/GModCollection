@@ -18,6 +18,6 @@
 
 Cheap and dirty teleportation (to locations on certain maps, players, aimpos and through walls)
 
-### Requires:
+### Requires
 
 - propcoreTeleport library or wire extras (if using wire extras then remove the `#include` line.)

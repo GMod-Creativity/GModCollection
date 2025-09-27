@@ -18,6 +18,6 @@
 
 A library that remakes `teleport()` to only use propcore for servers that don't have or restrict `teleport()` and `plySetPos()`
 
-### Requires:
+### Requires
 
 - Propcore (duh)

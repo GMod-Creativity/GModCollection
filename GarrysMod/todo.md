@@ -27,7 +27,7 @@
 - [ ] Add stuff from https://github.com/ACF-Team/ACF-3/wiki/Public-E2-Collection
 - [ ] Add youtube stuff enyx
 - [ ] Add stuff from https://steamcommunity.com/id/ardiscothyssen/myworkshopfiles/?p=1
-- [ ] Move drones to machines or unmanned vehicles
+- [x] Move drones to machines or unmanned vehicles
 - [ ] Add stuff from SirDobbers: https://www.youtube.com/@SirDobbers
 - [ ] Add stuff from IceWolf94: https://www.youtube.com/@HOODINIOWL/videos, https://pastebin.com/u/IceWolf94
 - [ ] Add stuff from https://web.archive.org/web/20120102232809/http://wiki.garrysmod.com/?title=Wire_Expression2:Examples

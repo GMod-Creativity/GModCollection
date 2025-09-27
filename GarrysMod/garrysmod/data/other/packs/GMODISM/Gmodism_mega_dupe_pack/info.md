@@ -5,10 +5,11 @@
 ### Author
 
 - Author: GMODISM
-- Website: https://gmodism.com
-- Reddit: https://www.reddit.com/r/GMODISM/
 - Steam Profile: http://steamcommunity.com/profiles/76561198056037449
 - YouTube: https://www.youtube.com/Gmodism
+- Website: https://gmodism.com
+- Reddit: https://www.reddit.com/r/GMODISM/
+- Pastebin: https://pastebin.com/u/Gmodism
 
 ### Publication Info
 
@@ -31,7 +32,12 @@
 
 ## Description
 
-**This is [Gmodism](https://web.archive.org/web/20230701000459/https://www.youtube.com/user/gmodism) Making a huge Duplication release,** lot's of old and new builds from me that you can take a look at and enjoy, will they need different addons to work but if you get my collection you are fine as usual, this is a little pre release. will make a video about this release later so if you find it before that you are extremely lucky.  
+Video:
+[YouTube - Gmodism's MEGA Gmod Adv.Dupe 2 Pack! - Gmodism Release Party 9](https://www.youtube.com/watch?v=fPc3RKAm7Uk)
+
+![image1](./image1.jpg)
+
+**This is [Gmodism](https://www.youtube.com/user/gmodism) Making a huge Duplication release,** lot's of old and new builds from me that you can take a look at and enjoy, will they need different addons to work but if you get my collection you are fine as usual, this is a little pre release. will make a video about this release later so if you find it before that you are extremely lucky.  
 Come by and say hello if you don't already know me from youtube :)  
 https://www.youtube.com/user/gmodism
 

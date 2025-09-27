@@ -20,5 +20,5 @@
 ## Description
 
 Thanks everyone for the support! It means a lot!
-I havent realeased a pack in a while so i've made a new one! Contains 66 E2s some from the old packs others never released! 
+I havent realeased a pack in a while so i've made a new one! Contains 66 E2s some from the old packs others never released!
 Please note, some of them are experiments. Use them to learn if you want!

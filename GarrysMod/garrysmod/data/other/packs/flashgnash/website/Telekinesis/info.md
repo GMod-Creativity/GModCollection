@@ -18,6 +18,6 @@
 
 Allows you to pick up props without the physgun
 
-### Requires:
+### Requires
 
 - Propcore

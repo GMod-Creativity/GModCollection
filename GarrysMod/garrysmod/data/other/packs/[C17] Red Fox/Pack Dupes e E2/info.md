@@ -11,7 +11,7 @@
 
 ## Description
 
-### Neccesary Addons:
+### Neccesary Addons
 
 - Wire
 - Acf, Acf Custom
@@ -21,7 +21,7 @@
 - [Cyn-Cars Shared](https://steamcommunity.com/sharedfiles/filedetails/?id=838801575)
 - [StarfallEx](https://steamcommunity.com/linkfilter/?u=https%3A%2F%2Fgithub.com%2Fthegrb93%2FStarfallEx)
 
-### Optional:
+### Optional
 
 - [ACF Sounds - The Crew](https://steamcommunity.com/sharedfiles/filedetails/?id=766335277)
 - [ACF Warthunder Sounds](https://steamcommunity.com/sharedfiles/filedetails/?id=757675124)

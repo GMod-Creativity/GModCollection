@@ -21,5 +21,7 @@
 
 ## Description
 
-Video explaining the chip:  
-[YouTube - Garry's Mod: Wiremod Expression 2 (E2) Collection Download at Pastebin!](https://www.youtube.com/watch?v=p-cm2zwp9gI)
+Videos explaining the chip:  
+- [YouTube - Garry's Mod: Wiremod Expression 2 (E2) Collection Download at Pastebin!](https://www.youtube.com/watch?v=p-cm2zwp9gI)
+- [YouTube - \[Tutorial\] Garry's Mod: How to Build a E2 Mech](https://www.youtube.com/watch?v=tM9wwLsdn30)  
+- [YouTube - \[Tutorial\] Garry's Mod: ACF E2 Mech Tutorial - Make a Battlemech!](https://www.youtube.com/watch?v=pGzVxoWRw0w)

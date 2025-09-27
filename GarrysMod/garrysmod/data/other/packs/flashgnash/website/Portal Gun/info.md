@@ -18,6 +18,6 @@
 
 Rick and Morty portal gun - my preferred mode of transport. All players regardless of permissions can press E on portals to travel through them (one way)
 
-### Requires:
+### Requires
 
 - Propcore

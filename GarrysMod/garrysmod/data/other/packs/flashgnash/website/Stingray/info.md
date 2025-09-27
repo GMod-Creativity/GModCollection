@@ -18,6 +18,10 @@
 
 A ship I made in E2 using my json to holo converter. The controls aren't amazing but it's fully featured. (The turret auto aims at the nearest non driver player)
 
-### Requires:
+### Requires
 
 - Propcore
+
+### Image
+
+![image1](./stingray.jpg)

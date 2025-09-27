@@ -18,6 +18,6 @@
 
 Another ship I made in E2 using my json to holo converter, based on the Wave Rider from DC's legends of tommorow. This one's less functional than the stingray but I like the design.
 
-### Requires:
+### Requires
 
 - Propcore

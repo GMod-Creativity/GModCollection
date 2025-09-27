@@ -21,6 +21,6 @@ basically lets you remote control a fully holographic
 version of your player model. Does not work with pac.
 Can use (press E on) anything owned by you [Unfinished]
 
-### Requires:
+### Requires
 
 - Propcore, Wire Extras, CameraCore

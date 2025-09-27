@@ -23,23 +23,36 @@
 
 ## Description
 
-**-THE LANDMINE-**
+### -THE LANDMINE-
+
 The landmine is entirely E2 based. It contains holos to give it it's landmine look, and uses the command P=propSpawn() to spawn the explosives, which are triggered by distance.
 
-**-THE TANK-**
+![image1](./image1.jpg)
+
+### -THE TANK-
+
 The tank is a combination of E2 and ACF that uses E2 to cruise around at moderate speed, while shooting a powerful ACF cannon.
 
 Link: [HoverTank](https://www.mediafire.com/?856qhfcn427hlmn)
 
-**-THE JET-**
+![image2](./image2.jpg)
+
+### -THE JET-
+
 The jet is a parented to a single board with all of the wires and chips on it and controls very well, using the mouse to aim and mousewheel to increase and decrease the throttle.
 
 Link: [F18 V1](https://www.mediafire.com/?bykabbzto5xlstw)
 
-**-THE AA GUN-**
+![image3](./image3.jpg)
+
+### -THE AA GUN-
+
 The AA gun is a combination of E2, ACF, and SProps. The AA gun is designed to shoot aircraft out of the sky with high explosive rounds. The accuracy is lowered by how close the target is. A few blasts and the plane comes soaring down.
 
 Link: [AA Gun V1](https://www.mediafire.com/?3lzq3camg5mot24)
 
-**-THE DECOY-**
+![image4](./image4.jpg)
+
+### -THE DECOY-
+
 I forgot to squeeze this one into the video, but it's a chip that allows you to spawn a hologram of your player holding your last held weapon, and makes you invisible for a short time.

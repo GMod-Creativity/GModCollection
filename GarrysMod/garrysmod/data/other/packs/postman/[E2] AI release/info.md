@@ -65,15 +65,15 @@ Instructions:spawn chip, spawn a skull, crouch to bring him infront of you. Rope
 I KNOW this isnt an AI chip, but i wanted to squeeze it in
 (right after this im also making an in depth thread about a stargate i made, AND a thread about a holo dashboard i made).
 
-#### Name:
+#### Name
 
 Postman physgun
 
-#### Instructions:
+#### Instructions
 
 If you want to be able to rotate the actual physgun in any direction (no gimbal lock), spawn 4 numbpad inputs (8,4,6,5), and wire the e2 (up down left right) to those numpads.
 
-#### Controls:
+#### Controls
 
 Get out something other than the gmod physgun  
 Works like a normal physgun, besides rotating the actual physgun.  

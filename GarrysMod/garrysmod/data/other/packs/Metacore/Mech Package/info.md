@@ -19,6 +19,8 @@
 
 ## Description
 
+![image1](./Mech%20Package/_Mech%20Image.jpg)
+
 Video: https://www.youtube.com/watch?v=9-G76zGW6Cs
 
 Here's how I set up my hydraulic mechs.  

@@ -22,6 +22,8 @@
 
 ## Description
 
+![image1](./image1.jpg)
+
 Quick, deadly, but not without its flaws.
 
 The torso features 150mm of frontal, 50mm of side, and 25mm of roof/bottom/rear armor.
@@ -32,8 +34,9 @@ allowing even the lightest weapons to take him out.
 
 The mech walks using [Dakota's Mech E2](https://steamcommunity.com/groups/DakTek), and aims/torso twists using a modified Generic Gyro 1 E2.
 
-### Variants:
+### Variants
 
+```plaintext
 30mm Autocannon
 50mm Cannon
 20mm Rotary Autocannon x2
@@ -41,9 +44,11 @@ ATGM carrier
 120mm Mortar
 45mm Semi-autocannon
 75mm Shotgun.
+```
 
-### Controls:
+### Controls
 
+```plaintext
 WASD for movement
 Shift to sprint
 Mouse1 to fire the main weapon
@@ -51,10 +56,11 @@ Mouse2 to fire the machinegun
 R to reload the guns
 Alt to reload ATGMs
 Scroll wheel up and down to fire ATGMs.
+```
 
 Enjoy, and I hope to see you on the battlefield. Goodbye!
 
-### Requirements:
+### Requirements
 
 - [Advanced Ball Socket Tool](https://steamcommunity.com/sharedfiles/filedetails/?id=107257490&searchtext=ballsocket)
 - [Multi-Parent / Unparent Tool](https://steamcommunity.com/sharedfiles/filedetails/?id=111929524&searchtext=parenting)

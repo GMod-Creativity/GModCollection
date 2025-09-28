@@ -23,7 +23,7 @@ New for v3.2d is an in-cockpit "realistic" flight mode, for those who feel parti
 The new EGP HUD. Prettier than the old one. Also you can fully recolor it as you desire.
 To get the chip simply copy the code into a text file, save that to your e2 folder, and open in game.
 
-### Features:
+### Features
 
 ```plaintext
 - Simple "instructor" flight controls similar to war thunder
@@ -49,7 +49,7 @@ To get the chip simply copy the code into a text file, save that to your e2 fold
 
 Airplane flight is like war thunder--super easy mouse & keyboard, with automatic "instructor" rolling. All of the controls are the same for the different flight modes, so there's no confusion--collective on a heli is collective on an airship, throttle forward on a plane is throttle forward on a tiltrotor, etc.
 
-### Video:
+### Video
 
 Instructional video to teach you how to fly planes:  
 [YouTube - TUTORIAL - How to fly a plane with my flight chip](https://www.youtube.com/watch?v=b4cjSZOe1Go)

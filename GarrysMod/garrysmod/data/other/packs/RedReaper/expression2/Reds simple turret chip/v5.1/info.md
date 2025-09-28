@@ -20,6 +20,8 @@
 Video:
 [YouTube - [RELEASE] Simple Turret v5.2 (updated Xmas 2017)](https://www.youtube.com/watch?v=oRBLVgnpOtI)
 
+![image1](./image1.jpg)
+
 A simple turret e2.  Low lag, has optional PID aim, a ballistic recticle and rangefinder, hull/turret rotation, and can be used as a remote turret.
 
 5.1 download, reduces lag slightly, cleans up some old depreciated code, improves massively the holo following with cam controller:

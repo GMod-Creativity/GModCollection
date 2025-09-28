@@ -16,8 +16,9 @@
 
 ## Description
 
+Weld E2 to the base upright, the little arrow on the E2 facing forward, then arm e2 and press reload to reinitialize the E2.  Put hydraulics like in video.  `LA` = front left, `LB` = second one on left, `RE` = last one on right, etc...dance all night.
+
 Video: [YouTube - Hydraulic active suspension - Release!](https://www.youtube.com/watch?v=zve8d-UtNfA)
 
 ![image1](./image1.jpg)
-
-Weld E2 to the base upright, the little arrow on the E2 facing forward, then arm e2 and press reload to reinitialize the E2.  Put hydraulics like in video.  `LA` = front left, `LB` = second one on left, `RE` = last one on right, etc...dance all night.
+![image2](./image2.jpg)

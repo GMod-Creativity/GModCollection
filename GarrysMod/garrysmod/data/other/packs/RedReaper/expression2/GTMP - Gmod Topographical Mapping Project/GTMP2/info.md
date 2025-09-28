@@ -18,7 +18,10 @@
 
 ## Description
 
-Video: https://www.youtube.com/watch?v=bRD43diRsxg
+Video:  
+[YouTube - [RELEASE] GTMP2](https://www.youtube.com/watch?v=bRD43diRsxg)
+
+![image1](./image1.jpg)
 
 Should be bug free.  Should be.
 Read the documentation and instructions.  There's a sample "wrapper" e2 that acts as a standalone one in the bottom of the e2 code, like how varlib is in bottom of MPFC in comments.

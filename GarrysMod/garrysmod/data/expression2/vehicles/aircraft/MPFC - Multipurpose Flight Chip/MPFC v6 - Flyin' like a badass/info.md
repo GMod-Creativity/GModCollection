@@ -51,11 +51,11 @@ VERSION: 2/26/2016
 
 **So, ground hugging radar (for missile avoidance, think F-111), new 3rd person sight, flight data computer, and of course lag reductions and minor fixes.**  
 This is the flight data computer, it runs optionally if it's wired and you're in first person view.
-see 4000_screenshots_2016-02-26_00002.jpg
+![image1](./4000_screenshots_2016-02-26_00002.jpg)
 
 To update new vehicles, copy new one over your current copy in your e2 folder. That's it
 
-### Features:
+### Features
 
 ```plaintext
 - Support for eight types of aircraft, with a template for user extension

@@ -25,8 +25,14 @@ Tl;dr holographic representation of genetic algorithms (algorithms which use the
 
 Since doing this, been considering GAs for actual uses but had no real solid ideas yet. Since doing this I finally got a non-upshifted mic, my voice sounds weird as fuck doing this.
 
+### Videos
+
 Genetic Algorithm Visualizer, Part 1:  
-https://www.youtube.com/watch?v=snXXbqESJ_c
+[YouTube - Genetic Algorithm Visualizer, Part 1](https://www.youtube.com/watch?v=snXXbqESJ_c)
 
 Genetic Algorithm Visualizer, Part 2:  
-https://www.youtube.com/watch?v=LDXsHTU6ZMk
+[YouTube - Genetic Algorithm Visualizer, Part 2](https://www.youtube.com/watch?v=LDXsHTU6ZMk)
+
+### Image
+
+![image1](./image1.jpg)

@@ -25,5 +25,5 @@ Videos:
 Download MPFC v7.2:
 https://www.dropbox.com/scl/fi/7vigqa3bn6mq2mioqgf2o/MPFC_v7.txt?rlkey=y64nrwccfyn0e6rbjiowobx94&e=1&dl=0
 
-> [!NOTE]
+> [!Note]
 > You need SCRL.  I can't post change log here because it's literally too long for youtube.  Not even kidding.  Just download and read it yourself.

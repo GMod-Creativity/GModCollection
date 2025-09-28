@@ -17,6 +17,14 @@
 
 ## Description
 
+<p float="left">
+  <img src="./image1.jpg" width="500"/>
+</p>
+
+<!--
+![image1](./image1.jpg)
+-->
+
 So, ive been making this for a while, and i cant seem to find anything else to add, so im just going to release it, there will be a v2 if i find anything i should add, and ill update the code here if i have minor fixes.
 
 Wonderball is a expression 2 "pet", although its more of a sort of animal thing.
@@ -25,7 +33,7 @@ To put it in simple terms, its a ball with a top hat that rolls around, and has 
 
 The only thing you need here is base wiremod svn (i think)
 
-### Features:
+### Features
 
 - randomly wanders around, and when i say randomly, i mean i have like 4 different ways that its random, based on how often, strong, and in what direction he pushes.
 
@@ -39,7 +47,7 @@ The only thing you need here is base wiremod svn (i think)
 
 - mini version (changed the code around, the mini version has a tinyer top hat, and is a smaller ball)
 
-### Instructions:
+### Instructions
 
 - spawn a plug (search "plug" in the q menu)
 - spawn a wonderball, and unfreeze it

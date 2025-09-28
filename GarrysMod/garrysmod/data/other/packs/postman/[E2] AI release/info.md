@@ -32,6 +32,14 @@ First is engine bird
 Instructions:spawn chip  
 <!-- Pictures: -->
 
+<p float="left">
+  <img src="./images/image1.jpg" width="500"/>
+</p>
+
+<!--
+![image1](./images/image1.jpg)
+-->
+
 ---
 
 ### Aquarium
@@ -40,23 +48,63 @@ And now An aquarium
 Instructions:spawn and wait for all fish to spawn (changeable amount in chip)  
 also the fish like bug bait, throw one into the tank and watch em nom it.
 
+<p float="left">
+  <img src="./images/image2.jpg" width="500"/>
+</p>
+
+<!--
+![image2](./images/image2.jpg)
+-->
+
 ---
 
 ### Kamikaze Cars
 
+> [!Warning]
+> High ops
+
 Instructions: spawn e2 and watch the cars
 <!-- Pictures: -->
 
+<p float="left">
+  <img src="./images/image3.jpg" width="500"/>
+</p>
+
+<!--
+![image3](./images/image3.jpg)
+-->
+
+---
+
 ### Holo Roaches
+
+> [!Warning]
+> High ops
 
 Instructions: spawn in a place with walls or obstructions, try capturing the roaches or squishing them
 <!-- pictures: -->
+
+<p float="left">
+  <img src="./images/image4.jpg" width="500"/>
+</p>
+
+<!--
+![image4](./images/image4.jpg)
+-->
 
 ---
 
 ### Uncle Fungus
 
 Instructions:spawn chip, spawn a skull, crouch to bring him infront of you. Rope anything to him, proceed.
+
+<p float="left">
+  <img src="./images/image5.jpg" width="500"/>
+</p>
+
+<!--
+![image5](./images/image5.jpg)
+-->
 
 ---
 

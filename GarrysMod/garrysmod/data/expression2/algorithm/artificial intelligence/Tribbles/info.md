@@ -17,11 +17,19 @@
 
 ## Description
 
+<p float="left">
+  <img src="./image1.jpg" width="500"/>
+</p>
+
+<!--
+![image1](./image1.jpg)
+-->
+
 These are tribbles, they are tiny workers that's only goal is to travel to a tree, collect some wood, and deliver it to the mill.
 
 mostly this project has given me something to do, but i like it, and i plan to improve it.
 
-### requirements:
+### requirements
 
 ```plaintext
 • wire extras, and prop core turned on.
@@ -32,7 +40,7 @@ mostly this project has given me something to do, but i like it, and i plan to i
 note: you need to spawn tribbles for it to work, their model is (the tiny sphere in phx misc.)
 "models/hunter/misc/sphere025x025.mdl"
 
-### Features:
+### Features
 
 ```plaintext
 • tribbles will goto a tree, and take a piece of wood.
@@ -42,7 +50,7 @@ note: you need to spawn tribbles for it to work, their model is (the tiny sphere
 • (they look kinda like round ants from above ^^)
 ```
 
-**New features from V2(actually v6, but w/e)**
+**New features from V2(actually v6, but w/e)**  
 
 ```plaintext
 • There is now 3 materials, wood, metal, and rocks.-
@@ -63,7 +71,7 @@ Tribbles are controlled and spawned by the mill, you will no longer spawn them(t
 Other things can be made using the materials
 Cleaner code perhaps, maybe not hitting 3500 ops with 10 resources and tribbles
 
-### Notes:
+### Notes
 
 Dont spawn more then 20 of them for your own safety.(e2 crash)
 the code isnt very well optimized.

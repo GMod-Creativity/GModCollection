@@ -33,6 +33,8 @@ Extremely customizable and modular; options at the top.
 
 <!-- https://web.archive.org/web/20161010171318/https://www.youtube.com/watch?v=TiKSMkBrIHM -->
 
+![image1](./image1.jpg)
+
 ---
 
 ### Personal Energy Shield
@@ -45,6 +47,8 @@ If the angle of the prop becomes too extreme, or its position from you becomes t
 
 <!-- https://web.archive.org/web/20161010171318/https://www.youtube.com/watch?v=ZSk3wnYC-LE -->
 
+![image2](./image2.jpg)
+
 ---
 
 ### Orbital Bombardment
@@ -54,6 +58,8 @@ Rain explosive props from the sky, with some pretty neat visuals and audio. High
 The button (default M) has to be held down for a short time. Tapping might not always work.
 
 <!-- https://web.archive.org/web/20161010171318/https://www.youtube.com/watch?v=0U7VJYDqxSs -->
+
+![image3](./image3.jpg)
 
 ---
 

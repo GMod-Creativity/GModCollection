@@ -34,3 +34,11 @@ Again as I said in my last one, don't judge based on the code I post, quite a fe
 First is engine bird  
 Instructions:spawn chip  
 <!-- Pictures: -->
+
+<p float="left">
+  <img src="./image1.jpg" width="500"/>
+</p>
+
+<!--
+![image1](./image1.jpg)
+-->

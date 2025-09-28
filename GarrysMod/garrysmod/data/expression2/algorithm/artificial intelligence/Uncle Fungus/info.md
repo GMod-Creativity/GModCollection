@@ -32,3 +32,11 @@ Again as I said in my last one, don't judge based on the code I post, quite a fe
 ### Uncle Fungus
 
 Instructions:spawn chip, spawn a skull, crouch to bring him infront of you. Rope anything to him, proceed.
+
+<p float="left">
+  <img src="./image1.jpg" width="500"/>
+</p>
+
+<!--
+![image1](./image1.jpg)
+-->

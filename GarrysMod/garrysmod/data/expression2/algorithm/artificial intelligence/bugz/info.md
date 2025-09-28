@@ -23,7 +23,7 @@ Hello all, today im releasing bugz version 2.4.
 
 The chip creates a alpha(mother) bug, and a beta(father) bug. When the dad gets close to the mom, they mate, and little bugs are created.
 
-### what it does:
+### what it does
 
 The expression is the leader bug, it will wander around, until betabug, finds it, and they will mate, making little bugs, that will follow alpha.
 
@@ -69,7 +69,17 @@ And anything else i can think of.
 
 ### Images
 
-see images
+<p float="left">
+  <img src="./images/K7W3q.jpg" width="450"/>
+  <img src="./images/YCHgi.jpg" width="450"/>
+  <img src="./images/obp9s.jpg" width="450"/>
+</p>
+
+<!--
+![image1](./images/K7W3q.jpg)
+![image2](./images/YCHgi.jpg)
+![image3](./images/obp9s.jpg)
+-->
 
 <!-- ### Video
 

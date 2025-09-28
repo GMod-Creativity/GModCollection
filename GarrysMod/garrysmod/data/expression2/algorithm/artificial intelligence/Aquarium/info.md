@@ -34,3 +34,11 @@ Again as I said in my last one, don't judge based on the code I post, quite a fe
 And now An aquarium  
 Instructions:spawn and wait for all fish to spawn (changeable amount in chip)  
 also the fish like bug bait, throw one into the tank and watch em nom it.
+
+<p float="left">
+  <img src="./image1.jpg" width="500"/>
+</p>
+
+<!--
+![image1](./image1.jpg)
+-->

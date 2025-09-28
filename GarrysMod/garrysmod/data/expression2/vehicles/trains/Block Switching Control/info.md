@@ -1,14 +1,25 @@
+# Expression 2 - gm_trainset onboard setPos switch control
+
+## Details
+
+### Author
+
 - Author: Tolyzor
 - Steam Profile: https://steamcommunity.com/profiles/76561197980070446
-- Youtube: https://www.youtube.com/user/Heatseeker1
+- YouTube: https://www.youtube.com/user/Heatseeker1
 - Github: https://github.com/Tolyzor
-<!-- -->
+
+### Publication Info
+
 - Title: gm_trainset onboard setPos switch control
 - Date (dd-mm-yyyy): 07-09-2014
 - Source: https://web.archive.org/web/20150509072903/http://www.wiremod.com/forum/finished-contraptions/33522-gm_trainset-onboard-setpos-switch-control.html
 - Source Accessed (dd-mm-yyyy): 17-08-2025
 
-## gm_trainset onboard setPos switch control
+## Description
+
+> [!NOTE]
+> This expression 2 requires the map: [gm_trainset](https://steamcommunity.com/sharedfiles/filedetails/?id=248213731)
 
 gm_trainset has 150 switches, and you constantly have to exit the train to throw them, as most are manual.
 
@@ -16,7 +27,9 @@ This e2 lets you use one key to throw the switch in front of your and another to
 
 Each section of track is divided into a "block", defined by waypoints. Each block has entry and exit switches who's order is defined by the direction you entered the block
 
-Instructions:
+![image1](./vfPoEAo.jpg)
+
+**Instructions:**
 
 1. Weld the E2 to your train, not more than ~50 units from the tracks.
 2. Spawn a wire user, and freeze it facing downwards. Do not weld the user to anything.

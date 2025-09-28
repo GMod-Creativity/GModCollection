@@ -1,0 +1,195 @@
+--@name Setang + Drift Assist v2.86
+--@author [C17] Red Fox & Manus
+--@shared
+--@model models/sprops/rectangles/size_2/rect_12x12x3.mdl
+
+--[[
+    This version implements the most critical lesson from the E2 code.
+    It scales the entire corrective force based on the car's slip angle.
+    The drift assist is now weak when driving straight (preventing wobble)
+    and strong when actually drifting (providing stability). This is the
+    definitive fix for high-speed oscillation.
+]]--
+
+if SERVER then
+    -- This sets up the inputs and outputs for the chip in-game.
+    wire.adjustInputs({"Pod","Base"},{"wirelink","entity"})
+    wire.adjustOutputs({
+        "Angle", "SpeedL", "SpeedDir", "IsSlipping", "IsDrifting", "SlipAmount", "YawDampAmt"
+    },{"number","number","number","number","number","number","number"})
+
+    ---------------------------------------------------------------------------
+    --## USER CONFIGURATION ## --
+    -- Tweak these values to change how your car feels and handles.
+    ---------------------------------------------------------------------------
+
+    -- CONFIG: Steering limits & behavior
+    -- How far the wheels can turn, in degrees. Higher = sharper turns.
+    local Lock                    = 40
+    -- How much speed affects steering. Higher = LESS effect, allowing you to turn more at high speeds.
+    -- Lower = MORE effect, making the car turn less at high speeds.
+    local SpeedEffect             = 950
+    -- How quickly the car steers. Higher = more responsive/twitchy steering.
+    local SteeringSpeed           = 1.25
+    -- Acts as a damper for the drift correction.
+    -- Lower = the assist tries harder to straighten the car during a slide. Too low is undesired.
+    -- Higher = weakens the correction, allowing for wider and more controlled drifts.
+    local DriftResistance         = 50
+    -- Simulates caster angle for stability. A higher value is not always better. 20 is a good start.
+    local Caster                  = 20
+
+    -- NEW: This is the main anti-wobble feature that stabilizes the car.
+    -- It controls how quickly the drift assist ramps up as you start to slide.
+    -- Higher values = assist kicks in sooner and stronger.
+    -- Lower values = car needs to slide more before the assist becomes powerful.
+    local SlipAngleFactor         = 7
+
+    -- CONFIG: Slip vs Drift thresholds
+    -- How much sideways speed is needed before the car is considered "slipping".
+    local SlipCorrectionThreshold = 1.5
+    -- How much sideways speed is needed before drift multipliers are activated.
+    local DriftThreshold          = 1.5
+
+    -- CONFIG: Force multipliers
+    -- The raw strength of the counter-steer force when you slide.
+    local SlipCounterForce        = 1.5
+    -- The strength of the gyro, which prevents the car from spinning out.
+    local GyroCounterForce        = 1.5
+    
+    -- Player input multiplier while drifting.
+    -- How much your input is multiplied when steering INTO a drift (counter-steering).
+    local OppositeMultiplier      = 1.25
+    -- How much your input is multiplied when steering OUT of a drift (e.g. to straighten up).
+    local SameDirMultiplier       = 1.5
+
+    -- CONFIG: Gyro effect scaling by speed
+    -- The speed at which the gyro reaches its maximum strength.
+    local GyroSpeedThreshold      = 150
+    -- The gyro's strength at 0 speed. (0 = off at low speed).
+    local GyroMinScale            = 0
+    -- The gyro's maximum strength at high speed.
+    local GyroMaxScale            = 3
+
+    -- CONFIG: Vehicle-specific orientation adjustment
+    -- This vector tells the script which way is "forward" on your vehicle's base prop.
+    -- To find your forward axis, you may need to experiment.
+    -- Vector(1,0,0)  = Forward is the Positive X direction.
+    -- Vector(-1,0,0) = Forward is the Negative X direction.
+    -- Vector(0,1,0)  = Forward is the Positive Y direction.
+    -- Vector(0,-1,0) = Forward is the Negative Y direction.
+    local ForwardAxisMultiplier = Vector(-1,0,0) -- Default: Negative X-axis is forward
+
+    ---------------------------------------------------------------------------
+    --## CORE LOGIC ## --
+    -- It is not recommended to change anything below this line.
+    ---------------------------------------------------------------------------
+
+    -- Runtime state variables, do not change.
+    local AngleT = 0
+    local InA,InD = 0,0
+    local SetAng = chip()
+    SetAng:setNocollideAll(true)
+
+    hook.add("think","SetangDriftAssist_FinalFinalFix",function()
+        -- Get the vehicle's base entity. Stop if it's not valid.
+        local Base = wire.ports.Base
+        if not Base or not Base:isValid() then return end
+
+        -- Get player steering input from the pod controller.
+        local Pod = wire.ports.Pod
+        if Pod then InA,InD = Pod.A or 0, Pod.D or 0 end
+
+        -- Get the server's tick interval for smooth physics calculations.
+        local dt = game.getTickInterval()
+        
+        -- Get the car's velocity and convert it to be relative to the car's own direction.
+        local worldVel     = Base:getVelocity()
+        local localVel     = Base:worldToLocal(worldVel + Base:getPos())
+
+        -- Determine the effective forward and right vectors based on the user config.
+        local effectiveForwardLocal = ForwardAxisMultiplier
+        local effectiveRightLocal   = Vector(effectiveForwardLocal.y, -effectiveForwardLocal.x, 0)
+
+        -- Calculate forward and sideways speed. This is key for all corrections.
+        local ForwardSpeed = localVel:dot(effectiveForwardLocal) / 14.5
+        local LateralSpeed = localVel:dot(effectiveRightLocal) / 14.5
+        local SpeedDir     = (ForwardSpeed >= 0) and 1 or -1
+
+        -- Output the car's current state for debug displays.
+        wire.ports.SpeedL   = ForwardSpeed
+        wire.ports.SpeedDir = SpeedDir
+        wire.ports.SlipAmount = LateralSpeed
+
+        -- ### THE CRITICAL NEW LOGIC ###
+        -- Calculate the slip angle: the difference between where the car points and where it's going.
+        local slipAngle = math.atan2(LateralSpeed, math.abs(ForwardSpeed))
+        
+        -- Create a scaling factor from 0 to 1 based on the slip angle.
+        -- This is 0 when driving straight (no wobble) and 1 when in a full slide (max assist).
+        local correctionScale = math.clamp(math.abs(slipAngle) * SlipAngleFactor, 0, 1)
+
+        -- Calculate Yaw Damping (Gyro) force to prevent spin-outs.
+        local upWorld    = Base:localToWorldVector(Vector(0,0,1))
+        local yawVel     = Base:getAngleVelocity():dot(upWorld)
+        local speedScale = math.clamp(math.abs(ForwardSpeed) / GyroSpeedThreshold, 0, 1)
+        local gyroScale  = GyroMinScale + (GyroMaxScale - GyroMinScale) * speedScale
+        local yawDamping = yawVel * dt * GyroCounterForce * gyroScale * SpeedDir
+        wire.ports.YawDampAmt = yawDamping
+
+        -- Calculate Slip Correction force to counter-steer against a slide.
+        local slipCorrection = 0
+        local isSlipping      = math.abs(LateralSpeed) > SlipCorrectionThreshold
+        if isSlipping then
+            slipCorrection = LateralSpeed * SlipCounterForce * -SpeedDir
+        end
+
+        -- Combine slip and gyro forces into a total drift correction value.
+        local isDrifting      = math.abs(LateralSpeed) > DriftThreshold
+        local driftCorrection = 0
+        local driftDir        = 0
+        if isDrifting then
+            driftDir        = (LateralSpeed > 0) and 1 or -1
+            local slipDrift  = slipCorrection / DriftResistance
+            driftCorrection = slipDrift + yawDamping
+        end
+
+        -- ### APPLY THE SCALING FACTOR ###
+        -- The entire correction is scaled down when not drifting to prevent wobble.
+        local finalCorrection = driftCorrection * correctionScale
+
+        -- Output status flags for debug displays.
+        wire.ports.IsSlipping = isSlipping and 1 or 0
+        wire.ports.IsDrifting = isDrifting and 1 or 0
+
+        -- Calculate the effect of the player's steering input.
+        local inputAmt    = InA - InD
+        local inputEffect = inputAmt * SteeringSpeed
+        -- Apply drift multipliers if the car is sliding.
+        if isDrifting and inputAmt ~= 0 then
+            local inputDir = (inputAmt > 0) and -1 or 1
+            if inputDir == driftDir then
+                inputEffect = inputAmt * SteeringSpeed * SameDirMultiplier
+            else
+                inputEffect = inputAmt * SteeringSpeed * OppositeMultiplier
+            end
+        end
+
+        -- ## Final Steering Calculation ##
+        -- 1. Add player input and the final scaled correction to the current angle.
+        AngleT = AngleT + inputEffect + finalCorrection
+        -- 2. Clamp the angle to the maximum steering lock.
+        AngleT = math.clamp(AngleT, -Lock, Lock)
+        -- 3. Reduce the steering angle based on the car's speed.
+        AngleT = AngleT * (1 - math.min(math.abs(ForwardSpeed), SpeedEffect) / SpeedEffect)
+
+        -- Send the final angle to the "Angle" output.
+        wire.ports.Angle = AngleT
+
+        -- Physically apply the angle to the E2 chip prop itself, which turns the wheels.
+        if not SetAng:isPlayerHolding() then
+            SetAng:enableMotion()
+            local finalAng = Base:localToWorldAngles(Angle(0, AngleT, -AngleT / Caster))
+            SetAng:setAngles(finalAng)
+        end
+    end)
+end

@@ -1,6 +1,14 @@
+# Expression 2 - World's Greatest Moped
+
+## Details
+
+### Author
+
 - Author: scriptis
 - Steam Profile: https://steamcommunity.com/profiles/76561198097498492
-<!-- -->
+
+### Publication Info
+
 Title: World's Greatest Moped
 - Date (dd-mm-yyyy): 18-07-2017
 - Source: Wiremod Discord: Contraptions Archived
@@ -8,12 +16,13 @@ Title: World's Greatest Moped
 - Source: https://i.imgur.com/oR5ZZBy.jpg
 - Source Accessed (dd-mm-yyyy): 02-09-2025
 
-## World's Greatest Moped
+## Description
 
 I released this a while back, figured I may as well post it here. Enjoy!
 
-https://i.imgur.com/oR5ZZBy.jpg
-https://pastebin.com/raw/ernq49qN
+![image1](https://i.imgur.com/oR5ZZBy.jpg)
+
+Code: https://pastebin.com/raw/ernq49qN
 
 it requires propcore and lightcore
 

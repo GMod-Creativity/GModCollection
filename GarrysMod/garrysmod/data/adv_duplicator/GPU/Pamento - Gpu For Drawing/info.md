@@ -1,6 +1,14 @@
+# Advanced Duplicator - Pamento - Gpu For Drawing
+
+## Details
+
+### Author
+
 - Author: Hitman271 (radixdev)
-- Youtube: https://www.youtube.com/@Hitman271
-<!-- -->
+- YouTube: https://www.youtube.com/@Hitman271
+
+### Publication Info
+
 - Title: Pamento - Gpu For Drawing
 - Date (dd-mm-yyyy): 21-12-2008
 - Source: https://web.archive.org/web/20090408153229/https://wiremod.com/forum/cpu-tutorials-programs/7520-pamento-gpu-drawing.html
@@ -8,7 +16,7 @@
 - Source: https://gmods.org/view/14641
 - Source Accessed (dd-mm-yyyy): 01-09-2025
 
-## Pamento - Gpu For Drawing
+## Description
 
 This gpu can draw!
 
@@ -19,3 +27,5 @@ The screen can be cleared and it also has an erase function!
 Because of the "special" nature of how I coded this, the actual program probably won't go released for a while. But a dupe is available!
 
 https://www.youtube.com/watch?v=GgcSbabgOqg
+
+![image1](./image1.jpg)

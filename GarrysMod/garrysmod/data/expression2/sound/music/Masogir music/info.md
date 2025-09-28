@@ -1,13 +1,23 @@
+# Expression 2 - Music + applyForce() = Epic Win
+
+## Details
+
+### Author
+
 - Author: Masogir
 - Steam Profile: https://steamcommunity.com/profiles/76561197964150729
-- Youtube: https://www.youtube.com/@Maso5
-<!-- -->
+- YouTube: https://www.youtube.com/@Maso5
+
+### Publication Info
+
 - Title: Music + applyForce() = Epic Win
 - Date (dd-mm-yyyy): 04-05-2009
 - Source: https://web.archive.org/web/20150918165314/http://www.wiremod.com:80/forum/finished-contraptions/10152-music-applyforce-epic-win.html
+- Source: https://www.youtube.com/watch?v=uZRoSviz-VQ
+- Source: https://www.youtube.com/watch?v=z-_77iE88Sc
 - Source Accessed (dd-mm-yyyy): 14-08-2025
 
-## Music + applyForce() = Epic Win
+## Description
 
 Music + applyForce() = Epic Win.
 
@@ -17,7 +27,7 @@ MAKE SURE TO UPDATE YOUR WIREMOD OR THIS MAY NOT WORK
 
 This is a cheat sheet you will need to write music (thanks to |3ulletje). You can place this in your E2 while writing the music:
 
-```
+```plaintext
 #|  2  3     5  6  7     9  0     =  a  s     f  g     j  k  l     '
 #| |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
 #| |C#|D#|  |F#|G#|A#|  |C#|D#|  |F#|G#|A#|  |C#|D#|  |F#|G#|A#|  |C#|
@@ -34,5 +44,7 @@ This is a cheat sheet you will need to write music (thanks to |3ulletje). You ca
 - DuckTails Moon Level Theme (by me)
 - Guns N Roses - Sweet Child O' Mine (by me)
 
-[YouTube - GMOD Piano with music](https://www.youtube.com/watch?v=uZRoSviz-VQ)
+### Videos
+
+[YouTube - GMOD Piano with music](https://www.youtube.com/watch?v=uZRoSviz-VQ)  
 [YouTube - GMOD piano - Bubble Bobble](https://www.youtube.com/watch?v=z-_77iE88Sc)

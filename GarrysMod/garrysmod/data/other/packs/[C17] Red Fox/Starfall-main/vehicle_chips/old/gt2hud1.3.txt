@@ -1,0 +1,413 @@
+--@name GT2Hud1.3
+--@author redfox (original), Manus (final, complete implementation)
+--@shared
+
+if SERVER then
+    -- CORRECTED: Removed "AutoMode" from the inputs
+    wire.adjustInputs(
+        {
+            "Chassis",
+            "EngineRPM",
+            "GearboxGear",
+            "Throttle",
+            "Brake",
+            "Clutch",
+            "TurboPSI",
+            "GearMode" -- Input for the automatic gear mode
+        },
+        {
+            "Entity",
+            "Number",
+            "Number",
+            "Number",
+            "Number",
+            "Number",
+            "Number",
+            "Number" -- GearMode
+        }
+    )
+    
+    local engineMaxRpm = 7000
+    local TurboPsiMax = 6
+    
+    -- --- FIX START ---
+    -- The queueing system is redesigned to be more robust and prevent the burst limit error.
+    local sendQueue = {}
+    local maxBytesPerSecond = 2048 -- Max bytes per player per second to avoid spam.
+    local bytesUsed = {} -- Tracks bytes used per player.
+    local lastResetTime = timer.systime()
+
+    function hud_sendInputs(ply)
+        -- Reset byte counter every second.
+        local currentTime = timer.systime()
+        if currentTime - lastResetTime >= 1 then
+            bytesUsed = {}
+            lastResetTime = currentTime
+        end
+        
+        -- Initialize byte counter for the player if it doesn't exist for this second.
+        bytesUsed[ply] = bytesUsed[ply] or 0
+        
+        -- Estimate message size. 8 floats (8*4=32) + 2 ints (4*2=8) = 40 bytes.
+        local messageSize = 40
+        
+        -- Check if sending would exceed the rate limit for this player.
+        if bytesUsed[ply] + messageSize > maxBytesPerSecond then
+            if not table.hasValue(sendQueue, ply) then
+                table.insert(sendQueue, ply)
+            end
+            return 0 -- Indicate message was not sent.
+        end
+        
+        -- Check if the GMod net buffer itself has enough space.
+        if net.getBytesLeft() < messageSize then
+            if not table.hasValue(sendQueue, ply) then
+                table.insert(sendQueue, ply)
+            end
+            return 0 -- Indicate message was not sent.
+        end
+        
+        -- If clear to send, update the byte counter and send the data.
+        bytesUsed[ply] = bytesUsed[ply] + messageSize
+        
+        net.start("hud_sendInputs")
+        net.writeFloat(wire.ports.EngineRPM or 0)
+        net.writeFloat(engineMaxRpm)
+        net.writeFloat(isValid(wire.ports.Chassis) and wire.ports.Chassis:getVelocity():getLength() or 0)
+        net.writeFloat(wire.ports.Throttle or 0)
+        net.writeFloat(wire.ports.Brake or 0)
+        net.writeFloat(wire.ports.Clutch or 0)
+        net.writeFloat(wire.ports.TurboPSI or 0)
+        net.writeFloat(TurboPsiMax)
+        net.writeInt(wire.ports.GearboxGear or 0, 4)
+        net.writeInt(wire.ports.GearMode or 0, 4) -- Send GearMode
+        net.send(ply, true)
+        
+        return 1 -- Indicate message was sent.
+    end
+    
+    -- Timer to process the queue of players who were previously rate-limited.
+    timer.create("hud_processQueue", 0.1, 0, function()
+        if #sendQueue > 0 then
+            local ply = table.remove(sendQueue, 1)
+            if isValid(ply) then
+                hud_sendInputs(ply) -- Attempt to send again.
+            end
+        end
+    end)
+    
+    -- When a client requests data, attempt to send it via our rate-limited function.
+    net.receive("hud_requestInputs", function(len, ply)
+        hud_sendInputs(ply)
+    end)
+    -- --- FIX END ---
+end
+
+if CLIENT then
+    ----- Adjustable values -----
+    -- MODIFIED: AutoMode is now a user-configurable variable.
+    -- Set this to 'true' to enable the new gear display mode, 'false' to disable.
+    local AutoMode = false 
+    
+    local drawOrder = {"rpm", "kph", "gear", "input"}
+    local RefreshInterval = 50
+    local enableInterpolation = true
+    
+    -- Colors
+    local bgColor = Color(0,0,0,80)
+    local textColor = Color(255,236,12,200)
+    local whiteColor = Color(255, 255, 255, 255)
+    local redColor = Color(255, 0, 0, 255)
+    local unactiveColor = Color(0,0,0,160)
+    local clutchColor = Color(100,100,255,255)
+    local brakeColor = Color(255,100,100,255)
+    local throttleColor = Color(100,255,100,255)
+    
+    ----- Internal Vars -----
+    local LastRequest = 0
+    local s_smoothrpm = 0
+    local s_smoothturbo = 0 -- Smoothing for turbo
+    
+    local data = {
+        time = timer.systime(), rpm = 0, rpmMax = 7000, speed = 0, gear = 0,
+        throttle = 0, brake = 0, clutch = 0, turbopsi = 0, maxturbopsi = 25,
+        gearmode = 0 -- Client-side storage for gearmode
+    }
+    local prevdata = table.copy(data)
+    
+    local units = { ["kph"] = 3600 * 0.0000254, ["mph"] = 3600 / 63360 }
+    local speedLabels = { ["kph"] = "K P H", ["mph"] = "M P H" }
+    
+    local cos, sin, rad, clamp, round, floor = math.cos, math.sin, math.rad, math.clamp, math.round, math.floor
+    
+    local fonts = {}
+    local materials = {
+        smallticks = material.create("UnlitGeneric"),
+        bigticks = material.create("UnlitGeneric"),
+    }
+    materials.smallticks:setTexture("$basetexture", "vgui/white")
+    materials.bigticks:setTexture("$basetexture", "vgui/white")
+
+    local W, H, scale = 0, 0, 1
+
+    function setupHUD()
+        W, H = render.getGameResolution()
+        scale = H / 1080
+        
+        fonts = {
+            text = render.createFont("Roboto Mono", floor(25 * scale), 500, true),
+            speed = render.createFont("HalfLife2", floor(70 * scale), 800, true),
+            gear = render.createFont("Roboto Mono", floor(60 * scale), 1000, true),
+            rpmNum = render.createFont("HalfLife2", floor(35 * scale), 500, true),
+            turboNum = render.createFont("Roboto Mono", floor(15 * scale), 500, true),
+        }
+    end
+    
+    net.receive("hud_sendInputs", function()
+        prevdata = table.copy(data)
+        data.time = timer.systime()
+        data.rpm = net.readFloat()
+        data.rpmMax = net.readFloat()
+        data.speed = net.readFloat()
+        data.throttle = net.readFloat()
+        data.brake = net.readFloat()
+        data.clutch = net.readFloat()
+        data.turbopsi = net.readFloat()
+        data.maxturbopsi = net.readFloat()
+        data.gear = net.readInt(4)
+        data.gearmode = net.readInt(4) -- Receive GearMode
+    end)
+    
+    function requestData()
+        if (LastRequest + RefreshInterval/1000) < timer.systime() then
+            LastRequest = timer.systime()
+            net.start("hud_requestInputs")
+            net.send(nil, true)
+        end
+    end
+    
+    function unitsTo(u, t) return (u * 0.75) * (units[t] or 0) end
+    
+    function drawRPMBox(pos, radius, rpm, rpmMax)
+        if not rpmMax or rpmMax <= 0 then return end
+        
+        s_smoothrpm = clamp(s_smoothrpm + (rpm - s_smoothrpm) * 0.15, 0, rpmMax)
+        local powerbandend = rpmMax * 0.8
+        
+        render.setColor(bgColor)
+        render.drawFilledCircle(pos.x, pos.y, radius)
+        render.setColor(Color(55, 55, 55, 200))
+        render.drawFilledCircle(pos.x, pos.y, radius * 0.2)
+        
+        for i = 0, rpmMax, 250 do
+            local anglestep = (255 / rpmMax) * i
+            local is_big_tick = (i % 1000 == 0 and i > 0)
+            
+            local in_powerband = i >= powerbandend
+            local col_on = in_powerband and redColor or whiteColor
+            local col_off = in_powerband and Color(170, 0, 0, 150) or Color(200, 200, 200, 150)
+            
+            local current_color = (s_smoothrpm >= i) and col_on or col_off
+            
+            local cos_a, sin_a = cos(rad(105 + anglestep)), sin(rad(105 + anglestep))
+            
+            if is_big_tick then
+                render.setColor(current_color)
+                render.setMaterial(materials.bigticks)
+                render.drawTexturedRectRotated(pos.x + cos_a * radius * 0.9, pos.y + sin_a * radius * 0.9, radius * 0.18, radius * 0.02, anglestep - 75)
+                
+                render.setFont(fonts.rpmNum)
+                render.setColor(current_color)
+                render.drawSimpleText(pos.x + cos_a * radius * 0.7, pos.y + sin_a * radius * 0.7, tostring(i / 1000), 1, 1)
+            elseif i > 0 then
+                render.setColor(current_color)
+                render.setMaterial(materials.smallticks)
+                render.drawTexturedRectRotated(pos.x + cos_a * radius * 0.95, pos.y + sin_a * radius * 0.95, radius * 0.09, radius * 0.01, anglestep - 75)
+            end
+        end
+        
+        local endang = 105 + round((s_smoothrpm/rpmMax) * 255, 0)
+        local c_ang, s_ang = cos(rad(endang)), sin(rad(endang))
+        local in_red = s_smoothrpm >= powerbandend
+        render.setColor(in_red and redColor or Color(175,0,0,255))
+        render.setMaterial(materials.smallticks)
+        render.drawTexturedRectRotated(pos.x + c_ang * radius * 0.5, pos.y + s_ang * radius * 0.5, radius, radius * 0.02, endang)
+    end
+
+    function drawTurboBox(pos, radius, turbopsi, maxturbopsi)
+        if not maxturbopsi or maxturbopsi <= 0 then return end
+
+        s_smoothturbo = clamp(s_smoothturbo + (turbopsi - s_smoothturbo) * 0.15, 0, maxturbopsi)
+        local powerbandend = maxturbopsi * 0.8
+
+        render.setColor(bgColor)
+        render.drawFilledCircle(pos.x, pos.y, radius)
+        render.setColor(Color(55, 55, 55, 200))
+        render.drawFilledCircle(pos.x, pos.y, radius * 0.2)
+
+        local tick_step = maxturbopsi / 10 
+        for i = 0, maxturbopsi, tick_step do
+            if i == 0 then continue end
+            local anglestep = (255 / maxturbopsi) * i
+            local is_big_tick = (i % (tick_step * 2) < tick_step) 
+
+            local in_powerband = i >= powerbandend
+            local col_on = in_powerband and redColor or whiteColor
+            local col_off = in_powerband and Color(170, 0, 0, 150) or Color(200, 200, 200, 150)
+            local current_color = (s_smoothturbo >= i) and col_on or col_off
+
+            local cos_a, sin_a = cos(rad(105 + anglestep)), sin(rad(105 + anglestep))
+            
+            render.setColor(current_color)
+            if is_big_tick then
+                render.setMaterial(materials.bigticks)
+                render.drawTexturedRectRotated(pos.x + cos_a * radius * 0.9, pos.y + sin_a * radius * 0.9, radius * 0.18, radius * 0.02, anglestep - 75)
+                render.setFont(fonts.turboNum)
+                render.drawSimpleText(pos.x + cos_a * radius * 0.7, pos.y + sin_a * radius * 0.7, tostring(round(i)), 1, 1)
+            else
+                render.setMaterial(materials.smallticks)
+                render.drawTexturedRectRotated(pos.x + cos_a * radius * 0.95, pos.y + sin_a * radius * 0.95, radius * 0.09, radius * 0.01, anglestep - 75)
+            end
+        end
+
+        local endang = 105 + round((s_smoothturbo/maxturbopsi) * 255, 0)
+        local c_ang, s_ang = cos(rad(endang)), sin(rad(endang))
+        local in_red = s_smoothturbo >= powerbandend
+        render.setColor(in_red and redColor or Color(175,0,0,255))
+        render.setMaterial(materials.smallticks)
+        render.drawTexturedRectRotated(pos.x + c_ang * radius * 0.5, pos.y + s_ang * radius * 0.5, radius, radius * 0.02, endang)
+    end
+
+    -- --- MODIFICATION START ---
+    function drawGearBox(pos, gear, gearmode, scale)
+        local size = Vector(60 * scale, 60 * scale)
+        render.setColor(bgColor)
+        render.drawRoundedBox(8 * scale, pos.x - size.x/2, pos.y - size.y/2, size.x, size.y)
+
+        render.setFont(fonts.gear)
+        render.setColor(textColor)
+        
+        local gearText = ""
+        if AutoMode then -- Check if the user-configured AutoMode is on
+            if gearmode == 0 then
+                gearText = "P"
+            elseif gearmode == 1 then
+                gearText = "R"
+            elseif gearmode == 2 then
+                gearText = "N"
+            elseif gearmode == 3 then
+                -- For D, show D plus the actual current gear (if it's a forward gear)
+                local currentGear = (gear > 0) and tostring(gear) or ""
+                gearText = "D" .. currentGear
+            else
+                -- For sequential modes (4, 5, etc.), show the gear number
+                gearText = tostring(gearmode - 3)
+            end
+        else
+            -- Original behavior when AutoMode is off
+            gearText = gear == 0 and "N" or (gear == -1 and "R" or tostring(gear))
+        end
+        
+        render.drawSimpleText(pos.x, pos.y, gearText, 1, 1)
+    end
+    -- --- MODIFICATION END ---
+
+    function drawSpeedBox(pos, speed, units, scale)
+        local size = Vector(140 * scale, 60 * scale)
+        render.setColor(bgColor)
+        render.drawRoundedBox(8 * scale, pos.x - size.x/2, pos.y - size.y/2, size.x, size.y)
+
+        render.setFont(fonts.speed)
+        render.setColor(textColor)
+        render.drawSimpleText(pos.x, pos.y - (5 * scale), string.format("%03d", clamp(unitsTo(speed, units), 0, 999)), 1, 1)
+        
+        render.setFont(fonts.text)
+        render.setColor(textColor)
+        render.drawSimpleText(pos.x, pos.y + (40 * scale), speedLabels[units], 1, 1)
+    end
+    
+    function drawInputBox(pos, throttle, brake, clutch, scale)
+        local size = Vector(120 * scale, 120 * scale)
+        local boxpos = pos - size/2
+        local linesize = Vector(22 * scale, 88 * scale)
+        
+        local throttleNorm = clamp(throttle, 0, 1)    
+        local brakeNorm = clamp(brake, 0, 1) 
+        local clutchNorm = clamp(clutch, 0, 1)
+        
+        render.setColor(bgColor)
+        render.drawRoundedBox(16 * scale, boxpos.x, boxpos.y, size.x, size.y)
+
+        render.setColor(unactiveColor)
+        render.drawRect(boxpos.x + 16 * scale, boxpos.y + 16 * scale, linesize.x, linesize.y)
+        render.drawRect(boxpos.x + 49 * scale, boxpos.y + 16 * scale, linesize.x, linesize.y)
+        render.drawRect(boxpos.x + 82 * scale, boxpos.y + 16 * scale, linesize.x, linesize.y)
+        
+        render.setColor(clutchColor)
+        render.drawRect(boxpos.x + 16 * scale, boxpos.y + 16 * scale + linesize.y * (1 - clutchNorm), linesize.x, linesize.y * clutchNorm)
+        render.setColor(brakeColor)
+        render.drawRect(boxpos.x + 49 * scale, boxpos.y + 16 * scale + linesize.y * (1 - brakeNorm), linesize.x, linesize.y * brakeNorm)
+        render.setColor(throttleColor)
+        render.drawRect(boxpos.x + 82 * scale, boxpos.y + 16 * scale + linesize.y * (1 - throttleNorm), linesize.x, linesize.y * throttleNorm)
+    end
+    
+    function interpolatedData(prevdata, data)
+        local intdata = {}
+        local curtime = timer.systime()
+        local interval = data.time - prevdata.time
+        if interval <= 0 then return data end
+        local interpolation = clamp((curtime - data.time)/interval, 0, 1)
+        for k,v in pairs(data) do
+            if type(v) == "number" and type(prevdata[k]) == "number" and v ~= prevdata[k] then
+                intdata[k] = prevdata[k] + (v - prevdata[k]) * interpolation
+            else
+                intdata[k] = v
+            end
+        end
+        return intdata 
+    end
+    
+    function drawHUD()
+        if not fonts.speed then return end
+
+        local main_radius = 180 * scale
+        local rpm_pos = Vector(W - main_radius - 30 * scale, H - main_radius - 30 * scale)
+        
+        local positions = {
+            rpm = rpm_pos,
+            speed = rpm_pos + Vector(-main_radius * -0.1, main_radius * 0.6),
+            gear = rpm_pos + Vector(main_radius * 0.45, main_radius * 0.2),
+            input = Vector(W/2, H - 70 * scale),
+            turbo = rpm_pos - Vector(main_radius * 1.7, -80),
+        }
+        
+        local d = enableInterpolation and interpolatedData(prevdata, data) or data
+        
+        for _, value in ipairs(drawOrder) do
+            if value == "rpm" then 
+                -- FIXED: Reverted to the correct function call from the original script
+                drawRPMBox(positions.rpm, main_radius, d.rpm, data.rpmMax)            
+            elseif value == "gear" then 
+                -- MODIFIED: Pass the correct data to the draw function
+                drawGearBox(positions.gear, data.gear, data.gearmode, scale)
+            elseif value == "kph" or value == "mph" then 
+                drawSpeedBox(positions.speed, d.speed, value, scale)
+            elseif value == "input" then
+                drawInputBox(positions.input, d.throttle, d.brake, d.clutch, scale)
+            elseif value == "turbopsi" then
+                drawTurboBox(positions.turbo, main_radius * 0.6, d.turbopsi, data.maxturbopsi)
+            end
+        end
+    end
+    
+    hook.add("hudconnected", "hud_Activate", function()
+        setupHUD()
+        hook.add("drawhud", "hud_RequestData", requestData)
+        hook.add("drawhud", "hud_DrawHUD", drawHUD)
+    end)
+    
+    hook.add("huddisconnected", "hud_Deactivate", function()
+        hook.remove("drawhud", "hud_RequestData")
+        hook.remove("drawhud", "hud_DrawHUD")
+    end)
+end

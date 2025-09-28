@@ -1,16 +1,27 @@
+# Expression 2 - Character Poser
+
+## Details
+
+### Author
+
 - Author: Jacbo
 - Steam Profile: https://steamcommunity.com/profiles/76561198247542006
 - Github: https://github.com/Jacbo1
-- Youtube: https://www.youtube.com/@Jacbo1
-<!-- -->
+- YouTube: https://www.youtube.com/@Jacbo1
+
+### Publication Info
+
 - Title: Character Poser
 - Date (dd-mm-yyyy): March 7, 2020
 - Source: Wiremod Discord
 - Source Accessed (dd-mm-yyyy): 06-08-2025
 
-## Character Poser
+## Description
 
-I made an e2 that you can animate a barney holo with. You can set fps (it will interpolate angles) and scale. I also added a thing that let's you ground it. It will find the lowest hand/foot and move the whole thing down so that it touches the ground.
+I made an e2 that you can animate a barney holo with. You can set fps (it will interpolate angles) and scale. I also added a thing that let's you ground it. It will find the lowest hand/foot and move the whole thing down so that it touches the ground.  
 you can change the model but I made the joints to fit with the barney model as best i could
 
-https://www.youtube.com/watch?v=iyf4BO7--S0
+Video:  
+[YouTube - hi](https://www.youtube.com/watch?v=iyf4BO7--S0)
+
+![image1](./image1.jpg)

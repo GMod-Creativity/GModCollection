@@ -1,6 +1,14 @@
+# Expression 2 - propCoreTeleport
+
+## Details
+
+### Author
+
 - Author: flashgnash
 - Steam Profile: https://steamcommunity.com/profiles/76561198083702880
-<!-- -->
+
+### Publication Info
+
 - Title: propCoreTeleport
 - Source: https://flashgnash.co.uk/e2
 - Source: https://flashgnash.co.uk/expression2/propCoreTeleport.txt
@@ -8,7 +16,8 @@
 
 ## propCoreTeleport
 
-A library that remakes teleport() to only use propcore for servers that don't have or restrict teleport() and plySetPos())
+A library that remakes `teleport()` to only use propcore for servers that don't have or restrict `teleport()` and `plySetPos()`
 
-Requires:
-Propcore (duh)
+### Requires
+
+- Propcore (duh)

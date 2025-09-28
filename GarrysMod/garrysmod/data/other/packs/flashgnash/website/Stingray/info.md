@@ -1,6 +1,14 @@
+# Expression 2 - Stingray
+
+## Details
+
+### Author
+
 - Author: flashgnash
 - Steam Profile: https://steamcommunity.com/profiles/76561198083702880
-<!-- -->
+
+### Publication Info
+
 - Title: Stingray
 - Source: https://flashgnash.co.uk/e2
 - Source: https://flashgnash.co.uk/expression2/Stingray.txt
@@ -8,7 +16,12 @@
 
 ## Stingray
 
-A ship I made in E2 using my json to holo converter. The controls aren't amazing but it's fully featured. The turret auto aims at the nearest non driver player)
+A ship I made in E2 using my json to holo converter. The controls aren't amazing but it's fully featured. (The turret auto aims at the nearest non driver player)
 
-Requires:
-Propcore
+### Requires
+
+- Propcore
+
+### Image
+
+![image1](./stingray.jpg)

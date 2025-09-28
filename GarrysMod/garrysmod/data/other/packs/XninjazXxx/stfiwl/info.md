@@ -1,5 +1,5 @@
 - Author: XninjazXxx (gato) (Devoided) (Azule)
-- Youtube: https://www.youtube.com/channel/UC-6WOjHUNpGwkk3fVCfrhGQ
+- YouTube: https://www.youtube.com/channel/UC-6WOjHUNpGwkk3fVCfrhGQ
 <!-- -->
 - Title: Every E2 I've ever made
 - Date (dd-mm-yyyy): 18-01-2016

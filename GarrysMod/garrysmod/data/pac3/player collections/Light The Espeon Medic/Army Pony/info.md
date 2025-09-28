@@ -1,12 +1,22 @@
+# PAC3 - Army Pony(you need tf2 to see all the parts)
+
+## Details
+
+### Author
+
 - Author: Light The Espeon Medic
 - Steam Profile: http://steamcommunity.com/profiles/76561198196697889
-- Youtube: https://www.youtube.com/channel/UCFBPun0MFTNRCrpoQWQRtXw
+- YouTube: https://www.youtube.com/channel/UCFBPun0MFTNRCrpoQWQRtXw
 - Pastebin: https://pastebin.com/u/cadenater11
-<!-- -->
+
+### Publication Info
+
 - Title: Army Pony(you need tf2 to see all the parts)
 - Date (dd-mm-yyyy): 11-09-2017
 - Source: https://pastebin.com/Nm76cSsi
 - Source: https://pastebin.com/ERA7veiq
 - Source Accessed (dd-mm-yyyy): 20-06-2025
 
-## Army Pony(you need tf2 to see all the parts)
+## Description
+
+\<No Description\>

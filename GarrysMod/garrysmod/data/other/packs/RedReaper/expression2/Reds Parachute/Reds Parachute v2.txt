@@ -1,0 +1,111 @@
+@name Reds Parachute v2
+@inputs Deploy Latch:entity
+@outputs RetroRockets:number
+@persist Target:entity [ParaPoint ChuteOffset AntiGrav]:vector [HoloChuteSize ChuteOffsetDampening Grav AntiVel GravLimit RemoveOnGround GroundCheckTimer ChuteDeployed RetroRocketAltitude]:number
+@trigger Deploy
+#A simple parachute, which recreates air drag, drag from chute, and has some offset force up to make it work better with gmod
+ChuteDeployed = max(ChuteDeployed,Deploy)
+if(ChuteDeployed) {interval(20)} else {interval(300)}
+if(first() | duped() | dupefinished())
+{
+    PhysMass = 30
+    HoloChuteSize = 1
+    RemoveOnGround = 1
+    RetroRocketAltitude = 20
+    
+    #DONT EDIT BELOW HERE
+    Target = entity():isWeldedTo()
+    Grav = gravity()
+    GravLimit = Grav * 0.5
+    AntiGrav = vec(0,0,Grav) * 0.03 * PhysMass  #0.03 * mass * grav nearly nullifies gravity
+    ChuteOffset = vec(0,0,150)
+    ChuteOffsetDampening = -0.3 * PhysMass 
+    AntiVel = -0.005    #static dampening
+    
+    rangerPersist(1)
+    rangerFilter(entity():getConstraints())
+}
+else
+{
+    local Vel = Target:vel()
+    ParaPoint = entity():toWorld(ChuteOffset)
+    
+    if(changed(ChuteDeployed))
+    {
+        if(ChuteDeployed)
+        {
+            local DrawRopes = 1
+            #ifdef holoMaxAmount()
+            if(holoMaxAmount() < 60) {DrawRopes = 0}
+            #endif
+            #chute
+            holoCreate(1,entity():toWorld(vec(0,0,150)*HoloChuteSize),vec(15,15,15)*HoloChuteSize,entity():angles())
+            holoModel(1,"hq_hdome_thin")
+            holoParent(1,entity())
+            holoColor(1,Target:getColor())
+            holoMaterial(1,"WTP/cloth_2")
+            #ropes
+            if(DrawRopes)
+            {
+                holoCreate(2,entity():toWorld(vec(0,-45,76)*HoloChuteSize),vec(0.1,0.1,14.5)*HoloChuteSize,entity():toWorld(ang(0,0,30)))
+                holoModel(2,"hq_cylinder")
+                holoParent(2,1)
+                holoMaterial(2,"Models/Weapons/v_crossbow/string")
+                holoCreate(3,entity():toWorld(vec(0,45,76)*HoloChuteSize),vec(0.1,0.1,14.5)*HoloChuteSize,entity():toWorld(ang(0,0,-30)))
+                holoModel(3,"hq_cylinder")
+                holoParent(3,1)
+                holoMaterial(3,"Models/Weapons/v_crossbow/string")
+                holoCreate(4,entity():toWorld(vec(-45,0,76)*HoloChuteSize),vec(0.1,0.1,14.5)*HoloChuteSize,entity():toWorld(ang(-30,0,0)))
+                holoModel(4,"hq_cylinder")
+                holoParent(4,1)
+                holoMaterial(4,"Models/Weapons/v_crossbow/string")
+                holoCreate(5,entity():toWorld(vec(45,0,76)*HoloChuteSize),vec(0.1,0.1,14.5)*HoloChuteSize,entity():toWorld(ang(30,0,0)))
+                holoModel(5,"hq_cylinder")
+                holoParent(5,1)
+                holoMaterial(5,"Models/Weapons/v_crossbow/string")
+            }
+            #Soudn
+            soundPlay(1,0,"items/ammopickup.wav")
+            #Separates you from any latch you're welded to.
+            Latch:propDelete()
+            #ifdef entity:propFreeze(number)
+                Target:propFreeze(0)
+                entity():propFreeze(0)
+            #endif
+        }
+        else
+        {
+            for(I=1,5) {holoDelete(I)}
+        }
+        
+    }
+    #actual force
+    elseif(ChuteDeployed)
+    {
+        local ForceScaler = max(min(-Vel:z(),GravLimit) / GravLimit,0)
+        Target:applyOffsetForce($ParaPoint * ChuteOffsetDampening * (0.3 + ForceScaler),ParaPoint)
+        Target:applyForce(((Vel * ChuteOffsetDampening * AntiVel) + AntiGrav) * ForceScaler)
+        if(RemoveOnGround)
+        {
+            GroundCheckTimer++
+            if(GroundCheckTimer == 10)
+            {
+                local GroundTrace = rangerOffset(39.37,entity():pos(),vec(0,0,-1))  #2m
+                if(GroundTrace:hitWorld() | !GroundTrace:position():isInWorld())
+                {
+                    RetroRockets = 0
+                    selfDestruct()
+                }
+                GroundCheckTimer = 0
+            }
+        }
+        
+        if(RetroRocketAltitude)
+        {
+            local AltimeterTrace = rangerOffset(RetroRocketAltitude * 39.37,entity():pos(),vec(0,0,-1))
+            local Dist = AltimeterTrace:distance()
+            RetroRockets = (Dist < (RetroRocketAltitude * 39.37 * 0.99)) & (entity():vel()[3] < 0)
+        }
+    }
+}
+

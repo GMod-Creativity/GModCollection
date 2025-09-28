@@ -1,20 +1,32 @@
+# Expression 2 - Re: E2 how do u make something hover ?
+
+## Details
+
+### Author
+
 - Author: postman ([TBU-TEC] THE P)
 - Steam Profile: https://steamcommunity.com/profiles/76561197997916844
-- Youtube: https://www.youtube.com/@blankrofl
-<!-- -->
+- YouTube: https://www.youtube.com/@blankrofl
+
+### Publication Info
+
 - Title: Re: E2 how do u make something hover ?
 - Date (dd-mm-yyyy): 28-07-2011
 - Source: https://web.archive.org/web/20150427161915/http://www.wiremod.com/forum/wiremod-general-chat/26889-e2-how-do-u-make-something-hover.html#post240599
 - Source Accessed (dd-mm-yyyy): 31-08-2025
 
-## Re: E2 how do u make something hover ?
+### GMod Collection Comment
+
+- GModCollection Comment: With propcore entity:propGravity(0) can be used
+
+## Description
 
 I presume you're new to wiremod, so this probably wont do you any good, but others looking at this thread in the future may.
 
 First you create a ranger, using "rangerOffset(argument 1, argument 2, argument 3)"
 Code:
 
-```
+```plaintext
 Rng = rangerOffset()
 ```
 
@@ -25,21 +37,21 @@ The third argument is the prop's down direction (Prop:up()*-1) or (-Prop:up())
 Giving you:
 Code:
 
-```
+```plaintext
 Rng = rangerOffset(100,Prop:pos(),-Prop:up())
 ```
 
 You also need to filter the prop that will be hovering from the ranger's view, as the ranger will hit it.
 Code:
 
-```
+```plaintext
 rangerFilter(Prop)
 ```
 
 Then you need to detect when the ranger hits something, and in that statement you will make the prop go upwards.
 Code:
 
-```
+```plaintext
 if (Rng:hit()) 
 {
 }
@@ -48,14 +60,14 @@ if (Rng:hit())
 The amount of upward thrust is determined by subracting the ranger's distance by the height you want to hover at.
 Code:
 
-```
+```plaintext
 Diff = 40-Rng:distance()
 ```
 
 then you apply your force in the same statement:
 Code:
 
-```
+```plaintext
 Prop:applyForce((vec(0,0,Diff)*20-Prop:vel())*35)
 ```
 
@@ -64,7 +76,7 @@ Prop:applyForce((vec(0,0,Diff)*20-Prop:vel())*35)
 The final code being:
 Code:
 
-```
+```plaintext
 rangerFilter(Prop)
 Rng = rangerOffset(100,Prop:pos(),-Prop:up())
 

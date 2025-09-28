@@ -1,0 +1,219 @@
+--@name sfmdv2
+--@author gdawgs !!
+--@shared
+--@model models/props_lab/huladoll.mdl
+    
+    -------------------------------------------------------------------------------------------------------------------------------------------------
+    local disableESP        = false -- Disable the wallhacks
+    local disableChipESP    = false -- Disable highlighting sf and e2s through walls
+    local disableChipMenu   = false -- Disable pressing K to view all e2s and sfs
+    local disableHealthbars = false -- Disable healthbars on the wallhack
+    local hplength          = 75 -- How long the healthbars are
+    
+    -- Options for the K menu, sizing, position etc.
+    local offset  = {x = 0, y = 200} -- x and y offset for the panel, if you don't touch these it'll start at the top of the screen
+    local spacing = 18 -- spacing on the K menu, inbetween chips and owners
+    -------------------------------------------------------------------------------------------------------------------------------------------------
+
+    if SERVER then
+        
+        local function getQuota(ent)
+            local quota
+            pcall(function() quota = ent:getQuotaAverage() end)
+            quota = math.round( ( quota or 0 ) * 1000000 )
+            return quota
+        end
+        
+        local function genPlyChipTbl()
+            
+            local plys, height = {}, 0
+
+            for _, ply in pairs(find.allPlayers()) do
+                if not isValid(ply) then continue end 
+                plys[ply] = {sfs = {}, e2s = {}, totalcpu = 0} 
+            end
+            
+            for _, sf in pairs(find.byClass('starfall_processor')) do
+                if not isValid(sf) then continue end
+                if not plys[sf:getOwner()].sfs then continue end
+    
+                local label 
+                local cpu = getQuota(sf)
+                if sf:getChipName() == '' then label = '<no name>' else label = sf:getChipName() end 
+                plys[sf:getOwner()].sfs[#plys[sf:getOwner()].sfs+1] = {name = label, owner = sf:getOwner(), usage = cpu} 
+                plys[sf:getOwner()].totalcpu = plys[sf:getOwner()].totalcpu + cpu
+            end
+            
+            for _, e2 in pairs(find.byClass('gmod_wire_expression2')) do
+                if not isValid(e2) then continue end
+                if not plys[e2:getOwner()].e2s then continue end 
+                
+                local label 
+                local cpu = getQuota(e2)
+                if e2:getChipName() == '' then label = '<no name>' else label = e2:getChipName() end 
+                plys[e2:getOwner()].e2s[#plys[e2:getOwner()].e2s+1] = {name = label, owner = e2:getOwner(), usage = getQuota(e2)} plys[e2:getOwner()].totalcpu = plys[e2:getOwner()].totalcpu + cpu
+            end
+            
+            for ply, chips in pairs(plys) do
+                if #chips.sfs > 0 or #chips.e2s > 0 then height = height + 1 end
+                height = height + #chips.sfs + #chips.e2s
+            end
+            
+            net.start('transfertable')
+            net.writeTable(plys)
+            net.writeInt(height, 16)
+            net.send() 
+        end
+        
+        if not disableChipMenu then
+            timer.create('refreshchips', 1, 0, function()
+                genPlyChipTbl()
+            end)
+        end
+        
+    end
+
+    if CLIENT then
+        
+        -- setup the font for player text
+        local font = render.createFont(
+            'FontAwesome', -- Font name
+            18,    -- Size
+            800,   -- Weight (how bold)
+            false, -- Antialias
+            false, -- Additive
+            true,  -- Shadow
+            true,  -- Outline
+            0,     -- Blur size
+            false, -- Extended (Allow more UTF8 chars)
+            0      -- Scanlines
+        )
+        render.setFont(font)
+        
+        local tbl, wHeight = {}, 0
+        net.receive('transfertable', function()
+            tbl = net.readTable() 
+            wHeight = net.readInt(16)
+        end)
+        
+        if player() == owner() then
+        enableHud(owner(), true) end
+        
+        local players = find.allPlayers()
+        timer.create('refreshplayers', 3, 0, function() players = find.allPlayers() end) 
+        
+        if not disableESP then
+            
+            hook.add('postdrawopaquerenderables', 'drawbox', function()
+                
+                for k, ply in pairs(players) do
+                    if not isValid(ply) or ply == owner() then continue end 
+                    
+                    local pcolor
+                    if ply:isAlive() then pcolor = team.getColor(ply:getTeam()) else pcolor = Color(255,0,0) end
+                        
+                    render.setColor(pcolor) 
+                    render.draw3DWireframeBox(ply:getPos(), Angle(0,ply:getAngles().y,0), ply:obbMins(), ply:obbMaxs())
+                    
+                end
+                
+            end)
+            
+            hook.add('drawhud', 'drawesp', function()
+                
+                for k, ply in pairs(players) do
+                    if not isValid(ply) or ply == owner() then continue end
+                   
+                    local pcolor 
+                    local xycoords = ply:getPos():toScreen()
+                    if ply:isAlive() then pcolor = team.getColor(ply:getTeam()) else pcolor = Color(255,0,0) end
+                        
+                    if xycoords.visible then
+                        
+                        render.setColor(pcolor)
+                        render.drawText(xycoords.x, xycoords.y, ply:getName(), 0)
+                        
+                        if not disableHealthbars then
+                            
+                            if ply:isInBuild() == false then
+                        
+                                local php = math.clamp(ply:getHealth()/ply:getMaxHealth(),0,1)
+                                
+                                render.setColor(Color(255,0,0))
+                                render.drawRectFast(xycoords.x, xycoords.y+20, hplength, 5)
+                                render.setColor(Color(0,255,0))
+                                render.drawRectFast(xycoords.x, xycoords.y+20, (hplength*php), 5)
+                                
+                            end
+                         
+                        end
+                        
+                    end
+                    
+                end
+                
+            end)
+            
+        end
+        
+        if not disableChipMenu then
+            
+            hook.add('drawhud', 'drawkmenu', function()
+                
+                local x, y = render.getGameResolution()
+                local counter = 0
+            
+                if input.isKeyDown(KEY.K) then
+                    
+                    local xstart = x/2-x/8+offset.x
+                    
+                    if tbl then
+                        render.setColor(Color(0,0,0,245))
+                        render.drawRect(xstart,offset.y,x/4,12+spacing*wHeight)
+                        
+                        for ply, chips in pairs(tbl) do
+                            if #chips.sfs < 1 and  #chips.e2s < 1 then continue end 
+                            if not isValid(ply) then continue end 
+                            
+                            render.setColor(team.getColor(ply:getTeam()))
+                            render.drawText(xstart+offset.x+10,5+offset.y+spacing*counter,ply:getName(),0)
+                            render.setColor(Color(255*(math.clamp(chips.totalcpu,0,4000)/4000),0+255*(1-math.clamp(chips.totalcpu,0,4000)/4000),0))
+                            render.drawText(xstart-55+offset.x+xstart/1.5,5+offset.y+spacing*counter,tostring(chips.totalcpu)..'us',2)
+                            render.setColor(Color(255,255,255))
+                            render.drawText(xstart-10+offset.x+xstart/1.5,5+offset.y+spacing*counter,'Total',2)
+                            
+                            counter = counter + 1
+                            if #chips.sfs > 0 then
+                                for _, sf in pairs(chips.sfs) do
+                                    counter = counter + 1 
+                                    
+                                    render.setColor(Color(0,255,255))
+                                    render.drawText(xstart+offset.x+20,5+offset.y+spacing*(counter-1),'(SF)',0)
+                                    render.setColor(Color(255,255,255))
+                                    render.drawText(xstart+offset.x+56,5+offset.y+spacing*(counter-1),sf.name or '<no name detected>',0)
+                                    render.setColor(Color(255*(math.clamp(sf.usage,0,2000)/2000),0+255*(1-math.clamp(sf.usage,0,2000)/2000),0))
+                                    render.drawText(xstart-10+offset.x+xstart/1.5,5+offset.y+spacing*(counter-1),tostring(sf.usage)..'us',2)
+                                end
+                            end
+                            if #chips.e2s > 0 then
+                                for _, e2 in pairs(chips.e2s) do
+                                    counter = counter + 1
+                                    
+                                    render.setColor(Color(255,0,0))
+                                    render.drawText(xstart+offset.x+20,5+offset.y+spacing*(counter-1),'[E2]',0)
+                                    render.setColor(Color(255,255,255))
+                                    render.drawText(xstart+offset.x+56,5+offset.y+spacing*(counter-1),e2.name or '<no name detected>',0)
+                                    render.setColor(Color(255*(math.clamp(e2.usage,0,2000)/2000),0+255*(1-math.clamp(e2.usage,0,2000)/2000),0))
+                                    render.drawText(xstart-10+offset.x+xstart/1.5,5+offset.y+spacing*(counter-1),tostring(e2.usage)..'us',2)
+                                end
+                            end
+                        end 
+                    end
+                    
+                end
+            
+            end)
+            
+        end
+        
+    end

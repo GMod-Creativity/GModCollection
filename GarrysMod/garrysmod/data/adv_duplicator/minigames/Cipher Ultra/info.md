@@ -1,7 +1,15 @@
+# Advanced Duplicator - [E2] Holo Racing Minigames
+
+## Details
+
+### Author
+
 - Author: Cipher_Ultra
-- Youtube: https://www.youtube.com/user/CipherUltra
+- YouTube: https://www.youtube.com/user/CipherUltra
 - Steam Profile: https://steamcommunity.com/profiles/76561197978513282
-<!-- -->
+
+### Publication Info
+
 - Title: [E2] Holo Racing Minigames
 - Date (mm-yyyy): 12-2010
 - Source: https://web.archive.org/web/20110118075632/http://www.wiremod.com:80/forum/finished-contraptions/24045-e2-holo-racing-minigames.html
@@ -10,28 +18,58 @@
 - Source: https://gmods.org/view/6754
 - Source Accessed (dd-mm-yyyy): 11-08-2025
 
-## [E2] Holo Racing Minigames
+## Description
 
-**Main Features:**
+### Main Features
 
-Race Setup Mode
-Realistic acceleration and handling physics
-Automated Checkpoints and Scoring
+- Race Setup Mode
+- Realistic acceleration and handling physics
+- Automated Checkpoints and Scoring
 
-**E2 Holo Track Racers:**
+### E2 Holo Track Racers
 
-12 different Cars and Colours
-Three car types with different driving styles
-Cars can drift!
+<p float="left">
+  <img src="./images/track_preview.jpg" height="200"/>
+  <img src="./images/track.jpg" height="200"/>
+</p>
 
-**E2 Holo Boat Racers:**
+<!--
+![image1.1](./images/track_preview.jpg)
+![image1.2](./images/track.jpg)
+-->
 
-4 different Boats and full colour spectrum
-Realistic boat physics
-Dynamic checkpoint system allows for custom built circuits
+- 12 different Cars and Colours
+- Three car types with different driving styles
+- Cars can drift!
 
-**E2 Holo Air Racers:**
+### E2 Holo Boat Racers
 
-4 different Planes and full colour spectrum
-Realistic Plane physics
-Dynamic checkpoint system allows for custom built circuits
+<p float="left">
+  <img src="./images/boats_preview.jpg" height="200"/>
+  <img src="./images/boats.jpg" height="200"/>
+</p>
+
+<!--
+![image2.1](./images/boats_preview.jpg)
+![image2.2](./images/boats.jpg)
+-->
+
+- 4 different Boats and full colour spectrum
+- Realistic boat physics
+- Dynamic checkpoint system allows for custom built circuits
+
+### E2 Holo Air Racers
+
+<p float="left">
+  <img src="./images/planes_preview.jpg" height="200"/>
+  <img src="./images/planes.jpg" height="200"/>
+</p>
+
+<!--
+![image3.1](./images/planes_preview.jpg)
+![image3.2](./images/planes.jpg)
+-->
+
+- 4 different Planes and full colour spectrum
+- Realistic Plane physics
+- Dynamic checkpoint system allows for custom built circuits

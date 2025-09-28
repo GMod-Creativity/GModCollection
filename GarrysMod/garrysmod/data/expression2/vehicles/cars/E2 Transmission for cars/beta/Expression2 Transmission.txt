@@ -1,0 +1,42 @@
+@name Differential linkage
+@inputs [Wheel1 Wheel2 RotatingObject]:entity Gearup Geardown Base:entity RPM
+@outputs Gear Ratio Clutch
+@persist Ratio Constant DifRat Gear Math1 Math2 FinalMass BoxSize Gears:array AngVelMult Clutch
+@trigger
+runOnTick(1)
+if(first()) {
+    Ratio = 3.38
+    DifRat = 1
+    AngVelMult = 3
+    #Change Constant if stability is shit
+    Constant = 800
+    BoxSize = (Wheel1:boxSize():x()+Wheel1:boxSize():y()+Wheel1:boxSize():z())/3
+    FinalMass = 3150
+
+    Gears = array(16.22,8.15,4.5,2.1,1.05,0.5)
+}
+AngVel1 = -Wheel1:angVel():pitch()
+AngVel2 = RotatingObject:angVel():yaw()/(Ratio+DifRat)*AngVelMult
+Math1 = floor((((AngVel1-AngVel2))*FinalMass*BoxSize-RotatingObject:mass()))/Constant
+Math2 = floor((((AngVel2-AngVel1))*abs((Wheel1:mass()*2)-RotatingObject:mass())))/Constant
+if(Gear >= 1|Gear == -1&!Base:isPlayerHolding()) {
+Wheel1:applyAngForce(Clutch*ang(Math1,0,0))
+Wheel2:applyAngForce(Clutch*ang(Math1,0,0))
+RotatingObject:applyAngForce(Clutch*ang(0,-Math2*(Wheel1:mass()/(Ratio+DifRat)),0))
+}
+if(changed(Gearup)&Gearup&Gear < 6) {
+    Gear++
+    Ratio = Gears[Gear,number]/2
+    print(Gear)
+}
+elseif(changed(Geardown)&Geardown&Gear > -1) {
+    Gear--
+    if(Gear == -1) {
+     Ratio = 6.22/Gear
+    }
+    else{
+    Ratio = Gears[Gear,number]/2
+}
+print(Gear)
+}
+Clutch = 1

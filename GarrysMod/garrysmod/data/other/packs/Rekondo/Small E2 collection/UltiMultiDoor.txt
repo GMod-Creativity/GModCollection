@@ -1,0 +1,118 @@
+@name UltiMultiDoor
+@inputs Keypad1 Keypad2 Clk Entity:entity
+@persist Anim BasePos:vector Dist Speed Trusted:array E:entity L
+@persist All H:entity Open Angle:angle
+if (first()|dupefinished()){
+    runOnTick(1)
+    runOnChat(1)
+    
+    #Variables
+    Model="models/hunter/plates/plate3x4.mdl"
+    Material="phoenix_storms/dome"
+    Dist=90
+    Speed=4
+    Trusted:pushEntity(owner())
+    All=1
+    
+    Check=ranger(10)
+    
+    #Door assignment
+    if (->Entity){
+        E=Entity
+        Angle=E:angles()
+        print("Using wired entity!")
+    } elseif (entity():isWeldedTo():type()=="prop_physics"){
+        E=entity():isWeldedTo()
+        Angle=E:angles()
+        print("Using pre-placed prop!")
+    } elseif (Check:hit()) {
+        E=Check:entity()
+        Angle=E:angles()
+        print("Using existing door!")
+    } else {
+        T1=ranger(1000)
+        P1=rangerOffset(1000,entity():pos(),vec(0,0,-1)):pos()
+        P2=rangerOffset(1000,entity():pos(),vec(0,0,1)):pos()
+        P4=P2+entity():up()*T1:distance()
+        MID=(P1+P4)/2
+        Angle=entity():angles()+ang(0,90,0)
+        E=propSpawn(Model,MID,entity():angles()+ang(0,90,0),1)
+        E:setMaterial(Material)
+        print("Spawning door...")
+    }
+    
+    #Size calculations
+    BasePos=E:pos()
+    holoCreate(1,BasePos)
+    holoAlpha(1,0)
+    H=holoEntity(1)
+    Top=E:nearestPoint(E:pos()+vec(0,0,1000))
+    Bot=E:nearestPoint(E:pos()-vec(0,0,1000))
+    L=Bot:distance(Top)
+}
+
+if (chatClk(owner())){
+    if (owner():aimEntity()==E){
+        S1=owner():lastSaid():explode(" ")[1,string]
+        S2=owner():lastSaid():explode(" ")[2,string]
+        
+        if (S1==".lock"){
+            All=All ? 0 : 1
+            if (All){
+                print(4,"Door unlocked!")
+            } else {
+                print(4,"Door secured!")
+        }
+        }
+    }
+}
+
+if (Keypad1|Keypad2|Clk){
+    Open=1
+} else {
+    if (All){
+        for (I=1,players():count()){
+            TP=players()[I,entity]
+            Open=0
+            if (TP:shootPos():distance(H:pos())<Dist){
+                Open=1
+                break
+            }
+        }
+    } else {
+        for (I=1,Trusted:count()){
+            TP=Trusted[I,entity]
+            Open=0
+            if (TP:shootPos():distance(H:pos())<Dist){
+                Open=1
+                break
+            }
+        }
+    }
+}
+
+if (changed(Open)&!(first()|dupefinished())){
+    if (Open){
+        H:soundPlay(1,2,"doors/doormove2.wav")
+    }
+    if (!Open){
+        H:soundPlay(1,2,"doors/doormove3.wav")
+    }
+}
+
+if (Open){
+    if (Anim<L){
+        Anim=Anim+Speed
+    }
+} elseif (!Open){
+    if (changed(Open)){
+        
+    }
+    if (Anim>0){
+        Anim=Anim-Speed
+    }
+}
+
+E:setPos(BasePos+vec(0,0,Anim))
+E:setAng(Angle)
+E:propFreeze(1)

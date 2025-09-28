@@ -1,14 +1,22 @@
+# Expression 2 - EGP oscilloscope (with lagometer example)
+
+## Details
+
+### Author
+
 - Author: Tolyzor
 - Steam Profile: https://steamcommunity.com/profiles/76561197980070446
-- Youtube: https://www.youtube.com/user/Heatseeker1
+- YouTube: https://www.youtube.com/user/Heatseeker1
 - Github: https://github.com/Tolyzor
-<!-- -->
+
+### Publication Info
+
 - Title: EGP oscilloscope (with lagometer example)
 - Date (dd-mm-yyyy): 20-11-2010
 - Source: https://web.archive.org/web/20111224155804/http://www.wiremod.com:80/forum/finished-contraptions/23616-egp-oscilloscope-lagometer-example.html
 - Source Accessed (dd-mm-yyyy): 29-08-2025
 
-## EGP oscilloscope (with lagometer example)
+## Description
 
 Although its very simple I've seen a few people struggling to grasp the concept of how to code this, and have been getting quite a few requests for a dupe, so...
 

@@ -1,0 +1,1410 @@
+--@name Custom Mesh Collision from OBJ V1.68.c
+--@author [C17] Red Fox
+--@shared
+
+--[[
+V1.68.c
+Should now respect http limits automatically
+
+V1.68
+Bunch of new spaghetti code that should allow for faster spawning(whitin limits of course), atleast hopefully
+
+V1.66c
+Actual correct ACF version check, proper default to legacy armor calculation
+
+V1.66
+Prop Table for filtering, in case you need them, please do some table merging with SF for full effect
+
+v1.65 NEW
+New ACE armor function, thanks RDC and ItsNotEd
+Proper armor, ductility and types(see the armor id list below)
+Must be on ACE Version 502 and up otherwise it will default to a somewhat wrong way of doing it
+
+V1.64 NEW
+Added some options for spawning delay among some others
+
+V1.62 NEW
+Added debug for vertice distance error
+Added optional variables for mesh configs, will default to those in a table
+
+############################################################################################################################################################
+V1.60 NEW:
+Actual ACF thickness, or atleast close enough to it, replaces prop weight if used
+Only one type of material though, the default one(RHA)
+############################################################################################################################################################
+
+TO DO:
+
+Improve debugging to be more compact
+
+############################################################################################################################################################
+
+Might have bugs and whatnot, you have been warned
+
+PLEASE READ THESE NOTES, dont come nagging to me later if you dont
+
+[1] Link the Base entity to set what entity will be the one to set position, angles and so on.
+The Wheels array is to what extra nocollides it will put on
+Parent entity is what it will be parented to instead of Base, doesnt inherit the postion and angles, for that use the Base
+If using parent DISABLE all constraint based settings, for your own good
+
+############################################################################################################################################################
+
+[2] This was never meant to be used for ACF combat, so its support is minimal at best
+Make sure all your collisions are convex, this chip can handle up to 10 convex models, by default, as a single prop
+To make sure you dont use extra server resources by checking for ACF prop health make this checkForACFHealth false
+Just beware that if that object is removed by ACF damage(and maybe others?) an error.mdl will appear
+If you dont want that to happen just enable that and set the acfThresholdHealth to what health it should remove before acf itself removes
+It might still happen if the damage is higher than it can handle in a single shot
+YOU CAN set ACF armor by adjusting its weight / thickness setting, but since its was never meant to be used like this, ductility and different material
+types is not something that can be set, youll have to live with that
+
+############################################################################################################################################################
+
+[3] If you choose to not use parent, this chip will use welds, nocollides and inertia for collisions
+To make it stay in place and be stable, it will weld and nocollide between each CUSTOM PROP (not convex model) and the base prop
+It will nocollide with the WheelsF and WheelsB array as well, but not weld
+Try to keep the convex models up to 10 for good practice, unless the server has a higher value, if so then you will need to edit
+A small part of the chip ( local threshold = 10 ) to make sure everything can be in a single prop
+DEFAULT FOR SERVERS IS 10!
+
+############################################################################################################################################################
+
+[4] Of course since it creates physical props its own set of issues can arise, like weight distribution, inertia and so on,
+specially when there is more than a single custom prop
+Apparently the mesh name(in the .obj data) influences what will be part of which custom prop,
+Like so: cube.010 and cube.011, cube.011 will be part of another custom prop
+Havent fully tested this though, so take with a grain of salt
+
+############################################################################################################################################################
+
+[5] If your vehicle is too long you might need to separate it in parts for more stability
+like so:
+front, middle, rear collision meshes (.OBJs)
+
+############################################################################################################################################################
+
+[6] You need some 3D modelling knowledge to fully use this
+Refer here to some info:
+
+https://developer.valvesoftware.com/wiki/Collision_mesh
+https://en.wikipedia.org/wiki/Convex_set
+
+Some stuff dont apply here though
+Like the shade smooth
+
+############################################################################################################################################################
+
+[7] ISSUES!!!
+
+1) Even if the props are made to not be duped, the constraints remain
+Whenever spawned by duping, it will error those constraints
+
+2) No two vertices can have a distance less than 0.5 or something similar when spawning
+
+3) Saggy collision mesh, specially with longer vehicles
+
+4) Errors spawn when using with ACF damage
+
+5) Errors when spawning using individual col meshes option or overall fail to spawn
+
+6) Failed to create bath X
+
+7) My ACF props arent setting to the correct thickness!!
+
+8) Its eating my FPS!!!!
+
+############################################################################################################################################################
+
+[8] FIXES / NOTES!!
+
+1) You use the !sfdel command before duping, this will remove ALL the constraints and custom props made by the chip
+Then use the !sfres to reset the chip and respawn those custom props again
+YOU MUST BE LOOKING at one of the custom props, base, or wheels!
+
+2) Try merging vertices little by little until it stops erroring, or make it thicker
+thats a starfall thing and or server setting?, cant do much about that
+    
+3) Thats source for you, try splitting it into parts,
+even if your vehicle is small you might need to do that to retain rigity,
+play with weight and inertia, might help
+
+4) Refer to note [2]
+
+5) Add some delay to spawning, seens to be some hard limit on the delay you can spawn things(maybe)
+
+6) Most likely you hit the custom prop limit (maybe?), thats an server issue, try reducing the number of individual meshes, ie, side plates in a single .obj
+
+7) Seens to happen mostly with smaller meshes, individual single mesh ones as well, but not always, try setting the thickness higher so that it matches with
+the ACF armor tool
+
+8) Seens the more custom props it has the more it will eat your fps, cant do much about that, try optmizing your stuff to use less props as possible
+This isnt some magical do it all chip, youll have to do your part as well
+    
+9) If you want more props or more props per second to spawn before erroring, ask your server operators to change these:
+
+sf_http_requests_max to something like like 10, default 3
+sf_props_burstmax to something like like 20, default 4
+sf_props_burstrate to something like like 20, default 4
+
+That way you can spawn as fast as normal props
+############################################################################################################################################################
+
+
+[9] Explaining of each possible config
+
+    {
+        url = "", ########################################### URL for the .Obj file to load the collisions from
+        ColorAndAlpha = Color(255, 255, 255, GlobalAlpha), ## Self Explanatory
+        offsetPos = Vector(0, 0, 0), ######################## Offset from the Base / chip(if base not linked) entity
+        offsetAngle = Angle(0, 0, 0), ####################### Same as above but for angles
+        inertia = Vector(10, 10, 10), ####################### Inertia values, can affect rigidity
+        propWeight = 1, ##################################### Self Explanatory
+        thickness = 0, ###################################### ACF prop thickness
+        ductility = 0, ###################################### ACF armor ductility (ACE Ver 502 and higher)
+        armorType = "RHA", ################################## ACF Armor type, must use correct ID (ACE Ver 502 and higher)
+        useParent = false, ################################## Whether the object will use parent or not, if parent it will NOT retain collisions, mostly useful for ACF combat stuff (maybe)
+        enableGravity = false, ############################## Self Explanatory
+        enableMotion = false, ############################### Frozen when spawned
+        enableDrag = false, ################################# Self Explanatory
+        useCustomParentEnt = true, ########################## Use the parent entity instead of the base, for parenting, it will still use the base for position and whatnot however
+        acfThresholdHealth = 5, ############################# Health threshold for ACF, removes prop when health is below this, fixes error.mdl when destroyed, don't set too low or high?
+        checkForACFHealth = false, ########################## Enable or disable ACF health checking
+        weldWithOtherEnts = true, ########################### Will it weld with other props from the meshConfig table?
+        nocollideWithOtherEnts = true, ###################### Will it nocollide with other props from the meshConfig table?
+        linearDamping = 0, ################################## Same as speed damping
+        rotDamping = 0, ##################################### Same as rotation damping
+        buoyancyRatio = 0, ################################## Self Explanatory
+        physMaterial = "metalvehicle" ####################### Self Explanatory
+        allowNocollideWithFWheels = true, ################### Should the prop collide with the front wheels?
+        allowNocollideWithBWheels = true, ################### Should the prop collide with the back wheels?
+        allowIndividualColMeshes = false, ################### When true, each convex mesh becomes its own prop
+    },
+    
+    
+[10] Armor Types IDs
+
+    Alum - Aluminum
+    CHA - Cast homogenous armor
+    Cer - Ceramic
+    DU - Depleted Uranium
+    ERA - Explosive Reactive Armor
+    RHA - Rolled homogenous armor
+    Rub - Rubber
+    Texto - Textolite
+    Ti - Titanium
+
+    
+]]--
+
+--Settings Below--------------------------------------------------------------------------------------------------------------------------------
+if SERVER then
+-- Global table to track entities and their health thresholds
+
+    entityHealthTable = {}
+    
+    Props = {}
+    
+    propTable = propTable or {}
+    
+    -- Add near the other global variables
+    spawnQueue = {}
+
+local configsProcessed = 0
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+    GlobalAlpha = 255 --What alpha should the props be when finished spawning?
+    checkVertDistance = true  -- Global enable/disable vertex distance checking
+    vertThreshold = 0.5      -- Global minimum allowed distance between vertices, devault for most servers should be 0.5
+    simplifiedVertDebug = true  -- Global vertex error simplified debug message toggle, more like a different style than a really simplified
+    printConvexNumber = false --Print number of convex meshes per custom prop
+    printACFremoval = false --Prints removal of ACF props, if health enabled
+    PrintACFVersionError = false --If you have more than one chip, disable this in them
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+-- Global variable to control simultaneous processing and others
+    allowSimultaneousProcess = true  -- Default to false for safety
+    maxSimultaneousHTTPRequests = 10   -- Maximum number of simultaneous HTTP requests, setting to 1 is the same as setting the above to false,
+    -- should automatically respect http request limit from the sever
+    
+ ----------------------------------------------------------------------------------------------------------------------------------------------------------------   
+                                
+    spawnDelay = 0.5 -- Delay between batches in seconds, for props in each collision mesh, dont set too low or it might error when spawning
+    printInteractionsForEachProp = false  -- Global toggle for interaction message behavior
+    
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+    
+    setAlphaWhenProcessing = true  -- Global toggle for processing alpha visibility, recommended to set to true if not debugging or working on the mesh
+    processingAlpha = 255          -- Alpha value during processing
+    
+--Dont mess with this-------------------------------------------------------------------------------------------------------------------------------------------  
+
+    totalPropsToSpawn = 0         -- Track total number of props we expect to spawn
+    totalPropsSpawned = 0         -- Track how many props have actually spawned
+    
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+    
+    completionHandled = false     -- Flag to ensure completion only happens once
+    debugCompletion = false      -- Toggle for completion debugging, only recommended if something is really wrong, otherwise just keep off
+    
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+-- Table of mesh configurations, your actual mesh, settings and whatnot here
+
+local meshConfigs = {
+
+    {
+        url = "https://dl.dropbox.com/scl/fi/cy84dtuykskk2rwvjkkzl/front.obj?rlkey=oj07ai6sr3h3yjxowokquygwg&dl=0", --Obj file
+        ColorAndAlpha = Color(255, 0, 255, GlobalAlpha),
+
+        inertia = Vector(50, 50, 50),
+        propWeight = 150,
+        weldWithOtherEnts = true,
+        nocollideWithOtherEnts = true,
+
+        physMaterial = "metalvehicle",
+        allowNocollideWithFWheels = true,
+        allowNocollideWithBWheels = false
+    },
+    
+    {
+        url = "urlhere", --Obj file
+        ColorAndAlpha = Color(255,255, 255, GlobalAlpha),
+
+        inertia = Vector(50, 50, 50),
+        propWeight = 150,
+        weldWithOtherEnts = true,
+        nocollideWithOtherEnts = true,
+
+        physMaterial = "metalvehicle",
+        allowNocollideWithFWheels = true,
+        allowNocollideWithBWheels = true
+    },
+    
+ 
+     
+  
+}
+    
+    
+  
+
+
+--Default values for the meshconfig table, if one value isnt in it, it will default to one of these in here
+
+local function getConfigWithDefaults(config)
+    local defaults = {
+        url = "", -- This must be provided
+        ColorAndAlpha = Color(255, 255, 255, GlobalAlpha),
+        offsetPos = Vector(0, 0, 20),
+        offsetAngle = Angle(0, 0, 0),
+        inertia = Vector(10, 10, 10),
+        propWeight = 1,
+        thickness = 0,
+        ductility = 0,
+        armorType = "RHA",
+        useParent = false,
+        enableGravity = true,
+        enableMotion = false,
+        enableDrag = false,
+        useCustomParentEnt = false,
+        acfThresholdHealth = 5,
+        checkForACFHealth = true,
+        weldWithOtherEnts = false,
+        nocollideWithOtherEnts = false,
+        linearDamping = 0,
+        rotDamping = 0,
+        buoyancyRatio = 0,
+        physMaterial = "default",
+        allowNocollideWithFWheels = false,
+        allowNocollideWithBWheels = false,
+        allowIndividualColMeshes = false
+
+    }
+    
+    
+    
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+--Dont mess with anything below unless you know what you are doing
+
+    wire.adjustPorts({
+        Base = "entity",
+        WheelsF = "array",
+        WheelsB = "array",
+        Parent = "entity",
+    },{Props = "array",
+    Complete = "number",})
+
+wire.ports.Complete = 0    
+
+-- More comprehensive isAllProcessingComplete function
+local function isAllProcessingComplete()
+    -- Check for active HTTP requests
+    if http.getActiveRequests() > 0 then
+        if debugCompletion then
+            print("Still waiting for HTTP requests to complete")
+        end
+        return false
+    end
+    
+    -- Check if all configs have been processed
+    if configsProcessed < #meshConfigs then
+        if debugCompletion then
+            print(string.format("Config processing incomplete: %d/%d", configsProcessed, #meshConfigs))
+        end
+        return false
+    end
+    
+    -- Check if all props have been spawned
+    if totalPropsSpawned < totalPropsToSpawn then
+        if debugCompletion then
+            print(string.format("Prop spawning incomplete: %d/%d", totalPropsSpawned, totalPropsToSpawn))
+        end
+        return false
+    end
+    
+    -- Check for pending spawn queue items
+    if spawnQueue and #spawnQueue > 0 then
+        if debugCompletion then
+            print(string.format("Spawn queue not empty: %d items remaining", #spawnQueue))
+        end
+        return false
+    end
+    
+    return true
+end
+
+function handleCompletion()
+    -- If already handled, don't do it again
+    if completionHandled then return end
+    
+    -- More thorough completion check
+    if configsProcessed < #meshConfigs then
+        if debugCompletion then
+            print(string.format("Completion check: waiting for configs - %d/%d", 
+                configsProcessed, #meshConfigs))
+        end
+        return
+    end
+    
+    if totalPropsSpawned < totalPropsToSpawn then
+        if debugCompletion then
+            print(string.format("Completion check: waiting for props - %d/%d", 
+                totalPropsSpawned, totalPropsToSpawn))
+        end
+        return
+    end
+    
+    if http.getActiveRequests() > 0 then
+        if debugCompletion then
+            print(string.format("Completion check: waiting for HTTP - %d active", 
+                http.getActiveRequests()))
+        end
+        return
+    end
+    
+    -- Set flag to prevent multiple executions
+    completionHandled = true
+    
+    --print("Mesh processing completed successfully!")
+    
+    -- Use a timer to ensure everything has finished processing
+    timer.simple(spawnDelay * 2, function()
+        -- Handle alpha changes
+        if setAlphaWhenProcessing then
+            for _, propData in ipairs(propTable) do
+                if propData.entity and propData.entity:isValid() then
+                    local finalColor = Color(
+                        propData.originalColor.r,
+                        propData.originalColor.g,
+                        propData.originalColor.b,
+                        GlobalAlpha
+                    )
+                    propData.entity:setColor(finalColor)
+                end
+            end
+        end
+        
+        -- Handle interactions message
+        if not printInteractionsForEachProp then
+            print("All prop interactions handled.")
+        end
+        
+        -- Update wire ports
+        wire.ports.Complete = 1
+        wire.ports.Props = Props
+        
+        -- Final network update
+        networkPropsToClients()
+        
+        -- Clear the processing flag
+        isProcessing = false
+    end)
+end
+
+
+    
+    -- Check if config is provided
+    if not config then return defaults end
+    
+    -- Create a new table with default values
+    local finalConfig = table.copy(defaults)
+    
+    -- Override defaults with provided values
+    for k, v in pairs(config) do
+        finalConfig[k] = v
+    end
+    
+    return finalConfig
+end
+
+-- Function to extract filename from URL
+local function getObjNameFromURL(url)
+    local parts = string.split(url, "/")
+    local lastPart = parts[#parts]
+    if not lastPart then return "unknown" end
+    
+    -- Remove URL parameters and .obj extension
+    local filename = string.split(lastPart, "?")[1]
+    filename = string.gsub(filename, "%.obj$", "")
+    
+    return filename or "unknown"
+end
+
+
+local function calculateACFArea(ent)
+    local physObj = ent:getPhysicsObject()
+    if physObj:isValid() then        
+        return (physObj:getSurfaceArea() * 2.70945)    --trial and error, its close enough to actual acf final weight, without ductility   
+    end
+    return 1 -- Fallback value if physObj is invalid
+end
+
+-- Function to calculate weight based on thickness and area
+local function calculateWeightFromThickness(area, thickness)
+    local weight = area * (1 + 0) ^ 0.5 * thickness * 0.00078 * 1.25 -- Convert to kg
+    return weight
+end
+
+local function checkVertexDistances(vertices, threshold)
+    local failures = {}
+    for i = 1, #vertices do
+        for j = i + 1, #vertices do
+            local dist = vertices[i]:getDistance(vertices[j])
+            if dist < threshold then
+                table.insert(failures, {vertex1 = i, vertex2 = j, distance = dist})
+            end
+        end
+    end
+    return failures
+end
+
+-- Function to parse .obj file data
+local function parseObjFile(data)
+    local lines = data:split("\n")
+    local currentObject = nil
+    objects = {}  -- Reset objects for each configuration
+    
+    for _, line in ipairs(lines) do
+        local parts = line:split(" ")
+        local prefix = parts[1]
+        
+        if prefix == "o" then
+            -- New object
+            currentObject = { 
+                name = parts[2] or "unnamed_object", -- Store object name
+                vertices = {} 
+            }
+            table.insert(objects, currentObject)
+        elseif prefix == "v" and currentObject then
+            -- Vertex
+            local x = tonumber(parts[2])
+            local y = tonumber(parts[3])
+            local z = tonumber(parts[4])
+            table.insert(currentObject.vertices, Vector(x, y, z))
+        end
+    end
+end
+
+-- Function to create and weld custom props
+local function createCustomProps(config)
+    
+    config = getConfigWithDefaults(config)
+    
+     if not config.url or config.url == "" then
+        error("URL is required in mesh configuration")
+        return
+end
+    
+
+    -- Get the base entity from wire ports
+    local base = wire.ports.Base
+    local parent = wire.ports.Parent
+
+    -- Fallback to chip if base entity is not valid
+    if not base or not base:isValid() then
+        base = chip()
+    end
+    
+  local objName = getObjNameFromURL(config.url)
+
+    -- Collect convexes from all objects
+    local function collectConvexes()
+        allConvexes = {}  -- Reset allConvexes for each configuration
+        local failedMeshes = {}  -- Track failed meshes
+        
+        for _, obj in ipairs(objects) do
+            if #obj.vertices > 0 then
+                -- Check vertex distances if enabled globally
+                if checkVertDistance then
+                    local failures = checkVertexDistances(obj.vertices, vertThreshold)
+                    if #failures > 0 then
+                        table.insert(failedMeshes, obj.name)
+                        continue -- Skip this mesh
+                    end
+                end
+                
+                -- Create a convex part from the vertices
+                local convex = obj.vertices
+                table.insert(allConvexes, convex)
+            end
+        end
+
+        -- Output failed meshes in a single line if any exist
+        if #failedMeshes > 0 then
+            if simplifiedVertDebug then
+                print(string.format("\n%s - Mesh(es) \"%s\" has failed some vertex distance checks, skipping mesh(es)", 
+                    objName, 
+                    table.concat(failedMeshes, "\", \"")
+                ))
+            else
+                print(string.format("\n%s - The following meshes failed vertex distance checks (threshold: %.2f):", 
+                    objName, 
+                    vertThreshold
+                ))
+                print("  - " .. table.concat(failedMeshes, "\n  - "))
+            end
+        end
+        
+        if printConvexNumber then
+            print("Total convexes collected: " .. #allConvexes)
+        end
+    end
+
+local function handlePropInteractions(wheelsF, wheelsB)
+    local nonParentProps = {}
+    
+    -- First, collect all props that don't use parent
+    for _, prop in ipairs(propTable) do
+        if prop and prop.entity and prop.entity:isValid() and not prop.config.useParent then
+            table.insert(nonParentProps, prop)
+        end
+    end
+    
+    -- Apply constraints between non-parent props
+    for i = 1, #nonParentProps do
+        for j = i + 1, #nonParentProps do
+            local prop1 = nonParentProps[i]
+            local prop2 = nonParentProps[j]
+            
+            if prop1.config.weldWithOtherEnts and prop2.config.weldWithOtherEnts then
+                constraint.weld(prop1.entity, prop2.entity, 0, 0, 0, true)
+            end
+            
+            if prop1.config.nocollideWithOtherEnts and prop2.config.nocollideWithOtherEnts then
+                constraint.nocollide(prop1.entity, prop2.entity, 0, 0)
+            end
+        end
+    end
+    
+    -- Apply nocollide with front wheels for non-parent props
+    if wheelsF then
+        for _, prop in ipairs(nonParentProps) do
+            if prop.config.allowNocollideWithFWheels then
+                for _, wheel in ipairs(wheelsF) do
+                    if wheel and wheel:isValid() then
+                        constraint.nocollide(prop.entity, wheel, 0, 0)
+                    end
+                end
+            end
+        end
+    end
+    
+    -- Apply nocollide with back wheels for non-parent props
+    if wheelsB then
+        for _, prop in ipairs(nonParentProps) do
+            if prop.config.allowNocollideWithBWheels then
+                for _, wheel in ipairs(wheelsB) do
+                    if wheel and wheel:isValid() then
+                        constraint.nocollide(prop.entity, wheel, 0, 0)
+                    end
+                end
+            end
+        end
+    end
+    
+    -- Only print if printInteractionsForEachProp is true
+    if printInteractionsForEachProp then
+        print("All prop interactions handled.")
+    end
+end
+
+-- Function to check hull size using obbSize instead of manually calculating bounds
+local function getHullSize(ent)
+    if not ent or not ent:isValid() then return 0 end
+    local obbSize = ent:obbSize()
+    return math.max(obbSize.x, obbSize.y, obbSize.z)
+end
+
+-- Modify the createPropsWithThreshold function to handle individual convex meshes
+local function createPropsWithThreshold()
+    local threshold = 10  -- Number of convexes per prop
+    local hullSizeLimit = 2048 -- Maximum hull size limit
+    
+local function splitConvexesIntoTables(allConvexes)
+        -- Reset the count when starting a new mesh
+    if configsProcessed == 0 then
+        totalPropsToSpawn = 0
+        totalPropsSpawned = 0
+    end
+    
+    if not allConvexes or #allConvexes == 0 then
+        print("Warning: No convexes to split into tables")
+        totalPropsToSpawn = totalPropsToSpawn + 0  -- No additional props to spawn
+        return {}
+    end
+    
+    -- If allowIndividualColMeshes is true, convert each convex into its own separate batch
+    if config.allowIndividualColMeshes then
+        local individualConvexTables = {}
+        for _, convex in ipairs(allConvexes) do
+            table.insert(individualConvexTables, {convex})
+        end
+        totalPropsToSpawn = totalPropsToSpawn + #individualConvexTables
+        return individualConvexTables
+    end
+    
+    -- Rest of the existing logic remains the same...
+    local convexTables = {}
+    
+   -- If total number of convexes is 10 or less, return a single table
+    if #allConvexes <= 10 then
+        totalPropsToSpawn = totalPropsToSpawn + 1
+        return {allConvexes}
+    end
+    
+    local currentTable = {}
+    local currentTableVertexCount = 0
+    local batchCount = 0
+    
+    for _, convex in ipairs(allConvexes) do
+        -- Check if adding this convex would exceed the threshold
+        if #currentTable >= 10 or currentTableVertexCount + #convex > 256 then
+            table.insert(convexTables, currentTable)
+            batchCount = batchCount + 1
+            currentTable = {}
+            currentTableVertexCount = 0
+        end
+        
+        table.insert(currentTable, convex)
+        currentTableVertexCount = currentTableVertexCount + #convex
+    end
+    
+    -- Add the last table if not empty
+    if #currentTable > 0 then
+        table.insert(convexTables, currentTable)
+        batchCount = batchCount + 1
+    end
+    
+    totalPropsToSpawn = totalPropsToSpawn + batchCount
+    return convexTables
+end
+
+    -- Organize convexes into multiple tables
+    local convexTableBatches = splitConvexesIntoTables(allConvexes)
+    
+    
+-- Function to attempt prop creation
+local function attemptCreateProp(convexBatch, objName)
+    -- Ensure we can spawn before trying
+    if not prop.canSpawn() then
+        print("Prop spawn blocked, delaying...")
+        return nil
+    end
+    
+    local success, ent = pcall(function()
+        return prop.createCustom(
+            base:localToWorld(config.offsetPos),
+            base:localToWorldAngles(config.offsetAngle),
+            convexBatch,
+            true
+        )
+    end)
+    
+    if success and ent and ent:isValid() then
+        table.insert(Props, ent)
+        return ent
+    else
+        print(string.format("Failed to create prop for object: \"%s\"", objName))
+        return nil
+    end
+end
+
+
+
+    -- Modify the processEntities function inside createPropsWithThreshold
+local function processEntities(ent)
+    if not ent or not ent:isValid() then return end
+    
+    
+    -- Detailed logging for hull size
+    local hullSize = ent:obbSize()
+    local maxDimension = math.max(hullSize.x, hullSize.y, hullSize.z)
+    
+    if maxDimension > hullSizeLimit then
+        print(string.format(
+            "WARNING: Prop hull size %.2f exceeds limit of %d. Prop may not spawn correctly. Dimensions: %s", 
+            maxDimension, hullSizeLimit, tostring(hullSize)
+        ))
+    end
+    
+    -- Rest of the existing processing logic
+    if config.useParent then
+        if config.useCustomParentEnt and parent:isValid() then
+            ent:setParent(parent)
+        else
+            ent:setParent(base)
+        end
+    else
+        constraint.weld(ent, base, 0, 0, 0, true)
+    end
+    
+    local physObj = ent:getPhysicsObject()
+    local area = calculateACFArea(ent)
+        
+local weight = 1 -- Default weight
+
+if acf and config.thickness and config.thickness > 0 then
+    if type(acf.getVersion) == "function" then
+        if acf.getVersion() >= 502 then
+            -- ACF 502+ detected, use aceSetArmorProperties
+            ent:aceSetArmorProperties(config.thickness, config.ductility, config.armorType)
+            weight = ent:getMass() -- Preserve existing mass
+        else
+            -- Print warning only once if ACF version is outdated
+            if not acfVersionWarned then
+                if PrintACFVersionError then
+                    print("[WARNING] ACE version is below 502. Using legacy armor calculation. Might result in incorrect armor values")
+                end
+                acfVersionWarned = true
+            end
+            weight = calculateWeightFromThickness(area, config.thickness) --  Always set weight
+        end
+    else
+        -- Print warning only once if acf.getVersion is missing
+        if not acfCheckWarned then
+                if PrintACFVersionError then
+                    print("[WARNING] Incorrect ACF version or using ACF3. Using legacy armor calculation. Might result in incorrect armor values")
+                end
+            acfCheckWarned = true
+        end
+        weight = calculateWeightFromThickness(area, config.thickness) --  Always set weight
+    end
+elseif config.propWeight then
+    -- Use propWeight if thickness isn't set
+    weight = config.propWeight
+end
+
+--  Ensure mass is always set
+ent:setMass(weight)
+
+
+    ent:setInertia(config.inertia)
+    ent:enableMotion(config.enableMotion)
+    ent:enableGravity(config.enableGravity)
+    ent:enableDrag(config.enableDrag)
+    
+    -- Set initial processing alpha if enabled
+    if setAlphaWhenProcessing then
+        local processingColor = Color(
+            config.ColorAndAlpha.r,
+            config.ColorAndAlpha.g,
+            config.ColorAndAlpha.b,
+            processingAlpha
+        )
+        ent:setColor(processingColor)
+    else
+        ent:setColor(config.ColorAndAlpha)
+    end
+    
+    ent:doNotDuplicate()
+
+    
+    physObj:setMaterial(config.physMaterial)
+    physObj:setDamping(config.linearDamping, config.rotDamping)
+    physObj:setBuoyancyRatio(config.buoyancyRatio)
+    
+    table.insert(propTable, {
+        entity = ent, 
+        config = config,
+        originalColor = config.ColorAndAlpha  -- Store original color for later
+    })
+    
+    table.insert(Props, ent)
+    if config.checkForACFHealth then
+        entityHealthTable[ent] = config.acfThresholdHealth
+    end
+    
+       totalPropsSpawned = totalPropsSpawned + 1
+    if debugCompletion then
+        print(string.format("Prop spawned: %d/%d", totalPropsSpawned, totalPropsToSpawn))
+    end
+end
+
+    -- Sequential spawning of batches with spawn rate limiting
+    local currentBatchIndex = 1
+    local spawnQueue = {}
+    
+        -- Add all batches to spawn queue
+    for i, batch in ipairs(convexTableBatches) do
+        table.insert(spawnQueue, batch)
+    end
+    
+    -- Calculate appropriate spawn delay based on server prop spawn rate
+
+-- Add this near the other global variables
+local maxRetries = 5
+local retryCounters = {}
+
+local function spawnNextBatch()
+    -- Check if we can spawn more props
+    if not prop.canSpawn() then
+        print(string.format("Prop limit reached, retrying in %.2f seconds...", spawnDelay * 2))
+        
+        -- Try again later with increased delay
+        timer.simple(spawnDelay * 2, spawnNextBatch)
+        return
+    end
+    
+    -- Update spawn rate dynamically
+    local propSpawnRate = prop.spawnRate()
+    local dynamicSpawnDelay = math.max(spawnDelay, 1 / math.max(1, propSpawnRate))
+    
+    if #spawnQueue > 0 then
+        local currentBatch = table.remove(spawnQueue, 1)
+        local batchId = tostring(currentBatch) -- Create a unique identifier
+        
+        -- Initialize retry counter if it doesn't exist
+        retryCounters[batchId] = retryCounters[batchId] or 0
+        
+        -- Fetch the object name
+        local objName = getObjNameFromURL(config.url)
+        
+        -- Attempt to create the prop
+        local ent = attemptCreateProp(currentBatch, objName)
+        
+        if ent then
+            processEntities(ent)
+            retryCounters[batchId] = nil -- Clear retry counter on success
+            
+            -- Schedule next batch spawn according to spawn rate limit
+            if #spawnQueue > 0 then
+                timer.simple(dynamicSpawnDelay, spawnNextBatch)
+            else
+                -- Final batch of this mesh, apply interactions
+                if wire and wire.ports then
+                    handlePropInteractions(wire.ports.WheelsF, wire.ports.WheelsB)
+                end
+            end
+        else
+            -- Increment retry counter
+            retryCounters[batchId] = retryCounters[batchId] + 1
+            
+            if retryCounters[batchId] < maxRetries then
+                -- If prop creation fails, requeue it to try later WITH BACKOFF
+                print(string.format("Failed to create prop for object: \"%s\" - Retry %d/%d", 
+                    objName, retryCounters[batchId], maxRetries))
+                table.insert(spawnQueue, currentBatch) -- Re-add to queue
+                
+                -- Use a longer delay when retrying failed props, increasing with each retry
+                local retryDelay = dynamicSpawnDelay * (1 + retryCounters[batchId])
+                timer.simple(retryDelay, spawnNextBatch)
+            else
+                print(string.format("Giving up on prop after %d retries for object: \"%s\"", maxRetries, objName))
+                -- Skip this batch and continue with others
+                if #spawnQueue > 0 then
+                    timer.simple(dynamicSpawnDelay, spawnNextBatch)
+                end
+            end
+        end
+    end
+end
+
+
+    
+if #spawnQueue > 0 then
+        spawnNextBatch()
+    else
+        print("No convex batches to spawn")
+    end
+end
+
+    -- Collect convexes and create the props
+    collectConvexes()
+    createPropsWithThreshold()
+end
+
+
+local function checkACFPresence()
+    if not acf then
+            if PrintACFVersionError then
+                print("[ERROR] ACF is not present! Some features will not work.")
+            end
+        return false
+    end
+
+    if type(acf.getVersion) ~= "function" then
+            if PrintACFVersionError then
+                print("[WARNING] Using ACF3 or unknown ACF version. Some features might not work as expected.")
+            end
+    elseif acf.getVersion() < 502 then
+            if PrintACFVersionError then
+                print("[WARNING] ACF version is below 502. Some armor functions might not work as expected.")
+            end
+    end
+
+    return true
+end
+
+
+-- Flag to indicate if ACF health checking is enabled
+local isACFPresent = checkACFPresence()
+
+-- Function to monitor ACF health and remove entities below threshold
+local function monitorACFHealth()
+    if not isACFPresent then
+        return
+    end
+
+    for ent, threshold in pairs(entityHealthTable) do
+        if ent:isValid() then
+            local health = ent:acfPropHealth()
+            if health and health < threshold then
+                if printACFremoval then
+                    print("Removing entity due to low ACF health: " .. tostring(ent))
+                end
+                ent:remove()
+                entityHealthTable[ent] = nil  -- Remove from the table
+            end
+        else
+            entityHealthTable[ent] = nil  -- Remove from the table if entity is invalid
+        end
+    end
+
+    -- If no entities need health monitoring, remove the Think hook
+    if next(entityHealthTable) == nil then
+        hook.remove("Think", "ACFHealthMonitor")
+    end
+end
+
+-- Add Think hook for monitoring ACF health, if needed
+hook.add("Think", "ACFHealthMonitor", function()
+    -- Check if there are any entities that need health monitoring
+    if next(entityHealthTable) ~= nil then
+        monitorACFHealth()
+    end
+end)
+
+local function removeCreatedEntitiesAndConstraints()
+    for _, constraint in ipairs(SF_CREATED_CONSTRAINTS) do
+        if constraint and constraint:isValid() then
+            constraint:remove()
+        end
+    end
+    SF_CREATED_CONSTRAINTS = {}
+
+    for _, propData in ipairs(propTable) do
+        if propData.entity and propData.entity:isValid() then
+            propData.entity:remove()
+        end
+    end
+    propTable = {}
+    entityHealthTable = {}
+    configsProcessed = 0
+end
+
+local function isLookingAtRelevantProp(ply)
+    local trace = ply:getEyeTrace()
+    if not trace.Entity or not trace.Entity:isValid() then return false end
+
+    -- Check if looking at a prop in propTable
+    for _, propData in ipairs(propTable) do
+        if propData.entity == trace.Entity then
+            return true
+        end
+    end
+
+    -- Check if looking at the base
+    if wire.ports.Base and trace.Entity == wire.ports.Base then
+        return true
+    end
+
+    -- Check if looking at any wheel
+    if wire.ports.WheelsF then
+        for _, wheel in ipairs(wire.ports.WheelsF) do
+            if trace.Entity == wheel then
+                return true
+            end
+        end
+    end
+    if wire.ports.WheelsB then
+        for _, wheel in ipairs(wire.ports.WheelsB) do
+            if trace.Entity == wheel then
+                return true
+            end
+        end
+    end
+
+    return false
+end
+
+local function removeCreatedEntitiesAndConstraints()
+    for _, constraint in ipairs(SF_CREATED_CONSTRAINTS or {}) do
+        if constraint and constraint:isValid() then
+            constraint:remove()
+        end
+    end
+    SF_CREATED_CONSTRAINTS = {}
+
+    for _, propData in ipairs(propTable) do
+        if propData.entity and propData.entity:isValid() then
+            propData.entity:remove()
+        end
+    end
+    propTable = {}
+    entityHealthTable = {}
+    configsProcessed = 0
+end
+
+
+-- Global variables
+configsProcessed = 0
+meshCoroutines = {}
+isProcessing = false
+
+-- Function to process each mesh configuration
+local function processMeshConfig(config)
+    return coroutine.create(function()
+        http.get(config.url, function(body, len, headers, code)
+            if code == 200 then
+                parseObjFile(body)
+                createCustomProps(config)
+                
+                configsProcessed = configsProcessed + 1
+                
+                -- Check if all configurations have been processed
+                if configsProcessed == #meshConfigs then
+                   handlePropInteractions(wire.ports.WheelsF, wire.ports.WheelsB)
+                end
+            else
+                print("Failed to download .obj file: HTTP error " .. code)
+                configsProcessed = configsProcessed + 1
+            end
+        end, function(err)
+            print("Failed to download .obj file: " .. err)
+            configsProcessed = configsProcessed + 1
+        end)
+        coroutine.yield()
+    end)
+end
+
+-- Function to process coroutines
+local function processMeshCoroutines()
+    for i, co in ipairs(meshCoroutines) do
+        if coroutine.status(co) ~= "dead" then
+            if http.canRequest() then
+                local success, err = coroutine.resume(co)
+                if not success then
+                    --print("Coroutine error: " .. tostring(err))
+                end
+            end
+            return -- Exit the function to wait for the next timer tick
+        end
+    end
+    
+    -- If all coroutines are finished, remove the timer and set isProcessing to false
+    timer.remove("processMeshCoroutines")
+    isProcessing = false
+end
+
+-- Replace your startProcessing function with this improved version
+local function startProcessing()
+    if isProcessing then return end
+    isProcessing = true
+    configsProcessed = 0
+    totalPropsToSpawn = 0
+    totalPropsSpawned = 0
+    completionHandled = false  -- Reset completion flag
+    
+    -- Safety timer with improved logging
+    timer.create("safetyCompletion", 30, 1, function()
+        if not completionHandled then
+            print("WARNING: Safety timer triggered. Forcing completion check...")
+            print(string.format("Status: %d/%d configs processed, %d/%d props spawned, %d HTTP requests active", 
+                configsProcessed, #meshConfigs, totalPropsSpawned, totalPropsToSpawn, http.getActiveRequests()))
+            
+            -- If we've processed all configs and spawned all props, force completion
+            if configsProcessed >= #meshConfigs and totalPropsSpawned >= totalPropsToSpawn then
+                -- Force completion
+                completionHandled = true
+                print("Forcing completion process...")
+                
+                -- Update wire ports
+                wire.ports.Complete = 1
+                wire.ports.Props = Props
+                
+                -- Final network update
+                networkPropsToClients()
+                
+                -- Clear the processing flag
+                isProcessing = false
+            else
+                -- Extend the safety timer
+                print("Extending safety timer by 15 seconds...")
+                timer.create("safetyCompletion", 15, 1, function()
+                    -- Force completion regardless of state
+                    completionHandled = true
+                    wire.ports.Complete = 1
+                    wire.ports.Props = Props
+                    networkPropsToClients()
+                    isProcessing = false
+                    print("Final forced completion due to timeout")
+                end)
+            end
+        end
+    end)
+    
+    if #meshConfigs == 0 then
+        print("No mesh configurations provided")
+        isProcessing = false
+        return
+    end
+
+    -- Create request queue for all meshes
+    local requestQueue = {}
+    for i, config in ipairs(meshConfigs) do
+        table.insert(requestQueue, getConfigWithDefaults(config))
+    end
+    
+    -- Determine maximum simultaneous HTTP requests
+    local maxRequests = math.min(maxSimultaneousHTTPRequests, http.getMaximumRequests())
+    
+    -- Process HTTP request queue
+    local function processRequestQueue()
+        local activeRequests = http.getActiveRequests()
+        
+        while #requestQueue > 0 and activeRequests < maxRequests do
+            local config = table.remove(requestQueue, 1)
+            
+            http.get(config.url, function(body, len, headers, code)
+                if code == 200 then
+                    parseObjFile(body)
+                    createCustomProps(config)
+                    
+                    configsProcessed = configsProcessed + 1
+                    if debugCompletion then
+                        print(string.format("Mesh %d/%d processed", configsProcessed, #meshConfigs))
+                    end
+                else
+                    print("Failed to download .obj file: HTTP error " .. code)
+                    configsProcessed = configsProcessed + 1
+                end
+                
+                processRequestQueue()  -- Process next in queue when this one finishes
+                --configsProcessed = configsProcessed + 1
+                if debugCompletion then
+                    print(string.format("Mesh %d/%d processed", configsProcessed, #meshConfigs))
+                end
+            end, function(err)
+                print("Failed to download .obj file: " .. err)
+                configsProcessed = configsProcessed + 1
+                
+                processRequestQueue()  -- Process next in queue when this one errors
+               --configsProcessed = configsProcessed + 1
+                if debugCompletion then
+                    print(string.format("Mesh %d/%d processed", configsProcessed, #meshConfigs))
+                end
+            end)
+            
+            activeRequests = activeRequests + 1
+        end
+        
+                    -- Check if we're done
+        if #requestQueue == 0 and http.getActiveRequests() == 0 and configsProcessed == #meshConfigs then
+            timer.remove("processHTTPQueue")
+            -- Don't call handleCompletion directly
+        end
+        
+        wire.ports.Props = Props
+end
+    
+    -- Start processing the queue
+    processRequestQueue()
+    
+    -- Set up a timer to periodically check the queue
+    timer.create("processHTTPQueue", 0.1, 0, function()
+        processRequestQueue()
+        
+        -- Remove timer if all processing is complete
+        if #requestQueue == 0 and http.getActiveRequests() == 0 and configsProcessed == #meshConfigs then
+            timer.remove("processHTTPQueue")
+        end
+    end)
+    
+        timer.create("CheckMeshCompletion", 1, 0, function()
+        handleCompletion()
+    end)
+    
+end
+
+local function resetChipAndRespawn()
+    -- Stop all timers
+    timer.remove("processMeshCoroutines")
+    timer.remove("processHTTPQueue")
+    timer.remove("safetyCompletion")
+    timer.remove("CheckMeshCompletion")
+    
+    -- Reset all state flags
+    isProcessing = false
+    configsProcessed = 0
+    totalPropsToSpawn = 0
+    totalPropsSpawned = 0
+    completionHandled = false
+    
+    -- Clear arrays and objects
+    spawnQueue = {}
+    meshCoroutines = {}
+    allConvexes = {}
+    objects = {}
+    
+    -- Remove existing entities and constraints
+    removeCreatedEntitiesAndConstraints()
+    
+    -- Reset Props array and Wire outputs
+    Props = {}
+    wire.ports.Props = Props
+    wire.ports.Complete = 0
+    
+    -- Force network update
+    hasNetworkedProps = false
+    
+    print("Mesh configuration reset...")
+    
+    -- Start processing again after a short delay
+    timer.simple(1, function()
+        print("Starting mesh processing...")
+        startProcessing()
+    end)
+end
+
+-- Modified PlayerSay hook
+hook.add("PlayerSay", "SF_MeshConfig_Commands", function(ply, text)
+    if text:lower() == "!sfdel" then
+        if isLookingAtRelevantProp(ply) and ply == owner() then
+            removeCreatedEntitiesAndConstraints()
+            print("Mesh configuration entities and constraints removed.")
+        else
+            --print("You need to be the owner and looking at a relevant prop to use this command.")
+        end
+        return ""
+    elseif text:lower() == "!sfres" then
+        if isLookingAtRelevantProp(ply) and ply == owner() then
+            resetChipAndRespawn()
+        else
+            --print("You need to be the owner and looking at a relevant prop to use this command.")
+        end
+        return ""
+    end
+end)
+
+-- Initial start of processing
+startProcessing()
+
+------------------------------------------------------------------------------------------------------------
+--does this actually work to optmize?
+
+local hasNetworkedProps = false
+function networkPropsToClients()
+    -- Only network once and only when complete
+    if hasNetworkedProps or not completionHandled then 
+        return false 
+    end
+
+    local propsToNetwork = Props or {}
+    
+    if #propsToNetwork == 0 then 
+        return false
+    end
+    
+    -- Network props
+    net.start("StarfallCustomPropsNetwork")
+    net.writeUInt(#propsToNetwork, 16)
+    
+    for _, prop in ipairs(propsToNetwork) do
+        net.writeEntity(prop)
+    end
+    net.send()
+    
+    if debugCompletion then
+        print(string.format("[SF Props] Networked %d props to clients", #propsToNetwork))
+    end
+    
+    hasNetworkedProps = true
+    return true
+end
+
+-- Remove the old Think hook for networking
+hook.remove("Think", "NetworkCustomPropsOnCompletion")
+
+    -- Hook to network props immediately after completion
+    hook.add("Think", "NetworkCustomPropsOnCompletion", function()
+        if completionHandled then
+            if networkPropsToClients() then
+                -- Remove hook after successful networking
+                hook.remove("Think", "NetworkCustomPropsOnCompletion")
+            end
+        end
+    end)
+end
+
+-- Add a centralized Think hook for completion checking
+hook.add("Think", "CheckMeshCompletion", function()
+    -- Only check if we're actively processing and not already completed
+    if isProcessing and not completionHandled then
+        handleCompletion()
+    elseif completionHandled then
+        hook.remove("Think", "CheckMeshCompletion")
+    end
+end)
+
+if CLIENT then
+    -- Network receive for props
+    net.receive("StarfallCustomPropsNetwork", function() -- Change name to match server
+        local propCount = net.readUInt(16)
+        
+        --print("[SF Props] Received " .. propCount .. " props for render bounds")
+        
+        for i = 1, propCount do
+            local prop = net.readEntity()
+            if prop and prop:isValid() then
+                prop:setRenderBounds(Vector(-10), Vector(10))
+                --print("[SF Props] Set render bounds for prop #" .. i)
+            end
+        end
+    end)
+end
+
+
+
+

@@ -1,0 +1,130 @@
+@name Tornado Vortex
+@inputs 
+@outputs HoloTotal AvgOps LastPlayed Curtime
+@outputs [ TornadoPos ]:vector
+@outputs [ PlayerList ]:array
+@outputs [ ]:string
+
+@persist [ Factorial SoundList PointArray ]:array 
+@persist [ E Ew ]:entity
+@persist HoloTotal LastPlayed
+@persist Z Radius NumberOfPoints TornadoHolos
+
+@trigger none
+@model models/props_pipes/valve003.mdl 
+#Weather effects!
+#We have 25 extra holograms, let's make backdrop for the "tornado"
+
+interval(150)
+AvgOps = ops()/50
+Curtime = curtime()
+
+TornadoPos = gGetVec(3)
+
+if ( first() ) { 
+    gSetGroup("tornado")  
+    E = entity() , Ew = E:isWeldedTo()
+    
+    Factorial[0,number] = 1  #  0! = 1
+    for(I=1,5) {
+        Factorial[I,number] = Factorial[I-1,number]*I
+    }
+    
+    NumberOfPoints = 4    
+    Z = 2000
+    Radius = 800
+    TornadoHolos = 22
+    
+    timer("findplayers",10)
+    
+    SoundList[1,string] = "ambient/wind/windgust_strong.wav 14"
+    SoundList[2,string] = "ambient/wind/windgust.wav 6"
+    SoundList[3,string] = "ambient/atmosphere/trainstation_ambient_loop1.wav 11"
+    #SoundList[4,string] = "ambient/weather/rumble_rain.wav 2"
+    
+}
+
+if ( HoloTotal<=TornadoHolos & holoCanCreate() ) {  #holograms for vortex
+    HoloTotal++ ,   I = HoloTotal
+    holoCreate(I)
+    holoModel(I,"torus_thick")
+    holoAng(I,ang(0,0,0))
+    holoMaterial(I,"models/props/de_tides/clouds")
+    holoScale(I, vec(1,1,2)*(I^ 1.2) )
+    holoColor(I,vec(1,1,1) * 76)
+}
+
+if ( inrange( HoloTotal, TornadoHolos, 49 ) & holoCanCreate() ) { #holograms for random fx
+    HoloTotal++ ,   I = HoloTotal
+    holoCreate(I)
+    holoModel(I,"hqsphere2")
+    holoAng(I,ang(0,0,0))
+    holoMaterial(I,"models/props/de_tides/clouds")
+    holoScale(I, vec(1,1,1)*25 )
+    holoColor(I,vec(1,1,1) * 200)
+    holoPos(I,vec()+10)
+}
+   
+#Vortex Effect
+
+    C = Curtime*75
+    #edited out the TPos 
+    PointArray[ 0, vector ] = vec()
+    PointArray[ 1, vector ] = (vec(cos(C),sin(C),0)*Radius):setZ(Z*0.25)
+    PointArray[ 2, vector ] = (vec(cos(-C),sin(-C),0)*Radius):setZ(Z*0.45)
+    PointArray[ 3, vector ] = (vec(cos(C/2),sin(C/2),0)*Radius):setZ(Z*0.75)
+    PointArray[ 4, vector ] = vec(0,0,Z)
+    #PointArray[ , vector ] = 
+    
+for (Run=1,TornadoHolos) {
+    T = Run/TornadoHolos
+
+    #record last pos to angle the tornado rings
+    FinalPoint = vec() , LastRing = vec()        
+    for (I=0,NumberOfPoints) {
+        A =  Factorial[NumberOfPoints,number] / ( (Factorial[ NumberOfPoints-I,number])*Factorial[I,number] ) 
+        B = (1-T)^(NumberOfPoints-I)
+        C = T^I
+        D = PointArray[ I, vector ]
+        FinalPoint += A*B*C*D
+    }
+    
+    holoPos(Run, FinalPoint + TornadoPos )
+    holoAng(Run, ang(0,-Curtime*250,0 ) )
+    
+}
+
+
+#Sounds to the player for atmosphere
+if ( clk("findplayers")) {
+    timer("findplayers",1000 )
+    findInSphere( TornadoPos,8000 )
+    findClipToClass("player")
+    
+    PlayerList = findToArray()
+    
+    #play sounds on each player
+    if ( Curtime - LastPlayed > 8 ) {
+        LastPlayed = Curtime
+        foreach( Key,Player:entity = PlayerList) {        
+            foreach ( K, SoundIndex:string = SoundList ) {
+                S = SoundIndex:explode(" ") 
+                Player:soundPlay( SoundIndex, S[2,string]:toNumber(),  S[1,string]  )
+                soundVolume( SoundIndex, random(10,50) )
+            }
+            
+        }
+    }
+    
+    if (PlayerList:count()==0 ) { LastPlayed = -10 }
+}
+
+#Random Dust
+for (Dust=TornadoHolos+1,50 ) {
+    #populate a ring around the base for dust particles
+    Offset = Curtime*50 + Dust*25
+    DustPos = TornadoPos + vec( sin(Offset), cos(Offset), 0.4 )*random(100,500) #circle of random radius
+    SphereRadius = random(50,150)/5
+    holoPos(Dust, DustPos + vec(0,0,40 ) )
+    holoScale(Dust, (vec()+1)*SphereRadius )
+}

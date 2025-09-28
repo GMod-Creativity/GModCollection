@@ -1,11 +1,21 @@
+# PAC3 - Zephyr Medic Arm Band
+
+## Details
+
+### Author
+
 - Author: Light The Espeon Medic
 - Steam Profile: http://steamcommunity.com/profiles/76561198196697889
-- Youtube: https://www.youtube.com/channel/UCFBPun0MFTNRCrpoQWQRtXw
+- YouTube: https://www.youtube.com/channel/UCFBPun0MFTNRCrpoQWQRtXw
 - Pastebin: https://pastebin.com/u/cadenater11
-<!-- -->
+
+### Publication Info
+
 - Title: Zephyr Medic Arm Band
 - Date (dd-mm-yyyy): 03-01-2019
 - Source: https://pastebin.com/SnwgdKLj
 - Source Accessed (dd-mm-yyyy): 20-06-2025
 
-## Zephyr Medic Arm Band
+## Description
+
+\<No Description\>

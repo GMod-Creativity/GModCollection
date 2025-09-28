@@ -1,7 +1,15 @@
+# Expression 2 - Automatic, fastest possible, applyForce and applyAngForce code generating e2
+
+## Details
+
+### Author
+
 - Author: Paper Clip (glmcd) (glmcdona21) (glmcdona)
 - Steam Profile: https://steamcommunity.com/profiles/76561197990877852
-- Youtube: https://www.youtube.com/@glmcdona21
-<!-- -->
+- YouTube: https://www.youtube.com/@glmcdona21
+
+### Publication Info
+
 - Title: Automatic, fastest possible, applyForce and applyAngForce code generating e2
 - Date (dd-mm-yyyy): 03-02-2010
 - Source: https://web.archive.org/web/20100210000758/http://www.wiremod.com/forum/contraptions-saves/17737-applyangforce-system-identification-dead-beat-controller-design-chip.html
@@ -10,39 +18,43 @@
 - Source: http://www.youtube.com/v/8eaJpYEybpw
 - Source Accessed (dd-mm-yyyy): 25-08-2025
 
-## Automatic, fastest possible, applyForce and applyAngForce code generating e2
+## Description
 
-**What This Does**
+### What This Does
+
 Automatically generates the FASTEST POSSIBLE applyForce and appyAngForce code for a specific prop. It achieves this through some advanced control systems techniques as follows:
 
-  - Generates a state-space model of the angle physics through a simple system identification technique.
-  - Generates a dead-beat state feedback system for a specified interval, which works even when aiming straight up or down.
-  - Prints simple E2 file to the console with the control system, for easy use in your contraption.
-  - Outputs performance plots to e2files\positions.txt and e2files\angles.txt
+- Generates a state-space model of the angle physics through a simple system identification technique.
+- Generates a dead-beat state feedback system for a specified interval, which works even when aiming straight up or down.
+- Prints simple E2 file to the console with the control system, for easy use in your contraption.
+- Outputs performance plots to e2files\positions.txt and e2files\angles.txt
 
-**Instructions**
+### Instructions
+
 This works on either single props, or parented contraptions. To use this chip to design a perfect applyForce and applyAngForce , perform these steps:
 
-  1. Spawn the prop to generate the apply force for.
-  2. (optional) Edit the E2 options to pick the interval you desire. An interval of ~50 is good.
-  3. Place the E2 chip on the prop.
-  4. After a couple seconds, check your console for designed apply force chip. Copy and paste this code into a new e2.
+1. Spawn the prop to generate the apply force for.
+2. (optional) Edit the E2 options to pick the interval you desire. An interval of ~50 is good.
+3. Place the E2 chip on the prop.
+4. After a couple seconds, check your console for designed apply force chip. Copy and paste this code into a new e2.
 
-**Video**
+### Video
+
 Filmed on McBuilds spacebuild servers.
-New Version
-https://www.youtube.com/v/Ja58hnd3slI
+New Version  
+[YouTube - Garrys Mod: Automatic fastest possible applyForce and applyAngForce code generation chip (Version 2)](https://www.youtube.com/v/Ja58hnd3slI)
 
-Old Version (applyAngForce only)
-http://www.youtube.com/v/dftycqtjepI
+Old Version (applyAngForce only)  
+[YouTube - Garrys Mod: Apply Angle Force System Identification and Dead Beat Controller Design E2 Chip](http://www.youtube.com/v/dftycqtjepI)
 
-Bonus Spacebuild carrier battle video!
-http://www.youtube.com/v/8eaJpYEybpw
+Bonus Spacebuild carrier battle video!  
+[YouTube- Spacebuild Battle #2, Carrier versus carrier 2 (Diaspora servers)](http://www.youtube.com/v/8eaJpYEybpw)
 
-**Example Output Control Design**
+### Example Output Control Design
+
 When this expression is applied to a Pop Can, it outputs the following to the console. People who use apply force may be interested in the difference between the code which works for looking straight up and down versus not working for straight up and down. If anyone is interested, I can try to explain the fix in more details.
 
-```
+```plaintext
 ---SIMPLIFIED E2 CODE IMPLEMENTATION---
 ---(Does not work aiming straight up or down)---
 @persist Prop:entity
@@ -77,10 +89,11 @@ Prop:applyAngForce(-ang(-16221632.593187*DifAngle:pitch() + 1477385.8142291*Prop
 ---USE CONSOLE TO VIEW E2 CODE---
 ```
 
-**Example Spaceship Flight System**
+### Example Spaceship Flight System
+
 The carrier flight system featured in the video used the designed applyAngForce as follows: (my parent prop was rotated in a weird way with respect to my ship forwards, so I had to make some changes)
 
-```
+```plaintext
 @name Paper Carrier Flight System
 @inputs Seat:entity W A S D
 @outputs CamEnable CamPos:vector CamDir:vector
@@ -127,21 +140,23 @@ if( Seat:driver() )
 }
 ```
 
-**How it Works**
+### How it Works
 This expression is based on some more complex state-space control system theories, but I will try and provide the general idea of how it works. If these topics really interest you, I encourage you to study electrical or mechanical engineering control system theory.
 
 1. System Identification
     When applying angular force to a prop, all props act differently. This behaviour is related to the objects mass, size in each direction, and welded/parented props. This behaviour can be represented as a [state space system](https://web.archive.org/web/20100210000758/http://en.wikipedia.org/wiki/State_space_(controls)). It is assumed that we have a second order state space system for each angular direction such as:
 
-    Pitch [Next Time Interval] = SomeFactor*Pitch [Last Interval] + SomeFactor*Velocity[Last Interval] + SomeFactor*applyAngForce[Last Interval]
-    Pitch Velocity[Next Time Interval] = SomeFactor*Velocity[Last Interval] + SomeFactor*applyAngForce[Last Interval]
+    `Pitch [Next Time Interval] = SomeFactor*Pitch [Last Interval] + SomeFactor*Velocity[Last Interval] + SomeFactor*applyAngForce[Last Interval]`
+
+    `Pitch Velocity[Next Time Interval] = SomeFactor*Velocity[Last Interval] + SomeFactor*applyAngForce[Last Interval]`
 
     Through applying some force, and measuring the pitch and angular velocity, these factors are determined for the prop based on some simple derivations I constructed.
 
 2. Dead-beat Control Design
     Once a discrete-time state space model has been identified for the prop, we can derive an optimal applyAngForce which will set the angle to be exactly where we want it in 1 time interval. This optimal applyAngForce is called a [Dead-beat controller](https://web.archive.org/web/20100210000758/http://en.wikipedia.org/wiki/Dead_beat_control). To achieve this deadbeat controller, all three poles of the state-space model are placed at the origin through an eigenvalue placement method using state-feedback. For more information regarding this, refer to [continuous-time state feedback](https://web.archive.org/web/20100210000758/http://en.wikipedia.org/wiki/Full_state_feedback) for details (though in this case it is discrete time).
 
-**Performance Plots on Parented Carrier**
+### Performance Plots on Parented Carrier
+
 The chip outputs the performance of the error of the angle and position versus time to the files data/e2files/positions.txt and angles.txt
 
 When applied to my carrier ship as seen in the video, it generated the following performance data: (running at interval 50, each point represents one tick)

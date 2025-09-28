@@ -1,0 +1,154 @@
+@name HCS-Dummy
+@inputs 
+@outputs Health
+@persist E:entity HoloID Scale DamageArray2:array
+@trigger 
+
+if (first() | duped()) {
+    gSetStr("Damage","")
+    signalSetGroup("HCS")
+    runOnSignal("Damage",1,1)
+    gShare(1)
+    
+    Health = 100
+    Scale = 25
+    
+    holoCreate(1)
+    holoScaleUnits(1,vec(Scale,Scale,Scale)*1.04)
+    holoModel(1,"hqsphere")
+    holoAlpha(1,100)
+    holoParent(1,entity())
+    
+    holoCreate(2)
+    holoScaleUnits(2,vec(2,2,2))
+    holoParent(2,entity())
+    
+    E = holoEntity(1)
+    HoloID = E:id()
+}
+
+#Damage-taking
+if (signalClk("HCS","Damage",1)) { 
+    DamageArray = glonDecode(gGetStr("Damage"))
+    
+    Mode = DamageArray[1,number]
+    Time = DamageArray[2,number]
+    
+    if (Mode == 1) {
+        # getting the variables I need to use #
+        Damage = DamageArray[3,string]:toNumber()
+        Origin = DamageArray[4,vector]
+        OriginDirVec = DamageArray[5,vector]:normalized()
+        Range = DamageArray[6,number]
+        ID = DamageArray[7,string]
+        Flag = DamageArray[8,number]
+        
+        Plane = E:pos() #Get the planes center
+        P1 = Origin #Get a point on the line
+        P2 = Origin+OriginDirVec #Get a point on the line "after" point 1
+        Normal = -OriginDirVec #Get the normal (a vector pointin straight out of the surface) of the plane
+        X = Normal:dot(Plane-P1)/Normal:dot(P2-P1) #Not really sure how, but it returns how many times the distance from point 1 to point 2 you need to go from point 1 to reach the intersection
+        HitPos = P1+X*(P2-P1) #Get the intersections position
+        
+        if(HitPos & X > 0) {
+            A = Plane:distance(HitPos)
+            C = Scale/2
+            if (A < C) {
+                B = sqrt(C^2-A^2)
+                HitPos = HitPos+Normal:normalized()*B
+                
+                Distance = HitPos:distance(Origin)
+                if (Distance < Range) {
+                    HitArray = glonDecode(gGetStr(ID+"Hit"))
+                    
+                    if (Flag | !HitArray[1,vector]) {
+                        HitArray:pushVector(HitPos)
+                        gSetStr(ID+"Hit",glonEncode(HitArray))
+                        
+                        Hit = 1
+                    }
+                }
+            }
+        }
+    } elseif (Mode == 2) {
+        ExplosionDamage = DamageArray[3,string]:toNumber()
+        Radius = DamageArray[4,number]
+        Falloff = DamageArray[5,number]
+        Origin = DamageArray[6,vector]
+        ID = DamageArray[7,string]
+        Flag = DamageArray[8,number]
+        
+        Target = E:pos()
+        Distance = Origin:distance(Target)
+        if (Distance <= Radius) {
+            Hit = 1
+            
+            Damage = ExplosionDamage/(Distance*Falloff+1)
+            
+            HitArray = glonDecode(gGetStr(ID+"Hit"))
+            
+            if (Flag | !HitArray[1,vector]) {
+                HitArray:pushVector(Origin)
+                gSetStr(ID+"Hit",glonEncode(HitArray))
+            }
+        }
+    } elseif (Mode == 3) {
+        Damage = DamageArray[3,string]:toNumber()
+        ExplosionDamage = DamageArray[4,number]
+        Radius = DamageArray[5,number]
+        Falloff = DamageArray[6,number]
+        Origin = DamageArray[7,vector]
+        OriginDirVec = DamageArray[8,vector]:normalized()
+        Range = DamageArray[9,number]
+        ID = DamageArray[10,string]
+        Flag = DamageArray[11,number]
+        
+        Plane = E:pos() #Get the planes center
+        P1 = Origin #Get a point on the line
+        P2 = Origin+OriginDirVec #Get a point on the line "after" point 1
+        Normal = -OriginDirVec #Get the normal (a vector pointin straight out of the surface) of the plane
+        X = Normal:dot(Plane-P1)/Normal:dot(P2-P1) #Not really sure how, but it returns how many times the distance from point 1 to point 2 you need to go from point 1 to reach the intersection
+        HitPos = P1+X*(P2-P1) #Get the intersections position
+        
+        if(HitPos & X > 0) {
+            A = Plane:distance(HitPos)
+            C = Scale/2
+            if (A < C) {
+                B = sqrt(C^2-A^2)
+                HitPos = HitPos+Normal:normalized()*B
+                
+                Distance = HitPos:distance(Origin)
+                if (Distance < Range) {
+                    HitArray = glonDecode(gGetStr(ID+"Hit"))
+                    
+                    if (Flag | !HitArray[1,vector]) {
+                        HitArray:pushVector(HitPos)
+                        gSetStr(ID+"Hit",glonEncode(HitArray))
+                        
+                        Hit = 1
+                        
+                        DamageArray2 = array(2,curtime(),ExplosionDamage,Radius,Falloff,HitPos,ID,0)
+                        if (A <= Radius) {
+                            Hit = 1
+                            
+                            Damage+= ExplosionDamage/(Distance*Falloff+1)
+                        }
+                        timer("explosion",0)
+                    }
+                }
+            }
+        }
+    }
+} elseif (clk("explosion")) {
+    gSetStr("Damage",glonEncode(DamageArray2))
+    signalSetGroup("HCS")
+    signalSend("Damage",1)
+}
+
+if (Hit) {
+    Health-=Damage
+}
+
+if (Health <= 0) {
+    holoColor(1,vec(255,0,0))
+}

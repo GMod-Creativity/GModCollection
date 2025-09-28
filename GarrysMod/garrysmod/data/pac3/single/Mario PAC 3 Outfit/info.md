@@ -1,13 +1,21 @@
+# PAC3 - Mario PAC 3 Outfit
+
+## Details
+
+### Author
+
 - Author: Mr. Matthews
 - Steam Profile: http://steamcommunity.com/profiles/76561198064933831
 - Game banana: https://gamebanana.com/members/1362858
-<!-- -->
+
+### Publication Info
+
 - Title: Mario PAC 3 Outfit
 - Date (dd-mm-yyyy): 15-03-2014
 - Source: https://gamebanana.com/mods/237279
 - Source Accessed (dd-mm-yyyy): 20-06-2025
 
-## Mario PAC 3 Outfit
+## Description
 
 DUE TO NEW GMOD UPDATE,YOU MIGHT NEED TO WEAR YOUR PAC MORE THAN ONCE TO MAKE IT WORK!
 
@@ -16,3 +24,31 @@ It's Me! Mario! Have Mario in your Gmod! (you must have PAC 3) Everyone can see 
 Paste the "Mario" text archive in there
 
 Steam\SteamApps\common\GarrysMod\garrysmod\data\pac3
+
+<p float="left">
+  <img src="./images/image1.jpg" width="300"/>
+  <img src="./images/image2.jpg" width="300"/>
+  <img src="./images/image3.jpg" width="300"/>
+  <br/>
+  <img src="./images/image4.jpg" width="300"/>
+  <img src="./images/image5.jpg" width="300"/>
+  <img src="./images/image6.jpg" width="300"/>
+  <br/>
+  <img src="./images/image7.jpg" width="300"/>
+  <img src="./images/image8.jpg" width="300"/>
+  <img src="./images/image9.jpg" width="300"/>
+</p>
+
+<!--
+![image1](./images/image1.jpg =200x200)
+![image2](./images/image2.jpg =200x200)
+![image3](./images/image3.jpg =200x200)
+
+![image4](./images/image4.jpg =200x200)
+![image5](./images/image5.jpg =200x200)
+![image6](./images/image6.jpg =200x200)
+
+![image7](./images/image7.jpg =200x200)
+![image8](./images/image8.jpg =200x200)
+![image9](./images/image9.jpg =200x200)
+-->

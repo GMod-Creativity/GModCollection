@@ -1,0 +1,322 @@
+--@name  Advanced Car CameraV1.5 (Network Fix)
+--@author [C17] Red Fox, Manus, KimiV2, Gemini (refactor)
+--@version 1.6 - Timer-based networking refactor
+
+--[[ 
+    =========================================================
+    INSTRUCTIONS!!
+    
+    1) DONT use a cam controller alongside it, you either activate one or the other
+    2) Spawn the chip AND and SF Hud Component, link the Hud to the chip and then to the seat
+    3) Make sure the ForwardAxis is CORRECT, as soon as you activate it, it should direct itself forward
+    4) Read the configuration comments for what does what
+    5) Keep testing whats the best config for your case
+    6) Wire a button or a value to the "TrailerMode" input to toggle the alternate camera settings.
+
+]]--
+-- =========================================================
+--  SHARED CONFIGURATION
+-- =========================================================
+local CFG = {
+    --[[ Input Scaling ]]
+    maxThrottleInput = 1, 
+    maxBrakeInput    = 1,
+
+    --[[ Spring Physics Effects ]]
+    posDamping    = 15,
+    centerForce   = 15,
+    boundaryForce = 75,
+    accelLag      = 5,
+    brakeKick     = 7,
+    gearKick      = 200,
+
+    --[[ Standard Settings ]]
+    angleResponsiveness = 3.5,
+    maxDist       = 160,
+    minDist       = 130,
+    heightOffset  = 55,
+    pitchOffset   = 5,
+    lookAhead     = true,
+    lookAheadDist = 200,
+    mouseSens     = 0.05,
+    idleTimeout   = 2.0,
+    invertPitch   = false,
+    mouseThreshold= 5,
+    
+    --[[ Collision Settings ]]
+    doCollision   = true,
+    colMask       = 131083, -- MASK_SOLID_BRUSHONLY
+    colExtra      = 8,
+
+    --[[ Vehicle Axis ]]
+    ForwardAxis   = Vector(1,0,0)
+}
+
+--[[
+    =========================================================
+    TRAILER MODE CONFIGURATION
+    =========================================================
+]]--
+local TRAILER_CFG = {
+    maxDist       = 350,
+    minDist       = 300,
+    heightOffset  = 80,
+    pitchOffset   = 10
+}
+
+-- =========================================================
+--  SERVER (Timer-based networking to prevent netburst)
+-- =========================================================
+if SERVER then
+    wire.adjustPorts({
+        Active = {type = "normal", description = "Activates the camera system."},
+        Base = {type = "entity", description = "The main entity to follow."},
+        Pod  = {type = "wirelink", description = "The pod controller to check for a driver."},
+        Throttle = {type = "normal", description = "Raw throttle value from your controller."},
+        Brake    = {type = "normal", description = "Raw brake value from your controller."},
+        Gear     = {type = "normal", description = "Current gear number. Any change triggers the kick."},
+        TrailerMode = {type = "normal", description = "Activates alternate camera settings for trailers."}
+    }, nil)
+
+    local wasActive = false
+    local lastSentData = {}
+    local needsUpdate = {}
+
+    -- Think hook now only watches state and sets flags
+    hook.add("Think", "SFGlideCam_StateWatcher", function()
+        local active = (wire.ports.Active or 0) > 0
+        local pod = wire.ports.Pod
+        local driver = (pod and pod:isValid()) and pod.Driver or nil
+        
+        if active ~= wasActive then
+            wasActive = active
+            if driver and driver:isValid() then
+                if active then
+                    -- Flag the driver to be started
+                    needsUpdate[driver] = { start = true, base = wire.ports.Base }
+                else
+                    -- Flag the driver to be stopped
+                    needsUpdate[driver] = { stop = true }
+                end
+                lastSentData[driver] = nil -- Force an initial update
+            end
+        end
+
+        if not active or not (driver and driver:isValid()) then return end
+
+        local currentData = {
+            throttle = math.clamp((wire.ports.Throttle or 0) / CFG.maxThrottleInput, 0, 1),
+            brake = math.clamp((wire.ports.Brake or 0) / CFG.maxBrakeInput, 0, 1),
+            gear = wire.ports.Gear or 0,
+            trailerActive = (wire.ports.TrailerMode or 0) > 0
+        }
+
+        local lastData = lastSentData[driver]
+
+        if not lastData or 
+           math.floor(currentData.throttle * 100) ~= math.floor(lastData.throttle * 100) or 
+           math.floor(currentData.brake * 100) ~= math.floor(lastData.brake * 100) or 
+           currentData.gear ~= lastData.gear or
+           currentData.trailerActive ~= lastData.trailerActive then
+            
+            if not needsUpdate[driver] then needsUpdate[driver] = {} end
+            needsUpdate[driver].data = currentData
+        end
+    end)
+
+    -- This timer sends all updates at a controlled rate (20Hz)
+    timer.create("SFGlideCam_NetworkSender", 0.05, 0, function()
+        for driver, update in pairs(needsUpdate) do
+            if driver and driver:isValid() then
+                if update.start then
+                    net.start("SFGlideCam_Start")
+                    net.writeEntity(update.base)
+                    net.send(driver)
+                elseif update.stop then
+                    net.start("SFGlideCam_Stop")
+                    net.send(driver)
+                end
+
+                if update.data then
+                    net.start("SFGlideCam_FullUpdate")
+                    net.writeTable(update.data)
+                    net.send(driver)
+                    lastSentData[driver] = update.data
+                end
+            end
+        end
+        needsUpdate = {} -- Clear the update queue
+    end)
+
+    hook.add("Remove", "SFGlideCam_Cleanup", function()
+        for driver, _ in pairs(lastSentData) do
+            if driver and driver:isValid() then
+                net.start("SFGlideCam_Stop")
+                net.send(driver)
+            end
+        end
+    end)
+
+    return
+end
+
+-- =========================================================
+--  CLIENT (No changes needed here)
+-- =========================================================
+if CLIENT then
+    local originalCFG = {
+        maxDist = CFG.maxDist,
+        minDist = CFG.minDist,
+        heightOffset = CFG.heightOffset,
+        pitchOffset = CFG.pitchOffset
+    }
+
+    local state = {
+        active = false,
+        currentAng = Angle(0,0,0),
+        targetAng = Angle(0,0,0),
+        lastMouseTime = 0,
+        wasLocked = true,
+        targetDist = (CFG.minDist + CFG.maxDist) / 2,
+        currentDist = (CFG.minDist + CFG.maxDist) / 2,
+        distVel = 0,
+        holo = nil,
+        base = nil,
+        inputs = { throttle = 0, brake = 0, gear = 0 }
+    }
+
+    net.receive("SFGlideCam_Start", function()
+        local newBase = net.readEntity()
+        if not (newBase and newBase:isValid()) then return end
+        
+        state.active = true
+        state.base = newBase
+
+        if state.holo and state.holo:isValid() then state.holo:remove() end
+        
+        state.holo = hologram.create(newBase:getPos(), newBase:getAngles(), "models/debug/debugwhite.mdl")
+        if state.holo and state.holo:isValid() then
+            state.holo:setParent(newBase)
+            state.holo:setNoDraw(true)
+            state.currentAng = newBase:getAngles()
+            state.targetAng = newBase:getAngles()
+        end
+    end)
+
+    net.receive("SFGlideCam_FullUpdate", function()
+        if not state.active then return end
+        
+        local data = net.readTable()
+        
+        state.inputs.throttle = data.throttle
+        state.inputs.brake = data.brake
+        
+        if data.gear ~= state.inputs.gear then
+            local impulse = 0
+            if data.gear > state.inputs.gear then impulse = CFG.gearKick else impulse = -CFG.gearKick end
+            state.distVel = state.distVel + impulse
+            state.inputs.gear = data.gear
+        end
+        
+        if data.trailerActive then
+            CFG.maxDist, CFG.minDist, CFG.heightOffset, CFG.pitchOffset = TRAILER_CFG.maxDist, TRAILER_CFG.minDist, TRAILER_CFG.heightOffset, TRAILER_CFG.pitchOffset
+        else
+            CFG.maxDist, CFG.minDist, CFG.heightOffset, CFG.pitchOffset = originalCFG.maxDist, originalCFG.minDist, originalCFG.heightOffset, originalCFG.pitchOffset
+        end
+        
+        state.targetDist = (CFG.minDist + CFG.maxDist) / 2
+    end)
+
+    net.receive("SFGlideCam_Stop", function()
+        state.active = false
+        if state.holo and state.holo:isValid() then
+            state.holo:remove()
+            state.holo = nil
+        end
+        state.inputs = { throttle = 0, brake = 0, gear = 0 }
+        
+        CFG.maxDist, CFG.minDist, CFG.heightOffset, CFG.pitchOffset = originalCFG.maxDist, originalCFG.minDist, originalCFG.heightOffset, originalCFG.pitchOffset
+    end)
+
+    hook.add("MouseMoved", "SFGlideCam_ClientMouse", function(x, y)
+        if not state.active or not (state.holo and state.holo:isValid()) then return end
+        if math.abs(x) < CFG.mouseThreshold and math.abs(y) < CFG.mouseThreshold then return end
+
+        state.lastMouseTime = timer.curtime()
+        if state.wasLocked then state.targetAng = state.currentAng end
+
+        local lookX = x * CFG.mouseSens
+        local lookY = y * CFG.mouseSens * (CFG.invertPitch and -1 or 1)
+        
+        state.targetAng.p = math.clamp(state.targetAng.p + lookY, -89, 89)
+        state.targetAng.y = state.targetAng.y - lookX
+    end)
+
+    hook.add("CalcView", "SFGlideCam_ClientView", function(view)
+        if not state.active or not (state.holo and state.holo:isValid() and state.base and state.base:isValid()) then return end
+
+        local isLocked = (timer.curtime() - state.lastMouseTime > CFG.idleTimeout)
+        state.wasLocked = isLocked
+
+        local dt = timer.frametime()
+        local holoPos = state.holo:getPos()
+        local holoAng = state.holo:getAngles()
+        local baseVel = state.base:getVelocity()
+        local target = holoPos + Vector(0, 0, CFG.heightOffset)
+        
+        local finalCamAng
+        if isLocked then
+            local fwd = CFG.ForwardAxis:getNormalized()
+            fwd:rotate(holoAng)
+            local lookTarget = target
+            if CFG.lookAhead and baseVel:getLengthSqr() > 2500 then
+                lookTarget = target + baseVel:getNormalized() * CFG.lookAheadDist
+            end
+            local idealAng = (lookTarget - (target - fwd)):getAngle()
+            idealAng.p = idealAng.p + CFG.pitchOffset
+            
+            local lerpFactor = math.clamp(CFG.angleResponsiveness * dt, 0, 1)
+            state.currentAng = math.lerpAngle(lerpFactor, state.currentAng, idealAng)
+            finalCamAng = state.currentAng
+        else
+            finalCamAng = state.targetAng
+            state.currentAng = finalCamAng
+        end
+
+        local impulse = 0
+        if baseVel:getLengthSqr() > 100 then
+            impulse = impulse + (state.inputs.throttle * CFG.accelLag)
+            impulse = impulse - (state.inputs.brake * CFG.brakeKick)
+        end
+
+        local springForce = (state.targetDist - state.currentDist) * CFG.centerForce
+        local dampingForce = -state.distVel * CFG.posDamping
+        local boundaryImpulse = 0
+        if state.currentDist > CFG.maxDist then
+            boundaryImpulse = (CFG.maxDist - state.currentDist) * CFG.boundaryForce
+        elseif state.currentDist < CFG.minDist then
+            boundaryImpulse = (CFG.minDist - state.currentDist) * CFG.boundaryForce
+        end
+        state.distVel = state.distVel + (springForce + dampingForce + boundaryImpulse) * dt + impulse
+        state.currentDist = state.currentDist + state.distVel * dt
+        
+        local desiredOrigin = target - (finalCamAng:getForward() * state.currentDist)
+        
+        if CFG.doCollision then
+            local tr = trace.line(target, desiredOrigin, player(), CFG.colMask)
+            if tr.Hit then
+                view.origin = tr.HitPos + tr.HitNormal * CFG.colExtra
+                state.distVel = 0
+                state.currentDist = (tr.HitPos - target):getLength()
+            else
+                view.origin = desiredOrigin
+            end
+        else
+            view.origin = desiredOrigin
+        end
+        
+        view.angles = finalCamAng
+        
+        return view
+    end)
+end

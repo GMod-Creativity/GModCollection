@@ -1,0 +1,1104 @@
+--@name MeshLoader Custom Materials 1.98
+--@author Original by Cheezus Mod by [C17] Red Fox
+--@shared
+
+
+
+if CLIENT then
+    
+  --Mirror function, will try to put it elsewhere if possible, scroll down to get to the actual settings for the mesh
+      
+    local function mirror(netRequestName,netReceiveName,RTName,FPS,X,Y,W,H,FoV)  
+    setupPermissionRequest({ "render.renderscene", "render.renderView" }, "See an example of render.renderView.", true)
+    local permissionSatisfied = hasPermission("render.renderView")
+    local Entity = chip()
+    net.start(netRequestName)
+    net.send()
+
+    net.receive(netReceiveName, function()
+        local ent = net.readEntity()
+
+        Entity = isValid(ent) and ent or chip()
+    end)
+
+
+    local rtName = RTName
+    render.createRenderTarget(rtName)
+
+    local mat = material.create("VertexLitGeneric")
+
+    local texture_matrix = mat:getMatrix("$basetexturetransform")
+    texture_matrix:setAngles(Angle(0, 0, 0)) 
+    texture_matrix:setScale(Vector(-1, 1, 1)) 
+
+    mat:setTextureRenderTarget("$basetexture", rtName)
+    mat:setMatrix("$basetexturetransform", texture_matrix)
+    
+    
+    local materialName = mat:getName()
+
+    local lastUpdateTime = 0
+    local updateInterval = 1/FPS -- Update every 1/30th of a second (30 FPS)
+
+    hook.add("renderscene", "render_view"..rtName, function()
+        if not permissionSatisfied then return end
+
+        local currentTime = timer.curtime()
+        if not render.isInRenderView() and (currentTime - lastUpdateTime) >= updateInterval then
+            local scrW, scrH = render.getGameResolution() -- Moved inside the hook to ensure it's updated correctly
+            lastUpdateTime = currentTime
+            render.selectRenderTarget(rtName)
+            
+
+
+                render.renderView({
+                    origin = Entity:getPos(),
+                    angles = Entity:getAngles() + Angle(0,0,0),
+                    aspectratio = scrH / scrW,
+                    x = X,
+                    y = Y,
+                    w = W,
+                    h = H,
+                    fov = FoV,            
+                    drawviewmodel = false,
+                    drawviewer = true,
+                })
+
+            
+        end
+    end)
+
+    return materialName -- Return the material name string
+end
+
+      --[[
+    Changelog:
+    
+V1.98
+Fixed Flags, finally, never noticied it not actually working as intended
+
+V1.97
+Minor lil thing, nothing really worth mentioning
+    
+V1.96
+    Fixed a long standing bug where materials sometimes overlaped, example: bumpmap before basetexture, etc
+    It was so simple, yet so stupid to not be noticiable
+    
+V1.95
+    Better prints, progress bar for the owner
+    
+V1.9
+    Big changes, now everything is done in the client instead of the server, dramatically
+    upping the loading speed, might have issues, not fully tested
+    
+V1.83:
+    Initial public beta release
+    Changed a few things, added optional parameters and some explaining
+    
+ ######################################################################################   
+    Original by Cheezus modded by [C17] Red Fox based on my own chip
+    Still a W.I.P conversion
+    Tip:
+
+FOLLOW THE DAMN INSTRUCTIONS
+
+A better understanding of the variables is just below
+
+To use fully this chip you will need some modelling, texturing, source engine material and image editing knowledge, yes it is a pain
+If not you could just use the basic features
+
+If you want to know about material parameters go to Valve's wiki:
+https://developer.valvesoftware.com/wiki/Category:List_of_Shader_Parameters
+
+Specular doesnt work how you might think here(maybe?), and if you are using it and theres no reflections or its a little wierd,
+its possible the map has no cubemaps or has issues with it
+
+Sometimes when spawning, the cubemap might not load correctly, just give the chip a little nudge / change positions
+
+Specular in source works as the following so mod your texture accordingly:
+
+The whiter it is, the shinier it will be, the same way that the blacker, more rought it will be, which is the inverse of PBR, using metallic / roughness maps, is
+as far as I am aware, impossible, you'll have to mix and play around with specular to have the desired effect. Or play with an inverse roughness and metallic texture.
+
+Furthermore, if you want to use bumppmaps with specular mask, you'll have to use it as an alpha channel of the basetexture then add a special flag for it
+Dont try to use a bumpmap with alpha channel, its not properly supported in gmod, if you try, your model will have its lighting fullbright
+
+If you dont want a specular mask, basetexture and bumpmaps work together as they should
+
+Otherwise perhaps try exporting parts that should be more shiny or not, separately, and adjust how much the cubemap affects them when loading the mesh
+
+Now that this has been said, go scroll down
+
+    Explaining of each possible config, not in order:
+    
+    mdl,----------------------------The actual mesh obj URL ~21.845 tris max per object (it multiplies by 3, which is about 65536 verts max), also MUST be triangulated, 
+    beware of rendertarget limit as well, around ~20 by default, that means about ~20 meshes per time if using single texture, should be enough as long as you stay at the tris limit
+    you can load multiple meshes per .obj, that way it may pass the tris limit, but individual meshes are limited still
+    
+    texture,------------------------The custom texture URL or in-game texture to mod
+    UseModTexture, -----------------Use Modified texture or not example: models/debug/debugwhite but with custom shinyness and stuff else just loads an in-game material with no mods
+    Material,-----------------------If previous false this will be used, normal material such as "models/shiny" with its own proprierties
+    ColorAndAlpha,------------------Self explanatory, RGB Alpha, can be used for custom texture as well
+    UseEnvMapSpecularReflections,---Enables specular reflections, if true or if false will disable all kinds of reflections, loading an in-game material (not texture) overrides this
+    EnvMapShinyness,----------------How much the specular affects reflections, also works as a tint
+    EnvMapLink,---------------------The mask texture itself, uses a URL
+    BumpMapLink,--------------------The bumpmap URL
+    UsePhong,-----------------------1 or 0, for the following look at valve wiki, they are mostly useful for when you dont use a mask
+    InvertPhongMask,----------------Try playing with this
+    PhongTint,----------------------exactly as name says
+    PhongBoost,---------------------Only works with normalmap - Spec Boost
+    PhongExp,-----------------------Spec Glossiness
+    UseRimLight,--------------------1 or 0, works only with BaseMapAlphaPhongMask?
+    RimLightBoost,------------------A value, see valve wiki, only works with having a normalmap
+    RimLightExp,--------------------Same as above
+    EnvMapContrast,-----------------Used with BaseMapAlphaEnvMask
+    EnvMapSaturation,---------------Same as above, try fiddling with these
+    PhongFresnelRange,--------------Try fiddling, works with BaseMapAlphaPhongMask on, only
+    EnableHalfLambert---------------See valve wiki
+    CubeMapTexture------------------Which material will the cubemap be based of?
+    EnvMapFresnel-------------------Try fiddling with it
+    UseIngameBumpMapp---------------Use in-game texture instead of a custom one
+    BumpMapTexture------------------Self explanatory
+    TextureScale--------------------Same as above, also sets bumpmap scale
+    BaseMapAlphaPhongMask-----------Use the base texture alpha as the phong mask
+    EnableBaseMapAlphaEnvMask-------Same as above but for EnvMask, use either of one, not both at the same time
+    EnableNormalmapAlphaEnvMapMask--Same as the above, but instead will use from the NormalMap, might have issues related to Starfall itself, due to how RT works
+    PhongAlbedoTint-----------------Try fiddling
+    PhongExponentTexture------------Self explanatory, although im not really sure if it even works
+    PhongAlbedoBoost----------------Try fiddling
+    Flags = {}----------------------Material flag numbers, see valve wiki, the order affects it
+    LowPolyTexture------------------Linear texture filtering, PS1 style
+    Color2--------------------------Vector, think of it as a extra color brightness if needed
+    SuppressEngineLighting----------Make it fullbright
+    
+    
+        To use any of the following, EnvMapMask, BumpMap, you MUST enable the use of UseEnvMapSpecularReflections
+    ALL of these must be used in some way or other, follow the example and read the notes.
+    
+    NOTE:
+    
+    If you dont want BumpMap / EnvMap textures, just remove the link
+    
+    IT WONT load all kinds of models, see the Mesh note in the function above as to why
+    
+    ALL TEXTURES must be in 1024x1024 for better optmization, its a limitation of the rendertarget of starfall it seens, no way to bypass that
+    if your textures are loading with wrong uvs, thats most likely the cause. Blame them, not me.
+    It should auto correct but in case it doesnt this is why.
+    
+    
+    If you want to use a custom material, one with custom proprierties without loading an external texture, just load up a white texture such as models/debug/debugwhite
+    and set the color manually if not just load a normal gmod texture, but beware that just loading a material will override
+    all custom proprierties except color and alpha.
+    
+    
+    If you use multiple meshes for some reason, then you'll have to use multiple mesh configs
+        
+    This is a powerful chip, one that not many will be able to use fully, it is meant to be a better alternative
+    to Prop2Mesh, since that has limitations on textures and other things, such as only being able to
+    use local files, which in turn ramps up AdvDupe2 file size, which in turn makes it load much
+    slower than needed
+    
+    If the mesh doesnt load, try reloading again
+    
+    MIRRORS:
+    
+    The function itself
+        
+    local function mirror(netRequestName,netReceiveName,RTName,FPS,X,Y,W,H,FoV)
+        
+    How to apply:
+    
+    texture = "!"..mirror("requestmirrorL","sendMirrorL","MirrorL",15,0,0,512,1024,35),
+    texture = "!"..mirror("requestmirrorR","sendMirrorR","MirrorR",15,0,0,512,1024,35),      
+    
+    If you need to add the middle mirror or maybe more, youll need to change part of the code, its near wire.adjustports
+    
+    WARNING:
+    
+    Each custom texture uses a RenderTarget, which means the more custom textures you use, the more RTs it will use, which in turn
+    will reach the RT limit sooner
+    
+    Mirrors EAT your fps, along other players, so its not really recommended to use, but its there if you want to
+    
+    Try to compact your model / textures in a manner that it will the less materials and meshes as possible
+    
+    Of course thats not always possible, in the end you could raise your own max rendertargets. But that doesnt mean other players will.
+    Which in turn will make it so that they dont see the textures or model and then error for them or you
+    
+    ]]--
+
+--############################################################################################################################################
+--Actual things to change
+    local meshName = "Body - Main" --Just the chip name when finished
+    local globalScale = Vector(1) -- Scale all meshes added by this amount, or add a scale vector to individual meshes
+    local offsetPos = Vector(0, 0, 0) -- Offsets are relative to chip/base
+    local offsetAngle = Angle(0, 0, 0)
+    local meshSpawnDelay = 0.5 -- Delay in seconds between spawning each mesh, adjust as needed to avoid lag
+    local showMeshSpawnProgress = false -- Set to true to show progress in console
+    
+    local debugPrints = false  -- Set to false to disable most console messages
+    local showProgressDisplay = true  -- Set to true to show 3D2D progress display, only useful for the owner, as other players cant see it
+    local progressDisplayType = "bar"  -- "bar" or "text" for the display style
+    local progressDisplayHeight = 35  -- Height above the chip
+
+    
+
+    -- scale parameters can be added optionally for individual meshes, can leave them out if they aren't used
+    local meshes = {
+
+        
+        {
+            mdl = "url here",
+            texture = "url here",
+            ColorAndAlpha = Color(255, 255, 255, 255),
+            EnvMapShinyness = Vector(0.1, 0.1, 0.1), --envmaptint
+            PhongTint = Vector(0.5, 0.5, 0.5),
+            PhongBoost = 1.5, --only works with normalmap - Spec Boost
+            PhongExp = 64, --Spec Glossiness 
+            RimLightBoost = 1.25,
+            RimLightExp = 18,   
+            Flags = {2048,8192},   --be careful of the flags, the order matters as well as the type  
+
+   
+        
+        },
+  
+
+    }
+    
+--############################################################################################################################################
+--The actual code 
+
+    --Default config values
+    
+    local function getDefaultConfig()
+    return {
+        texture = "models/debug/debugwhite",
+        Material = "",
+        UseModTexture = true,
+        CubeMapTexture = "models/shiny",
+        ColorAndAlpha = Color(255, 255, 255, 255),
+        UseEnvMapSpecularReflections = true,
+        EnvMapShinyness = Vector(0.2, 0.2, 0.2),
+        EnvMapFresnel = 1,
+        EnvMapLink = "",
+        BumpMapLink = "",
+        UseIngameBumpMapp = false,
+        BumpMapTexture = "phoenix_storms/mat/mat_phx_metallic",
+        TextureScale = 1,
+        BaseMapAlphaPhongMask = false,
+        EnableBaseMapAlphaEnvMask = false,
+        EnableNormalmapAlphaEnvMapMask = false,
+        UsePhong = 1,
+        InvertPhongMask = 0,
+        PhongTint = Vector(1, 1, 1),
+        PhongAlbedoTint = 1,
+        PhongBoost = 1,
+        PhongExp = 128,
+        PhongExponentTexture = "",
+        PhongAlbedoBoost = 512,
+        UseRimLight = 1,
+        RimLightBoost = 0.25,
+        RimLightExp = 18,
+        EnvMapContrast = 1,
+        EnvMapSaturation = 1,
+        PhongFresnelRange = Vector(0.25, 0.50, 1),
+        EnableHalfLambert = false,
+        Flags = {},
+        LowPolyTexture = 0,
+        Color2 = Vector(1, 1, 1),
+        SuppressEngineLighting = false,
+        scale = Vector(1,1,1)
+    }
+end
+
+-- Add mesh download status tracking
+local downloadStatus = {
+    total = #meshes,
+    completed = 0,
+    failed = {}
+}
+
+-- Progress tracking for UI display
+local progressData = {
+    downloading = false,
+    building = false,
+    spawning = false,
+    downloadProgress = 0,
+    buildProgress = 0,
+    spawnProgress = 0,
+    totalMeshes = #meshes,
+    downloadedMeshes = 0,
+    builtMeshes = 0,
+    spawnedMeshes = 0,
+    totalSpawnItems = 0,
+    currentStage = "Idle"
+}
+
+local function mergeConfig(userConfig)
+    if not userConfig.mdl then
+        error("MDL parameter is required")
+    end
+    
+    local defaultConfig = getDefaultConfig()
+    local finalConfig = table.copy(defaultConfig)
+    
+    -- Merge user config with defaults
+    for k, v in pairs(userConfig) do
+        finalConfig[k] = v
+    end
+    
+    return finalConfig
+end
+   
+-- Process the meshes table to add defaults
+local function processMeshesTable(meshesTable)
+    local processedMeshes = {}
+    for i, meshConfig in ipairs(meshesTable) do
+        processedMeshes[i] = mergeConfig(meshConfig)
+    end
+    return processedMeshes
+end
+
+meshes = processMeshesTable(meshes)
+
+    -- For colorful printing
+    local W, R, G = Color(255, 255, 255), Color(255, 0, 0), Color(0, 255, 0)
+
+    local base = chip()
+
+    net.start("requestBase")
+    net.send()
+
+    net.receive("sendBase", function()
+        local ent = net.readEntity()
+
+        base = isValid(ent) and ent or chip()
+    end)
+
+
+
+    local buildThread = coroutine.wrap(function()
+        
+        local builtCount = 0
+    
+        for k, v in ipairs(meshes) do
+            --local holo = hologram.create(base:localToWorld(offsetPos), base:localToWorldAngles(offsetAngle), "models/Combine_Helicopter/helicopter_bomb01.mdl")
+            --holo:setParent(base)
+            
+        progressData.builtMeshes = builtCount
+        progressData.buildProgress = builtCount / #meshes
+        
+            v.holo = holo
+            
+        if v.UseModTexture then
+                local mat = material.create("VertexLitGeneric")
+                --make sure to remove any remaining texture settings before spawn, avoiding some wierd ass fuckery
+                mat:setUndefined("$basetexture")
+                mat:setUndefined("$bumpmap")
+                mat:setUndefined("$envmapmask")
+                mat:setUndefined("$phongexponenttexture")
+
+   if v.EnableHalfLambert then
+        mat:setInt("$flags", 134217728)
+end
+    
+if v.EnableBaseMapAlphaEnvMask then
+    mat:setInt("$flags", 1048576)
+    --mat:setInt("$basealphaenvmapmask", v.BaseMapAlphaEnvMask)
+end    
+
+if v.EnableBaseMapAlphaPhongMask then
+    --mat:setInt("$flags", 134217728)
+    mat:setInt("$basemapalphaphongmask", 1)
+else
+    mat:setInt("$basemapalphaphongmask", 0) 
+end   
+
+if v.EnableNormalmapAlphaEnvMapMask then
+    mat:setInt("$flags", 4194304)
+    --mat:setInt("$normalmapalphaenvmapmask", v.NormalmapAlphaEnvMapMask) 
+end       
+  
+local combinedFlags = 0
+
+for _, flag in ipairs(v.Flags) do
+    combinedFlags = bit.bor(combinedFlags, flag)
+end
+
+mat:setInt("$flags", combinedFlags)
+local cubemapUpdateInterval = 2 -- Adjust the interval as needed
+        
+    mat:setFloat("$envmapcontrast", v.EnvMapContrast)
+    mat:setFloat("$envmapsaturation", v.EnvMapSaturation)    
+    mat:setVector("$envmaptint", v.EnvMapShinyness) --how shiny    
+    mat:setFloat("$envmapfresnel", v.EnvMapFresnel)    
+    
+    mat:setInt("$phong", v.UsePhong)
+    mat:setInt("$invertphongmask", v.InvertPhongMask)
+    mat:setVector("$phongtint",v. PhongTint)
+    mat:setFloat("$phongalbedotint",v.PhongAlbedoTint)
+    mat:setFloat("$phongboost", v.PhongBoost)
+    mat:setFloat("$phongexponent", v.PhongExp)
+    mat:setVector("$phongfresnelranges", v.PhongFresnelRange) --doesnt do anything?
+    mat:setFloat("$phongalbedoboost", v.PhongAlbedoBoost)
+    
+    mat:setInt("$rimlight", v.UseRimLight)
+    mat:setFloat("$rimlightexponent", v.RimLightExp)
+    mat:setFloat("$rimlightboost", v.RimLightBoost)
+
+    
+    mat:setVector("$color2", v.Color2)
+    
+    if v.UseEnvMapSpecularReflections == true then
+    local function setCubeMap()
+        --print("setCubeMap called")
+        local currentPosition = chip():getPos()
+
+        if currentPosition ~= previousPosition or isInitialSpawn then
+            local Nmat = material.load(v.CubeMapTexture)
+            local newEnvMap = Nmat:getTexture("$envmap")
+            --print(newEnvMap)
+            for _, v in ipairs(meshes) do
+                if v.mat then
+                    v.mat:setTexture("$envmap", newEnvMap)
+                end
+            end
+
+            previousPosition = currentPosition
+            isInitialSpawn = false
+        end
+    end
+
+    -- Call setCubeMap with a small delay when the script initializes
+    timer.simple(1, setCubeMap)
+
+    local function updateCubemap()
+        setCubeMap()
+        timer.simple(cubemapUpdateInterval, updateCubemap)
+    end
+
+    timer.simple(cubemapUpdateInterval, updateCubemap)
+
+end
+        
+
+                --EnvMask
+                if v.EnvMapLink:sub(1, 4) == "http" then
+                    if hasPermission("material.urlcreate", v.EnvMapLink) then
+                        mat:setTextureURL("$envmapmask", v.EnvMapLink, function(_, _, width, height, layout)
+                            if not width or not height then
+                                mat:setUndefined("$envmapmask")
+                                print(true, W, "Failed to create EnvMap texture for mesh ", G, k, W, ": ", R, "invalid texture URL")
+
+                                return
+                            end
+
+                            local xScale = 1024 / width
+                            local yScale = 1024 / height
+
+                            layout(0, 0, width * xScale, height * yScale)
+
+                        end)
+                    else
+                        mat:setUndefined("$envmapmask")
+                        print(true, W, "Failed to create EnvMap Texture for mesh ", G, k, W, ": ", R, "missing permission material.urlcreate OR url not whitelisted")
+                    end
+                else
+                    mat:setUndefined("$envmapmask")
+                end
+                
+                if v.PhongExponentTexture:sub(1, 4) == "http" then
+                    if hasPermission("material.urlcreate", v.PhongExponentTexture) then
+                        mat:setTextureURL("$phongexponenttexture", v.PhongExponentTexture, function(_, _, width, height, layout)
+                            if not width or not height then
+                                mat:setUndefined("$phongexponenttexture")
+                                print(true, W, "Failed to create EnvMap texture for mesh ", G, k, W, ": ", R, "invalid texture URL")
+
+                                return
+                            end
+
+                            local xScale = 1024 / width
+                            local yScale = 1024 / height
+
+                            layout(0, 0, width * xScale, height * yScale)
+
+                        end)
+                    else
+                        mat:setUndefined("$phongexponenttexture")
+                        print(true, W, "Failed to create EnvMap Texture for mesh ", G, k, W, ": ", R, "missing permission material.urlcreate OR url not whitelisted")
+                    end
+                else
+                    mat:setUndefined("$phongexponenttexture")
+                end
+
+                --BumpMap
+                if v.BumpMapLink:sub(1, 4) == "http" then
+                    if hasPermission("material.urlcreate", v.BumpMapLink) then
+                        mat:setTextureURL("$bumpmap", v.BumpMapLink, function(_, _, width, height, layout)
+                            if not width or not height then
+                                mat:setUndefined("$bumpmap")
+                                print(true, W, "Failed to create BumpMap Texture for mesh ", G, k, W, ": ", R, "invalid texture URL")
+
+                                return
+                            end
+
+                            local xScale = 1024 / width
+                            local yScale = 1024 / height
+
+                            layout(0, 0, width * xScale, height * yScale)
+
+                        end)
+                    else
+                        mat:setUndefined("$bumpmap")
+                        print(true, W, "Failed to create BumpMap Texture for mesh ", G, k, W, ": ", R, "missing permission material.urlcreate OR url not whitelisted")
+                    end
+            elseif v.UseIngameBumpMapp then            
+                    
+            local Bump = material.load(v.BumpMapTexture)
+            mat:setTexture("$bumpmap", Bump:getTexture("$bumpmap"))
+
+
+
+
+                else
+                    mat:setUndefined("$bumpmap")
+                end
+
+                --Texture Itself
+                if v.texture:sub(1, 4) == "http" then
+                    if hasPermission("material.urlcreate", v.texture) then
+                        mat:setTextureURL("$basetexture", v.texture, function(_, _, width, height, layout)
+                            if not width or not height then
+                                mat:setTexture("$basetexture", "hunter/myplastic")
+                                print(true, W, "Failed to create texture for mesh ", G, k, W, ": ", R, "invalid texture URL")
+
+                                return
+                            end
+                            
+                            local xScale = 1024 / width
+                            local yScale = 1024 / height
+
+                            layout(0, 0, width * xScale, height * yScale)
+
+                        end)
+                    else
+                        mat:setTexture("$basetexture", "hunter/myplastic")
+                        print(true, W, "Failed to create texture for mesh ", G, k, W, ": ", R, "missing permission material.urlcreate OR url not whitelisted")
+                    end
+                    
+               
+                else
+                    
+                    local materialLoadToTexture = material.load(v.texture)
+                    local baseTexture = materialLoadToTexture:getTexture("$basetexture")            
+                    mat:setTexture("$basetexture", baseTexture)  
+                end
+                
+
+     
+               -- mat:recompute()
+            local textureMatrix = Matrix()
+            textureMatrix:setScale(Vector(v.TextureScale, v.TextureScale, 1))  -- Adjust the scaling as needed
+
+-- Set the matrix for bump mapping
+            mat:setMatrix("$basetexturetransform", textureMatrix)   
+                
+                v.mat = mat
+        
+    else
+             v.mat = material.load(v.Material)
+        end
+
+            local success = false
+            local triangles = mesh.trianglesLeft()
+            
+local meshTable = mesh.createFromObj(v.meshData, true)
+v.holoMeshes = {} 
+local meshNames = {}
+
+-- Extract mesh names from the table
+for name, _ in pairs(meshTable) do
+    table.insert(meshNames, name)
+end
+
+-- Iterate through the list of mesh names
+for i = 1, #meshNames do
+    local meshName = meshNames[i]
+
+    try(
+        function()
+            
+            local holomesh = meshTable[meshName]
+            table.insert(v.holoMeshes, holomesh)
+            -- Set the final mesh for each mesh name
+            v.finalMesh = meshTable[meshName]
+            success = true
+
+            -- Render or handle the mesh here
+            -- Example: renderMesh(v.finalMesh)
+
+            -- You may want to render the mesh or do something else with it here
+           -- print("a".."Rendering Mesh Name:", meshName)
+        end,
+        function(err)
+            print(true, W, "Failed to build mesh ", G, meshName, W, ": ", R, err.message)
+        end
+    )
+end
+
+
+        if success then
+            builtCount = builtCount + 1
+            if debugPrints then print(W, "Built mesh " .. k, W, ": ", G, triangles - mesh.trianglesLeft(), W, " tris") end
+        end
+    end
+    
+        progressData.buildProgress = 1
+        progressData.builtMeshes = #meshes
+    
+        return true
+    end)
+
+    local triangles = mesh.trianglesLeft()
+
+-- Then replace the doneBuilding() function with this version:
+local function doneBuilding()
+    local triCount = triangles - mesh.trianglesLeft()
+    setName("Mesh Loader - " .. triCount .. " tris ".."- "..meshName)
+    if debugPrints then print(W, "Finished building, using ", G, triCount, W, " tris") end
+    if debugPrints then print(W, "Starting to spawn meshes with ", G, meshSpawnDelay, W, " second delay between each...") end
+    
+    
+    -- Create a queue of all meshes to spawn
+    local spawnQueue = {}
+    for meshIndex, v in ipairs(meshes) do
+        if v.holoMeshes and #v.holoMeshes > 0 then
+            for i, holomesh in ipairs(v.holoMeshes) do
+                table.insert(spawnQueue, {
+                    meshIndex = meshIndex,
+                    submeshIndex = i,
+                    mesh = v,
+                    holomesh = holomesh
+                })
+            end
+        end
+    end
+    
+    -- Setup progress data for spawning
+    progressData.building = false
+    progressData.spawning = true
+    progressData.currentStage = "Spawning Meshes"
+    progressData.spawnProgress = 0
+    progressData.spawnedMeshes = 0
+    progressData.totalSpawnItems = #spawnQueue
+    
+    local totalToSpawn = #spawnQueue
+    local spawned = 0
+    
+    -- Spawn one mesh at a time with delay
+    local function spawnNextMesh()
+        if #spawnQueue == 0 then
+            if debugPrints then print(G, "All meshes spawned successfully!") end
+            progressData.spawning = false
+            setName("Mesh Loader - " .. triCount .. " tris, "..meshName.." - Complete")
+            return
+        end
+        
+        local item = table.remove(spawnQueue, 1)
+        local v = item.mesh
+        local holomesh = item.holomesh
+        
+        spawned = spawned + 1
+        
+        -- Update progress
+        progressData.spawnedMeshes = spawned
+        progressData.spawnProgress = spawned / totalToSpawn
+        
+        if showMeshSpawnProgress and debugPrints then
+            print(W, "Spawning mesh ", G, item.meshIndex, W, " (submesh ", G, item.submeshIndex, W, ") - ", 
+                  G, spawned, W, "/", G, totalToSpawn, W, " (", 
+                  G, math.floor(spawned/totalToSpawn*100), W, "%)")
+        end
+        
+        -- Create the hologram
+        local holo = hologram.create(base:localToWorld(offsetPos), base:localToWorldAngles(offsetAngle), "models/Combine_Helicopter/helicopter_bomb01.mdl")
+        holo:setParent(base)                    
+        holo:setFilterMag(v.LowPolyTexture)
+        holo:setFilterMin(v.LowPolyTexture)
+        holo:setMesh(holomesh)
+        holo:setMeshMaterial(v.mat)
+        holo:setRenderBounds(Vector(-200), Vector(200))
+        holo:setScale((v.scale or Vector(1)) * globalScale)
+        holo:setColor(v.ColorAndAlpha or Color(255))
+        
+        if not v.SuppressEngineLighting == true then
+            holo:suppressEngineLighting(false)
+        else
+            holo:suppressEngineLighting(v.SuppressEngineLighting)
+        end
+        
+        -- Schedule the next mesh spawn
+if #spawnQueue > 0 then
+            timer.simple(meshSpawnDelay, spawnNextMesh)
+        else
+            if debugPrints then print(G, "All meshes spawned successfully!") end
+            progressData.spawning = false
+            setName("Mesh Loader - " .. triCount .. " tris, "..meshName.." - Complete")
+        end
+    end
+    
+    -- Start the spawning process
+    spawnNextMesh()
+end
+
+local function buildMeshes()
+    setName("Mesh Loader - Building meshes...")
+    if debugPrints then print(W, "Starting to build meshes...") end
+    
+    progressData.building = true
+    progressData.currentStage = "Building Meshes"
+    progressData.builtMeshes = 0
+    progressData.buildProgress = 0
+
+    // Add this check to ensure we have some valid mesh data
+    local hasMeshData = false
+    for _, v in ipairs(meshes) do
+        if v.meshData then
+            hasMeshData = true
+            break
+        end
+    end
+
+    if not hasMeshData then
+        if debugPrints then print(true, W, "No valid mesh data found to build!") end
+        progressData.building = false
+        return
+    end
+    
+
+    hook.add("think", "build", function()
+        while chip():getQuotaAverage() < chip():getQuotaMax() / 4 do
+            if buildThread() then
+                doneBuilding()
+                hook.remove("think", "build")
+                return
+            end
+        end
+    end)
+end
+
+    local meshDataCache
+
+
+    -- Download meshes on your own client, send the data to the server, and then to other clients
+    -- Lowest chance of permissions issues
+local function downloadMeshes()
+    local downloadCount = 0
+    local failCount = 0
+    local alreadyDownloaded = {}
+    local requestQueue = {}
+    
+    -- Set initial progress state
+    progressData.downloading = true
+    progressData.currentStage = "Downloading Meshes"
+    progressData.totalMeshes = #meshes
+    progressData.downloadedMeshes = 0
+    progressData.downloadProgress = 0
+    
+    local function processQueue()
+         -- Update progress
+        progressData.downloadedMeshes = downloadCount
+        progressData.downloadProgress = downloadCount / #meshes
+        
+        local activeRequests = http.getActiveRequests()
+        local maxRequests = http.getMaximumRequests()
+        
+        while activeRequests < maxRequests and #requestQueue > 0 do
+            local k, v = unpack(table.remove(requestQueue, 1))
+            if debugPrints then print(W, "Downloading mesh ", G, k, W, " from URL") end
+            
+            http.get(v.mdl, function(data)
+                if data[1] == "<" or data[1] == "{" then
+                    failCount = failCount + 1
+                    if debugPrints then print(true, W, "Failed to download mesh ", G, k, W, ": ", R, "Invalid format") end
+                else
+                    v.meshData = data
+                    alreadyDownloaded[v.mdl] = k
+                    downloadCount = downloadCount + 1
+                    if debugPrints then print(W, "Successfully downloaded mesh ", G, k, W, ", size: ", G, math.round(#data / 1048576, 3) .. "mb") end
+                end
+                processQueue()
+            end, function(err)
+                failCount = failCount + 1
+                if debugPrints then print(true, W, "HTTP error for mesh ", G, k, W, ": ", R, err) end
+                processQueue()
+            end)
+            
+            activeRequests = activeRequests + 1
+        end
+    end
+    
+    local function processQueue()
+        local activeRequests = http.getActiveRequests()
+        local maxRequests = http.getMaximumRequests()
+        
+        while activeRequests < maxRequests and #requestQueue > 0 do
+            local k, v = unpack(table.remove(requestQueue, 1))
+            if debugPrints then print(W, "Downloading mesh ", G, k, W, " from URL") end
+            
+            http.get(v.mdl, function(data)
+                if data[1] == "<" or data[1] == "{" then
+                    failCount = failCount + 1
+                    print(true, W, "Failed to download mesh ", G, k, W, ": ", R, "Invalid format")
+                else
+                    v.meshData = data
+                    alreadyDownloaded[v.mdl] = k
+                    downloadCount = downloadCount + 1
+                    if debugPrints then print(W, "Successfully downloaded mesh ", G, k, W, ", size: ", G, math.round(#data / 1048576, 3) .. "mb") end
+                end
+                processQueue()
+            end, function(err)
+                failCount = failCount + 1
+                print(true, W, "HTTP error for mesh ", G, k, W, ": ", R, err)
+                processQueue()
+            end)
+            
+            activeRequests = activeRequests + 1
+        end
+    end
+    
+    for k, v in ipairs(meshes) do
+        if not alreadyDownloaded[v.mdl] then
+            table.insert(requestQueue, {k, v})
+        else
+            v.meshData = meshes[alreadyDownloaded[v.mdl]].meshData
+            downloadCount = downloadCount + 1
+            print(W, "Reused mesh data for mesh ", G, k)
+        end
+    end
+    
+    timer.create("downloadMeshes", 0.1, 0, function()
+        if #requestQueue == 0 and http.getActiveRequests() == 0 then
+            timer.remove("downloadMeshes")
+            if downloadCount > 0 then
+                if debugPrints then print(W, "All available meshes downloaded: ", G, downloadCount, "/", #meshes) end
+                progressData.downloading = false
+                buildMeshes()
+            else
+                if debugPrints then print(true, W, "Failed to download any meshes!") end
+                progressData.downloading = false
+            end
+        else
+            processQueue()
+        end
+    end)
+end
+
+if player() == owner() or true then  -- Force all clients to download
+    downloadMeshes()
+end
+
+-- Modify the client-side network code:
+net.receive("sendMeshToClient", function()
+    local recipient = net.readEntity()
+    local meshIndex = net.readInt(16)
+    
+    if meshes[meshIndex] and meshes[meshIndex].meshData then
+        -- Send mesh data to the requesting client
+        net.start("sendMeshData")
+        net.writeInt(meshIndex, 16)
+        net.writeStream(meshes[meshIndex].meshData)
+        net.send(recipient)
+        
+        print(W, "Sending mesh ", G, meshIndex, W, " to ", G, recipient:getName())
+    end
+end)
+
+-- Receive mesh data from another client
+net.receive("sendMeshData", function()
+    local meshIndex = net.readInt(16)
+    net.readStream(function(data)
+        if meshes[meshIndex] and not meshes[meshIndex].meshData then
+            meshes[meshIndex].meshData = data
+            downloadStatus.completed = downloadStatus.completed + 1
+            downloadStatus.failed[meshIndex] = nil
+            
+            print(W, "Received mesh ", G, meshIndex, W, " from another client, size: ", G, math.round(#data / 1048576, 3) .. "mb")
+            
+            -- Check if we now have all meshes
+            if downloadStatus.completed >= downloadStatus.total then
+                buildMeshes()
+            end
+        end
+    end)
+end)
+if CLIENT and showProgressDisplay then
+    local font = render.createFont("Roboto", 64, 400, true)
+    local smallFont = render.createFont("Roboto", 32, 400, true)
+    local scale = 0.1
+    
+    hook.add("PostDrawTranslucentRenderables", "meshLoaderProgress", function()
+    if not progressData.downloading and not progressData.building and not progressData.spawning then
+        return -- Don't draw anything when idle
+    end
+    
+    local entity = isValid(base) and base or chip()
+    local m = entity:getMatrix()
+    m:translate(Vector(0, 0, progressDisplayHeight))
+    m:setAngles((eyePos() - m:getTranslation()):getAngle() + Angle(90, 0, 0))
+    m:rotate(Angle(0, 90, 0))
+    m:setScale(Vector(0.1, -0.1))
+
+    render.pushMatrix(m)
+    
+    render.depthRange(0, 0.9)  
+    -- Background Panel
+    render.setColor(Color(0, 0, 0, 200))
+    render.drawRect(-300, -90, 600, 120)
+
+    local stage = progressData.currentStage
+    local progress = 0
+    
+    if progressData.downloading then
+        progress = progressData.downloadProgress
+    elseif progressData.building then
+        progress = progressData.buildProgress
+    elseif progressData.spawning then
+        progress = progressData.spawnProgress
+    end
+    
+    -- Title Text
+    render.enableDepth(true)
+    render.depthRange(0, 0.8)  -- Push text closer to prevent overlap
+    render.setFont(font)
+    render.setColor(Color(255, 255, 255))
+    render.drawSimpleText(0, -40, stage, 1, 1)
+    render.depthRange(0, 1)  -- Reset depth range
+
+    if progressDisplayType == "bar" then
+        -- Progress Bar Background
+        render.setColor(Color(100, 100, 100))
+        render.drawRect(-200, 0, 400, 25)
+        
+        -- Progress Bar Fill
+        render.depthRange(0, 0.7)  -- Push text in front of bar
+        render.setColor(Color(20, 150, 250))
+        render.drawRect(-200, 0, 400 * progress, 25)
+
+        -- Percentage Text
+        render.depthRange(0, 0.6)  -- Push text in front of bar
+        render.setFont(smallFont)
+        render.setColor(Color(255, 255, 255))
+        render.drawSimpleText(0, 13, math.floor(progress * 100) .. "%", 1, 1)
+        render.depthRange(0, 1) -- Reset
+    else
+        -- Text display
+        render.depthRange(0, 0.85) -- Push text in front
+        render.setFont(smallFont)
+        render.setColor(Color(255, 255, 255))
+        
+        if progressData.downloading then
+            render.drawSimpleText(0, 10, progressData.downloadedMeshes .. " / " .. progressData.totalMeshes, 1, 1)
+        elseif progressData.building then
+            render.drawSimpleText(0, 10, progressData.builtMeshes .. " / " .. progressData.totalMeshes, 1, 1)
+        elseif progressData.spawning then
+            render.drawSimpleText(0, 10, progressData.spawnedMeshes .. " / " .. progressData.totalSpawnItems, 1, 1)
+        end
+
+        render.depthRange(0, 1) -- Reset
+    end
+
+    render.popMatrix()
+end)
+
+if player() == owner() then
+    enableHud(nil, true)
+end
+end
+
+
+else
+    
+    local clientMeshes = {}
+    
+    -- Clients report which meshes they have successfully downloaded
+    net.receive("reportMeshStatus", function(_, ply)
+        local status = net.readTable()
+        clientMeshes[ply] = status
+    end)
+    
+    -- Clients request missing meshes
+    net.receive("requestMissingMeshes", function(_, ply)
+        local missingIndices = net.readTable()
+        
+        -- Find another client who has the mesh and request they send it
+        for possibleSender, status in pairs(clientMeshes) do
+            if possibleSender ~= ply and isValid(possibleSender) then
+                for _, index in ipairs(missingIndices) do
+                    if status.completed[index] then
+                        -- Ask this client to send the mesh data
+                        net.start("sendMeshToClient")
+                        net.writeEntity(ply)
+                        net.writeInt(index, 16)
+                        net.send(possibleSender)
+                        
+                        print(W, "Requested client ", G, possibleSender:getName(), W, " to send mesh ", G, index, W, " to ", G, ply:getName())
+                        break
+                    end
+                end
+            end
+        end
+    end)
+
+
+    wire.adjustPorts({
+        Base = "entity",
+        MirrorL = "entity",
+        MirrorR = "entity",
+    })
+
+    local base = wire.ports.Base
+    local mirrorl = wire.ports.MirrorL
+    local mirrorr = wire.ports.MirrorR
+
+    net.receive("requestBase", function(_, ply)
+        if not isValid(base) then return end
+
+        net.start("sendBase")
+        net.writeEntity(base)
+        net.send(ply)
+    end)
+    
+    net.receive("requestmirrorL", function(_, ply)
+        if not isValid(mirrorl) then return end
+
+        net.start("sendMirrorL")
+        net.writeEntity(mirrorl)
+        net.send(ply)
+    end)
+    
+    net.receive("requestmirrorR", function(_, ply)
+        if not isValid(mirrorr) then return end
+
+        net.start("sendMirrorR")
+        net.writeEntity(mirrorr)
+        net.send(ply)
+    end)
+end
+--[[
+local oldPrint = print
+local col = SERVER and Color(3, 169, 244) or Color(222, 169, 9)
+local prefix = SERVER and "[Server] " or "[Client] "
+function print(warn, ...)
+    if (debugPrints and not warn) or warn then
+        oldPrint(col, prefix, ...)
+    end
+end
+]]--
+-- Why SF doesn't do this on its own I have no idea
+hook.add("removed", "stopStreams", function()
+    if net.isStreaming() then
+        net.cancelStream()
+    end
+end)

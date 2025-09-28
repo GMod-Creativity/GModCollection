@@ -1,7 +1,15 @@
+# PAC3 - F*** Gravity
+
+## Details
+
+### Author
+
 - Author: Lapis PAC3
 - Steam Profile: http://steamcommunity.com/profiles/76561198064171182
-- Youtube: https://www.youtube.com/@lapispac3298
-<!-- -->
+- YouTube: https://www.youtube.com/@lapispac3298
+
+### Publication Info
+
 - Title: [PAC3] F*** Gravity (Download Included!)
 - Date (dd-mm-yyyy): 27-02-2016
 - Source: https://www.youtube.com/watch?v=FZOROhPSSgk
@@ -10,8 +18,16 @@
 - Song: F*** Gravity - Virtual Riot
 - Song_URL: https://www.youtube.com/watch?v=CoSO6iNIUKA
 
-## [PAC3] F*** Gravity (Download Included!)
+## Description
 
-This pac is mainly for beginners who are learning proxies and such...
-Download: [http://www.mediafire.com/download/s31...](https://www.mediafire.com/download/s31x27ux2wj9asp/f%2Ack+gravity.txt)
+This pac is mainly for beginners who are learning proxies and such...  
+Download: [http://www.mediafire.com/download/s31...](https://www.mediafire.com/download/s31x27ux2wj9asp/f%2Ack+gravity.txt)  
 song used - Virtual Riot - Fuck Gravity [Glitch Hop]
+
+### Video
+
+[YouTube - [PAC3] F*** Gravity (Download Included!)](https://www.youtube.com/watch?v=FZOROhPSSgk)
+
+### Image
+
+![image1](./image1.jpg)

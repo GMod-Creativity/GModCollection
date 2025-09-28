@@ -1,0 +1,579 @@
+--@name aliexpress_hudvar_optimized
+--@author redfox (optimized)
+--@shared
+
+if SERVER then
+    wire.adjustInputs(
+        {
+            "Chassis",
+            "EngineRPM",
+            "GearboxGear",
+            "Throttle",
+            "Brake",
+            "Clutch",
+            "TurboPSI"
+        },
+        {
+            "Entity",
+            "Number",
+            "Number",
+            "Number",
+            "Number",
+            "Number",
+            "Number"
+        }
+    )
+    
+    local engineMaxRpm = 9000
+    local TurboPsiMax = 25
+    local chassis = wire.ports.Chassis
+    
+    -- Network burst protection
+    local lastSendTime = 0
+    local sendQueue = {}
+    local maxBytesPerSecond = 2048 -- Adjust based on your needs
+    local currentSecond = 0
+    local bytesUsedThisSecond = 0
+    
+    function hud_sendInputs(ply)
+        local currentTime = timer.systime()
+        local thisSecond = math.floor(currentTime)
+        
+        -- Reset byte counter for new second
+        if thisSecond ~= currentSecond then
+            currentSecond = thisSecond
+            bytesUsedThisSecond = 0
+        end
+        
+        -- Check if we have enough bytes available and net quota
+        local messageSize = 56 -- Approximate size of our message
+        if net.getBytesLeft() < messageSize or bytesUsedThisSecond + messageSize > maxBytesPerSecond then
+            -- Queue the player for next opportunity
+            if not table.hasValue(sendQueue, ply) then
+                table.insert(sendQueue, ply)
+            end
+            return 0
+        end
+        
+        bytesUsedThisSecond = bytesUsedThisSecond + messageSize
+        
+        net.start("hud_sendInputs")
+        net.writeFloat(wire.ports.EngineRPM)
+        net.writeFloat(engineMaxRpm)
+        net.writeFloat(chassis:getVelocity():getLength())
+        net.writeFloat(wire.ports.Throttle)
+        net.writeFloat(wire.ports.Brake)
+        net.writeFloat(wire.ports.Clutch)
+        net.writeFloat(wire.ports.TurboPSI)
+        net.writeFloat(TurboPsiMax)
+        net.writeInt(wire.ports.GearboxGear, 4)
+        net.send(ply, true)
+        
+        return 1
+    end
+    
+    -- Process queued sends
+    timer.create("hud_processQueue", 0.1, 0, function()
+        if #sendQueue > 0 then
+            local ply = table.remove(sendQueue, 1)
+            if isValid(ply) then
+                hud_sendInputs(ply)
+            end
+        end
+    end)
+    
+    net.receive("hud_requestInputs", function(len, ply)
+        hud_sendInputs(ply)
+    end)
+end
+
+if CLIENT then
+    ----- Adjustable values -----
+    local drawOrder = {"kph","gear","input","rpm"}
+    local RefreshInterval = 50 -- milliseconds
+    local enableInterpolation = true
+    
+    -- Colors
+    local bgColor = Color(0,0,0,80)
+    local textColor = Color(255,236,12,200)
+    local unactiveColor = Color(0,0,0,160)
+    local clutchColor = Color(100,100,255,255)
+    local brakeColor = Color(255,100,100,255)
+    local throttleColor = Color(100,255,100,255)
+    
+    local maxinputs = {
+        throttle = 1,
+        brake = 1,
+        clutch = 1    
+    }
+    
+    ----- Optimization variables -----
+    local LastRequest = 0
+    local ResX, ResY = 0
+    local screenw, screenh = 0, 0
+    local sizex, sizey = 0, 0
+    local xpos, ypos = 0, 0
+    local x, y = 0, 0
+    local o_x, o_y = 0, 0
+    local Widescreen = false
+    
+    -- Cache for pre-calculated values
+    local rpmCache = {}
+    local turboCache = {}
+    local cacheValid = false
+    local lastCacheRPM = -1
+    local lastCacheTurbo = -1
+    
+    -- Smoothing variables (moved outside functions)
+    local s_smoothrpm = 0
+    local s_smoothturbo = 0
+    
+    local data = {
+        time = timer.systime(),
+        rpm = 0,
+        rpmMax = 0,       
+        speed = 0,
+        gear = 0,
+        throttle = 0,
+        brake = 0,
+        clutch = 0,
+        turbopsi = 0,
+        maxturbopsi = 0
+    }
+    
+    local prevdata = table.copy(data)
+    
+    -- Unit conversion (cached)
+    local units = {
+        ["kph"] = 3600 * 0.0000254,
+        ["mph"] = 3600 / 63360
+    }
+    
+    local speedLabels = {
+        ["kph"] = "K P H",
+        ["mph"] = "M P H"
+    }
+    
+    -- Math function caching
+    local cos = math.cos
+    local sin = math.sin
+    local rad = math.rad
+    local clamp = math.clamp
+    local angnorm = math.normalizeAngle
+    local floor = math.floor
+    local round = math.round
+    
+    -- Font creation (cached)
+    local fonts = {
+        text = render.createFont("Roboto Mono",25,0,true,false,false,false,0,false),
+        fuel = render.createFont("Roboto Mono",27,0,true,false,false,false,0,false),
+        rpm = render.createFont("HalfLife2",45,0,true,false,false,false,0,false),
+        rpmNum = render.createFont("Roboto Mono",35,0,true,false,false,false,0,false),
+        turbo = render.createFont("HalfLife2",15,0,true,false,false,false,0,false),
+        speed = render.createFont("HalfLife2",70,0,true,false,false,false,0,false),
+        gear = render.createFont("Roboto Mono",60,1000,true,false,false,false,0,false)
+    }
+    
+    -- Material caching
+    local materials = {
+        smallticks = material.create("UnlitGeneric"),
+        bigticks = material.create("UnlitGeneric"),
+        rings = material.create("UnlitGeneric")
+    }
+    
+    materials.smallticks:setTexture("$basetexture","models/debug/debugwhite")
+    materials.bigticks:setTexture("$basetexture","models/debug/debugwhite")
+    materials.rings:setTexture("$basetexture","models/debug/debugwhite")
+    
+    -- Network handling
+    net.receive("hud_sendInputs", function(len, ply)
+        for k,v in pairs(data) do
+            prevdata[k] = v
+        end
+    
+        data.time = timer.systime()
+        data.rpm = net.readFloat()
+        data.rpmMax = net.readFloat()
+        data.speed = net.readFloat()
+        data.throttle = net.readFloat()
+        data.brake = net.readFloat()
+        data.clutch = net.readFloat()
+        data.turbopsi = net.readFloat()
+        data.maxturbopsi = net.readFloat()
+        data.gear = net.readInt(4)
+        
+        -- Invalidate cache when max values change
+        if data.rpmMax ~= prevdata.rpmMax or data.maxturbopsi ~= prevdata.maxturbopsi then
+            cacheValid = false
+            lastCacheRPM = -1
+            lastCacheTurbo = -1
+        end
+    end)
+    
+    -- Screen resolution caching
+    function updateScreenCache()
+        ResX, ResY = render.getGameResolution()
+        screenw = ResX
+        screenh = ResY
+        Widescreen = (screenw / screenh) > (4 / 3)
+        sizex = screenw * (Widescreen and 1 or 1.32)
+        sizey = screenh
+        xpos = sizex * 0.02
+        ypos = sizey * 0.8
+        x = xpos * (Widescreen and 43.5 or 32)
+        y = ypos * 1.015
+        o_x = 0
+        o_y = 0
+    end
+    
+    function requestData()
+        local SysTime = timer.systime()
+        if (LastRequest + RefreshInterval/1000) < SysTime then
+            LastRequest = SysTime
+            net.start("hud_requestInputs")
+            net.send(nil, true)
+        end
+    end
+    
+    function unitsTo(u, t)
+        if units[t] then
+            return (u * 0.75) * units[t]
+        else
+            return 0
+        end
+    end
+    
+    -- Optimized arc rendering with caching
+    local arcCache = {}
+    function getCachedArc(key, cx, cy, radius, thickness, startang, endang, roughness, clockwise)
+        if not arcCache[key] then
+            arcCache[key] = render.PrecacheArc(cx, cy, radius, thickness, startang, endang, roughness, clockwise)
+        end
+        return arcCache[key]
+    end
+    
+    -- Pre-calculate RPM gauge positions and colors
+    function precalculateRPMGauge(rpmMax)
+        if rpmCache[rpmMax] then return rpmCache[rpmMax] end
+        
+        local cache = {}
+        local powerbandend = rpmMax * 0.8
+        local step = 0
+        
+        for i = 0, rpmMax, 250 do
+            step = step + 1
+            local anglestep = (255 / rpmMax) * i
+            
+            local n_col_on, n_col_off
+            if i < powerbandend then
+                n_col_off = Color(200, 200, 200, 200)
+                n_col_on = Color(255, 255, 255, 255)
+            else
+                n_col_off = Color(170, 0, 0, 150)
+                n_col_on = Color(255, 0, 0, 255)
+            end
+            
+            local cos_a = cos(rad(105 + anglestep))
+            local sin_a = sin(rad(105 + anglestep))
+            
+            cache[i] = {
+                anglestep = anglestep,
+                cos_a = cos_a,
+                sin_a = sin_a,
+                col_on = n_col_on,
+                col_off = n_col_off,
+                is_big = step > 4,
+                number = tostring(i / 1000)
+            }
+            
+            if step > 4 then step = 1 end
+        end
+        
+        rpmCache[rpmMax] = cache
+        return cache
+    end
+    
+    -- Optimized RPM box drawing
+    function drawRPMBox(pos, rpm, rpmMax)
+        local x, y = pos.x, pos.y
+        local radius = 0.085 * sizex
+        
+        -- Smooth RPM with dampening
+        s_smoothrpm = clamp(s_smoothrpm + (rpm - s_smoothrpm) * 0.15, 0, rpmMax)
+        
+        local powerbandend = rpmMax * 0.8
+        local endang = 105 + round((s_smoothrpm/rpmMax) * 255, 0)
+        local c_ang = cos(rad(endang))
+        local s_ang = sin(rad(endang))
+        local in_red = s_smoothrpm < powerbandend
+        
+        -- Background circles
+        render.setColor(Color(15, 15, 15, 100))
+        render.drawFilledCircle(x + o_x, y + o_y, radius)
+        render.setColor(Color(55, 55, 55, 200))
+        render.drawFilledCircle(x + o_x, y + o_y, radius * 0.2)
+        
+        -- Use cached gauge data
+        local gaugeData = precalculateRPMGauge(rpmMax)
+        
+        for i, tick in pairs(gaugeData) do
+            local u_col = (s_smoothrpm > i) and tick.col_on or tick.col_off
+            render.setColor(u_col)
+            
+            if tick.is_big then
+                render.setMaterial(materials.bigticks)
+                render.setFont(fonts.rpmNum)
+                render.drawTexturedRectRotated(
+                    x + tick.cos_a * radius / 1.1 + o_x, 
+                    y + tick.sin_a * radius / 1.1 + o_y, 
+                    radius * 0.18, radius * 0.02, 
+                    tick.anglestep - 75
+                )
+                render.drawSimpleText(
+                    x + tick.cos_a * radius / 1.5 + o_x, 
+                    y + tick.sin_a * radius / 1.5 + o_y, 
+                    tick.number, 1, 1
+                )
+            else
+                render.setMaterial(materials.smallticks)
+                render.drawTexturedRectRotated(
+                    x + tick.cos_a * radius / 1.05 + o_x, 
+                    y + tick.sin_a * radius / 1.05 + o_y, 
+                    radius * 0.09, radius * 0.01, 
+                    tick.anglestep - 75
+                )
+            end
+        end
+        
+        -- Needle
+        render.setColor(in_red and Color(175,0,0,255) or Color(255,0,0,255))
+        render.setMaterial(materials.smallticks)
+        render.drawTexturedRectRotated(
+            x + c_ang * radius / 3.5 + o_x, 
+            y + s_ang * radius / 3.5 + o_y, 
+            radius, radius * 0.02, 
+            endang
+        )
+    end
+    
+    -- Similar optimization for turbo gauge
+    function drawTurboBox(pos, turbopsi, maxturbopsi)
+        local x, y = pos.x, pos.y
+        local radius = 0.055 * sizex
+        
+        s_smoothturbo = clamp(s_smoothturbo + (turbopsi - s_smoothturbo) * 0.15, 0, maxturbopsi)
+        
+        local powerbandend = maxturbopsi * 0.8
+        local endang = 25 + round((s_smoothturbo/maxturbopsi) * 255, 0)
+        local c_ang = cos(rad(endang))
+        local s_ang = sin(rad(endang))
+        local in_red = s_smoothturbo < powerbandend
+        
+        -- Background
+        render.setColor(Color(15, 15, 15, 100))
+        render.drawFilledCircle(x + o_x, y + o_y, radius)
+        render.setColor(Color(55, 55, 55, 200))
+        render.drawFilledCircle(x + o_x, y + o_y, radius * 0.2)
+        
+        -- Simplified tick drawing for turbo (can be cached similarly to RPM)
+        local step = 0
+        for i = 1, maxturbopsi, 0.5 do
+            step = step + 1
+            local anglestep = (255 / maxturbopsi) * i
+            
+            local n_col_on, n_col_off
+            if i < powerbandend then
+                n_col_off = Color(200, 200, 200, 200)
+                n_col_on = Color(255, 255, 255, 255)
+            else
+                n_col_off = Color(170, 0, 0, 150)
+                n_col_on = Color(255, 0, 0, 255)
+            end
+            
+            local u_col = (s_smoothturbo > i) and n_col_on or n_col_off
+            render.setColor(u_col)
+            
+            local cos_a = cos(rad(25 + anglestep))
+            local sin_a = sin(rad(25 + anglestep))
+            
+            if step > 4 then
+                render.setMaterial(materials.bigticks)
+                render.setFont(fonts.turbo)
+                step = 1
+                render.drawTexturedRectRotated(
+                    x + cos_a * radius / 1.1 + o_x, 
+                    y + sin_a * radius / 1.1 + o_y, 
+                    radius * 0.18, radius * 0.02, 
+                    anglestep + 25
+                )
+                render.drawSimpleText(
+                    x + cos_a * radius / 1.5 + o_x, 
+                    y + sin_a * radius / 1.5 + o_y, 
+                    tostring(i), 1, 1
+                )
+            else
+                render.setMaterial(materials.smallticks)
+                render.drawTexturedRectRotated(
+                    x + cos_a * radius / 1.05 + o_x, 
+                    y + sin_a * radius / 1.05 + o_y, 
+                    radius * 0.09, radius * 0.01, 
+                    anglestep + 25
+                )
+            end
+        end
+        
+        -- Needle
+        render.setColor(in_red and Color(175,0,0,255) or Color(255,0,0,255))
+        render.setMaterial(materials.smallticks)
+        render.drawTexturedRectRotated(
+            x + c_ang * radius / 3.5 + o_x, 
+            y + s_ang * radius / 3.5 + o_y, 
+            radius, radius * 0.02, 
+            endang
+        )
+    end
+    
+    function drawGearBox(pos, gear)
+        local size = Vector(60,60)
+        local boxpos = pos - size/2
+
+        render.setColor(bgColor)
+        render.drawRoundedBox(16, boxpos.x, boxpos.y, size.x, size.y)
+        render.setColor(textColor)
+        
+        render.setFont(fonts.gear)
+        local gearText = gear == 0 and "N" or (gear == -1 and "R" or tostring(gear))
+        render.drawSimpleText(pos.x, pos.y, gearText, 1, 1)
+    end
+
+    function drawSpeedBox(pos, speed, units)
+        local size = Vector(120, 60)
+        local boxpos = pos - size/2
+
+        render.setColor(bgColor)
+        render.drawRoundedBox(16, boxpos.x, boxpos.y, size.x, size.y)
+        render.setColor(textColor)
+        
+        render.setFont(fonts.speed)
+        render.drawSimpleText(pos.x, pos.y-5, string.format("%03d", clamp(unitsTo(speed, units), 0, 999)), 1, 1)
+        render.setFont(fonts.text)
+        render.drawText(pos.x, pos.y+30, speedLabels[units], 1)
+    end
+    
+    function drawInputBox(pos, throttle, brake, clutch, maxinputs)
+        local size = Vector(120, 120)
+        local boxpos = pos - size/2
+        local linesize = Vector(22, 88)
+        
+        local throttleNorm = clamp(throttle/maxinputs["throttle"], 0, 1)    
+        local brakeNorm = clamp(brake/maxinputs["brake"], 0, 1) 
+        local clutchNorm = clamp(clutch/maxinputs["clutch"], 0, 1)
+        
+        render.setColor(bgColor)
+        render.drawRoundedBox(16, boxpos.x, boxpos.y, size.x, size.y)
+
+        -- Background bars
+        render.setColor(unactiveColor)
+        for i = -1, 1 do
+            local linepos = pos - linesize/2 + Vector(i*30, 0)
+            render.drawRect(linepos.x, linepos.y, linesize.x, linesize.y)
+        end
+        
+        -- Input indicators (top and bottom)
+        local indicators = {
+            {clutchNorm, clutchColor, -30},
+            {brakeNorm, brakeColor, 0},
+            {throttleNorm, throttleColor, 30}
+        }
+        
+        for _, indicator in ipairs(indicators) do
+            local norm, color, xOffset = indicator[1], indicator[2], indicator[3]
+            
+            -- Top indicator
+            render.setColor(norm > 0 and color or unactiveColor)
+            render.drawRect(pos.x + xOffset - linesize.x/2, pos.y + 50 - linesize.x/8, linesize.x, linesize.x/4)
+            
+            -- Bottom indicator  
+            render.setColor(norm == 1 and color or unactiveColor)
+            render.drawRect(pos.x + xOffset - linesize.x/2, pos.y - 50 - linesize.x/8, linesize.x, linesize.x/4)
+            
+            -- Bar fill
+            render.setColor(color)
+            render.drawRect(
+                pos.x + xOffset - linesize.x/2, 
+                pos.y + linesize.y/2 - linesize.y*norm, 
+                linesize.x, 
+                linesize.y*norm
+            )
+        end
+    end
+    
+    function interpolatedData(prevdata, data)
+        local intdata = {}
+        local curtime = timer.systime()
+        local interval = data.time - prevdata.time
+        
+        if interval <= 0 then return data end
+        
+        local interpolation = clamp((curtime - data.time)/interval, 0, 1)
+                
+        for k,v in pairs(data) do
+            if k == "time" then continue end
+            if v == prevdata[k] then
+                intdata[k] = v
+                continue
+            end
+
+            local diff = v - prevdata[k]
+            intdata[k] = prevdata[k] + diff * interpolation
+        end   
+        
+        return intdata 
+    end
+    
+    -- Main drawing function with optimization
+    function drawHUD()
+        local pos = Vector(ResX/2, ResY/2)
+        local intdata = enableInterpolation and interpolatedData(prevdata, data) or data
+        
+        -- Pre-calculate positions
+        local positions = {
+            rpm = pos + Vector(700, 370),
+            input = pos + Vector(0, 470),
+            gear = pos + Vector(760, 410),
+            speed = pos + Vector(710, 470),
+            turbo = pos + Vector(430, 430)
+        }
+        
+        for i, value in ipairs(drawOrder) do
+            if value == "rpm" then 
+                drawRPMBox(positions.rpm, intdata.rpm, data.rpmMax)            
+            elseif value == "input" then 
+                drawInputBox(positions.input, intdata.throttle, intdata.brake, intdata.clutch, maxinputs)
+            elseif value == "gear" then 
+                drawGearBox(positions.gear, data.gear)
+            elseif value == "kph" or value == "mph" then 
+                drawSpeedBox(positions.speed, intdata.speed, value)
+            elseif value == "turbopsi" then 
+                drawTurboBox(positions.turbo, intdata.turbopsi, data.maxturbopsi)    
+            end
+        end
+    end
+
+    -- Initialization
+    hook.add("drawhud", "hud_GatherDisplayData", function()
+        updateScreenCache()
+        hook.remove("drawhud", "hud_GatherDisplayData")
+    end)
+    
+    hook.add("hudconnected", "hud_Activate", function()
+        hook.add("drawhud", "hud_RequestData", requestData)
+        hook.add("drawhud", "hud_DrawHUD", drawHUD)
+    end)
+    
+    hook.add("huddisconnected", "hud_Deactivate", function()
+        hook.remove("drawhud", "hud_RequestData")
+        hook.remove("drawhud", "hud_DrawHUD")
+    end)
+
+end

@@ -1,0 +1,162 @@
+@name Maci's Alarm System
+@persist [Holo Alarm Sound]:number [AlarmPath]:string [Pos1 Pos2 Pos3]:vector [Whitelist]:array
+
+interval(100)
+runOnChat(1)
+
+if(first() | duped()) {
+    print("[teal][M.A.S.] Type !MAS for a list of all commands.")
+    Whitelist:pushEntity(owner())
+    Holo = 0
+    Alarm = 0
+    Sound = 0
+    AlarmPath = "d1_trainstation.apc_alarm_loop1"
+}
+
+A = owner():lastSaid():explode(" ")
+
+
+# +CommandList
+if(A[1,string]:lower()=="!mas" & chatClk(owner())) {
+    hideChat(chatClk(owner()))
+    print("[teal][M.A.S.] COMMANDS:")
+    print("!pos <1/2> - SET THE CORNER POSITIONS.")
+    print("!holo - TOGGLE THE HOLOGRAM, ONLY SMALL ROOMS.")
+    print("!alarm - TOGGLE THE ALARM.")
+    print("!whitelist <name> - WHITELIST A PLAYER.")
+    print("!blacklist <name> - BLACKLIST A PLAYER.")
+}
+# -CommandList
+
+
+# +SettingPoints
+if(A[1,string]:lower()=="!pos" & chatClk(owner())) {
+    hideChat(chatClk(owner()))
+    if(Pos1 & Pos2) {
+        Holo = 0
+        holoDelete(1)
+        Alarm = 0
+        Sound = 0
+        holoAlpha(2,255)
+        holoAlpha(3,255)
+}       
+
+        if(A[2,string]:toNumber() == 1) {
+        print("[teal][M.A.S.] FIRST POINT SET.")
+        owner():soundPlay(2,1,"/buttons/blip1.wav")
+        Pos1 = owner():aimPos()
+        holoCreate(2,Pos1)
+        holoScale(2,vec(0.2,0.2,0.2))
+} elseif(A[2,string]:toNumber() == 2) {
+        print("[teal][M.A.S.] SECOND POINT SET.")
+        owner():soundPlay(2,1,"/buttons/blip1.wav")
+        Pos2 = owner():aimPos()
+        holoCreate(3,Pos2)
+        holoScale(3,vec(0.2,0.2,0.2))
+}}
+# -SettingPoints
+
+
+# +Holo
+if(A[1,string]:lower()=="!holo" & chatClk(owner())) {
+    hideChat(chatClk(owner()))
+    if(Pos1 & Pos2 & Holo == 0) {
+        print("[teal][M.A.S.] HOLO TURNED ON.")
+        owner():soundPlay(2,1,"/buttons/blip1.wav")
+        Holo = 1
+        Pos3 = (Pos1 + Pos2) / 2 
+        holoCreate(1,Pos3)
+        holoAng(1,ang())
+        Scale = positive(toLocal(Pos1,ang(),Pos2,ang()))
+        holoScale(1,-Scale / 12)
+        holoAlpha(1,100 )
+} elseif(Pos1 & Pos2 & Holo) {
+        print("[teal][M.A.S.] HOLO TURNED OFF.")
+        owner():soundPlay(2,1,"/buttons/blip1.wav")
+        Holo = 0
+        holoDelete(1)
+} else {
+        print("[teal][M.A.S.] PLEASE SET THE TWO POINTS FIRST.")
+        owner():soundPlay(2,1,"/buttons/button10.wav")
+}}
+# -Holo
+
+
+# +Adding Players
+if(A[1,string]:lower() == "!whitelist" & chatClk(owner())) {
+    hideChat(chatClk(owner()))
+    TempPlayer = findPlayerByName(A[2,string])
+    if(TempPlayer:isPlayer()) {
+        WhitelistConcat = Whitelist:concat()
+        if(!WhitelistConcat:find(TempPlayer:toString())) {
+            print("[teal][M.A.S.] " + TempPlayer:name():upper() + " IS NOW WHITELISTED.")
+            owner():soundPlay(2,1,"/buttons/blip1.wav")
+            Whitelist:pushEntity(TempPlayer)
+        } else {
+            print("[teal][M.A.S.] " + TempPlayer:name():upper() + " IS ALREADY WHITELISTED.")
+            owner():soundPlay(2,1,"/buttons/button10.wav")
+}}}
+# -Adding Players
+
+
+# +Removing Players
+if(A[1,string]:lower() == "!blacklist" & chatClk(owner())) {
+    hideChat(chatClk(owner()))
+    TempPlayer = findPlayerByName(A[2,string])
+    if(TempPlayer:isPlayer()) {
+        for(I=1,Whitelist:count()) {
+            if(TempPlayer == Whitelist[I,entity]) {
+            print("[teal][M.A.S.] " + TempPlayer:name():upper() + " IS NO LONGER WHITELISTED.")
+            owner():soundPlay(2,1,"/buttons/blip1.wav")
+            findAllowEntity(TempPlayer)
+            Whitelist:removeEntity(I)
+}}}}
+# -Removing Players
+
+
+# +Alarm
+if(A[1,string]:lower()=="!alarm" & chatClk(owner())) {
+    hideChat(chatClk(owner()))
+    if(Alarm == 0 & Pos1 & Pos2) {
+        print("[teal][M.A.S.] ALARM TURNED ON.")
+        owner():soundPlay(2,1,"/buttons/blip1.wav")
+        Alarm = 1
+        holoAlpha(2,0)
+        holoAlpha(3,0)
+} elseif(Alarm == 1) {
+        print("[teal][M.A.S.] ALARM TURNED OFF.")
+        owner():soundPlay(2,1,"/buttons/blip1.wav")
+        Alarm = 0
+        holoAlpha(2,255)
+        holoAlpha(3,255)
+} else {
+        print("[teal][M.A.S.] PLEASE SET THE TWO POINTS FIRST.")
+        owner():soundPlay(2,1,"/buttons/button10.wav")
+}}
+
+
+if(Alarm == 1) {
+    if (findCanQuery()) {
+        findExcludeEntities(Whitelist)
+        findIncludeClass("player")
+        findInBox(Pos1,Pos2)
+        if (find()) {
+            Sound = 1
+            Player=find()
+            Name=find():name()
+        } else {
+            Sound = 0
+            Name="N/A"
+            Player=noentity()
+}}}
+
+
+if(changed((Sound))) {
+    if(Sound == 1) {
+        holoColor(1,vec(255,0,0))
+        soundPlay(1,0,AlarmPath)
+    } else {
+        holoColor(1,vec(0,0,0))
+        soundStop(1)
+}}
+# -Alarm

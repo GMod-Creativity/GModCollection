@@ -1,7 +1,15 @@
+# PAC3 - Memories
+
+## Details
+
+### Author
+
 - Author: Cody Crest
 - Steam Profile: http://steamcommunity.com/profiles/76561198077799720
-- Youtube: https://www.youtube.com/@CodyCrestpac3
-<!-- -->
+- YouTube: https://www.youtube.com/@CodyCrestpac3
+
+### Publication Info
+
 - Title: [Gmod] Pac3 Memories {DOWNLOAD}
 - Date (dd-mm-yyyy): 9-09-2017
 - Source: https://www.youtube.com/watch?v=e_iNFRG2vvo
@@ -10,7 +18,7 @@
 - Song: Kickstarter - William Reid
 - Song_URL: https://www.youtube.com/watch?v=go3HxaWeH8Q
 
-## [Gmod] Pac3 Memories {DOWNLOAD}
+## Description
 
 Totally not based on a game I may or may not have played but have definitely Not been sponsored by to advertise or publicize.
 
@@ -18,7 +26,15 @@ Totally not based on a game I may or may not have played but have definitely Not
 
 Download: https://pastebin.com/21Pqr4Nd
 
-Steam profile: https://steamcommunity.com/id/bricksiceweeb
+Steam profile: https://steamcommunity.com/id/bricksiceweeb  
 Do not add me for questions or bug reports
 
 Sorry I couldn't make an outfit was well as shelter, I had some time restrictions. But I did include a hide proxy (finally) so you don't have to press any more buttons, and a few effects.
+
+### Video
+
+[YouTube - [Gmod] Pac3 Memories {DOWNLOAD}](https://www.youtube.com/watch?v=e_iNFRG2vvo)
+
+### Image
+
+![image1](./image1.jpg)

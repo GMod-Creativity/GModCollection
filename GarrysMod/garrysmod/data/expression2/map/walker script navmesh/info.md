@@ -8,3 +8,5 @@
 ## Random walker script (navmesh)
 
 random walker script using the latest nav.lua, buzzes along random points on randomly selected connected meshes
+
+![image1](./image.png)

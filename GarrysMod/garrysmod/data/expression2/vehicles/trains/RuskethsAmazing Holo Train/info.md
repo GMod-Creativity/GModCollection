@@ -7,6 +7,7 @@
 - Author: Rusketh (Marcess) (Marcess TG)
 - Steam Profile: https://steamcommunity.com/profiles/76561197995742334
 - YouTube: https://www.youtube.com/@madmanrusketh2181
+- Github: https://github.com/Rusketh
 
 ### Publication Info
 

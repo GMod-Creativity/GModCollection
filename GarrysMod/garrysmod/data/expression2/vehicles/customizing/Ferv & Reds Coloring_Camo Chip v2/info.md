@@ -49,6 +49,32 @@ To convert an old vehicle to this is VERY simple. Simply attach the chip somehow
 
 **Note:** if you do not have parts of your shit nocollided, it will not detect it. There is NO reason not to have nocollides between parented stuff on your vehicles anyway.
 
+### Images
+
+<p float="left">
+  <img src="./images/image1.jpg" width="300"/>
+  <img src="./images/image2.jpg" width="300"/>
+  <img src="./images/image3.jpg" width="300"/>
+  <br/>
+  <img src="./images/image4.jpg" width="300"/>
+  <img src="./images/image5.jpg" width="300"/>
+  <img src="./images/image6.jpg" width="300"/>
+  <br/>
+  <img src="./images/image7.jpg" width="300"/>
+</p>
+
+<!--
+![image1](./images/image1.jpg)
+![image2](./images/image2.jpg)
+![image3](./images/image3.jpg)
+
+![image4](./images/image4.jpg)
+![image5](./images/image5.jpg)
+![image6](./images/image6.jpg)
+
+![image7](./images/image7.jpg)
+-->
+
 ### Credits
 
 The original version of this chip, and tbh all the hard stuff, was done by Fervidusletum/Damnation. My role was more getting it into a more user-friendly form, convincing ferv that it's worth releasing, doing stuff like like changing the prefix coding, coding in preexisting camos, the "template" idea, etc.  

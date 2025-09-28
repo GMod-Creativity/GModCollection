@@ -30,12 +30,12 @@ Im going to split this into 3 sections, each E2 will have instructions, descript
 
 ### *Postman's Poltergeist*
 
-### Description:
+### Description
 
 This is by far one of my favourite, and funnest E2's  
 It is exactly what the title says, its a poltergeist you can control and move around. (for those of you that dont know, a poltergeist is an object controlled by a ghost or spirit)
 
-### Instructions:
+### Instructions
 
 Spawn the E2, and move the lamp.  
 Spawn a chair, wire the WL:wirelink on the e2, to the adv pod.  

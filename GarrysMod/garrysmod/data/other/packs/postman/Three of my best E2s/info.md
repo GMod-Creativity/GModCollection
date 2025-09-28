@@ -27,13 +27,21 @@ Im going to split this into 3 sections, each E2 will have instructions, descript
 
 ### *Hologram Dashboard*
 
-### Description:
+<p float="left">
+  <img src="./image1.jpg" height="300"/>
+</p>
+
+<!--
+![image1](./image1.jpg)
+-->
+
+### Description
 
 this is a dashboard, made out of holograms, it is designed to take data inputs, and display them in the form of a dash. It is not meant to control the vehicle in any way. I made this specifically using my crawler, of which the e2 engine has gears, 8 of them (-2,-1,0,1,2,3,4,5).
 
 Making this was a blast, and also quite difficult, over the period of about 2 weeks. It has a gear shift, a working gas, brake, and clutch pedal, a speedometer percent bar, a working steering wheel, the ability to be right OR wrong(left) side driven. A rear view mirror, and last but not least, a beer.
 
-### Instructions:
+### Instructions
 
 1. Wire the WL:wirelink output to your pod controller, and reweld your seat (or place it) in the correct position.  
 2. Wire the SteeringPlate:entity output to your steering plate/steering bar, the dash will pull angles from this and display it by turning the wheel (it has a bug while going reverse and steering, not enough of a problem to fix)  
@@ -49,12 +57,12 @@ IF you do NOT have a way to get the gears, the e2 will base the gears on your sp
 
 ### *Postman's Poltergeist*
 
-### Description:
+### Description
 
 This is by far one of my favourite, and funnest E2's  
 It is exactly what the title says, its a poltergeist you can control and move around. (for those of you that dont know, a poltergeist is an object controlled by a ghost or spirit)
 
-### Instructions:
+### Instructions
 
 Spawn the E2, and move the lamp.  
 Spawn a chair, wire the WL:wirelink on the e2, to the adv pod.  
@@ -80,7 +88,15 @@ LOTS of pictures.-->
 
 ### *Holo Stargate*
 
-### Description:
+<p float="left">
+  <img src="./image2.jpg" height="300"/>
+</p>
+
+<!--
+![image2](./image2.jpg)
+-->
+
+### Description
 
 As you can imagine, this one was really hard to make, and still has quite a few glitches, but it is REALLY fancy.  
 (if you dont know what stargate is, get of the internet.)  
@@ -88,7 +104,7 @@ This wouldnt be at all possible if it weren't for this guy:
 [ E2 ] Hologram Clipping Gates  
 He gate me his bit of code to make things clip like such, and i overhauled it, and made it into a stargate. (it was 10^20 X harder than that though >_>)
 
-### Instructions:
+### Instructions
 
 Due to the fact that i did not know about "wire_holograms_burst amount X", the second gate takes 10 seconds to set up, but its not that bad.
 

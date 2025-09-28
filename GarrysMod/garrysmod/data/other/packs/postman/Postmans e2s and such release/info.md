@@ -32,29 +32,45 @@ Well here goes.
 
 IM GOING TO PUT ALL E2'S ON THE PAGE FIRST, AND THEN ADD THE PICTURES/VIDEOS AS I MAKE THEM.
 
-- **Usefull chips:**
-  - **Engine_base**
-        A chip to control timing and throttle applied to gps based timing for engines.
-        If you have previously used a gps timed engine, this is the same routine, but no gps is needed.
-        If not, i would have to teach you how to make an engine just to make this chip work, so your out of luck.
-  - **Rpm meter**
-        Provides useful info on an engines rpm.
-        axis the e2 to something, adv ball (slave socket) it to your crank, reset the chip, and watch the numbers.
-  - **Velocity sound pitch**
-        its like using a divide chip with a sound emitter to get that cool car like sound, but with e2.
-        spawn it on a car, after changing the sound in if(first())
+### Usefull chips
 
-- **Cool e2's (largest)**
-  - **Solar systems**
-        these are some of my favorite e2's
-    - **Sol system**
-    - **Indepth sol system (suprise after 30 seconds)**
-            (suprise after 30 seconds)
-    - **I am the sun**
-            Same as sol system, but your the sun
-    - **Fatness moons**
-            your being orbited, by 4 moons, thats how fat you are.
-    - **Day/Night**
-            Makes a large sun/moon go around the map
-    - **Argon system**
-            Weird solar system i made up
+1. **Engine_base**  
+A chip to control timing and throttle applied to gps based timing for engines.
+If you have previously used a gps timed engine, this is the same routine, but no gps is needed.  
+If not, i would have to teach you how to make an engine just to make this chip work, so your out of luck.
+![image1](./Usefull%20chips/tlVjS.jpg)
+
+2. **Rpm meter**  
+Provides useful info on an engines rpm.  
+axis the e2 to something, adv ball (slave socket) it to your crank, reset the chip, and watch the numbers.
+
+3. **Velocity sound pitch**  
+its like using a divide chip with a sound emitter to get that cool car like sound, but with e2.  
+spawn it on a car, after changing the sound in if(first())
+
+### Cool e2's (largest)
+
+#### Solar systems
+
+these are some of my favorite e2's
+
+1. **Sol system**
+
+2. **Indepth sol system (suprise after 30 seconds)**  
+(suprise after 30 seconds)
+![image2](./Cool%20e2's/qJfMI.jpg)
+
+3. **I am the sun**  
+Same as sol system, but your the sun
+
+4. **Fatness moons**  
+your being orbited, by 4 moons, thats how fat you are.
+![image3](./Cool%20e2's/5TiBP.jpg)
+
+5. **Day/Night**  
+Makes a large sun/moon go around the map
+![image4](./Cool%20e2's/8ICVP.jpg)
+
+6. **Argon system**  
+Weird solar system i made up
+![image5](./Cool%20e2's/r9uQy.jpg)

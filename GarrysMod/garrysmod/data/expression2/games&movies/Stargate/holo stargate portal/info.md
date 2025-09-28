@@ -30,6 +30,14 @@ Im going to split this into 3 sections, each E2 will have instructions, descript
 
 ### *Holo Stargate*
 
+<p float="left">
+  <img src="./image1.jpg" height="500"/>
+</p>
+
+<!--
+![image1](./image1.jpg)
+-->
+
 ### Description
 
 As you can imagine, this one was really hard to make, and still has quite a few glitches, but it is REALLY fancy.  
@@ -53,8 +61,6 @@ You can use multiple objects going either way, but beware of ops, its quite a la
 Also, the gates glow in the dark, pics below.
 
 THIS CODE IS VERY MESSY, AND CRAPPY, BUT IT GETS THE JOB DONE!
-
-![image1](./image1.jpg)
 
 <!-- ### Pictures:
 

@@ -30,7 +30,13 @@ Im going to split this into 3 sections, each E2 will have instructions, descript
 
 ### *Hologram Dashboard*
 
+<p float="left">
+  <img src="./image1.jpg" height="500"/>
+</p>
+
+<!--
 ![image1](./image1.jpg)
+-->
 
 ### Description
 

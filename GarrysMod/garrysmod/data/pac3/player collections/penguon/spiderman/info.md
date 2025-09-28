@@ -1,4 +1,4 @@
-# PAC3 - Army Pony(you need tf2 to see all the parts)
+# PAC3 - Spider-Man Movement pac - gmod pac3
 
 ## Details
 

@@ -27,3 +27,6 @@ First "big" thing I made with starfall, I'm just getting into it so it's prolly 
 
 Heres the code tho :D  
 https://pastebin.com/p2PK7v33
+
+older video:  
+[YouTube - [GMOD E2] full holo car FINAL](https://www.youtube.com/watch?v=XQaPRw-ALhk)

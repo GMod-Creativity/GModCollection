@@ -1,0 +1,149 @@
+--@name NUCLEAR ROCKET LAUNCH
+--@author
+--@shared
+
+    if SERVER then
+        
+        -- autowire screen 
+        if chip():isWeldedTo() ~= nil and chip():isWeldedTo():getClass() == 'starfall_screen' then chip():isWeldedTo():linkComponent(chip()) else error('Place on a starfall screen') end 
+        local screen, state, selectedplayer, missle = chip():isWeldedTo(), 'ready', owner() screen:setColor(Color(0,0,0,1))
+        local counter = 0
+        
+        -- keyboard input => gmod_wire_keyboard
+        local keyboard = prop.createSent(screen:localToWorld(Vector(screen:obbSize().x/2,0,10)), screen:localToWorldAngles(Angle(-55,0,0)), 'gmod_wire_keyboard', false, 
+        {
+            AutoBuffer = true,
+            EnterKeyAscii = true,
+            Model = "models/beer/wiremod/keyboard.mdl",
+            Synchronous = true
+        })  keyboard:setParent(screen)
+        
+        -- keyboard input => gmod_wire_keyboard
+        local button = prop.createSent(screen:localToWorld(Vector(screen:obbSize().x/2-10,-screen:obbSize().y/2+9,2)), screen:localToWorldAngles(Angle(0,0,0)), 'gmod_wire_button', false, 
+        {
+            description = "NUKE!!!!!!!!!!!",
+            entityout = false,
+            Model = "models/cheeze/buttons2/up.mdl",
+            toggle = false,
+            value_off = 0,
+            value_on = 1
+        })  button:setParent(screen)
+        
+        -- inputs for starfall and wiring
+        wire.adjustInputs({'KEYINPUT', 'BUTTON'}, {'string', 'number'})
+        wire.create(chip(), keyboard, 'KEYINPUT', 'Output', 1, Color(0,0,0), 'cable/cable2')
+        wire.create(chip(), button, 'BUTTON', 'Out', 1, Color(0,0,0), 'cable/cable2')
+        
+        -- make the holo launcher prop that the missle shoots out of
+        local launcher = holograms.create(screen:localToWorld(Vector(-screen:obbSize().x,screen:obbSize().y/2-6,45)), screen:localToWorldAngles(Angle(-30,0,90)), 'models/sprops/misc/tubes/size_1/tube_12x42.mdl', Vector(1,2.5,1)) launcher:setParent(chip())
+        launcher:setMaterial('models/debug/debugwhite') launcher:setColor(Color(0,0,0)) launcher:suppressEngineLighting(true)
+        
+        hook.add('input', 'checknames', function(input, value)
+            if input == 'KEYINPUT' and value ~= nil then
+                net.start('getinput')
+                net.writeString(value)
+                local plys = find.playersByName(value, true, false)
+                selectedplayer = plys[1] or owner()
+                net.writeTable(plys)
+                net.send()
+            end
+            
+            if input == 'BUTTON' and value ~= nil and value == 1 then
+                if state == 'ready' then
+                
+                    missle = prop.create(launcher:localToWorld(Vector(0,140,0)), launcher:localToWorldAngles(Angle(0,90,0)), 'models/props_phx/amraam.mdl', false)
+                    missle:setTrails(15, 25, 1, 'trails/smoke', Color(155))
+                    state = 'firing'
+                
+                end 
+            end
+        end)
+        
+        -- interval
+        timer.create('interval', 0.05, 0, function()
+            
+            if state == 'firing' and isValid(missle) then
+                --print(counter)
+                if counter + 0.025 > 1 then 
+                    --print('breaking')
+                    counter = 0
+                    state = 'ready'
+                    if not isValid(selectedplayer) then missle:setPos(Vector(0,0,0)) else missle:setPos(selectedplayer:getPos()) end
+                    missle:breakEnt()
+                else
+                    --print('flying', selectedplayer)
+                    counter = counter + 0.025
+                    if not isValid(selectedplayer) then counter = 1 return end
+                    local curve = math.bezierVector(counter, launcher:localToWorld(Vector(0,140,0)),launcher:localToWorld(Vector(0,1600,200)),selectedplayer:getPos())
+                    local angCurve = math.bezierVector(counter+0.05, launcher:localToWorld(Vector(0,140,0)),launcher:localToWorld(Vector(0,1600,200)),selectedplayer:getPos())
+                    missle:setPos(curve)
+                    missle:setAngles((angCurve-curve):getAngle())
+                end
+            end
+        end)
+            
+    end
+    
+    if CLIENT then
+        
+        local keyinput, foundplys, cursorPos = 'input name...', find.allPlayers(), {x = 0, y = 0}
+        net.receive('getinput', function()
+            keyinput  = net.readString()   
+            foundplys = net.readTable()
+            if keyinput == '' then keyinput = 'input name...' end 
+            if #foundplys < 1 then foundplys = {owner()} end
+        end)
+        
+        local selectedplyfont = render.createFont("Arial",30,1000,false,false,true, false,0, false,0)
+        local inputfont = render.createFont("Arial",20,900,false,false,true, false,0, false,0)
+        local followupfont = render.createFont("Arial",25,900,false,false,true, false,0, false,0)
+        render.setFont(inputfont) -- set the font
+        
+        hook.add('render', 'drawscreen', function()
+            
+            cursorPos.x, cursorPos.y = render.cursorPos(player())
+            
+            render.setColor(Color(0,0,0,255))
+            render.drawRect(0,0,512,512)
+            
+            render.setColor(Color(50,100,200))
+            render.drawRectOutline(60,150,512-120,1)
+            render.setColor(Color(255,255,255))
+            render.drawRectOutline(60,152,512-120,1)
+            
+            render.setColor(Color(255,255,255,55)) -- input text draw
+            render.setFont(inputfont)
+            render.drawText(80,80,keyinput or 'nil',0)
+            
+            if not isValid(foundplys[1]) then foundplys[1] = owner() end
+            
+            render.setColor(team.getColor(foundplys[1]:getTeam()))
+            render.setFont(selectedplyfont)
+            render.drawText(256,110,foundplys[1]:getName(),1)
+            
+            if #foundplys > 1 then
+                render.setFont(followupfont)
+                for k = 2, #foundplys do
+                    if k > 13 then break end
+                    if not isValid(foundplys[k]) then 
+                        render.setColor(Color(255,255,255,55))
+                        render.drawText(256,140+23*(k-1),'Player left!',1) 
+                    else
+                        render.setColor(team.getColor(foundplys[k]:getTeam())-Color(0,0,0,220))
+                        render.drawText(256,140+23*(k-1),foundplys[k]:getName(),1) 
+                    end
+                end
+            else
+                render.setColor(Color(255,255,255,85))
+                render.setFont(followupfont)
+                render.drawText(256,180,'<No other players found!>',1) 
+            end
+            
+            render.setColor(Color(255, 255, 255))
+            render.drawRect(0,450,512,512)
+            render.setColor(Color(50,100,200))
+            render.drawRectOutline(0,0,512,512)
+            
+        end)
+        
+    end

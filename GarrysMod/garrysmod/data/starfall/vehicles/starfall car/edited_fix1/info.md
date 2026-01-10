@@ -4,14 +4,13 @@
 
 ### Author
 
+- Author: EnoSkyFire
+
+### Original Author
+
 - Author: galaxy (ZeroTut0rials) (GDOGS)
 - Steam Profile: https://steamcommunity.com/profiles/76561198128391261
 - YouTube: https://www.youtube.com/@ZeroTut0rials
-
-### Edited
-
-- Edited: EnoSkyFire
-- Edited Date (dd-mm-yyyy): 26-08-2025
 
 ### Publication Info
 

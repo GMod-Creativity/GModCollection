@@ -4,15 +4,11 @@
 
 ### Author
 
-- Author: \<Unknown Author\>
+- Author: SirDobbers (Dman) (Dmanbiker)
+- Steam Profile: https://steamcommunity.com/profiles/76561197973187542
+- YouTube: https://www.youtube.com/channel/UCeJa31vAS60OlaW1xtPlBPw
 
 ### Publisher
-
-- Publisher: SirDobbers (Dman) (Dmanbiker)
-- Steam Profile: https://steamcommunity.com/profiles/76561197973187542
-- YouTube: https://www.youtube.com/@SirDobbers
-
-### Publisher 2
 
 - Publisher: GMODISM
 - Website: https://gmodism.com

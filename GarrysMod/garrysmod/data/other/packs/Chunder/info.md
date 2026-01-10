@@ -4,8 +4,9 @@
 
 ### Author
 
-- Author: Chunder
+- Author: Chunder (ChunderDownUndeR) (CDU) (Ollie 'Stegs')
 - Steam Profile: https://steamcommunity.com/profiles/76561198142474106
+- YouTube: https://www.youtube.com/@olliestegscdu4553
 - Discord: V e l c r o #1998
 - Steam group:  https://steamcommunity.com/groups/ChunderDupeGroup
 - Discord Group: https://discord.gg/Dx84PvSuFs

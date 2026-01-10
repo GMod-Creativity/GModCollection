@@ -19,6 +19,12 @@
 
 ## Description
 
+<p float="left">
+  <img src="./image1.jpg" width="500"/>
+</p>
+
+<!-- ![image1](./image1.jpg) -->
+
 I am giving out a public mech for people to use that is prebuilt. Instructions on how to download and use it below.
 
 You will need advanced duplicator 2 to open it in gmod, AD2 can be found here:  

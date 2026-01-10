@@ -1,19 +1,18 @@
-# Packs - Darkmessenger84
+# Packs - Dakota
 
 ## Details
 
 ### Author
 
 - Author: Dakota
-- Pastebin: 
-- YouTube: 
-- Steam Profile: 
+- Steam Profile: https://steamcommunity.com/profiles/76561198035645276
+- YouTube: https://www.youtube.com/@dakota0000001
 
 ## Packs
 
 ### 1. Pastebin
 
-- Description: Darkmessenger84's GMod Pastebins.
-- Source: https://pastebin.com/u/darkmessenger84
-- Source Accessed (dd-mm-yyyy): 01-07-2025
+- Description: Dakota's GMod Pastebins.
+- Source: https://steamcommunity.com/groups/DakTek
+- Source Accessed (dd-mm-yyyy): 10-01-2026
 - Pack Type: expression2

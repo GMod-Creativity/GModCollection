@@ -6,6 +6,7 @@
 
 - Author: Dakota
 - Steam Profile: https://steamcommunity.com/profiles/76561198035645276
+- YouTube: https://www.youtube.com/@dakota0000001
 
 ### Publication Info
 

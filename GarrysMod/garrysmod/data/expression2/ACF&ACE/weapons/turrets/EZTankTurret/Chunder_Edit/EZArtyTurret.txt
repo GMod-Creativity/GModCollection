@@ -1,0 +1,191 @@
+@name EZArtyTurret
+@inputs  [Pod,Cam,EGP,GUN]:wirelink [Chair,Base]:entity Active M2
+@persist Gun:entity Elevation Depression Yaw RotateSpeed LocalVel
+@persist Rangefinder:ranger RangerVec:vector [ScreenRes,Res]:vector2 CamOffset:vector
+@outputs [Inertia,Hold]:angle CamL:entity User:entity HoldGun
+@persist Active Mouse1 Mouse2 Reload Shift Meters PW NW HudRange
+@persist HudColor:vector HudColor2:vector CamDist RealisticGunMovement GPS:vector
+@persist X Y Z PosX PosZ PosY Height Distance Dist Ang Zeroing ShellPhys Shellspeed ShellWeight TrajSpeed Calibre CalibreS
+ 
+#runOnTick(1)
+interval(20)
+
+if(first()||dupefinished()){
+                  #MADE BY SPIDER, EDIT BY SIR DOBBERS# EZArty mod by CDU
+###########------------------VARIARBLES-----------------############
+ 
+    #Hud
+   HudColor=vec(140,240,140)
+    #Gun
+    Elevation=40
+    Depression=2
+    Yaw=180
+    RotateSpeed=2
+   
+    RealisticGunMovement=1
+   
+    #Cam
+    CamOffset=vec(0,0,150)
+    CamDist=350
+   
+###########---------------------END---------------------############
+
+if (first()|changed(GUN))
+{
+    Gun=GUN:entity()
+    Shellspeed = GUN["Muzzle Velocity",normal]
+    ShellWeight = GUN["Muzzle Weight",normal]
+    CaliberS = Gun:acfNameShort():matchFirst("^%d+")
+    Caliber = CaliberS:toNumber()
+    print("Caliber:" + Caliber + " Shellspeed:" + Shellspeed)  
+}
+
+    holoCreate(1)
+    holoAlpha(1,0)
+    Hold = entity():toLocal(Gun:angles())
+    Inertia = shiftL(ang(Gun:inertia()))
+}
+ 
+if (Active){
+    Position=Base:pos()+CamOffset
+    Cam["Position",vector]=Position
+    if (~Active){
+        Gun:soundPlay(1,0,"vehicles/tank_turret_loop1.wav")
+        soundPitch(1,0)
+       
+        Cam["Activated",number]=1
+        Cam["Parent",entity]=entity()
+        Cam["Distance",number]=CamDist
+           
+        #EGP Stuff
+        User = Chair:driver()
+        ScreenRes=egpScrSize(Chair:driver())
+        Res=ScreenRes/2
+       
+        #Forward Gun Tracker    
+        EGP:egp3DTracker(2,vec(0,0,0))
+        EGP:egpParent(2,holoEntity(1))
+       
+        EGP:egpCircle(3,vec2(0,0),vec2(4,4))
+        EGP:egpColor(3,vec(100,60,200))
+        EGP:egpParent(3,2) 
+        
+        #Crosshairs
+        
+        EGP:egpBox(4,Res+vec2(50,0),vec2(55,2.5))
+        EGP:egpColor(4,HudColor)
+        
+        EGP:egpBox(5,Res+vec2(-50,0),vec2(55,2.5))
+        EGP:egpColor(5,HudColor)
+        
+        EGP:egpBox(6,Res+vec2(18,60),vec2(2.5,105))
+        EGP:egpColor(6,HudColor)
+        
+        EGP:egpBox(7,Res+vec2(-18,60),vec2(2.5,105))
+        EGP:egpColor(7,HudColor)
+        
+        EGP:egpCircleOutline(8,Res+vec2(-0,0),vec2(7,7))
+        EGP:egpColor(8,HudColor)
+        
+        EGP:egpBox(9,Res+vec2(0,20),vec2(10,2))
+        EGP:egpColor(9,HudColor)
+        
+        EGP:egpBox(10,Res+vec2(0,50),vec2(10,2))
+        EGP:egpColor(10,HudColor)
+        
+        EGP:egpText(11,"Mode: ",Res+vec2(70,30))
+        
+        EGP:egpText(12,"Range:",Res+vec2(70,50))
+        
+
+        
+        
+   
+        rangerFilter(Gun)
+        rangerFilter(entity():getConstraints())
+        rangerPersist(1)
+       
+        #Gun Stuff
+        Inertia = shiftL(ang(Gun:inertia()))
+    }
+    #EGP:egpColor(3,vec(200*!GunReady,200*GunReady,0))
+    holoPos(1,rangerOffset(9999999999,Gun:pos()+Gun:forward()*100,Gun:forward()):position())
+  
+    GPS=Base:pos()
+    
+    #Ang Force Stuff
+    Mouse2=M2
+    if (Mouse2 & $Mouse2){
+        Hold = entity():toLocal(Gun:angles())
+    }
+    Angle = Chair:toLocal(User:eyeAngles())
+    Ranger = rangerOffset(9999999999,Position,Angle:forward())
+    
+    RangerVec=Ranger:position()
+    
+    X=RangerVec:x()
+    Y=RangerVec:y()
+    Z=RangerVec:z()
+    PosX=GPS:x()
+    PosY=GPS:y()
+    PosZ=GPS:z()
+    Height=(PosZ-Z)*-0.2
+    
+    if(GUN["Muzzle Velocity",normal]>160){
+    GunAng = entity():toWorld(Hold)*Mouse2+(Ranger:pos() - Gun:pos()):toAngle()*!Mouse2
+    EGP:egpSetText(11,"Mode:  Direct Fire")
+    }
+    
+    else{
+    
+    DistanceY=abs(PosX-X)
+    DistanceZ=abs(PosZ-Z)
+    DistanceX=abs(PosY-Y)
+    Distance=sqrt((DistanceY*DistanceY)+(DistanceZ*DistanceZ)+(DistanceX*DistanceX))
+    Dist=Distance/168
+    
+    "Velocity= round((((Shellspeed*Shellspeed)*0.005)^1.6303)/3)"
+    Velocity= round(((Shellspeed^3)*0.0000053)*(Shellspeed^0.8))
+    ShellPhys=(((85+(ShellWeight*ShellWeight)/-(ShellWeight)*0.0003))^1.6)/6
+    Zeroing=(ShellPhys*(Distance/2000))
+    TrajSpeed= (Velocity-3)-((ShellWeight-45500)*0.00002)+(Distance*0.0002)
+    
+    Ang=Height+(Dist*Dist*Dist)/TrajSpeed+Zeroing
+    Vector= vec(X,Y,Ang+Z)
+
+    GunAng = entity():toWorld(Hold)*Mouse2+((Vector+vec(0,0,(Distance^0.55))) - Gun:pos()):toAngle()*!Mouse2
+    EGP:egpSetText(11,"Mode:  Arc Fire")
+}
+    LocalVel=entity():toLocal(Gun:angles()):yaw()
+    soundPitch(1,(abs($LocalVel)>0.3)*80)
+}
+else{
+    soundPitch(1,0)
+    if (~Active){
+        Hold = entity():toLocal(Gun:angles())
+    }
+    GunAng = entity():toWorld(Hold)
+}
+
+
+Force = Gun:toWorld(clamp(Gun:toLocal(GunAng),ang(-RotateSpeed),ang(RotateSpeed)))
+Clamped = clamp(entity():toLocal(Force),ang(-Elevation,-Yaw,-1),ang(Depression,Yaw,1))
+LocalToGun = Gun:toLocal(entity():toWorld(Clamped))
+Gun:applyAngForce((LocalToGun * 250 - Gun:angVel() * 47 + entity():angVel() * 47 * (abs(Gun:toLocal(GunAng):yaw())>5)*RealisticGunMovement) * Inertia) #250, 47
+
+HoldGun=M2|!Active
+
+
+Meters=(round(toUnit("m",Distance)))
+EGP:egpSetText(12,"Range: " + toString(Meters))
+
+if((Meters>250 & Meters<600)){
+    EGP:egpColor(12,HudColor)
+}
+else{
+    EGP:egpColor(12,vec(240,0,0))
+}
+#[PW+=Pod["PrevWeapon",normal]*45
+NW+=Pod["NextWeapon",normal]*60
+
+Cam["FOV",normal]= 90+ clamp( NW - PW,-80,0)]#

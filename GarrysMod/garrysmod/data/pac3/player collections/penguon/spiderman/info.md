@@ -6,7 +6,7 @@
 
 - Author: penguon (Penguin) (pasta_penguinie)
 - Steam Profile: https://steamcommunity.com/profiles/76561198121215700
-- YouTube: https://www.youtube.com/watch?v=kvcFCJ3VWPc
+- YouTube: https://www.youtube.com/@penguon4747
 
 ### Publication Info
 

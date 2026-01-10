@@ -10,12 +10,12 @@
 - [x] Add stuff from [EmP] DEF: https://www.youtube.com/@FUNC_DEF
 - [x] Add kolore's car minigame
 - [ ] Add stuff from Bonzoye: https://github.com/Bonyoze, https://www.youtube.com/@Bonyoze
-- [ ] Add stuff from Rusketh: https://www.youtube.com/watch?v=wabnoAJXlrc
+- [x] Add stuff from Rusketh: https://www.youtube.com/watch?v=wabnoAJXlrc
 - [ ] Ask around for Bulls Wired Worms: https://web.archive.org/web/20150306042805/http://www.wiremod.com:80/forum/finished-contraptions/15710-wired-worms-released.html
 - [x] Ask around for cipher ultra vehicles: https://web.archive.org/web/20160503034106/http://www.wiremod.com:80/forum/finished-contraptions/24367-m12-warthog-halo-series.html
 - [x] Add stuff from DGrouse: https://dg-collection.weebly.com/expression-2.html 
 - [x] Add simplicity stuff: https://gmods.org/?q=Simplicity and https://web.archive.org/web/20110220205658/http://www.wiremod.com:80/forum/finished-contraptions/15285-simplicity-computer.html
-- [] Add imageloader: https://github.com/NiTrO0FuN/e2-imageloader
+- [ ] Add imageloader: https://github.com/NiTrO0FuN/e2-imageloader
 - [x] Add stuff from ARaccoonNamedDEF: https://github.com/ARaccoonNamedDEF, https://www.youtube.com/@FUNC_DEF
 - [x] Check cipher ultra instant chassis if its version 1 or 2?
 - [ ] Add stuff from Chris Nate: https://www.youtube.com/@CrishNate
@@ -24,7 +24,7 @@
 - [ ] Add stuff from: https://web.archive.org/web/20101018185146/http://www.facepunch.com:80/showthread.php?828901-Divran-s-E2-Thread
 - [ ] Add stuff from acf discord
 - [ ] Add stuff from wiremod discord
-- [ ] Add stuff from https://github.com/ACF-Team/ACF-3/wiki/Public-E2-Collection
+- [x] Add stuff from https://github.com/ACF-Team/ACF-3/wiki/Public-E2-Collection
 - [ ] Add youtube stuff enyx
 - [ ] Add stuff from https://steamcommunity.com/id/ardiscothyssen/myworkshopfiles/?p=1
 - [x] Move drones to machines or unmanned vehicles

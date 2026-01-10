@@ -34,7 +34,7 @@ The 8080 Core is VERY similar to the Z80, to the point that the Z80 is backwards
 
 Enough wall of text, pretty 1bit pictures and videos time.
 
-https://www.youtube.com/watch?v=UwcfBp-5UeI
+[YouTube - Intel 8080 Emulatoe (Feat. Space Invaders) in Wiremod E2](https://www.youtube.com/watch?v=UwcfBp-5UeI)
 
 ![image1](./images/hXp0f.png)  
 ![image2](./images/CHEZe.png)  

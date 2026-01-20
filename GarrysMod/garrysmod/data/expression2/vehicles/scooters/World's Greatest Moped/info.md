@@ -9,7 +9,7 @@
 
 ### Publication Info
 
-Title: World's Greatest Moped
+- Title: World's Greatest Moped
 - Date (dd-mm-yyyy): 18-07-2017
 - Source: Wiremod Discord: Contraptions Archived
 - Source: https://pastebin.com/ernq49qN

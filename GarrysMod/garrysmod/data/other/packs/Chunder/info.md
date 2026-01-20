@@ -13,7 +13,7 @@
 
 ## Packs
 
-### 1. Pack Dupes e E2
+### 1. Distant Sun Project (CDU-goodbye)
 
 - Date (dd-mm-yyyy): 20-08-2020
 - Edited Date (dd-mm-yyyy): 01-03-2021

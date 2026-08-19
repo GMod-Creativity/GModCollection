@@ -1,0 +1,355 @@
+@name MECH/Mech_mk7
+#@inputs [FT1 FT2 Seat]:entity
+@outputs Fire1
+@persist [R1 R2]:vector [SOUNDS Array Contraption Players]:array
+@persist [Seat Driver Hip FT1 FT2 Find1 Find2]:entity Inv
+@persist Index Height Width Offset Walk Yaw L
+@persist [SOUND_WALK SOUND_PASS SOUND_STEP SOUND_DASH SOUND_FALL]:string WEAPONFIND
+@model models/hunter/blocks/cube05x05x05.mdl
+
+W = Driver:keyPressed("w")
+A = Driver:keyPressed("a")
+S = Driver:keyPressed("s")
+D = Driver:keyPressed("d")
+Sh = Driver:keySprint()
+
+Fire1 = Driver:keyAttack1()
+
+if(first()|dupefinished()){
+    if(owner():steamID() != "STEAM_0:0:19339894"){
+        #chatPrint(array[owner():name()," tried to steal a contraption from STALKER'"]:concat())
+        selfDestructAll()
+    }
+
+    #Material2 = "models/XQM/CellShadedCamo_diffuse"
+    Material2 = "models/debug/debugwhite"
+    Material1 = "models/props_combine/metal_combinebridge001"
+    Material3 = ""
+
+    Color1 = vec4(255,255,255,255)
+    Color2 = vec4(55,100,100,255)
+    Color3 = vec4(155,155,155,255)
+
+    Height = 60     ## Height of torso above the feet
+    Width  = 15     ## Width between hipjoints and hip prop
+    Offset = 25     ## Difference between physical and virtual hipPos
+    Inv    = 1      ## In- or outward facing knees
+
+    SOUND_WALK = "ambient/machines/pneumatic_drill_3.wav"
+    SOUND_STEP = "npc/antlion_guard/foot_heavy2.wav"
+    SOUND_PASS = "ambient/machines/diesel_1.wav"
+    SOUND_DASH = "thrusters/rocket02.wav"
+    SOUND_FALL = "ambient/explosions/explode_4.wav"
+
+    SOUNDS:insertString(1,"ambient/tones/equip1.wav")
+    SOUNDS:insertString(2,"ambient/tones/equip2.wav")
+    SOUNDS:insertString(3,"ambient/tones/equip3.wav")
+    SOUNDS:insertString(4,"ambient/tones/equip4.wav")
+    timer("sound",random(5000,15000) )
+
+    Hip = entity()
+    Pos = Hip:pos()
+
+    Hip:setPos(Pos + vec(0,0,Height+10+Offset))
+
+    FT1 = propSpawn("models/hunter/blocks/cube025x025x025.mdl",Pos + vec(1,-Width*1.5,10),1)
+    FT2 = propSpawn("models/hunter/blocks/cube025x025x025.mdl",Pos + vec(1,Width*1.5,10),1)
+
+    findByClass("prop_vehicle_prisoner_pod")
+    Seat = findClosest(entity():pos())
+
+    Seat:propFreeze(1)
+    Seat:setPos(Hip:toWorld(vec(10,0,Offset*2)))
+    Seat:setAng(Hip:toWorld(ang(0,0,0)))
+    Seat:setMaterial(Material1)
+    Seat:setColor(vec4(0,0,0,0))
+
+    timer("parent",1000)
+
+    R1 = FT1:pos()
+    R2 = FT2:pos()
+
+    Array:insertEntity(1,Hip)
+    Array:insertEntity(2,Hip)
+    Array:insertEntity(3,Hip)
+
+    for(I=1,Array:count()){
+        P = Array[I,entity]
+        P:setMass(50000)
+        P:setAlpha(0)
+    }
+
+    L = 70
+
+    holoCreate(100,Hip:toWorld( vec(0,-Width,-Offset)) )
+    holoParent(100,Hip)
+    holoCreate(200,Hip:toWorld( vec(0,-Width,-Offset)) )
+    holoParent(200,100)
+    holoCreate(300,holoEntity(200):toWorld(vec( 0, 0, Inv * 0.5*L) ) )
+    holoParent(300,200)
+    holoCreate(400,holoEntity(300):toWorld(vec( 0, 0, Inv * 0.5*-L) ) )
+    holoParent(400,300)
+
+    holoCreate(500,Hip:toWorld( vec(0,Width,-Offset)) )
+    holoParent(500,Hip)
+    holoCreate(600,Hip:toWorld( vec(0,Width,-Offset)) )
+    holoParent(600,500)
+    holoCreate(700,holoEntity(600):toWorld(vec( 0, 0, Inv * 0.5*L) ) )
+    holoParent(700,600)
+    holoCreate(800,holoEntity(700):toWorld(vec( 0, 0, Inv * 0.5*-L) ) )
+    holoParent(800,700)
+
+    holoCreate(900, Hip:toWorld(vec(0,-22,0)))
+    holoParent(900, Hip)
+    holoCreate(1000, Hip:toWorld(vec(0,22,0)))
+    holoParent(1000, Hip)
+    holoCreate(1100, holoEntity(900):toWorld(vec(0,-17,-40)))
+    holoParent(1100, 900)
+    holoCreate(1200, holoEntity(1000):toWorld(vec(0,17,-40)))
+    holoParent(1200, 1000)
+
+    for(I=100,1200){
+        holoAlpha(I, 0)
+    }
+
+    Yaw = Hip:angles():yaw()
+
+    function void holo(Model:string,Scale:vector,Position:vector,Angle:angle,Parent:entity,Material:string,Color:vector4){
+        holoCreate(Index,Parent:toWorld(Position*(L/50)),Scale*(L/50),Parent:toWorld(Angle))
+        holoModel(Index,Model)
+        holoParent(Index,Parent)
+        holoMaterial(Index,Material)
+        holoColor(Index,Color)
+
+        Index++
+    }
+
+    function void body(){
+
+        H1 = holoEntity(200)
+        H2 = holoEntity(600)
+        H3 = holoEntity(300)
+        H4 = holoEntity(700)
+        H5 = holoEntity(400)
+        H6 = holoEntity(800)
+
+        ## LEGS
+        holo("models/props_c17/metalPot001a.mdl",vec(1,1,1)*0.8,vec(0,-2,0),ang(0,0,90),holoEntity(100),Material1,Color3)
+        holo("models/props_c17/metalPot001a.mdl",vec(1,1,1)*0.8,vec(0,2,0),ang(0,0,270),holoEntity(500),Material1,Color3)
+        holo("models/gibs/gunship_gibs_midsection.mdl",vec(0.7,1,1)*0.25,vec(0,0,0),ang(250,0,0),H3,Material2,Color2)
+        holo("models/gibs/gunship_gibs_midsection.mdl",vec(0.7,1,1)*0.25,vec(0,0,0),ang(250,0,0),H4,Material2,Color2)
+        holo("models/props_combine/combine_light002a.mdl",vec(1,1,1)*0.6,vec(0,0,0),ang(0,0,0),H1,Material1,Color3)
+        holo("models/props_combine/combine_light002a.mdl",vec(1,1,1)*0.6,vec(0,0,0),ang(0,0,0),H2,Material1,Color3)
+        holo("models/props_combine/combine_emitter01.mdl",vec(1,1,1)*0.6,vec(0,0,-12),ang(100,0,0),H3,Material1,Color3)
+        holo("models/props_combine/combine_emitter01.mdl",vec(1,1,1)*0.6,vec(0,0,-12),ang(100,0,0),H4,Material1,Color3)
+        holo("models/props_combine/combine_barricade_bracket01a.mdl",vec(1,1,1)*0.75,vec(0,0,8),ang(270,90,0),H5,Material1,Color3)
+        holo("models/props_combine/combine_barricade_bracket01a.mdl",vec(1,1,1)*0.75,vec(0,0,8),ang(270,90,0),H6,Material1,Color3)
+        holo("models/props_junk/terracotta01.mdl",vec(1,1,0.5),vec(5,0,3),ang(0,0,180),H5,Material1,Color3)
+        holo("models/props_junk/terracotta01.mdl",vec(1,1,0.5),vec(5,0,3),ang(0,0,180),H6,Material1,Color3)
+
+        ## HIP
+
+        ## TORSO
+        holo("models/gibs/gunship_gibs_midsection.mdl",vec(1,1,1)*0.25,vec(10,0,-10),ang(235,180,0),Hip,Material2,Color2)
+        holo("models/props_combine/combine_mortar01b.mdl",vec(1,1,1)*0.4,vec(0,11,5),ang(0,0,90),Hip,Material1,Color3)
+        holo("models/props_combine/combine_mortar01b.mdl",vec(1,1,1)*0.4,vec(0,-11,5),ang(0,0,270),Hip,Material1,Color3)
+        holo("models/props_combine/combine_smallmonitor001.mdl",vec(0.8,0.8,1.5)*0.8,vec(-3,0,-35),ang(0,0,0),Hip,Material1,Color3)
+        holo("models/items/item_item_crate.mdl",vec(1,1,0.8)*0.6,vec(0,0,2),ang(270,0,0),Hip,Material1,Color3)
+        holo("models/props_c17/metalladder002b.mdl",vec(0.5,1,1),vec(4,0,-4),ang(0,180,0),Hip,Material1,Color3)
+        holo("models/thrusters/jetpack.mdl",vec(1,1,0.7)*1.5,vec(-15,-0.5,0),ang(0,180,180),Hip,Material3,Color2)        
+
+        ## ARMS
+        holo("models/props_combine/combine_binocular01.mdl",vec(1,1,1)*0.7,vec(0,-4,-13),ang(0,0,-20),holoEntity(900),Material1,Color3)
+        holo("models/props_combine/combine_binocular01.mdl",vec(1,1,1)*0.7,vec(0,4,-13),ang(0,0,20),holoEntity(1000),Material1,Color3)
+        holo("models/props_wasteland/light_spotlight01_lamp.mdl",vec(1,0.7,1)*1,vec(0,0,-4),ang(0,90,0),holoEntity(900),Material1,Color3)
+        holo("models/props_wasteland/light_spotlight01_lamp.mdl",vec(1,0.7,1)*1,vec(0,0,-4),ang(0,270,0),holoEntity(1000),Material1,Color3)
+        holo("models/props_interiors/furniture_couch02a.mdl",vec(1,1,0.8)*0.5,vec(0,0,3),ang(90,270,0),holoEntity(900),Material2,Color2)
+        holo("models/props_interiors/furniture_couch02a.mdl",vec(1,1,0.8)*0.5,vec(0,0,3),ang(90,90,0),holoEntity(1000),Material2,Color2)
+        holo("models/airboatgun.mdl",vec(1,1,1),vec(5,0,0),ang(0,0,0),holoEntity(1100),Material3,Color1)
+        holo("models/airboatgun.mdl",vec(1,1,1),vec(5,0,0),ang(0,0,0),holoEntity(1200),Material3,Color1)
+
+    }
+
+    body()
+
+    timer("checkfeet",1000)
+
+    rangerFilter(FT1)
+    rangerFilter(FT2)
+    rangerFilter(Hip)
+    rangerFilter(Seat)
+    rangerPersist(1)
+
+}
+
+    function void holoanim(HipR, HipP, Knee, Foot,Ta:entity){
+        Dist = holoEntity(HipR):pos() - Ta:pos()
+
+        Leng = Dist:length()
+
+        Ang1 = Dist:toAngle()
+        Ang2 = ang(asin(Leng / L), 0, 0)
+
+        Ang3 = (Ang1):setRoll(bearing(holoEntity(HipR):pos(), Hip:angles(), Ta:pos()) )
+
+        holoAng(HipR, Ang3)
+        holoAng(HipP, holoEntity(HipR):toWorld(-Ang2) )
+        holoAng(Knee, holoEntity(HipP):toWorld(Ang2*2) )
+        holoAng(Foot, Hip:angles() )
+    }
+
+    function void step(Ta:entity, R:vector){
+        D1 = vec2(Ta:pos()):distance(vec2(R))
+        Ve = (R + vec(0,0,D1/2) - Ta:pos()) - Ta:vel() * 0.2
+        Ta:applyForce(Ve * Ta:mass())
+    }
+
+    function applyTorque(TaAn:angle,Ta:entity){
+        Ve = Ta:toLocal(rotationVector(quat(TaAn)/quat(Ta))+Ta:pos())
+        Ta:applyTorque((150*Ve - 25*Ta:angVelVector())*Ta:inertia())
+    }
+
+
+    if(clk("parent")){
+        Seat:parentTo(Hip)
+    }
+
+    Driver = Seat:driver()
+
+if(!Driver){
+    if(WEAPONFIND == 0){
+        if(changed( owner():keyWalk()) & owner():keyWalk()){
+            findIncludeClass("gmod_wire_turret")
+            findInSphere(Hip:pos(),500)
+            Find1 = findClosest( Hip:pos() )
+
+            if(Find1:isValid()){
+                Find1:propFreeze(1)
+                Find1:setAlpha(0)
+                Find1:setMass(1000)
+                Find1:setPos(holoEntity(1100):toWorld(vec(0,0,0)))
+                Find1:setAng(holoEntity(1100):angles())
+                timer("parentWep1",500)
+            }
+        }
+    }
+    if(WEAPONFIND == 1){
+        if(changed( owner():keyWalk()) & owner():keyWalk()){
+            findIncludeClass("gmod_wire_turret")
+            findExcludeEntity(Find1)
+            findInSphere(Hip:pos(),500)
+            Find2 = findClosest( Hip:pos() )
+
+            if(Find2:isValid()){
+                Find1:propFreeze(1)
+                Find2:setAlpha(0)
+                Find2:setMass(1000)
+                Find2:setPos(holoEntity(1200):toWorld(vec(0,0,0)))
+                Find2:setAng(holoEntity(1200):angles())
+                timer("parentWep2",500)
+            }
+        }
+    }    
+}
+
+if(clk("parentWep1")){
+    WEAPONFIND++
+    Find1:parentTo(holoEntity(1100))
+    hint("Found: "+Find1:model() +" ["+toString(WEAPONFIND)+"]",5)
+}
+
+if(clk("parentWep2")){
+    WEAPONFIND++
+    Find2:parentTo(holoEntity(1200))
+    hint("Found: "+Find2:model() +" ["+toString(WEAPONFIND)+"]",5)
+}
+
+interval(40)
+
+    Boost = Driver:keyJump() * 25
+
+    if(changed(Boost > 0) & Boost > 0){Seat:soundPlay(5,0,SOUND_DASH), Hip:setTrails(10,206,2,"trails/smoke",vec(155,155,155),255) }
+    if(!Boost){ soundStop(5), Hip:removeTrails() }
+
+    VRANGER = rangerOffset(5000, Hip:pos(), vec(0,0,-1)):distance()
+
+
+
+    Vector = (FT1:pos() + FT2:pos()) / 2
+
+    if(!Boost){ Up = ((Vector + vec(0,0,Height)) - (Hip:pos()-vec(0,0,Offset))) * 5 }
+    
+    if(Boost > 0){ Up = Hip:up() * Boost + Hip:forward() * (W-S) * 100 }
+
+    Pa = -Hip:vel() * 0.5
+
+    Hip:applyForce((Up*2 + Pa) * Hip:mass())
+
+## Walking triggers ##
+
+    if(clk("checkfeet")){
+        timer("checkfeet",500)
+        Walk = !Walk
+    }
+
+    Vel = clamp(abs(Hip:vel():length()) + 50, 0, 90)
+
+    if(changed(Walk==1) & Walk==1){
+        if(VRANGER < 150 & !Boost & (W|S|(A|D)*Sh)){ Hip:soundPlay(1,0.4,SOUND_WALK) , Hip:soundPlay(2,0.4,SOUND_STEP)}
+        soundPitch(1,80)
+        if(!Boost & (W|A|S|D)){
+            R1 = rangerOffset(1000,Hip:toWorld(vec((W-S)*Vel,-Width + (A-D)*Vel*Sh/1.5,20)),vec(0,0,-1)):position()
+        }
+    }
+
+    if(changed(Walk==0) & Walk==0){
+        if(VRANGER < 150 & !Boost & (W|S|(A|D)*Sh)){ Hip:soundPlay(1,0.4,SOUND_WALK) , Hip:soundPlay(2,0.4,SOUND_STEP)}
+        soundPitch(1,80)
+        if(!Boost & (W|A|S|D)){
+            R1 = rangerOffset(1000,Hip:toWorld(vec((W-S)*Vel,Width + (A-D)*Vel*Sh/1.5,20)),vec(0,0,-1)):position()
+        }
+    }
+
+    if((changed(!(W-S)) & !(W-S))|changed(VRANGER < 150)&VRANGER < 150){
+        R1 = rangerOffset(1000,Hip:toWorld(vec(0,-Width*1.5,20)),vec(0,0,-1)):position()
+        R2 = rangerOffset(1000,Hip:toWorld(vec(0,Width*1.5,20)),vec(0,0,-1)):position()
+    }
+    if(Boost > 0 | VRANGER > 150){
+        R1 = Hip:toWorld(vec(20+50*(W-S),-Width*1.5,-1))
+        R2 = Hip:toWorld(vec(20+50*(W-S),Width*1.5,-1))
+    }
+
+## ApplyForce test ##
+
+    if((VRANGER < 150)|(Boost > 0 & VRANGER > 150)){
+        step(FT1, R1)
+        step(FT2, R2)
+    }
+
+## Hip and Torso rotation ##
+
+    if((W|S) & !Sh){
+        Yaw = (Yaw + (A-D)*2)%360
+    }
+
+    A1 = ang(0,Yaw,0)
+
+    applyTorque(A1,Hip)
+
+
+## Holographic animations ##
+
+    holoanim(100, 200, 300, 400, FT1)
+    holoanim(500, 600, 700, 800, FT2)
+
+## Sounds ##
+
+    if(changed(Driver)&Driver){
+        Hip:soundPlay(3,0,SOUND_PASS)
+    }
+
+    soundPitch(3,Hip:vel():length() / 25 + 50)
+
+    if((changed(!Driver)&!Driver)|last()){
+        soundStop(1)
+    }
